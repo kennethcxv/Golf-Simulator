@@ -603,7 +603,9 @@ export function makeCourseEditor(app, hooks) {
     const selectedFeature = resolveFeatureSelection(kind);
     if (!selectedFeature) {
       featureSelection[kind] = null;
-      toast(`Select a ${kind === 'water' ? 'pond, lake, or stream' : kind} first.`, 'warn');
+      toast(kind === 'water'
+        ? t('editor.selectWaterFirst')
+        : t('editor.selectFeatureFirst', { kind }), 'warn');
       renderToolPanel();
       refreshSelectedBoundaryPreview();
       return { ok: false };
@@ -1222,7 +1224,9 @@ export function makeCourseEditor(app, hooks) {
   function removeSelectedVectorFeature(kind) {
     const selectedFeature = resolveFeatureSelection(kind);
     if (!selectedFeature) {
-      toast(`Select a ${kind === 'water' ? 'pond, lake, or stream' : kind} first.`, 'warn');
+      toast(kind === 'water'
+        ? t('editor.selectWaterFirst')
+        : t('editor.selectFeatureFirst', { kind }), 'warn');
       return;
     }
     const beforePts = selectedFeature.feature.pts.map((point) => ({ x: point.x, y: point.y }));
@@ -1240,7 +1244,9 @@ export function makeCourseEditor(app, hooks) {
     }
     clearFeatureSelections(kind);
     refreshEditedFeature(kind, beforePts, []);
-    toast(`${selectedFeature.source === 'stream' ? 'Stream' : kind === 'water' ? 'Water feature' : 'Bunker'} deleted.`);
+    toast(selectedFeature.source === 'stream'
+      ? t('editor.streamDeleted')
+      : kind === 'water' ? t('editor.waterDeleted') : t('editor.bunkerDeleted'));
   }
 
   function renderToolPanel() {

@@ -42,6 +42,13 @@ export const DEFAULT_LOCALE = 'en';
 
 // The English key set. Add a key here first; the overlays below are optional.
 const EN = Object.freeze({
+  // Whole sentences, not nouns slotted into one - a translator cannot
+  // decline a fragment handed to them mid-sentence.
+  'editor.selectWaterFirst': "Select a pond, lake, or stream first.",
+  'editor.selectFeatureFirst': "Select a {kind} first.",
+  'editor.streamDeleted': "Stream deleted.",
+  'editor.waterDeleted': "Water feature deleted.",
+  'editor.bunkerDeleted': "Bunker deleted.",
   // The course editor.
   'editor.holeDeleted': "{hole} deleted.",
   'editor.undid': "Undid: {what}",

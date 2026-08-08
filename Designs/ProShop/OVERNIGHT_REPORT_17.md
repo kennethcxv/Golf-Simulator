@@ -4848,3 +4848,48 @@ but a phrase.
 ```
 
 **98 strings, 63%, translatable.** Suite 2928 pass / 0 fail.
+
+### 57 -> 54: whole sentences, not nouns slotted into one
+
+The conditional-phrase strings I named one commit ago are done, and the treatment
+is different from every batch before it.
+
+```js
+// before - a NOUN chosen inside the sentence
+toast(`Select a ${kind === 'water' ? 'pond, lake, or stream' : kind} first.`)
+
+// after - a whole sentence per case
+toast(kind === 'water'
+  ? t('editor.selectWaterFirst')                 // "Select a pond, lake, or stream first."
+  : t('editor.selectFeatureFirst', { kind }))    // "Select a {kind} first."
+```
+
+Same for the deletion line, which chose between *Stream*, *Water feature* and
+*Bunker*: **three whole sentences now**, not one sentence with a noun posted into
+it.
+
+### Why this shape needs sentences rather than placeholders
+
+A placeholder works when the value is DATA - a name, a count, a price - because
+the surrounding sentence is fixed and only the slot varies. It fails when the
+value is a NOUN, because a translator may need to change the article, the case
+or the word order to suit it. *"Select a green first"* and *"Select a pond, lake,
+or stream first"* are one sentence in English and can easily be two in another
+language.
+
+Handing over `{kind}` and hoping is how you get grammatically broken
+translations that no test can see. The remaining `{kind}` in
+`editor.selectFeatureFirst` is the one case where the value really is a feature
+NAME rather than a chosen noun, so it stays a placeholder.
+
+```
+155 -> ... -> 57 -> 54
+```
+
+**101 strings, 65%, translatable.** Suite 2928 pass / 0 fail.
+
+Three shapes have now been named and handled, and they need different fixes:
+**data** passes through a placeholder; **a token wearing a data hat** (card,
+opened) needs its own key; **a pre-assembled phrase** needs the sentence split.
+None of them is visible from outside the string - you only find them by reading
+what each interpolation actually holds.
