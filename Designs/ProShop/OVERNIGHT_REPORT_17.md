@@ -9181,3 +9181,54 @@ than less?*
 
 Suite 2929 pass / 0 fail.
 
+
+### THE CONTRAST THAT SHARPENS THE OPEN QUESTION — AND KILLS MY OWN EXPLANATION
+
+Comparing the two arms already measured, both with a matching `settle` control:
+
+```
+ARM 1 (no look)     walk 383 ms  ->  tool  339 ms
+ARM 2 (look first)  look 125 ms  ->  tool 2331 ms   (5020 with one look)
+```
+
+**In ARM 1 the walk pays the first-draw cost — 383 ms of it — and the equip is
+still cheap.** So paying first-draw beforehand does *not* inflate the equip.
+Translation pre-pays and leaves it alone; rotation pre-pays and multiplies it.
+
+**That refutes the account I gave one commit ago.** I wrote that four of five
+observations collapse into "one first-draw cost paid by whichever action reveals
+geometry first". They do — but that account also predicts ARM 1 and ARM 2 should
+behave the same way toward the equip, and they emphatically do not.
+
+The unified explanation is therefore **incomplete, not wrong**: first-draw is
+real and one-time, and something *additional* and specific to camera rotation
+attaches a large cost to the next tool equip.
+
+### What distinguishes rotation from translation here
+
+Both move the view. Both reveal geometry. The differences worth testing, and I
+am naming them rather than choosing:
+
+- **shadow cascade refitting** — this project's notes record `fitSunShadow`
+  owning `sun.target`, and a cascade refit is driven by view direction more than
+  position;
+- **frustum culling churn** — a 600 px sweep and back re-enters far more objects
+  than 4 yards of walking;
+- **the viewmodel is camera-attached**, so rotation moves the world relative to
+  it in a way translation does not.
+
+### Why I am stopping the chain here rather than testing a fourth reading
+
+Every one of those three has a satisfying story, and this session's record on
+satisfying stories is eight wrong hypotheses on the tool beat, six wrong on the
+first step, and two of my own explanations refuted within a commit of writing
+them. **The measurement that separates them is one run** — a look with the
+shadow update suppressed, or a look of one degree instead of sixty — and it
+should be made on a cold machine by someone with the runway to follow it.
+
+**What Section A hands over is not a theory. It is a controlled contrast**:
+translation-then-equip is 339 ms, rotation-then-equip is 2331–5020 ms, with a
+stable control and identical drivers apart from the single variable. That is a
+reproducible experiment, and it is worth more than the fourth explanation I
+would otherwise have written down.
+
