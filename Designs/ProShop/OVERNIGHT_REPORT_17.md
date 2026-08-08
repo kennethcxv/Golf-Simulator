@@ -8452,3 +8452,61 @@ in the equip path, and does a player pay it too?
 
 Suite 2929 pass / 0 fail.
 
+
+## SECTION A — THE 8.3-SECOND FRAME IS THE TOOL EQUIP, AND IT IS NEWLY VISIBLE
+
+Attributed the frame to its beat from the driver's own per-beat sampler:
+
+```
+beat        n   median    p95     worst   over16  over100
+settle    673      8.6   10.7      26.4        6        0
+walk      347     10.0   31.3     371.7       85        1
+door      243      4.7   17.8     419.7       25        1
+ledger    577      8.1   18.8      30.8       55        0
+tool       35     11.2   26.4    8282.8       10        1
+end        61     12.9   16.8      18.7        5        0
+```
+
+**The worst frame in the entire walk — 8.3 seconds — is in the tool beat.** Its
+median is a healthy 11.2 ms; this is one catastrophic hitch, not a slow beat.
+Only 35 frames were sampled there because a single 8.3-second frame consumes the
+wall clock.
+
+**Nothing in this report has ever measured it**, because the tool beat has never
+completed until this session. Section A closed six candidate causes for
+invariant 1 against a walk that stopped before the most expensive thing in it.
+
+### Candidates, in the order I would test them
+
+1. **Shader compilation on first draw.** C5 convicted exactly this mechanism in
+   the ledger: cloning one material took page-turn worst frame from 39 ms to
+   1673 ms. A tool viewmodel introduces several new materials at equip.
+2. **B2's 720 instanced bristles.** I raised the broom from 200 x 20 mm to
+   720 x 3.4 mm this session. The gate check after that change showed no
+   regression — **but that check ran while the tool beat was failing**, so it
+   never equipped a broom. *That clearance is now void and must be re-run.*
+3. **Authored GLB adoption work** at first equip.
+
+### The honest status of my own B2 clearance
+
+Earlier today I recorded "no clear regression" for the bristle change, based on
+a gate run comparing worst frame and over-16 counts. **That comparison never
+equipped a tool.** It was measuring everything except the thing the change
+touched.
+
+That is the eighteenth instance, and it is mine: a perfectly real measurement,
+correctly performed, whose name — "the perf risk of the bristle change" —
+described something it structurally could not observe. **B2's perf clearance is
+withdrawn** pending a re-run against the now-working beat.
+
+### What Section A gains
+
+A concrete, large, reproducible target: **8.3 seconds in the equip path**, with
+three named candidates and a first test (revert 720 -> 200, re-run the completed
+walk, compare the tool beat's worst frame) that distinguishes candidate 2 from
+1 and 3 in a single run.
+
+Invariant 1 was red all session for reasons nobody could name. It now has the
+largest single frame in the report sitting inside it, in a beat that only
+started working an hour ago.
+
