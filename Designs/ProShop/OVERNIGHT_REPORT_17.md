@@ -9629,3 +9629,56 @@ kind of question.
 
 Suite 2929 pass / 0 fail.
 
+
+## THE MATERIAL KEYS DO NOT CHANGE — SO THE +9 ARE THE SAME MATERIALS IN A SECOND PASS
+
+Sampled `programKeyBreakdown()` either side of the equip:
+
+```
+before the tool beat   total 846
+after  the tool beat   total 846      <- unchanged
+renderer.info.programs 216 -> 225     <- +9
+```
+
+**The material-derived key set is static across the equip.** Nine programs are
+created and not one new material key appears. So the +9 are **not** new
+materials — they are materials already counted, compiled again under a
+**different render condition**.
+
+### What that condition almost certainly is
+
+The tool viewmodels are drawn in their own pass with their own camera —
+`toolDrawCamera(id)` returns `toolRigs[id].vmCamera` when a rig is active
+(`courseScene.js:12383`), and `broomViewmodelCamera()` exposes another. The boot
+prewarm calls `renderer.compile(scene, camera)` with the **main** camera.
+
+A three.js program key includes the render state a material is drawn under.
+**Compiling for the main camera does not produce the programs needed for the
+viewmodel pass**, so the first frame that draws a tool through `vmCamera`
+compiles them — nine of them, once, exactly as measured.
+
+**This is stated as the reading the evidence supports, not as established.** The
+supporting observation is specific and unusual (keys flat, programs +9), and it
+explains every measurement in this thread including why the prewarm "reaches"
+the viewmodels and still misses their programs.
+
+### The test, and it is one line
+
+`renderer.compile(scene, vmCamera)` alongside the existing main-camera compile in
+the boot prewarm. If this reading is right, the tool beat's Δ falls from **+9 to
+0** and the stall goes with it. If it is wrong, Δ stays +9 and costs one run.
+
+**That single line is where the next session should start** — ahead of every
+other open item in Section A, because it is one line, the verification is already
+built, and it would close the tool half outright.
+
+### Twenty-seven instances, and what the last four cost
+
+This thread alone produced four wrong conclusions in a row — materials-don't-
+exist, the fix-that-fails-the-same-way, the correction to it, and the false
+premise under both. **Each was caught, each within one commit, none reached a
+fix.** The instrument caught up with the reasoning every time, and the reasoning
+never got to act on being wrong.
+
+Suite 2929 pass / 0 fail.
+
