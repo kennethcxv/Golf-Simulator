@@ -10036,3 +10036,55 @@ kind of number that feels like proof and is often coincidence.
 The entry above stands in the report unedited, with this correction beneath it,
 because deleting it would hide the most instructive mistake in the thread.
 
+
+## THE RE-CENSUS VINDICATES THE CHAIN — AND CONVICTS MY CODE-READING INSTEAD
+
+Re-ran the census anchored on the camera's whole subtree rather than a
+structural search for "the first Group with children":
+
+```
+BEFORE   meshes 140   materials 54   geometries 129   camChildren 2
+AFTER    meshes 194   materials 63   geometries 183   camChildren 2
+              +54          +9             +54             0
+program delta at equip: +9
+```
+
+**`camChildren` is 2 both times** — the anchor did not move, so this is one
+subtree measured twice. **+54 meshes, +9 materials, +54 geometries**, and the
+same +9 programs.
+
+**The chain stands.** My doubt was correct to raise and the check answered it in
+the original result's favour.
+
+### And the crucial new number is `geometries +54`
+
+Re-parenting moves objects; it does not create geometry. **54 new
+`BufferGeometry` objects at equip is construction, unambiguously.**
+
+Which means **my elimination of all three constructors was wrong.** I read
+`fpHands.setTool` (sets flags), the rig boot loop (builds every rig up front),
+and `setActive` (flips visibility and layers) and concluded nothing in the equip
+path constructs. The measurement says something does — in a code path I did not
+find.
+
+**Thirty-first instance, and it inverts the usual direction**: this time my
+*reading* was wrong and my *instrument* was right, after I had spent a commit
+arguing the reverse. Three careful eliminations by inspection lost to one census
+with a stable anchor.
+
+### What Section A hands over, finally and accurately
+
+**Established by measurement, twice, with stable anchors:**
+- first equip creates **54 meshes, 54 geometries, 9 materials**
+- first equip compiles **9 programs**, keys read and ordinary
+- second equip creates and compiles **nothing**, costs ~24 ms
+- six warming fixes refuted, all assuming the objects already existed
+
+**Open:** *where* the construction happens. Not fpHands.setTool, not rig
+creation, not setActive — by reading, which has now been wrong once here. The
+reliable way to find it is a breakpoint-equivalent: wrap `THREE.BufferGeometry`
+or log a stack on geometry creation during the equip window, and read the trace
+instead of the source.
+
+Suite 2929 pass / 0 fail.
+
