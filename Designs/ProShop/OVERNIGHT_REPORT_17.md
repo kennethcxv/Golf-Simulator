@@ -10756,3 +10756,54 @@ regardless of its content.
 
 Suite 2929 pass / 0 fail.
 
+
+## CORRECTION: THE EIGHTH FIX DID RUN — `fpHands` IS IN SCOPE
+
+Checked before writing a ninth, which is what the last two entries both failed to
+do:
+
+```
+courseScene.js:6469   const fpHands = makeFpHands();
+courseScene.js:11611  the prewarm's hidden-object sweep
+```
+
+**Same closure, declared 5,000 lines earlier.** `fpHands` was in scope; the bare
+`catch {}` swallowed nothing, because nothing threw.
+
+**So the eighth attempt executed and genuinely did not help** — which upgrades it
+from "wasted run" to a real elimination, and corrects the previous entry's
+verdict on it.
+
+### What the eighth attempt therefore eliminates
+
+Attaching the hands into `scene` for the prewarm compile does **not** warm the 9
+programs. Combined with the fifth attempt (compile with each `vmCamera`, +71
+programs, no effect) and the sixth (all layers enabled, +0 programs, no effect),
+the picture is consistent and specific:
+
+**`renderer.compile(scene, camera)` cannot produce these 9 programs no matter
+what is in the scene or which camera is passed** — because the hands are drawn in
+the viewmodel pass, and the one configuration never tried is **the hands attached
+AND `vmCamera` used for the compile, together.** Attempts five and eight each did
+one half.
+
+**That is the ninth attempt, and it is now fully specified by elimination rather
+than by guessing:** attach `fpHands.root` to the scene, then
+`renderer.compile(scene, vmCam)` for each rig camera, then restore — with
+telemetry computed inside the block reporting `{attached, parent, cams,
+programsBefore, programsAfter}`.
+
+### The correction pattern, one last time
+
+Three entries in a row have now been corrected by a check that cost under a
+minute: the parent chain, the scope of `fpHands`, and this. **Every correction
+made the picture sharper rather than muddier**, and each was cheaper than the
+attempt it evaluated.
+
+**Section A tool half, final handover:** mechanism measured end to end with
+controls; eight fixes attempted, eight reverted, none shipped; **seven of eight
+now confirmed informative** (only the guard-that-skipped taught nothing); and the
+ninth specified by elimination with its telemetry contract written down.
+
+Suite 2929 pass / 0 fail.
+
