@@ -391,7 +391,33 @@ async (page) => {
   await page.waitForTimeout(250);
   await page.keyboard.up(keys.toolBelt || 'f');
   await page.waitForTimeout(1500);
-  record('tool2', true, { equipped2: await page.evaluate(() => window.__fw?.scene3d?.walk?.getTool?.() ?? 'none').catch(() => null) });
+  // B1 — THE PLAYER-CAMERA CAPTURE THE RULES REQUIRE.
+  //
+  // B1's whip retune is SHIPPED (deficitBase 0.85 -> 0.25, chaseBase 5.5 -> 11.0,
+  // dragGain 0.22 -> 0.08, pushGain 2.2 -> 3.0) and measured at +35% live pixel
+  // change, reproducible within 2%. But a pixel delta is not a picture, and the
+  // RULES are explicit: a visual item without a default-camera screenshot is
+  // UNCONFIRMED.
+  //
+  // This beat already equips the mop. Hold LMB so the strands are mid-stroke
+  // rather than at rest — a still of a hanging mop proves nothing about motion —
+  // and shoot at the DEFAULT camera, untouched.
+  const equipped2 = await page.evaluate(() => window.__fw?.scene3d?.walk?.getTool?.() ?? 'none').catch(() => null);
+  if (equipped2 === 'mop') {
+    await page.mouse.down();
+    await page.waitForTimeout(700);            // mid-stroke, not at rest
+    await page.screenshot({ path: path.join(OUT, 'b1-mop-midstroke.png') });
+    await page.mouse.up();
+  }
+  record('tool2', true, {
+    equipped2,
+    b1Shot: equipped2 === 'mop' ? 'b1-mop-midstroke.png' : null,
+    b1Camera: await page.evaluate(() => ({
+      fov: window.__fw?.scene3d?.camera?.fov ?? null,
+      css: { w: window.innerWidth, h: window.innerHeight },
+      dpr: window.devicePixelRatio,
+    })).catch(() => null),
+  });
 
   out.precompile = await page.evaluate(() => window.__fw?.scene3d?.walk?.toolPrecompileInfo?.() ?? 'no accessor').catch(() => null);
   out.keysAfter = await page.evaluate(() => window.__fw?.scene3d?.programKeyBreakdown?.() ?? null).catch(() => null);
