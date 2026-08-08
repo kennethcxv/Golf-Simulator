@@ -11035,3 +11035,61 @@ number to attack.**
 
 Suite 2929 pass / 0 fail.
 
+
+## ALL NINE MATERIALS ARE STRUCTURALLY IDENTICAL — WHICH IS ITSELF THE DEFECT
+
+Printed every property that enters a three.js program cache key, for each of the
+nine distinct materials:
+
+```
+x6  FirstPersonRightHand     :: MeshStandardMaterial,smooth,side0,-,-,fog,-,-,-
+x2  FirstPersonRightCuff     :: MeshStandardMaterial,smooth,side0,-,-,fog,-,-,-
+x1  FirstPersonRightForearm  :: MeshStandardMaterial,smooth,side0,-,-,fog,-,-,-
+```
+
+**Identical on every axis**: same type, smooth shading, `side: 0`, no vertex
+colours, opaque, fog on, not instanced, not skinned, no map. **They differ only
+in colour and roughness — neither of which a program key encodes.**
+
+### So nine materials that should share one program
+
+Three.js caches programs by key and shares them across materials whose keys
+match. Nine structurally identical materials should produce **one** program, not
+nine — and the measurement says nine.
+
+Two readings, and the fix is the same either way:
+
+1. **The key includes something not printed here** (a renderer-level flag, a
+   version quirk), in which case the nine are unavoidable *as separate
+   materials*;
+2. **Nine separate `MeshStandardMaterial` objects each get their own program**
+   despite identical parameters — in which case this is straightforwardly
+   wasteful.
+
+**Either way the fix is the same: stop creating nine.** Five are declared in
+`fpHands.js` (skin, shade, cuff, cuffDark, nail) and shared across both hands;
+the other four are created somewhere else and are worth finding. And since the
+five differ only in colour and roughness, they are candidates to become **one**
+material — colour varied per mesh, or accepted as uniform.
+
+**This is the C5 answer applied to Section A**: when warming fails, reduce what
+needs warming. Nine attempts to compile these programs early all failed; **one
+change that makes them a single program removes the problem instead of hiding
+it.**
+
+### Section A tool half — the final, complete handover
+
+**Measured with controls, every count matched:** 54 hand meshes, 54 geometries,
+9 distinct materials, 9 programs, one-to-one; first equip 333-7855 ms; second
+equip 0 new, 0 compiled, ~24 ms; the hands live outside the scene until equip.
+
+**Eliminated:** pre-compilation as a family (nine attempts, all reverted);
+material sharing across hands (already done); the hands as *partial* cause (they
+are the whole cause); textured materials (there are none).
+
+**The remaining fix, specified:** collapse the nine structurally identical
+materials. Verification already built and run thirteen times — equip Δ must fall
+**+9 -> 0**.
+
+Suite 2929 pass / 0 fail.
+

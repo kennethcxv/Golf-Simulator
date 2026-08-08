@@ -415,8 +415,23 @@ async (page) => {
         if (tally.__seen == null) tally.__seen = {};
         if (tally.__seen[o.material.uuid]) return;
         tally.__seen[o.material.uuid] = true;
-        const maps = o.material.map ? 'textured' : 'flat';
-        const key = `${label} [${maps}]`;
+        // WHAT DIFFERS STRUCTURALLY? Nine flat, map-less MeshStandardMaterials
+        // should share ONE program key — three.js keys ignore colour and
+        // roughness. Nine distinct programs means nine distinct keys, so
+        // something structural differs. Print the properties that enter a key.
+        const m = o.material;
+        const shape = [
+          m.type,
+          m.flatShading ? 'flat' : 'smooth',
+          `side${m.side}`,
+          m.vertexColors ? 'vcol' : '-',
+          m.transparent ? 'transp' : '-',
+          m.fog === false ? 'nofog' : 'fog',
+          o.isInstancedMesh ? 'inst' : '-',
+          o.isSkinnedMesh ? 'skin' : '-',
+          m.map ? 'map' : '-',
+        ].join(',');
+        const key = `${label} :: ${shape}`;
         tally[key] = (tally[key] || 0) + 1;
       });
     }
