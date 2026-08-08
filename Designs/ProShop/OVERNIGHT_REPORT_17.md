@@ -13633,3 +13633,48 @@ six mechanisms eliminated under controls** (shadow bakes, culling/LOD, geometry
 volume, GC, texture uploads, and now draw submission and the post chain).
 
 Not fixed. Bounded, and pointed at a half of the frame nobody had looked in.
+
+
+## THE DOM HUD IS WORTH 6.7 OF THE 23 POINTS
+
+The non-render 90% is either game update or the browser's own work on the DOM
+overlay above the canvas. The overlay is the cheaper half to test and the more
+suspicious: it is composited every frame and carries more indoors than out.
+
+Three windows in one run — shown, hidden, shown — so the restore is a drift
+control. Hidden by a class-agnostic rule (every direct child of `<body>` that is
+not the canvas), and the hiding is **verified rather than assumed**:
+`stillVisibleWhileHidden: 0` across 5 elements.
+
+| window | median | over 16.7 ms |
+|---|---|---|
+| HUD shown | 5.6 ms | **23.3%** |
+| HUD hidden | 7.5 ms | **17.0%** |
+| HUD shown again | 5.9 ms | **24.1%** |
+
+**Drift control gap 0.8 points. Effect: 6.7 points.**
+
+So the DOM overlay is worth about **29% of invariant 1's failures indoors** —
+the largest single contributor found so far, three times the shadow bake's 1.2
+points, and it costs nothing in draw calls because it is not drawn by the
+renderer at all.
+
+Note the median moves the *other* way — 5.6 up to 7.5 with the HUD gone. Removing
+a compositor layer changes how frames are paced as well as how long they take, so
+the median and the tail are not telling the same story here. **The tail is the one
+invariant 1 is about.**
+
+### The running tally for invariant 1, indoors
+
+| cause | points of ~23 |
+|---|---|
+| DOM HUD style/layout/composite | **6.7** |
+| shadow bakes | 1.2 |
+| **still unattributed** | **~15** |
+
+Eliminated with controls: culling/LOD, geometry volume, GC, texture uploads, draw
+submission, the post chain.
+
+**17% of frames still miss the budget with no HUD at all**, so the overlay is a
+real target and not the answer. The next place to look is the game update itself,
+which is the only large part of the frame never yet measured.
