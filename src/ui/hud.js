@@ -64,11 +64,29 @@ export function makeHud(app, handlers) {
   let lastCash = '';
   let lastContext = '';
   let lastModifiers = '';
+  let lastRootDisplay = null;
   function update() {
     if (!app.state) return;
     const mode = handlers.getPresentationMode?.() || 'walk';
     const quiet = ['pause', 'laptop', 'register', 'course-editor'].includes(mode);
-    root.style.display = quiet ? 'none' : '';
+    // THE ONE UNGUARDED WRITE ON A PATH THAT GUARDS EVERYTHING ELSE.
+    //
+    // Every textContent write below sits behind a change check, with a comment
+    // saying why: "this runs every frame — only touch the DOM when the number
+    // actually moved". This line did not, and it is the write with the widest
+    // blast radius: assigning to `style.display` on the HUD ROOT dirties style
+    // resolution for the whole overlay subtree, every frame, to set it to the
+    // value it already had.
+    //
+    // Measured (tools/qa/electron-a1-hud-cost.js): hiding the entire overlay
+    // indoors takes frames over 16.7 ms from 23.3% to 17.0% — the DOM overlay is
+    // 6.7 of invariant 1's ~23 points, the largest single cause found, and it
+    // costs zero draw calls because the renderer never draws it.
+    const wantDisplay = quiet ? 'none' : '';
+    if (wantDisplay !== lastRootDisplay) {
+      lastRootDisplay = wantDisplay;
+      root.style.display = wantDisplay;
+    }
     if (quiet) return;
     const cal = calendarOf(app.state.clock.minutes);
     const glyph = ['⏸', '▶'][app.speedIdx] || '▶' || '▶';

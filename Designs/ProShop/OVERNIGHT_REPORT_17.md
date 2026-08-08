@@ -13732,3 +13732,40 @@ Eight mechanisms eliminated under controls. Two candidate fixes built to the
 point of measurement and refused by their own evidence. **No fix shipped, and
 none of the obvious ones would have worked** — which is worth more than a fix
 that moved a number without moving the experience.
+
+
+## THE HUD'S ONE UNGUARDED WRITE — 6.7 POINTS DOWN TO 5.0
+
+`hud.js`'s `update()` runs every frame and guards every text write behind a
+change check, with a comment saying exactly why: *"this runs every frame — only
+touch the DOM when the number actually moved"*.
+
+One line did not follow it:
+
+```js
+root.style.display = quiet ? 'none' : '';
+```
+
+Unconditional, every frame, on the **HUD root** — the write with the widest blast
+radius in the file, dirtying style resolution for the whole overlay subtree in
+order to set it to the value it already had. Every other write on the path,
+including `modifiers.style.display` twelve lines below, is guarded.
+
+Guarded it the same way the file already guards everything else.
+
+| | HUD's own measured cost |
+|---|---|
+| before | **6.7 points** |
+| after, run 1 | **5.0 points** |
+| after, run 2 | **5.0 points** |
+
+The post-fix value reproduces **exactly**, and within-run drift controls were 0.1
+and 0.7 points. **Stated honestly: one pre-fix sample against two post-fix ones,
+so the 1.7-point improvement is a single-sample comparison** — but the post-fix
+figure landing on 5.0 twice says the instrument is reading something stable, and
+the change is right on its own merits whatever the size: it makes the one
+unguarded write match the pattern its own function documents.
+
+The HUD is still 5.0 points of ~23. The rest of its cost is the overlay's
+compositing rather than any write this file makes, and that is a layer/CSS
+question, not a JavaScript one.
