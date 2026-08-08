@@ -103,6 +103,31 @@ async (page) => {
   ).then(() => true).catch(() => false);
   await page.waitForTimeout(1500);
 
+  // G5: FORCE THE COIN CASE RATHER THAN WAITING FOR IT.
+  //
+  // Coins reach the desk in ~13.5% of tenders, because only totals whose cents
+  // are makeable from quarters, dimes and nickels qualify. Waiting for that by
+  // chance would need many slow customer cycles; setting prices so the total
+  // ends in a multiple of 5 cents makes the case DETERMINISTIC, and the question
+  // G5 actually asks is whether coins appear on the desk AT ALL - not how often.
+  //
+  // The rng is pinned too, so the coin branch is taken rather than the
+  // round-up-to-the-next-note branch. Both are legitimate player behaviours;
+  // this run is testing that the first one renders.
+  out.pricedForCoins = await page.evaluate(() => {
+    const tx = window.__fw.scene3d.clubhouse().register.getTx();
+    if (!tx) return null;
+    // 12.40 + 9.35 = 21.75 - cents 75, payable in three quarters
+    const prices = [12.40, 9.35];
+    tx.items.forEach((item, i) => {
+      const p = prices[i] ?? 5.00;
+      item.price = p;
+      item.priceCents = Math.round(p * 100);
+    });
+    tx.rng = () => 0.2;   // under 0.55: takes the pay-the-cents-in-coins branch
+    return tx.items.map((i) => i.price);
+  });
+
   // DRIVE THE SCAN. The tender only exists after the goods are rung up, and
   // click-to-bag is the shipped verb: project the item to the screen, click it,
   // wait for the register to mark it scanned AND bagged. Lifted from
@@ -214,6 +239,8 @@ async (page) => {
     laidAfterHolding: modes.indexOf('CashLaid') > modes.indexOf('PayCash')
       && modes.includes('PayCash') && modes.includes('CashLaid'),
     // G5: coins on the desk, not only notes
+    pricedForCoins: out.pricedForCoins,
+    tendered: out.onDesk.tendered ?? null,
     coinKindsOnDesk: out.onDesk.coinKinds ?? null,
     coinPiecesOnDesk: out.onDesk.coinPieces ?? null,
     cameraUntouched: out.camera,

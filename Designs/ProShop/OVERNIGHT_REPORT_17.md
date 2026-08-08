@@ -5610,3 +5610,43 @@ false, which forced the question of why the ordering could not be seen.
 
 **Three visual items now clear the brief's bar**, from zero this morning - and
 the scenario driver that unlocked the last one can reach the remaining two.
+
+### G5 - HALF CONFIRMED, AND THE HALF THAT IS NOT IS NAMED
+
+Forced the coin case deterministically: prices set to **12.40 + 9.35 = 21.75**,
+whose 75 cents are payable in three quarters, with `tx.rng` pinned under the
+0.55 threshold so the coin branch should be taken.
+
+```
+pricedForCoins: [12.4, 9.35]      due 21.75
+tendered: { "10": 1, "20": 1 }    = $30.00 in notes
+coinKindsOnDesk: 0
+```
+
+### What this DOES confirm
+
+G5 names **two** behaviours: *"round notes, plus coins for an odd amount, OR
+round up to the next note."*
+
+A **$21.75 bill paid with a $20 and a $10** is the second one, exactly. That is
+not a failure - it is one of the two behaviours the brief asks for, observed on
+a live desk with real denominations. **"The amounts are realistic" is confirmed:
+nobody handed over $21.75 to get nothing back, and nobody produced shrapnel.**
+
+### What it does NOT confirm, and why
+
+**The coin branch did not fire.** `tx.rng = () => 0.2` should have selected it, so
+one of these is true and I ran out of room to determine which:
+
+1. `customerCash` uses a different rng than `tx.rng` - the register may pass its
+   own source
+2. the tender was computed BEFORE my price edit landed, making the pinned prices
+   irrelevant to a stack that was already chosen
+
+**Both are answerable by logging inside `customerCash`**, which is a five-minute
+diagnostic and the obvious next move. I am not guessing between them - the same
+rule that stopped me publishing a false G4.1 defect and a false HUD overlap.
+
+**G5: the round-up behaviour is CONFIRMED live. The coins-on-the-desk half
+remains UNCONFIRMED**, with the mechanism to force it identified and the two
+candidate reasons it did not fire written down.
