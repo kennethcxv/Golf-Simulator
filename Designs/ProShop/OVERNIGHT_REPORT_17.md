@@ -7560,3 +7560,51 @@ lead with the exact file and mechanism, not as a result.
 Fourth consecutive run at this figure. Invariant 1 remains the only red item and
 is unchanged since Section A.
 
+
+## SECTION H — AUDITED, AND MY OWN EARLIER AUDIT WAS RIGHT BY ACCIDENT
+
+Re-checked H item by item, and the marker scan that produced "H 4 of 4" earlier
+in this report **was matching the wrong things**:
+
+```
+H1  ->  "H1 par 4"                  a GOLF HOLE name
+H2  ->  "H2: the game saves by..."  an autosave note from a different goal
+H3  ->  "H3 (Goal 17) — THE TORSO WAS WIDER THAN THE BELT"   genuine
+H4  ->  "H4 (Goal 17) — THE POP WAS HAPPENING AT..."         genuine
+```
+
+Two of the four were false positives. Searching by SUBJECT instead of by label
+finds the real work:
+
+- **H1** — `characterAsset.js:786`: *"shirt 1.0x bob, stomach 0.7x, belt and
+  buckle never, hips never"*. Differential bob rates per body part, which is the
+  pumping-and-detaching fix.
+- **H2** — `characterAsset.js:228`: quotes the complaint verbatim and resolves it
+  in millimetres — features seated against the skull's nominal 0.155 radius while
+  the skin actually draws at ~0.1521, leaving them 1.7 mm proud. Fixed by moving
+  the seat rather than re-seating each feature.
+- **H3** — the torso was wider than the belt.
+- **H4** — the fine-detail meshes switched off at 4.5 yd and back at 4.0 yd, with
+  hysteresis, so the pop landed at conversational distance.
+
+**All four are genuinely worked. The conclusion was right and the method was
+broken**, which is worth more attention than a wrong conclusion would be: a
+method that returns the right answer for the wrong reason will keep being
+trusted until the day it does not.
+
+**Twelfth instance in this report, and the second one that was mine** — after
+the missing-key probe that counted 117 by testing "French equals English". Both
+were my own instruments, both over-counted, and both were caught only because I
+looked at what they actually matched rather than at their totals.
+
+### The pattern, in its final form
+
+Twelve times in one session, something believed about this codebase failed a
+thirty-second check. Five stale tracking entries. Four instrument names that
+outlived their scope. Two of my own scans that counted the wrong things. One
+conclusion drawn from an asset about a game.
+
+**Not one of them was a careless measurement.** Every number was correct. What
+failed each time was the sentence placed next to the number — and the reason
+they survive is precisely that the number beside them is right.
+
