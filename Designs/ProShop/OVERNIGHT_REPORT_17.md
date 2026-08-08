@@ -8171,3 +8171,58 @@ one, and not any of the four I proposed.
 
 Suite 2929 pass / 0 fail.
 
+
+## SIXTH HYPOTHESIS, ALSO WRONG — AND THE HONEST STATE OF THIS THREAD
+
+Measured what the driver actually equips: **`getTool()` -> `"none"`.** No tool
+at all — so the off-by-one theory (that `'4'` selected the dustpan) is dead too.
+Nothing was equipped.
+
+The sequence looked like the answer: `down('f')` → wait → **`up('f')`** → read
+the wheel → press a number. The belt is hold-to-open, so releasing closes the
+wheel and the number key would arrive after there was nothing to select from.
+
+**Fixed the ordering — select while held, release after — and the beat still
+fails. `equipped` is still `"none"`.**
+
+The ordering was genuinely wrong and is now right, and it was **not the cause**.
+Number keys are simply not how this wheel selects.
+
+### The scoreboard, stated plainly
+
+```
+1  the walk never picks up a tool           WRONG
+2  headAboveFloor is null - it's on turf    WRONG   (boards, -1.4402931)
+3  the socketRefs.found guard failed        WRONG   (found true, value -0.25)
+4  the authored asset never adopted         WRONG   (all nine ok:true)
+5  off-by-one in the wheel key mapping      WRONG   (equipped "none", not dustpan)
+6  the wheel was closed before selecting    WRONG   (fixed; still "none")
+```
+
+**Six hypotheses. Six wrong.** Each was well-evidenced, each was tested, and
+each died to a measurement. I do not have a seventh worth writing down, and
+inventing one now would be the behaviour this whole report argues against.
+
+### What is actually established, and it is not nothing
+
+- **The broom rig is healthy.** `shaftDrop −1.359`, `headAboveFloor −0.25`,
+  sockets resolved, asset adopted. Every worry about B4's subsystem raised by
+  this beat is retired.
+- **The failure is entirely in the QA driver**, not the game.
+- **`toolIsLive` fails on its `getTool()` condition**, not its rig condition.
+- **The tool wheel does not respond to number keys** the way this driver assumes
+  — which is the next thing to read, in `src/ui/` where the wheel is built.
+
+### What this thread cost and produced
+
+It cost most of this session's remaining runway. It produced four instruments
+that did not exist this morning — failure reasons on the beat, surface stood on,
+per-tool adoption results, and equipped-tool readback — and it **cleared the
+broom rig of six separate accusations**, one of which (B4's subsystem) I had
+been ready to open surgery on.
+
+**Invariant 1's frame numbers were never in question.** The beat that appeared to
+undermine them was measuring the driver, not the game.
+
+Suite 2929 pass / 0 fail.
+

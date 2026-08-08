@@ -158,10 +158,21 @@ async (page) => {
 
   // 5. A TOOL, through the real wheel
   await beat('tool');
+  // THE BELT IS HOLD-TO-OPEN, SO THE SELECTION MUST HAPPEN WHILE IT IS HELD.
+  //
+  // This used to press the belt key, RELEASE it, and only then read the wheel
+  // and press a number. Releasing closes the wheel, so the number key arrived
+  // after there was nothing to select from: measured `getTool()` -> "none",
+  // no tool equipped at all.
+  //
+  // That single ordering mistake is the whole of this beat's failure. It cost
+  // five hypotheses — turf, unadopted assets, a failed socket lookup, a broken
+  // rig, an off-by-one in the key mapping — and every one of them was about the
+  // GAME. The rig was healthy the entire time: shaftDrop -1.359, headAboveFloor
+  // -0.25, a broom correctly hanging head-down. The driver simply shut the
+  // wheel before choosing.
   await page.keyboard.down(keys.toolBelt || 'f');
   await page.waitForTimeout(450);
-  await page.keyboard.up(keys.toolBelt || 'f');
-  await page.waitForTimeout(300);
   const items = await page.evaluate(() => {
     const el = document.querySelector('.tool-wheel');
     return el ? [...el.querySelectorAll('.tool-wheel-item')]
@@ -182,6 +193,9 @@ async (page) => {
   const at = items.findIndex((l) => /broom/i.test(l));
   const wheelOpened = items.length > 0;
   if (at >= 0) await page.keyboard.press(String(at === 9 ? 0 : at + 1));
+  await page.waitForTimeout(250);
+  // released only AFTER the choice is made
+  await page.keyboard.up(keys.toolBelt || 'f');
   await page.waitForTimeout(1200);
   const live = await boot.toolIsLive(page, 'broom').catch(() => ({ ok: false }));
   // BOARDS OR TURF, because toolIsLive's readiness proxy is `headAboveFloor !=
@@ -201,6 +215,7 @@ async (page) => {
   record('tool', live.ok === true, {
     held: live.held ?? null,
     stoodOn: stood,
+    equipped: await page.evaluate(() => window.__fw?.scene3d?.walk?.getTool?.() ?? "none").catch(() => null),
     rigDiag: await page.evaluate(() => { const d = window.__fw?.scene3d?.walk?.toolRigDiagnostics?.("broom"); return d ? { shaftDrop: d.shaftDrop, headAboveFloor: d.headAboveFloor, assetHeadWorldY: d.assetHeadWorldY, assetGripWorldY: d.assetGripWorldY, keys: Object.keys(d).length } : null; }).catch(() => null),
     authored: await page.evaluate(() => window.__fw?.scene3d?.walk?.toolAuthoredResults?.() ?? "no accessor").catch(() => null),
     // why it failed, in the artifact, instead of nowhere
