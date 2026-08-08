@@ -6707,3 +6707,59 @@ separate a 3% tick from noise, and I am not going to spend the claim.
 Gate holds at 9 pass, 1 FAIL, 0 unchecked. Invariant 1 stays red on its own
 merits, unchanged since Section A.
 
+
+## B4 — LOCATED PRECISELY, AND DELIBERATELY NOT EDITED
+
+*"The rig plants the tool head on the floor regardless of whether the handle can
+physically reach. That is why the plant number read 0.073-0.084 for every
+candidate in your sweep including one two yards below the eye."*
+
+### What exists already
+
+`src/render3d/broomViewmodel.js:863` holds a grip ceiling:
+
+```js
+if (pitch > 0 && feel.anchor !== 'carry') {
+  const reachLimit = floorWorldY + hover + gripLen * 0.985;
+  ...soft-ease _gripCam.y down toward reachLimit
+}
+```
+
+That is genuinely the reach constraint — `gripLen * 0.985` is the handle's span
+— but it solves the problem from the wrong end. **It moves the HANDS so the
+plant becomes reachable. It never refuses a plant.** The head is placed on the
+floor first and the body is bent to justify it.
+
+Which is exactly the reported symptom: if the head always lands on the floor and
+the hands are dragged to wherever they must be, then the plant number is a
+CONSTANT of the floor height, not a function of the candidate — 0.073-0.084 for
+every candidate, including one two yards below the eye, because the candidate
+was never an input to the answer.
+
+It is also gated `pitch > 0`, so the whole below-horizon working range — where
+a mop and broom actually live — has no reach constraint at all.
+
+### Why I stopped here
+
+The fix is a conditional plant: compare the head-to-grip distance against
+`gripLen` and let the head come OFF the floor when the handle cannot span,
+rather than capping the hands. That is a change to live rig math that feeds the
+hand IK, the contact test at `courseScene.js:8683`, and the A8 hand-visibility
+invariant the gate checks — and I do not have the context left to measure it.
+
+**An unmeasured edit here is the exact failure this report has catalogued nine
+times.** The rig has already produced one fix that created its own bug: the
+comment at line 875 records the cap solving the head number perfectly (0.600 yd
+at every pitch, zero lift) and simultaneously pushing the hands out of frame at
++1.00 rad, "a brown stick floating in front of the ceiling with nothing holding
+it. That is its own bug, and it is one the cap created."
+
+Making a second unverified change to the same math, with no runway to watch a
+control fail, would be adding to that pattern rather than closing it.
+
+**B4 status: NOT FIXED.** The location is exact, the mechanism is understood,
+and the reason the sweep read constant is explained. The next session starts at
+`broomViewmodel.js:863` with a driver that sweeps candidate head positions and
+asserts the plant number VARIES with them — which is the check that should have
+existed before the original sweep was believed.
+
