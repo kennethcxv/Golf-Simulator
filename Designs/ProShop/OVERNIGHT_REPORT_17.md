@@ -12222,3 +12222,49 @@ implementation deliberately deferred for want of evidence.
 
 Suite 2933 pass / 0 fail. Gate 9/1/0. Tree clean.
 
+
+## E1 / A4 — LARGELY FIXED ALREADY, AND BY THE VERY PREWARM THAT CANNOT REACH THE HANDS
+
+E1 says only *"Switching presets lags. See A4."* A4 is worked, and
+`main.js:1761` records the arc with numbers:
+
+```
+before A1   Ultra   5197.5 ms worst frame, program count STILL changing
+                    16.7 SECONDS after the click
+            Low     blocked so hard not one animation frame ran in 600 ms
+
+after A1    Ultra   71-77 ms worst frame, NO program changes at all
+            Low     1586-1591 ms, settling by 2.7-3.4 s
+```
+
+**Ultra improved roughly seventy-fold.** Low is still ~1.6 s and is the honest
+remainder of E1.
+
+### And the cause of the improvement is the thread this session lived in
+
+**A1's load-time warm of the 701 hidden objects** — the boot prewarm — is what
+fixed preset switching. It is the same prewarm I spent fourteen attempts failing
+to make reach the first-person hands.
+
+**That is the cleanest possible statement of tonight's central finding.** The
+prewarm works. It demonstrably eliminated a 5,197 ms stall and 16.7 seconds of
+trailing compilation. It cannot touch the hands **for one reason only: the hands
+are not in the scene when it runs.** Everything else about them — materials,
+layers, cameras, shadows — was eliminated as a factor.
+
+The mechanism was never in doubt. **Membership was.**
+
+### Section E, complete
+
+- **E1** largely fixed via A4/A1 (Ultra 5197 -> 71-77 ms); Low's 1.6 s remains.
+- **E2** diagnosed to two exact lines; deliberately not changed without shots.
+- **E3** padding fixed under D5; class permanently guarded; shots outstanding.
+- **E4** verified across all three surfaces from source; shots outstanding.
+- **E5** delivered: 232 keys, 51.1% dictionary, **5.0% honest**; blocker removed;
+  enum leak fixed.
+
+**Every item in Section E is now either resolved, measured, or diagnosed to a
+line.** None is unexamined.
+
+Suite 2933 pass / 0 fail. Gate 9/1/0. Tree clean.
+
