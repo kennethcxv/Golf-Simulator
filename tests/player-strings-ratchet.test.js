@@ -20,7 +20,9 @@
 // the other locales report their true fraction.
 //
 // Started at 155: 146, 119, 94, 90, 85, 83, 78, 72, 68, 63, 57, 54, now 45.
-// Measured when this was written: 45 raw literals at player-facing sinks,
+// 45 became 50 when `shop.log.unshift` joined the sink list - not a regression,
+// a correction: those five were always raw and the scanner could not see them.
+// Measured when this was written: 50 raw literals at player-facing sinks,
 // 0 wrapped in t(). Translating those is a real piece of work and not one to
 // start at the end of a session.
 //
@@ -40,11 +42,18 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 // Sinks whose first argument is read by the player as prose.
-const SINK = /\b(toast|announce|setPrompt|setHint)\s*\(\s*(['"`])/g;
+// SINKS, and the list is the thing most likely to be incomplete.
+//
+// It started as toast|announce|setPrompt|setHint and MISSED `shop.log.unshift`
+// entirely - the activity feed the player reads on the laptop. Five strings hid
+// behind that gap for the whole session, and every "N remaining" figure I
+// reported was an undercount. A ratchet is only as honest as its sink list, and
+// a sink nobody thought of is invisible in exactly the way a broken regex is.
+const SINK = /(toast|announce|setPrompt|setHint)\s*\(\s*(['"`])|log\.unshift\(\s*(['"`])/g;
 const WRAPPED = /\b(toast|announce|setPrompt|setHint)\s*\(\s*t\(/g;
 
 // The measured state on the day this was written. Lower it when you wrap some.
-const BASELINE = 45;
+const BASELINE = 50;
 
 function jsFiles(dir) {
   const out = [];
