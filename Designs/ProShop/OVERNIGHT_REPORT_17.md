@@ -14293,3 +14293,38 @@ should not be deleted as "no longer needed" now that the page is quiet.
 
 **Watched failing**: with the floor guard removed, assertion 1 fails; with the
 literal 7 restored to the painter, assertion 3 fails. 2 of 4 red.
+
+
+## C5 — THE RIBBON IS OUT OF THE TEXT, AND THE DYE DECLINED ITSELF
+
+Photographed at the default camera, the previous fix had moved the ribbon but not
+far enough: **it still lay ON the left page, over the value column**, with *"not
+said yet"* reading straight through it. The complaint is that it sits in the
+middle, and **near-the-gutter-but-still-on-the-page is the same complaint with a
+smaller number.** 0.55 of a ribbon-width became 1.55; the after picture shows it
+in the crease with the column clear.
+
+### The dye is the more interesting half
+
+The file's own note said the choice was clone-or-nothing: re-dyeing meant cloning
+the material, a clone is a new material, a new material is a new program, and
+A3's law makes that a compile stall — measured here as page-turn worst frames
+going from 39/49 ms to **1674/186/579** across three runs. So the dye was dropped.
+
+**Clone-or-nothing was a false choice.** If no other mesh uses that material, its
+colour can be **mutated in place**: same material, same program, same cache key,
+nothing to compile. So the sharing is now *counted*, and the dye applies only
+when the count is 1.
+
+**It came back greater than 1.** The ribbon shares its material with other meshes
+— unsurprising for a GLB whose ribbon is a generated page-block layer called
+`LB_LayerR0_3` — so the guard declined, recorded `glbNodes.ribbonSharers`, and
+left the colour alone. The after picture confirms it: still pale mint.
+
+**That is the guard working, not failing.** Mutating a shared material would have
+re-dyed whatever else holds it, somewhere nobody is looking, which is worse than
+a flat ribbon. And it is an honest null: *"it looks bad"* stays partly open, for
+a reason now recorded **in the code** rather than in a comment's memory.
+
+The remedy the original note already named is the only one left: **recolour the
+shared material at build time in Blender**, where it costs nothing at runtime.

@@ -432,7 +432,15 @@ export function createLedgerBook({ THREE, state, anchor, counterTop, camera = nu
       // gutter onto the facing page
       mesh.position.x = bb.min.x + bb.max.x;
       // tucked toward the crease, out of the text it was lying across
-      mesh.position.x -= (bb.max.x - bb.min.x) * 0.55;
+      //
+      // 0.55 of a ribbon-width was not enough. Photographed at the default
+      // camera, the ribbon still lay ON the left page, over the value column —
+      // "not said yet" read straight through it. The complaint is that it sits
+      // in the middle, and near-the-gutter-but-still-on-the-page is the same
+      // complaint with a smaller number. A further full width puts it in the
+      // crease itself, which is where a ribbon actually lies when a book is
+      // open, and leaves the whole column clear.
+      mesh.position.x -= (bb.max.x - bb.min.x) * 1.55;
       // THE MATERIAL CHANGE IS NOT SHIPPED, AND THE REASON IS MEASURED.
       //
       // Re-dyeing the ribbon meant cloning its material, and a cloned material
@@ -448,6 +456,36 @@ export function createLedgerBook({ THREE, state, anchor, counterTop, camera = nu
       // so the dye is dropped and the geometry - which is the substance of C5 -
       // ships on its own. Re-dyeing properly means recolouring the SHARED
       // material at build time in Blender, where it costs nothing.
+      // ...AND THE DYE SHIPS AFTER ALL, BECAUSE THERE WAS A THIRD OPTION.
+      //
+      // The note above is right that CLONING the material is a new material, a
+      // new program and a compile stall — A3's law, and it was measured here.
+      // But clone-or-nothing was a false choice. If no other mesh in the open
+      // book uses this material, its colour can be MUTATED IN PLACE: same
+      // material, same program, same cache key, nothing to compile.
+      //
+      // The sharing is counted rather than assumed, because mutating a shared
+      // material would re-dye whatever else holds it — a silent visual change
+      // somewhere nobody is looking, which is worse than a flat ribbon.
+      let sharers = 0;
+      openNode.traverse((o) => {
+        if (!o.isMesh || !o.material) return;
+        const list = Array.isArray(o.material) ? o.material : [o.material];
+        if (list.some((m) => m === mesh.material)) sharers += 1;
+      });
+      if (sharers === 1) {
+        // Silk, not felt: darker dye, and smooth enough to catch the reading
+        // light along its length. This is the whole of "it looks bad" that the
+        // geometry move could not reach.
+        mesh.material.color.setHex(0x2f5d43);
+        mesh.material.roughness = 0.42;
+        glbNodes.ribbonDyed = true;
+      } else {
+        // Left alone on purpose, and recorded so the next reader knows this was
+        // a decision rather than an oversight.
+        glbNodes.ribbonDyed = false;
+        glbNodes.ribbonSharers = sharers;
+      }
       glbNodes.ribbon = mesh;
     }
 
