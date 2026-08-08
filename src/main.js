@@ -360,6 +360,17 @@ function carriedThing() {
     const book = app.scene3d?.clubhouse?.()?.ledgerBook;
     if (book?.isCarried?.()) return 'ledger';
   } catch { /* no clubhouse in this scene */ }
+  // D4's audit found a THIRD carry notion nobody had joined up: loose GOODS,
+  // tracked in `state.shop.stocking` rather than by either of the other two
+  // systems. `carriedBox(state) || carriedGoods(state)` appears together three
+  // times in clubhouse.js, which is the shape of a family that was known about
+  // locally and never given one name.
+  // The path is `state.shop.carry` - read from sim/stocking.js's own
+  // `carriedGoods()` rather than guessed at. My first attempt wrote
+  // `shop.stocking.carried`, which is a plausible name for a field that does
+  // not exist, and would have made this branch permanently false while looking
+  // completely reasonable.
+  if (app.state?.shop?.carry) return 'goods';
   return null;
 }
 

@@ -97,7 +97,14 @@ const TEN = [
   {
     n: 6,
     text: 'Nothing carried is ever left floating, unputdownable, or allows a tool swap',
-    check: () => ({ ok: null, detail: 'NO CHECK EXISTS - this is section D and it is unstarted' }),
+    // D4 (Goal 17) wrote this one. tests/carryable-system.test.js runs inside
+    // the suite and pins all three clauses: one predicate covering every carry
+    // system, the belt refusing on BOTH its paths, and every station boundary
+    // putting carried things down.
+    check: () => ({
+      ok: results[0].ok,
+      detail: 'tests/carryable-system.test.js - one predicate over cartons, the ledger and loose goods; belt guarded on both paths; station boundaries put down',
+    }),
   },
   {
     n: 7,

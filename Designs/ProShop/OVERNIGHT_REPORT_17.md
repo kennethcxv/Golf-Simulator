@@ -1784,6 +1784,79 @@ a clip says otherwise.
 
 ---
 
+# SECTION D — CARRYING THINGS
+
+## D1-D4 — one system, and the audit found a third carryable nobody had joined up
+
+### D4's list, which is what the section actually needed
+
+The brief says "audit every carryable object... report the full list". Carrying
+was **never one mechanism** - the explain-back predicted that before any code
+was read, and it is worse than predicted. **Three** independent notions:
+
+| # | carryable | how it is tracked | knew about the others? |
+| --- | --- | --- | --- |
+| 1 | delivery **cartons** | `boxPlacementMode.hasCarriedBox()` + `box.loc === 'carried'` in save state | no |
+| 2 | the **ledger book** | `ledgerBook.setCarried()` / `isCarried()` | no |
+| 3 | loose **goods** | `state.shop.carry`, via `sim/stocking.js` `carriedGoods()` | no |
+
+The third is the one the audit earned. `carriedBox(state) || carriedGoods(state)`
+appears **three times** in `clubhouse.js` - a family that was known about
+locally, written out longhand each time, and never given a name. Nothing outside
+those three lines knew goods could be carried at all.
+
+`carriedThing()` is now that name, and adding a fourth carryable is one line
+there rather than four call sites to remember.
+
+**And I got its path wrong on the first attempt** - I wrote
+`state.shop.stocking.carried`, a plausible name for a field that does not exist,
+which would have left the branch permanently false while looking entirely
+reasonable. Reading `sim/stocking.js` gave `state.shop.carry`. A guess that
+cannot fail loudly is the worst kind.
+
+### D1 — the mechanism, found rather than guessed
+
+The carried ledger is positioned every frame by `followCarry`, driven from
+`walk.x/walk.z/walk.yaw`. **Enter a station and the walk controller stops
+driving those, so the book simply stops** - hanging at waist height wherever the
+player last stood. That is the brief's sentence verbatim.
+
+It is not a bug in carrying. It is a bug at the **station boundary**, which
+means every station is somewhere a carried thing can be stranded and fixing the
+cashier alone would have left the class untouched - exactly what the explain-back
+predicted. `putDownCarried()` now runs before a station takes the camera.
+
+### D2 — no new key was needed
+
+The verb already existed and the HUD already taught it (**"Z set down"**); it
+simply only ever asked the carton system. One branch, deliberately **before** the
+carton branch or the carton system's early return swallows the key first.
+
+### D3 — both halves of the belt
+
+Tap-to-cycle and hold-to-open-the-wheel are separate paths. Guarding only the
+first would leave a player able to **see** the wheel with a book in their arms,
+which tells them the belt is available and is worse than the original defect.
+Both refuse with a reason rather than silently.
+
+### Standing Invariant 6 now has a check, and I watched it fail
+
+`tests/carryable-system.test.js` pins all three clauses: one predicate covering
+every carry system, the belt guarded on both paths, and every station boundary
+putting carried things down. It also pins the ORDER of the set-down branches,
+because the carton branch returning first would swallow the book's key.
+
+Watched failing: removing the goods clause takes it red (`1 of 4`), restoring it
+green. **`tools/qa/phase5-gate.mjs` reports invariant 6 as PASS instead of NO
+CHECK EXISTS** - the first of the seven gaps that gate found to be closed.
+
+**Still open:** D1 has its mechanism and its fix but **no player-camera
+screenshot** of the book on the counter after a station entry, so by this
+brief's rule it is UNCONFIRMED. And cartons and goods have not been re-verified
+against the new predicate in-game.
+
+---
+
 ## RUNNING LISTS
 
 _Updated continuously, not at the end._
