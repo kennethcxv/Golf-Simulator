@@ -11143,3 +11143,56 @@ and run thirteen times: equip Δ **+9 -> ~+1**.
 
 Suite 2929 pass / 0 fail.
 
+
+## THE DEDUPLICATION LANDS (9 -> 7 MATERIALS) AND THE STALL DOES NOT MOVE
+
+Shared `fpHands`'s material set into the rig's arm builder instead of letting
+`broomViewmodel` construct a second copy.
+
+```
+distinct new materials   9 -> 7      (x6 Hand, x2 Cuff, x1 Forearm -> x6 Hand, x1 Cuff)
+EQUIP PROGRAM DELTA      +9 -> +9    unchanged
+tool worst               337.9 ms    unchanged
+suite                    2929 / 0
+```
+
+**The duplication was real and is now gone** — two materials fewer, per rig, and
+the colours were already identical constants so nothing looks different.
+
+**And the stall did not move.** Seven materials still compile nine programs.
+
+### That refutes the one-to-one I claimed two entries ago
+
+I wrote *"nine materials, nine programs, exactly one to one"* and treated the
+match as proof they were the same nine. **They were not.** Removing two materials
+left the program count untouched, which one-to-one forbids.
+
+**Fortieth finding, and the same shape as the census one**: two numbers that
+matched exactly, in the same window, assumed to be the same fact. **An exact
+match is evidence of nothing on its own** — and it is more seductive than a rough
+one, because it feels like proof.
+
+### Keeping the change, and why that is consistent
+
+Every previous attempt was reverted for moving **no** measured quantity. This one
+moves a real one — distinct materials 9 -> 7, permanently, per rig — while being
+appearance-neutral and suite-green. **It is not a fix for the stall and is not
+recorded as one**; it is a duplication removed on its own merits, found while
+hunting something else.
+
+### Section A tool half — the honest final state
+
+**Measured and controlled:** 54 hand meshes and 54 geometries enter at first
+equip; 9 programs compile; 333-7855 ms first, ~24 ms second; the hands live
+outside the scene until equip; the material duplication between `fpHands.js:367`
+and `broomViewmodel.js:230` was real and is fixed.
+
+**Refuted:** pre-compilation as a family (nine attempts, all reverted); the
+material count as the cause (deduplication changed nothing); the one-to-one
+material/program correspondence.
+
+**Open:** what the nine programs actually key on, given seven materials produce
+them and every structural property printed is identical across all of them.
+
+Suite 2929 pass / 0 fail.
+

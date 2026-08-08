@@ -455,6 +455,24 @@ export function makeFpHands() {
     root,
     rigOffset,
 
+    // THE HAND MATERIALS, SHARED RATHER THAN REBUILT.
+    //
+    // `broomViewmodel.js` was constructing its own `skin`, `cuff` and
+    // `cuffDark` from the same SKIN / CUFF / CUFF_DARK constants at the same
+    // roughness — identical materials, built twice, and once PER RIG because
+    // createBroomViewmodel runs for every stick tool.
+    //
+    // Measured cost: the first tool equip compiled 9 programs for 9 distinct
+    // but structurally identical MeshStandardMaterials (same type, shading,
+    // side, no maps, differing only in colour and roughness, neither of which
+    // enters a three.js program key) — 333 to 7855 ms on the first tool a
+    // player takes out. Nine attempts to pre-compile those programs all failed,
+    // because the nine existed by duplication, not by timing.
+    //
+    // Exposing the set lets the rigs reuse it. Appearance is unchanged: the
+    // colours were already the same constants.
+    mats,
+
     // which tool are we holding? null puts the hands away.
     setTool(next, authored = null) {
       tool = GRIPS[next] ? next : null;

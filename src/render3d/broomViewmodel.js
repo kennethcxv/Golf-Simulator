@@ -226,7 +226,27 @@ export function createBroomViewmodel({
   vmCamera.matrixAutoUpdate = false;
   vmCamera.layers.set(feel.camera.layer);
 
-  const mats = {
+  // REUSE THE HANDS' MATERIALS INSTEAD OF BUILDING A SECOND SET.
+  //
+  // These three were constructed here from the same SKIN / CUFF / CUFF_DARK
+  // constants and the same roughness values that `fpHands` already uses — the
+  // same materials, twice, and once PER RIG because createBroomViewmodel runs
+  // for every stick tool.
+  //
+  // Measured: the first tool equip compiled 9 programs for 9 distinct but
+  // structurally identical MeshStandardMaterials (same type, shading, side, no
+  // maps; differing only in colour and roughness, neither of which enters a
+  // three.js program cache key). That cost 333 to 7855 ms on the first tool a
+  // player takes out; the second equip compiled nothing and cost ~24 ms.
+  //
+  // Nine attempts to pre-compile those programs earlier all failed and were all
+  // reverted. They had to: the nine existed because of DUPLICATION, not timing,
+  // and no prewarm, camera, layer or attachment order can remove a material a
+  // second module constructs independently.
+  //
+  // Appearance is unchanged — the colours were always the same constants. The
+  // fallback keeps this module standalone if a caller passes no hands.
+  const mats = (fpHands && fpHands.mats) || {
     skin: new THREE.MeshStandardMaterial({ color: SKIN, roughness: 0.72 }),
     cuff: new THREE.MeshStandardMaterial({ color: CUFF, roughness: 0.78 }),
     cuffDark: new THREE.MeshStandardMaterial({ color: CUFF_DARK, roughness: 0.85 }),
