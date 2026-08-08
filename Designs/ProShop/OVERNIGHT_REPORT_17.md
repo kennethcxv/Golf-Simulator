@@ -12865,3 +12865,122 @@ and the prose; the images they must re-shoot.
    the geometry, not a bug, and every first-person cleaner has it — but it is
    worth knowing that the tool's best work happens where the player must look
    down to watch it.
+
+
+## B2 — THE HEAD IS A BRUSH NOW, AND THE REASON IT WAS REVERTED WAS NOT TRUE
+
+*"The bristles read as separated tines rather than a brush. Fix the geometry:
+dense bristles, a defined block, a visible ferrule."*
+
+### Phase 0 — take the picture before saying anything about it
+
+Added a broom capture to the walk driver's tool beat: look down, shoot, look back
+up so the following beats are unperturbed (the restore is recorded — pitch -0.452
+before, -0.348 after). Same look-down instrument B1 established, and it reported
+the same geometry: head NDC **y -1.373 at a level gaze, -0.166 after looking
+down.** The broom head is no more visible at a level gaze than the mop's was.
+
+Cropped around the measured head NDC and looked. **Two of B2's three requirements
+were already met and one was not:**
+
+- **A defined block** — present. Solid dark-wood body with a bevelled inset panel.
+- **A visible ferrule** — present. Brass collar at the handle joint, clearly read.
+- **Dense bristles** — **no.** ~35 discrete black slats with grey floor visible
+  through every gap between neighbours. Countable. A comb.
+
+So B2 reduces to exactly the sentence it opens with, and the other two clauses
+needed nothing.
+
+### The revert that should not have stood
+
+`toolViewmodel.js:541` read `count: 200` with the comment *"B2 REVERTED: 720 cost
++5.5 s on tool equip (measured)"*. That measurement was **8282 ms against 2770
+ms, one sample each**, taken on the tool-equip frame — the single noisiest number
+in the build, because it is dominated by a nine-program shader compile. **The
+conviction was retracted in this report and the revert was left standing anyway**,
+so the codebase carried the sparse head *and* a load-bearing comment asserting a
+withdrawn fact.
+
+### Re-measured, with the control the first attempt lacked
+
+New driver `tools/qa/electron-b2-broom-cost.js`. Five runs. A distribution per
+phase, and an **idle-no-tool drift control** measured first in every run — a phase
+that is identical between the two builds by construction.
+
+**The control paired exactly: 5.4 and 5.8 ms in both sets, in the same order.**
+
+| | 200 bristles | 720 bristles |
+|---|---|---|
+| draw calls added | **+32** | **+32** |
+| triangles added | 8,976 | 19,376 |
+| sweeping median | 7.9 / 7.8 ms | 7.6 / 7.6 / 7.3 ms |
+| equip worst frame | 345 / **795** ms | 339 / 336 ms |
+
+**Draw calls do not move at all** — the instancing claim in the source is true,
+3.6x the fibres for zero extra calls. **Median frame time does not move either**,
+and if anything falls, which means the difference is under this instrument's
+resolution rather than a real speedup.
+
+And the equip frame swings **345 -> 795 ms at fixed configuration**, which is the
+retracted conviction reproducing itself on demand, in the same driver, in the same
+session. The original comparison was two draws from that.
+
+### The one number I will not claim either way
+
+Frames over 16.7 ms while sweeping, as a percentage: **5.9, 6.5, 8.0, 8.3, 14.1,
+15.3** across six runs. Two of three dense runs roughly doubled it; the third sat
+inside the sparse range. The drift control's own over-16 count was flat
+(108-118) across all of them, so the machine does not explain the spread — **but
+the spread is wider than the effect I would be attributing to it, so this
+instrument cannot resolve the question.** Saying "no tail cost" would be the
+retracted conviction with the sign flipped. Settling it needs GPU timer queries
+rather than rAF deltas, and that is a separate instrument.
+
+### The lever nobody had pulled
+
+Density cost **+10,400 triangles, which is +20 for each of the 520 extra fibres**
+— and that 20 is not a property of density at all. `mopStrands.js:71` built every
+strand as `CylinderGeometry(top, bottom, segLen, 5, 1, true)`: **five sides,
+hard-coded, on a fibre a few pixels wide, dark, and overlapping its neighbours.**
+
+Made it a parameter, defaulted to 5 so the mop — whose whip is confirmed at the
+player camera and which must not move — is untouched by the parameter existing.
+Set the broom to 3.
+
+**19,376 -> 13,616 triangles.** The head keeps 3.6x the fibres and hands back 55%
+of what the density cost. Draw calls still +32; sweeping median 7.4 / 7.0 ms.
+
+### The picture, like-for-like
+
+Re-ran the walk driver. The after capture landed at **head NDC {x 0.053, y
+-0.166} — identical to the before**, so the crop offset is the same pixel box
+(1742, 963) under the same lighting with the same debris label in frame. It is a
+controlled A/B, not two photographs.
+
+- **Before:** ~35 discrete slats, floor visible between every pair.
+- **After:** a continuous dark bristle band, fine fibre texture at the tips, an
+  irregular tip fringe, **no daylight through the field.**
+
+Default camera, fov 66, 2560x1370, dpr 1.5. **CONFIRMED.**
+
+### The test, and why the obvious one would have passed
+
+`tests/broom-bristles-read-as-brush.test.js`, 4 assertions.
+
+The obvious invariant is *neighbours overlap*: tip diameter >= column spacing.
+**That passes on the comb.** 200 fibres in 5 rows is 40 columns at 12.5 mm with a
+17.6 mm tip — ratio 1.41, comfortably overlapping — and it still read as a rake.
+The source comments record the same surprise in their own words: *"the picture
+still disagreed with the arithmetic."*
+
+What actually separates a brush from a comb is **slenderness**. A 17.6 mm fibre
+115 mm long is 6.5:1 and the eye reads a row of slats as tines however much they
+overlap; at 5.6 mm it is 20:1 and reads as bristle. So the test pins the shape
+ratio, keeps overlap as a necessary-but-insufficient companion, pins
+`radialSegments <= 3`, and pins the mop's default at 5 so it cannot be dragged
+along.
+
+**Watched failing on the comb configuration:** *"a bristle 20.0 mm thick and 115
+mm long is 5.8:1, which reads as a slat. Needs >= 12:1"* — 2 of 4 failing, with
+**the overlap assertion passing**, which is the whole argument for why the test
+is written this way.

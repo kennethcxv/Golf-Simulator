@@ -538,7 +538,32 @@ export function buildToolViewmodels() {
                   // 11 mm of bristle every 14.3 mm is a gap, so it went on
                   // looking like a comb while the numbers said brush. A real
                   // push broom's bristles barely taper at all.
-                  count: 200,   // B2 REVERTED: 720 cost +5.5 s on tool equip (measured). See report.
+                  // B2 RE-LANDED, AND THE REASON IT WAS PULLED WAS NOT TRUE.
+                  //
+                  // This line used to read `count: 200` with the comment "B2
+                  // REVERTED: 720 cost +5.5 s on tool equip (measured)". That
+                  // measurement was one sample against one sample — 8282 ms vs
+                  // 2770 ms — taken on the tool-equip frame, which is the single
+                  // noisiest number in the build because it is dominated by a
+                  // nine-program shader compile. The conviction was retracted in
+                  // the report; the revert was left standing anyway, so the
+                  // codebase kept the sparse head AND a comment asserting a fact
+                  // that had been withdrawn.
+                  //
+                  // Re-measured properly with tools/qa/electron-b2-broom-cost.js:
+                  // five runs, a distribution per phase, and an idle-no-tool
+                  // drift control that paired exactly across the two sets
+                  // (5.4 / 5.8 ms in both, in the same order).
+                  //
+                  //                 200 bristles      720 bristles
+                  //   draw calls     +32               +32          <- identical
+                  //   sweeping med   7.9 / 7.8 ms      7.6 / 7.6 / 7.3 ms
+                  //   equip worst    345 / 795 ms      339 / 336 ms
+                  //
+                  // The equip frame swings 2.3x at FIXED configuration, which is
+                  // the retracted conviction reproducing itself on demand. Draw
+                  // calls do not move at all: the instancing claim is true.
+                  count: 720,
                   segments: 2,
                   length: 0.115,        // GLB-local metres: block underside to floor
                   barWidth: 0.50,       // block is 0.52; 10 mm inset each side
@@ -560,8 +585,22 @@ export function buildToolViewmodels() {
                   // yarn, which is what a push broom should be - and it fills
                   // the bar instead of fencing it. Instanced, so the draw call
                   // count does not move.
-                  strandRadiusTop: 0.010,
-                  strandRadiusBottom: 0.0088,
+                  strandRadiusTop: 0.0034,
+                  strandRadiusBottom: 0.0028,
+                  // ...AND THE COST THE FIRST ATTEMPT NEVER LOOKED FOR.
+                  //
+                  // What density DID cost is triangles: 8,976 -> 19,376, which is
+                  // +20 for each of the 520 extra fibres. That number is not a
+                  // property of density at all — it is 5 sides x 2 triangles x 2
+                  // segments, and the 5 was a literal in the geometry call that
+                  // nobody had ever questioned.
+                  //
+                  // A 3.4 mm bristle is a handful of pixels wide, dark, and
+                  // overlapping its neighbours. Three sides buys the same
+                  // silhouette as five and gives 40% of the strand triangles
+                  // back, so the head gets 3.6x the fibres for a fraction of the
+                  // geometry the naive re-land would have spent.
+                  radialSegments: 3,
                   // push-broom character: fast settle, short travel, little slack
                   params: {
                     chaseBase: 26, chaseFall: 5, pushGain: 0.55, dragGain: 0.05,

@@ -59,6 +59,19 @@ export function createMopStrands({
   layout = 'ring', count = STRAND_COUNT, segments = SEGMENTS,
   barWidth = 0.44, barDepth = 0.05, barRows = 2,
   strandRadiusTop = 0.0072, strandRadiusBottom = 0.0052,
+  // HOW MANY SIDES A SINGLE FIBRE HAS, which until now was the literal 5 baked
+  // into the geometry call below and was the whole of the density budget.
+  //
+  // A strand costs `radialSegments * 2` triangles per segment, so it is the only
+  // multiplier on strand count. Measured on the broom: 200 strands added 8,976
+  // triangles and 720 added 19,376 — +20 triangles for each of the 520 extra
+  // fibres, which is exactly 5 sides x 2 triangles x 2 segments.
+  //
+  // Density is what B2 asks for and thickness is what makes a fibre read as a
+  // bristle; NEITHER of them is the number of sides on a shape a few pixels
+  // wide. Defaulted to 5 so the mop — whose whip is confirmed at the player
+  // camera and which should not move — is unchanged by this parameter existing.
+  radialSegments = 5,
 }) {
   const live = { ...DEFAULT_PARAMS, ...params };
   const root = new THREE.Group();
@@ -68,7 +81,8 @@ export function createMopStrands({
   const segLen = length / SEGS;
   // One geometry for every segment: a tapered length of yarn or bristle, origin
   // at its TOP so a segment rotates about where it joins the one above.
-  const geometry = new THREE.CylinderGeometry(strandRadiusTop, strandRadiusBottom, segLen, 5, 1, true);
+  const RADIAL = Math.max(3, Math.round(radialSegments));
+  const geometry = new THREE.CylinderGeometry(strandRadiusTop, strandRadiusBottom, segLen, RADIAL, 1, true);
   geometry.translate(0, -segLen / 2, 0);
 
   // Placement per layout. `angle` keeps its two roles: cos = how much of the

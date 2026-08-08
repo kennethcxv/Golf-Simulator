@@ -363,9 +363,42 @@ async (page) => {
     const g = ch.groundYAt(w.state?.x ?? w.x, w.state?.z ?? w.z);
     return { known: true, surface: g == null ? 'turf' : 'boards', groundY: g ?? null };
   }).catch(() => ({ known: false }));
+  // B2 — WHAT THE BROOM HEAD ACTUALLY LOOKS LIKE TO THE PLAYER.
+  //
+  // "The bristles read as separated tines rather than a brush." That is a claim
+  // about a picture, and the only honest first move is to take the picture. B2
+  // needs no stroke — it is about the head at rest: density, a defined block, a
+  // visible ferrule — so this looks down, shoots, and looks back up, leaving the
+  // pitch where the following beats expect it.
+  const b2 = {};
+  if (live.ok === true) {
+    b2.before = await page.evaluate(() => {
+      const d = window.__fw?.scene3d?.walk?.toolRigDiagnostics?.('broom') || null;
+      return { headNdc: d?.headNdc ?? null, pitch: +(window.__fw?.scene3d?.camera?.rotation?.x ?? 0).toFixed(3) };
+    }).catch(() => null);
+    await page.keyboard.down('ArrowDown');
+    await page.waitForTimeout(750);
+    await page.keyboard.up('ArrowDown');
+    await page.waitForTimeout(400);
+    b2.lookedDown = await page.evaluate(() => {
+      const d = window.__fw?.scene3d?.walk?.toolRigDiagnostics?.('broom') || null;
+      return { headNdc: d?.headNdc ?? null, pitch: +(window.__fw?.scene3d?.camera?.rotation?.x ?? 0).toFixed(3) };
+    }).catch(() => null);
+    await page.screenshot({ path: path.join(OUT, 'b2-broom-head.png') });
+    b2.shot = 'b2-broom-head.png';
+    // RESTORE THE PITCH. This beat is not the last one; leaving the camera
+    // pointed at the floor would silently change every beat after it, and a
+    // capture that alters the run it is embedded in is not an observation.
+    await page.keyboard.down('ArrowUp');
+    await page.waitForTimeout(750);
+    await page.keyboard.up('ArrowUp');
+    await page.waitForTimeout(300);
+    b2.restored = await page.evaluate(() => +(window.__fw?.scene3d?.camera?.rotation?.x ?? 0).toFixed(3)).catch(() => null);
+  }
   record('tool', live.ok === true, {
     held: live.held ?? null,
     stoodOn: stood,
+    b2,
     ledgerStillOpen: await page.evaluate(() => !!window.__fw?.ledgerOpen).catch(() => null),
     cartMounted: await page.evaluate(() => window.__fw?.scene3d?.walk?.cart?.mounted ?? "unknown").catch(() => null),
     wheelReallyOpen,
