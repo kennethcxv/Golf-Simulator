@@ -2293,6 +2293,49 @@ polygon measured as though it were the smooth shape it approximates. The brief's
 Requirement 6 says every named defect is naming a family. This family crosses
 sections.
 
+## H1 — verified rather than rebuilt, and pinned so it cannot come back
+
+H1 is the one item in this section where the previous session's fix **holds**.
+Goal 16 diagnosed it exactly: **four vertical laws met at the waist** - shirt at
+1.0x bob, stomach at 0.7x, belt and buckle at none, hips at none - so at stride
+the hem slid against a static belt at 2.8 Hz and the trunk read as coming apart.
+One law now governs chest, pelvis, belt, buckle and tongue.
+
+I checked the other way a seam could open - **leaning**, which the bob fix does
+not address. The chest pivots at its own origin while the pelvis does not, so a
+deep lean swings the shirt's rear hem upward:
+
+| pose | lean | rear hem world y | pelvis top | buried by |
+| --- | --- | --- | --- | --- |
+| walk | 0.04 | 1.0145 | 1.0700 | **55.5 mm** |
+| carry | 0.13 | 1.0272 | 1.0700 | **42.8 mm** |
+| bunker swing | 0.24 | 1.0433 | 1.0700 | **26.7 mm** |
+
+Even at the deepest lean in the animation set the hem is buried 26.7 mm. **The
+trunk cannot open a seam by leaning**, so there is nothing to fix here.
+
+What was missing is a check. `tests/character-trunk-bob.test.js` pins the one
+law and, more usefully, pins it **openly**: it walks every `position.y` written
+in that per-frame block and requires each to reference `bob`, so a piece added
+to the waist later cannot quietly sit still. Watched failing on both shapes of
+the original defect - a belt that opts out (2 assertions red) and a pelvis given
+0.7x (2 assertions red) - green on restore.
+
+### An instrument fault of my own, worth logging
+
+The first version of this test **never ran**. Its heredoc was chained behind a
+`python3` call that does not exist on this machine, so the `&&` stopped and the
+file was never written - and my two "breaks" then reported **zero failures**,
+which I briefly read as a weak test. It was an absent one. `node --test` says
+"Could not find" and I had grepped that away.
+
+Second fault in the same attempt: my first break edited
+`belt.position.y = 1.055` and hit the **static setup line at 125** rather than
+the per-frame line at 792, because both match. The break has to be anchored on
+its neighbour to land on the right one. Logged as fault 77 - **a break that does
+not break is indistinguishable from a check that does not check**, and both were
+true here at once.
+
 ---
 
 ## RUNNING LISTS
