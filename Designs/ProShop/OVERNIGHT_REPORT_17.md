@@ -4701,3 +4701,20 @@ data-shaped hat, and it needs a key of its own.
 
 **72 strings, 46%, translatable.** Ratchet lowered to 83 and watched failing at
 84. Suite 2928 pass / 0 fail.
+
+### 83 -> 78: the laptop
+
+Five from `laptop.js` - the clubhouse-opens announcement, the club-needs-a-name
+refusal, a booking confirmation, a supplier walking away, and the club rename.
+
+Two were plain; three carried data (`{name} booked for {time}`,
+`{company} will go elsewhere`, `The club is now {name}`). All three pass a NAME
+or a TIME - genuine data, straight through as placeholders, no token-wearing-a-
+data-hat like the card/cash case.
+
+```
+155 -> 146 -> 119 -> 94 -> 90 -> 85 -> 83 -> 78
+```
+
+**77 strings, 50% of the original 155, are now translatable.** Half.
+Suite 2928 pass / 0 fail.

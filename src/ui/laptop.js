@@ -17,6 +17,7 @@
 // change is counted and greens are mowed out in the world, by hands.
 
 import { el, toast } from './ui.js';
+import { t } from '../core/i18n.js';
 import {
   formatPagePath, navEntries, pagePathOf, rankSearchEntries, searchGroups, tabsOf,
 } from './laptopSearch.js';
@@ -964,7 +965,7 @@ export function makeLaptop(app, opts) {
                 toast(result.reason, 'warn');
                 return;
               }
-              toast('The clubhouse is open. Your first guests are on the way.');
+              toast(t('laptop.clubhouseOpen'));
               opts.onCampaignChanged?.('opening', result);
               closeModal();
               render();
@@ -1293,7 +1294,7 @@ export function makeLaptop(app, opts) {
               const result = bookLaptopReservation(st, { dayAbs, minute, partySize: teePartySize });
               if (!result.ok) toast(result.reason, 'warn');
               else {
-                toast(`${result.res.fullName} booked for ${fmtSlot(minute)}.`);
+                toast(t('laptop.bookedFor', { name: result.res.fullName, time: fmtSlot(minute) }));
                 rs.adding = false;
                 click();
               }
@@ -2486,7 +2487,7 @@ export function makeLaptop(app, opts) {
         class: 'lt-mini lt-cancel', text: 'Decline',
         onclick: () => askConfirm(`Turn down ${o.company}? The offer does not come back.`, 'Decline it', () => {
           declineOuting(st, o.id);
-          toast(`${o.company} will go elsewhere.`);
+          toast(t('laptop.willGoElsewhere', { company: o.company }));
         }),
       }));
 
@@ -3210,9 +3211,9 @@ export function makeLaptop(app, opts) {
             class: 'lt-input', type: 'text', value: st.clubName || '', maxlength: 40,
             onchange: (e) => {
               const v = e.target.value.trim().slice(0, 40);
-              if (!v) { toast('The club needs a name.', 'warn'); e.target.value = st.clubName; return; }
+              if (!v) { toast(t('laptop.needsName'), 'warn'); e.target.value = st.clubName; return; }
               st.clubName = v;
-              toast(`The club is now ${v}.`);
+              toast(t('laptop.clubRenamed', { name: v }));
               render();
             },
           }), (node) => { node.value = st.clubName || ''; })),

@@ -42,6 +42,12 @@ export const DEFAULT_LOCALE = 'en';
 
 // The English key set. Add a key here first; the overlays below are optional.
 const EN = Object.freeze({
+  // The laptop back office.
+  'laptop.clubhouseOpen': "The clubhouse is open. Your first guests are on the way.",
+  'laptop.needsName': "The club needs a name.",
+  'laptop.bookedFor': "{name} booked for {time}.",
+  'laptop.willGoElsewhere': "{company} will go elsewhere.",
+  'laptop.clubRenamed': "The club is now {name}.",
   // The payment method is a translated word, not a substituted token.
   'till.iWillPayWith': "{name}: I'll pay with {method}.",
   'till.method.card': "card",
