@@ -13535,3 +13535,55 @@ rhythm indoors.
 
 Recorded as a lead, not a conclusion. The elimination is solid; the candidate is
 a candidate.
+
+
+## THE TEXTURE-UPLOAD LEAD IS DEAD TOO, AND THE ELIMINATION IS NOW WORTH MORE THAN THE HYPOTHESES
+
+`needsUpdate` on a THREE.Texture is a setter that does `this.version++`, so a
+version that rose since last frame will be re-uploaded on this one. Collected
+every texture in the scene **once** and then summed a fixed array of numbers per
+frame — traversing the scene each frame would have made the driver itself one of
+the spikes.
+
+| | indoor | outdoor |
+|---|---|---|
+| canvas-backed textures | 184 | 184 |
+| frames with any version bump | **1.0%** | 0.8% |
+| spikes that uploaded | **2.0%** | — |
+| calm frames that uploaded | 0.6% | — |
+
+**Only 1% of indoor frames upload anything, against a 17.1% spike rate. Ninety-
+eight percent of spikes involve no upload at all.** The 2.0%-vs-0.6% enrichment
+is real and irrelevant at that scale. The lead is dead.
+
+### What the indoor spike is now known NOT to be
+
+Five mechanisms eliminated, each with a control:
+
+1. **Shadow bakes** — cadence swept to 1000 ms; removing 90% of bakes moved the
+   total 1.2 points against a 0.4-point drift control.
+2. **Culling / LOD churn** — draw calls and triangles byte-identical on spike and
+   calm frames.
+3. **Geometry volume** — indoors submits **771 draws to outdoors' 2,407** and
+   spikes seventeen times as often.
+4. **Garbage collection** — `performance.memory` available, heap never fell once
+   in either window.
+5. **Texture uploads** — above.
+
+What survives: **per-frame CPU outside draw submission, or GPU-side variance**,
+on a ~74 ms rhythm, in a room that submits a third of the draw calls of the place
+that runs fine.
+
+### Why this is a good place to have stopped
+
+I have refuted my own two best hypotheses in a row here, and both refutations
+came from measurements that took one run each. That is the cheap half of the
+work, and it has taken invariant 1 from *"the game drops frames"* — which was
+all anyone could say about it at the start of this session — to a bounded
+question with five named exclusions and one specific rhythm.
+
+**The honest status: not fixed, materially better understood, and no false fix
+shipped.** Two plausible fixes were built to the point of measurement and both
+were refused by their own evidence — the shadow cadence for buying 1.2 points at
+the cost of every moving caster's shadow, and this one for having no effect to
+buy at all.
