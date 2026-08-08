@@ -6384,3 +6384,44 @@ The discipline that catches it is cheap and I did not apply it: before
 concluding about the game, grep the runtime for the thing you just read in the
 asset.
 
+
+### The rig's real state — and my correction named a stale number too
+
+I wrote "84 instanced strands" above. That was the FIRST of four counts in
+yesterday's iteration, read from the top of a comment block I did not finish.
+The live values at `toolViewmodel.js:432`:
+
+```
+count: 480      radius: 0.115      length: 0.30
+strandRadiusTop: 0.0038            strandRadiusBottom: 0.0026
+splayBase 0.22   splayGrow 0.30    pushGain 2.2    dragGain 0.22
+chaseBase 5.5    chaseFall 1.6     targetBase 0.55 targetGrow 0.45
+deficitBase 0.85 deficitGrow 0.40
+```
+
+The arc was 26 -> 84 -> 240 -> 480, and the reasoning is recorded in the source:
+240 filled the disc but each segment was 100 mm long and 18 mm thick, a 5:1
+ratio where real mop yarn is nearer 50:1 — "chunky cylinders at that scale look
+like kindling however many you draw". 480 at 3.8 mm overlaps into a solid
+bundle, still 3 draw calls because they are instanced.
+
+**Every one of the nine motion params was already retuned** away from its
+original: pushGain 1.15 -> 2.2, chaseBase 9.5 -> 5.5, deficitBase 0.55 -> 0.85.
+
+**So B1 has no obvious tuning move left.** The density lever is spent, the
+motion params are all pushed in the trailing direction, and the geometry ratio
+is now physically plausible. Anything further is guessing at values that have
+already been guessed at four times.
+
+That makes the next step a MEASUREMENT, not an edit, and the rules already name
+which one: a player-camera screenshot at the DEFAULT camera during a stroke,
+with the frozen-strand control at `tools/qa/electron-b1-divergence.js` as the
+negative. The open question is single and specific — **after 480 strands, does
+the head still own 69% of the stroke's visible change?** If it does, the subject
+is head motion, not strands, and no amount of strand tuning will reach it.
+
+**Fourth stale-number instance today.** Invariant 8's name, the 0.25 yd figure,
+my phase-0 sentence, and now "84" inside the very entry correcting the last one.
+Each was a number read from the right place and carried one step past where it
+was still true.
+
