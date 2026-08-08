@@ -223,7 +223,7 @@ function enterWalk(spawn) {
   // See GTAO_CONFIG in render3d/courseScene.js and tests/gtao-config.test.js.
   if (!yardHintShown && app.state && app.state.tractor && !app.state.tractor.repaired) {
     yardHintShown = true;
-    setTimeout(() => toast('The old tractor sits by the shed, east of the porch - she’d run again with some work.'), 1200);
+    setTimeout(() => toast(t('hud.theOldTractorSits')), 1200);
   }
   app.courseMode = 'walk';
   app.scene3d.walk.enter(spawn);
@@ -765,7 +765,7 @@ function showCampaignArrival() {
 function enterEditor() {
   if (editorActive() || !app.scene3d || app.screen !== 'game') return;
   if (hasCarriedCarton()) {
-    toast('Set down or recycle the carton before opening the course editor.', 'warn');
+    toast(t('hud.setDownOrRecycle'), 'warn');
     return;
   }
   closePauseMenu();
@@ -1526,7 +1526,7 @@ const handlers = {
   toggleCourseMode() {
     if (app.view !== 'course' || !app.scene3d || editorActive()) return;
     if (app.courseMode === 'walk' && hasCarriedCarton()) {
-      toast('Set down or recycle the carton before changing cameras.', 'warn');
+      toast(t('hud.setDownOrRecycle15'), 'warn');
       return;
     }
     resetCameraInput(); // the map opens still — nothing carries over from the walk
@@ -2634,7 +2634,7 @@ window.addEventListener('keydown', (e) => {
       // ITEM 23: the build key is BOUND here too. Escape stays literal because
       // keyBindings reserves it.
       if (placementAction === 'buildMode') {
-        toast('Set down or recycle the carton before rearranging fixtures.', 'warn');
+        toast(t('hud.setDownOrRecycle16'), 'warn');
         return;
       }
       if (e.key === 'Escape' && placement.isActive()) {
@@ -2664,7 +2664,7 @@ window.addEventListener('keydown', (e) => {
         } else if (e.key === 'b' || e.key === 'B') {
           e.preventDefault();
           bld.exit();
-          toast('Back to work.');
+          toast(t('hud.backToWork'));
         }
         return;
       }
@@ -2684,7 +2684,7 @@ window.addEventListener('keydown', (e) => {
       if (buildAction === 'buildMode') {
         e.preventDefault();
         bld.exit();
-        toast('Back to work.');
+        toast(t('hud.backToWork'));
         return;
       }
       switch (e.key) {
@@ -2758,7 +2758,7 @@ window.addEventListener('keydown', (e) => {
         // taught.
         if (carriedThing() === 'ledger') {
           putDownCarried();
-          toast('Book set down.');
+          toast(t('hud.bookSetDown'));
           return;
         }
         const ch = app.scene3d.clubhouse && app.scene3d.clubhouse();
@@ -2848,7 +2848,7 @@ window.addEventListener('keydown', (e) => {
         const ch = app.scene3d.clubhouse && app.scene3d.clubhouse();
         const w = app.scene3d.walk.state;
         if (!ch || !ch.isInside(w.x, w.z)) {
-          toast('Rearranging is for indoors.', 'warn');
+          toast(t('hud.rearrangingIsForIndoors'), 'warn');
           break;
         }
         ch.build.enter();
@@ -3265,7 +3265,7 @@ function frame(ts) {
         }
         if (tut.advanced.length) {
           if (app.state.tutorial.complete && !app.state.tutorial.hidden) {
-            toast('The guide retires - the club is yours now. The Open awaits.', '');
+            toast(t('hud.theGuideRetiresThe'), '');
           }
           objectivesPanel.refresh();
         }

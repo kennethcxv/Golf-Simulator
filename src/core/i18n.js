@@ -42,6 +42,28 @@ export const DEFAULT_LOCALE = 'en';
 
 // The English key set. Add a key here first; the overlays below are optional.
 const EN = Object.freeze({
+  // Editor and HUD, wrapped from raw literals.
+  'editor.selectAPathFirst': "Select a path first.",
+  'editor.copiedDragItInto': "Copied - drag it into place.",
+  'editor.pathDeleted': "Path deleted.",
+  'editor.newHoleAddedWith': "New hole added with these settings - it needs its own tee, fairway and green.",
+  'editor.courseDataExported': "Course data exported.",
+  'editor.courseSaved': "Course saved.",
+  'editor.pendingWorksDiscarded': "Pending works discarded.",
+  'editor.theUndoDidNot': "The undo did not finish drawing. Try again.",
+  'editor.pickAHoleFirst': "Pick a hole first.",
+  'editor.selectAHoleFirst': "Select a hole first.",
+  'editor.streamCut': "Stream cut.",
+  'editor.noPlayableHoleYet': "No playable hole yet - a hole needs a tee and a pin.",
+  'editor.thatHoleIsNot': "That hole is not playable yet.",
+  'hud.theOldTractorSits': "The old tractor sits by the shed, east of the porch - she’d run again with some work.",
+  'hud.setDownOrRecycle': "Set down or recycle the carton before opening the course editor.",
+  'hud.setDownOrRecycle15': "Set down or recycle the carton before changing cameras.",
+  'hud.setDownOrRecycle16': "Set down or recycle the carton before rearranging fixtures.",
+  'hud.backToWork': "Back to work.",
+  'hud.bookSetDown': "Book set down.",
+  'hud.rearrangingIsForIndoors': "Rearranging is for indoors.",
+  'hud.theGuideRetiresThe': "The guide retires - the club is yours now. The Open awaits.",
   // Wrapped from raw literals so they can be translated at all.
   'world.theWaterIsRunning': "The water is running straight off it - this needs soap first (hold the right button).",
   'world.debrisHauledOffThe': "Debris hauled off - the grass under it can breathe.",

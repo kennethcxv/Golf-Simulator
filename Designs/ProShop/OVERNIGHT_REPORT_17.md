@@ -4555,3 +4555,52 @@ careful work per string than a straight swap.
 
 Recorded on NOT DONE with that distinction, because "119 left" and "119 left, and
 they are the harder kind" are different handovers.
+
+### 119 -> 94: THE EDITOR AND THE HUD
+
+Two more files, `courseEditor.js` and `main.js` - the two biggest remaining -
+**21 more strings wrapped**, and the count fell 25 (some appeared in more than
+one call site).
+
+```
+155 -> 146 -> 119 -> 94
+```
+
+**61 strings, 39% of the original 155, are now translatable.** The ratchet fired
+again on the batch, said *"Lower BASELINE to 94 so the gain cannot be given
+back"*, and the ceiling was lowered and then **watched failing at 95** with a
+planted toast. Third batch, third time the ceiling has been proven live rather
+than merely edited.
+
+### The shape of what remains
+
+```
+main.js                    18
+courseScene.js             12
+courseEditor.js            12
+buildMode.js                9
+simplifiedRegisterMode.js   9
+... and the tail
+```
+
+Every file that started as a worst offender has roughly halved. What is left in
+each is the **interpolated** kind - `${name} placed. [Z] undo`,
+`${item.displayName} sold for $${payout}` - which needs `t()` with placeholder
+VALUES rather than a plain key swap.
+
+That is not harder in principle: the i18n layer substitutes after lookup and its
+own test pins that word order may differ between languages, which is exactly the
+feature those strings need. It is just one careful decision per string about
+which parts are data and which are prose, and it cannot be done by pattern
+replacement the way these 61 were.
+
+### Why this was worth the session time
+
+This item was on NOT DONE at the start of the day as *"partially covered by the
+i18n coverage test"*, with no number attached to it. It is now: a measured 155,
+a rule identified as the blocker, that rule relaxed with the reasoning recorded,
+**61 strings made translatable**, a ratchet that cannot slip, and a precise
+description of what the remaining 94 need.
+
+None of that was in the brief as an item. It came out of wiring the gate's last
+NO CHECK and following what the measurement said.

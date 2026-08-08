@@ -11,6 +11,7 @@
 // billing) and sim/playtest.js (the ball). This file owns DOM + pointer input.
 
 import { el, toast } from './ui.js';
+import { t } from '../core/i18n.js';
 import { ZONE, HOLE_STATUS, CELL_YD } from '../sim/constants.js';
 import { holeNumber, holePar, holeDistanceYd, ensureHoleShape } from '../sim/course.js';
 import { ZONE_COLORS } from '../render/palette.js';
@@ -722,7 +723,7 @@ export function makeCourseEditor(app, hooks) {
     const path = selectedPath();
     if (!path) {
       clearPathSelection();
-      toast('Select a path first.', 'warn');
+      toast(t('editor.selectAPathFirst'), 'warn');
       renderToolPanel();
       refreshSelectedPathPreview();
       return { ok: false };
@@ -1274,7 +1275,7 @@ export function makeCourseEditor(app, hooks) {
               const res = duplicateObject(state(), session, selected.id, { protectPlay: true });
               if (res.ok) {
                 refreshObjects();
-                toast('Copied - drag it into place.');
+                toast(t('editor.copiedDragItInto'));
                 setSelected(res.object);
               } else toast(res.reason || 'There is no clear space for a copy.', 'warn');
             },
@@ -1404,7 +1405,7 @@ export function makeCourseEditor(app, hooks) {
             }),
           ));
         } else {
-          greenList.append(el('div', { text: hole ? 'This hole has no vector green yet.' : 'Select a hole first.' }));
+          greenList.append(el('div', { text: hole ? 'This hole has no vector green yet.' : t('editor.selectAHoleFirst') }));
         }
         p.append(greenList);
         if (opt.green.mode === 'draw') {
@@ -1490,7 +1491,7 @@ export function makeCourseEditor(app, hooks) {
             }),
           ));
         });
-        if (!bunkers.length) list.append(el('div', { text: hole ? 'No bunkers are assigned to this hole.' : 'Select a hole first.' }));
+        if (!bunkers.length) list.append(el('div', { text: hole ? 'No bunkers are assigned to this hole.' : t('editor.selectAHoleFirst') }));
         p.append(list);
         if (opt.bunker.mode === 'draw') {
           p.append(segButtons([['round', 'Round'], ['oval', 'Oval'], ['kidney', 'Kidney']], opt.bunker.shape, (k) => { opt.bunker.shape = k; refreshHoverPreview(); }));
@@ -1794,7 +1795,7 @@ export function makeCourseEditor(app, hooks) {
                 }
                 clearPathSelection();
                 refreshEditedPath(beforePts, []);
-                toast('Path deleted.');
+                toast(t('editor.pathDeleted'));
               },
             }));
           }
@@ -2282,7 +2283,7 @@ export function makeCourseEditor(app, hooks) {
             const res = newHole(state(), session);
             if (res.ok) {
               setHoleSettings(state(), session, res.hole.id, { name: `${name.value} II`, handicap: Number(handicap.value) || hole.handicap, parOverride: parOv });
-              toast('New hole added with these settings - it needs its own tee, fairway and green.');
+              toast(t('editor.newHoleAddedWith'));
               refreshTop();
             }
           },
@@ -2361,7 +2362,7 @@ export function makeCourseEditor(app, hooks) {
             a.download = `${state().clubName.replace(/\W+/g, '_').toLowerCase()}_course.json`;
             a.click();
             setTimeout(() => URL.revokeObjectURL(a.href), 4000);
-            toast('Course data exported.');
+            toast(t('editor.courseDataExported'));
           },
         }),
         el('button', { text: 'Cancel', onclick: closeModal }),
@@ -2375,7 +2376,7 @@ export function makeCourseEditor(app, hooks) {
             }
             hooks.autosave();
             lastSavedText = new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
-            toast('Course saved.');
+            toast(t('editor.courseSaved'));
             closeModal();
             refreshTop();
           },
@@ -2512,12 +2513,12 @@ export function makeCourseEditor(app, hooks) {
             try {
               await discardPendingWork();
               closeModal();
-              toast('Pending works discarded.');
+              toast(t('editor.pendingWorksDiscarded'));
             } catch (error) {
               console.error('course editor discard refresh failed', error);
               button.disabled = false;
               button.textContent = 'Discard';
-              toast('The undo did not finish drawing. Try again.', 'warn');
+              toast(t('editor.theUndoDidNot'), 'warn');
             }
           },
         }),
@@ -2667,7 +2668,7 @@ export function makeCourseEditor(app, hooks) {
                 console.error('course editor discard-and-leave refresh failed', error);
                 button.disabled = false;
                 button.textContent = 'Discard & leave';
-                toast('The undo did not finish drawing. Try again.', 'warn');
+                toast(t('editor.theUndoDidNot'), 'warn');
               }
             },
           }),
@@ -2966,7 +2967,7 @@ export function makeCourseEditor(app, hooks) {
         const point = authoringPoint(g);
         const hole = holesOf().find((h) => h.id === opt.tee.holeId);
         if (!hole) {
-          toast('Pick a hole first.', 'warn');
+          toast(t('editor.pickAHoleFirst'), 'warn');
           break;
         }
         const markerOffset = state().course.vec ? 0.5 : 0;
@@ -2990,7 +2991,7 @@ export function makeCourseEditor(app, hooks) {
         if (opt.green.pin) {
           const hole = selectedHole();
           if (!hole) {
-            toast('Select a hole first.', 'warn');
+            toast(t('editor.selectAHoleFirst'), 'warn');
             break;
           }
           const res = setPinPosition(state(), session, hole.id, opt.green.pin, g.x, g.y);
@@ -3010,7 +3011,7 @@ export function makeCourseEditor(app, hooks) {
         }
         const hole = selectedHole();
         if (!hole) {
-          toast('Select a hole first.', 'warn');
+          toast(t('editor.selectAHoleFirst'), 'warn');
           break;
         }
         const point = authoringPoint(g);
@@ -3036,7 +3037,7 @@ export function makeCourseEditor(app, hooks) {
         }
         const hole = selectedHole();
         if (!hole) {
-          toast('Select a hole first.', 'warn');
+          toast(t('editor.selectAHoleFirst'), 'warn');
           break;
         }
         const point = authoringPoint(g);
@@ -3309,7 +3310,7 @@ export function makeCourseEditor(app, hooks) {
         ? featurePlacementOk(state().course, 'tee', point.x, point.y, {
           holeId: hole.id, aimX: aimCell.x, aimY: aimCell.y,
         })
-        : { ok: false, reason: 'Pick a hole first.' };
+        : { ok: false, reason: t('editor.pickAHoleFirst') };
       sc.setEditorFeaturePreview?.(buildCourseEditorPreviewGeometry({
         feature: 'tee',
         hoverWorld: { x: g.point.x, z: g.point.z },
@@ -3519,7 +3520,7 @@ export function makeCourseEditor(app, hooks) {
         });
         refreshTop();
         renderToolPanel();
-        toast('Stream cut.');
+        toast(t('editor.streamCut'));
       } else toast(res.reason || 'The stream needs a valid open route.', 'warn');
     }
     drawingPath = null;
@@ -3691,7 +3692,7 @@ export function makeCourseEditor(app, hooks) {
   function enterPlaytest(holeId = null) {
     const holes = holesOf().filter((h) => h.tee && h.pin);
     if (!holes.length) {
-      toast('No playable hole yet - a hole needs a tee and a pin.', 'warn');
+      toast(t('editor.noPlayableHoleYet'), 'warn');
       return;
     }
     const sc = scene();
@@ -3705,7 +3706,7 @@ export function makeCourseEditor(app, hooks) {
       inBoundsWorld: (x, z) => sc.inBoundsWorld(x, z),
     });
     if (!nextPlaytest) {
-      toast('That hole is not playable yet.', 'warn');
+      toast(t('editor.thatHoleIsNot'), 'warn');
       return;
     }
     if (!wasPlaytesting) {
