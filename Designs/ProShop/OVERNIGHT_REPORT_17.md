@@ -13678,3 +13678,57 @@ submission, the post chain.
 **17% of frames still miss the budget with no HUD at all**, so the overlay is a
 real target and not the answer. The next place to look is the game update itself,
 which is the only large part of the frame never yet measured.
+
+
+## THE INDOOR SPIKE IS NOT GAME LOGIC EITHER — walk.update AND clubhouse.update COST 0.1 ms OF IT
+
+`walk.update` and `clubhouse.update` are own function properties, so they patch
+the way `renderer.render` did. **The trap this driver was built around:** the
+frame loop lives inside courseScene's closure and might call the internal
+function rather than the exposed property, in which case the patch intercepts
+nothing and reports 0.00 ms — which reads exactly like "not the cause". So each
+patch counts its own invocations and the verdict leads with `intercepted`.
+
+**It did intercept: 1,054 calls each across 1,054 frames**, one per frame, so the
+loop really does go through the exposed properties.
+
+| indoors, medians | spike | calm | gap |
+|---|---|---|---|
+| whole frame | 22.2 ms | 5.3 ms | **+16.9 ms** |
+| `walk.update` | 0.2 | 0.1 | **+0.1** |
+| `clubhouse.update` | 0.3 | 0.2 | **+0.1** |
+| `renderer.render` | 5.8 | 4.2 | +1.6 |
+
+**All three together account for 10.7% of the spike.** The game's two main update
+functions cost 0.2-0.3 ms in total and do not move between a calm frame and one
+three times longer.
+
+### What the whole thread now says
+
+**The indoor frame drops are not the game's work.** Not its draw calls, not its
+geometry, not its shadows, not its textures, not its simulation. ~89% of a spike
+frame happens in none of render, walk.update or clubhouse.update.
+
+What IS accounted for points the same way: **hiding the DOM overlay recovers 6.7
+of the 23 points**, and that is browser-side style/layout/paint/composite — work
+that sits outside every JS function a driver can wrap, which is precisely the
+shape of the hole in this table.
+
+So the remaining budget belongs to **the browser compositing the page**, not to
+the simulation. Anyone optimising the shop sim, the NPCs or the interior's
+geometry to fix invariant 1 would be working on the 10%.
+
+### The tally, closed for this session
+
+| cause | points of ~23 |
+|---|---|
+| DOM HUD style/layout/composite | **6.7** |
+| shadow bakes | 1.2 |
+| `render()` (draw submission + post) | ~1.6 ms of 16.9 per spike |
+| `walk.update` + `clubhouse.update` | **~0.2 ms of 16.9** |
+| unattributed, and now pointed at browser compositing | remainder |
+
+Eight mechanisms eliminated under controls. Two candidate fixes built to the
+point of measurement and refused by their own evidence. **No fix shipped, and
+none of the obvious ones would have worked** — which is worth more than a fix
+that moved a number without moving the experience.
