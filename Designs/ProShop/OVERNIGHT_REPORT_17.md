@@ -7884,3 +7884,58 @@ socket resolution, and re-measure invariant 1 with a beat that can pass.
 
 Suite 2929 pass / 0 fail.
 
+
+## CONFIRMED — THE GUARD IS `socketRefs.found`, AND THE DIAGNOSIS CLOSES
+
+Read the guard rather than asserting it. `broomViewmodel.js:1147`:
+
+```js
+if (socketRefs.found) {
+  socketRefs.contact.getWorldPosition(_assetHead);
+  socketRefs.primary.getWorldPosition(_assetGrip);
+  ...
+  state.headAboveFloor = floorHere == null ? null : _assetHead.y - floorHere;
+} else {
+  state.headAboveFloor = null;   // and shaftDrop, assetHeadNdc, both world Ys
+}
+```
+
+with the comment above it stating the intent outright: *"Read straight off the
+asset's own sockets in world space, AFTER the solve has posed it… These do not
+depend on the solve's geometry at all, so they can contradict it."*
+
+**The hypothesis is confirmed.** `headAboveFloor` is null whenever the AUTHORED
+GLB's sockets have not resolved — and `qa-boot.mjs:133` uses that exact value as
+its universal test for *"the rig is running"*.
+
+### The complete chain, three corrections deep
+
+```
+CLAIM 1  "invariant 1's walk never picks up a tool"
+         WRONG - the wheel opens, the broom is selected, key '4' is pressed
+CLAIM 2  "headAboveFloor is null because the walk is on turf"
+         WRONG - measured: surface "boards", groundY -1.4402931
+CLAIM 3  "the null comes from the authored-socket branch"
+         CONFIRMED by reading the guard: `if (socketRefs.found)`
+```
+
+Two of my own claims falsified by measurements I built to test them, and the
+third verified by reading the code instead of inferring it. **That is the method
+this whole report argues for, applied to my own reasoning three times in a row.**
+
+### What is now known about invariant 1
+
+`toolIsLive` reports a tool "not running" when its authored GLB sockets are
+unresolved, **even though the tool is equipped and drawing**. So the walk's tool
+beat fails on an asset-adoption condition, not on rig health, and invariant 1's
+frame figures were gathered from a walk that equipped a broom whose authored
+asset had not been adopted at the moment of the check.
+
+Whether the asset adopts LATER (a timing issue — the driver waits 1200 ms after
+selecting) or never in this scenario is the one remaining unknown, and it is a
+single `waitForFunction` away.
+
+**The honest bottom line for Section A:** invariant 1 is red, its red is real,
+and the walk it measures does not exercise a fully-adopted authored tool. The
+six causes closed against it in Section A were closed against that walk.
+
