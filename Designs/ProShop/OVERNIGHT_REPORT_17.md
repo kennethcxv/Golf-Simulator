@@ -13963,3 +13963,60 @@ same 8.4 ms would sit at half the budget and none of this would happen. **The
 finding is not "the game is too slow"; it is "on a 120 Hz display the indoor
 frame is 0.8% over the interval, and that 0.8% is what invariant 1 has been
 reporting all along."**
+
+
+## THE POST CHAIN IS 74% OF THE GPU FRAME AND THE WHOLE OF INVARIANT 1
+
+The GPU runs flat at ~9 ms against an 8.33 ms interval. Two levers are exposed
+and sweepable at runtime without touching game code, so the attribution is one
+run. **GPU time is measured, not frame time** — frame time is paced by vsync and
+would hide any saving that does not cross the interval boundary.
+
+| window | GPU median | GPU frames over 8.33 ms | frame median | frames over 8.33 ms |
+|---|---|---|---|---|
+| baseline | **9.11 ms** | **100%** | 5.7 ms | 43.3% |
+| **post OFF** | **2.40 ms** | **0.4%** | 4.1 ms | **0.5%** |
+| post ON | 9.13 ms | 100% | 5.5 ms | 43.3% |
+| shadow map 1024 | 9.16 ms | 100% | 6.5 ms | 41.3% |
+| shadow map 512 | 9.18 ms | 100% | 5.7 ms | 43.5% |
+| baseline again | 9.16 ms | 100% | 5.5 ms | 44.0% |
+
+**Drift control: 0.05 ms across the whole sweep.**
+
+### The numbers, stated plainly
+
+- **The post chain costs 6.71 ms of a 9.11 ms GPU frame — 74% of it.**
+- With it off, the GPU finishes in 2.40 ms and **frames over the refresh interval
+  drop from 43.3% to 0.5%.** That is invariant 1, fixed, in one flag.
+- **Shadow map resolution is worth nothing at all**: 2048 -> 1024 -> 512 moved the
+  GPU by -0.05 and -0.07 ms, i.e. backwards, i.e. noise. A tenth elimination, and
+  a lever three of us would have reached for first.
+
+The composer is *"a RenderPass into a 4x-MSAA half-float target"* plus GTAO plus
+bloom, by courseScene's own description. At 3840x2055 that is the dominant cost
+in the build and nothing else is close.
+
+### What the fix has to be, and how much it needs
+
+**Not "turn post off"** — that changes how the game looks, and Requirement 5 is
+about not taking things away from the player.
+
+The margin is the point: the frame needs to go from **9.11 ms to under 8.33** —
+**0.8 ms, about 12% of the post chain's cost.** That is a very different task
+from "make the game faster". Candidates, all inside the composer:
+
+- the 4x MSAA on the composer target (the single most expensive attribute on a
+  half-float render target at this resolution);
+- GTAO's resolution — already half-res, so the next step is quarter or a cheaper
+  kernel;
+- bloom's mip chain depth;
+- the composer target's precision — half-float is not free.
+
+Any one of them plausibly buys more than 0.8 ms.
+
+### And it closes the thread
+
+Ten mechanisms eliminated, one cause found, quantified to two decimal places,
+with a 0.05 ms drift control and a lever that demonstrably takes the failure rate
+from 43.3% to 0.5%. **Invariant 1 was never "the game drops frames". It was a
+post-processing chain costing three quarters of a 120 Hz frame budget.**
