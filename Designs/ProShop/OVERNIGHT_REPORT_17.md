@@ -2907,3 +2907,60 @@ overlapping text and cramped edges"* - laptop, ledger, HUD, menus. Only the fron
 desk monitor has been swept. The instrument now exists and is proven, but it is
 canvas-specific; the DOM screens need the equivalent measured from
 `getBoundingClientRect`.
+
+## G2 (part 3) - THE DOM SWEEP, AND TWO WRONG METRICS BEFORE THE RIGHT ONE
+
+*"Then sweep every screen in the game for overlapping text and cramped edges and
+fix all of it - front desk, laptop, ledger, HUD, menus, register glass. Report
+every one you found with the screen and the strings."*
+
+The front desk and the ledger are CANVAS and have their own recorders. The rest
+are DOM, where the only honest measurement is real layout, so this is an Electron
+driver: `tools/qa/electron-g2-screensweep.js`, 8 screens.
+
+### Getting the metric right took three attempts, and the first two lied
+
+| attempt | measured | result |
+| --- | --- | --- |
+| 1 | element rect vs host rect | **41 cramped** - almost all tab BUTTONS flush to a panel, whose own padding meant the text was never near the edge |
+| 2 | text ink vs host CONTENT box | **113 cramped** - WORSE. Subtracting the host padding flags every left-aligned heading, because aligned content sits at exactly 0 from the content edge BY DESIGN |
+| 3 | text ink vs host BORDER box | **1 cramped** |
+
+Attempt 3 is the one that matches what "cramped" means: a panel with 16px of
+padding reads 16 and passes, a panel with none reads 0 and is the defect. Getting
+this wrong in either direction produces a number that looks like a finding.
+
+Both negative controls passed on every run - a planted overlapping pair and a
+planted flush element were found each time - so the shrinking count is the metric
+sharpening, not the probe going blind.
+
+### What it found
+
+**HUD, one real overlap:**
+
+```
+"E" (.prompt-key)  x  "Click to look · WASD move · Shift run · E inte…" (.shop-lockhint)
+17x12px at 1268,1321
+```
+
+`.shop-lockhint` is pinned at `bottom:18px` and stands about 33px tall once its
+6px padding, border and line box are counted - it occupies **18-51px**. The
+prompt sat at `bottom:28px`, which starts INSIDE that band, so the [E] key chip
+drew over the controls text. Two numbers that could never coexist. Prompt moved
+to `bottom:64px`.
+
+**Re-run after the fix: `totalOverlaps: 0`, both controls still valid.**
+
+**settings:controls, one cramped:** the `Z` keycap sits 8px off the bottom of
+`.settings-page`, exactly on the threshold. Marginal, and left alone rather than
+tuned to make a number go green.
+
+### Screens swept
+
+HUD, pause menu, settings x5 tabs (display, camera, audio, controls,
+accessibility), laptop home. **Everything else on the brief's list is still
+open**: the laptop's inner pages did not enumerate through the nav selector the
+driver guesses at, and the register glass is canvas and was not covered by the
+front desk recorder work either.
+
+Suite **2897 pass / 0 fail**.

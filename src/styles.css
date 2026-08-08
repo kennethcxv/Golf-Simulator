@@ -474,7 +474,13 @@ select:focus-visible,
 .shop-prompt {
   position: absolute;
   left: 50%;
-  bottom: 28px;
+  /* G2: THE PROMPT SAT ON TOP OF THE CONTROLS LINE.
+     .shop-lockhint is pinned at bottom:18px and stands about 33px tall once its
+     6px padding, border and line box are counted, so it occupies 18-51px. A
+     prompt at bottom:28px started INSIDE that band, and the [E] key chip drew
+     over the hint text - measured at 17x12px of overlap. Clearing the hint's top
+     with room to spare. */
+  bottom: 64px;
   transform: translateX(-50%);
   background: rgba(16, 23, 19, 0.9);
   border: 1px solid rgba(151, 174, 153, 0.42);
