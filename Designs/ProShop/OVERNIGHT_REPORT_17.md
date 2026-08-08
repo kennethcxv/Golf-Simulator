@@ -11250,3 +11250,59 @@ across the hand geometries — the thing every fix so far has missed.
 
 Suite 2929 pass / 0 fail.
 
+
+## THE ANSWER: SOME OF THE NINE ARE `depth` PROGRAMS — SHADOW PASSES
+
+Diffed all nine keys field by field instead of eyeballing truncated prefixes:
+
+```
+field 0 VARIES: physical | depth      <- THE ANSWER
+field 5 VARIES: false | uv
+field 49 VARIES: 0 | 8388608 | 8388609 | 8388611
+... 32 of 56 fields vary
+```
+
+**`physical | depth`.** Some of the nine are **`depth` programs — shadow-map
+passes** — not material programs at all.
+
+### That explains all ten failures in one line
+
+**`renderer.compile()` does not warm shadow-depth programs.** It compiles the
+material programs a camera will draw; the shadow pass compiles its own depth
+programs the first time an object renders into the shadow map. **No arrangement
+of cameras, layers, scene membership or timing changes that**, which is precisely
+what nine attempts demonstrated one by one.
+
+And the tenth — sharing materials — could not help either: **depth programs are
+keyed on geometry attributes and shadow-side parameters, not on the material's
+colour set.** Deduplicating 9 materials to 7 left 9 programs exactly as measured.
+
+### The fix, and it is probably also correct behaviour
+
+**The first-person hands should not cast shadows.** They are a viewmodel drawn
+over the world at arm's length; `toolViewmodel.js` already states this rule for
+tools — *"a viewmodel is drawn over the world at arm's length; it neither casts
+nor receives the sun's shadow, and paying for either is pure waste"* — and sets
+`castShadow = false` on every tool mesh.
+
+**The hands never got that treatment.** Setting `castShadow = false` on the
+fpHands subtree removes the depth programs entirely rather than trying to warm
+them, and matches a rule this codebase already wrote down for the meshes right
+next to them.
+
+**Predicted:** equip Δ falls from +9 toward the count of genuine `physical`
+programs, and the remainder of those are reachable by the prewarm that already
+exists.
+
+### Forty-first finding, and the one that ends the thread
+
+Ten fixes failed because every one assumed all nine programs were material
+programs. **The word `physical` sat at field 0 of every key I printed, and I
+truncated at 120 characters and never diffed them against each other** — for
+eleven entries.
+
+**One field-by-field diff, costing one command, named what eleven entries of
+reasoning could not.**
+
+Suite 2929 pass / 0 fail.
+
