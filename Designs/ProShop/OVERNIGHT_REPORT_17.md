@@ -2787,3 +2787,69 @@ rather than to the family that shares its cause:
 The lesson that keeps repeating: **fixing the instance leaves every unit test
 green.** Six of the seven were found by reading outward from the fix to the path
 the player actually walks, not by running the suite.
+
+## G2 (part 1) - THE OVERLAP INSTRUMENT REPORTED CLEAN FOREVER AFTER ITS FIRST RUN
+
+The brief says the tee-time screen overlaps its own text and asks for a sweep of
+every screen. Goal 16 F2 built a good overlap RECORDER for this screen: it wraps
+`ctx.fillText` so every drawn string is captured automatically, it exempts a text
+rect fully inside a button as that button's own label, and it carries a plant
+control. The instrument was sound. Three things around it were not.
+
+### 1. Nothing drove it
+
+`MONITOR_OVERLAPS` was **not referenced by a single test in the repository**. It
+had complete coverage of the DRAW CALLS and no coverage of the SCREEN STATES -
+the same shape as the ledger sweep that reported zero overlaps because it ran on
+a shut book.
+
+### 2. The string the brief quotes had never been drawn
+
+There are **two different note fields**: `selectedReservation.note` on the
+check-in view and `model.note` on the tee sheet. They draw at different
+baselines, and the tee-sheet one shortens the slot grid when present. The word
+"note" appeared **nowhere** in the monitor's test models, so neither had ever
+been exercised headlessly.
+
+### 3. A measuring stub without vertical metrics makes a vertical defect invisible
+
+The recorder reads `actualBoundingBoxAscent/Descent` and falls back to a flat
+12/4 when absent. The existing stub returned only `width`, so EVERY row measured
+16px tall regardless of font - a 30px heading and a 13px caption identically. The
+defect in question is vertical.
+
+### 4. THE ONE THAT MATTERS: clearing the output is not resetting the audit
+
+The recorder de-duplicates by `(screen, labelA, labelB)` in a **module-level set
+that outlives any sweep**. A caller that empties `MONITOR_OVERLAPS` and draws
+again gets SILENCE: every overlap it would report is suppressed as already seen.
+
+**So a sweep that clears only the array reports clean forever after its first
+run, and that is indistinguishable from a screen with no overlaps.** I hit this
+myself: two deliberate breaks produced zero failures and I briefly concluded the
+probe was blind. It was not - a single fresh draw found them immediately.
+`resetMonitorAudit()` now clears the array, the dedupe set, the truncation
+ledger and the stats together.
+
+### The finding, which disagrees with the brief
+
+With a working instrument and both note fields covered across **19 screen
+states**, the front desk monitor draws **no text over its own text**. Control B
+below reproduces the brief's exact geometry - the note over "11:30 AM asked",
+which is precisely *"the first available time sits under the line showing what
+they asked for"* - and it only appears when the note is deliberately moved back
+down. Goal 16 F2 genuinely fixed it; the brief describes the state before that.
+
+Recorded as a disagreement rather than silently closed, per Requirement 2. The
+REST of G2 - padding between the two bottom boxes and the page edge, and between
+the Full Sheet / Turn Away buttons and the bottom of their section - is a
+different measurement (cramped edges, not overlaps) and is still open.
+
+### Controls watched failing
+
+| break | what the sweep said |
+| --- | --- |
+| tee-sheet note baseline 616 to 534 | `"9:24 AM" x "11:30 AM is open..." (56x8px at 34,523)` |
+| check-in note baseline 496 to 516 | `"11:30 AM is open..." x "11:30 AM asked" (240x5px at 482,506)` |
+
+Both name the exact strings and the pixel overlap. Suite **2894 pass / 0 fail**.

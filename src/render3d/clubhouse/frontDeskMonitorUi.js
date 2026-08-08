@@ -120,6 +120,26 @@ export const MONITOR_OVERLAPS = [];
 export const MONITOR_AUDIT_STATS = { draws: 0, rects: 0, lastScreen: null, plants: 0 };
 const monitorOverlapSeen = new Set();
 const monitorAuditRects = [];
+
+// CLEARING THE OUTPUT IS NOT THE SAME AS RESETTING THE AUDIT.
+//
+// The recorder de-duplicates by (screen, labelA, labelB) so a screen redrawn at
+// 60 fps reports each overlap once. That set is module-level and outlives any
+// single sweep, so a caller that empties MONITOR_OVERLAPS and draws again gets
+// SILENCE - every overlap it would have found is suppressed as already seen.
+// A sweep that clears only the array therefore reports clean forever after its
+// first run, which is indistinguishable from a screen with no overlaps.
+export function resetMonitorAudit() {
+  MONITOR_OVERLAPS.length = 0;
+  MONITOR_TRUNCATIONS.length = 0;
+  monitorOverlapSeen.clear();
+  seenTruncations.clear();
+  monitorAuditRects.length = 0;
+  MONITOR_AUDIT_STATS.draws = 0;
+  MONITOR_AUDIT_STATS.rects = 0;
+  MONITOR_AUDIT_STATS.plants = 0;
+  MONITOR_AUDIT_STATS.lastScreen = null;
+}
 function monitorAuditOn() {
   return typeof window !== 'undefined' && !!window.__monitorRectAudit;
 }
