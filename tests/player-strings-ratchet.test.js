@@ -62,7 +62,11 @@ import path from 'node:path';
 // act on and a baseline nobody will lower. Still to come, in order: prop
 // `label:` (552), `el({text})` (483, audit first - the factory also builds debug
 // rows), `ctx.fillText` (61), `notify({message})` (14).
-const SINK = /\b(toast|announce|setPrompt|setHint)\s*\(\s*(['"`])|log\.unshift\(\s*(['"`])|reason:\s*(['"`])/g;
+// `label:` joined as step 2. It is the `[E]` prompt under the crosshair, the
+// settings row titles, and every named control - text the player reads more
+// often than any toast, because a prompt is on screen continuously while a
+// toast flashes.
+const SINK = /\b(toast|announce|setPrompt|setHint)\s*\(\s*(['"`])|log\.unshift\(\s*(['"`])|reason:\s*(['"`])|\blabel:\s*(['"`])/g;
 const WRAPPED = /\b(toast|announce|setPrompt|setHint)\s*\(\s*t\(/g;
 
 // The measured state on the day this was written. Lower it when you wrap some.
@@ -83,7 +87,10 @@ const WRAPPED = /\b(toast|announce|setPrompt|setHint)\s*\(\s*t\(/g;
 // Worst offenders at the time of writing, for whoever wraps them:
 //   sim/register.js 103, sim/courseEditor.js 76, sim/reservations.js 72,
 //   sim/deliveries.js 47, sim/shop.js 37
-const BASELINE = 854;
+// 854 -> 1406 when `label:` joined. Third correction-not-regression rise.
+// Worst offenders now: sim/register.js 103, sim/courseEditor.js 87,
+// sim/reservations.js 72, sim/campaign.js 61, ui/laptop.js 60.
+const BASELINE = 1406;
 
 function jsFiles(dir) {
   const out = [];

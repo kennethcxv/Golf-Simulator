@@ -6166,3 +6166,43 @@ Control: a planted `reason:` string pushes 854 -> 855 and fails the ceiling.
 
 **Remaining, in the decided order:** prop `label:` (552), `el({text})` (483,
 audit first), `ctx.fillText` (61), `notify({message})` (14).
+
+### SINK WIDENING, STEP 2: `label:` - 854 -> 1,406
+
+```
+854 -> 1406 raw player-facing strings
+552 control and prompt labels, always raw, never scanned
+```
+
+`label:` is the **`[E]` prompt under the crosshair**, the settings row titles, and
+every named control. The player reads these MORE than any toast, because a prompt
+sits on screen continuously while a toast flashes and goes.
+
+Worst offenders now: `sim/register.js` 103, `sim/courseEditor.js` 87,
+`sim/reservations.js` 72, `sim/campaign.js` 61, `ui/laptop.js` 60.
+
+Same discipline as step 1: regex tested standalone first (1406, originals still
+matching at 5 in buildMode), Edit tool, full suite before the commit, control
+watched failing at 1407.
+
+### What the number now says, and it is not comfortable
+
+**1,406 player-facing strings reach every player in English on every locale**, up
+from the 45 I believed four hours ago. Nothing regressed - the measurement caught
+up with reality in three steps:
+
+```
+ 45   four sinks
+ 50   + shop.log        (fault 91)
+854   + reason:         (step 1)
+1406  + label:          (step 2)
+```
+
+**Every one of those rises was me discovering the check was narrower than its
+name.** The remaining two categories - `el({text})` 483 and `ctx.fillText` 61 -
+will take it past 1,900.
+
+That is the honest size of invariant 8, and it took the whole session to find,
+because a green check with a confident name is the hardest kind of wrong thing to
+notice. The 110 strings genuinely wrapped today are real work; they are also **7%
+of the job**, and the report should not have implied otherwise until now.
