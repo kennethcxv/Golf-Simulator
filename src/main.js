@@ -716,7 +716,7 @@ function handleGuideTick(result) {
   } else {
     for (const step of advanced) toast(`✓ ${step.title}`, 'good');
   }
-  if (result.phaseChanged) toast(`Milestone - ${result.phaseChanged.title}`, 'good');
+  if (result.phaseChanged) toast(t('hud.milestone', { title: result.phaseChanged.title }), 'good');
   if (result.firstDayCompleted) showFirstDaySummary();
   if (advanced.length || result.phaseChanged || result.firstDayCompleted) {
     if (objectivesPanel) objectivesPanel.refresh();
@@ -873,13 +873,13 @@ function announceOutbreaks() {
   for (const key of now) {
     if (!lastDiseasedNames.has(key)) {
       const [disease, name] = key.split('|');
-      toast(`${disease} has broken out on ${name}.`, 'warn');
+      toast(t('hud.diseaseOutbreak', { disease, hole: name }), 'warn');
     }
   }
   for (const key of lastDiseasedNames) {
     if (!now.has(key)) {
       const [disease, name] = key.split('|');
-      toast(`${name} has shaken off the ${disease.toLowerCase()}.`);
+      toast(t('hud.diseaseCleared', { hole: name, disease: disease.toLowerCase() }));
     }
   }
   lastDiseasedNames = now;
@@ -1206,7 +1206,7 @@ function startGameNow(state, loadNotice = null, generation = sceneStartGeneratio
   hud.update();
   golfDayPanel?.update();
   if (objectivesPanel) objectivesPanel.refresh();
-  toast(`Welcome to ${state.clubName} - ${state.mode} mode.`);
+  toast(t('hud.welcome', { club: state.clubName, mode: state.mode }));
   if (lastDiseasedNames.size > 0) {
     toast(`The greenskeeper's note: ${lastDiseasedNames.size} greens are fighting disease. Step outside and click them to diagnose.`, 'warn');
   }
@@ -1365,7 +1365,7 @@ async function loadEmpireSave(key, label) {
     status = await loadDataWithStatus(key, { repair: false });
   } catch (error) {
     console.error(`${label} storage read failed`, error);
-    toast(`${label} could not be read. The current game was left untouched.`, 'warn');
+    toast(t('hud.saveUnreadable', { label }), 'warn');
     return null;
   }
   if (status.value == null) {
@@ -1589,7 +1589,7 @@ const handlers = {
       toast(res.reason, 'warn');
       return {};
     }
-    toast(`Bought ${res.property.name} for ${formatMoney(res.property.askingPrice)}.`);
+    toast(t('hud.boughtProperty', { name: res.property.name, price: formatMoney(res.property.askingPrice) }));
     if (!hadActive) {
       startGame(activeState(app.empire));
       autosave();
@@ -1621,12 +1621,12 @@ const handlers = {
       app.speedIdx = prevSpeed || 1;
       return;
     }
-    toast(`Sold for ${formatMoney(res.payout)}. The deed is done.`);
+    toast(t('hud.soldProperty', { price: formatMoney(res.payout) }));
     if (wasActive) {
       if (empire.holdings.length > 0) {
         switchProperty(empire, empire.holdings[0].property.id);
         startGame(activeState(empire));
-        toast(`The office moves to ${activeState(empire).clubName}.`);
+        toast(t('hud.officeMoves', { club: activeState(empire).clubName }));
       } else {
         // sold the whole portfolio — back to the market with a full wallet
         autosave();
@@ -3585,7 +3585,7 @@ function announceReopenings() {
   for (const hole of course.holes) {
     const prev = lastStatuses.get(hole.id);
     if (prev && prev !== HOLE_STATUS.OPEN && hole.status === HOLE_STATUS.OPEN) {
-      toast(`Hole ${holeNumber(course, hole.id)} is back open.`);
+      toast(t('hud.holeReopened', { number: holeNumber(course, hole.id) }));
     }
     lastStatuses.set(hole.id, hole.status);
   }

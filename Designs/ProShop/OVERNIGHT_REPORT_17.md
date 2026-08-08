@@ -4893,3 +4893,47 @@ Three shapes have now been named and handled, and they need different fixes:
 opened) needs its own key; **a pre-assembled phrase** needs the sentence split.
 None of them is visible from outside the string - you only find them by reading
 what each interpolation actually holds.
+
+### 54 -> 45, AND THE FLOOR FIRED FOR THE RIGHT REASON
+
+Nine HUD announcements from `main.js`: a milestone, a disease outbreak and its
+recovery, the welcome line, an unreadable save, buying and selling a property,
+the office moving, a hole reopening.
+
+### Then my own control failed, and it was correct to
+
+```
+not ok - the scanner finds the player-facing sinks at all (control)
+         the scanner should find the known sinks, found 45 - the pattern is
+         probably broken
+```
+
+The floor was `raw > 50`, set when 155 strings were raw, to catch a regex that
+had silently stopped matching. **Real wrapping has now taken the true count
+below that**, so the floor was failing on SUCCESS.
+
+Lowered to `> 15`, with the reasoning written in: it is still far above zero,
+which is the case it actually guards - **a broken pattern reports 0 and would
+sail under any ceiling while proving nothing.**
+
+And it was re-proven rather than assumed: breaking the regex deliberately gives
+
+```
+not ok - the scanner finds the player-facing sinks at all (control)
+         found 0 - the pattern is probably broken
+```
+
+### The point worth keeping
+
+A ratchet has TWO numbers and they move in opposite directions for opposite
+reasons. The ceiling comes down as work lands, so the gain cannot be given back.
+The floor comes down only when the ceiling has, and only far enough to keep
+catching a dead scanner. **I had not thought about the floor needing maintenance
+when I wrote it** - the test told me, by failing on a build that was strictly
+better than the one before.
+
+```
+155 -> ... -> 54 -> 45
+```
+
+**110 strings, 71%, translatable.** Suite 2928 pass / 0 fail.

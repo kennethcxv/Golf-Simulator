@@ -42,6 +42,16 @@ export const DEFAULT_LOCALE = 'en';
 
 // The English key set. Add a key here first; the overlays below are optional.
 const EN = Object.freeze({
+  // HUD announcements: milestones, disease, saves, property, holes.
+  'hud.milestone': "Milestone - {title}",
+  'hud.diseaseOutbreak': "{disease} has broken out on {hole}.",
+  'hud.diseaseCleared': "{hole} has shaken off the {disease}.",
+  'hud.welcome': "Welcome to {club} - {mode} mode.",
+  'hud.saveUnreadable': "{label} could not be read. The current game was left untouched.",
+  'hud.boughtProperty': "Bought {name} for {price}.",
+  'hud.soldProperty': "Sold for {price}. The deed is done.",
+  'hud.officeMoves': "The office moves to {club}.",
+  'hud.holeReopened': "Hole {number} is back open.",
   // Whole sentences, not nouns slotted into one - a translator cannot
   // decline a fragment handed to them mid-sentence.
   'editor.selectWaterFirst': "Select a pond, lake, or stream first.",

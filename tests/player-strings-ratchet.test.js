@@ -19,8 +19,8 @@
 // result was that none of them ever got wrapped. Now English is the key set and
 // the other locales report their true fraction.
 //
-// Started at 155: 146, 119, 94, 90, 85, 83, 78, 72, 68, now 63 as batches get wrapped.
-// Measured when this was written: 63 raw literals at player-facing sinks,
+// Started at 155: 146, 119, 94, 90, 85, 83, 78, 72, 68, 63, 57, 54, now 45.
+// Measured when this was written: 45 raw literals at player-facing sinks,
 // 0 wrapped in t(). Translating those is a real piece of work and not one to
 // start at the end of a session.
 //
@@ -44,7 +44,7 @@ const SINK = /\b(toast|announce|setPrompt|setHint)\s*\(\s*(['"`])/g;
 const WRAPPED = /\b(toast|announce|setPrompt|setHint)\s*\(\s*t\(/g;
 
 // The measured state on the day this was written. Lower it when you wrap some.
-const BASELINE = 63;
+const BASELINE = 45;
 
 function jsFiles(dir) {
   const out = [];
@@ -78,7 +78,14 @@ test('the scanner finds the player-facing sinks at all (control)', () => {
   const { raw } = scan();
   // A scanner that matched nothing would sail under any ceiling while proving
   // nothing whatsoever. The floor is what stops a broken regex reading as clean.
-  assert.ok(raw > 50,
+  // THE FLOOR MOVES DOWN WITH THE WORK, DELIBERATELY.
+  //
+  // It started at 50, chosen when 155 strings were raw, to catch a regex that
+  // had stopped matching. Real wrapping has now taken the true count below that,
+  // so the floor had to come down or it would fail on success. It is still far
+  // above zero, which is the case it actually guards: a broken pattern reports
+  // 0 and would sail under any ceiling while proving nothing.
+  assert.ok(raw > 15,
     `the scanner should find the known sinks, found ${raw} - the pattern is probably broken`);
 });
 
