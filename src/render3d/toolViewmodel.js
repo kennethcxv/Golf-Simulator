@@ -538,14 +538,30 @@ export function buildToolViewmodels() {
                   // 11 mm of bristle every 14.3 mm is a gap, so it went on
                   // looking like a comb while the numbers said brush. A real
                   // push broom's bristles barely taper at all.
-                  count: 200,
+                  count: 720,   // B2: was 200 - a thin bristle needs density to read as a brush
                   segments: 2,
                   length: 0.115,        // GLB-local metres: block underside to floor
                   barWidth: 0.50,       // block is 0.52; 10 mm inset each side
                   barDepth: 0.062,      // block is 0.078; 8 mm inset front and back
                   barRows: 5,
-                  strandRadiusTop: 0.010,
-                  strandRadiusBottom: 0.0088,
+                  // B2 (Goal 17) — "THE BRISTLES READ AS SEPARATED TINES
+                  // RATHER THAN A BRUSH."
+                  //
+                  // 200 bristles at a 10 mm radius is a 20 mm shaft. Against a
+                  // ~100 mm bristle that is 5:1 - the SAME ratio the mop was
+                  // diagnosed with at 240 strands x 18 mm, where the recorded
+                  // verdict was that chunky cylinders "look like kindling
+                  // however many you draw". Tines and kindling are the same
+                  // complaint about the same geometry.
+                  //
+                  // The mop's answer applies unchanged: thinner is the fix, and
+                  // thinner needs more of them to keep the block covered. 720
+                  // at 3.4 mm is ~15:1 - stiffer and stubbier than the mop's
+                  // yarn, which is what a push broom should be - and it fills
+                  // the bar instead of fencing it. Instanced, so the draw call
+                  // count does not move.
+                  strandRadiusTop: 0.0034,
+                  strandRadiusBottom: 0.0028,
                   // push-broom character: fast settle, short travel, little slack
                   params: {
                     chaseBase: 26, chaseFall: 5, pushGain: 0.55, dragGain: 0.05,

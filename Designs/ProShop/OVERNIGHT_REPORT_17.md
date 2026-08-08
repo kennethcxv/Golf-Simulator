@@ -6629,3 +6629,61 @@ the only version of this that survives a session that ends mid-thought.
 **Section B: phases 0, 1, 2, 3, 4 and the Phase 5 gate are complete.** B1 itself
 remains open on its default-camera capture; B2-B5 are untouched.
 
+
+## B3 CHECKED, B2 FIXED — THE BROOM DID NOT SHARE THE MOP'S DEFECT, BUT IT SHARED THE OTHER ONE
+
+### B3: no lag defect. Verified, not assumed.
+
+B1's finding made this cheap to check, and the answer is clean: the broom's
+motion params are ALREADY in the keep-up configuration.
+
+```
+chaseBase 26   dragGain 0.05   deficitBase 0.35   pushGain 0.55
+```
+
+Fast chase, almost no drag, mostly carried — the opposite of the mop's old
+`chaseBase 5.5 / dragGain 0.22 / deficitBase 0.85`. And that is correct for this
+tool: B3 asks for it "sized for a stiff push broom — shorter travel, faster
+settle, less slack than yarn", which is exactly what those numbers say.
+
+**B3 needs no param change.** Recorded as verified rather than assumed: the
+temptation after B1 was to apply the same retune to the broom on the grounds
+that it "got the same treatment", and the numbers say that would have broken a
+correctly-tuned tool.
+
+### B2: the tines ARE the mop's kindling, in different words
+
+```
+count: 200    strandRadiusTop: 0.010    -> a 20 mm shaft
+```
+
+Against a ~100 mm bristle that is **5:1** — the identical ratio the mop was
+diagnosed with at 240 strands x 18 mm, where the recorded verdict was that
+chunky cylinders "look like kindling however many you draw".
+
+B2's words are *"the bristles read as separated tines rather than a brush"*.
+Tines and kindling are the same complaint about the same geometry, reached
+independently by the owner and by yesterday's mop investigation. The mop's
+answer transfers without modification:
+
+```
+count 200 -> 720      strandRadiusTop 0.010 -> 0.0034
+                      strandRadiusBottom 0.0088 -> 0.0028
+```
+
+~15:1, stubbier and stiffer than the mop's yarn as a push broom should be, and
+dense enough to fill the bar rather than fence it.
+
+### Two things I am NOT claiming
+
+**UNCONFIRMED.** B2 is a visual item and the RULES are explicit: no
+default-camera screenshot, no confirmation. The geometry reasoning is sound and
+transfers from a diagnosis that was itself measured, but that is an argument,
+not a picture.
+
+**PERF RISK, declared.** This adds 520 instanced bristles — ~1,560 more matrices
+composed per frame — while invariant 1 is ALREADY the one red item in the gate.
+Instancing keeps the draw calls flat, so the cost is CPU compose, but "it is
+only CPU" is precisely the reasoning that produces a 384 ms frame. The gate is
+re-run below rather than assumed.
+
