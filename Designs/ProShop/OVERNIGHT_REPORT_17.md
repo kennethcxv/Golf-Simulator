@@ -11945,3 +11945,54 @@ remaining space is small enough to search deliberately instead of by guessing.
 
 Suite 2933 pass / 0 fail. Tree clean.
 
+
+---
+
+# THE FOUR RUNNING LISTS — FINAL UPDATE
+
+## 1. DONE AND VERIFIED
+
+- Invariant 8 widened **45 -> 2,108** across three audited steps; gate narration
+  now derives from the sink regex.
+- Phase 5 gate **4/1/5 -> 9/1/0**; every invariant has a check watched failing.
+- **B1** lag direction reversed, +35% reproducible. **B3** verified as needing
+  nothing. **B5** verified two ways. **D** complete. **F1/F2** verified.
+- **E5** reported: 232 keys, 51.1% dictionary, **5.0% honest**; composed-key
+  blocker removed; `till.recovered` enum leak fixed.
+- **Hand material duplication removed** (the session's one shipped change), with
+  `tests/hand-materials-shared.test.js` watched failing on the unfixed build.
+- **Section A's equip stall fully characterised**: 54 meshes arrive from an
+  off-graph parent; 7 materials; **9 programs — 4 `physical`, 5 `depth`**;
+  333-7855 ms first equip, ~24 ms second. Two independent methods agree on the
+  4/5 split.
+
+## 2. DONE, UNCONFIRMED AT THE PLAYER CAMERA
+
+- B1's retune — the pixel gain is measured; whether it reads to the eye is not.
+
+## 3. DIAGNOSED, DELIBERATELY NOT IMPLEMENTED
+
+- **B4** `broomViewmodel.js:863`; **C8** (fights C6 for the turn budget);
+  **E2** `styles.css:2037` + `settingsPanel.js:532`.
+- **The equip stall** — **fourteen fixes, fourteen refutations, all reverted.**
+  Two families eliminated: pre-compilation (8 configurations) and shadow
+  suppression (every named subsystem).
+
+## 4. NOT STARTED
+
+- C6, C8 implementation; E1, E3, E4; B1's capture; **invariant 1**, still the one
+  red item.
+
+### The three facts most worth inheriting
+
+1. **`renderer.compile()` cannot warm shadow-depth programs.** Eight
+   configurations proved it. No documentation would have volunteered it.
+2. **The cleaning kit is gated on being inside the clubhouse and owning it** —
+   a driver that wants a cleaning tool must walk in first.
+3. **Forty-plus findings this session, and the measurement was almost always
+   cheaper than the argument.** Every wrong turn came from explaining before
+   checking; every resolution came from one query that could have been run first.
+
+Suite 2933 pass / 0 fail. Gate 9 pass / 1 FAIL / 0 unchecked. Tree clean.
+260 commits, all pushed.
+
