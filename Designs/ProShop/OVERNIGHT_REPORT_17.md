@@ -1855,6 +1855,37 @@ screenshot** of the book on the counter after a station entry, so by this
 brief's rule it is UNCONFIRMED. And cartons and goods have not been re-verified
 against the new predicate in-game.
 
+### D1 CONFIRMED in the game, with the control that makes it mean something
+
+`tools/qa/electron-d1-nofloat.js`. Real focus on the book ("The club ledger -
+[E] read the book, [X] carry it"), real X key to pick it up, walk away, then a
+station takes the camera.
+
+| | station entry | **control: no station** |
+| --- | --- | --- |
+| picked up by the real key | yes | yes |
+| still carried afterwards | **no** | **yes** |
+| put down | **yes** | no |
+| where it ended up | on a surface, `y = -0.494` | riding **0.52 yd** ahead of the player at `y = -1.213` |
+
+**The control is what makes this evidence.** With no station entry the book is
+still carried and still following at exactly the 0.52 yd carry offset, so the
+put-down is caused by the station boundary and not by time passing, by walking,
+or by anything that would have happened anyway.
+
+### And my own verdict field is mis-named, which is worth saying
+
+The driver reports `floating: true` on the CONTROL leg - because I defined
+floating as "carried and within a stride of where I stood", and a correctly
+carried book is exactly that. The behaviour is right and the label is wrong. It
+did not mislead me here because `putDown` and `stillCarriedAfter` carry the
+result, but a predicate that fires on correct behaviour is one bad day from
+being read as a defect. Recorded rather than quietly renamed.
+
+`distanceFromWhereIStood` also came back `null` on the station leg - a NaN from
+my own arithmetic, not a product fact. Both are driver bugs in a driver that
+nonetheless answered the question.
+
 ---
 
 ## RUNNING LISTS
