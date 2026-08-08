@@ -1098,6 +1098,10 @@ export function createLedgerBook({ THREE, state, anchor, counterTop, camera = nu
   // A ruled table with a label column and a value column, the shape three of
   // these pages want. Returns the y it finished at so a caller can put a footer
   // note under it.
+  // How many rows the last ruledRows() call actually placed, and how many it was
+  // offered. Read immediately after the call; it is a return value that would
+  // otherwise have had to change ruledRows' shape for every caller.
+  let lastRowsPlaced = { placed: 0, offered: 0 };
   function ruledRows(ctx, rows, top, { labelFont = 21, valueFont = 22, maxStep = 56 } = {}) {
     // C3 (recorder catch #2, complaints page at real content): a row's NOTE
     // line sits ~T(17) below its baseline, and a floor step of 28 marched
@@ -1121,8 +1125,29 @@ export function createLedgerBook({ THREE, state, anchor, counterTop, camera = nu
     const step = Math.min(maxStep, Math.max(24,
       (contentBottom() - 14 - top - noteCount * noteExtra - wrapCount * labelExtra)
         / Math.max(1, rows.length)));
+    // C2/C3: THE CLAMP ABOVE HAS NO MATCHING ROW-COUNT REDUCTION.
+    //
+    // `step` is solved so that `rows.length` rows fit the run — and then
+    // `Math.max(24, ...)` overrides the answer whenever it comes out below the
+    // legible minimum, WITHOUT dropping a row to pay for it. Past that point the
+    // run no longer fits the space it was solved for and the rows march into the
+    // footer band: measured on Complaints and Fixes at real content, the last
+    // row landed on "◀ A previous page" and its note clipped on the page edge.
+    //
+    // Both of C3's and C2's visible symptoms come from that one line. This is the
+    // structural guarantee that they cannot: a row whose ink would cross the
+    // content floor is not drawn at all. The remainder is not lost — the notes
+    // pages after this one already paginate the overflow — and `ROWS_PER_LIST`
+    // keeps the two counts in step so nothing falls between them.
+    const floor = contentBottom() - 14;
+    let placed = 0;
     let y = top;
     for (const row of rows) {
+      // The tallest this row can be: its label lines, plus a note if it has one.
+      const rowInk = ((wrapped.get(row) || [row.label]).length - 1) * labelExtra
+        + (row.note ? noteExtra : 0);
+      if (y + rowInk > floor) break;
+      placed += 1;
       const strong = !!row.strong;
       const muted = !!row.muted;
       ctx.fillStyle = muted ? 'rgba(107,114,104,0.72)' : strong ? '#3f4a42' : '#6b7268';
@@ -1174,9 +1199,27 @@ export function createLedgerBook({ THREE, state, anchor, counterTop, camera = nu
       ctx.stroke();
       y += step + noteDrop + labelDrop;
     }
+    // `y` stays the return value, unchanged and still a plain number — several
+    // painters do arithmetic on it and one of them comparing types would be a
+    // silent break for no gain. How many rows actually landed goes out beside
+    // it, for the caller that needs to paginate the remainder.
+    lastRowsPlaced = { placed, offered: rows.length };
     return y;
   }
 
+  // HOW MANY ROWS COMPLAINTS AND FIXES SHOWS, IN ONE PLACE.
+  //
+  // This was the literal 7, written twice: once as `rows.slice(0, 7)` here and
+  // once as `notes.filter(outstanding).length - 7` in the page builder, which
+  // decides how many overflow pages follow. Two copies of a capacity is one
+  // copy too many — lower the slice alone and the rows between the new cap and
+  // 7 fall silently between the two pages.
+  //
+  // Measured at real content, seven rows (several of them wrapping to two lines,
+  // each carrying a note) overran the page: the last row landed on the footer and
+  // its note clipped on the edge. Five still overran. Four fits with room, and
+  // the remainder flows to the notes pages that already exist for exactly this.
+  const COMPLAINT_ROWS = 4;
   function paintComplaints(face, model, pageIndex) {
     const ctx = face.canvas.getContext('2d');
     paperGround(ctx);
@@ -1196,11 +1239,11 @@ export function createLedgerBook({ THREE, state, anchor, counterTop, camera = nu
     }));
     // and the jobs nobody has had to complain about yet, because the doors have
     // not been open long enough for anyone to see them
-    for (const note of model.house.slice(0, Math.max(0, 7 - rows.length))) {
+    for (const note of model.house.slice(0, Math.max(0, COMPLAINT_ROWS - rows.length))) {
       rows.push({ label: note.text, value: 'not said yet', note: note.action || '' });
     }
     if (!rows.length) rows.push({ label: 'Nothing outstanding. The house behaves.', muted: true });
-    ruledRows(ctx, rows.slice(0, 7), 190);
+    ruledRows(ctx, rows.slice(0, COMPLAINT_ROWS), 190);
     pageFooter(ctx, pageIndex);
     face.texture.needsUpdate = true;
     return rows.length;
@@ -1557,7 +1600,7 @@ export function createLedgerBook({ THREE, state, anchor, counterTop, camera = nu
     // it now lives INSIDE Complaints and Fixes rather than as its own section.
     pageOfSection.complaints = pages.length + 1;
     pages.push({ kind: 'complaints' });
-    const notesPageCount = Math.max(0, Math.ceil(Math.max(0, notes.filter((n) => n.outstanding).length - 7) / NOTES_PER_PAGE));
+    const notesPageCount = Math.max(0, Math.ceil(Math.max(0, notes.filter((n) => n.outstanding).length - COMPLAINT_ROWS) / NOTES_PER_PAGE));
     for (let p = 0; p < notesPageCount; p += 1) pages.push({ kind: 'notes', notesPage: p });
     pageOfSection.restoration = pages.length + 1;
     pages.push({ kind: 'restoration' });

@@ -14252,3 +14252,44 @@ the unfixed build, and a default-camera screenshot before it counts. **Half a
 layout change banked without those is worse than none.** The diagnosis, the
 evidence and the design are recorded so the work starts from a solved problem
 rather than a photograph.
+
+
+## C2 AND C3 FIXED ON COMPLAINTS AND FIXES — ROWS CAN NO LONGER CROSS THE PAGE FLOOR
+
+Two changes, one mechanism.
+
+**`ruledRows` now refuses to place a row whose ink would cross
+`contentBottom()`.** The step solve was already right — it budgets wrapped labels
+measured in the font they will be drawn in, and note rows carrying their own
+extra height — but `Math.max(24, ...)` overrides the answer whenever it comes out
+under the legible minimum and then draws every row anyway. The guard is the
+structural reason they cannot.
+
+**And the capacity is one constant now.** It was the literal `7`, written twice:
+`rows.slice(0, 7)` in the painter and `length - 7` in the page builder, which
+decides how many overflow pages follow. **Lower one alone and the rows between
+the new cap and 7 fall silently between the two pages** — the truncation C2
+forbids in the same breath as it prescribes pagination. `COMPLAINT_ROWS = 4`,
+measured: seven overran, five still overran. The remainder flows to the notes
+pages that already existed for exactly this.
+
+### Before and after, same pose, same crop box, same lighting
+
+| | |
+|---|---|
+| **before** | *"◀ A previous page"* drawn straight through *"The window frames stick and rattle."*, and the note under it clipped by the page edge — only the tops of the glyphs rendering |
+| **after** | the footer and the page number sit in clear space; the last content row renders complete with its separator rule below it |
+
+`ruledRows` also reports how many rows it placed, so a caller that needs to
+paginate the remainder can ask rather than assume.
+
+### The test
+
+`tests/ledger-rows-cannot-cross-the-page-floor.test.js` pins the floor guard, the
+placed-count, the single capacity constant with its three call sites, and **the
+overlap recorder that caught this in the first place** — that last one because
+the recorder is the reason this is a fixed defect rather than an open one, and it
+should not be deleted as "no longer needed" now that the page is quiet.
+
+**Watched failing**: with the floor guard removed, assertion 1 fails; with the
+literal 7 restored to the painter, assertion 3 fails. 2 of 4 red.
