@@ -8842,3 +8842,59 @@ building — and the split-beat harness now makes it a bisect rather than a gues
 
 Suite 2929 pass / 0 fail.
 
+
+## THE FIRST-STEP CANDIDATES — SIX LAZY BUILDERS, AND I AM NOT GUESSING WHICH
+
+Searched the scene for work that happens once, on demand, during play. Six
+lazy builders exist:
+
+```
+ensureGolfFacilities        ensureFarEvergreenFloraAsset
+ensureGolferVisual          ensurePartyVisual
+ensureTractorModel          ensureGolfCartRuntimeLights
+```
+
+Each constructs on first need, which is exactly the shape of a cost that lands
+once and never repeats — the signature of the 375 ms first-step hitch.
+
+**I am not picking one.** The tool-beat thread cost eight hypotheses precisely
+because each looked plausible and none was measured; the same trap is open here
+with six candidates and a satisfying story available for every one of them.
+
+### The instrument that settles it, specified
+
+Wrap each `ensureX()` in a timer that records `{name, ms, frameIndex}` on its
+**first** invocation only, and expose the list through the same kind of accessor
+`toolAuthoredResults()` turned out to need. One walk then names the builder
+and its cost, with no hypothesis required.
+
+That is a small, contained change to production code purely to serve
+measurement — the same trade `toolAuthoredResults()` made, which killed a
+hypothesis in a single run and would have saved this session hours had it
+existed at the start.
+
+**Deliberately not implemented now:** it touches six call sites in a
+12,000-line file, and every conclusion drawn today from an unverified change has
+had to be retracted. The next session can do it in daylight and get an answer in
+one walk.
+
+### The honest shape of Section A at the end of this session
+
+**Solid, distribution-backed:**
+- the player's first step costs ~375 ms (6 samples, 371..387)
+- the second tool equip is free (~25 ms, 1 ms spread)
+
+**Real but not yet measured:**
+- the first tool equip (335..1110 across two sets — needs more runs than three)
+
+**Retracted:**
+- "720 bristles cost 5.5 s" — single-sample noise, conviction withdrawn
+- door/ledger single-run costs — spreads collapsed on repetition
+
+**Delivered:**
+- `tools/qa/perf-repeat.mjs`, so no future claim here need be anecdotal
+- a split walk beat that localises hitches to a movement
+- a working tool beat, after it had been silently failing for an unknown time
+
+Suite 2929 pass / 0 fail.
+
