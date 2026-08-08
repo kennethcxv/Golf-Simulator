@@ -7649,3 +7649,57 @@ correct; the interesting information was in a field I had not been reading.
 `tool` fails with the bristle change reverted, it is pre-existing. If it passes
 reverted and fails applied, B2 caused it and the 720 count needs to come down.
 
+
+## THE SUSPICION RESOLVED — B2 IS CLEARED, AND INVARIANT 1 HAS BEEN MEASURING THE WRONG WALK
+
+Ran the test I specified, rather than leaving it for next session.
+
+```
+run 2, B2 applied (720 bristles)   beatsThatDidNot: ["tool"]   worst 827.7 ms
+run 3, B2 REVERTED (200 bristles)  beatsThatDidNot: ["tool"]   worst 374.4 ms
+```
+
+**The tool beat fails with the bristle change reverted.** B2 did not cause it.
+The failure is pre-existing, and it is consistent — three runs, three failures.
+(Worktree restored to the committed state afterwards: no diff against HEAD.)
+
+### What that actually means, and it is not good news
+
+Invariant 1 is *"No frame over 16 ms **during normal play**"* — the one red item
+in this gate, red since Section A, and the thing six candidate causes were
+measured against.
+
+**Its walk driver has not been completing the tool beat.** So every frame figure
+it has ever produced — 384.5 ms, 378.5 ms, 678.5 ms, 827.7 ms, 374.4 ms, the
+15.2% and 14% over-16 rates — describes a walk that **never picks up a tool**.
+
+Tools are a large part of normal play in this game. Section B exists because of
+them. The invariant's numbers are therefore not wrong, but they are **not
+measuring what its own sentence claims**, and the six causes closed against
+those numbers in Section A were closed against an incomplete traversal.
+
+### Thirteenth instance, and the most expensive one yet
+
+Same shape as the other twelve, applied to the gate's headline failure:
+
+- the SUMMARY line said 9 pass / 1 FAIL and was completely correct
+- the frame numbers were accurately measured
+- and the walk they measured was missing a beat, in a field nobody read
+
+Every previous instance cost a wasted investigation. **This one has been
+steering the performance work.**
+
+### What this changes
+
+**Invariant 1's red is still real** — 374 ms worst frame without tools is bad on
+its own terms. But its scope is narrower than its wording, exactly like invariant
+8 before it was widened, and it needs the same treatment: either the walk driver
+completes its tool beat, or the invariant's detail line must say that tool play
+is excluded.
+
+**First action next session** (replacing the one filed in the previous commit,
+which this resolves): find why `walk` reports `beatsThatDidNot: ["tool"]`, fix
+the driver, and re-measure invariant 1 against a walk that actually uses a tool.
+The A-section perf conclusions should be re-read afterwards, since they were
+drawn against the incomplete walk.
+
