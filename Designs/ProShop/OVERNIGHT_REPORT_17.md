@@ -3271,3 +3271,46 @@ block. Same fault as the two in G4; the anchor is now the whole condition.
 Suite **2910 pass / 0 fail**.
 
 **UNCONFIRMED:** source-level. No player-camera frame of the arm withdrawing.
+
+## G6 - VERIFIED RATHER THAN REBUILT, AND THE CONSTRAINT RECORDED AS A BOUND
+
+*"The bag blocks them. Move the customer's stand point and their cash placement
+right so neither sits behind it."*
+
+Both halves already hold, and the numbers say so plainly:
+
+| anchor | desk-local x | clear of the bag by |
+| --- | --- | --- |
+| bag | **-1.16** | - |
+| stand point | -0.10 | **1.06 yd** |
+| customer cash | -0.38 | 0.78 yd (0.65 yd at its left edge) |
+
+The stand point **cannot** go further right, and the reason is already written
+into `shopLayout.js` from an earlier pass: +0.06 was tried and
+`checkout-space.test.js` failed it at once - *"bagging is 1.55 yd away at its far
+corner"*. The bag lies at the counter's far left and the player has to reach into
+its mouth, so 0.16 yd is the whole of the margin.
+
+This is the second item this goal that turned out to be **genuinely done** rather
+than half-done (G8 was the first), and I am recording it as such rather than
+manufacturing a change to look busy. The brief's rule about taking the reading
+that CHANGES the game applies to AMBIGUITY; this is not ambiguous, it is a
+measurement that disagrees with the complaint.
+
+### What I added, because a verified item with no check rots
+
+Four assertions pinning the DIRECTION - both anchors stay clear to the right of
+the carrier - plus the reach limit as an explicit upper bound so the next attempt
+does not spend an afternoon rediscovering it. Nothing else in the suite would
+have noticed a regression here: `checkout-space` guards the PLAYER'S REACH, not
+the customer's visibility, so a layout change sliding either anchor back behind
+the bag would have re-created the exact complaint silently.
+
+The cash is checked at its LEFT EDGE, not its centre, because the tender is a
+0.26-wide footprint and the edge is what slides behind the carrier first.
+
+Watched both breaks fail with the arithmetic in the message: cash pushed to -1.10
+reports *"left edge clears it by -0.07 yd"*, stand pushed to -1.20 reports *"gap
+is -0.04 yd"*.
+
+Suite **2914 pass / 0 fail**.
