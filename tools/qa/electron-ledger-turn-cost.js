@@ -26,14 +26,45 @@ async (page) => {
   await page.waitForTimeout(2200);
   const ownerRes = await boot.ownerResolution(page);
 
-  // stand at the ledger (staging), then REAL input from here. The stand
-  // point is the prompt-grid row the prompt driver proved (dz +1.2, yaw 0,
-  // prompt visible): one stride south of the book, facing it.
-  const staged = await page.evaluate(() => {
-    const app = window.__fw;
-    const w = app.scene3d.walk.state;
-    w.x = -358.4; w.z = 8.69; w.yaw = 0; w.pitch = -0.30;
-    return true;
+  // Stand at the ledger (staging), then REAL input from here.
+  //
+  // THE STAND POINT USED TO BE TWO ABSOLUTE WORLD NUMBERS — `w.x = -358.4;
+  // w.z = 8.69` — recorded from one run and pasted in. The clubhouse interior
+  // is placed at a different world offset every run (measured this session:
+  // the floor under the player came out at -1.317, 0.725 and -2.417 on three
+  // consecutive runs), so those constants point at the book only when the
+  // interior happens to land where it landed the day they were written.
+  //
+  // That is the stale-offset trap this repo has already been bitten by once.
+  // Derived live from `interior.position` + the book's own position, then
+  // CONFIRMED against the focus label — because a stand point that does not
+  // actually focus the book turns every later keypress into a no-op, and the
+  // driver's failure would read as "the ledger never opened".
+  const staged = await page.evaluate(async () => {
+    const fw = window.__fw;
+    const ch = fw.scene3d.clubhouse();
+    const walk = fw.scene3d.walk;
+    const st = walk.state;
+    let lp = ch.ledgerBook.position;
+    if (typeof lp === 'function') lp = ch.ledgerBook.position();
+    const ip = ch.interior.position;
+    const book = { x: ip.x + lp.x, z: ip.z + lp.z };
+    const to = { x: ip.x - book.x, z: ip.z - book.z };
+    const len = Math.hypot(to.x, to.z) || 1;
+    st.x = book.x + (to.x / len) * 1.3;
+    st.z = book.z + (to.z / len) * 1.3;
+    const base = Math.atan2(-(book.x - st.x), -(book.z - st.z));
+    const sleep = (ms) => new Promise((r) => { setTimeout(r, ms); });
+    for (const dp of [-0.3, -0.15, 0]) {
+      for (let k = 0; k < 10; k += 1) {
+        st.yaw = base + ((k % 2 ? 1 : -1) * Math.ceil(k / 2) * 0.2);
+        st.pitch = dp;
+        await sleep(100);
+        const label = walk.getFocusLabel ? String(walk.getFocusLabel() || '') : '';
+        if (/ledger|read/i.test(label)) return { focused: true, label: label.slice(0, 80) };
+      }
+    }
+    return { focused: false, label: String(walk.getFocusLabel?.() || '').slice(0, 80) };
   });
   await page.mouse.click(640, 380);
   await page.waitForTimeout(600);
@@ -61,9 +92,31 @@ async (page) => {
 
   const out = { ownerRes: ownerRes.caption, errs };
 
-  // OPEN window: press E (the interact binding) while sampling
+  // OPEN window: press E (the interact binding) while sampling.
+  //
+  // TWO PRESSES, BECAUSE C1 MADE IT TWO. The brief's sequence is "I press E, the
+  // book comes to my hands CLOSED; I press E again, it opens to the first page",
+  // and `setOpen` implements exactly that: closed -> raising -> held on the
+  // first press, held -> opening -> open on the second (ledgerBook.js:1953).
+  //
+  // This driver pressed once and then waited 10 s for `state === 'open'`, which
+  // a book sitting patiently in the player's hands is never going to reach. It
+  // has been timing out since C1 landed, so **C6 has had no measurement at all
+  // in that window** — the item was reported open partly because its instrument
+  // had quietly stopped running.
+  //
+  // Sampled ACROSS BOTH presses, because the player feels one gesture. Splitting
+  // the window at the press boundary would hide any cost in the second half,
+  // which is the half that paints pages.
   await page.bringToFront().catch(() => {});
-  const openSample = sample(1600);
+  const openSample = sample(2600);
+  await page.keyboard.press('e');
+  // Long enough for the rise to finish (0.4 s) without waiting on a state the
+  // first press cannot produce.
+  await page.waitForTimeout(900);
+  out.stateAfterFirstPress = await page.evaluate(
+    () => window.__fw.scene3d.clubhouse().ledgerBook.diagnostics().state,
+  ).catch(() => null);
   await page.keyboard.press('e');
   out.open = await openSample;
   out.lockHeldThroughOpen = await page.evaluate(() => !!document.pointerLockElement);

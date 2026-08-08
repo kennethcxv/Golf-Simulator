@@ -13141,3 +13141,126 @@ better-controlled instrument for this question than the one I purpose-built —
 and I wrote "unresolvable" while holding it. That is the session's shape once
 more: not a wrong measurement, but a conclusion drawn before looking at what was
 already on the page.
+
+
+# SECTION C — THE LEDGER
+
+## PHASE 0 — BOTH OF C6'S INSTRUMENTS WERE DEAD, AND ONE OF THEM DIED OF C1
+
+Section C is eight items. C1, C2, C3, C4, C5 and C7 all carry Goal-17 work
+markers in `ledgerBook.js`; **C6 (page turns under 16 ms) and C8 (make the pages
+look better) are the genuinely open pair**, and they are in tension — C8 wants a
+richer page paint and C6 charges that paint to the turn budget.
+
+So C6 first, and the first thing C6 needed was an instrument that runs.
+
+### Fault 98 — the turn-cost driver has been timing out since C1 landed
+
+`electron-ledger-turn-cost.js` presses E once and then waits ten seconds for
+`state === 'open'`. **C1 made the open two presses** — *"I press E, the book comes
+to my hands closed; I press E again, it opens"* — and `setOpen` implements exactly
+that: `closed -> raising -> held` on the first press, `held -> opening -> open` on
+the second (`ledgerBook.js:1953`).
+
+A book sitting patiently in the player's hands is never going to reach `open`, so
+this driver has thrown on every run since. **C6 was reported open partly because
+the instrument that grades it had quietly stopped running.** C1's own fix killed
+C6's measurement, which is a nice illustration of why the gate is per-section.
+
+### Fault 99 — and then it stood in the wrong place
+
+With the press count fixed it still failed, because the stand point was two
+absolute world numbers pasted in from one run: `w.x = -358.4; w.z = 8.69`.
+
+**The clubhouse interior is placed at a different world offset every run.**
+Measured this session while chasing something else entirely: the floor under the
+player came out at **-1.317, then 0.725, then -2.417** on three consecutive runs.
+Those constants point at the book only when the interior lands where it landed
+the day they were written.
+
+This repo has been bitten by that exact trap before and wrote it down. Now
+derived from `interior.position` + the book's own position, and — the part that
+matters more — **confirmed against the focus label before anything is pressed**,
+because a stand point that does not focus the book turns every later keypress
+into a no-op and the driver's failure reads as "the ledger never opened".
+
+### C1's sequence is correct
+
+Traced press by press with the prompt read alongside, so a press that went
+somewhere else would be visible rather than inferred:
+
+```
+prompt: "The club ledger - E read the book · X carry it"
+closed --press1--> raising @42 --> held @381
+       --press2--> opening @1475 --> open @1815
+       --press3--> closing --> lowering --> closed
+```
+
+**Two presses, 340 ms per stage, exactly the sequence C1 asks for.** That clause
+is done and now has a trace that says so.
+
+### C1's third clause is NOT done: the 3-to-5 seconds is real, and intermittent
+
+*"It also takes 3 to 5 seconds (A3)."*
+
+Ten runs of the open, each on a fresh profile:
+
+| first open, worst single frame | frames sampled in that window |
+|---|---|
+| 30.7 ms | 167 |
+| 67.9 / 71.5 / 80.8 / 83.8 / 88.1 / 97.6 ms | ~150 each |
+| **316.1 ms** | 125 |
+| **3506.5 ms** | 24 |
+| **3509.7 ms** | 24 |
+
+**Three runs in ten spend a single frame between 0.3 and 3.5 seconds** — squarely
+the "3 to 5 seconds" the brief describes — and in those runs the sampler only
+manages 24 frames in a window that normally holds 150, because the renderer is
+simply not running.
+
+That intermittency is why it survives: a green run proves nothing about it, and
+the same driver reports 30 ms and 3,510 ms on consecutive invocations.
+
+**It is a FIRST-OPEN cost, and it never recurs.** Extended the trace to open the
+book twice per run:
+
+| run | open #1 worst | open #2 worst |
+|---|---|---|
+| 1 | 30.7 ms | 30.1 ms |
+| 2 | **316.1 ms** | 29.6 ms |
+| 3 | **3509.7 ms** | 31.6 ms |
+
+Three for three, the second open is ~30 ms whatever the first one cost.
+
+### What it is not
+
+Attributed rather than guessed, by reading the renderer across the open:
+
+- **programs 209 -> 210.** A3's fix worked: the reading light stays permanently
+  visible (`ledgerBook.js:2093`) and the old **209 -> 241 explosion in one frame
+  is gone**. One new program is not 3.5 seconds of compiling.
+- **textures 302 -> 302.** Not a texture upload.
+- **geometries 1402 -> 1427.** The open shell's 25 meshes arriving.
+
+So the light-count mechanism is genuinely fixed, and something else — most likely
+a single program's cold driver-level compile, which lives in the GPU driver's own
+cache rather than Chromium's profile and would explain why a fresh `user-data-dir`
+does not reliably reproduce it — is what remains. **Stated as unresolved, because
+three slow runs in ten is a rate, not a mechanism.**
+
+### C6's actual numbers, and the instrument grades looser than the brief
+
+With both faults fixed the driver completes:
+
+```
+turns      worst 29.3 ms   over33 0
+bareTurns  worst 29.2 ms   over33 0
+legacy     worst 29.2 ms   (the negative control, all-four-paints path)
+openSecond worst 2245.8 ms  frames 4     <- the stall again, third driver to see it
+```
+
+**Page turns do not exceed 33 ms. But C6 says "Under 16 ms", and the driver grades
+at 33.** 29.3 ms is a dropped frame at 60 Hz and fails the brief's bound while
+passing the driver's. The instrument has been certifying a looser requirement than
+the one written down — so C6 is open on its own terms, and the turn budget C8 has
+to fit inside is much tighter than the current grade suggests.
