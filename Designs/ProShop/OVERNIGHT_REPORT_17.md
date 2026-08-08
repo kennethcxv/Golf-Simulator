@@ -5108,3 +5108,54 @@ diagnosis - and the driver will then produce the frame the brief asks for.
 This is the same rule that has run through the whole session, applied to my own
 work at the end of it: **a check I cannot make pass is not evidence, and a
 screenshot I cannot verify is not a confirmation.**
+
+### RETRACTION: THE G2 HUD "OVERLAP" WAS A FALSE POSITIVE, AND MY SWEEP MADE IT
+
+Chasing the screenshot to the end produced a finding I did not want and have to
+publish: **the HUD overlap I fixed was probably never visible to a player.**
+
+### The sequence
+
+1. run one and two: prompt measured at `opacity: 0`. I assumed I had the wrong
+   element and said so.
+2. the candidate dump settled it - **there is only ONE `.shop-prompt`**, it
+   carries the right text, and it was transparent because **the driver never
+   captured the pointer.** The HUD hides itself when the player is not captured.
+   The driver was the thing behaving unlike a player.
+3. with the pointer locked: `promptOnScreen: true` - and **`hintOnScreen: false`**.
+
+**The lockhint is the "click to look" hint. It exists only while the pointer is
+NOT captured. The prompt exists only while it IS.** They are mutually exclusive,
+and they can never be on screen at the same moment.
+
+### Which makes the original measurement wrong, and the fault is mine
+
+The DOM sweep reported `.prompt-key` overlapping `.shop-lockhint` by 17x12px. It
+filtered elements by `getComputedStyle(el).opacity`, which is the element's **OWN**
+opacity - not its EFFECTIVE opacity including ancestors. A `.prompt-key` inside
+an `opacity: 0` parent reports `1`, so the sweep counted an invisible chip as
+visible and paired it with the one element that is only ever drawn in the
+opposite state.
+
+**That is an eighth instrument fault, and the only one this session that
+INVENTED a defect rather than hiding one.**
+
+### What I am changing and what I am not
+
+* **The CSS change stands.** Moving the prompt from `bottom:28px` to `64px` is
+  harmless and arguably better - the two are no longer stacked in layout even if
+  they never co-render. Reverting it would churn for nothing.
+* **The claim does not.** "The HUD prompt was drawing on top of the controls
+  line" is **withdrawn**. The measured 15px separation is real; the defect it was
+  separating was not.
+* **The sweep needs an effective-opacity check** before its zeros mean what I
+  said they meant. Invariants 3 and 4 in the gate read from that sweep, so their
+  greens are now **suspect in the same specific way** - they may be excluding
+  fewer invisible elements than intended. Written onto NOT DONE.
+
+### The honest summary of my own work here
+
+I published a defect, the fix was harmless, and the instrument that found it was
+wrong in a way that only showed up because I pushed for the screenshot the brief
+demands. **The screenshot requirement is what caught it** - three runs of a
+driver, not a test, and not a suite that has been green throughout.

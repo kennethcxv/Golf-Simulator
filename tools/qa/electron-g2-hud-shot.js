@@ -57,6 +57,16 @@ async (page) => {
     st.yaw = Math.atan2(-(b.x - st.x), -(b.z - st.z));
     st.pitch = -0.25;
   });
+  // CAPTURE THE POINTER FIRST, LIKE A PLAYER.
+  //
+  // The first two runs measured the prompt at opacity 0 and I assumed I had the
+  // wrong element. The candidate dump settled it: there is only ONE .shop-prompt,
+  // it carries the right text, and it is transparent because THE POINTER WAS
+  // NEVER LOCKED. The HUD hides itself when the player is not captured, which is
+  // correct behaviour - the driver was the thing behaving unlike a player.
+  await page.mouse.click(700, 500);
+  await page.waitForTimeout(700);
+
   // WAIT FOR IT TO ACTUALLY BE ON SCREEN. The prompt fades in, so a measurement
   // taken too early reads a laid-out box at opacity 0 - present in the DOM,
   // invisible in the frame. The first run of this driver did exactly that and
@@ -71,9 +81,35 @@ async (page) => {
   }, null, { timeout: 20000 }).catch(() => {});
   await page.waitForTimeout(600);
 
+  // WHICH .shop-prompt IS DRAWN? There are two in the DOM - one standalone and
+  // one inside the overlay - and the first run measured the wrong one. Report
+  // every candidate so the answer is data rather than a guess.
+  out.candidates = await page.evaluate(() => [...document.querySelectorAll('.shop-prompt')]
+    .map((el, i) => {
+      const r = el.getBoundingClientRect();
+      const st = getComputedStyle(el);
+      return {
+        i,
+        inOverlay: !!el.closest('.shop-overlay'),
+        opacity: st.opacity,
+        display: st.display,
+        bottom: Math.round(r.bottom),
+        h: Math.round(r.height),
+        text: (el.textContent || '').trim().slice(0, 40),
+      };
+    }));
+
   out.boxes = await page.evaluate(() => {
-    const prompt = document.querySelector('.shop-overlay .shop-prompt');
-    const hint = document.querySelector('.shop-overlay .shop-lockhint');
+    // the DRAWN one: whichever candidate is actually opaque and has text
+    const prompt = [...document.querySelectorAll('.shop-prompt')].find((el) => {
+      const st = getComputedStyle(el);
+      return Number(st.opacity) > 0.5 && st.display !== 'none'
+        && (el.textContent || '').trim().length > 0;
+    }) || document.querySelector('.shop-overlay .shop-prompt');
+      const hint = [...document.querySelectorAll('.shop-lockhint')].find((el) => {
+      const st = getComputedStyle(el);
+      return Number(st.opacity) > 0.5 && st.display !== 'none';
+    }) || document.querySelector('.shop-overlay .shop-lockhint');
     const box = (el) => {
       if (!el) return null;
       const r = el.getBoundingClientRect();
