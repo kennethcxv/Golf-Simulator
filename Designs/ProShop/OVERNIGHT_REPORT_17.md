@@ -7275,3 +7275,41 @@ translated frame around an English value is still English to the reader. **The
 5.0% honest figure does not improve until the fillings are wrapped too** — which
 is the same 2,108-string job, reached from a third direction.
 
+
+### THE VERIFIER FINDING BECAME THE NEXT ITEM — `till.recovered` FIXED
+
+The audit found this and the brief says a verifier finding is the next item, not
+a note. So:
+
+```
+BEFORE  'till.recovered': "Checkout recovered from {state}."
+        toast(t('till.recovered', { state: fromState }))
+        // fromState = flow.state  ->  "Checkout recovered from CardProcessing."
+
+AFTER   'till.recovered': "Checkout recovered."
+        toast(t('till.recovered'))
+```
+
+The player was being shown an **internal state machine identifier**. That is a
+developer's word for a developer's concept: meaningless to whoever reads it, and
+untranslatable in principle, because no locale has a word for an enum member.
+
+**No information is lost.** The same recovery already pushes `fromState` into
+`checkoutWatchdogEvents` two lines above the toast — the state was always being
+logged where a diagnostic belongs. The toast was duplicating it onto the screen.
+
+**Verified:** `t('till.recovered')` returns "Checkout recovered.", and the
+dictionary now has **zero keys taking a `{state}` fragment** — the cart
+restructure and this fix together removed that placeholder from the game
+entirely. Suite 2929 pass / 0 fail.
+
+### Why this one is worth its commit
+
+It is small, and it is the only defect found today that was visible to a player
+in *English*. Everything else in the E5 thread degrades gracefully for an English
+speaker — a missing translation falls through, a half-translated sentence reads
+fine, 2,108 unwrapped strings are invisible to the language they are already in.
+**This one showed `CardProcessing` to everybody**, and it survived because it
+only appears after a checkout watchdog recovery, which is rare enough that
+nobody had read the toast.
+

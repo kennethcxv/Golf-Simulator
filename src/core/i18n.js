@@ -123,7 +123,19 @@ const EN = Object.freeze({
   'till.method.cash': "cash",
   // The till, with placeholders so a translation can reorder them.
   'till.resumeFailed': "Could not pick the sale back up: {reason}",
-  'till.recovered': "Checkout recovered from {state}.",
+  // E5 audit — THIS WAS PRINTING AN INTERNAL STATE MACHINE IDENTIFIER.
+  //
+  // It read "Checkout recovered from {state}." and was called with
+  // `{ state: fromState }`, where `fromState = flow.state` — values like
+  // `CardProcessing`. So the player was shown "Checkout recovered from
+  // CardProcessing.", which is a developer's word for a developer's concept,
+  // untranslatable in principle (no locale has a word for an enum member) and
+  // meaningless to the person reading it.
+  //
+  // The detail is not lost: the same recovery already pushes `fromState` into
+  // `checkoutWatchdogEvents` two lines above the toast, which is where a
+  // diagnostic belongs. The player gets a sentence; the log keeps the state.
+  'till.recovered': "Checkout recovered.",
   'till.greenFeeAdded': "Green fee added to this sale - ${amount}.",
   'till.notAtDeskYet': "{name} has not reached the front desk yet.",
   'till.noTeeTimeFor': "No tee time was available for {name}.",

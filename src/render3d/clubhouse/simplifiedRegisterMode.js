@@ -2372,7 +2372,11 @@ export function createRegisterMode(B) {
         resumeSequence: resumed.flow.sequence,
       });
       checkoutWatchdogEvents.splice(0, Math.max(0, checkoutWatchdogEvents.length - 16));
-      toast(t('till.recovered', { state: fromState }));
+      // `fromState` is deliberately NOT passed: it is an internal flow state
+      // (`CardProcessing` and friends) and it was reaching the player's screen.
+      // It is already recorded in the checkoutWatchdogEvents push above, which
+      // is where a diagnostic belongs.
+      toast(t('till.recovered'));
       drawScreen();
       drawTerm();
       return true;
