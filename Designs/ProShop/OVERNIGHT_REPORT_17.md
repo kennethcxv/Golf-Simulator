@@ -6006,37 +6006,3 @@ the player actually walks, not by running the suite.
     UNPROVEN rather than false.
 90. **Coin forcing computed on a PRE-TAX total** when `customerCash` reads the
     post-tax one. The code was right; the measurement asked the wrong number.
-
-### FAULT 91 - THE RATCHET'S SINK LIST WAS INCOMPLETE, AND EVERY COUNT I GAVE WAS LOW
-
-Auditing my own multi-site fixes for the shape of fault 87 turned up a different
-one, in the ratchet itself.
-
-The sink list was `toast|announce|setPrompt|setHint`. **It missed
-`shop.log.unshift` entirely** - the activity feed the player reads on the laptop:
-
-```
-sim/checkout.js:1   sim/register.js:3   sim/shop.js:1     = 5 strings
-```
-
-Those five were **always raw**, for the whole session, and the scanner could not
-see them. So every figure I reported - 155, 146, 119, 94, 90, 85, 83, 78, 72, 68,
-63, 57, 54, 45 - **was an undercount by five.**
-
-**True count: 50.** Baseline corrected, sink list widened, and the comment now
-says why: *a ratchet is only as honest as its sink list, and a sink nobody
-thought of is invisible in exactly the way a broken regex is.*
-
-### Why this one is worth the entry
-
-Invariant 8 has been GREEN on the gate since I wired it, resting on a scanner
-that did not know about a whole class of player-facing text. **The check was
-correct about what it measured and wrong about what it claimed** - which is the
-same sentence as fault 85, arrived at from the opposite direction.
-
-The floor control could never have caught it: 45 is comfortably above `> 15`, so
-the scanner looked perfectly healthy while blind to a fifth sink.
-
-**A negative control proves your instrument SEES what you pointed it at. It says
-nothing about what you failed to point it at.** That is the gap this session
-ends on, and it is the honest limit of every green in the report.
