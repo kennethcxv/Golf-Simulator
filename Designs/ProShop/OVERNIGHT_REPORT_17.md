@@ -7981,3 +7981,66 @@ this session (A8's frame-coverage work used it), so the difference is scenario,
 not asset. Then invariant 1 can be measured against a walk holding a real tool,
 and Section A's six closed causes re-read against that number.
 
+
+## THE CHAIN COMPLETES — A SILENT ASSET-LOAD FAILURE PRESENTS EXACTLY LIKE THIS
+
+`socketRefs.found` needs two named nodes inside `broomGroup`:
+
+```js
+CONTACT_NAMES = [feel.rig?.sockets?.contact, 'SOCKET_FloorContact', 'SOCKET_contact']
+PRIMARY_NAMES = [feel.rig?.sockets?.primary, 'SOCKET_GripPrimary']
+socketRefs.found = !!(contact && primary)
+```
+
+And the authored broom GLB **has them**:
+
+```
+vendor/models/assets_51_100/firstperson/asset_074_broom_fp.glb
+sockets: SOCKET_DebrisPush, SOCKET_FloorContact, SOCKET_GripPrimary, SOCKET_GripSupport
+```
+
+**So the names are right and the asset is right.** The only remaining way for
+`getObjectByName` to miss is that the authored GLB was never adopted into
+`broomGroup` — and `toolViewmodel.js` handles that case deliberately and
+silently:
+
+> *"A missing authored asset is not fatal: the procedural tool is already on
+> screen and fully playable. Report it rather than throwing away a working
+> viewmodel."*
+> `resolve({ id: def.id, ok: false, reason: err?.message || 'load failed' })`
+
+A load failure resolves to `ok: false` and the tool keeps working procedurally.
+**Nothing on screen looks wrong.** The player sees a broom. The rig runs. And
+every asset-socket diagnostic — `shaftDrop`, `assetHeadNdc`, `headAboveFloor`,
+both world Ys — is `null`, which `toolIsLive` reads as *"the rig is not
+running"*.
+
+### The complete causal chain, end to end
+
+```
+authored GLB not adopted  ->  socketRefs.found = false
+                          ->  headAboveFloor = null            (the else at :1168)
+                          ->  toolIsLive ok = false            (qa-boot.mjs:133)
+                          ->  beatsThatDidNot: ["tool"]        (the walk driver)
+                          ->  invariant 1 measures a walk whose tool never
+                              reported ready
+```
+
+Every link verified by reading the code. **The one thing still unmeasured** is
+whether the adoption actually fails in that scenario or is skipped for another
+reason — `adoptAuthored`'s result array carries `{ok, reason}` per tool, and no
+driver reads it. That is the next single measurement, and it is one
+`page.evaluate` away.
+
+### What the whole thread cost, and what it was worth
+
+Fifteen instances of a name wider than its measurement, ending in a chain where
+**every individual component is correct and documented**: the sockets exist, the
+lookup is right, the fallback is deliberate, the diagnostic is honest about
+being asset-derived, and `toolIsLive` genuinely does test what it computes.
+
+**The defect is entirely in the joins.** A deliberate silent fallback plus an
+asset-derived diagnostic plus a general-sounding readiness helper equals six
+rounds of tool measurements against a tool that never reported ready — which is
+what the brief predicted on its first page, from the symptom alone.
+
