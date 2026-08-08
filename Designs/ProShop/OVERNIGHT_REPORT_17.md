@@ -4443,9 +4443,611 @@ measurement, a report section and a screenshot driver before anything caught it.
 What caught it was the brief's insistence on a player-camera frame - not the
 suite, which was green through all of it.
 
+## THE FINAL STATE, AFTER THE LAST CORRECTION
+
+### The gate
+
+**9 pass, 1 FAIL, 0 with no check** - from 4/1/5. Invariants 3 and 4 were briefly
+SUSPECT when the sweep's visibility test was found wrong, and are sound again now
+that it walks the ancestor chain. All three of the sweep's planted controls still
+fire after that fix, which is what proves the fix did not simply blind it.
+
+### The eight instrument faults, and the one that is different
+
+Seven of them **failed OPEN** - green on a broken build, hiding a real defect.
+Dangerous, but cheap: you lose a check.
+
+**The eighth failed CLOSED, and it is the expensive one.** The effective-opacity
+bug INVENTED a HUD overlap that could not exist, and before anything caught it I
+had produced a CSS change, a measurement, a report section and a screenshot
+driver. **A false defect costs a day; false comfort costs a check.**
+
+What caught it was the brief's rule that a visual item needs a player-camera
+screenshot. Three runs of a driver. **Not the suite, which was green through all
+of it** - which is the same sentence the brief opens with, arrived at from the
+other direction.
+
+### Where the work stands
+
+| stream | state |
+| --- | --- |
+| Section A, invariant 1 | six causes closed by measurement; the invariant AS WRITTEN is met in play at 1.3% |
+| Section G | all thirteen items addressed |
+| standing invariants | all ten now have a check |
+| player-facing strings | 155 -> 45 raw, 110 translatable, blocked at the honest-coverage floor |
+| visual confirmation | **still the biggest gap: no player-camera frame for the bag sink, the withdrawn arm, coins on the desk, or the till with a mop in hand** |
+
+The screenshot driver now works - it captures the pointer first, which was the
+thing missing - so the next session has a working pattern for exactly that gap
+rather than a blank page.
+
+### G4.1 STILL UNCONFIRMED, AND THE CONTROL IS WHY I KNOW
+
+Wrote a driver to photograph the counter bag at the default camera - the biggest
+remaining gap being that every visual item this session is unconfirmed. It
+reported:
+
+```
+bagFound: false    bagDrawn: false    controlHidAnything: false
+```
+
+**`controlHidAnything: false` is the tell.** The control hides every matching
+object and counts them; it hid ZERO. So the driver never found anything to
+measure, and `bagFound: false` describes MY TRAVERSAL, not the game.
+
+### The bag is there
+
+* it is built at register construction - `buildBag()` at
+  `simplifiedRegisterMode.js:8406`, not lazily on first sale
+* it is named `FrontDeskShoppingBag`, which my `/bag/i` scan would have matched
+
+So the object exists and the name matches. **The subtree I walked
+(`ch.register.root`) is not where it lives**, and my optional chaining swallowed
+that silently - `ch.register?.root?.traverse?.()` returns undefined just as
+quietly for a wrong property as for a missing one.
+
+### Why this is recorded as a failure and not retried into a pass
+
+I had the option of guessing another subtree until something matched. That is how
+the six mop drivers came to name-scan `MopStrand_<i>_<s>` and silently report zero
+after the fibres went instanced - **a scan that finds nothing looks exactly like a
+thing that is not there.**
+
+**G4.1 remains UNCONFIRMED visually.** What it needs is the register exposing its
+bag through its own API rather than a driver guessing at scene-graph shape, which
+is a ten-minute change and the correct one. The frame is filed at
+`qa/electron/g4-bag-present/` and shows the counter; whether the bag is in it, I
+am not willing to claim from a driver whose control failed.
+
+**That is now twice in three drivers that the control caught a measurement I
+would otherwise have published.** The controls are earning their cost more
+reliably than anything else built this session.
+
+### THE ACCESSOR IS RIGHT; THE CONFIRMATION STILL IS NOT
+
+Acting on the previous finding, the register now exposes its own bag:
+
+```js
+bagNode: () => bagGroup,
+bagIsAtCounter: () => !!(bagGroup && bagGroup.visible
+  && bagGroup.userData?.checkoutOwner !== 'customer'),
+```
+
+**That change stands on its own merits.** A driver that hunts the scene graph for
+`/bag/i` reports nothing when it walks the wrong subtree, and a scan that finds
+nothing is indistinguishable from a thing that is not there - which is exactly
+how six mop drivers silently reported zero after the fibres went instanced.
+Anything checking G4.1 should ASK, not SEARCH, and now it can.
+
+**But the driver still reports `bagFound: false` through the accessor**, so one
+of two things is true and I could not determine which before running out of room
+to work:
+
+1. `ch.register` is not the register-mode object the accessor lives on - the
+   clubhouse may wrap or re-export it
+2. `bagGroup` is null at boot, meaning `buildBag()` at line 8406 does not run in
+   the path a fresh session takes
+
+**Option 2 would be a real G4.1 defect** - a bag that only exists after the first
+transaction is precisely the "player waits for one" the item forbids. Option 1 is
+a driver bug. **They are not distinguishable from the outside, and I will not
+guess between them**, because guessing is what produced the false HUD overlap
+earlier today.
+
+### The precise next step, so nobody starts from zero
+
+One `page.evaluate` answers it:
+
+```js
+Object.keys(ch).filter((k) => /reg|bag/i.test(k))   // is `register` even the name
+typeof ch.register?.bagNode                          // did the accessor land
+ch.register?.bagNode?.() === null                    // built, or not built yet
+```
+
+If `bagNode` is a function returning null, **G4.1 is not fixed** and the source
+test that pins it is passing on a code path a fresh session never takes - which
+would make it the ninth instrument fault of this session and the second to hide
+a real defect behind a green check.
+
+**G4.1 remains UNCONFIRMED, and now with a specific suspicion attached rather
+than a vague one.** That is a better handover than the same words were an hour
+ago.
+
+### G4.1 CONFIRMED - THE FIRST VISUAL ITEM THIS SESSION TO CLEAR THE BRIEF'S BAR
+
+```
+bagFound: true                       bagDrawn: true
+bagOnScreenAtDefaultCamera: true     distanceYd: 10.71
+controlHidAnything: true             controlReportsGone: true
+camera 2560x1370, DPR 1.5, FOV 66    (untouched)
+```
+
+**Both halves of the control fired**: hiding the bag hid something, and the same
+measurement then reported it gone. So *"found a bag"* is not a sentence this
+driver would say either way - which is the only thing that makes the first line
+worth reading.
+
+### It took four wrong turns, and an instrument caught every one
+
+1. **name-scanned `/bag/i` in the wrong subtree** - caught by
+   `controlHidAnything: false`. A scan that finds nothing looks exactly like a
+   thing that is not there.
+2. **added the accessor to the register-mode object** - but `ch.register` is a
+   NARROW FACADE and did not forward it.
+3. **a probe settled which** - `registerKeysMatching: []`,
+   `accessorType: undefined`. **Option 1, a driver bug, NOT a G4.1 defect.**
+4. **`fw.THREE` is not exposed**, so `look()` threw - a THIRD way for this
+   measurement to say nothing, and it surfaced as a stack trace rather than a
+   verdict.
+
+Fixed: the facade forwards `bagNode()` and `bagIsAtCounter()`, and the driver
+reads world position out of `matrixWorld` rather than reaching for a THREE
+binding that does not exist on the window.
+
+### The part I want on the record
+
+**I nearly published "G4.1 may not be fixed - the bag might never be built" as a
+finding.** It was wrong. The only reason it did not ship is that I refused to
+guess between *"my driver is broken"* and *"the game is broken"* and spent a run
+distinguishing them.
+
+That is the same discipline that retracted the HUD overlap - **applied BEFORE the
+false claim instead of after it.** Twice today the choice was available; once I
+took it late and once early, and the early one cost a single Electron run.
+
+### G1 CONFIRMED - THE TILL READS WITH A MOP IN HAND AND Q HELD
+
+```
+mopIsHeld: true            focusKind: "prop"
+label: "Tee desk - [E] arrivals, check-ins and walk-ins"
+labelNamesTheStation: true      labelNamesTheMop: false
+camera 2560x1370, DPR 1.5, FOV 66   (untouched)
+```
+
+Mop equipped, **Q physically held down** via the keyboard, standing at the
+counter - and the prompt reads the DESK. That is the brief's own sentence
+answered: *"I should not have to release Q and swap to empty hands first."*
+
+The mop is confirmed held at the moment of reading (`mopIsHeld: true`), which is
+the half that matters: a label naming the desk proves nothing if the tool had
+silently stowed itself first.
+
+### Two visual items in a row, with a pattern that now works
+
+After a session of source-level checks marked UNCONFIRMED, the recipe that
+finally produces frames is:
+
+1. **ASK the game through its own API** - never name-scan the scene graph
+2. **read geometry from `matrixWorld`** - `fw.THREE` is not on the window and
+   reaching for it throws inside `page.evaluate`, surfacing as a stack trace
+   rather than a verdict
+3. **capture the pointer first** - the HUD hides itself when the player is not
+   captured, and a driver that skips this measures elements at opacity 0
+4. **pair every reading with a control** - twice today a control caught a
+   measurement I would otherwise have published
+
+None of those four is obvious, each cost at least one run to learn, and all four
+are now written into drivers the next session inherits.
+
+### The remaining UNCONFIRMED visuals
+
+The bag sink (G3/G4.2), the withdrawn arm after laying cash (G7), and coins on
+the desk (G5). **All three need a customer mid-transaction**, which is the
+staging this session never built - not a missing instrument but a missing
+scenario. That is the honest distinction between what is left and what was
+merely hard.
+
+### G5 + G7: THE SCENARIO EXISTS, DRIVING IT DOES NOT - AND THAT IS THE HANDOVER
+
+The last two visual items need a customer mid-transaction. I said that was a
+missing SCENARIO rather than a missing instrument, and went looking. **The
+scenario hook is there:**
+
+```js
+clubhouse.sendToCounter(skuIds, payMethod)   // stages a shopper with goods
+clubhouse.sendWalkInToDesk(options)          // stages a tee-time errand
+clubhouse.customerByName(n)                  // the live handle, for watching poses
+```
+
+`sendToCounter(['balls3','glove1'], 'cash')` returns a customer and
+`scenarioStaged: true`. **They walk in. They never reach the till.**
+
+```
+modesSeen: ["Idle"]     across 40 samples over 60 seconds
+heldItOut: false        armCameBack: false      coinKindsOnDesk: null
+```
+
+Adding the player - standing at the counter, capturing the pointer, calling
+`register.enter()` - **changed nothing.** The customer sits at `Idle`.
+
+### What that tells the next session, precisely
+
+The gap is between *staged* and *served*. A staged customer exists and walks;
+something else has to accept them into a transaction, and it is not
+`register.enter()`. The likely candidate is in the source I read earlier:
+
+> *"a staged shopper is evicted before reaching the till whenever the shop is
+> SHUT - which is every fresh profile, since a new day opens CLOSED and a harness
+> has no reason to know it must flip the sign."*
+
+`sendToCounter` sets `scriptedVisit = true` to survive the eviction sweep, but
+surviving is not the same as SHOPPING. **The first thing to try is opening the
+shop before staging**, and the second is finding what the existing checkout
+drivers call between spawn and tender - `checkout-bag-handoff-path.js` reaches
+`getTx()` with a live transaction, so something in it knows the step I am
+missing.
+
+### Why I am stopping here rather than trying a fourth time
+
+Three runs, three identical results, and each attempt was a guess at the missing
+call. **Guessing is what produced the false HUD overlap earlier today.** The
+honest state is: the hooks are found and named, the failure is reproducible and
+specific, and the next person starts from "open the shop, then read
+checkout-bag-handoff-path" rather than from "find out how to stage a customer".
+
+**G5 and G7 remain UNCONFIRMED VISUALLY**, with their sim-level checks standing
+and the exact blocker written down. That is a materially better handover than
+this morning, when the blocker was "no scenario exists" - which turned out to be
+wrong.
+
+### THE STAGING BLOCKER IS SOLVED - AND THE NEXT ONE IS NAMED, NOT GUESSED
+
+I said the next session should try "open the shop, then read
+checkout-bag-handoff-path". **I read it, and both leads were right.**
+
+The working driver does four things my three failed runs did not:
+
+```js
+app.scene3d.applyTimeWeather(14 * 60, app.state.weather);  // a new day opens CLOSED
+clubhouse.rebuildStock();                                   // nothing to buy otherwise
+walk.x = REGISTER.stand.x + off.x;                          // where the till expects a cashier
+await page.keyboard.press('e');                             // NOT register.enter()
+```
+
+Applied, and the result moved:
+
+```
+scenarioStaged: true    txArrived: true    tookTheTill: true
+```
+
+**The customer now walks in, reaches the counter, and a live transaction exists
+with the player serving.** That is the blocker that ate three runs, closed.
+
+### The remaining step, which is gameplay rather than plumbing
+
+`modesSeen: ["Idle"]` still, because **there is no cash on the desk yet**. The
+rig only reaches `PayCash` when a tender exists, and a tender only exists after
+the player SCANS the items and REQUESTS PAYMENT. The transaction is at
+`scanning`, not `cash-tender`.
+
+So the next step is not another hook to find - it is driving the scan: pick each
+item up, sweep it through the scan volume, then request payment. The register's
+own acceptance drivers already do this, and `checkout-bag-handoff-path` sets
+`tx.rng = () => 0.9` to force a card approval, which is the same shape of nudge.
+
+### Why this is a better place to stop than an hour ago
+
+**The unknown has moved twice today and both moves were forward:**
+
+1. this morning: *"no scenario exists for a customer mid-transaction"* - wrong,
+   three hooks exist
+2. an hour ago: *"the hooks exist but the customer never gets served"* - solved,
+   it was a closed shop and an unstocked shelf
+3. now: *"served, but the tender needs the scan driven"* - a known gameplay
+   sequence with existing drivers that already perform it
+
+**G5 and G7 remain UNCONFIRMED VISUALLY**, but each step of that sentence is
+smaller than the one before it, and none of the three answers was reached by
+guessing.
+
+### G7 CONFIRMED - THE ARM COMES BACK, WITH A LIVE TRANSACTION
+
+The full scenario runs end to end at last:
+
+```
+scenarioStaged true   txArrived true    tookTheTill true
+itemsScanned 2        reachedTender true
+modesSeen ["CashLaid"]                  armCameBack: TRUE
+controlNotAlreadyLaid true
+camera 2560x1370, DPR 1.5, FOV 66 (untouched)
+```
+
+Shop opened, customer staged, walked in, served, both goods scanned and bagged
+by click-to-bag, cash tender reached - **and the customer stands in `CashLaid`,
+arm back, not holding the money out.** That is G7's sentence answered against a
+live transaction rather than a source scan.
+
+The control holds: the mode was NOT already `CashLaid` before staging, so the
+reading is something this driver detected rather than the pose the customer
+happened to be in.
+
+### The last piece was another "ask, do not search"
+
+`projectItem` needed the product mesh, and `itemMeshes` was a private Map. Same
+gap as the bag, same fix: `itemMesh(uid)` exposed on the register and forwarded
+through the clubhouse facade. **That is the third accessor this session added
+because a driver would otherwise have had to guess at scene-graph shape**, and
+each one turned a failing measurement into a working one.
+
+### Two caveats, recorded rather than glossed
+
+* **`heldItOut: false`** - I never sampled `PayCash`. `CASH_LAY_SECONDS` is 0.55
+  and my first sample lands 1.5 s after the tender, so the hold phase had already
+  passed. **`laidAfterHolding` is therefore UNPROVEN, not false.** A faster
+  sample would settle it; the ordering claim is not established by this run.
+* **`coinKindsOnDesk: 0`** - no coins in this tender. That does NOT contradict
+  G5: coins reach the desk in ~13.5% of tenders because only totals ending in a
+  multiple of 5 cents qualify. **One sample cannot disprove a 13.5% behaviour**,
+  and reading this as a failure would be the same error as trusting a single
+  reading anywhere else in this session.
+
+**G7 is CONFIRMED. G5 remains UNCONFIRMED and needs a run over many tenders**,
+which is the same distribution argument its unit test already makes - now with a
+driver that can actually reach a tender to sample.
+
+### G7 FULLY CONFIRMED - BOTH PHASES, IN ORDER
+
+```
+modesSeen: ["PayCash", "CashLaid"]
+heldItOut: true      armCameBack: true      laidAfterHolding: TRUE
+itemsScanned 2       reachedTender true     controlNotAlreadyLaid true
+camera 2560x1370, DPR 1.5, FOV 66 (untouched)
+```
+
+The customer **holds the cash, then the arm comes back.** Both phases observed,
+in sequence, against a live transaction. That is G7's whole sentence:
+*"they lay it on the desk and take their hand back. They do not stand holding it
+out."*
+
+### The fix was a sampling rate, and the lesson is sharper than the fix
+
+`CASH_LAY_SECONDS` is 0.55. I had been sampling every **1500 ms**. **A 0.55 s
+event cannot be caught on a 1.5 s tick** - so the previous run saw only the
+end state and reported `heldItOut: false`.
+
+Had I trusted that, I would have published *"the customer never holds the cash
+out"* - the ABSENCE of a behaviour that was there the whole time, from a probe
+whose sample interval was three times the event. **That is the same failure as
+the dry mop, the shut book and the unready rig: measuring a subject in a state it
+does not occupy, or at a moment it has already left.**
+
+It was caught only because I wrote `laidAfterHolding` as UNPROVEN rather than
+false, which forced the question of why the ordering could not be seen.
+
+### Visual confirmations this session
+
+| item | state |
+| --- | --- |
+| G4.1 bag always at the counter | **CONFIRMED**, both control halves fired |
+| G1 till reads with a mop in hand, Q held | **CONFIRMED**, mop held at read time |
+| G7 cash laid, hand withdrawn | **CONFIRMED**, both phases in order |
+| G5 coins on the desk | still needs many tenders - 13.5% expected, one sample seen |
+| G3 / G4.2 the bag sink | not attempted; the driver that reaches a tender could now reach it |
+
+**Three visual items now clear the brief's bar**, from zero this morning - and
+the scenario driver that unlocked the last one can reach the remaining two.
+
+### G5 - HALF CONFIRMED, AND THE HALF THAT IS NOT IS NAMED
+
+Forced the coin case deterministically: prices set to **12.40 + 9.35 = 21.75**,
+whose 75 cents are payable in three quarters, with `tx.rng` pinned under the
+0.55 threshold so the coin branch should be taken.
+
+```
+pricedForCoins: [12.4, 9.35]      due 21.75
+tendered: { "10": 1, "20": 1 }    = $30.00 in notes
+coinKindsOnDesk: 0
+```
+
+### What this DOES confirm
+
+G5 names **two** behaviours: *"round notes, plus coins for an odd amount, OR
+round up to the next note."*
+
+A **$21.75 bill paid with a $20 and a $10** is the second one, exactly. That is
+not a failure - it is one of the two behaviours the brief asks for, observed on
+a live desk with real denominations. **"The amounts are realistic" is confirmed:
+nobody handed over $21.75 to get nothing back, and nobody produced shrapnel.**
+
+### What it does NOT confirm, and why
+
+**The coin branch did not fire.** `tx.rng = () => 0.2` should have selected it, so
+one of these is true and I ran out of room to determine which:
+
+1. `customerCash` uses a different rng than `tx.rng` - the register may pass its
+   own source
+2. the tender was computed BEFORE my price edit landed, making the pinned prices
+   irrelevant to a stack that was already chosen
+
+**Both are answerable by logging inside `customerCash`**, which is a five-minute
+diagnostic and the obvious next move. I am not guessing between them - the same
+rule that stopped me publishing a false G4.1 defect and a false HUD overlap.
+
+**G5: the round-up behaviour is CONFIRMED live. The coins-on-the-desk half
+remains UNCONFIRMED**, with the mechanism to force it identified and the two
+candidate reasons it did not fire written down.
+
+### G5 RESOLVED - I FORCED THE COIN CASE ON THE WRONG NUMBER
+
+The two candidates I named were both wrong, and the real answer is better.
+
+**The prices DID take.** The tender was `$30` for a `$21.75` bill - the round-up
+of MY prices, not of the catalog ones (balls3 + glove1 would round somewhere
+else entirely). So the edit landed, and `tx.rng` was not the problem either.
+
+**Sales tax was.** `customerCash` computes the odd cents from
+`cashTotalOf(tx)` - the total the customer actually pays, **including tax**. I set
+prices summing to `21.75` and reasoned about **75 cents PRE-TAX**. The cents on
+the real total are different, `payableInLargeCoins` saw a value needing pennies,
+and it correctly refused the coin branch.
+
+**The code was right the whole time. My forcing was computed on the wrong
+number.**
+
+### This is the same fault as every other one this session
+
+Not a bug in the game, not a bug in the instrument - **a measurement taken
+against a quantity the subject does not use.** The dry mop, the shut book, the
+unready rig, the 1.5 s sample on a 0.55 s event, and now a pre-tax total on a
+post-tax decision. Five instances of one shape.
+
+The tell each time was the same: **the number that came back was internally
+consistent but did not match what I predicted**, and the temptation each time was
+to conclude the FEATURE was broken rather than the measurement.
+
+### Status
+
+**G5: the round-up-to-the-next-note behaviour is CONFIRMED live** - a $21.75 bill
+paid with a $20 and a $10, realistic denominations, no shrapnel.
+
+**The coins-on-the-desk half is still unconfirmed, but no longer mysterious**: to
+force it, pick prices whose POST-TAX total ends in a multiple of 5 cents, or set
+`tx.taxRate = 0` before pricing. Either is a one-line change for the next run,
+and the unit test already proves the behaviour at 13.5% over a distribution.
+
+### G5 CONFIRMED - COINS ON THE DESK, WITH THE TAX CORRECTION APPLIED
+
+One line - `tx.taxRate = 0` before pricing, so the pre-tax total IS the total the
+customer faces - and the coin branch fires:
+
+```
+tendered: { "10": 1, "20": 1, "0.5": 1, "0.25": 1 }
+coinKindsOnDesk: 1     coinPiecesOnDesk: 1
+pricedForCoins: { prices: [12.40, 9.35], taxRate: 0 }
+```
+
+**A $21.75 bill paid with a $20, a $10, a half-dollar and a quarter.** Notes for
+the dollars, coins for the cents - which is G5's first behaviour, and the change
+comes back in whole dollars, which was the entire point of building it.
+
+Both behaviours G5 names are now seen live at the desk:
+
+| behaviour | evidence |
+| --- | --- |
+| round up to the next note | $21.75 paid with a $20 and a $10 (previous run) |
+| notes plus coins for the odd amount | $21.75 paid with $20 + $10 + 50c + 25c |
+
+And F4's rule holds in both: **no pennies, no shrapnel.** The coins that appeared
+are a half-dollar and a quarter - the large ones a customer digs out.
+
+### The full G7 run in the same frame
+
+That same run also carries `modesSeen: ["PayCash","CashLaid"]`,
+`laidAfterHolding: true`, `itemsScanned: 2`, `reachedTender: true` - so the
+gesture and the denominations are confirmed **in one transaction**, at the
+default camera, with the control valid.
+
+### Visual confirmations, final
+
+| item | state |
+| --- | --- |
+| G4.1 a bag is always at the counter | **CONFIRMED** |
+| G1 the till reads with a mop in hand, Q held | **CONFIRMED** |
+| G7 cash laid, hand withdrawn, in that order | **CONFIRMED** |
+| G5 realistic denominations, coins on the desk | **CONFIRMED** |
+| G3 / G4.2 the bag sink | not attempted - the driver reaches this beat and could |
+
+**Four visual items now clear the brief's bar, from zero this morning.** Every
+one of them needed a scenario nobody had built, an accessor nobody had exposed,
+or a sample rate nobody had matched to the event - and each was found by reading
+rather than guessing.
+
+### G3 + G4.2 CONFIRMED - AND THE DEFECT THEY EXPOSED WAS MY OWN HALF-FIX
+
+```
+goodsInBag: 2      goodsStillVisible: 2      goodsShrunk: 0
+```
+
+Both goods inside the bag, **still visible**, at **scale 1**. G3's *"nothing
+shrinks"* and G4.2's *"stay visible in it"*, together, in one live transaction at
+the default camera.
+
+### The first run of this check found the opposite
+
+```
+goodsInBag: 2      goodsStillVisible: 0      goodsShrunk: 0
+bagRows: [{ bagged: true, insideBag: true, visible: FALSE, scale: 1 }, ...]
+```
+
+Correctly in the bag. Correctly at full size. **Invisible.**
+
+I fixed G4.2 earlier today - in `updateBagDropMotions`, the DRAG path. **There
+are THREE paths that pack a good into the bag**, and the other two - the
+scan-motion path and the resume-restore path - still switched the mesh off.
+
+**My test scanned only the function I had changed.** That is the same half-fix
+shape I catalogued seven times in other people's work this session, committed by
+me, four hours after writing the tally.
+
+### The fix is the class
+
+All three paths now leave the good visible, and the new check scans **every site
+that marks an item `packed-in-bag`** rather than one named function:
+
+```js
+for (const at of sites) {
+  const block = src2.slice(at - 400, at);
+  assert.doesNotMatch(block, /visible = false/);
+}
+```
+
+Watched it fail with the scan-motion path re-hidden. Suite **2929 pass / 0 fail**.
+
+### Five visual items confirmed
+
+| item | state |
+| --- | --- |
+| G4.1 a bag is always at the counter | **CONFIRMED** |
+| G1 the till reads with a mop in hand, Q held | **CONFIRMED** |
+| G7 cash laid, hand withdrawn, in that order | **CONFIRMED** |
+| G5 realistic denominations, coins on the desk | **CONFIRMED** |
+| G3 + G4.2 goods in the bag, visible, unshrunk | **CONFIRMED** |
+
+From zero this morning. **And the last one found a live defect that four
+source-level tests and a green suite had all missed** - which is the entire
+argument for the brief's rule about player-camera evidence, demonstrated on my
+own work.
+
 ## RUNNING LISTS
 
 _Updated continuously, not at the end._
+
+### VISUAL CONFIRMATION - THE GAP THAT CLOSED
+
+The brief: *"Visual items need a player-camera screenshot at the DEFAULT camera
+or they are UNCONFIRMED."* This session began with **zero** and ends with
+**five**, every one at 2560x1370, DPR 1.5, FOV 66, untouched:
+
+| item | evidence |
+| --- | --- |
+| G4.1 a bag is always at the counter | found, drawn, on screen at 10.71 yd; hiding it flipped the control |
+| G1 the till reads with a mop in hand, Q held | `mopIsHeld true`, label *"Tee desk - [E] arrivals..."* |
+| G7 cash laid, hand withdrawn, IN ORDER | `["PayCash","CashLaid"]`, `laidAfterHolding true` |
+| G5 realistic denominations | $21.75 paid `{20, 10, 0.50, 0.25}` - notes for dollars, coins for cents, no pennies |
+| G3 + G4.2 goods in the bag | `goodsInBag 2, goodsStillVisible 2, goodsShrunk 0` |
+
+**The last one found a live defect that four source tests and a green suite had
+all missed - and it was MY half-fix**, three bagging paths where I had fixed one.
 
 ### THE PHASE 5 GATE - THE OBJECTIVE ARBITER
 
@@ -5207,587 +5809,3 @@ measures.** That is a real distinction and the gate should probably measure them
 separately - noted rather than changed, because moving a gate's goalposts while
 it is red is exactly the wrong instinct.
 
-## THE FINAL STATE, AFTER THE LAST CORRECTION
-
-### The gate
-
-**9 pass, 1 FAIL, 0 with no check** - from 4/1/5. Invariants 3 and 4 were briefly
-SUSPECT when the sweep's visibility test was found wrong, and are sound again now
-that it walks the ancestor chain. All three of the sweep's planted controls still
-fire after that fix, which is what proves the fix did not simply blind it.
-
-### The eight instrument faults, and the one that is different
-
-Seven of them **failed OPEN** - green on a broken build, hiding a real defect.
-Dangerous, but cheap: you lose a check.
-
-**The eighth failed CLOSED, and it is the expensive one.** The effective-opacity
-bug INVENTED a HUD overlap that could not exist, and before anything caught it I
-had produced a CSS change, a measurement, a report section and a screenshot
-driver. **A false defect costs a day; false comfort costs a check.**
-
-What caught it was the brief's rule that a visual item needs a player-camera
-screenshot. Three runs of a driver. **Not the suite, which was green through all
-of it** - which is the same sentence the brief opens with, arrived at from the
-other direction.
-
-### Where the work stands
-
-| stream | state |
-| --- | --- |
-| Section A, invariant 1 | six causes closed by measurement; the invariant AS WRITTEN is met in play at 1.3% |
-| Section G | all thirteen items addressed |
-| standing invariants | all ten now have a check |
-| player-facing strings | 155 -> 45 raw, 110 translatable, blocked at the honest-coverage floor |
-| visual confirmation | **still the biggest gap: no player-camera frame for the bag sink, the withdrawn arm, coins on the desk, or the till with a mop in hand** |
-
-The screenshot driver now works - it captures the pointer first, which was the
-thing missing - so the next session has a working pattern for exactly that gap
-rather than a blank page.
-
-### G4.1 STILL UNCONFIRMED, AND THE CONTROL IS WHY I KNOW
-
-Wrote a driver to photograph the counter bag at the default camera - the biggest
-remaining gap being that every visual item this session is unconfirmed. It
-reported:
-
-```
-bagFound: false    bagDrawn: false    controlHidAnything: false
-```
-
-**`controlHidAnything: false` is the tell.** The control hides every matching
-object and counts them; it hid ZERO. So the driver never found anything to
-measure, and `bagFound: false` describes MY TRAVERSAL, not the game.
-
-### The bag is there
-
-* it is built at register construction - `buildBag()` at
-  `simplifiedRegisterMode.js:8406`, not lazily on first sale
-* it is named `FrontDeskShoppingBag`, which my `/bag/i` scan would have matched
-
-So the object exists and the name matches. **The subtree I walked
-(`ch.register.root`) is not where it lives**, and my optional chaining swallowed
-that silently - `ch.register?.root?.traverse?.()` returns undefined just as
-quietly for a wrong property as for a missing one.
-
-### Why this is recorded as a failure and not retried into a pass
-
-I had the option of guessing another subtree until something matched. That is how
-the six mop drivers came to name-scan `MopStrand_<i>_<s>` and silently report zero
-after the fibres went instanced - **a scan that finds nothing looks exactly like a
-thing that is not there.**
-
-**G4.1 remains UNCONFIRMED visually.** What it needs is the register exposing its
-bag through its own API rather than a driver guessing at scene-graph shape, which
-is a ten-minute change and the correct one. The frame is filed at
-`qa/electron/g4-bag-present/` and shows the counter; whether the bag is in it, I
-am not willing to claim from a driver whose control failed.
-
-**That is now twice in three drivers that the control caught a measurement I
-would otherwise have published.** The controls are earning their cost more
-reliably than anything else built this session.
-
-### THE ACCESSOR IS RIGHT; THE CONFIRMATION STILL IS NOT
-
-Acting on the previous finding, the register now exposes its own bag:
-
-```js
-bagNode: () => bagGroup,
-bagIsAtCounter: () => !!(bagGroup && bagGroup.visible
-  && bagGroup.userData?.checkoutOwner !== 'customer'),
-```
-
-**That change stands on its own merits.** A driver that hunts the scene graph for
-`/bag/i` reports nothing when it walks the wrong subtree, and a scan that finds
-nothing is indistinguishable from a thing that is not there - which is exactly
-how six mop drivers silently reported zero after the fibres went instanced.
-Anything checking G4.1 should ASK, not SEARCH, and now it can.
-
-**But the driver still reports `bagFound: false` through the accessor**, so one
-of two things is true and I could not determine which before running out of room
-to work:
-
-1. `ch.register` is not the register-mode object the accessor lives on - the
-   clubhouse may wrap or re-export it
-2. `bagGroup` is null at boot, meaning `buildBag()` at line 8406 does not run in
-   the path a fresh session takes
-
-**Option 2 would be a real G4.1 defect** - a bag that only exists after the first
-transaction is precisely the "player waits for one" the item forbids. Option 1 is
-a driver bug. **They are not distinguishable from the outside, and I will not
-guess between them**, because guessing is what produced the false HUD overlap
-earlier today.
-
-### The precise next step, so nobody starts from zero
-
-One `page.evaluate` answers it:
-
-```js
-Object.keys(ch).filter((k) => /reg|bag/i.test(k))   // is `register` even the name
-typeof ch.register?.bagNode                          // did the accessor land
-ch.register?.bagNode?.() === null                    // built, or not built yet
-```
-
-If `bagNode` is a function returning null, **G4.1 is not fixed** and the source
-test that pins it is passing on a code path a fresh session never takes - which
-would make it the ninth instrument fault of this session and the second to hide
-a real defect behind a green check.
-
-**G4.1 remains UNCONFIRMED, and now with a specific suspicion attached rather
-than a vague one.** That is a better handover than the same words were an hour
-ago.
-
-### G4.1 CONFIRMED - THE FIRST VISUAL ITEM THIS SESSION TO CLEAR THE BRIEF'S BAR
-
-```
-bagFound: true                       bagDrawn: true
-bagOnScreenAtDefaultCamera: true     distanceYd: 10.71
-controlHidAnything: true             controlReportsGone: true
-camera 2560x1370, DPR 1.5, FOV 66    (untouched)
-```
-
-**Both halves of the control fired**: hiding the bag hid something, and the same
-measurement then reported it gone. So *"found a bag"* is not a sentence this
-driver would say either way - which is the only thing that makes the first line
-worth reading.
-
-### It took four wrong turns, and an instrument caught every one
-
-1. **name-scanned `/bag/i` in the wrong subtree** - caught by
-   `controlHidAnything: false`. A scan that finds nothing looks exactly like a
-   thing that is not there.
-2. **added the accessor to the register-mode object** - but `ch.register` is a
-   NARROW FACADE and did not forward it.
-3. **a probe settled which** - `registerKeysMatching: []`,
-   `accessorType: undefined`. **Option 1, a driver bug, NOT a G4.1 defect.**
-4. **`fw.THREE` is not exposed**, so `look()` threw - a THIRD way for this
-   measurement to say nothing, and it surfaced as a stack trace rather than a
-   verdict.
-
-Fixed: the facade forwards `bagNode()` and `bagIsAtCounter()`, and the driver
-reads world position out of `matrixWorld` rather than reaching for a THREE
-binding that does not exist on the window.
-
-### The part I want on the record
-
-**I nearly published "G4.1 may not be fixed - the bag might never be built" as a
-finding.** It was wrong. The only reason it did not ship is that I refused to
-guess between *"my driver is broken"* and *"the game is broken"* and spent a run
-distinguishing them.
-
-That is the same discipline that retracted the HUD overlap - **applied BEFORE the
-false claim instead of after it.** Twice today the choice was available; once I
-took it late and once early, and the early one cost a single Electron run.
-
-### G1 CONFIRMED - THE TILL READS WITH A MOP IN HAND AND Q HELD
-
-```
-mopIsHeld: true            focusKind: "prop"
-label: "Tee desk - [E] arrivals, check-ins and walk-ins"
-labelNamesTheStation: true      labelNamesTheMop: false
-camera 2560x1370, DPR 1.5, FOV 66   (untouched)
-```
-
-Mop equipped, **Q physically held down** via the keyboard, standing at the
-counter - and the prompt reads the DESK. That is the brief's own sentence
-answered: *"I should not have to release Q and swap to empty hands first."*
-
-The mop is confirmed held at the moment of reading (`mopIsHeld: true`), which is
-the half that matters: a label naming the desk proves nothing if the tool had
-silently stowed itself first.
-
-### Two visual items in a row, with a pattern that now works
-
-After a session of source-level checks marked UNCONFIRMED, the recipe that
-finally produces frames is:
-
-1. **ASK the game through its own API** - never name-scan the scene graph
-2. **read geometry from `matrixWorld`** - `fw.THREE` is not on the window and
-   reaching for it throws inside `page.evaluate`, surfacing as a stack trace
-   rather than a verdict
-3. **capture the pointer first** - the HUD hides itself when the player is not
-   captured, and a driver that skips this measures elements at opacity 0
-4. **pair every reading with a control** - twice today a control caught a
-   measurement I would otherwise have published
-
-None of those four is obvious, each cost at least one run to learn, and all four
-are now written into drivers the next session inherits.
-
-### The remaining UNCONFIRMED visuals
-
-The bag sink (G3/G4.2), the withdrawn arm after laying cash (G7), and coins on
-the desk (G5). **All three need a customer mid-transaction**, which is the
-staging this session never built - not a missing instrument but a missing
-scenario. That is the honest distinction between what is left and what was
-merely hard.
-
-### G5 + G7: THE SCENARIO EXISTS, DRIVING IT DOES NOT - AND THAT IS THE HANDOVER
-
-The last two visual items need a customer mid-transaction. I said that was a
-missing SCENARIO rather than a missing instrument, and went looking. **The
-scenario hook is there:**
-
-```js
-clubhouse.sendToCounter(skuIds, payMethod)   // stages a shopper with goods
-clubhouse.sendWalkInToDesk(options)          // stages a tee-time errand
-clubhouse.customerByName(n)                  // the live handle, for watching poses
-```
-
-`sendToCounter(['balls3','glove1'], 'cash')` returns a customer and
-`scenarioStaged: true`. **They walk in. They never reach the till.**
-
-```
-modesSeen: ["Idle"]     across 40 samples over 60 seconds
-heldItOut: false        armCameBack: false      coinKindsOnDesk: null
-```
-
-Adding the player - standing at the counter, capturing the pointer, calling
-`register.enter()` - **changed nothing.** The customer sits at `Idle`.
-
-### What that tells the next session, precisely
-
-The gap is between *staged* and *served*. A staged customer exists and walks;
-something else has to accept them into a transaction, and it is not
-`register.enter()`. The likely candidate is in the source I read earlier:
-
-> *"a staged shopper is evicted before reaching the till whenever the shop is
-> SHUT - which is every fresh profile, since a new day opens CLOSED and a harness
-> has no reason to know it must flip the sign."*
-
-`sendToCounter` sets `scriptedVisit = true` to survive the eviction sweep, but
-surviving is not the same as SHOPPING. **The first thing to try is opening the
-shop before staging**, and the second is finding what the existing checkout
-drivers call between spawn and tender - `checkout-bag-handoff-path.js` reaches
-`getTx()` with a live transaction, so something in it knows the step I am
-missing.
-
-### Why I am stopping here rather than trying a fourth time
-
-Three runs, three identical results, and each attempt was a guess at the missing
-call. **Guessing is what produced the false HUD overlap earlier today.** The
-honest state is: the hooks are found and named, the failure is reproducible and
-specific, and the next person starts from "open the shop, then read
-checkout-bag-handoff-path" rather than from "find out how to stage a customer".
-
-**G5 and G7 remain UNCONFIRMED VISUALLY**, with their sim-level checks standing
-and the exact blocker written down. That is a materially better handover than
-this morning, when the blocker was "no scenario exists" - which turned out to be
-wrong.
-
-### THE STAGING BLOCKER IS SOLVED - AND THE NEXT ONE IS NAMED, NOT GUESSED
-
-I said the next session should try "open the shop, then read
-checkout-bag-handoff-path". **I read it, and both leads were right.**
-
-The working driver does four things my three failed runs did not:
-
-```js
-app.scene3d.applyTimeWeather(14 * 60, app.state.weather);  // a new day opens CLOSED
-clubhouse.rebuildStock();                                   // nothing to buy otherwise
-walk.x = REGISTER.stand.x + off.x;                          // where the till expects a cashier
-await page.keyboard.press('e');                             // NOT register.enter()
-```
-
-Applied, and the result moved:
-
-```
-scenarioStaged: true    txArrived: true    tookTheTill: true
-```
-
-**The customer now walks in, reaches the counter, and a live transaction exists
-with the player serving.** That is the blocker that ate three runs, closed.
-
-### The remaining step, which is gameplay rather than plumbing
-
-`modesSeen: ["Idle"]` still, because **there is no cash on the desk yet**. The
-rig only reaches `PayCash` when a tender exists, and a tender only exists after
-the player SCANS the items and REQUESTS PAYMENT. The transaction is at
-`scanning`, not `cash-tender`.
-
-So the next step is not another hook to find - it is driving the scan: pick each
-item up, sweep it through the scan volume, then request payment. The register's
-own acceptance drivers already do this, and `checkout-bag-handoff-path` sets
-`tx.rng = () => 0.9` to force a card approval, which is the same shape of nudge.
-
-### Why this is a better place to stop than an hour ago
-
-**The unknown has moved twice today and both moves were forward:**
-
-1. this morning: *"no scenario exists for a customer mid-transaction"* - wrong,
-   three hooks exist
-2. an hour ago: *"the hooks exist but the customer never gets served"* - solved,
-   it was a closed shop and an unstocked shelf
-3. now: *"served, but the tender needs the scan driven"* - a known gameplay
-   sequence with existing drivers that already perform it
-
-**G5 and G7 remain UNCONFIRMED VISUALLY**, but each step of that sentence is
-smaller than the one before it, and none of the three answers was reached by
-guessing.
-
-### G7 CONFIRMED - THE ARM COMES BACK, WITH A LIVE TRANSACTION
-
-The full scenario runs end to end at last:
-
-```
-scenarioStaged true   txArrived true    tookTheTill true
-itemsScanned 2        reachedTender true
-modesSeen ["CashLaid"]                  armCameBack: TRUE
-controlNotAlreadyLaid true
-camera 2560x1370, DPR 1.5, FOV 66 (untouched)
-```
-
-Shop opened, customer staged, walked in, served, both goods scanned and bagged
-by click-to-bag, cash tender reached - **and the customer stands in `CashLaid`,
-arm back, not holding the money out.** That is G7's sentence answered against a
-live transaction rather than a source scan.
-
-The control holds: the mode was NOT already `CashLaid` before staging, so the
-reading is something this driver detected rather than the pose the customer
-happened to be in.
-
-### The last piece was another "ask, do not search"
-
-`projectItem` needed the product mesh, and `itemMeshes` was a private Map. Same
-gap as the bag, same fix: `itemMesh(uid)` exposed on the register and forwarded
-through the clubhouse facade. **That is the third accessor this session added
-because a driver would otherwise have had to guess at scene-graph shape**, and
-each one turned a failing measurement into a working one.
-
-### Two caveats, recorded rather than glossed
-
-* **`heldItOut: false`** - I never sampled `PayCash`. `CASH_LAY_SECONDS` is 0.55
-  and my first sample lands 1.5 s after the tender, so the hold phase had already
-  passed. **`laidAfterHolding` is therefore UNPROVEN, not false.** A faster
-  sample would settle it; the ordering claim is not established by this run.
-* **`coinKindsOnDesk: 0`** - no coins in this tender. That does NOT contradict
-  G5: coins reach the desk in ~13.5% of tenders because only totals ending in a
-  multiple of 5 cents qualify. **One sample cannot disprove a 13.5% behaviour**,
-  and reading this as a failure would be the same error as trusting a single
-  reading anywhere else in this session.
-
-**G7 is CONFIRMED. G5 remains UNCONFIRMED and needs a run over many tenders**,
-which is the same distribution argument its unit test already makes - now with a
-driver that can actually reach a tender to sample.
-
-### G7 FULLY CONFIRMED - BOTH PHASES, IN ORDER
-
-```
-modesSeen: ["PayCash", "CashLaid"]
-heldItOut: true      armCameBack: true      laidAfterHolding: TRUE
-itemsScanned 2       reachedTender true     controlNotAlreadyLaid true
-camera 2560x1370, DPR 1.5, FOV 66 (untouched)
-```
-
-The customer **holds the cash, then the arm comes back.** Both phases observed,
-in sequence, against a live transaction. That is G7's whole sentence:
-*"they lay it on the desk and take their hand back. They do not stand holding it
-out."*
-
-### The fix was a sampling rate, and the lesson is sharper than the fix
-
-`CASH_LAY_SECONDS` is 0.55. I had been sampling every **1500 ms**. **A 0.55 s
-event cannot be caught on a 1.5 s tick** - so the previous run saw only the
-end state and reported `heldItOut: false`.
-
-Had I trusted that, I would have published *"the customer never holds the cash
-out"* - the ABSENCE of a behaviour that was there the whole time, from a probe
-whose sample interval was three times the event. **That is the same failure as
-the dry mop, the shut book and the unready rig: measuring a subject in a state it
-does not occupy, or at a moment it has already left.**
-
-It was caught only because I wrote `laidAfterHolding` as UNPROVEN rather than
-false, which forced the question of why the ordering could not be seen.
-
-### Visual confirmations this session
-
-| item | state |
-| --- | --- |
-| G4.1 bag always at the counter | **CONFIRMED**, both control halves fired |
-| G1 till reads with a mop in hand, Q held | **CONFIRMED**, mop held at read time |
-| G7 cash laid, hand withdrawn | **CONFIRMED**, both phases in order |
-| G5 coins on the desk | still needs many tenders - 13.5% expected, one sample seen |
-| G3 / G4.2 the bag sink | not attempted; the driver that reaches a tender could now reach it |
-
-**Three visual items now clear the brief's bar**, from zero this morning - and
-the scenario driver that unlocked the last one can reach the remaining two.
-
-### G5 - HALF CONFIRMED, AND THE HALF THAT IS NOT IS NAMED
-
-Forced the coin case deterministically: prices set to **12.40 + 9.35 = 21.75**,
-whose 75 cents are payable in three quarters, with `tx.rng` pinned under the
-0.55 threshold so the coin branch should be taken.
-
-```
-pricedForCoins: [12.4, 9.35]      due 21.75
-tendered: { "10": 1, "20": 1 }    = $30.00 in notes
-coinKindsOnDesk: 0
-```
-
-### What this DOES confirm
-
-G5 names **two** behaviours: *"round notes, plus coins for an odd amount, OR
-round up to the next note."*
-
-A **$21.75 bill paid with a $20 and a $10** is the second one, exactly. That is
-not a failure - it is one of the two behaviours the brief asks for, observed on
-a live desk with real denominations. **"The amounts are realistic" is confirmed:
-nobody handed over $21.75 to get nothing back, and nobody produced shrapnel.**
-
-### What it does NOT confirm, and why
-
-**The coin branch did not fire.** `tx.rng = () => 0.2` should have selected it, so
-one of these is true and I ran out of room to determine which:
-
-1. `customerCash` uses a different rng than `tx.rng` - the register may pass its
-   own source
-2. the tender was computed BEFORE my price edit landed, making the pinned prices
-   irrelevant to a stack that was already chosen
-
-**Both are answerable by logging inside `customerCash`**, which is a five-minute
-diagnostic and the obvious next move. I am not guessing between them - the same
-rule that stopped me publishing a false G4.1 defect and a false HUD overlap.
-
-**G5: the round-up behaviour is CONFIRMED live. The coins-on-the-desk half
-remains UNCONFIRMED**, with the mechanism to force it identified and the two
-candidate reasons it did not fire written down.
-
-### G5 RESOLVED - I FORCED THE COIN CASE ON THE WRONG NUMBER
-
-The two candidates I named were both wrong, and the real answer is better.
-
-**The prices DID take.** The tender was `$30` for a `$21.75` bill - the round-up
-of MY prices, not of the catalog ones (balls3 + glove1 would round somewhere
-else entirely). So the edit landed, and `tx.rng` was not the problem either.
-
-**Sales tax was.** `customerCash` computes the odd cents from
-`cashTotalOf(tx)` - the total the customer actually pays, **including tax**. I set
-prices summing to `21.75` and reasoned about **75 cents PRE-TAX**. The cents on
-the real total are different, `payableInLargeCoins` saw a value needing pennies,
-and it correctly refused the coin branch.
-
-**The code was right the whole time. My forcing was computed on the wrong
-number.**
-
-### This is the same fault as every other one this session
-
-Not a bug in the game, not a bug in the instrument - **a measurement taken
-against a quantity the subject does not use.** The dry mop, the shut book, the
-unready rig, the 1.5 s sample on a 0.55 s event, and now a pre-tax total on a
-post-tax decision. Five instances of one shape.
-
-The tell each time was the same: **the number that came back was internally
-consistent but did not match what I predicted**, and the temptation each time was
-to conclude the FEATURE was broken rather than the measurement.
-
-### Status
-
-**G5: the round-up-to-the-next-note behaviour is CONFIRMED live** - a $21.75 bill
-paid with a $20 and a $10, realistic denominations, no shrapnel.
-
-**The coins-on-the-desk half is still unconfirmed, but no longer mysterious**: to
-force it, pick prices whose POST-TAX total ends in a multiple of 5 cents, or set
-`tx.taxRate = 0` before pricing. Either is a one-line change for the next run,
-and the unit test already proves the behaviour at 13.5% over a distribution.
-
-### G5 CONFIRMED - COINS ON THE DESK, WITH THE TAX CORRECTION APPLIED
-
-One line - `tx.taxRate = 0` before pricing, so the pre-tax total IS the total the
-customer faces - and the coin branch fires:
-
-```
-tendered: { "10": 1, "20": 1, "0.5": 1, "0.25": 1 }
-coinKindsOnDesk: 1     coinPiecesOnDesk: 1
-pricedForCoins: { prices: [12.40, 9.35], taxRate: 0 }
-```
-
-**A $21.75 bill paid with a $20, a $10, a half-dollar and a quarter.** Notes for
-the dollars, coins for the cents - which is G5's first behaviour, and the change
-comes back in whole dollars, which was the entire point of building it.
-
-Both behaviours G5 names are now seen live at the desk:
-
-| behaviour | evidence |
-| --- | --- |
-| round up to the next note | $21.75 paid with a $20 and a $10 (previous run) |
-| notes plus coins for the odd amount | $21.75 paid with $20 + $10 + 50c + 25c |
-
-And F4's rule holds in both: **no pennies, no shrapnel.** The coins that appeared
-are a half-dollar and a quarter - the large ones a customer digs out.
-
-### The full G7 run in the same frame
-
-That same run also carries `modesSeen: ["PayCash","CashLaid"]`,
-`laidAfterHolding: true`, `itemsScanned: 2`, `reachedTender: true` - so the
-gesture and the denominations are confirmed **in one transaction**, at the
-default camera, with the control valid.
-
-### Visual confirmations, final
-
-| item | state |
-| --- | --- |
-| G4.1 a bag is always at the counter | **CONFIRMED** |
-| G1 the till reads with a mop in hand, Q held | **CONFIRMED** |
-| G7 cash laid, hand withdrawn, in that order | **CONFIRMED** |
-| G5 realistic denominations, coins on the desk | **CONFIRMED** |
-| G3 / G4.2 the bag sink | not attempted - the driver reaches this beat and could |
-
-**Four visual items now clear the brief's bar, from zero this morning.** Every
-one of them needed a scenario nobody had built, an accessor nobody had exposed,
-or a sample rate nobody had matched to the event - and each was found by reading
-rather than guessing.
-
-### G3 + G4.2 CONFIRMED - AND THE DEFECT THEY EXPOSED WAS MY OWN HALF-FIX
-
-```
-goodsInBag: 2      goodsStillVisible: 2      goodsShrunk: 0
-```
-
-Both goods inside the bag, **still visible**, at **scale 1**. G3's *"nothing
-shrinks"* and G4.2's *"stay visible in it"*, together, in one live transaction at
-the default camera.
-
-### The first run of this check found the opposite
-
-```
-goodsInBag: 2      goodsStillVisible: 0      goodsShrunk: 0
-bagRows: [{ bagged: true, insideBag: true, visible: FALSE, scale: 1 }, ...]
-```
-
-Correctly in the bag. Correctly at full size. **Invisible.**
-
-I fixed G4.2 earlier today - in `updateBagDropMotions`, the DRAG path. **There
-are THREE paths that pack a good into the bag**, and the other two - the
-scan-motion path and the resume-restore path - still switched the mesh off.
-
-**My test scanned only the function I had changed.** That is the same half-fix
-shape I catalogued seven times in other people's work this session, committed by
-me, four hours after writing the tally.
-
-### The fix is the class
-
-All three paths now leave the good visible, and the new check scans **every site
-that marks an item `packed-in-bag`** rather than one named function:
-
-```js
-for (const at of sites) {
-  const block = src2.slice(at - 400, at);
-  assert.doesNotMatch(block, /visible = false/);
-}
-```
-
-Watched it fail with the scan-motion path re-hidden. Suite **2929 pass / 0 fail**.
-
-### Five visual items confirmed
-
-| item | state |
-| --- | --- |
-| G4.1 a bag is always at the counter | **CONFIRMED** |
-| G1 the till reads with a mop in hand, Q held | **CONFIRMED** |
-| G7 cash laid, hand withdrawn, in that order | **CONFIRMED** |
-| G5 realistic denominations, coins on the desk | **CONFIRMED** |
-| G3 + G4.2 goods in the bag, visible, unshrunk | **CONFIRMED** |
-
-From zero this morning. **And the last one found a live defect that four
-source-level tests and a green suite had all missed** - which is the entire
-argument for the brief's rule about player-camera evidence, demonstrated on my
-own work.
