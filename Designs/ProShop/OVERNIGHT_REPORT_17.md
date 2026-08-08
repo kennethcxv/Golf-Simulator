@@ -14163,3 +14163,43 @@ behind it instead of a literal buried in a constructor.
 both-targets detail, and **the 4x default as a tripwire** — so if the look ever
 changes it will be on purpose. Watched failing with both functions removed from
 the returned API.
+
+
+## C2 AND C3 ARE OPEN ON THE EXACT PAGE THE BRIEF NAMES AS WORST
+
+Opened the ledger at the default camera (fov 66) and photographed five spreads.
+**Complaints and Fixes** — *"Complaints and Fixes is the worst"* — shows two live
+defects at once, visible without magnification and confirmed at 2x crop:
+
+- **C3, words over words.** The left page's footer, *"◀ A previous page"*, is
+  drawn straight through the content row *"The window frames stick and rattle."*
+  Two independent strings on one baseline, glyphs interleaved.
+- **C2, overflow.** The row below it, *"Repair kit. Face the frame and hold
+  [E]."*, is clipped by the bottom edge of the page — only the tops of the glyphs
+  render.
+
+**One mechanism, not two.** `ledgerBook` computes `footTop` as *"the highest ink
+any foot row can reach, over BOTH pages and the current key labels"*, and the
+complaints list simply draws past it. C2 prescribes the remedy in its own words:
+*"If a page has more content than fits, paginate it — the book already paginates
+the guest register, so use the same machinery."*
+
+### Why nothing caught it, and it is not the instrument's fault
+
+**The overlap recorder is real and correct.** Every `fillText` records its rect
+into `face.draws` (`ledgerBook.js:155-169`), `scanOverlaps` does the pairwise
+intersection after each page paint, and a >2 px collision on both axes lands in
+`LEDGER_OVERLAPS` with both strings named.
+
+Gate invariant 3 passes anyway — and its own detail line says why: *"the canvas
+screens keep their own recorders (ledger, front desk)"*. **Nothing exercises this
+page at full content.** With an empty complaints list the rows never reach
+`footTop`, so there is no collision to record and the recorder is telling the
+truth about a state nobody put it in.
+
+That is C2's last line, unheeded: **"Sweep every page at full content and at
+empty."** The instrument was built and then only ever pointed at the easy half of
+the state space.
+
+**So the running list was wrong** to mark C2 and C3 as carrying Goal-17 work and
+leave them at that. They carry the work *and* the defect. Corrected.
