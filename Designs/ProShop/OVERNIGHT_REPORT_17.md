@@ -2027,6 +2027,64 @@ number, colour, file - get a cue. **The suite caught a real design error, not a
 bookkeeping one**: shipping it would have made every text field in the game
 click while being typed into.
 
+## F2 — audited: every event has a sound, and almost none of them meet the brief's two properties
+
+F2 lists fourteen physical events, asks for two properties, and asks for one
+confession: "Layered - start transient, body, tail - and pitch-varied so repeats
+do not grate. Report what you added and which are placeholders."
+
+`tools/qa/f2-audio-audit.mjs` reads `core/audio.js` and answers structurally
+rather than by claim: **layering** counted as the number of sound SOURCES a
+voice creates, **pitch variation** as whether its frequency or detune is a
+function of `Math.random()`. Neither can be fudged by wanting the answer.
+
+### Coverage: complete
+
+**All fourteen of F2's events have a voice.** The register drawer, coins,
+the scanner beep, the keypad, entering and leaving the cashier, footsteps,
+ledger open/close/turn, doors, the sign, boxes, tool contact - every one is
+mapped, most of them by Goal 16.
+
+### The two properties: largely not met
+
+| | count | of 92 voices |
+| --- | --- | --- |
+| **layered** (2+ sources) | **8** | **8.7%** |
+| **pitch-varied** | **20** | **21.7%** |
+| has a decay tail | 61 | 66% |
+
+**Eighty-four of ninety-two voices are a single source.** "Start transient,
+body, tail" describes three layers; the overwhelming majority of this game's
+sounds are one oscillator or one noise burst with an envelope on it.
+
+**Seventy-two of ninety-two have no pitch variation at all**, which is precisely
+the condition the brief names - "so repeats do not grate". Footsteps, box
+handling, product sounds and shelf stocking all repeat constantly and all play
+the identical pitch every time.
+
+The ones that DO meet the bar are worth naming, because they show the house
+style already exists: `ensureToolLoop` (6 sources, varied), `boxTapeTear`,
+`boxFlapFold`, `boxContentsShift`, `stickSlip`, `broomStart`/`broomStop` and
+`shapedBurst` are all randomised, and `laptopOpen` is layered.
+
+### The confession the brief asked for
+
+**Every voice in this game is synthesised. There is not one recorded sample.**
+By any normal reading of the word, all ninety-two are placeholders - they are
+oscillators and filtered noise standing in for a drawer, a coin, a boot on a
+board. That is a legitimate way to ship, and it is also the honest answer to
+"which are placeholders": all of them.
+
+### What I did not do, and why it is named rather than attempted
+
+Adding pitch variation to seventy-two voices is mechanical and is the single
+highest-value change available here - it is the difference between a footstep
+that grates by the twentieth step and one that does not. **I have not done it**,
+because doing it well means either a shared tone helper that every voice routes
+through (which does not exist yet) or seventy-two individual edits, and a
+seventy-two-function sweep I cannot re-verify by ear is exactly the shallow pass
+the brief warns against. It is on NOT DONE with its number attached.
+
 ---
 
 ## RUNNING LISTS
