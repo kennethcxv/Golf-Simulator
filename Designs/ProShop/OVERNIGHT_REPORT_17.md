@@ -6763,3 +6763,43 @@ and the reason the sweep read constant is explained. The next session starts at
 asserts the plant number VARIES with them — which is the check that should have
 existed before the original sweep was believed.
 
+
+## B5 — "LEAVE THE OTHER SEVEN TOOLS ALONE". VERIFIED, NOT ASSERTED.
+
+B5 is a constraint rather than a task, and the honest way to close it is to
+check rather than to claim.
+
+**Every source file changed this session:** `src/render3d/toolViewmodel.js`.
+One file.
+
+**Where its two changed hunks land**, resolved by walking the `def.id === '...'`
+markers and asking which block owns each changed line:
+
+```
+line 432 -> mop block      (B1 motion params)
+line 440 -> mop block
+line 455 -> mop block
+line 541 -> broom block    (B2 bristle count)
+line 563 -> broom block    (B2 bristle radius)
+```
+
+Mop and broom only. Vacuum, dustpan, spray, cloth, sponge, washer and trash bag
+were not touched.
+
+### An independent second instrument agrees
+
+Invariant 5 in the Phase 5 gate measured **all nine tools** after these edits:
+
+```
+stick tools keep their hands: broom 5032px, mop 4070px
+hand-worked tools draw none at ANY pitch:
+  spray 0px, cloth 0px, sponge 0px, washer 0px, trashbag 0px
+```
+
+That is a different instrument, looking at rendered pixels rather than at a
+diff, and it reaches the same conclusion. Two independent methods agreeing is
+worth more here than either alone — particularly in a report whose recurring
+finding is single instruments that are confidently wrong.
+
+**B5: SATISFIED.**
+
