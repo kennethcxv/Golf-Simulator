@@ -13264,3 +13264,93 @@ at 33.** 29.3 ms is a dropped frame at 60 Hz and fails the brief's bound while
 passing the driver's. The instrument has been certifying a looser requirement than
 the one written down — so C6 is open on its own terms, and the turn budget C8 has
 to fit inside is much tighter than the current grade suggests.
+
+
+## INVARIANT 1 LOCALISED: THE GAME IS FINE OUTDOORS, AND THE SHADOW BAKE COSTS 4x INDOORS
+
+Three threads had arrived at the same wall from different directions:
+
+- **Invariant 1** has been the one red gate item all session — *"no frame over
+  16 ms during normal play"* — with the walk reporting 6-11% of frames over it.
+- **B2's** dense broom head looked like it doubled the over-16 tail, until the
+  per-beat breakdown showed beats holding *no tool* running higher than the ones
+  holding it.
+- **C6** says page turns are laggy. The turn's own frame costs **0.8 ms** and the
+  worst frame during turns is 29.3 ms — and standing still measures 27-36 ms too.
+
+Same conclusion three times: the spikes are not the thing being blamed for them.
+They leave the median alone and hit roughly one frame in five.
+
+**One frame in five is a suspicious number.** The sun shadow re-bakes on a fixed
+100 ms clock (`courseScene.js:10351`) and sets `renderer.shadowMap.needsUpdate`.
+At 60 fps that is one frame in six. And `shadowBakes` is already exposed on
+`scene3d.post.stats()` carrying the comment *"perf probes read this to attribute
+frame spikes to bakes"* — **the hook was built for this question and nobody had
+ever asked it.**
+
+The control is free and exact: **the non-bake frames in the same run, the same
+second, the same scene, the same camera.** Nothing else has to be held equal
+because nothing else differs.
+
+### First answer: refuted
+
+Outdoors, bake frames cost about **1 ms** more than non-bake frames and 2.6% of
+them exceed 16.7 ms. Not the spikes.
+
+But the run reported something else worth more than the hypothesis: **standing
+outdoors, only 1.0% of frames exceeded 16.7 ms, median 8.7.** Every earlier
+reading that made invariant 1 red had been taken *inside the clubhouse*.
+
+### So measure both, in one run
+
+Comparing across runs would compare two machines' moods. Both places sampled in
+the same run, seconds apart, nothing changed but where the player stands:
+
+| | median | p95 | worst | over 16.7 ms |
+|---|---|---|---|---|
+| **outdoors** | 8.7 ms | 10.5 | 21.0 | **1.0%** |
+| **indoors** | 5.7 ms | 20.1 | 28.7 | **21.3%** |
+
+Indoors the median is *lower* and the over-budget rate is **twenty times higher**.
+That is a bimodal profile — fast frames punctuated by spikes — against a flat
+one outdoors.
+
+And split by bake, indoors:
+
+| indoor frames | n | median | over 16.7 ms |
+|---|---|---|---|
+| **shadow bake** | 109 | **18.6 ms** | **88.1%** |
+| non-bake | 1171 | **5.0 ms** | 15.1% |
+
+**The bake costs 4x the median frame indoors and blows the budget on 88% of the
+frames it runs on.** Reproduced: a second run gave 22.0 ms / 71.6% against 5.3 ms
+/ 17.0%, and indoor totals of 22.2% against this run's 21.3%.
+
+The hypothesis was refuted outdoors and confirmed indoors — and it only came out
+that way because both were measured. A single-location driver would have filed
+"shadow bakes are not the problem" and been wrong about the place that matters.
+
+### What this does and does not settle
+
+Bakes are ~8.6% of indoor frames and account for **96 of the 273** over-budget
+ones. **The other 177 are non-bake frames**, and a 15.1% over-budget rate with no
+bake running is a second, separate problem. So this localises roughly a third of
+invariant 1's failures to one cause, and names where the rest live.
+
+It also reframes C6 completely. **A page turn costs 0.8 ms; standing in the room
+it is turned in costs 20.** C6 cannot be fixed by making page turns cheaper, and
+C8's richer page paint is not the threat to the turn budget that it appeared to
+be — the room is.
+
+### Fault 100 — the confirmation that could not fail
+
+The first indoor run reported `insideConfirmed: false` while showing an
+unmistakably indoor profile. The check asked `isInside(w.x, w.z)`; the walk API
+carries its position on `w.state`, so both arguments were `undefined` and
+`isInside` said no perfectly happily.
+
+**A confirmation that returns the same answer for "outside" and for "you asked
+wrong" confirms nothing** — and this one was about to discredit a real result.
+Now reads `w.state.x`, reports the coordinates it used, and keeps the old
+reading alongside: `{known: true, x: -359.65, z: 4.76, inside: true,
+viaApiFields: false}`. That last field is the fault, preserved as a value.
