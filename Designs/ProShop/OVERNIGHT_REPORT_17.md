@@ -12037,3 +12037,45 @@ of invariant 4.
 
 Suite 2933 pass / 0 fail. Gate 9/1/0. Tree clean.
 
+
+## E3'S NAMED INSTANCE IS ALREADY FIXED — AND THE CODE SAYS WHY
+
+Checked the reset-button padding directly rather than inferring it from
+invariant 4, which was the right call and produced good news:
+
+```css
+.settings-footer {
+  margin-top: 14px; padding-top: 11px; border-top: 1px solid #29312c;
+  /* D5: the reset row used to sit flush on the panel's bottom edge */
+  margin-bottom: 10px; padding-bottom: 6px;
+}
+.settings-page { ... padding-bottom: 16px; }
+```
+
+**32 px of separation** between the reset row and the panel's bottom edge, and
+the comment names E3's complaint verbatim — *"the reset row used to sit flush on
+the panel's bottom edge"* — fixed under a previous goal's **D5**.
+
+### So E3 is substantively complete
+
+| part | state |
+|---|---|
+| padding at the reset button | **fixed** (D5), 32 px, commented against the complaint |
+| sweep the panel for the class | **covered permanently** by invariant 4, planted control |
+| screenshot every page before/after | **not done** — UNCONFIRMED under the RULES |
+
+**Two of three, with the third being evidence rather than work.**
+
+### And the caution was worth having even though it was unnecessary
+
+I flagged that "the class passes, the named instance may still be broken" —
+eight prior instances in this report justified the worry. **This time the
+instance was fixed too.** Checking cost one command; assuming either way would
+have been wrong half the time by this report's own record.
+
+**That is the whole method in miniature: the check is cheap enough that being
+right by luck and being right by evidence cost the same, and only one of them
+survives the next person reading it.**
+
+Suite 2933 pass / 0 fail. Gate 9/1/0. Tree clean.
+
