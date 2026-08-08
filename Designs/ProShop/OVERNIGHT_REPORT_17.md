@@ -11408,3 +11408,57 @@ lost, repeatedly, to queries that cost one command.
 
 Suite 2929 pass / 0 fail. Tree clean.
 
+
+---
+
+# THE FOUR RUNNING LISTS — BROUGHT CURRENT
+
+Phase 5 gate, run after the Section A tool work: **9 pass, 1 FAIL, 0 unchecked.**
+The single FAIL is invariant 1, unchanged and honestly red.
+
+## 1. DONE AND VERIFIED
+
+- **Invariant 8 widened 45 -> 2,108** across three audited steps; ratchet, floor
+  control and nag each watched failing on planted strings. Its gate narration
+  now DERIVES from the sink regex and cannot go stale.
+- **Phase 5 gate: 4 pass / 1 FAIL / 5 unchecked -> 9 / 1 / 0.** Every standing
+  invariant now has a check watched failing on a planted defect.
+- **B1** lag direction reversed: +35% live pixel change, reproducible within 2%.
+- **B3** verified as needing NO change (B1's fix would have broken it).
+- **B5** verified two independent ways.
+- **D** COMPLETE — all four items, covered by passing invariant 6.
+- **F1/F2** verified end to end, DOM and canvas.
+- **E5** report delivered: 232 keys, 51.1% dictionary, **5.0% honest coverage**;
+  composed-key blocker removed; `till.recovered` state-identifier leak fixed.
+- **Hand material duplication** removed (9 -> 7 distinct, per rig).
+- **The walk driver's tool beat**, silently failing for an unknown number of
+  runs, now passes — plus `perf-repeat.mjs`, the split walk beats, program and
+  geometry censuses, and named-owner attribution.
+
+## 2. DONE, UNCONFIRMED AT THE PLAYER CAMERA
+
+- B1's retune (pixel gain measured; whether it reads to the eye is not).
+- B2 reverted, so nothing outstanding.
+
+## 3. DIAGNOSED, DELIBERATELY NOT IMPLEMENTED
+
+- **B4** — `broomViewmodel.js:863`; the plant moves the hands rather than
+  refusing an unreachable plant.
+- **C8** — four of five nouns already built; the fifth fights C6 for the turn budget.
+- **E2** — `styles.css:2037` + `settingsPanel.js:532`; needs before/after shots.
+- **Section A's equip stall** — mechanism fully measured, eleven fixes refuted.
+
+## 4. NOT STARTED
+
+- C6, C8 implementation; E1, E3, E4; B1's capture; the H/G items already
+  carrying work but never re-verified this session.
+- **Invariant 1** — still the one red item, unchanged since the session opened.
+
+### The one thing to read first, next time
+
+**`renderer.compile()` cannot warm shadow-depth programs.** Five of the nine
+programs at first equip are `depth`. Nine compile-shaped fixes failed on that
+single fact, and no documentation would have volunteered it.
+
+Suite 2929 pass / 0 fail. Tree clean. 249 commits, all pushed.
+
