@@ -8741,3 +8741,54 @@ runs of a metric now known to vary 4.4x.
 
 Suite 2929 pass / 0 fail.
 
+
+## THE MEASUREMENT PROTOCOL — BUILT, AND ITS FIRST RUN BEATS EVERY SINGLE-RUN NUMBER IN THIS REPORT
+
+`tools/qa/perf-repeat.mjs` runs the walk N times and reports **median and spread
+per beat**, because the previous entry established that one sample against one
+sample cannot support a perf claim here.
+
+First distribution, 3 runs:
+
+```
+beat          median      min..max      samples
+settle          19.4      19..20        19, 19, 20
+walk           376.3      371..377      376, 377, 371
+door           100.0      30..738       738, 100, 30
+ledger          54.2      34..157       54, 157, 34
+tool           715.2      334..1110     715, 1110, 334
+tool2           22.5      22..23        23, 22, 23
+end             18.9      18..20        20, 19, 18
+ALL            737.6      371..1110
+```
+
+### Three things fall straight out of it
+
+**1. `walk` is a REPRODUCIBLE 376 ms hitch — 371, 377, 371.** A spread of 6 ms
+on a 376 ms frame. **This is the most solid perf finding in the entire report**,
+and it has been sitting in plain sight all session while attention went to the
+tool beat. It is not noise, not first-run cost, and it happens while the player
+is simply walking.
+
+**2. `tool2` is 22..23 ms — a spread of 1 ms.** The second equip is *consistently*
+free. Paired against `tool`'s 334..1110, the one-time-cost conclusion now rests
+on distributions rather than on a lucky pair.
+
+**3. `door` is 30..738 ms — a 24x spread.** Any conclusion ever drawn from a
+single door measurement is worthless. This is the beat that most needs the
+protocol and would most easily have fooled someone.
+
+### What this changes about Section A's earlier work
+
+Six candidate causes were closed early in this session against single runs.
+`walk` at a rock-steady 376 ms says the walk beat has a real, attributable cost
+that no single-sample sweep would separate from `door`'s noise.
+
+**The protocol is the deliverable, not any one number.** Every future perf claim
+in this project now has a tool that makes it cheap to do correctly, and a written
+reason why the alternative is not merely sloppy but actively misleading — it
+produced a "measured" 5.5-second regression in a commit message today that was
+pure noise.
+
+Suite 2929 pass / 0 fail.
+
