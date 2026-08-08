@@ -47,18 +47,63 @@ async (page) => {
       worstAxis: Object.entries(spread).sort((a, b) => b[1] - a[1])[0],
     };
   }
+  // A1: HOW MUCH OF THE CLUBHOUSE IS STILL RECOMPOSING ITS MATRIX EVERY FRAME.
+  //
+  // The shell freeze (walls, roof, porch, exterior dressing) runs INLINE at
+  // construction, but fixtures, the register kit and stock are added to the
+  // interior later, in ready callbacks. Anything registered after that walk is
+  // still matrixAutoUpdate. This sizes the lever before anyone touches it.
+  out.matrices = await page.evaluate(() => {
+    const ch = window.__fw.scene3d.clubhouse?.();
+    if (!ch?.group) return null;
+    let total = 0; let auto = 0; let frozen = 0;
+    let autoInInterior = 0; let interiorTotal = 0;
+    const interior = ch.interior || null;
+    const walk = (o, insideInterior) => {
+      total += 1;
+      if (insideInterior) interiorTotal += 1;
+      if (o.matrixAutoUpdate) {
+        auto += 1;
+        if (insideInterior) autoInInterior += 1;
+      } else frozen += 1;
+      for (const c of o.children) walk(c, insideInterior || o === interior);
+    };
+    walk(ch.group, false);
+    // THE INTERIOR IS NOT UNDER `group`. The first run of this census returned
+    // interiorTotal: 0 while ch.interior exists - which is the finding, not a
+    // bug in the count: the shell freeze walks `group`, so it can never have
+    // reached the interior subtree at all. Walk it separately and report both.
+    let iTotal = 0; let iAuto = 0;
+    if (interior && !interiorTotal) {
+      const walkI = (o) => {
+        iTotal += 1;
+        if (o.matrixAutoUpdate) iAuto += 1;
+        for (const c of o.children) walkI(c);
+      };
+      walkI(interior);
+    }
+    return {
+      total, auto, frozen, interiorTotal, autoInInterior,
+      autoPct: +(100 * auto / Math.max(1, total)).toFixed(1),
+      interiorUnderGroup: interiorTotal > 0,
+      interiorSubtree: { total: iTotal, auto: iAuto,
+        autoPct: +(100 * iAuto / Math.max(1, iTotal)).toFixed(1) },
+    };
+  });
+
   const phase = (label) => (out.timings || []).find((t) => t.label === label)?.ms ?? null;
   out.load = {
     warmComposerRenderMs: phase('warm-composer-render'),
     rendererCompileMs: phase('renderer.compile'),
     glPrograms: phase('gl-programs'),
-    distinctPrograms: phase('distinct-programs'),
+    materialInstances: phase('material-instances'),
     totalMs: (out.timings || []).filter((t) => /ms$|^warm|^renderer|^forced|^ledger/.test(t.label))
       .reduce((a, t) => a + (t.ms > 0 ? t.ms : 0), 0),
   };
   fs.writeFileSync(path.join(OUT, 'a1-programs.json'), `${JSON.stringify(out, null, 2)}\n`);
   console.log('A1 load', JSON.stringify(out.load));
   console.log('A1 verdict', JSON.stringify(out.verdict));
+  console.log('A1 matrices', JSON.stringify(out.matrices));
   for (const [axis, rows] of Object.entries(out.breakdown?.byAxis || {})) {
     console.log(`A1 ${axis}:`, JSON.stringify(rows.slice(0, 5)));
   }

@@ -3516,3 +3516,55 @@ Renaming a number I had been reading as a program count for two sessions is wort
 more than a change that would have made the load slower and the coverage worse.
 
 Suite **2925 pass / 0 fail**.
+
+## A1 - THE MATRIX FREEZE NEVER REACHED THE INTERIOR, AND THE LEVER IS 2,611 OBJECTS
+
+Standing Invariant 1 is the Phase 5 gate's one FAIL. The report's NOT DONE list
+names the per-frame cost as "~900-2000 draw calls a frame plus the 10 Hz shadow
+bake", and my own notes named the next lever as "freezing the clubhouse subtree".
+
+`clubhouse.js` already HAS a freeze - walls, roof, porch, exterior dressing, with
+door hinges deliberately exempt. So the lever looked spent. It is not.
+
+### The census, and the counter that caught it
+
+```
+group (shell)     721 objects    222 auto-updating   (30.8%)
+interior        2,853 objects  2,611 auto-updating   (91.5%)
+interiorUnderGroup: false
+```
+
+The freeze walks `group`. **The interior is not under `group`** - so
+`freezeShellBranch(group)` could never have touched it, and 2,611 objects
+recompose their world matrix every frame.
+
+I found this because the census carried an `interiorTotal` counter that came back
+**0** while `ch.interior` plainly exists. A census that had only reported "222 of
+721 auto-updating, 30.8%" would have read as a mostly-frozen scene and closed the
+lever. **The zero was the finding.** Same lesson as the seven instrument faults in
+section G: the number that looks impossible is the one to chase.
+
+It is also worse than my notes assumed - they said a 2,208-object subtree; it is
+2,853.
+
+### Why I have NOT shipped the freeze
+
+A blanket freeze of that subtree is exactly the change that would break the
+ledger book turning its pages, the doors swinging, the register's drawer and
+card reader, the customers walking, and every tool viewmodel. The shell freeze
+could be blanket because a wall genuinely never moves; the interior cannot,
+because most of what moves in this game lives there.
+
+Doing it safely needs an OPT-OUT LIST built from what actually animates, and a
+check that every animated subtree is still moving afterwards - which is a proper
+item, not a line to slip in at the end of a session. Sized, attributed, and
+handed over rather than half-done.
+
+### Also corrected
+
+`prewarmTimings` still advertised `distinct-programs` to this driver after the
+rename; it now reads `material-instances` (846), so the driver stopped reporting
+`null` for it.
+
+Load numbers re-confirmed on three separate runs: `warm-composer-render` 5,524 /
+5,540 / 5,540 ms against 135 GL programs. Stable, and still the compiles.
