@@ -8354,3 +8354,41 @@ what you *want* it to mean instead of what it *does*.
 
 Suite 2929 pass / 0 fail.
 
+
+### One more fact before closing: the driver's KEY is right, and my recollection was wrong
+
+`keyBindings.js:26` — `toolBelt`, `defaultKey: 'f'`, `hold: true`. The driver's
+`keys.toolBelt || 'f'` resolves correctly. **The key was never the problem**, and
+my hunch that the belt might be `q` was wrong: `q` is `dirtSense`.
+
+The hold timing is also right: `beginToolKey` opens the wheel after **230 ms**
+and the driver holds for **450 ms**.
+
+So the belt key is correct, the hold is long enough, the wheel selects on
+letters, the selection now happens while held, the rig is healthy, and the asset
+is adopted — **and nothing equips.**
+
+What remains, from reading `main.js:2806`:
+
+```js
+case 'toolBelt': {
+  if (!app.scene3d.walk.cart.mounted) beginToolKey(e);
+  return;
+}
+```
+
+**The belt is a no-op while mounted in a cart.** Whether the walk driver is
+mounted at beat 5 is unknown to me — it drives to a door and a ledger first —
+and it is a one-field check of `walk.cart.mounted`, not a hypothesis worth
+asserting after seven failures.
+
+`showToolWheel()` also calls `document.exitPointerLock()`, which is worth knowing
+for any driver that measures the HUD afterwards.
+
+**This is where the thread stops for this session.** Not because it is solved,
+but because the remaining candidates are now few, named, and each is one field
+away — which is a different situation from the six rounds of tool measurements
+that preceded it.
+
+Suite 2929 pass / 0 fail.
+
