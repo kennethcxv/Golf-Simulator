@@ -1930,6 +1930,23 @@ not follow the live bindings", which is a defect either way - the list should be
 derived from the bindings, not from whatever path last touched them - but it is
 not literally the player pressing a key in the rebind dialog. Recorded as such.
 
+### E3 fixed: ten elements touching an edge, down to zero
+
+One missing declaration. `.settings-page` carried `padding-right: 8px` -
+clearance for the scrollbar - and **no `padding-left` at all**, so every group,
+heading and row sat flush against the page's left edge while having 8 px on the
+right.
+
+| | before | after |
+| --- | --- | --- |
+| elements at `gapL: 0` | **10** | **0** |
+| gap below the reset row | 191.7 px | 191.7 px (unchanged) |
+
+**This is the instance-versus-family pattern in miniature.** The reset row is
+the thing the brief names, and it was already fine; a previous pass fixed
+exactly what it was pointed at. The class - "sweep the panel for the same fault,
+controls flush to edges" - needed one line that had never been written.
+
 ---
 
 ## RUNNING LISTS

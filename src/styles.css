@@ -2021,7 +2021,14 @@ button.build-swatch.selected { color: #fff; border-color: #d2b86f; box-shadow: 0
   color: var(--text-dim); padding: 8px 10px; white-space: nowrap;
 }
 .settings-tab.is-active { color: var(--cream); background: #213427; border-color: #3d6045; }
-.settings-page { padding-top: 9px; overflow-y: auto; min-height: 0; flex: 1 1 auto; padding-right: 8px; padding-bottom: 16px; }
+/* E3 (Goal 17): the right padding was scrollbar clearance and the left was
+   never written, so every group, heading and row sat flush against the page's
+   left edge - measured at the shipped 2560x1370 window, ten elements at gapL 0
+   with gapR 8. One-sided padding is exactly the "controls flush to edges" class
+   E3 names, and Standing Invariant 4 says everything has margin. The reset row
+   the brief calls out by name was already fine at 191.7 px, which is how an
+   instance gets fixed and a family does not. */
+.settings-page { padding-top: 9px; overflow-y: auto; min-height: 0; flex: 1 1 auto; padding-left: 8px; padding-right: 8px; padding-bottom: 16px; }
 .settings-group { display: flex; flex-direction: column; }
 .settings-group-head { margin-bottom: 2px; }
 .settings-group-head h3 { margin: 0; color: var(--cream); font: 1.15rem Georgia, serif; text-transform: none; letter-spacing: 0; }
