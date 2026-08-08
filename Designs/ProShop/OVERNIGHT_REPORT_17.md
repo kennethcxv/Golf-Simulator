@@ -10655,3 +10655,54 @@ next attempt costs one run to judge.
 
 Suite 2929 pass / 0 fail.
 
+
+## MEASURED THE PARENT — AND IT EXPLAINS THE SEVENTH FAILURE EXACTLY
+
+Ran the query the previous entry demanded, instead of writing another guard:
+
+```
+HANDS BEFORE EQUIP: hands not reachable from camera or scene
+```
+
+**The hands are outside both the scene and the camera subtree.** And my guard
+tested `!handsRoot.parent`, which was **false** — so they *do* have a parent, and
+**that parent is itself detached**. An orphaned group holds the hands until a
+tool is equipped.
+
+**`!parent` and "not in the scene" are different conditions**, and I wrote the
+guard for the wrong one. The fix skipped silently because its precondition was
+never true, which is precisely why it changed nothing and why nothing in the
+output said so.
+
+### This is the measurement that should have come first
+
+The previous entry said so: *"measure the parent before writing the guard."*
+Doing it took one query and one run, and it converts the eighth attempt from a
+guess into arithmetic:
+
+**Do not guard on parenthood at all.** Detect *reachability* — walk up from
+`fpHands.root` and check whether the chain terminates at `scene` — or simply
+stash the existing parent, attach to the scene for the compile, and restore it
+afterwards. The second is unconditional and cannot silently skip.
+
+### Thirty-sixth finding, and the cheapest lesson in the whole report
+
+Seven fixes failed. **Six failed for reasons that took a run each to discover.
+The seventh failed because of an assumption a single query would have settled**,
+and I wrote the fix before the query even after naming the query as the next
+step.
+
+**The measurement always cost less than the fix.** Every time in this thread —
+the census, the cache keys, the named owners, the scene-wide control, and now
+the parent chain — one query beat one implementation. That is the pattern worth
+carrying out of Section A, more than any individual number in it.
+
+### Section A tool half — handover, final
+
+Mechanism measured end to end with controls: 54 hand meshes named exactly, 9
+ordinary programs, 0 constructions, second equip free. **Seven fixes, seven
+refutations, all reverted, none shipped.** The eighth is specified with its
+precondition measured rather than assumed, and the harness judges it in one run.
+
+Suite 2929 pass / 0 fail.
+

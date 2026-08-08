@@ -258,6 +258,26 @@ async (page) => {
     if (s3 && s3.scene) s3.scene.traverse((o) => { if (o.geometry) seen.push(o.geometry.uuid); });
     return seen;
   }).catch(() => []);
+  // MEASURE THE PARENT BEFORE WRITING ANY GUARD ABOUT IT.
+  //
+  // The seventh fix guarded on `!fpHands.root.parent` — assuming "not in the
+  // scene" means "no parent" — and silently did nothing. That assumption was the
+  // one line in the whole thread never measured. This is that measurement:
+  // where do the hands actually live before a tool is equipped?
+  out.handsHomeBefore = await page.evaluate(() => {
+    const s3 = window.__fw && window.__fw.scene3d;
+    const cam = s3 && s3.camera;
+    let hands = null;
+    if (cam) cam.traverse((o) => { if (!hands && /FirstPersonRightHand/.test(o.name || '')) hands = o; });
+    if (!hands && s3 && s3.scene) {
+      s3.scene.traverse((o) => { if (!hands && /FirstPersonRightHand/.test(o.name || '')) hands = o; });
+    }
+    if (!hands) return 'hands not reachable from camera or scene';
+    const chain = [];
+    let p = hands;
+    while (p && chain.length < 10) { chain.push(p.name || `(${p.type})`); p = p.parent; }
+    return chain.join(' <- ');
+  }).catch((e) => `threw: ${String(e && e.message)}`);
   out.geoIdsBefore = await geoIds();
   out.geoCountBefore = await sceneGeoCount();
   await page.evaluate(() => { window.__geoOn = true; });
