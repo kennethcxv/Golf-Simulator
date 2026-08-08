@@ -51,8 +51,10 @@ async (page) => {
     };
     requestAnimationFrame(tick);
   });
-  const beat = (name) => page.evaluate((n) => window.__p5beat(n), name);
+  const beat = async (name) => { out.progs[name] = await progs(); return page.evaluate((n) => window.__p5beat(n), name); };
 
+  const progs = () => page.evaluate(() => window.__fw?.scene3d?.renderer?.info?.programs?.length ?? null).catch(() => null);
+  out.progs = {};
   const record = (name, ok, detail) => { out.beats.push({ name, ok, ...detail }); };
 
   // 1. SETTLE — the first frames after the veil. The brief exempts the first

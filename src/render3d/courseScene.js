@@ -5795,6 +5795,15 @@ export function makeCourseScene(canvas, state) {
         triangles: renderer.info.render.triangles,
         geometries: renderer.info.memory.geometries,
         textures: renderer.info.memory.textures,
+        // THE ONE FIELD THAT DISTINGUISHES A SHADER COMPILE FROM EVERYTHING
+        // ELSE. Section A measured first-interaction stalls from 339 ms to
+        // 10 seconds whose placement and size moved unpredictably with input
+        // order, and four models for them were refuted in four consecutive
+        // runs. Every one of those models was arguing about a mechanism nobody
+        // had observed. `programs.length` is observable: if it rises across an
+        // expensive frame, that frame compiled shaders, and if it does not, no
+        // amount of reasoning about first draws applies.
+        programs: renderer.info.programs?.length ?? null,
       },
     };
   }

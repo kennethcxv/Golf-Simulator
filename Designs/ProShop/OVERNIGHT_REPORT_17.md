@@ -9300,3 +9300,60 @@ this as far as it can, and four models died proving that.
 
 Suite 2929 pass / 0 fail.
 
+
+## THE PROGRAM COUNTER SETTLES IT: TWO MECHANISMS, NOT ONE
+
+Exposed `renderer.info.programs.length` and sampled it at every beat boundary.
+One run answers what four models could not:
+
+```
+beat        programs@start   Δ during   worst frame
+walk             210            0        1072.8 ms
+lookOnly         210           +5          19.0 ms
+walkB            215           +2          84.2 ms
+walkC            217            0          12.7 ms
+door             217            0          32.1 ms
+ledger           217           +1         186.8 ms
+tool             218           +9         333.6 ms
+tool2            227            0          23.1 ms
+```
+
+### The tool equip IS shader compilation
+
+**+9 programs, 333 ms. Second equip: 0 programs, 23 ms.** That is the exact
+predicted signature, and it confirms the one-time-cost result by an independent
+route — not a timing ratio this time, but a count of the thing being created.
+
+**C5 convicted this same mechanism in the ledger** (one cloned material, 39 ms ->
+1673 ms). Two independent subsystems in this codebase, same cause.
+
+### The walk hitch is NOT shader compilation
+
+**1072 ms with ZERO new programs.** Whatever the first step costs, it does not
+compile anything. Every model I built for it — first draw, pre-payment, rotation
+sensitivity, magnitude scaling — was arguing about a mechanism **nobody had
+observed**, and one counter eliminated the whole family in a single run.
+
+That is the twenty-fifth instance and the cleanest demonstration of the session's
+thesis: **four careful arguments lost to one observation.**
+
+### What is now established about Section A
+
+| finding | evidence | status |
+|---|---|---|
+| tool equip compiles 9 shaders, costs ~333 ms | program count + 50x paired ratio | **CONFIRMED, mechanism known** |
+| second equip is free | 0 programs, 23 ms | **CONFIRMED** |
+| walk hitch is NOT compilation | 0 programs, 1072 ms | **CONFIRMED (negative)** |
+| what the walk hitch IS | — | **open, and now narrowed by exclusion** |
+
+**The tool half of Section A is solved and has a fix direction that is already
+half-built**: the boot prewarm compiles the scene behind the veil, and the
+post-adoption compile added this session targets exactly these 9 programs. It
+was committed unverified — **the program counter is how to verify it**: if it
+works, the tool beat's Δ drops from +9 to 0.
+
+**That is the single measurement the next session should run first.** It is one
+walk, and it converts an unverified commit into a confirmed fix or a dead one.
+
+Suite 2929 pass / 0 fail.
+
