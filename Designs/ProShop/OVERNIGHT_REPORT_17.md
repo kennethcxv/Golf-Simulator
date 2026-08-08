@@ -7608,3 +7608,44 @@ conclusion drawn from an asset about a game.
 failed each time was the sentence placed next to the number — and the reason
 they survive is precisely that the number beside them is right.
 
+
+## PHASE 5 GATE AFTER G AND H — AND IT FLAGS SOMETHING ON MY OWN WORK
+
+```
+9 pass, 1 FAIL, 0 with no check yet.   FAILING: invariant 1
+walk: {"everyBeatHappened":false,"beatsThatDidNot":["tool"],
+       "worstFrameMs":678.5,"framesOver16":565,"framesOver16Pct":14,
+       "framesOver100":3,"noPageErrors":true}
+```
+
+The verdict is unchanged — five consecutive runs at 9/1/0 — but **the walk
+driver did not complete its `tool` beat this run**, and that is a fact I have to
+put next to my own change rather than under it.
+
+**Why it matters:** B2 took the broom from 200 bristles to 720. A missing tool
+beat is exactly what a broken tool equip would look like. The frame numbers also
+moved oddly — worst 378.5 -> 678.5 ms while frames-over-16 FELL from 654 to 565
+— which is itself consistent with a run that spent less time in the tool path.
+
+**What I have not established:** whether this beat also failed on earlier runs.
+I only ever grepped the SUMMARY line, so I never saw this field before and have
+no baseline for it. **I cannot say whether this is new, and I am not going to
+imply it is only flaky.**
+
+Three readings, in the order I would test them:
+
+1. the beat is flaky and has failed intermittently all along (cheapest to check:
+   re-run and watch the field, which I did not have the runway to do);
+2. my 720-bristle change slowed or broke broom equip;
+3. something unrelated regressed.
+
+**Recorded as an OPEN REGRESSION SUSPICION against my own commit**, because the
+alternative — noting a green summary and moving on — is precisely how the ten
+fail-open faults in this report survived. The summary line said 9/1/0 and was
+correct; the interesting information was in a field I had not been reading.
+
+**First action next session, before anything else:** run
+`node tools/qa/phase5-gate.mjs` twice and read `beatsThatDidNot` on both. If
+`tool` fails with the bristle change reverted, it is pre-existing. If it passes
+reverted and fails applied, B2 caused it and the 720 count needs to come down.
+
