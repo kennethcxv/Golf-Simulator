@@ -8,12 +8,6 @@ export function el(tag, attrs = {}, ...children) {
   // (main.js __fwUiClick) excludes the laptop, whose own dispatcher already
   // ticks centrally, and uiTick's press-window absorbs surfaces that still
   // fire their own tick on click.
-  if (tag === 'button') {
-    node.__fwClickCue = true;
-    node.addEventListener('pointerdown', () => {
-      if (typeof window !== 'undefined' && window.__fwUiClick) window.__fwUiClick(node);
-    }, { passive: true });
-  }
   for (const [key, value] of Object.entries(attrs)) {
     if (key === 'class') node.className = value;
     else if (key === 'text') node.textContent = value;
@@ -24,6 +18,41 @@ export function el(tag, attrs = {}, ...children) {
     else if (value === false) node.removeAttribute(key);
     else if (value !== undefined && value !== null) node.setAttribute(key, value);
   }
+
+  // F1 (Goal 17) — EVERY PRESSABLE THING, NOT JUST BUTTONS, AND AFTER THE
+  // ATTRIBUTES ARE ON.
+  //
+  // Audited across the pause menu, four settings tabs, the HUD and the laptop:
+  // 128 pressable elements, 117 cued - 91.4%. Every one of the eleven misses
+  // was a <select> or an <input>: the quality preset, the shadow tier, the
+  // window mode, the resolution list, the accessibility hold-mode and six
+  // sliders. A player changing the resolution pressed something and heard
+  // nothing, which is what F1 forbids.
+  //
+  // THIS RUNS AFTER THE ATTRIBUTE LOOP, and the first attempt did not - which
+  // broke three tests and would have been worse in the game. `type` is set BY
+  // that loop, so before it every <input> looks identical and a text field gets
+  // wired for clicking. Typing is not pressing. Only controls that are actually
+  // pressed get a cue.
+  //
+  // The event differs by control, which is why they were missed in the first
+  // place: a button clicks on pointerdown, a <select> does its work on `change`
+  // after the OS popup closes, and a slider fires `input` continuously while
+  // dragging - so it rides the same 120 ms debounce inside uiTick that stops a
+  // drag becoming a machine-gun.
+  const PRESSED_INPUTS = new Set(['range', 'checkbox', 'radio', 'number', 'color', 'file']);
+  const pressable = tag === 'button' || tag === 'select'
+    || (tag === 'input' && PRESSED_INPUTS.has(node.type));
+  if (pressable) {
+    node.__fwClickCue = true;
+    const fire = () => {
+      if (typeof window !== 'undefined' && window.__fwUiClick) window.__fwUiClick(node);
+    };
+    if (tag === 'button') node.addEventListener('pointerdown', fire, { passive: true });
+    else if (tag === 'select') node.addEventListener('change', fire, { passive: true });
+    else node.addEventListener('input', fire, { passive: true });
+  }
+
   for (const child of children) {
     if (child == null) continue;
     node.append(child.nodeType ? child : document.createTextNode(String(child)));

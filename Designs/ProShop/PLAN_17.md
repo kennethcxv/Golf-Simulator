@@ -592,3 +592,41 @@ those**.
 
 That last point is the one I most expect to matter: a spacing fix verified at
 1600 wide is not verified at 2560.
+
+
+---
+
+# SECTION F — AUDIO
+
+## Phase 0 — the section explained back, as verbs
+
+- **F1.** I am going to **make every pressable thing in the game make a sound** -
+  menus, settings, the laptop, the register, the ledger, the desktop UI. If it
+  can be pressed, it clicks.
+- **F2.** I am going to **give every physical event a sound**: the register
+  drawer, coins and notes, the card reader's beep and its keys, entering and
+  leaving the cashier, footsteps that change with the surface, the ledger
+  opening and closing and every page turn, doors, the sign, boxes, and every
+  tool's contact with every surface. **Layered** - start transient, body, tail -
+  and **pitch-varied** so repeats do not grate. Then report what is real and
+  what is a placeholder.
+
+### The reading, same as Section E
+
+Goal 16's E section already built this ground - "audio: clicks everywhere +
+physical sounds" - so the first act is **verification, not rebuilding**. The
+machinery I expect to find: an `el()` button factory that tags every button with
+a click cue, a `__fwUiClick` sink, and a set of voices in `core/audio.js`.
+
+The question F1 actually asks is a COUNT: how many pressable things exist, and
+how many of them are wired? A factory hook covers buttons made by the factory
+and says nothing about a `<div>` with an onclick, a canvas hotspot, or a
+register hotspot drawn into a texture - and this game has all three. **The gap
+between "buttons" and "pressable things" is where F1 will live.**
+
+### What I expect to be wrong about
+
+**F2's "report what is a placeholder" may be the whole deliverable.** If the
+voices are synthesised rather than recorded, then every one of them is arguably
+a placeholder, and an honest table of what exists against what the brief lists
+is worth more than adding a tenth synthesised knock.

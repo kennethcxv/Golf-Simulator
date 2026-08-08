@@ -1979,6 +1979,56 @@ languages, honest per-language coverage) is unstarted.
 
 ---
 
+# SECTION F — AUDIO
+
+## F1 — "a click on every button, everywhere", audited as a count
+
+Goal 16 built a factory hook: `el('button', ...)` tags each node and routes
+pointerdown to a click cue. That covers buttons **the factory made**. F1 says
+*everywhere*, and my explain-back predicted where the gap would be: "a factory
+hook covers buttons and says nothing about a `<div>` with an onclick, a canvas
+hotspot, or a form control - the gap between BUTTONS and PRESSABLE THINGS is
+where F1 lives."
+
+`tools/qa/electron-f1-everypress.js` counts, across the pause menu, four
+settings tabs, the HUD and the laptop, every element that is actually pressable
+against how many carry a cue. **Its control asserts prose is never counted** -
+a detector that thinks everything is a button has a meaningless coverage number.
+
+| | before | after |
+| --- | --- | --- |
+| pressable elements found | 128 | 116 |
+| **with a click cue** | **117 (91.4%)** | **116 (100%)** |
+| settings: display | 18/24 | **24/24** |
+| settings: audio | 16/20 | **20/20** |
+| settings: accessibility | 19/20 | **20/20** |
+
+**Every one of the eleven misses was a `<select>` or an `<input>`** - the quality
+preset, the shadow tier, the window mode, the resolution list, the accessibility
+hold-mode, and six sliders. A player changing their resolution pressed something
+and heard nothing.
+
+The event differs by control, which is why they were missed: a button clicks on
+`pointerdown`, a `<select>` does its work on `change` after the OS popup closes,
+and a slider fires `input` continuously while dragging - so it rides the same
+120 ms debounce inside `uiTick` that stops a drag becoming a machine-gun.
+
+### The first attempt broke three tests, and the reason is worth keeping
+
+I wired the cue **before** the attribute loop, where the button hook already
+sat. But `type` is set BY that loop, so at that point every `<input>` looks
+identical and a **text field got wired for clicking**. Typing is not pressing.
+`tests/ui-el-boolean-attributes.test.js` caught it immediately by asserting the
+factory attaches exactly one listener for `el('input', { onclick })`.
+
+The hook now runs **after** the attributes are on and gates on the resolved
+type, so only controls that are genuinely pressed - range, checkbox, radio,
+number, colour, file - get a cue. **The suite caught a real design error, not a
+bookkeeping one**: shipping it would have made every text field in the game
+click while being typed into.
+
+---
+
 ## RUNNING LISTS
 
 _Updated continuously, not at the end._
