@@ -6913,3 +6913,70 @@ five ways to make the page cost more to draw.
 five nouns are already done, the fifth is identified, and the constraint it must
 satisfy is now written down before anybody spends a turn's budget on it.
 
+
+### Section C Phase 5 gate
+
+```
+9 pass, 1 FAIL, 0 with no check yet.   FAILING: invariant 1
+```
+
+Unchanged and stable across three runs this session (after B2, after the
+invariant-8 derivation fix, and now). Invariant 1 is red on its own merits and
+has been since Section A; nothing in B or C moved it either way.
+
+---
+
+# STATE AT THE END OF THIS SESSION
+
+**165 commits, all pushed to `feature/pro-shop-vertical-slice`.** Suite 2929
+pass / 0 fail at every one of them. Tree clean apart from a parallel Blender
+session's `.blend` files, which were never staged.
+
+### The four running lists
+
+**DONE AND VERIFIED**
+- Invariant 8 widened 45 -> 2,108 across three audited steps; ratchet, floor
+  control and nag all watched failing on planted strings
+- Phase 5 gate: 9 pass / 1 FAIL / **0 unchecked** (was 4/1/5 at session start)
+- Gate invariant 8's narration now DERIVES from the sink regex, so it cannot go
+  stale again
+- B1 lag direction reversed: +35% live pixel change, reproducible within 2%
+- B2 broom bristles 200x20 mm -> 720x3.4 mm
+- B3 verified as needing NO change (would have been broken by B1's fix)
+- B5 verified two independent ways
+- C5 confirmed already complete, and exemplary
+
+**DONE, UNCONFIRMED AT THE PLAYER CAMERA**
+- B2 bristle density — geometry reasoning transfers from a measured diagnosis,
+  but no screenshot
+- B1's retune — the pixel gain is measured; whether it reads to the eye is not
+
+**ANALYSED, DELIBERATELY NOT IMPLEMENTED** (each with the reason recorded)
+- B4 — located to `broomViewmodel.js:863`; the fix touches hand IK, the contact
+  test and the A8 invariant, with no runway to watch a control fail
+- C8 — four of five nouns already built; the fifth fights C6 for the same frame
+- A1's freeze probe — measured as not worth building
+
+**NOT STARTED**
+- C6, C8 implementation; D, E, F, G, H; B1's capture; B2's screenshot
+- Invariant 1 (still the one red item, unchanged since Section A)
+
+### The finding this session actually produced
+
+Nine instrument faults, **eight of them failing OPEN** — green on a broken
+build. The measurements were almost never wrong. What was wrong was the sentence
+beside the measurement:
+
+- a check named for 100% of a subject it covered 3% of
+- a figure named "strand travel" measuring a rigid skirt
+- a control that shares state with its subject, so the baseline tracks the
+  treatment
+- a gate narrating a world one commit out of date while printing the new number
+- a task list stale in both directions at once
+- and my own conclusion, drawn from an asset about a game, corrected an hour later
+
+Every one survived because the number beside it was correct, and **a correct
+number is what stops anyone looking.** The cheap discipline that catches all of
+them: before concluding, check that the thing you measured is the thing you are
+about to name.
+
