@@ -4013,3 +4013,46 @@ It belongs to Section B (the stick-tool viewmodel), and it is on NOT DONE as:
 *mop and broom hands vanish entirely at pitch 0.40 / 0.60, both well inside a
 1.35 rad look limit; the corrected hand-pixels sweep is the check that proves the
 fix.*
+
+### RETRACTION: I called the hand vanish a confirmed defect too early
+
+Two commits ago I wrote that the mop and broom hands vanishing at pitch 0.40 /
+0.60 is *"a real, player-reachable defect"*. **That claim outran the evidence and
+I am withdrawing it.** The measurement stands; the diagnosis does not.
+
+What I have since established makes the defect reading harder to believe, not
+easier:
+
+* **the held rig is CAMERA-ATTACHED.** `courseScene.js:6403` does
+  `camera.add(heldRoot)`, and the per-frame placement at 7062-7072 writes
+  position and rotation from bob, kick and idle drift - **it never reads pitch**.
+  A camera-attached rig with no pitch term occupies the SAME SCREEN PIXELS at
+  every pitch. Looking up cannot carry it out of frame.
+* **the counter already uses the right recipe.** It repaints the hand meshes with
+  a flat `MeshBasicMaterial(0xff00ff, fog:false)` before counting, which is the
+  paint-flat rule from the pixel-probe recipe.
+* **exposure does not adapt.** `renderer.toneMappingExposure = 1.12`, fixed, so
+  the tonemapped magenta is the same colour at pitch -0.85 and +0.60. My
+  "bright sky raises exposure and breaks the colour match" hypothesis is dead.
+
+So the two facts are in direct contradiction: the rig cannot move with pitch, and
+the count goes to zero with pitch. **One of them is wrong and I have not found
+which.** Remaining candidates, none tested:
+
+1. the composer (not just tonemapping) doing something view-dependent to the
+   painted colour - the recipe says kill ACES *and the composer* for the frame,
+   and this sweep only paints flat
+2. a crop region in the counter that is not fixed in screen space
+3. an equip/settle term (`k`, `settleY`) still animating when the high pitches are
+   sampled, since the sweep sets the tool once and then walks pitches in order -
+   the last pitches are also the last samples
+
+**Status: the number is real and reproducible; the cause is unknown.** It is on
+NOT DONE as an OPEN QUESTION rather than as a defect with a known fix, and the
+next session should start by testing candidate 3, which is the cheapest and would
+make it an instrument artifact rather than a game bug.
+
+Recording the retraction rather than quietly editing the earlier claim, because
+this session's whole method has been that a confident answer about something you
+have not actually looked at is the most expensive thing you can produce - and I
+just produced one.
