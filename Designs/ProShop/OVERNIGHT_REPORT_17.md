@@ -2449,6 +2449,44 @@ correct, but wiring it into the front-desk flow - turning an early arrival away
 with "come back at noon", and offering a late arrival the next available slots -
 is the part the player would see, and it is unstarted.
 
+## G12 — the tee sheet's three states, decided in one place
+
+G12 wants an online reservation to show on the sheet in **light grey**,
+unassignable to a walk-in, with **free / reserved-and-expected / checked-in**
+all clearly distinct.
+
+**Half of it already worked.** `slotAvailability` refuses a walk-in that would
+exceed capacity, so a fully booked slot cannot be given away - the "must not be
+able to" half is enforced by the same arithmetic that decides bookability.
+
+**What did not exist is the classification.** The sheet had no way to say which
+of the three a slot is, which means a colour chosen at the drawing site would
+have drifted away from the rule that decides bookability - two answers to one
+question, which is how the E4 and E3 half-fixes happened.
+
+So `teeSheetSlotState()` decides the state **and** the colour together, from the
+same data `slotAvailability` reads, and answers the walk-in question from the
+same numbers rather than a second rule that could disagree:
+
+| state | colour | meaning |
+| --- | --- | --- |
+| free | `#f4efe2` | paper - the desk may sell it |
+| **reserved** | **`#c9c9c4`** | **light grey** - taken, and somebody is coming |
+| checked-in | `#7fae7f` | arrived |
+| closed | `#8a8577` | not a bookable time |
+
+`tests/tee-sheet-states.test.js` pins the part that silently rots: **no two
+states share a colour**, reserved is **actually grey** (channel spread under 12,
+not a tint of the paper) and **light** rather than charcoal, and reserved sits
+more than 30 RGB apart from free so the two can be told apart across a sheet.
+Watched failing with reserved re-tinted toward the paper colour - two
+assertions red, which is the exact mistake a designer would make by eye.
+
+**Not done:** the sheet does not draw with this yet, and there is **no
+screenshot of all three states at once**, which G12 explicitly asks for. The
+classifier is correct and pinned; the rendering is unwired. By this brief's rule
+that leaves G12 UNCONFIRMED.
+
 ---
 
 ## RUNNING LISTS

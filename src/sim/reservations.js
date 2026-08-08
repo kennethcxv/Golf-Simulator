@@ -1896,6 +1896,61 @@ export function slotAvailability(state, dayAbs, minute, partySize = 1) {
   };
 }
 
+// G12 (Goal 17) — THE TEE SHEET'S THREE STATES, DECIDED IN ONE PLACE.
+//
+// "A slot already reserved online appears on the sheet in a distinct muted
+// colour - light grey - so I can see at a glance that it is taken and someone
+// is coming. I must not be able to give that slot to a walk-in. The sheet
+// distinguishes three states clearly: free, reserved-and-expected, and
+// checked-in."
+//
+// slotAvailability already refuses a walk-in that would exceed capacity, so the
+// "must not give it away" half is enforced. What did not exist is the
+// CLASSIFICATION - the sheet had no way to say which of the three a slot is,
+// and a colour chosen at the drawing site would drift from the rule that
+// decides bookability.
+//
+// So the state and the colour are decided together, here, from the same data
+// slotAvailability reads. A slot is:
+//   'checked-in'  someone has arrived and is on the sheet
+//   'reserved'    booked and expected, nobody here yet  -> the light grey
+//   'free'        nothing booked and the desk may sell it
+//   'closed'      not a bookable time at all
+export const TEE_SHEET_STATE_COLOURS = Object.freeze({
+  free: '#f4efe2',        // paper: the desk may sell this
+  reserved: '#c9c9c4',    // LIGHT GREY: taken, and somebody is coming
+  'checked-in': '#7fae7f', // arrived
+  closed: '#8a8577',
+});
+
+/**
+ * @returns {{state:'free'|'reserved'|'checked-in'|'closed', colour:string,
+ *            bookedPlayers:number, remainingCapacity:number,
+ *            sellableToWalkIn:boolean}}
+ */
+export function teeSheetSlotState(state, dayAbs, minute) {
+  const load = slotLoad(state, dayAbs, minute);
+  const day = ensureScheduleDay(state, dayAbs);
+  const bookable = !day.closed && slotTimes(state).includes(minute);
+  const list = load.reservations || [];
+  const anyCheckedIn = list.some((r) => {
+    const rec = typeof r === 'object' ? r : reservationById(state, r);
+    return rec?.checkIn?.status === 'checked-in' || rec?.checkInStatus === 'checked-in';
+  });
+  const key = !bookable ? 'closed'
+    : anyCheckedIn ? 'checked-in'
+      : load.bookedPlayers > 0 ? 'reserved' : 'free';
+  return {
+    state: key,
+    colour: TEE_SHEET_STATE_COLOURS[key],
+    bookedPlayers: load.bookedPlayers,
+    remainingCapacity: load.remainingCapacity,
+    // The walk-in question, answered from the same numbers rather than by a
+    // second rule that could disagree with slotAvailability.
+    sellableToWalkIn: bookable && load.remainingCapacity > 0,
+  };
+}
+
 export function planReservationArrival(reservation, options = {}) {
   const random = options.rng || makeRng((Number(reservation.id) || 1) * 2654435761);
   const range = (min, max) => typeof random.range === 'function'
