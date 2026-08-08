@@ -11726,3 +11726,51 @@ readable from the first run and would have ended it immediately.
 
 Suite 2933 pass / 0 fail. Tree clean.
 
+
+## RECONCILING THE ONE CONTRADICTION LEFT IN THIS REPORT: BUILT vs MOVED
+
+Two entries above disagree, and both measurements were correct:
+
+- **"the 54 geometries are BUILT, not moved"** — scene-wide distinct geometry
+  count rose 2729 -> 2783, and re-parenting *within* the scene is net zero.
+- **"the corrected trace captures nothing"** — `BufferGeometry.setAttribute`,
+  patched on the right class and verified by name, saw **0 calls** in the same
+  window.
+
+**Both are true, and the reconciliation is the orphaned parent.**
+
+The scene-wide control assumed the only alternative to "in the scene" was
+"elsewhere in the scene". It was not. The hands live under a parent that is
+**itself outside the scene** — measured directly: *"hands not reachable from
+camera or scene"*, while `!handsRoot.parent` was false.
+
+So at equip they move from an **off-graph** subtree into the scene. The
+scene-wide count rises by 54 because they were never counted before; nothing is
+constructed, so `setAttribute` is never called. **Moved, not built** — and the
+control that seemed to prove otherwise had a blind spot exactly the size of an
+orphaned subtree.
+
+### The corrected, final chain
+
+```
+boot          fpHands builds 54 meshes under a parent that is OUTSIDE the scene
+prewarm       compiles what is in the scene; the hands are not there
+first equip   heldGroups[tool].add(fpHands.root) -> 54 meshes enter the graph
+              -> 7 distinct materials draw for the first time
+              -> 9 programs compile (4 physical, 5 depth) -> 333-7855 ms
+second equip  already in the graph and warm -> 0 programs, ~24 ms
+```
+
+Every number in that chain was measured, and the two that appeared to conflict
+did so only because one instrument could not see off-graph objects.
+
+### Why this entry exists
+
+**A report that contains a contradiction is worse than one that admits an
+unknown.** Someone reading the two entries above in sequence would find a direct
+conflict with no resolution offered, and would reasonably distrust both. The
+resolution costs one paragraph and was available from measurements already taken
+— it simply required putting three of them side by side.
+
+Suite 2933 pass / 0 fail. Tree clean. 256 commits.
+
