@@ -8615,3 +8615,68 @@ measurement, a 50x control, and a fix direction.**
 
 Suite 2929 pass / 0 fail.
 
+
+## THE PREWARM ALREADY DOES THIS — IT JUST RACES THE ASYNC TOOL ADOPTION
+
+Before writing a warm-up pass, checked whether one exists. It does, and it is
+thorough (`courseScene.js:11487`):
+
+```js
+const forced = [];
+scene.traverse((object) => {
+  if (!object.visible && !object.isLight) { forced.push(object); object.visible = true; }
+});
+if (forced.length) {
+  renderer.compile(scene, camera);
+  for (const object of forced) object.visible = false;
+}
+```
+
+**It reveals every hidden object, compiles, and restores.** So my ruling from
+the previous entry — "compile the tool programs during load" — describes
+something the game already does. Hidden tool groups are not the gap.
+
+**The gap is timing.** `courseScene.js:6447`:
+
+```js
+toolViewmodels.adoptAuthored(new GLTFLoader()).then((r) => { ... });
+```
+
+Adoption is **asynchronous and deliberately so** — the comment says the
+procedural tools are usable immediately "so equipping never waits on I/O". The
+authored meshes, with their own materials, land whenever the GLB finishes. The
+prewarm compiles the scene as it stands *at prewarm time*; anything that arrives
+afterwards is cold.
+
+**So the first equip pays for programs belonging to meshes that were not in the
+scene when the compile ran.** That is consistent with every measurement: the
+cost is one-time, it is 50x the second equip, and it scales with bristle count
+(720 -> 8282 ms, 200 -> 2770 ms) because more instanced geometry means more work
+on the first draw of that material.
+
+### Recorded ruling, corrected
+
+Not "add a prewarm" — **make the existing prewarm cover late arrivals.** Two
+shapes, and the choice is a real design decision rather than a mechanical fix:
+
+1. **Await adoption before the compile step.** Simple and correct, but it makes
+   boot wait on tool I/O, which the async design explicitly avoids.
+2. **Re-compile after adoption resolves**, behind the veil if it is still up, or
+   on the next idle frame if it is not. Keeps boot fast, costs a second compile.
+
+**(2) is the one that changes the game in the intended direction** — it keeps
+the property the async design was built for while removing the stall.
+
+### Not implemented, and the reason is specific
+
+`renderer`, `scene` and `camera` are not in scope at line 6447; the prewarm lives
+5,000 lines away in a different closure. Wiring a post-adoption compile means
+touching boot ordering in a 12,000-line file **with no runway left to verify it**
+— and an unverified change to initialisation order is exactly the class of edit
+this report has spent nineteen findings arguing against.
+
+**What the next session inherits:** a measured one-time stall, a 50x control
+that proves it is one-time, the exact mechanism (async adoption outrunning the
+prewarm), two named fix shapes with the trade-off stated, and the reason to
+prefer the second.
+
