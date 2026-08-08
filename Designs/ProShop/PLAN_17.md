@@ -719,3 +719,70 @@ at" - and because a measurement is the honest first move on an item whose fix
 ("carry the features" versus "blend the swap") depends entirely on what that
 number is. If the swap is at 3 yards it is a blend problem; if it is at 25
 yards it is a budget problem and carrying the features may be free.
+
+
+## G13 — ONE VISIT, ONE PAYMENT (Phase 0 + Phase 1)
+
+### Phase 0 — explain back
+
+The brief gives the flow it wants, numbered:
+1. they collect items from the shelves
+2. they come to the desk and put the items down
+3. I scan each item
+4. THEN they ask for their tee time
+5. I book or check in
+6. I charge them for the items and the green fee TOGETHER - one transaction, one payment.
+
+Goal 16 fixed the escape (a customer leaving with unpaid goods). It named the
+one-payment merge as a seam and did not build it. That seam is this item.
+
+### Reproduced, by reading the code that decides it
+
+* `beginReservationPayment` opens with `if (!reservation || tx) return false`.
+  With goods on the counter there IS a tx, so the check-in cannot start at all.
+  The player must finish the sale, then run the tee time as a second ticket.
+* `createReservationCheckInTx` builds its own tx carrying exactly ONE virtual
+  line, and `finalizeReservationCheckIn` re-asserts that: `tx.items.length === 1`,
+  `totalOf(tx) === fee`, `dueOf(tx) === fee`.
+* `completeServicePayment` posts the WHOLE tx total to `greenFees` and refuses
+  unless `totalOf(tx) === amount`.
+
+So step 6 is not mistuned, it is absent. Two tickets is the only reachable flow.
+
+### The class, not the instance (Requirement 6)
+
+The instance is "green fee plus goods". The class is: A TICKET MAY CARRY LINES
+THAT BANK TO DIFFERENT REVENUE ACCOUNTS, AND BANKING MUST SPLIT BY LINE RATHER
+THAN BY TICKET. Cart rental, a lesson, a locker - all the same shape. So the
+split is keyed on a line PREFIX (`service:`), not on the green-fee SKU, and
+`completeSale` learns to separate goods lines from service lines. Adding a
+second service later needs no further surgery here.
+
+### Plan
+
+1. `register.js` owns `SERVICE_LINE_PREFIX = 'service:'` and `serviceLinesOf(tx)`
+   / `goodsLinesOf(tx)`. reservationCheckIn already imports from register, so the
+   dependency runs the way it already runs and no cycle is created.
+2. `attachGreenFeeToReservation(state, tx, reservationId)` in reservationCheckIn:
+   appends the virtual green-fee line to an OPEN GOODS TX, marks it scanned,
+   sets `tx.servicePayment` with `combined: true`. Refuses on a banked tx, on a
+   tx that already carries a fee line, and on a reservation that is not booked.
+3. `completeSale` splits: `saleRevenue` is computed from GOODS lines only, the
+   service portion is posted to its own revenue line in the SAME postings batch,
+   COGS and unit counts cover goods only.
+4. One finalize door: `finalizeReservationCheckIn` detects a combined ticket and
+   banks through the split path, then runs the same reservation transition
+   (status, checkedInAt, provenance, visit history) it runs today.
+5. Exact-once must survive the new path: the service revenue posting keeps
+   `serviceLedgerKey(type, referenceId, revenue)` and the combined path keeps the
+   transaction-history duplicate check, so the same reservation cannot be checked
+   in twice through two different doors.
+6. The desk: `beginReservationPayment` stops refusing when a goods tx is open and
+   instead attaches the fee to it.
+
+### The check I must watch fail
+
+A six-step flow test: scan two goods, attach a tee time, pay ONCE, and assert
+the books moved on BOTH lines - shopSales up by the goods, greenFees up by the
+fee, one ticket number, one payment method, reservation played.
+On the unfixed build it cannot even reach step 5.

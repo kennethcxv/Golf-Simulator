@@ -19,7 +19,10 @@ import {
   bagItem,
   handOverGoods,
   completeServicePayment,
+  completeSale,
   serviceTicketByReference,
+  goodsLinesOf,
+  serviceSubtotal,
 } from './register.js';
 
 export const RESERVATION_CHECK_IN_TYPE = 'reservation-check-in';
@@ -101,6 +104,61 @@ export function createReservationCheckInTx(state, reservationId, {
   return { ok: true, tx, reservation };
 }
 
+// ONE VISIT, ONE PAYMENT.
+//
+// A customer who puts a shirt on the counter and then asks about their tee time
+// is one visit, and should be one ticket and one payment. Before this, the desk
+// refused: `beginReservationPayment` bailed while a goods ticket was open, and
+// the check-in built a ticket of its own. So the player rang two sales, and the
+// customer paid twice for one trip to the desk.
+//
+// This attaches the green fee as a LINE on the ticket the goods are already on.
+// The line is a service line by SKU prefix, which is what keeps its money off
+// the merchandise revenue account, out of the taxable base, out of the discount
+// base, off the shelves, and out of the bag.
+export function attachGreenFeeToTx(state, tx, reservationId) {
+  if (!tx || !Array.isArray(tx.items)) return { ok: false, reason: 'There is no open ticket.' };
+  if (tx.banked) return { ok: false, reason: 'That sale is already banked.' };
+  if (tx.stage !== 'scanning') {
+    return { ok: false, reason: 'Add the tee time before starting payment.' };
+  }
+  if (tx.servicePayment || tx.items.some((item) => item.skuId === GREEN_FEE_SKU)) {
+    return { ok: false, reason: 'This ticket already has a tee time on it.' };
+  }
+
+  const reservation = reservationById(state, reservationId);
+  if (!reservation || reservation.status !== 'booked') {
+    return { ok: false, reason: 'No open booking under that name.' };
+  }
+  const amount = paymentAmountFor(reservation);
+  if (!Number.isFinite(amount) || amount < 0 || !ticketedDepositIsConsistent(state, reservation)) {
+    return { ok: false, reason: 'That reservation has an invalid green fee.' };
+  }
+
+  const referenceId = reservationPaymentReference(reservation.id);
+  const uid = `${referenceId}:green-fee`;
+  // Scanned on arrival: there is no barcode on a tee time, and an unscanned line
+  // would block requestPayment forever.
+  tx.items.push({
+    uid,
+    skuId: GREEN_FEE_SKU,
+    name: 'Green Fee',
+    priceCents: Math.round(amount * 100),
+    price: amount,
+    scanned: true,
+    bagged: false,
+  });
+  tx.servicePayment = {
+    type: RESERVATION_CHECK_IN_TYPE,
+    referenceId,
+    revenueKey: 'greenFees',
+    amount,
+    reservationId: reservation.id,
+    combined: true,
+  };
+  return { ok: true, tx, reservation, amount };
+}
+
 // The simplified desk auto-files the receipt and virtual line when the player
 // presses FINALIZE.  We still call the register's receipt/fulfilment functions,
 // so approval and receipt state remain the same single source of truth.
@@ -140,7 +198,14 @@ export function finalizeReservationCheckIn(
   tx,
   reservationId = tx && tx.servicePayment ? tx.servicePayment.reservationId : null,
 ) {
-  if (!tx || tx.kind !== 'service' || !tx.servicePayment) {
+  // A ticket qualifies by carrying a booking, not by being nothing but a booking.
+  // A combined ticket is a MERCHANDISE ticket with a service line on it, so its
+  // kind stays whatever a sale's kind is; only a fee-only ticket is kind
+  // 'service'.
+  if (!tx || !tx.servicePayment) {
+    return { ok: false, reason: 'This payment is not tied to a reservation.' };
+  }
+  if (tx.kind !== 'service' && !goodsLinesOf(tx).length) {
     return { ok: false, reason: 'This payment is not tied to a reservation.' };
   }
   if (tx.banked) return { ok: false, reason: 'That check-in is already banked.' };
@@ -156,7 +221,13 @@ export function finalizeReservationCheckIn(
 
   const snapshottedFee = paymentAmountFor(reservation);
   const referenceId = reservationPaymentReference(reservation.id);
-  const virtualLine = tx.items && tx.items.length === 1 ? tx.items[0] : null;
+  // ONE TICKET, TWO KINDS OF LINE. When the fee rides with merchandise the
+  // ticket total is the whole visit, so the fee is checked against ITS OWN LINE
+  // rather than against the total - the total legitimately exceeds it.
+  const withGoods = goodsLinesOf(tx).length > 0;
+  const virtualLine = withGoods
+    ? tx.items.find((item) => item.uid === `${referenceId}:green-fee`)
+    : (tx.items && tx.items.length === 1 ? tx.items[0] : null);
   if (
     !Number.isFinite(snapshottedFee)
     || snapshottedFee < 0
@@ -169,9 +240,14 @@ export function finalizeReservationCheckIn(
     || virtualLine.skuId !== GREEN_FEE_SKU
     || round2(virtualLine.price) !== snapshottedFee
     || virtualLine.scanned !== true
-    || round2(tx.discount || 0) !== 0
-    || round2(totalOf(tx)) !== snapshottedFee
-    || round2(dueOf(tx)) !== snapshottedFee
+    // The booked fee must arrive whole either way: alone it is the entire
+    // ticket, and alongside goods it is the entire SERVICE half of the ticket.
+    || round2(serviceSubtotal(tx)) !== snapshottedFee
+    || (!withGoods && (
+      round2(tx.discount || 0) !== 0
+      || round2(totalOf(tx)) !== snapshottedFee
+      || round2(dueOf(tx)) !== snapshottedFee
+    ))
   ) {
     return { ok: false, reason: 'The payment no longer matches the booked green fee.' };
   }
@@ -179,29 +255,37 @@ export function finalizeReservationCheckIn(
   const fulfilled = finishVirtualFulfilment(tx);
   if (!fulfilled.ok) return fulfilled;
 
-  const banked = completeServicePayment(state, tx, {
-    type: RESERVATION_CHECK_IN_TYPE,
-    referenceId,
-    revenueKey: 'greenFees',
-    expectedTotal: snapshottedFee,
-    customer: reservation.fullName || reservation.name,
-    details: {
-      reservationId: reservation.id,
-      customerId: reservation.customerId || null,
-      dayAbs: reservation.dayAbs,
-      minute: reservation.minute,
-      depositPaid: round2(reservation.depositPaid || 0),
-      depositReferenceId: reservation.depositReferenceId || null,
-      totalReservationFee: round2(reservation.fee),
-    },
-  });
+  // A ticket carrying merchandise banks through the sale door, which splits the
+  // money by line: the goods to shopSales, this fee to greenFees. A ticket
+  // carrying nothing but the fee banks through the service door as it always has.
+  const banked = withGoods
+    // Cleared: every reservation check above has just run against the live
+    // booking - status, fee, deposit consistency, and the fee line itself.
+    ? completeSale(state, tx, reservation.fullName || reservation.name, { serviceCleared: true })
+    : completeServicePayment(state, tx, {
+      type: RESERVATION_CHECK_IN_TYPE,
+      referenceId,
+      revenueKey: 'greenFees',
+      expectedTotal: snapshottedFee,
+      customer: reservation.fullName || reservation.name,
+      details: {
+        reservationId: reservation.id,
+        customerId: reservation.customerId || null,
+        dayAbs: reservation.dayAbs,
+        minute: reservation.minute,
+        depositPaid: round2(reservation.depositPaid || 0),
+        depositReferenceId: reservation.depositReferenceId || null,
+        totalReservationFee: round2(reservation.fee),
+      },
+    });
   if (!banked.ok) return banked;
+  const ticket = banked.ticket || { number: tx.number };
 
   // Keep `played` for compatibility with the existing tee-sheet and legacy
   // checkInReservation() behavior, while adding durable payment provenance.
   reservation.status = 'played';
   reservation.checkedInAt = state.clock ? state.clock.minutes : null;
-  reservation.checkInTransactionNumber = banked.ticket.number;
+  reservation.checkInTransactionNumber = ticket.number;
   reservation.checkInReferenceId = referenceId;
   reservation.paymentMethod = tx.method;
   reservation.paidAmount = snapshottedFee;
@@ -234,6 +318,6 @@ export function finalizeReservationCheckIn(
     fee: snapshottedFee,
     reservation,
     receipt: fulfilled.receipt,
-    ticket: banked.ticket,
+    ticket,
   };
 }

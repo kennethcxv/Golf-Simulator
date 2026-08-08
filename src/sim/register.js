@@ -228,20 +228,60 @@ export function allScanned(tx) {
 // The subtotal counts SCANNED goods only. An unscanned item on the counter is a
 // thing the register does not know about — which is exactly why you cannot pay.
 
+// A TICKET MAY CARRY LINES THAT BANK TO DIFFERENT ACCOUNTS.
+//
+// A line whose SKU begins with this prefix is a SERVICE — a tee time, a cart, a
+// lesson — and it is not merchandise. It is not taxed as goods, it carries no
+// cost of goods, it is not something you can put in a bag, and its money belongs
+// on its own revenue line. Keying on the PREFIX rather than on one SKU is what
+// lets a second service ride the same rails later without another pass through
+// this file.
+export const SERVICE_LINE_PREFIX = 'service:';
+
+export const isServiceLine = (item) => typeof item?.skuId === 'string'
+  && item.skuId.startsWith(SERVICE_LINE_PREFIX);
+
+export const serviceLinesOf = (tx) => (tx?.items || []).filter(isServiceLine);
+export const goodsLinesOf = (tx) => (tx?.items || []).filter((item) => !isServiceLine(item));
+
+const sumLines = (lines) => dollars(lines
+  .filter((item) => item.scanned)
+  .reduce((sum, item) => sum
+    + (Number.isInteger(item.priceCents) ? item.priceCents : cents(item.price)), 0));
+
+/** Everything the customer is about to hand over — goods and services alike. */
 export function subtotal(tx) {
-  return dollars(tx.items
-    .filter((item) => item.scanned)
-    .reduce((sum, item) => sum
-      + (Number.isInteger(item.priceCents) ? item.priceCents : cents(item.price)), 0));
+  return sumLines(tx.items);
 }
 
+/** Merchandise only: the taxable, discountable, stock-bearing half of a ticket. */
+export function goodsSubtotal(tx) {
+  return sumLines(goodsLinesOf(tx));
+}
+
+/** Services only: money that is owed to a booking, not to the shop floor. */
+export function serviceSubtotal(tx) {
+  return sumLines(serviceLinesOf(tx));
+}
+
+// A DISCOUNT IS A DISCOUNT ON MERCHANDISE.
+//
+// A booked green fee is a number the reservation already agreed, and the
+// check-in re-asserts that the amount paid equals the amount booked. Letting a
+// staff discount eat into it would either break the check-in or quietly
+// shortchange the course, so the discount is taken against goods alone.
 export function discountOf(tx) {
-  return dollars(cents(subtotal(tx) * (tx.discount || 0)));
+  return dollars(cents(goodsSubtotal(tx) * (tx.discount || 0)));
 }
 
 /** Goods after discount — the shop's money, and the base the tax is charged on. */
 export function netOf(tx) {
   return dollars(cents(subtotal(tx)) - cents(discountOf(tx)));
+}
+
+/** The merchandise base the state actually taxes. Services are not in it. */
+export function goodsNetOf(tx) {
+  return dollars(cents(goodsSubtotal(tx)) - cents(discountOf(tx)));
 }
 
 /**
@@ -253,7 +293,10 @@ export function netOf(tx) {
 export function taxOf(tx) {
   const rate = Number(tx.taxRate) || 0;
   if (!(rate > 0)) return 0;
-  return dollars(Math.round(cents(netOf(tx)) * rate));
+  // GOODS ONLY. Whether a round of golf is a taxable service varies by state and
+  // is not a thing to guess at inside a check-in, so a tee time riding along with
+  // a shirt must not be pulled into the taxable base by the merge.
+  return dollars(Math.round(cents(goodsNetOf(tx)) * rate));
 }
 
 export function totalOf(tx) {
@@ -865,13 +908,16 @@ export function bagItem(tx, uid) {
 }
 
 export function allBagged(tx) {
-  return tx.items.length > 0 && tx.items.every((i) => i.bagged);
+  // A tee time is not something you put in a bag. A service line is fulfilled by
+  // the booking it belongs to, so only merchandise gates the handover — otherwise
+  // a combined ticket could never be handed over at all.
+  return tx.items.length > 0 && goodsLinesOf(tx).every((i) => i.bagged);
 }
 
 export function handOverGoods(tx) {
   if (tx.stage !== 'bagging') return { ok: false, reason: 'Not ready to hand over.' };
   if (!allBagged(tx)) {
-    return { ok: false, reason: `${tx.items.filter((i) => !i.bagged).length} still to bag.` };
+    return { ok: false, reason: `${goodsLinesOf(tx).filter((i) => !i.bagged).length} still to bag.` };
   }
   if (!tx.receiptPacked) return { ok: false, reason: 'Put the receipt in the bag first.' };
   tx.stage = 'done';
@@ -1288,7 +1334,7 @@ export function completeServicePayment(state, tx, {
   };
 }
 
-export function completeSale(state, tx, who = 'A customer') {
+export function completeSale(state, tx, who = 'A customer', { serviceCleared = false } = {}) {
   if (!canComplete(tx)) return { ok: false, reason: 'The sale is not finished.' };
   if (tx.banked) return { ok: false, reason: 'Already banked.' };
 
@@ -1310,8 +1356,17 @@ export function completeSale(state, tx, who = 'A customer') {
   // the ticket is rounded to the cent the drawer can actually make, and that rounding belongs
   // to the goods line, not to the tax — the tax figure is the one printed on the receipt and
   // owed to the state, so it is taken first and revenue is whatever is left.
+  //
+  // A ticket may also carry SERVICE lines — a tee time checked in at the same
+  // desk, on the same payment. That money is owed to a different revenue account,
+  // so it comes out here and is posted separately below. The cash rounding stays
+  // with the goods deliberately: a booked green fee is a number the reservation
+  // already agreed and re-asserts at check-in, so it must land on the books at
+  // exactly the figure that was booked, to the cent.
   const saleTax = Math.round(taxOf(tx) * 100) / 100;
-  const saleRevenue = Math.round((total - saleTax) * 100) / 100;
+  const serviceRevenue = Math.round(serviceSubtotal(tx) * 100) / 100;
+  const saleRevenue = Math.round((total - saleTax - serviceRevenue) * 100) / 100;
+  const goodsLines = goodsLinesOf(tx);
   if (!(saleRevenue > 0)) {
     return { ok: false, reason: 'The goods total must be positive once tax is separated out.' };
   }
@@ -1322,12 +1377,12 @@ export function completeSale(state, tx, who = 'A customer') {
     category: 'shopSales',
     description: `Register sale - ${customerName}`,
     source: 'checkout',
-    units: tx.items.length,
+    units: goodsLines.length,
     customerCount: 1,
     metadata: {
       method: tx.method,
-      itemIds: tx.items.map((item) => item.uid),
-      skuIds: tx.items.map((item) => item.skuId),
+      itemIds: goodsLines.map((item) => item.uid),
+      skuIds: goodsLines.map((item) => item.skuId),
     },
   };
   const salePreflight = preflightLedgerEntry(state, {
@@ -1342,14 +1397,14 @@ export function completeSale(state, tx, who = 'A customer') {
     return { ok: false, reason: 'Already banked.', duplicate: true };
   }
 
-  const goodsCost = tx.items.reduce((sum, item) => sum + (skuById(item.skuId)?.cost || 0), 0);
+  const goodsCost = goodsLines.reduce((sum, item) => sum + (skuById(item.skuId)?.cost || 0), 0);
   const cogsMeta = goodsCost > 0 ? {
     idempotencyKey: `checkout:${tx.id}:cogs`,
     relatedId: tx.id,
     description: `Cost of goods - ${customerName}`,
     source: 'checkout',
-    units: tx.items.length,
-    metadata: { skuIds: tx.items.map((item) => item.skuId) },
+    units: goodsLines.length,
+    metadata: { skuIds: goodsLines.map((item) => item.skuId) },
   } : null;
   if (cogsMeta) {
     const cogsPreflight = preflightLedgerEntry(state, {
@@ -1407,7 +1462,65 @@ export function completeSale(state, tx, who = 'A customer') {
     }
   }
 
-  const consumed = consumeHeldBatch(state, tx.items);
+  // A tee time has no shelf and no held unit. Only merchandise moves stock.
+  // THE SERVICE HALF OF A COMBINED TICKET, CHECKED BEFORE ANYTHING MOVES.
+  //
+  // It carries the SAME idempotency key the standalone check-in would have used,
+  // so a booking cannot be banked once through the merged door and again through
+  // the service door - the second one collides here, before stock or drawer move.
+  const serviceBooking = serviceRevenue > 0 && tx.servicePayment ? tx.servicePayment : null;
+  if (serviceRevenue > 0 && !serviceBooking) {
+    return { ok: false, reason: 'A service line has no booking to bank it against.' };
+  }
+  // A SERVICE LINE MAY ONLY BANK THROUGH THE DOOR THAT OWNS ITS BOOKING.
+  //
+  // completeSale can post to greenFees now, but it knows nothing about the
+  // reservation: not whether it is still booked, not whether the fee still reads
+  // the same, not how to flip it to played. Those checks and that transition live
+  // in finalizeReservationCheckIn, which sets this flag once it has done them.
+  // Without the flag a caller could bank the fee and leave the round un-checked-in
+  // — money taken for a tee time the sheet still shows as open, which then also
+  // attracts a no-show fee. Refusing here makes that state unreachable rather
+  // than merely unused.
+  if (serviceBooking && !serviceCleared) {
+    return { ok: false, reason: 'Finalize the tee time on this ticket through check-in.' };
+  }
+  let serviceMeta = null;
+  if (serviceBooking) {
+    if (serviceBooking.revenueKey !== 'greenFees') {
+      return { ok: false, reason: 'That service revenue line is not supported at this desk.' };
+    }
+    if (round2(Number(serviceBooking.amount)) !== serviceRevenue) {
+      return { ok: false, reason: 'The service line no longer matches the booked amount.' };
+    }
+    const history = Array.isArray(state.shop.transactionHistory) ? state.shop.transactionHistory : [];
+    if (history.some((entry) => entry
+      && entry.type === serviceBooking.type
+      && entry.referenceId === serviceBooking.referenceId)) {
+      return { ok: false, reason: 'That service payment is already banked.' };
+    }
+    serviceMeta = {
+      idempotencyKey: serviceLedgerKey(serviceBooking.type, serviceBooking.referenceId, 'revenue'),
+      relatedId: serviceBooking.referenceId,
+      category: serviceBooking.revenueKey,
+      description: `Service payment - ${customerName}`,
+      source: 'service-payment',
+      customerCount: 1,
+      metadata: { type: serviceBooking.type, method: tx.method, withGoods: true },
+    };
+    const servicePreflight = preflightLedgerEntry(state, {
+      ...serviceMeta,
+      direction: 'revenue',
+      lineKey: serviceBooking.revenueKey,
+      amount: serviceRevenue,
+    });
+    if (!servicePreflight.ok) return servicePreflight;
+    if (servicePreflight.duplicate) {
+      return { ok: false, reason: 'That service payment is already banked.', duplicate: true };
+    }
+  }
+
+  const consumed = consumeHeldBatch(state, goodsLines);
   if (!consumed.ok) return consumed;
   commitDrawer(state, drawerCommit.contents);
 
@@ -1419,6 +1532,17 @@ export function completeSale(state, tx, who = 'A customer') {
   if (bank.duplicate) {
     tx.banked = true;
     return { ok: false, reason: 'Already banked.', duplicate: true };
+  }
+
+  if (serviceBooking) {
+    const bankedService = addRevenue(state, serviceBooking.revenueKey, serviceRevenue, serviceMeta);
+    if (!bankedService.ok || bankedService.duplicate) {
+      return {
+        ok: false,
+        reason: bankedService.duplicate ? 'That service payment is already banked.' : bankedService.reason,
+        duplicate: bankedService.duplicate || false,
+      };
+    }
   }
 
   if (saleTax > 0) {
@@ -1455,12 +1579,16 @@ export function completeSale(state, tx, who = 'A customer') {
   }
 
   const live = liveSales(state);
-  live.units += tx.items.length;
+  // A tee time is not a unit sold off the shop floor.
+  live.units += goodsLines.length;
   live.revenue = round2(live.revenue + saleRevenue); // the goods, not the state's cut
 
   // The held batch was consumed before banking; now feed the same items into the
   // per-SKU velocity tally used by Inventory and Analytics.
-  for (const it of tx.items) {
+  // GOODS ONLY. This feeds the per-SKU velocity window that Inventory and
+  // Analytics reorder from; a tee time has no shelf to reorder, and putting one
+  // in invents a SKU that nobody can ever stock.
+  for (const it of goodsLines) {
     recordSale(state, it.skuId);
   }
   recordOutcome(state, {
@@ -1469,8 +1597,13 @@ export function completeSale(state, tx, who = 'A customer') {
     count: 1,
     amount: total,
     relatedId: tx.id,
-    reason: `Register checkout completed with ${tx.items.length} item${tx.items.length === 1 ? '' : 's'}.`,
-    metadata: { units: tx.items.length, method: tx.method },
+    reason: `Register checkout completed with ${goodsLines.length} item${goodsLines.length === 1 ? '' : 's'}.`,
+    metadata: {
+      units: goodsLines.length,
+      method: tx.method,
+      // the visit is one event; the split is recorded so the tail can tell them apart
+      ...(serviceBooking ? { serviceRevenue, serviceType: serviceBooking.type } : {}),
+    },
   });
 
   tx.banked = true;
@@ -1507,6 +1640,19 @@ export function completeSale(state, tx, who = 'A customer') {
       : null,
     extraChange: tx.method === 'cash' ? round2(Math.max(0, tx.lost || 0)) : null,
     items: tx.items.map((item) => ({ uid: item.uid, skuId: item.skuId, name: item.name, price: item.price })),
+    // A COMBINED TICKET LEAVES A SERVICE-TYPED TRAIL.
+    //
+    // Without these the row is just a sale: the exact-once guard above cannot
+    // match one merged ticket against another, serviceTicketByReference can never
+    // find a check-in that rode in with merchandise, and the fee is an unlabelled
+    // part of a larger total. `total` stays the whole visit; `serviceTotal` is the
+    // half that belongs to the booking.
+    ...(serviceBooking ? {
+      type: serviceBooking.type,
+      referenceId: serviceBooking.referenceId,
+      serviceTotal: serviceRevenue,
+      serviceRevenueKey: serviceBooking.revenueKey,
+    } : {}),
     minute: state.clock ? state.clock.minutes : null,
   });
   if (history.length > 100) history.length = 100;

@@ -26,6 +26,7 @@ import {
   printReceipt, takeReceipt, packReceipt, bagItem, allBagged,
   handOverGoods, completeSale, voidTx, newDrawer, migrateDrawer, drawerContents,
   stackTotal, makeChange, makeChangeFrom, segmentHitsBox, netOf, taxOf,
+  goodsLinesOf,
 } from '../../sim/register.js';
 import { salesTaxRate, taxJurisdictionLabel } from '../../sim/salesTax.js';
 import {
@@ -38,7 +39,7 @@ import {
 } from '../../sim/checkoutPreferences.js';
 import { dueForCheckIn, fmtSlot, daySheet } from '../../sim/reservations.js';
 import {
-  createReservationCheckInTx, finalizeReservationCheckIn,
+  createReservationCheckInTx, finalizeReservationCheckIn, attachGreenFeeToTx,
 } from '../../sim/reservationCheckIn.js';
 import { barcodeFor } from '../../sim/barcode.js';
 import { createRegisterItemResources } from './registerItemResources.js';
@@ -5074,7 +5075,28 @@ export function createRegisterMode(B) {
   }
 
   function beginReservationPayment(reservation) {
-    if (!reservation || tx) return false;
+    if (!reservation) return false;
+    // ONE VISIT, ONE PAYMENT. If the customer already has goods on the counter,
+    // the tee time joins THAT ticket instead of being refused. Refusing was what
+    // forced the player to ring two sales and the customer to pay twice for one
+    // trip to the desk.
+    if (tx) {
+      if (tx.stage !== 'scanning' || tx.banked) {
+        toast('Add the tee time before starting payment.', 'warn');
+        return false;
+      }
+      const joined = attachGreenFeeToTx(state, tx, reservation.id);
+      if (!joined.ok) {
+        toast(joined.reason || 'That reservation cannot be added to this sale.', 'warn');
+        return false;
+      }
+      selectedReservationId = reservation.id;
+      layoutGoods();
+      drawScreen();
+      drawTerm();
+      toast(`Green fee added to this sale - $${joined.amount.toFixed(2)}.`, 'good');
+      return true;
+    }
     refreshAccessibilityPreferences();
     const waitingCustomer = readyReservationCustomer(reservation.id);
     if (!waitingCustomer) {
@@ -6521,11 +6543,18 @@ export function createRegisterMode(B) {
     }
     const finishedTx = tx;
     const finishedCustomer = cust;
-    const finishedReservationId = transactionKind === 'reservation'
-      ? tx.servicePayment && tx.servicePayment.reservationId
+    // ROUTE ON WHAT THE TICKET CARRIES, NOT ON HOW IT STARTED.
+    //
+    // A visit that began as a shirt and picked up a tee time along the way is
+    // still a check-in, and `transactionKind` remembers only the first thing that
+    // happened. Asking the ticket means one question with one answer, so the
+    // booking cannot be banked as an anonymous sale and left un-checked-in.
+    const finishedReservationId = tx.servicePayment
+      ? tx.servicePayment.reservationId
       : null;
+    const carriedGoods = goodsLinesOf(tx).length > 0;
     let result;
-    if (transactionKind === 'reservation') {
+    if (finishedReservationId) {
       result = finalizeReservationCheckIn(state, tx, finishedReservationId);
     } else {
       result = completeSale(state, tx, cust || 'A customer');
@@ -6534,13 +6563,16 @@ export function createRegisterMode(B) {
       toast(result.reason, 'warn');
       return false;
     }
-    if (transactionKind === 'reservation') {
+    if (finishedReservationId) {
       const bridge = reservationBridge();
       if (bridge && typeof bridge.completeCustomer === 'function') {
         bridge.completeCustomer(finishedReservationId);
       }
       sfx('doorbell');
-    } else if (finishedCustomer && finishedCustomer.onPaid) {
+    }
+    // A combined ticket owes BOTH: the round is checked in above, and the goods
+    // still have to be handed to the customer who bought them.
+    if (carriedGoods && finishedCustomer && finishedCustomer.onPaid) {
       finishedCustomer.onPaid(finishedTx);
     }
     if (finishedTx.checkoutFlow && finishedTx.checkoutFlow.state === 'CustomerLeaving') {
