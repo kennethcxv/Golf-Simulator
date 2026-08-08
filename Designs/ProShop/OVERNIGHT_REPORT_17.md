@@ -4718,3 +4718,32 @@ data-hat like the card/cash case.
 
 **77 strings, 50% of the original 155, are now translatable.** Half.
 Suite 2928 pass / 0 fail.
+
+### 78 -> 72: the shop floor, and the customers get their names back
+
+Six from `clubhouse.js`, and this batch is the one a player notices most, because
+these are the lines that name a person:
+
+```
+"{name}: {line}"
+"{name} put back what they were carrying."
+"{name} got tired of waiting, put everything back, and left a bad review."
+"{name} placed - the shop is coming together."
+"{name} spotlight {head} aimed to {preset}."
+"Open a bay {bay} cabinet door first."
+```
+
+The customer-dialogue one - `{name}: {line}` - is worth pausing on. **Both halves
+are data**: the name AND the spoken line. The only prose in it is the colon and
+the space, and that IS the string worth having a key for, because a language may
+not use a colon there at all. A template literal could never express that.
+
+```
+155 -> 146 -> 119 -> 94 -> 90 -> 85 -> 83 -> 78 -> 72
+```
+
+**83 strings, 54%, translatable.** Ratchet lowered to 72 and watched failing at
+73 - fifth batch, fifth time the ceiling has been proven live. Suite 2928 pass.
+
+Remaining, per file: `main.js` 18, `courseScene.js` 12, `courseEditor.js` 12,
+`buildMode.js` 5, and a tail of ones and twos.

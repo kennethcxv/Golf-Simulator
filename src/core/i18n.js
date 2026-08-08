@@ -42,6 +42,13 @@ export const DEFAULT_LOCALE = 'en';
 
 // The English key set. Add a key here first; the overlays below are optional.
 const EN = Object.freeze({
+  // The shop floor: customers, fixtures, lighting.
+  'shop.spotlightAimed': "{name} spotlight {head} aimed to {preset}.",
+  'shop.openBayDoorFirst': "Open a bay {bay} cabinet door first.",
+  'shop.placedComingTogether': "{name} placed - the shop is coming together.",
+  'shop.customerSays': "{name}: {line}",
+  'shop.putBackCarried': "{name} put back what they were carrying.",
+  'shop.tiredOfWaiting': "{name} got tired of waiting, put everything back, and left a bad review.",
   // The laptop back office.
   'laptop.clubhouseOpen': "The clubhouse is open. Your first guests are on the way.",
   'laptop.needsName': "The club needs a name.",

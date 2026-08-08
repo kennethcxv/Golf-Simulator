@@ -3529,7 +3529,7 @@ export function makeClubhouse(ctx) {
       onSpotlightAimChange: ({ headIndex, yaw, tilt, presetLabel }) => {
         if (placementId) setPlacementSpotlightAim(state, placementId, headIndex, yaw, tilt);
         if (hooks.sfx) hooks.sfx('fixtureAdjust');
-        if (hooks.toast) hooks.toast(`${sku.name} spotlight ${headIndex + 1} aimed to ${presetLabel}.`);
+        if (hooks.toast) hooks.toast(t('shop.spotlightAimed', { name: sku.name, head: headIndex + 1, preset: presetLabel }));
       },
     });
     built.group.position.set(pose.x, 0, pose.z);
@@ -3776,7 +3776,7 @@ export function makeClubhouse(ctx) {
               },
               action: () => {
                 if (!cabinetOpen()) {
-                  if (hooks.toast) hooks.toast(`Open a bay ${bay} cabinet door first.`, 'warn');
+                  if (hooks.toast) hooks.toast(t('shop.openBayDoorFirst', { bay }), 'warn');
                   return;
                 }
                 const wasCarrying = !!carriedGoods(state);
@@ -3842,7 +3842,7 @@ export function makeClubhouse(ctx) {
           rebuildDecor();
           refreshCondition();
           if (hooks.sfx) hooks.sfx('thunk');
-          if (hooks.toast) hooks.toast(`${sku.name} placed - the shop is coming together.`);
+          if (hooks.toast) hooks.toast(t('shop.placedComingTogether', { name: sku.name }));
         },
       });
       entry.props.push(entry.prop);
@@ -9215,7 +9215,7 @@ export function makeClubhouse(ctx) {
       c.dialogue = c.reservationId != null
         ? 'While I am here, can I check in for my tee time?'
         : 'One more thing, have you got a time free today?';
-      if (hooks.toast) hooks.toast(`${c.name}: ${c.dialogue}`, 'info');
+      if (hooks.toast) hooks.toast(t('shop.customerSays', { name: c.name, line: c.dialogue }), 'info');
     }
     visitTally.combinedStarted += 1;
     return true;
@@ -9982,7 +9982,7 @@ export function makeClubhouse(ctx) {
       c.oversizeCarryRoot = null;
     }
     if (announce && hooks.toast && walk.active && isInside(walk.x, walk.z)) {
-      hooks.toast(`${c.name} put back what they were carrying.`, 'warn');
+      hooks.toast(t('shop.putBackCarried', { name: c.name }), 'warn');
     }
     rebuildStock();
     return true;
@@ -10019,7 +10019,7 @@ export function makeClubhouse(ctx) {
     if (hadCart && hooks.toast) {
       // no literal minutes — game clocks and wall clocks disagree, and the player only
       // needs the cause: they were kept waiting too long
-      hooks.toast(`${c.name} got tired of waiting, put everything back, and left a bad review.`, 'warn');
+      hooks.toast(t('shop.tiredOfWaiting', { name: c.name }), 'warn');
     }
     c.checkoutPhase = 'leaving';
     // they walked out mid-sale: void it, clear the counter, and put the goods back.
