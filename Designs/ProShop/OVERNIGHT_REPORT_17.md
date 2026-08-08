@@ -1888,6 +1888,50 @@ nonetheless answered the question.
 
 ---
 
+# SECTION E — SETTINGS
+
+## E2/E3/E4 measured at the window that actually ships
+
+Goal 16's D section claims to have fixed the scrollbar, the reset-row spacing
+and the rebind display. The brief still lists all three. So the first act was
+verification rather than rebuilding - and **at the shipped 2560x1370 window**,
+because A5 moved the default from 1600x940 and five CSS media queries flip state
+between those numbers.
+
+`tools/qa/electron-e-settings.js`, nothing resized, window confirmed as
+2560x1370 CSS at DPR 1.5.
+
+| item | measured | verdict |
+| --- | --- | --- |
+| **E2** scrollbar | the only element with `overflow-y: auto` is `.settings-page` - the section, not the panel wrapper | **holds.** Goal 16's fix survives the new window |
+| **E3** reset-row padding | **191.7 px** between the reset footer and the page bottom | **holds** |
+| **E3** flush-to-edge sweep | **10 elements sit at `gapL: 0`** against the page's left edge, with 8 px on the right | **DEFECT, still present** |
+| **E4** rebind updates the list | rebound `moveForward` from `w` to `t`; the formatted controls list does **not** show `t` | **DEFECT, still present** |
+
+### E3: the asymmetry is the tell
+
+Ten elements - `settings-group`, `settings-group-head`, `setting-row` and
+others - have **zero** gap on the left and **8 px** on the right. That is not a
+uniform tight layout, it is padding applied to one side only, which is precisely
+the "controls flush to edges" class E3 names. The reset row's own spacing, which
+is what the brief calls out by name, is fine at 191.7 px - so the fix that
+landed addressed the named instance and not the family, which is what
+Requirement 6 exists to catch.
+
+### E4: and the control says the check is real
+
+The list did not contain `t` **before** the rebind either, so the check can tell
+the two states apart - it is not passing or failing by accident.
+
+**Honest limit on E4:** I changed the binding through the preference store the
+panel writes to, not by driving the panel's own rebind capture UI. If the panel
+re-renders only inside its own flow, then what I have measured is "the list does
+not follow the live bindings", which is a defect either way - the list should be
+derived from the bindings, not from whatever path last touched them - but it is
+not literally the player pressing a key in the rebind dialog. Recorded as such.
+
+---
+
 ## RUNNING LISTS
 
 _Updated continuously, not at the end._
