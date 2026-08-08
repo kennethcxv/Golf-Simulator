@@ -10088,3 +10088,66 @@ instead of the source.
 
 Suite 2929 pass / 0 fail.
 
+
+## THE CONSTRUCTOR, FOUND BY ASKING THE OBJECTS WHAT THEY ARE
+
+Could not patch `THREE.BufferGeometry` from a driver — `THREE` is not on
+`window`. So instead of tracing *where* construction happens, asked *what* was
+constructed, by diffing mesh **names** across the equip:
+
+```
+before 140   after 194   net +54
+
+  +52  (unnamed)
+  +1   FirstPersonRightForearm
+  +1   FirstPersonLeftForearm
+```
+
+**The arms.** And `setActive` says so in its own comment, three lines above the
+call I read and dismissed:
+
+```js
+// The full arms replace the stub forearm + cuff for the duration.
+fpHands.setArmStubsVisible?.(!active);
+```
+
+**The high-fidelity first-person arms are built on first activation** — two named
+forearms and 52 unnamed segments — and they carry the 9 new materials that
+compile the 9 programs.
+
+This is the same subsystem this project's notes record as *"HF arms via
+wrist-relative elbows"*: a detailed arm rig that exists only while a stick tool
+is held.
+
+### Why three code readings missed it
+
+I read `setActive` and saw `fpHands.setArmStubsVisible?.(!active)` — a
+**visibility** call. I read `fpHands.setTool` and saw flags. Neither *looks* like
+construction, and the construction is behind a call whose name says "set
+visible". **The comment naming the real behaviour was one line above the call I
+quoted in a commit message.**
+
+Thirty-second finding, and the method that cracked it is the cheapest one
+available: **when you cannot find where something is made, ask what got made.**
+Names cost nothing and pointed straight at the subsystem three careful readings
+had cleared.
+
+### Section A's tool half — complete, with a fix that follows from the mechanism
+
+```
+first equip -> builds the HF arms (54 meshes, 54 geometries, 9 materials)
+            -> 9 MeshStandardMaterial programs compile on first draw
+            -> 333-7855 ms stall
+second equip -> arms already exist -> 0 created, 0 compiled, ~24 ms
+```
+
+**The fix: build the HF arms once at boot** — alongside the rig loop that already
+builds every viewmodel up front — instead of on first activation. They are then
+in the scene for the prewarm, their 9 programs compile behind the veil, and the
+first equip costs what the second one does.
+
+**Verification is built and binary**, and has now been run eight times: the
+equip's Δ must fall **+9 -> 0**, and the census must show **+0 meshes**.
+
+Suite 2929 pass / 0 fail.
+
