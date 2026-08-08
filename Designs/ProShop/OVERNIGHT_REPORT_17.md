@@ -13864,3 +13864,51 @@ about the machine the game is running on rather than about an arbitrary line.
 minimum spec, and tightening it to the live refresh rate would make it a
 different check on every machine. Recorded because the *budget* the indoor frame
 is failing to hit is half what anyone working on it has assumed.
+
+
+## NOT THE INTERIOR LIGHTING EITHER — NINE MECHANISMS NOW ELIMINATED
+
+The lighting fitted every measurement: flat CPU inside `render()` (the GPU running
+late, not the queue), identical draw calls and triangles (same submission,
+costlier pixels), a third of outdoors' draw calls running far worse (expensive
+per-pixel, not too much drawn), and a miss-then-catch-up pattern against vsync.
+
+**The trap this test had to avoid:** three.js bakes light COUNTS into every
+program's cache key, so removing a light or toggling `visible` recompiles every
+material in view — and the measurement would have timed a shader compile instead
+of a shading cost. This codebase has been bitten by that twice already, both on
+record. So: **intensity 0, lights left in the scene**, which keeps the count,
+keeps the programs, and removes the light.
+
+Census: 16 lights — 9 PointLight, 4 RectAreaLight, plus sun, ambient and
+hemisphere. **13 dimmed** (the directional/ambient/hemisphere trio left alone,
+since killing the sun changes far more than "the lamps are off").
+
+| window | median | over 16.7 ms |
+|---|---|---|
+| lit | 6.0 ms | **22.3%** |
+| dimmed | 5.6 ms | **22.1%** |
+| lit again | — | **22.5%** |
+
+**programs 210 -> 210 -> 210.** The guard held: nothing recompiled, so this timed
+shading and not compilation.
+
+**Effect: 0.3 points, against a 0.2-point drift control.** Thirteen interior
+lights cost essentially nothing.
+
+### The eliminations, complete
+
+Nine mechanisms, each with a control: shadow bakes, culling/LOD churn, geometry
+volume, garbage collection, texture uploads, draw submission, the post chain,
+game logic (`walk.update` + `clubhouse.update`), and interior lighting.
+
+Attributed: the DOM overlay, **5.0 points** after its fix.
+
+Still open: ~17 points, GPU-side, in a loop that misses one 8.33 ms deadline in
+seven and then fires back-to-back to catch up.
+
+**I have not fixed it, and I have stopped guessing at it.** Every candidate that
+could be tested from outside the engine has been, and the honest next instrument
+is a GPU timer query (`EXT_disjoint_timer_query_webgl2`) — which measures the one
+thing every driver here has been unable to see: how long the GPU actually spends
+on a frame it has been handed.
