@@ -6446,6 +6446,37 @@ export function makeCourseScene(canvas, state) {
   let toolViewmodelsAuthored = null;
   toolViewmodels.adoptAuthored(new GLTFLoader()).then((r) => {
     toolViewmodelsAuthored = r;
+    // A6 — THE FIRST TOOL A PLAYER EQUIPS COSTS A ONE-TIME STALL. MEASURED.
+    //
+    //   first equip (broom)   worst frame 1129 ms
+    //   second equip (mop)    worst frame   22 ms      -> 50x, one-time
+    //
+    // The boot prewarm at the bottom of this file already reveals every hidden
+    // object and calls renderer.compile(). It is thorough — and it RACES this
+    // adoption. These authored meshes arrive with their own materials whenever
+    // the GLB finishes, which is routinely after that compile has run, so their
+    // programs are still cold when the player first takes a tool out.
+    //
+    // The async design is deliberate and worth keeping ("equipping never waits
+    // on I/O"), so the fix is not to await adoption at boot. It is to compile
+    // the late arrivals once, here, the moment they land.
+    //
+    // The groups are `visible = false` until equipped, and compile() only walks
+    // what is visible — the same reason the boot prewarm force-reveals. Reveal,
+    // compile, restore exactly what was revealed.
+    try {
+      if (renderer && scene && camera) {
+        const hidden = [];
+        for (const group of Object.values(toolViewmodels.groups || {})) {
+          group.traverse((object) => {
+            if (!object.visible && !object.isLight) { hidden.push(object); object.visible = true; }
+          });
+          if (!group.visible) { hidden.push(group); group.visible = true; }
+        }
+        renderer.compile(scene, camera);
+        for (const object of hidden) object.visible = false;
+      }
+    } catch { /* a cold program is a stall, not a crash: never break boot for it */ }
     if (walkTool && CLEANING_TOOLS[walkTool]) {
       fpHands.setTool(walkTool, toolViewmodels.gripsFor(walkTool));
       toolViewmodels.setEquipped(walkTool, true);

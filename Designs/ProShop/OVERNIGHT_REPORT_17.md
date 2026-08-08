@@ -8680,3 +8680,64 @@ that proves it is one-time, the exact mechanism (async adoption outrunning the
 prewarm), two named fix shapes with the trade-off stated, and the reason to
 prefer the second.
 
+
+## THE NINETEENTH INSTANCE IS THE WORST ONE, AND IT IS MINE: I CONVICTED B2 ON NOISE
+
+Implemented the post-adoption compile (reveal tool groups, `renderer.compile()`,
+restore) and re-measured. **The stall did not go away** — `tool` worst 4947.2 ms.
+
+But the run that matters is the whole set. Every first-equip worst frame
+measured today:
+
+| config | first-equip worst |
+|---|---|
+| 720 bristles | 8282 ms |
+| 200 bristles | 2770 ms |
+| 200 bristles | 1129 ms |
+| 200 + post-adoption compile | 4947 ms |
+
+**At a fixed 200 bristles I have measured 1129, 2770 and 4947 ms — a 4.4x
+spread on identical code.** The variance is the same size as the effect.
+
+### What that does to my B2 conviction
+
+I reverted B2 and wrote *"720 bristles added 5.5 seconds to every tool equip
+(measured)"*, from a **single 8282 vs single 2770 comparison**. With a 4.4x
+run-to-run spread at fixed configuration, that comparison **cannot support the
+claim**. One sample against one sample, in a metric whose noise floor swallows
+the difference.
+
+**The conviction is retracted.** Not the revert — reverting an *unconfirmed*
+visual change that *might* cost seconds is still the right call, and B2 had no
+player-camera screenshot either way. But the stated reason was wrong, and stating
+it in a commit message as "measured" was worse than not measuring at all,
+because it looks settled.
+
+### And it puts the 50x result in its proper place
+
+The one result here that **survives** the variance is the first-vs-second equip
+ratio: **1129 vs 22 ms**, and **4947 vs 36 ms**, in the *same run* each time.
+A within-run comparison is immune to the between-run noise that just invalidated
+my B2 claim.
+
+**That is the difference between the two numbers.** The 50x is a paired
+measurement; the B2 conviction was an unpaired one. I drew both with the same
+confidence, and only one deserved it.
+
+### Status of the post-adoption compile
+
+**Unverified, and not claimable either way** — a single noisy run cannot show it
+worked or failed. It is committed because the reasoning is sound and the cost is
+one compile behind a `try`, but **it must not be reported as a fix** until
+measured properly: N runs per configuration, comparing medians, not one against
+one.
+
+### What Section A actually needs next
+
+Not another hypothesis. **A measurement protocol**: repeat the walk 5+ times per
+configuration and compare distributions. Every perf conclusion in this session's
+Section A work — including the six causes closed early on — was drawn from single
+runs of a metric now known to vary 4.4x.
+
+Suite 2929 pass / 0 fail.
+
