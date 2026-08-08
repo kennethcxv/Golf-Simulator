@@ -201,6 +201,7 @@ async (page) => {
   record('tool', live.ok === true, {
     held: live.held ?? null,
     stoodOn: stood,
+    rigDiag: await page.evaluate(() => { const d = window.__fw?.scene3d?.walk?.toolRigDiagnostics?.("broom"); return d ? { shaftDrop: d.shaftDrop, headAboveFloor: d.headAboveFloor, assetHeadWorldY: d.assetHeadWorldY, assetGripWorldY: d.assetGripWorldY, keys: Object.keys(d).length } : null; }).catch(() => null),
     authored: await page.evaluate(() => window.__fw?.scene3d?.walk?.toolAuthoredResults?.() ?? "no accessor").catch(() => null),
     // why it failed, in the artifact, instead of nowhere
     wheelOpened,

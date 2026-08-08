@@ -8100,3 +8100,74 @@ that would settle it.
 
 Suite 2929 pass / 0 fail.
 
+
+## THE ANSWER — THE RIG WAS FINE ALL ALONG. THE DRIVER NEVER EQUIPPED THE BROOM.
+
+Probed the full broom diagnostics instead of guessing a fifth time:
+
+```json
+{"shaftDrop":-1.359, "headAboveFloor":-0.25,
+ "assetHeadWorldY":-0.69, "assetGripWorldY":0.669, "keys":29}
+```
+
+**`headAboveFloor` is −0.25. Not null.** `socketRefs.found` is true, the sockets
+resolved, and `shaftDrop −1.359` is a broom hanging solidly head-down — a
+correctly solved pose.
+
+`toolIsLive` gates on exactly two things:
+
+```js
+if (w?.getTool?.() !== id) return false;                    // (1)
+return !!(d && d.headAboveFloor != null);                   // (2)
+```
+
+(2) is measured true. Therefore **(1) is false: `getTool()` is not returning
+`'broom'`.** The wheel selection never equipped it.
+
+### The likely mechanism, and it is the driver's arithmetic
+
+```js
+items = ["Hands free","Shop vacuum","Mop","Push broom","Dustpan", ...]
+at = 3                        // "Push broom"
+press(String(at + 1)) = '4'
+```
+
+The driver assumes wheel item *n* is number key *n+1*. But **"Hands free" is a
+wheel item that is not a numbered tool slot** — if the number keys address the
+eight real tools, "Push broom" is key `'3'`, and `'4'` selects the dustpan. An
+off-by-one that only exists because the wheel shows an unequip option.
+
+Stated as the likely mechanism, not a certainty — I have measured that
+`getTool()` is not `'broom'`, not yet *what* it returns.
+
+### Five hypotheses. Four wrong. Every one of them mine.
+
+```
+1  "the walk never picks up a tool"            WRONG  (a tool IS selected)
+2  "headAboveFloor is null - it's on turf"     WRONG  (boards, -1.4402931)
+3  "the null is the socketRefs.found guard"    WRONG  (found is TRUE, value -0.25)
+4  "the authored asset never adopted"          WRONG  (broom ok:true)
+5  "getTool() is not returning broom"          MEASURED - the only condition left
+```
+
+Claim 3 I had marked **CONFIRMED** by reading the guard. Reading it was correct;
+concluding the guard had *failed* was not. **I read the right code and drew the
+wrong conclusion from it** — the fifteenth instance of this report's finding, and
+the most humbling, because it wore the word "confirmed".
+
+### What this means for invariant 1 and for Section A
+
+**The broom rig is healthy.** Nothing in B4's subsystem is implicated by this
+beat after all. The tool beat fails because **the QA driver presses the wrong
+number key**, and has done for an unknown number of runs.
+
+So invariant 1's walk has been equipping *some* tool — probably the dustpan —
+and reporting the beat failed. Its frame figures are real; the beat's verdict
+was never about the game.
+
+**Six rounds of tool measurements** — and the thing the brief predicted would
+explain them was an asset/instrument mismatch. It was. Just not the packed-cache
+one, and not any of the four I proposed.
+
+Suite 2929 pass / 0 fail.
+
