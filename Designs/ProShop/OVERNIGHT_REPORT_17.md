@@ -10514,3 +10514,39 @@ with a named-class control on the trace and a same-run pairing on the census.
 
 Suite 2929 pass / 0 fail.
 
+
+### THE MEMBERSHIP FIX IS ALREADY IN PLACE FOR `heldGroups` — SO THE +54 IS ANOTHER SUBTREE
+
+Before implementing "attach the tool subtrees at boot", checked whether it was
+already done. It is (`courseScene.js:6576`):
+
+```js
+for (const g of Object.values(heldGroups)) {
+  g.visible = false;
+  heldRoot.add(g);
+}
+```
+
+**Every held group is attached hidden at boot**, `heldRoot` is under `camera`,
+and `camera` is in the scene. So those groups **are** members when the prewarm
+runs, and the prewarm force-reveals every invisible object. They are covered.
+
+**Therefore the +54 attached at equip are not `heldGroups`.** They belong to
+something else that joins the graph on activation — most likely the broom rig's
+own `broomGroup`, whose parenting I have not traced, or the fpHands full-arm
+subtree that `setArmStubsVisible` governs.
+
+**Recorded as narrowing, not conclusion.** This session has now had three
+"obvious next step" fixes turn out to be already implemented — the prewarm, the
+hidden-object reveal, and now boot attachment. **That is itself the most useful
+thing to hand over about this codebase: the infrastructure is consistently better
+than a first reading suggests, and the gaps are always narrower and stranger than
+they look.**
+
+**The last unknown is one query away**: at the moment the census fires, walk the
+54 new uuids up their `.parent` chain and print the first named ancestor. That
+names the subtree in one run, and every instrument needed for it is already in
+this driver.
+
+Suite 2929 pass / 0 fail.
+
