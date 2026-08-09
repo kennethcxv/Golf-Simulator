@@ -14629,3 +14629,46 @@ deliverable and it does not exist yet.
 
 **Recorded before starting it**, so that if this run is interrupted the finding
 survives even though the driver does not.
+
+
+## D — THE LIVE AUDIT, WITH CONTROLS, AND THREE HONEST RESULTS
+
+`tools/qa/electron-d4-carryable-audit.js` does what the source scan cannot: boots
+the game, carries the ledger, and measures the four rules. **Every rule has its
+negative control taken in the same run** — the belt tried empty-handed as well as
+carrying, because "the belt is blocked while carrying" proves nothing unless the
+belt demonstrably works when it is not.
+
+| rule | result |
+|---|---|
+| **D1** — carried thing follows, never abandoned | **PASS.** Player moved 3.33 yd; book moved **3.33 yd**. 1:1, carried throughout. |
+| **D3** — the belt is blocked | **PARTIAL.** Equipping is genuinely blocked: the same key sequence that changes the held tool empty-handed leaves it null while carrying. **But `wheelOpen: true` — the tool wheel still OPENS with full hands.** |
+| **D2** — pick-up verb | **PASS.** X picks the book up. |
+| **D2** — put-down verb | **UNRESOLVED.** See below. |
+| carton, goods families | **UNREACHED**, and reported as unreached rather than counted as passing. |
+
+### D3 is not finished
+
+*"While carrying the book I can still cycle through my cleaning tools. I should
+not be able to. My hands are full."* The equip is blocked, which is the half that
+matters mechanically — but **the wheel still opens**, and an opening wheel is
+precisely the affordance the complaint describes. A player with full hands is
+still being offered the menu.
+
+### D2's put-down is unresolved, and I am not guessing which way
+
+Pressing the set-down key left the book still carried. **Before reading that as
+D2 confirmed, note that the first cut of this driver pressed X twice** — assuming
+pick-up and put-down toggle — and reported the same `putDown: false`. That
+reading would have entered the record as *"there is still no way to put the book
+down"*: D2's exact complaint, apparently confirmed, by a driver pressing the
+wrong key. The verb is **Z** (`main.js` prints it in the player's own prompt:
+`${k('setDown', 'Z')} set down`), and it is read from the bindings now.
+
+With the right key it still did not release — **and the focus prompt is empty
+while carrying**, so the attempt had no target. That leaves two readings: a
+genuine defect, or a precondition (a surface in view) the driver does not
+satisfy after walking 3.3 yd into open floor. **Recorded as unresolved.** If it
+is the precondition, then a player who walks to the middle of the room cannot put
+the book down, which is D2 again by a different route — but that is a claim
+needing the aimed-at-a-desk case, which is the next step.
