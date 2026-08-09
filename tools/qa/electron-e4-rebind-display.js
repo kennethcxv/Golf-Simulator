@@ -102,7 +102,42 @@ async (page) => {
     return { x: Math.round(r.left + r.width / 2), y: Math.round(r.top + r.height / 2) };
   }).catch(() => null);
   if (out.tabBox) {
+    // TRACE WHAT ARRIVES, rather than guessing at a fourth way to click.
+    //
+    // Two click techniques have failed to switch the tab. The question is no
+    // longer "which click works" but "what reaches the element, and what is on
+    // top of it" — the same move that settled the z keydown in Section D, where
+    // watching the event beat six rounds of reasoning about handlers.
+    await page.evaluate(() => {
+      window.__tabTrace = [];
+      const rec = (phase) => (e) => {
+        if (window.__tabTrace.length < 24) {
+          window.__tabTrace.push({
+            phase, type: e.type, defaultPrevented: e.defaultPrevented,
+            target: String(e.target?.className || e.target?.tagName || '').slice(0, 40),
+          });
+        }
+      };
+      for (const t of ['pointerdown', 'mousedown', 'click', 'pointerup']) {
+        window.addEventListener(t, rec('capture'), true);
+        window.addEventListener(t, rec('bubble'), false);
+      }
+    });
+    // WHAT IS ACTUALLY AT THOSE COORDINATES. If something is layered over the
+    // tab, every click in the world lands on that instead, and no amount of
+    // clicking differently will help.
+    out.hitTest = await page.evaluate((pt) => {
+      const el = document.elementFromPoint(pt.x, pt.y);
+      if (!el) return { none: true };
+      return {
+        cls: String(el.className || '').slice(0, 60) || el.tagName,
+        text: (el.textContent || '').trim().slice(0, 30),
+        tag: el.tagName,
+      };
+    }, out.tabBox).catch(() => null);
     await page.mouse.click(out.tabBox.x, out.tabBox.y);
+    await page.waitForTimeout(500);
+    out.tabTrace = await page.evaluate(() => window.__tabTrace).catch(() => null);
     out.tabClick = { clicked: true, via: 'page.mouse', at: out.tabBox };
   } else {
     out.tabClick = { clicked: false, why: 'no Controls tab box' };

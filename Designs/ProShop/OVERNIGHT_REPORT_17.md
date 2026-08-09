@@ -15726,3 +15726,49 @@ would have published without the precondition.
 **The instrument discipline held.** Eight instrument faults, the last three caught
 before reaching a conclusion, and the final one caught **automatically, three
 times running**, by a check written because of the earlier seven.
+
+
+## E4 BLOCKER RESOLVED — MY SELECTOR MATCHED THE WRONG ELEMENT, AND THE TRACE PROVES IT
+
+Traced what actually receives the click, instead of trying a fourth way to send
+one:
+
+```
+tabBox   {x: 885, y: 631}
+hitTest  setting-description   "How loud everything is."   DIV
+trace    pointerdown, mousedown, pointerup, click
+         — every one targeting setting-description, none defaultPrevented
+```
+
+**The click landed precisely where I sent it. I sent it to the wrong place.**
+Those coordinates are the Master volume row's description on the **Audio** page —
+not the tab strip, which the E2 screenshot shows near the top of the panel,
+nowhere near y=631.
+
+So the element my selector matched as "Controls" **is not the Controls tab**. The
+query was buttons / `[role=tab]` / `.settings-tab` whose text is exactly
+"Controls", and something else in the panel answers to that name. **The game's tab
+strip was never clicked** — which is exactly why the page never switched and why
+`onControlsPage` stayed false through three runs.
+
+### Ninth instrument fault, third in a row caught by measurement
+
+The specific lesson is narrow and worth keeping: **a selector that matches by TEXT
+can match anything wearing that text**, and `getBoundingClientRect` on the wrong
+match yields coordinates that look perfectly plausible. **The hit test — what is
+actually at the point I am about to click — is one line and would have caught
+this on the first run.**
+
+Same shape as every other fault this session: *a box at (885, 631) is an answer
+that arrives whether or not the element is the one I meant*, and I believed it
+three times.
+
+### What this clears
+
+**The game is not at fault.** There is no evidence of a broken tab strip, a
+swallowed pointer event, or a handler wanting `pointerdown`. All three were
+candidate explanations I had lined up, and all three are now unnecessary.
+
+**E4 remains unmeasured, but the blocker is identified and it is one line**:
+select the tab by position within the strip, or assert the hit test matches
+before clicking. The next run should reach the Controls page.
