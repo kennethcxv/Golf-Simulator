@@ -14369,3 +14369,67 @@ canvases**. The ledger's page meshes are called `LB_FaceL`, `LB_FaceR` and
 matches on the 768x512 page shape and writes all three, which is reusable
 machinery for the rest of C7 and C8 — and it is what made this finding possible
 at all.
+
+
+## C7 (part 2) — THE VALUE COLUMN WAS TWO DIFFERENT RIGHT EDGES
+
+Having established that `ruledRows` aligns correctly, the painters themselves
+turned out to disagree about where the column *is*:
+
+| painter | value right edge |
+|---|---|
+| `ruledRows` (Firsts, Complaints, Restoration…) | `PAGE_W - 72` |
+| the Takings, the Deed, the Course Log, the summary | **`PAGE_W - 48`** |
+
+**The column jumps 24 px sideways as you turn the page** — "unaligned and
+sloppy" in canvas space rather than in the eye.
+
+And `-48` is not a neutral choice. This file already documents that zone as
+unsafe: *"the page MESH curves into the gutter and crops the canvas's last ~25
+px: a value ending at -48 rasterises clipped."* **That comment is the reason
+`ruledRows` had been pulled in to -72. The other four were never pulled with
+it**, so they sit exactly where the file says text gets eaten.
+
+Now one named constant, `VALUE_RIGHT`, used by all five. The separator **rules**
+still span to -48 and should — a rule running the full width is correct, and it
+is only ink at the very edge the crop takes.
+
+**Two different findings, both true.** The curvature makes a correctly aligned
+column read ragged *down* a page; the two margins make it jump *between* pages.
+Fixing the second does not fix the first, and the first remains recorded as a
+decision wanting more than one page's evidence.
+
+---
+
+# RUNNING LISTS — SECTION C IN PROGRESS
+
+Gate **9 pass / 1 FAIL / 0 unchecked**. Suite **2954 pass / 0 fail**.
+
+## 1. DONE AND VERIFIED
+- **Section B complete** (B1, B2 confirmed at the default camera; B4 two ways).
+- **Invariant 1 diagnosed to its cause**: the GPU runs a flat 8.4 ms against an
+  8.33 ms refresh interval; the post chain is 6.71 of 9.11 ms and 4x MSAA alone
+  is **1.26 ms**, reproduced three times. Ten mechanisms eliminated with controls.
+- **Shipped**: the HUD's unguarded per-frame write; the MSAA lever made reachable
+  (`setAntialiasSamples`, default unchanged); **C2/C3's page-floor overrun**;
+  **C5's ribbon into the crease**; **C7's unified value margin**.
+- Six new tests this stretch, each watched failing.
+
+## 2. MEASURED AND DELIBERATELY NOT ACTED ON
+- Shadow bake cadence (1.2 points of 21); 2x MSAA (0.37 ms, clears nothing);
+  texture uploads; game logic. All refused on their own evidence.
+- **C5's dye** — the material is shared, so mutating it would re-dye other
+  meshes. The guard declined and recorded why.
+
+## 3. OPEN, WITH THE SEARCH NARROWED
+- **Invariant 1's remaining margin** — a taste decision among 0x MSAA, a
+  post-process AA pass, or a quality preset. All three now priced.
+- **C7's curvature raggedness** — layout is correct; the page mesh is the lever.
+- **C1's first-open stall** — 3 runs in 10, 0.3-3.5 s, never recurring.
+- **C6** — turns cost 0.8 ms; the driver grades at 33 ms while the brief says 16.
+- **C8** — paper and ruling are in better shape than the complaint suggests;
+  margins and full-field ruling are the remaining candidates.
+- **C4** not yet re-verified at full content.
+
+## 4. NOT STARTED
+- Sections D, E, F, G, H.

@@ -28,6 +28,19 @@ import { CachedGLTFLoader as GLTFLoader } from '../gltfCache.js';
 
 const PAGE_W = 768;
 const PAGE_H = 512;
+// THE RIGHT EDGE EVERY VALUE COLUMN SHARES.
+//
+// It was two numbers. ruledRows drew values at PAGE_W - 72 and four other
+// painters -- the Takings, the Deed, the Course Log and the summary -- drew
+// theirs at PAGE_W - 48, so the value column jumped 24 px sideways as you turned
+// the page. Worse, -48 is the zone this file already documents as unsafe: "the
+// page MESH curves into the gutter and crops the canvas last ~25 px", which is
+// exactly why ruledRows had been pulled in to -72 and the others had not.
+//
+// One constant, so a column cannot drift from its neighbours again. The
+// separator RULES still span to -48: a rule running the full width is correct
+// and it is only ink at the very edge that the crop eats.
+const VALUE_RIGHT = PAGE_W - 72;
 // 2026-08-06 ruling: "make the ui and text bigger". One scale drives every
 // glyph on every page, so the whole book stays in proportion when it moves.
 // Rows per page come DOWN to buy the height the larger type needs.
@@ -1111,7 +1124,7 @@ export function createLedgerBook({ THREE, state, anchor, counterTop, camera = nu
       ctx.textAlign = 'right';
       ctx.fillStyle = '#2c3e50';
       ctx.font = `700 ${T(26)}px Georgia, serif`;
-      ctx.fillText(value, PAGE_W - 48, y);
+      ctx.fillText(value, VALUE_RIGHT, y);
       ctx.textAlign = 'left';
       ctx.strokeStyle = 'rgba(90,80,58,0.22)';
       ctx.lineWidth = 1;
@@ -1202,7 +1215,7 @@ export function createLedgerBook({ THREE, state, anchor, counterTop, camera = nu
         // the page MESH curves into the gutter and crops the canvas's last
         // ~25 px: a value ending at -48 rasterises clipped ("waiting on the
         // ceili..."). The shared right edge pulls in to survive the crop.
-        drawFitted(ctx, String(row.value), PAGE_W - 72, y, 205);
+        drawFitted(ctx, String(row.value), VALUE_RIGHT, y, 205);
         ctx.textAlign = 'left';
       }
       // a settled complaint is struck through, not deleted: "we had that
@@ -1356,7 +1369,7 @@ export function createLedgerBook({ THREE, state, anchor, counterTop, camera = nu
     ctx.textAlign = 'right';
     ctx.fillText('IN', PAGE_W - 300, 172);
     ctx.fillText('OUT', PAGE_W - 176, 172);
-    ctx.fillText('NET', PAGE_W - 48, 172);
+    ctx.fillText('NET', VALUE_RIGHT, 172);
     ctx.textAlign = 'left';
     const rows = model.rows.slice(-9);
     const top = 202;
@@ -1451,7 +1464,7 @@ export function createLedgerBook({ THREE, state, anchor, counterTop, camera = nu
       ctx.textAlign = 'right';
       ctx.fillStyle = '#2c3e50';
       ctx.font = `${strong ? 700 : 400} ${T(26)}px Georgia, serif`;
-      ctx.fillText(value, PAGE_W - 48, y);
+      ctx.fillText(value, VALUE_RIGHT, y);
       ctx.textAlign = 'left';
       ctx.strokeStyle = index === 2 ? 'rgba(90,80,58,0.5)' : 'rgba(90,80,58,0.22)';
       ctx.lineWidth = index === 2 ? 1.8 : 1;
@@ -1542,7 +1555,7 @@ export function createLedgerBook({ THREE, state, anchor, counterTop, camera = nu
       ctx.textAlign = 'right';
       ctx.fillStyle = '#2c3e50';
       ctx.font = `700 ${T(24)}px Georgia, serif`;
-      ctx.fillText(value, PAGE_W - 48, y);
+      ctx.fillText(value, VALUE_RIGHT, y);
       ctx.textAlign = 'left';
       ctx.strokeStyle = 'rgba(90,80,58,0.22)';
       ctx.lineWidth = 1;
