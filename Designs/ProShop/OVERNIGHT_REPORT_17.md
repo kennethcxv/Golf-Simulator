@@ -14817,3 +14817,46 @@ nobody can reach it.
 **A driver that had simply called `putDownCarried()` directly would have watched
 the book go down and reported D2 as passing.** Driving the real key is what made
 this findable — the same reason the RULES insist on real input.
+
+
+## RETRACTION — THE `setDown` BINDING EXISTS. MY GREP ASSUMED A SHAPE.
+
+I published *"a handler, a prompt, and no binding"* and called `case 'setDown'`
+unreachable dead code. **That is wrong.** `keyBindings.js:25` defines it, sitting
+between `carry` and `toolBelt`:
+
+```js
+Object.freeze({ id: 'setDown', label: 'Set down', group: 'Actions', defaultKey: 'z' }),
+```
+
+My greps looked for **`setDown:`** — a *property named* setDown. The entry is
+`id: 'setDown'`, a **value** in a descriptor object, which that pattern cannot
+match. I then searched `preferences.js` specifically, which is not where the
+table lives — and my own earlier grep for `actionForKey` had already returned
+`src/core/keyBindings.js` before I stopped reading it.
+
+So: the binding exists with default `z`, the handler exists, the prompt teaches
+it, **and pressing z live still leaves the book carried.** D2 returns to where it
+was two entries ago, minus one wrong explanation.
+
+### Sixth instrument fault, and the same shape as the other five
+
+**A grep for `setDown:` returns nothing whether the binding is absent OR merely
+written differently**, and I read the first meaning out of an ambiguous silence —
+exactly what `canvasesWritten: 0` did with a name filter, and what
+`wheelOpen: true` did with a presence check.
+
+**A search that finds nothing has told me about my pattern, not about the
+codebase, until I have proved the pattern can find a positive.** Every one of
+these would have died instantly against a known-positive control: grepping
+`carry:` also returns nothing, and `carry` unquestionably has a binding.
+
+That is now a standing rule for this session, in the same class as *never author
+a commit message inline*: **before believing an empty search, run it against
+something you know is there.**
+
+### The next step, which I should have run before theorising
+
+Read `actionForKey(bindings, 'z')` **at runtime**. That distinguishes a stale
+stored profile from a routing fault from a handler fault, and it depends on no
+grep pattern of mine.
