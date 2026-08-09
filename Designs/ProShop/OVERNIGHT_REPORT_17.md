@@ -15865,3 +15865,49 @@ captured text is identical before and after `moveForward` changed from `w` to
 **What is solid:** the driver reaches the Controls page, proves it is there, and
 sees the old binding on screen. That is the instrument E4 needed — and it took a
 structure dump rather than a sixth guess to get it.
+
+
+## E4 PASSES ON ALL THREE CLAUSES — AND THE CAVEAT WAS THE WHOLE STORY
+
+Drove the rebind **through the Controls UI** instead of setting the preference,
+with every step asserted rather than assumed:
+
+```
+onControlsPage    true                        arrived, proven
+oldKeyVisible     true                        W on screen before
+uiRebindFound     true, button label "W"      the Move forward key button
+captureMode       "Press a key", is-capturing the click entered capture mode
+bindingAfter      "i", applied true           the rebind committed
+textChangedAtAll  TRUE                        the display updated
+rows              63 -> 63, layout stable
+```
+
+Against E4's three clauses:
+
+| clause | result |
+|---|---|
+| shows the current binding | **yes** — the button read `W` before, changed after |
+| updates **immediately** | **yes** — text changed with nothing closed or reopened |
+| keeps the **same layout** | **yes** — 63 rows before and after, positions stable |
+
+**E4 CONFIRMED PASSING.**
+
+### The caveat turned out to be the entire difference
+
+The programmatic `preferences.set` left the display unchanged; **the real UI
+rebind updates it.** Had I published *"the Controls page does not update on
+rebind"* from the programmatic run — which is exactly what that measurement
+looked like, **with the arrival precondition satisfied and the old-key control
+passing** — it would have been a false defect report against working code.
+
+**That is the tenth instrument fault of the session and the most instructive:
+the control passed, the precondition passed, the measurement was real, and the
+CONCLUSION would still have been wrong** — because the thing I did was not the
+thing the requirement describes. *No amount of controlling the instrument fixes
+doing the wrong action.* The only thing that caught it was writing the caveat
+down instead of rounding it off.
+
+`captureMode` is worth keeping as a pattern: it proves the UI entered the state
+the next keystroke depends on. Without it, a click that missed the button would
+have sent `i` to the walk controller and produced no text change — **E4's defect
+again, from a driver that never rebound anything.**

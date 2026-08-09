@@ -216,14 +216,51 @@ async (page) => {
   // clause is about the display reacting, not about how the change is made; and
   // driving the rebind UI blind would confound "the list did not update" with
   // "I never actually rebound anything".
+  // THROUGH THE UI, WHICH IS THE CLAIM E4 ACTUALLY MAKES.
+  //
+  // The previous run set the preference programmatically and saw no text change.
+  // That is a weaker result than it looks: a programmatic set may not fire
+  // whatever notification the panel listens to, so it could not tell "the
+  // display never refreshes" from "the display refreshes on a UI rebind and I
+  // did not do one". E4 says "changing a key in Controls", so change it in
+  // Controls.
+  //
+  // Find the row whose label mentions the action, click its key button, then
+  // press the new key. Every step is asserted rather than assumed, because a
+  // rebind that silently does not start produces "no text change" — E4's defect
+  // — from a driver that never rebound anything.
+  out.uiRebind = await page.evaluate(() => {
+    const rows = [...document.querySelectorAll('.setting-row, [class*=binding], [class*=keyrow]')];
+    const row = rows.find((r) => /move forward/i.test(r.textContent || ''));
+    if (!row) return { ok: false, why: 'no Move forward row', rowCount: rows.length };
+    const btn = row.querySelector('button') || row.querySelector('[role=button]');
+    if (!btn) return { ok: false, why: 'row has no button', rowText: (row.textContent || '').slice(0, 60) };
+    const r = btn.getBoundingClientRect();
+    return {
+      ok: true,
+      label: (btn.textContent || '').trim().slice(0, 20),
+      x: Math.round(r.left + r.width / 2),
+      y: Math.round(r.top + r.height / 2),
+    };
+  }).catch((e) => ({ ok: false, threw: String(e && e.message) }));
+
+  if (out.uiRebind?.ok) {
+    await page.mouse.click(out.uiRebind.x, out.uiRebind.y);
+    await page.waitForTimeout(600);
+    // Did it enter capture mode? If the button text did not change to a prompt,
+    // the press below just walks the player around instead of rebinding.
+    out.captureMode = await page.evaluate((pt) => {
+      const el = document.elementFromPoint(pt.x, pt.y);
+      return { text: (el?.textContent || '').trim().slice(0, 30), cls: String(el?.className || '').slice(0, 40) };
+    }, { x: out.uiRebind.x, y: out.uiRebind.y }).catch(() => null);
+    await page.keyboard.press('i');
+    await page.waitForTimeout(900);
+  }
   out.rebind = await page.evaluate(() => {
     const p = window.__fw.preferences;
-    if (!p?.set) return { ok: false, why: 'no preferences.set' };
-    const before = p.values.controls.bindings.moveForward;
-    p.set('controls.bindings.moveForward', 'i');
-    return { ok: true, before, after: p.values.controls.bindings.moveForward };
+    return { ok: true, after: p?.values?.controls?.bindings?.moveForward ?? null };
   }).catch((e) => ({ ok: false, threw: String(e && e.message) }));
-  await page.waitForTimeout(1200);
+  await page.waitForTimeout(600);
 
   out.after = await snapshot();
   await page.screenshot({ path: path.join(OUT, 'e4-after.png') });
@@ -242,7 +279,12 @@ async (page) => {
     arrivalShowsWantedKey: out.arrival?.showsWantedKey ?? null,
     arrivalSample: out.arrival?.sample ?? null,
     tabs: out.tabs,
-    rebindApplied: out.rebind?.ok === true && out.rebind?.after === 'i',
+    uiRebindFound: out.uiRebind?.ok ?? null,
+    uiRebindWhy: out.uiRebind?.why ?? null,
+    uiRebindLabel: out.uiRebind?.label ?? null,
+    captureMode: out.captureMode ?? null,
+    rebindApplied: out.rebind?.after === 'i',
+    bindingAfter: out.rebind?.after ?? null,
     rebindFromTo: out.rebind ? `${out.rebind.before} -> ${out.rebind.after}` : null,
     leafNodesBefore: out.before.length,
     leafNodesAfter: out.after.length,
