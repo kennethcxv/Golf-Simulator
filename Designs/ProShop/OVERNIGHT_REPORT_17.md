@@ -15290,3 +15290,46 @@ element scrolls and where its scrollbar is — rather than which CSS rule I foun
 first.
 
 That probe is the next step, and it is Phase 0's actual deliverable.
+
+
+## E2 MEASURED — NOTHING IN THE SETTINGS PANEL SCROLLS AT THE SHIPPED WINDOW
+
+Walked the live DOM under `.settings-shell` after opening Settings through real
+input, classifying every descendant by whether `scrollHeight` exceeds
+`clientHeight` with an `auto`/`scroll` overflow:
+
+| | |
+|---|---|
+| elements checked | 54 |
+| not scrollable | **54** |
+| **scrollable** | **0** |
+| shell width | 831 px |
+
+**The control is what makes that readable.** 54 classified as not-scrollable
+proves the walk ran and reached real elements; a broken walk would have reported
+zero of both. **The zero is a measurement, not a silence.**
+
+E2 describes a scrollbar that *"wraps the whole panel, so it looks like the entire
+page scrolls when only the movement section does"*. At the shipped 2560x1370
+window, on the Settings page as it opens, **there is no scrolling element at all**
+— so there is no bar to be in the wrong place, and the state the complaint
+describes is not reproduced.
+
+### Two readings, and I am not choosing between them on this evidence
+
+1. **E2 is already resolved.** The stylesheet supports it: the modal and its
+   wrapper both carry `overflow: hidden`, and the remaining scroll sits on
+   `.settings-page`, which currently has nothing to scroll.
+2. **The complaint's state needs a condition I have not reproduced** — a shorter
+   window, a different settings tab, or a longer key list than the defaults
+   produce. E2 names the *movement section* specifically, which suggests content
+   that overflows only when it is long enough to.
+
+The second is plausible and cheap to test: re-run at a shorter viewport and
+rescan. That is the next step, and it is the difference between *"fixed"* and
+*"not reproduced at one size"* — very different things to write down.
+
+**Recorded as NOT REPRODUCED rather than as fixed.** Section D is a fresh reminder
+of what happens when an absence is read as an answer: a grep that found nothing
+became *"the binding does not exist"* and cost a retraction. **Zero scrollables at
+one window size is exactly the same shape of evidence.**
