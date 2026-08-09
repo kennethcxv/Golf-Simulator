@@ -401,6 +401,9 @@ if (typeof window !== 'undefined') {
       hasCarriedCarton: carton,
       ledgerIsCarried: ledger,
       shopCarry: app.state?.shop?.carry ?? null,
+      // The two that separate "entered and ineffective" from "never entered".
+      putDownCarriedCalls,
+      putDownCarriedLastSaw,
     };
   };
 }
@@ -419,8 +422,19 @@ if (typeof window !== 'undefined') {
 // So it is fixed once, here, at the boundary itself: anything in the player's
 // hands is put DOWN before a station takes over the camera. Put down where they
 // stand, which is where a person would set a book to use a till.
+// D2: how many times this has been ENTERED, and what it saw. Read through
+// window.__fwCarryDiag.
+//
+// "Entered and ineffective" and "never entered" are different bugs, and watching
+// side effects cannot tell them apart — six rounds of inference on this item all
+// foundered on exactly that. This counter is the only thing that distinguishes
+// them, and it costs one integer.
+let putDownCarriedCalls = 0;
+let putDownCarriedLastSaw = null;
 function putDownCarried() {
+  putDownCarriedCalls += 1;
   const carried = carriedThing();
+  putDownCarriedLastSaw = carried;
   if (!carried) return null;
   if (carried === 'ledger') {
     const book = app.scene3d?.clubhouse?.()?.ledgerBook;

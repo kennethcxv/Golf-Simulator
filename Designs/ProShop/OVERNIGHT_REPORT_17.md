@@ -15107,3 +15107,55 @@ different bugs, and no amount of watching `preventDefault` can tell them apart.
 The accessor added to `main.js` is read-only and additive, and worth keeping
 regardless: **`carriedThing`'s answer was unreadable from outside, which is why
 this took six rounds.**
+
+
+## D2 — `putDownCarried` IS NEVER CALLED. NOT INEFFECTIVE; NEVER ENTERED.
+
+Instrumented the function itself rather than its side effects — an entry counter
+and a record of what it saw:
+
+```
+carriedThing           "ledger"
+hasCarriedCarton       false
+ledgerIsCarried        true
+putDownCarriedCalls    0
+putDownCarriedLastSaw  null
+```
+
+**Zero.** Across the whole run, including two separate z presses.
+
+That is **the first hard, non-inferential fact on this item in six rounds**, and
+it does what no amount of side-effect watching could: it separates the two bug
+classes. The ledger branch of the `setDown` arm does not execute. **This is not a
+put-down that runs and fails; it is a put-down that never starts.**
+
+### Everything measured, together
+
+| | |
+|---|---|
+| binding maps z to setDown | yes |
+| keyboard delivery works (x, f same run) | yes |
+| `carriedThing()` returns `'ledger'` | yes |
+| `hasCarriedCarton()` is false | yes |
+| `placeAt` clears `isCarried` when called | yes |
+| `ledgerKeyHandler` returns early | yes |
+| **`putDownCarried` entered** | **NO** |
+| book still carried after z | yes |
+
+So either the `setDown` case never runs, or it runs and its `carriedThing()` test
+takes a different value inside the handler than the accessor reads a moment
+later. **The first is the stronger reading** — and it also explains the
+`preventDefault` I previously mis-attributed to this arm: some other handler on
+the page is claiming z.
+
+**Recorded as the leading reading, not as a conclusion.** Six inferences on this
+item have been wrong; this is the seventh candidate, with one measurement for it
+(`calls === 0`) and one reason for caution (the `preventDefault` source is still
+unidentified).
+
+**The probe that finishes it:** log what `boundAction` returns for z inside the
+walk keydown handler, or enumerate the window keydown listeners and find which
+one calls `preventDefault`. Either is one run.
+
+Both counters stay — read-only, additive, one integer each, and **the reason this
+round produced a fact instead of a story.**
