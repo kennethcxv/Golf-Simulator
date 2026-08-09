@@ -15333,3 +15333,44 @@ rescan. That is the next step, and it is the difference between *"fixed"* and
 of what happens when an absence is read as an answer: a grep that found nothing
 became *"the binding does not exist"* and cost a retraction. **Zero scrollables at
 one window size is exactly the same shape of evidence.**
+
+
+## E2 REPRODUCED AND LOCATED — THE SCROLLER IS THE PANEL-WIDTH PAGE
+
+The tall window showed nothing scrollable, which I recorded as **NOT REPRODUCED**
+rather than as fixed. Shrinking the viewport and rerunning the identical walk
+settles it:
+
+| window | checked | not scrollable | scrollable |
+|---|---|---|---|
+| tall 2560x1370 | 54 | 54 | **0** |
+| short 1280x620 | 54 | 53 | **1** |
+
+**The one:** `.settings-page` — `overBy=23`, **`w=831` inside a shell of `w=831`.**
+
+**That is E2 in numbers.** The scroll container spans the panel *exactly*, so its
+bar renders at the panel's right edge. The complaint says *"it wraps the whole
+panel, so it looks like the entire page scrolls when only the movement section
+does"* — and a scroller whose width equals the panel's width is precisely that.
+
+### Two sizes make it controlled
+
+The tall scan is the **negative control**: same walk, same page, same code path,
+zero scrollables. The short scan finds exactly one and names it. A walk that
+reported scrollers everywhere, or that could not tell the sizes apart, would have
+been visible immediately.
+
+### The earlier "not reproduced" was the right call
+
+Had I written *"E2 is fixed"* off the tall window — **which the stylesheet would
+have supported**, since the modal and its wrapper both carry `overflow: hidden` —
+it would have been wrong, and it would have been the same mistake as reading an
+empty grep as an absent binding. One window size was not the state the complaint
+describes; **it took the second size to produce it.**
+
+### What the fix must do, now measurable
+
+Move the scroll from `.settings-page` to the section that actually overflows, so
+the bar sits beside those rows rather than at the panel edge. **The check is this
+same driver**: at the short viewport, the scrollable element's width must be
+materially less than the shell's, and it must not be `.settings-page`.
