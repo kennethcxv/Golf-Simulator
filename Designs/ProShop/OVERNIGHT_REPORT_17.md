@@ -15247,3 +15247,46 @@ have checked the thing it cannot see.
 an invariant on a defect it was never able to detect would make the gate lie in
 the other direction. The defect is recorded as D2, open and fully measured; the
 invariant is recorded as narrower than its old sentence.
+
+
+# SECTION E — SETTINGS
+
+## PHASE 0 — E2'S SCROLL CONTAINER, READ BUT NOT YET MEASURED
+
+E2: *"The scrollbar is in the wrong place. It wraps the whole panel, so it looks
+like the entire page scrolls when only the movement section does. Put it inside
+the scrolling section and nowhere else."*
+
+Source reading, **recorded as a reading and not as a finding**:
+
+```css
+.modal:has(.settings-shell)         { overflow: hidden; }
+.pause-content:has(.settings-shell) { overflow: hidden; }
+.settings-page  { overflow-y: auto; flex: 1 1 auto; min-height: 0; … }
+```
+
+The modal and its content wrapper are already prevented from scrolling, and the
+scroll lives on `.settings-page`. That is one step better than *"it wraps the
+whole panel"* describes — **but `.settings-page` is the whole page**, spanning the
+panel's width, so its scrollbar still renders at the panel's right edge. Which is
+what the complaint describes seeing, whether or not the modal itself scrolls.
+
+E2's remedy names a narrower container: the scrolling **section**. If only the
+movement section overflows, that section should be the scroll container, so the
+scrollbar sits beside the rows that actually move.
+
+### Not calling this done or open on the source alone
+
+**Section D just cost six wrong explanations, every one reasoned from code I had
+read rather than behaviour I had watched**, and the same trap is sitting here.
+`.settings-page` having `overflow-y: auto` does not tell me it is the element
+that actually scrolls at the shipped window size, nor where the scrollbar
+renders, nor whether the movement section is the only overflowing one.
+
+**The measurement that settles it is one run**: open Settings at the default
+camera, walk the DOM for elements whose `scrollHeight` exceeds `clientHeight`,
+report which ones with their bounding boxes, and screenshot it. That says which
+element scrolls and where its scrollbar is — rather than which CSS rule I found
+first.
+
+That probe is the next step, and it is Phase 0's actual deliverable.
