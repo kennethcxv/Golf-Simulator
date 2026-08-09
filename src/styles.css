@@ -2034,8 +2034,23 @@ button.build-swatch.selected { color: #fff; border-color: #d2b86f; box-shadow: 0
    E3 names, and Standing Invariant 4 says everything has margin. The reset row
    the brief calls out by name was already fine at 191.7 px, which is how an
    instance gets fixed and a family does not. */
-.settings-page { padding-top: 9px; overflow-y: auto; min-height: 0; flex: 1 1 auto; padding-left: 8px; padding-right: 8px; padding-bottom: 16px; }
-.settings-group { display: flex; flex-direction: column; }
+/* E2 (Goal 17): "The scrollbar is in the wrong place. It wraps the whole panel,
+   so it looks like the entire page scrolls when only the movement section does.
+   Put it inside the scrolling section and nowhere else."
+
+   Measured before changing anything (tools/qa/electron-e2-settings-scroll.js):
+   at 2560x1370 nothing in the panel scrolls at all — 0 of 54 elements — and at
+   1280x620 exactly one does: .settings-page, overflowing by 23 px, 831 px wide
+   inside an 831 px shell. A scroller whose width IS the panel's width is the
+   whole complaint; its bar can only render at the panel's edge.
+
+   So the page stops scrolling and the GROUPS do. In a flex column they shrink
+   from their natural height and each one that overflows carries its own bar,
+   inside the page's padding rather than at the panel edge — which is what "in
+   the scrolling section and nowhere else" asks for. Groups that fit are
+   untouched, so a short panel still shows no bars anywhere. */
+.settings-page { padding-top: 9px; overflow-y: hidden; min-height: 0; flex: 1 1 auto; display: flex; flex-direction: column; padding-left: 8px; padding-right: 8px; padding-bottom: 16px; }
+.settings-group { display: flex; flex-direction: column; min-height: 0; overflow-y: auto; }
 .settings-group-head { margin-bottom: 2px; }
 .settings-group-head h3 { margin: 0; color: var(--cream); font: 1.15rem Georgia, serif; text-transform: none; letter-spacing: 0; }
 .settings-group-head p { margin: 3px 0 8px; color: var(--text-dim); font-size: 0.76rem; line-height: 1.4; }

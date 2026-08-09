@@ -15444,3 +15444,41 @@ The pattern is identical to the other six: **a check that could return its answe
 for a reason other than the one being tested.** What differed is that I asked
 *"what would this say if the fix worked?"* **before** writing the fix rather than
 after — which is the cheapest possible moment to find it.
+
+
+## E2 FIXED AND CONFIRMED — THE BAR IS INSIDE THE SECTION AND NOWHERE ELSE
+
+The page stops scrolling and the **groups** do. `.settings-page` becomes a flex
+column with `overflow: hidden`; `.settings-group` gets `min-height: 0` and
+`overflow-y: auto`, so groups shrink from their natural height and each one that
+overflows carries its own bar **inside the page's padding** rather than at the
+panel edge.
+
+Measured with the same driver that was red before:
+
+| | |
+|---|---|
+| tall 2560x1370 | **0 scrollable** — unchanged, no bars when everything fits |
+| short 1280x620 | **`settings-group`** `overBy=23` **`w=815`** in an 831 px shell |
+| `e2Ok` | **true** |
+
+Before, it was `.settings-page` at **831 in an 831 shell** — a scroller whose
+width *is* the panel's, which is exactly why its bar read as the panel's.
+
+### And the picture confirms what the numbers say
+
+At the short viewport the bar runs **beside the Audio section's rows only** — it
+starts at the "Audio" heading and ends below "Menus". The **"Reset all settings
+to defaults" row and the Done button sit outside the scroll and stay put**, and
+the panel's own right edge is clear. That is *"put it inside the scrolling
+section and nowhere else"*, visible rather than inferred.
+
+### The acceptance correction paid off immediately
+
+The fix produces a scroller **815 px wide in an 831 px shell — 98%** — and my
+first acceptance demanded under 90%. **Had I not caught that before implementing,
+this exact change would have shown `e2Ok: false`**, and I would have had no way
+to tell a failed fix from an unsatisfiable check.
+
+The tall window still reports zero scrollables, which matters: groups that fit
+are untouched, so this does not sprinkle bars across a panel that has room.
