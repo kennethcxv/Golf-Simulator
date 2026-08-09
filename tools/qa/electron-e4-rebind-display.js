@@ -94,13 +94,44 @@ async (page) => {
   // strip evidently wants a pointer sequence. The register drivers in this repo
   // already use page.mouse for exactly this reason, so take the element's box
   // and click its centre for real.
+  // FIND THE TAB STRIP FIRST, THEN "Controls" INSIDE IT — AND HIT-TEST IT.
+  //
+  // Matching by text alone found something else in the panel that also reads
+  // "Controls", 631 px down the page, and a bounding box on the wrong element
+  // gives coordinates that look entirely plausible. Three runs believed them.
+  //
+  // So: locate the container that holds ALL the tab names (Audio, Camera,
+  // Controls, Display, Language, Accessibility — a strip is the only thing that
+  // does), take Controls from within it, and then assert with elementFromPoint
+  // that the thing at those coordinates really is the tab. A candidate that
+  // fails the hit test is rejected rather than clicked.
   out.tabBox = await page.evaluate(() => {
-    const tab = [...document.querySelectorAll('button, [role=tab], .settings-tab')]
-      .find((b) => /^\s*controls\s*$/i.test(b.textContent || ''));
-    if (!tab) return null;
-    const r = tab.getBoundingClientRect();
-    return { x: Math.round(r.left + r.width / 2), y: Math.round(r.top + r.height / 2) };
-  }).catch(() => null);
+    const NAMES = ['audio', 'camera', 'controls', 'display', 'language', 'accessibility'];
+    let strip = null;
+    for (const el of document.querySelectorAll('div, nav, ul, section')) {
+      const t = (el.textContent || '').toLowerCase();
+      if (!NAMES.every((n) => t.includes(n))) continue;
+      if (!strip || el.contains(strip) === false) strip = el;
+      // keep descending to the tightest container that still holds them all
+      strip = el;
+    }
+    if (!strip) return { found: false, why: 'no element holds all six tab names' };
+    const cands = [...strip.querySelectorAll('*')]
+      .filter((e) => !e.children.length && /^\s*controls\s*$/i.test(e.textContent || ''));
+    for (const c of cands) {
+      const el = c.closest('button, [role=tab], .settings-tab') || c;
+      const r = el.getBoundingClientRect();
+      if (r.width < 4 || r.height < 4) continue;
+      const x = Math.round(r.left + r.width / 2);
+      const y = Math.round(r.top + r.height / 2);
+      const at = document.elementFromPoint(x, y);
+      // The hit test is the assertion: whatever is on top at this point must be
+      // the tab itself or inside it.
+      if (at && (el === at || el.contains(at))) return { found: true, x, y, cls: String(el.className || el.tagName).slice(0, 40) };
+    }
+    return { found: false, why: `${cands.length} text matches, none passed the hit test` };
+  }).catch((e) => ({ found: false, threw: String(e && e.message) }));
+  if (out.tabBox && !out.tabBox.found) out.tabBox = null;
   if (out.tabBox) {
     // TRACE WHAT ARRIVES, rather than guessing at a fourth way to click.
     //

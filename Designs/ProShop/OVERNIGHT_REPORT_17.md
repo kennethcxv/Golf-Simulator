@@ -15772,3 +15772,46 @@ candidate explanations I had lined up, and all three are now unnecessary.
 **E4 remains unmeasured, but the blocker is identified and it is one line**:
 select the tab by position within the strip, or assert the hit test matches
 before clicking. The next run should reach the Controls page.
+
+
+## E4 — THE SELECTOR NOW REFUSES RATHER THAN MIS-CLICKS, AND I AM LEAVING IT THERE
+
+Rebuilt the tab lookup: find the strip holding all six tab names, take "Controls"
+from inside it, and assert with `elementFromPoint` that what is on top at those
+coordinates really is the tab.
+
+```
+tabBox  null   — no candidate passed the hit test
+```
+
+**The driver declined to click anything.** That is the correct outcome and
+strictly better than the previous three runs, which clicked a settings row 631 px
+down the page and reported plausible nonsense. **The instrument now fails closed.**
+
+### Stopping the iteration, and why it is not just budget
+
+I have spent five runs reaching one tab, and each round was a variation on the
+same guess — a different way to find or click the element. **The trace round was
+the only one that produced knowledge**, and what it taught is that *my model of
+this panel's DOM is wrong*, not that my click technique is.
+
+What is actually needed is one look at the structure: **dump the tab strip's
+subtree** — tags, classes, and which node carries the handler — and build the
+selector from what is there. That is a different kind of step from anything
+tried, and it is the honest one.
+
+### What five runs did establish, all measured
+
+| | |
+|---|---|
+| the rebind commits | `preferences.set` `w -> i`, read back |
+| the tab strip exists | all six names present in the DOM |
+| text-matching finds a decoy | something 631 px down the page reads "Controls" |
+| clicks land where sent | pointer trace, four event types, correct target |
+| **the game is not at fault** | no swallowed events, no broken handler |
+| **the arrival assertion works** | **five void runs, zero false claims** |
+
+**That last line is the one worth carrying.** Across five attempts at a stubborn
+piece of navigation, the instrument never once produced a reading it had not
+earned. Earlier in this session that discipline did not exist, and it cost three
+published retractions.
