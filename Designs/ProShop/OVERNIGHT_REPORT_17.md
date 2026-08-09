@@ -15947,3 +15947,55 @@ room"* remains a judgement a screenshot answers better than a threshold.
 
 **Recorded as: named instance verified, sweep covered by invariant 4, row-gap
 number explained rather than escalated.**
+
+
+## E1 / A4 LOCATED — TURNING THE POST CHAIN OFF COSTS A 4.5 SECOND FRAME
+
+*"Switching presets lags."* Measured with the switch marked in a continuous frame
+sampler, and **a no-op switch as the control**:
+
+| mark | median | worst | frames |
+|---|---|---|---|
+| idle | 9.0 | 19.3 | 432 |
+| **noop (control)** | 8.8 | **19.0** | 279 |
+| shadow 2048 -> 4096 | 10.3 | 20.1 | 242 |
+| shadow -> 1024 | 10.0 | 20.5 | 393 |
+| **post OFF** | — | **4507.4 ms** | **2** |
+| post ON | 10.1 | 29.6 | 244 |
+
+**The control is what makes this readable.** Setting the preset to the value it
+already holds runs the same call path and costs nothing — 19.0 against idle's
+19.3 — so what follows is the **work**, not the call.
+
+And the work divides cleanly. **Resizing the shadow map** from 2048 to 4096 and
+down to 1024 disposes and reallocates a GL texture — and costs **nothing
+measurable**: 20.1 and 20.5 against an idle worst of 19.3. That is the half of a
+preset switch I would have bet on, and it is free.
+
+**Turning the post chain off costs 4507.4 ms.** The window sampled **two frames
+in 2.5 seconds** because the renderer was not running. Turning it back on costs
+**29.6**.
+
+### The asymmetry is the whole diagnosis
+
+Leaving the composer means drawing straight to the canvas instead of through it —
+a different render target and output path — so every material in view needs a
+program it has never compiled. **Coming back is cheap because those programs are
+already cached.**
+
+**It is A3's law once more, on a third subsystem**: a state change that
+invalidates program cache keys. `memory/first-equip-shader-stall.md` already
+records sixteen refuted attempts to pre-warm exactly this class of stall.
+
+So **E1 and A4 are the same defect as the ledger's first open and the first tool
+equip**, arriving through the settings panel — and it is the worst instance
+measured anywhere this session: **4.5 s** against the ledger's 3.5 and the equip's
+0.3-7.9 range.
+
+**Not fixed.** A3's remedy is not to warm the programs but to stop the state
+change that invalidates them — which for a quality preset means the composer path
+cannot be a toggle between two different pipelines. That is a design change and it
+wants its own session.
+
+Recorded with the control, the split and the asymmetry, so the next attempt starts
+from a **mechanism** rather than from *"switching presets lags"*.
