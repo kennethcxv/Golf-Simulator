@@ -14548,3 +14548,39 @@ can never push one off the page; it only fills what the rows did not use.
 - **The Deed** fills its page completely, has no remainder, and is **unchanged** —
   which is exactly what *"only fills what the rows did not use"* should look like.
   A change that showed up there would have meant the guard was wrong.
+
+
+## SECTION C — PHASE 5 GATE
+
+**9 pass, 1 FAIL, 0 unchecked.** Suite **2954 pass / 0 fail**. No regression from
+any of Section C's work — invariants 2, 3 and 4 (cut-off text, overlapping text,
+flush edges) all still pass after the ledger layout changes.
+
+### The 6.15-second frame, attributed before it was blamed
+
+The walk reported `worstFrameMs: 6150.9` — sixteen times the usual ~380 ms, on a
+run immediately after I had changed ledger paint code. That is exactly the shape
+of a regression I had just caused, so it needed attributing rather than assuming.
+
+Per-beat:
+
+| beat | worst |
+|---|---|
+| **tool** | **6150.9 ms** |
+| ledger | 1864.5 ms |
+| walk | 545.5 ms |
+| tool2 | 26.1 ms |
+| everything else | under 85 ms |
+
+**It is in the tool beat, not the ledger.** That is the first-equip shader stall,
+whose measured range is recorded as **333–7855 ms** across sixteen refuted fixes
+in `memory/first-equip-shader-stall.md`. 6150.9 sits inside it, and `tool2` — the
+*second* equip — is 26.1 ms, which is the signature that identifies it.
+
+The ledger's own 1864.5 ms is C1's first-open stall, also already characterised
+this session: 3 runs in 10, 0.3–3.5 s, never recurring within a session.
+
+**Neither is new and neither is mine.** Worth writing down because a six-second
+frame on the run after a layout change is precisely the coincidence that gets
+mis-attributed, and the per-beat breakdown answered it in one read — the same
+instrument that cleared the broom of a frame tail earlier in this session.
