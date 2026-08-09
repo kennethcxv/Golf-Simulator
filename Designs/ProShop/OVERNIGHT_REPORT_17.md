@@ -15594,3 +15594,46 @@ diff. Same-layout is a bounding-box comparison of the rows before and after.
 
 That is E4's Phase 0 deliverable and it is one driver — recorded now so the
 specification survives independently of when the run happens.
+
+
+## E4 — THE RUN IS VOID, AND THE BUILT-IN CONTROL IS WHAT SAYS SO
+
+Drove the rebind and diffed the screen. The result **reads like a finding and is
+not one**:
+
+```
+rebindApplied        true    (w -> i, the preference really changed)
+textChangedAtAll     false
+oldKeyVisibleBefore  FALSE   <- the control
+tabs seen            Credits, Quit, Home, Bookings, Pro Shop, Course, ...
+```
+
+*"Text did not change after a rebind"* is **exactly E4's defect**, and I would
+have reported it. **The control forbids that**: the old key `W` never appeared in
+the *before* capture at all, so the capture was not looking at anything that
+displays bindings. A diff of text that never contained the key cannot say whether
+the key updates.
+
+The tab list says where it went wrong. *Credits, Quit, Home, Bookings, Pro
+Shop* — that is the pause and laptop chrome, **not the Settings Controls tab**.
+The Settings click registered (`settingsOpened: true`) but the snapshot walked a
+shell that was not the controls list, and E4 is specifically about the
+**formatted controls list**.
+
+**Void run, correct control, no claim made.**
+
+### Eighth instrument fault — and the first caught automatically
+
+This is the second fault caught before it reached a conclusion, and **the first
+caught by a check I put in deliberately because of the previous seven** rather
+than by noticing something afterwards. The negative control stopped being a rule
+I remember and started being a thing the driver does.
+
+**What it needs:** navigate to the Controls tab explicitly and **assert arrival**
+by finding a row that prints a known binding, before capturing anything. The
+assertion is *"I can see the key I am about to change"* — the same control,
+promoted from a report field to a precondition.
+
+**Also confirmed and worth keeping:** the rebind path works.
+`preferences.set('controls.bindings.moveForward', 'i')` took `w -> i` and read
+back. Whatever E4 turns out to be, **it is not that the rebind fails to commit.**
