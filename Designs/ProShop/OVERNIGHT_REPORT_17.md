@@ -15637,3 +15637,44 @@ promoted from a report field to a precondition.
 **Also confirmed and worth keeping:** the rebind path works.
 `preferences.set('controls.bindings.moveForward', 'i')` took `w -> i` and read
 back. Whatever E4 turns out to be, **it is not that the rebind fails to commit.**
+
+
+## E4 — THE ARRIVAL ASSERTION REFUSES A SECOND VOID RUN, AND NAMES WHY
+
+Added the Controls tab click and an arrival precondition:
+
+```
+controlsTabClicked     true
+onControlsPage         FALSE
+arrivalShowsWantedKey  FALSE
+arrivalSample          "AudioCameraControlsDisplayLanguageAccessibility
+                        AudioEach category is mixed through one audio graph.
+                        Mute all audio…"
+```
+
+The tab strip is right there in the sample — **Audio, Camera, Controls, Display,
+Language, Accessibility** — so the element was found and `.click()` was called on
+it. **And the page underneath is still Audio.** A synthetic click found the tab
+and did not switch it.
+
+**Second void run, second correct refusal.** The arrival assertion is doing what
+the report field could not: a run that lands on the wrong page now produces **no
+reading at all**, rather than a plausible-looking *"text did not change"*.
+
+### Why that matters more than usual here
+
+E4 asks whether a display updates. **A driver sitting on the Audio page will
+always observe "no change" after rebinding a movement key** — correctly, since
+nothing on that page shows movement bindings — and that observation is
+**indistinguishable from the defect** unless something asserts where the driver
+is.
+
+### The remaining problem is mine, and small
+
+`element.click()` dispatches a click event, but this tab strip evidently responds
+to something else — a real pointer sequence, or a handler bound to `pointerdown`.
+The fix is a real mouse click at the tab's coordinates via `page.mouse`, which
+the register drivers in this repo already do for canvas targets.
+
+**E4 stands: unmeasured, with the instrument one step from working, and the
+reason for each void run recorded rather than guessed.**

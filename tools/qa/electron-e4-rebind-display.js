@@ -76,6 +76,37 @@ async (page) => {
   out.tabs = await page.evaluate(() => [...document.querySelectorAll('button, [role=tab]')]
     .map((b) => (b.textContent || '').trim()).filter((t) => t && t.length < 24).slice(0, 12));
 
+  // THE CONTROLS TAB, EXPLICITLY, AND ARRIVAL ASSERTED.
+  //
+  // The first run captured the pause/laptop chrome — Credits, Quit, Home,
+  // Bookings — and reported "text did not change after a rebind", which is E4's
+  // defect exactly. The old key was never in the capture, so the diff was of
+  // something that does not display bindings. The E2 screenshot showed the real
+  // tab strip: Audio, Camera, Controls, Display, Language, Accessibility.
+  //
+  // So click Controls, and then PROVE arrival by finding the key we are about to
+  // change. The precondition is the control, promoted out of the report fields
+  // so a run that lands in the wrong place cannot produce a reading at all.
+  out.tabClick = await page.evaluate(() => {
+    const tab = [...document.querySelectorAll('button, [role=tab], .settings-tab')]
+      .find((b) => /^\s*controls\s*$/i.test(b.textContent || ''));
+    if (!tab) return { clicked: false, why: 'no Controls tab' };
+    tab.click();
+    return { clicked: true };
+  }).catch((e) => ({ clicked: false, threw: String(e && e.message) }));
+  await page.waitForTimeout(1200);
+
+  out.arrival = await page.evaluate((want) => {
+    const shell = document.querySelector('.settings-shell') || document.body;
+    const txt = (shell.textContent || '');
+    const rx = new RegExp(`\\b${want}\\b`, 'i');
+    return {
+      onControls: /move forward|rebind|press a key/i.test(txt),
+      showsWantedKey: rx.test(txt),
+      sample: txt.replace(/\s+/g, ' ').slice(0, 160),
+    };
+  }, out.bindingsBefore.moveForward || 'w').catch(() => null);
+
   out.before = await snapshot();
   await page.screenshot({ path: path.join(OUT, 'e4-before.png') });
 
@@ -104,6 +135,10 @@ async (page) => {
 
   out.verdict = {
     settingsOpened: out.opened?.clicked ?? null,
+    controlsTabClicked: out.tabClick?.clicked ?? null,
+    onControlsPage: out.arrival?.onControls ?? null,
+    arrivalShowsWantedKey: out.arrival?.showsWantedKey ?? null,
+    arrivalSample: out.arrival?.sample ?? null,
     tabs: out.tabs,
     rebindApplied: out.rebind?.ok === true && out.rebind?.after === 'i',
     rebindFromTo: out.rebind ? `${out.rebind.before} -> ${out.rebind.after}` : null,
