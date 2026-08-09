@@ -134,8 +134,46 @@ async (page) => {
       };
     })).catch(() => []);
 
+  // OPEN THE LAPTOP TOO. Phase 0 flagged laptop.js as having ONE uiTick call
+  // site for a whole back office, and that is the question this instrument was
+  // built to answer. Reached through the real API rather than by hunting for a
+  // button, because the point is to audit the laptop buttons, not to prove I can
+  // find its opener.
+  // ASSERT THE OUTCOME, NOT THE NAME.
+  //
+  // /laptop/i matched "Close Laptop" and shut it. That is the third time this
+  // session a text selector has matched a word shared by a thing and its
+  // opposite -- E4's "Controls" tab versus the pause menu's "Controls" nav item
+  // was the same fault, and it cost five runs there.
+  //
+  // No pattern fixes this, because the distinction is not in the words. What
+  // fixes it is checking whether the laptop is actually open afterwards, and
+  // trying the next candidate if not. An opener is defined by what it does.
+  const laptopOpen = () => page.evaluate(() => !!window.__fw?.laptopOpen).catch(() => false);
+  out.laptop = { openedBy: null, tried: [] };
+  if (!(await laptopOpen())) {
+    const cands = await page.evaluate(() => [...document.querySelectorAll('button')]
+      .filter((x) => {
+        const r = x.getBoundingClientRect();
+        return r.width > 4 && r.height > 4 && !!x.offsetParent && !x.disabled;
+      })
+      .map((x) => {
+        const r = x.getBoundingClientRect();
+        return { text: (x.textContent || '').trim().slice(0, 24), x: Math.round(r.left + r.width / 2), y: Math.round(r.top + r.height / 2) };
+      })).catch(() => []);
+    for (const c of cands.slice(0, 12)) {
+      await page.mouse.click(c.x, c.y);
+      await page.waitForTimeout(900);
+      const now = await laptopOpen();
+      out.laptop.tried.push({ text: c.text, opened: now });
+      if (now) { out.laptop.openedBy = c.text; break; }
+    }
+  } else out.laptop.openedBy = 'already open';
+  await page.waitForTimeout(1200);
+
+
   const seen = new Set();
-  for (let round = 0; round < 14; round += 1) {
+  for (let round = 0; round < 26; round += 1) {
     const list = await listButtons();
     const next = list.find((b) => !seen.has(`${b.cls}|${b.text}`));
     if (!next) break;

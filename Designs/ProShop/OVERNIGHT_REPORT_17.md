@@ -16253,3 +16253,55 @@ is withdrawn.
 One of six, not two. The instrument is correct and controlled; **the remaining
 work is reaching the other five surfaces**, and the first fix is a selector that
 distinguishes an opener from a closer — which, twice now, plain text cannot.
+
+
+## F1 — A REAL DEFECT: THE HUD CLOCK CHIP IS PRESSABLE AND SILENT
+
+Replaced the text selector with an outcome assertion — click a candidate, then
+check whether the laptop is *actually* open, and try the next if not. **An opener
+is defined by what it does, not by what it is called.**
+
+```
+laptop.tried    Resume, Overview, Save game, Load game, Settings,
+                Controls, Session, Resume game  — all opened: false
+laptop.openedBy null
+```
+
+**It reported failure honestly** instead of clicking "Close Laptop" and claiming
+success. The laptop is not reachable from the pause menu; it opens from the world
+at its desk, which is a route this driver does not yet take.
+
+### And the audit found a genuine silent control
+
+```
+deadSpaceSilent  true
+buttonsClicked   10
+sounded          9
+silent           ["hud-chip:Y1 · Spring · Day 1 · 6:02 A"]
+```
+
+**The HUD clock chip makes no sound when pressed.** It is a real `<button>` —
+`hud.js` builds it with `onclick: () => handlers.setSpeed(...)`, and its own title
+reads *"Click or Space: pause / resume"*. So it is pressable, it does something
+substantial (cycles game speed), and it is silent.
+
+F1: *"If it can be pressed, it makes a sound."* **This one cannot, and it is the
+only silent control among the ten reached.**
+
+That is the first genuine F1 defect located, and it took the graph-level hook to
+see it: at the module level the click would have been swallowed by `setPaused`
+firing alongside, which is precisely the noise that made rounds one and two
+unreadable.
+
+### Where F1 stands
+
+| | |
+|---|---|
+| instrument | correct, controlled, `deadSpaceSilent: true` |
+| pause menu | 9 buttons, all sound |
+| **HUD clock chip** | **silent — defect** |
+| settings, laptop, register, ledger, desktop UI | not yet reached |
+
+The fix is one `audio.uiTick()` in the clock chip's handler, alongside the
+`setSpeed` call — but it wants the same treatment as everything else here: a
+check watched failing first, which this driver now provides.
