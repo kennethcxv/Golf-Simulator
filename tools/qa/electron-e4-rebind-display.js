@@ -209,6 +209,33 @@ async (page) => {
     });
   }).catch((e) => ({ threw: String(e && e.message) }));
 
+  // E3 RIDES ALONG: the reset row is on this page, so measure its clearance
+  // while we are here rather than booting Electron again for one number.
+  out.e3 = await page.evaluate(() => {
+    const page_ = document.querySelector(".settings-page");
+    const shell = document.querySelector(".settings-shell");
+    if (!page_ || !shell) return { found: false };
+    const reset = [...document.querySelectorAll("button")]
+      .find((x) => /reset all settings/i.test(x.textContent || ""));
+    const pr = page_.getBoundingClientRect();
+    const sr = shell.getBoundingClientRect();
+    const rr = reset ? reset.getBoundingClientRect() : null;
+    const rows = [...document.querySelectorAll(".setting-row")].map((r) => r.getBoundingClientRect());
+    let minGap = null;
+    for (let i = 1; i < rows.length; i += 1) {
+      const g = Math.round(rows[i].top - rows[i - 1].bottom);
+      if (minGap === null || g < minGap) minGap = g;
+    }
+    return {
+      found: true,
+      resetFound: !!reset,
+      resetToPageBottom: rr ? Math.round(pr.bottom - rr.bottom) : null,
+      resetToShellBottom: rr ? Math.round(sr.bottom - rr.bottom) : null,
+      rowCount: rows.length,
+      minRowGap: minGap,
+    };
+  }).catch((e) => ({ found: false, threw: String(e && e.message) }));
+
   out.before = await snapshot();
   await page.screenshot({ path: path.join(OUT, 'e4-before.png') });
 

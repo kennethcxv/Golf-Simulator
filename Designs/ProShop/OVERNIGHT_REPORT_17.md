@@ -15911,3 +15911,39 @@ down instead of rounding it off.
 the next keystroke depends on. Without it, a click that missed the button would
 have sent `i` to the walk controller and produced no text change — **E4's defect
 again, from a driver that never rebound anything.**
+
+
+## E3 MEASURED — THE NAMED INSTANCE IS SATISFIED; THE SWEEP NUMBER NEEDS READING CAREFULLY
+
+Measured on the live Controls page rather than booting again for one number:
+
+```
+resetToPageBottom   32 px
+resetToShellBottom  32 px
+rowCount            22
+minRowGap           0 px
+```
+
+**E3's named instance is satisfied.** *"Padding between the reset-to-defaults
+button and the bottom of the page"* — there is 32 px of it.
+
+**The second number needs care rather than a headline.** `minRowGap: 0` says
+adjacent `.setting-row` boxes abut exactly, and E3's sweep list does include
+*"rows that touch"*. But the rows carry `border-top: 1px solid #242b27` with
+`padding: 7px 2px` and `min-height: 55px` — so the **boxes** share an edge *by
+design*, as a ruled list does, while the **content** inside has 7 px of
+clearance. The E2 screenshot bears that out: the settings rows read as separated
+by rules, not as crowded.
+
+So `minRowGap: 0` is **a property of a bordered list, not evidence of the fault
+E3 describes** — and reporting it as "22 rows touch" would be the same move as
+reading an empty grep as an absent binding.
+
+**What would settle the sweep clause properly** is not this number but the one
+invariant 4 already computes across 41 screens: elements within 8 px of a
+non-scrolling container edge, which passes. Between that and the 32 px reset
+clearance, E3's two checkable claims are both green; *"sections with no breathing
+room"* remains a judgement a screenshot answers better than a threshold.
+
+**Recorded as: named instance verified, sweep covered by invariant 4, row-gap
+number explained rather than escalated.**
