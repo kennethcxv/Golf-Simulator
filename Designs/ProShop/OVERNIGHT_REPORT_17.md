@@ -14584,3 +14584,48 @@ this session: 3 runs in 10, 0.3–3.5 s, never recurring within a session.
 frame on the run after a layout change is precisely the coincidence that gets
 mis-attributed, and the per-beat breakdown answered it in one read — the same
 instrument that cleared the broom of a frame tail earlier in this session.
+
+
+# SECTION D — CARRYING THINGS
+
+## PHASE 0 — THE INVARIANT THAT CERTIFIES D NEVER RUNS THE GAME
+
+Section D is four items, and gate **invariant 6 already reports PASS** on it:
+*"Nothing carried is ever left floating, unputdownable, or allows a tool swap —
+one predicate over cartons, the ledger and loose goods; belt guarded on both
+paths; station boundaries put down."*
+
+C2 and C3 taught this session what a passing invariant is worth on its own. So
+the first move is to ask what it actually checks.
+
+`tests/carryable-system.test.js` is **four tests, and every one of them is a
+regular expression over `main.js`**:
+
+```
+/function carriedThing\(\) \{[\s\S]*?\n\}/
+/function cycleWalkTool\([\s\S]*?\n\}/
+/function showToolWheel\(\) \{[\s\S]*?\n\}/
+/case 'setDown': \{[\s\S]*?\n      \}/
+```
+
+It never boots the game. It confirms that certain guards are **present in the
+source text** — which is a real and useful thing to pin, and is not the same
+claim as "every carryable obeys".
+
+**And D4 asks for exactly the thing a source scan cannot do:** *"Audit every
+carryable object — the ledger, boxes, cartons, anything else... Report the full
+list of carryables and confirm each obeys."* A regex over `carriedThing()` can
+neither enumerate the carryables nor watch one behave.
+
+This is the same shape as C2/C3, where the overlap recorder was correct and
+nothing ever put the page into the state that would trip it. **The instrument is
+sound and its scope is narrower than the item it is being read as covering.**
+
+So Section D's real Phase 0 is a live enumeration: boot, find every object the
+game will let the player pick up, and for each one check the four rules — one
+pick-up verb, one put-down verb, no tool switching while carrying, and nothing
+left floating when the player walks off or enters a station. That is D4's actual
+deliverable and it does not exist yet.
+
+**Recorded before starting it**, so that if this run is interrupted the finding
+survives even though the driver does not.
