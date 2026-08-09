@@ -103,10 +103,35 @@ async (page) => {
     const before = (await probe()).tool;
     await page.keyboard.down(beltKey);
     await page.waitForTimeout(400);
+    // VISIBLE, NOT MERELY PRESENT.
+    //
+    // The first cut asked `querySelector('.tool-wheel')` and counted its items,
+    // and reported `wheelOpen: true` while carrying — which I published as "the
+    // wheel still opens with full hands", a D3 defect.
+    //
+    // It is not one. `showToolWheel` guards correctly: `if (carried) { toast(...);
+    // return; }` before `toolWheel.show()`. What my check found was the element
+    // left in the DOM by the EMPTY-HANDED test that runs first in this driver —
+    // hidden, but still present and still holding its items. Existence is not
+    // visibility, and asking the wrong one manufactured a defect out of a
+    // correct guard.
+    //
+    // Now reads computed style and offsetParent, and reports both so the two
+    // cases stay distinguishable.
     const wheelOpen = await page.evaluate(() => {
       const el = document.querySelector('.tool-wheel');
-      return !!el && el.querySelectorAll('.tool-wheel-item').length > 0;
-    }).catch(() => false);
+      if (!el) return { present: false, visible: false };
+      const cs = getComputedStyle(el);
+      return {
+        present: true,
+        items: el.querySelectorAll('.tool-wheel-item').length,
+        display: cs.display,
+        visibility: cs.visibility,
+        opacity: cs.opacity,
+        visible: cs.display !== 'none' && cs.visibility !== 'hidden'
+          && Number(cs.opacity) > 0.01 && !!el.offsetParent,
+      };
+    }).catch(() => ({ present: false, visible: false }));
     await page.keyboard.press('b');
     await page.waitForTimeout(200);
     await page.keyboard.up(beltKey);
@@ -183,6 +208,9 @@ async (page) => {
     // D3, with its control.
     beltWorksEmptyHanded: out.beltWhenEmpty?.changed === true,
     beltBlockedWhileCarrying: out.beltWhenCarrying?.changed === false,
+    wheelVisibleWhenEmpty: out.beltWhenEmpty?.wheelOpen?.visible ?? null,
+    wheelVisibleWhileCarrying: out.beltWhenCarrying?.wheelOpen?.visible ?? null,
+    wheelDetailCarrying: out.beltWhenCarrying?.wheelOpen ?? null,
     // D1: the book must travel with the player, not stay behind.
     playerMovedYd: out.walk?.playerMoved ?? null,
     bookMovedYd: out.walk?.bookMoved ?? null,

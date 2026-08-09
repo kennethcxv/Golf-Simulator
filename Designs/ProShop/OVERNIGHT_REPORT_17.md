@@ -14672,3 +14672,53 @@ satisfy after walking 3.3 yd into open floor. **Recorded as unresolved.** If it
 is the precondition, then a player who walks to the middle of the room cannot put
 the book down, which is D2 again by a different route — but that is a claim
 needing the aimed-at-a-desk case, which is the next step.
+
+
+## RETRACTION — D3'S WHEEL IS NOT A DEFECT, AND MY CHECK MANUFACTURED IT
+
+I published this a few entries above:
+
+> **D3** — PARTIAL. *"`wheelOpen: true` — the tool wheel still OPENS with full
+> hands."*
+
+**That is wrong.** `showToolWheel` guards correctly and always did:
+
+```js
+const carried = carriedThing();
+if (carried) {
+  toast(carried === 'ledger' ? 'Put the book down first.' : 'Put that down first.', 'warn');
+  return;
+}
+```
+
+The guard sits before `toolWheel.show()`, and the toast even names the remedy.
+Re-measured live, the wheel reads **`display: "none"`** while carrying.
+
+**What my check actually found** was `document.querySelector('.tool-wheel')`
+existing with nine items in it — left in the DOM, hidden, by the **empty-handed
+control that runs first in this same driver**. Existence is not visibility, and
+asking the wrong one turned a correct guard into a reported defect.
+
+### And the corrected check is not yet sound either
+
+The visibility version reads `visible: false` **both** carrying and empty-handed.
+A control that returns the same answer as its subject proves nothing — the same
+fault as `insideConfirmed` earlier, in the opposite direction. So:
+
+- **The guard is correct**: proved by the source and by `display: none` live.
+- **My instrument is not**: its empty-handed control fails, so it cannot yet
+  certify the negative on its own.
+
+D3's mechanical half was already confirmed by a control that *does* work: the key
+sequence that changes the held tool empty-handed leaves it null while carrying.
+**D3 stands as PASSING**, on that evidence, not on the wheel check.
+
+### Why this is written up rather than quietly edited
+
+This is the fifth instrument fault this stretch and the first that reached a
+published claim before being caught. The pattern is now unmistakable: **every
+single one was a check that could return its answer for a reason other than the
+one being tested** — a ladder outside its regime, a confirmation reading absent
+fields, a sweep whose setter never fired, a keypress on the wrong verb, and now a
+presence check standing in for a visibility one. The measurements were fine. The
+questions were wrong.
