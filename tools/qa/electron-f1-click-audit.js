@@ -55,7 +55,40 @@ async (page) => {
     return { ok: true, wrapped: names.length, names: names.slice(0, 30) };
   }).catch((e) => ({ ok: false, threw: String(e && e.message) }));
 
-  const ticks = () => page.evaluate(() => window.__f1?.total ?? -1).catch(() => -1);
+  // WHICH NAMES FIRE WHEN NOTHING IS PRESSED.
+  //
+  // The first run counted every call on the audio module as a sound and reported
+  // nine of nine buttons sounding — while a click on dead space ticked too. The
+  // tally showed why: `update` runs every frame, and `setToolLoop` and
+  // `setPaused` are state, not sound. A counter that rises with the passage of
+  // time cannot attribute anything to a click.
+  //
+  // So the idle set is measured first, with nothing touched, and every name in
+  // it is excluded from the sound count. This promotes the dead-space control
+  // from a pass/fail flag into the thing that DEFINES the measurement.
+  await page.waitForTimeout(1500);
+  out.idleSet = await page.evaluate(() => {
+    window.__f1.idle = { ...window.__f1.byName };
+    return Object.keys(window.__f1.idle);
+  }).catch(() => []);
+  await page.waitForTimeout(1200);
+  out.idleSet2 = await page.evaluate(() => {
+    const now = window.__f1.byName;
+    const moved = Object.keys(now).filter((k) => (now[k] || 0) > (window.__f1.idle[k] || 0));
+    window.__f1.perFrame = new Set(moved);
+    window.__f1.isSound = (name) => !window.__f1.perFrame.has(name);
+    return moved;
+  }).catch(() => []);
+
+  // SOUNDS ONLY: the running total of calls to names that did NOT move while
+  // idle. Anything that ticks on its own is noise and is excluded by name.
+  const ticks = () => page.evaluate(() => {
+    const f = window.__f1;
+    if (!f) return -1;
+    let n = 0;
+    for (const [k, v] of Object.entries(f.byName)) if (!f.perFrame.has(k)) n += v;
+    return n;
+  }).catch(() => -1);
 
   const keys = await page.evaluate(() => window.__fw.preferences?.values?.controls?.bindings || {});
   await page.keyboard.press(keys.pause || 'p');
@@ -110,6 +143,7 @@ async (page) => {
   out.byName = await page.evaluate(() => window.__f1?.byName ?? {}).catch(() => ({}));
   out.verdict = {
     hookOk: out.hook?.ok ?? false,
+    perFrameNamesExcluded: out.idleSet2 ?? null,
     audioMethodsWrapped: out.hook?.wrapped ?? null,
     // The control: dead space must be silent, or nothing below means anything.
     deadSpaceSilent: out.deadSpace ? out.deadSpace.after === out.deadSpace.before : null,

@@ -16106,3 +16106,46 @@ which is a better use of it.
 **What stands:** the hook works (105 methods wrapped, `uiTick` observed 19
 times), the button enumeration works (9 visible, enabled, clicked through the
 pause surface), and the control works. **Only the counting rule is wrong.**
+
+
+## F1 — THE IDLE FILTER HELPS AND IS NOT ENOUGH; THE INSTRUMENT NEEDS THE AUDIO GRAPH
+
+Measured the idle set and excluded it. It caught exactly what it should:
+
+```
+perFrameNamesExcluded  ["update"]
+deadSpaceSilent        FALSE   (still)
+```
+
+`update` is gone from the count — that was the per-frame caller inflating
+everything. **But the control still fails**, and the tally says why:
+`setToolLoop: 18`, `setPaused: 7`.
+
+The dead-space click at (30, 1300) **closed the pause menu**. That fires
+`setPaused` and `setToolLoop` — methods that are **not per-frame** (so the idle
+filter cannot see them) and **not sounds** (so counting them is wrong). Any
+genuine interaction moves them.
+
+### The instrument is asking the wrong layer
+
+*"Which audio-module methods were called"* is a proxy for *"was a sound
+produced"*, and the two diverge exactly where state and sound share an API. **No
+name-based filter fixes that**, because the distinction is not in the names — it
+is in whether anything reached the speakers.
+
+**The correct instrument hooks the Web Audio graph itself**: wrap
+`AudioBufferSourceNode.prototype.start` and `OscillatorNode.prototype.start` and
+count those. A node that starts is a sound; a state setter that changes a flag is
+not. That measurement cannot be fooled by `setPaused`, and its dead-space control
+would pass.
+
+**Recorded rather than bodged.** I could exclude `setPaused` and `setToolLoop` by
+name and get a green control, but that is fitting the filter to the observed
+noise — the next state method added to the module would silently re-break it, and
+the failure would look like a pass. The graph-level hook is right for the same
+reason `putDownCarried`'s entry counter was right in Section D: **instrument the
+thing itself, not its side effects.**
+
+**Standing for F1:** the hook works, the enumeration works, the control works and
+is currently red, and the counting layer is identified as wrong with its
+replacement named.
