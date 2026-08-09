@@ -15482,3 +15482,75 @@ to tell a failed fix from an unsatisfiable check.
 
 The tall window still reports zero scrollables, which matters: groups that fit
 are untouched, so this does not sprinkle bars across a panel that has room.
+
+
+## E2 GATE — CLEAN
+
+Ran the gate after the E2 layout change, because turning `.settings-page` into a
+flex column touches the same panel E3 is about and invariant 4 polices.
+
+**9 pass, 1 FAIL, 0 unchecked.** Invariants 2, 3 and 4 — cut-off text,
+overlapping text, and no element touching its container's edge across 41 screens
+— **all still pass.** No regression from the fix.
+
+---
+
+# THE FOUR RUNNING LISTS — CURRENT
+
+Gate **9 / 1 / 0**. Suite **2954 pass / 0 fail**. 639 commits, all pushed.
+
+## 1. DONE AND VERIFIED
+
+- **Section A** — invariant 1 diagnosed to its cause: the GPU runs a flat 8.4 ms
+  against an 8.33 ms refresh interval; the post chain is 6.71 of 9.11 ms and 4x
+  MSAA alone is **1.26 ms**, reproduced three times. **Ten mechanisms eliminated
+  under controls.** Shipped: the HUD's unguarded per-frame write; the MSAA lever
+  made reachable, default unchanged.
+- **Section B** — B1 and B2 confirmed at the default camera; B4 verified two
+  ways; B3/B5 verified.
+- **Section C** — C2/C3's page-floor overrun fixed; C5's ribbon into the crease;
+  C7's value column unified to one constant; C8's ruled field continues past the
+  writing. C4 measured to an honest null. C6 graded at the brief's bound and
+  attributed (turns 5.0% vs ambient 9.4% — the turn is not what is laggy).
+- **Section D** — D1 and D3 verified live with working controls. D2 established
+  as a real defect with **eight eliminations**, all measured.
+- **E2 — fixed and confirmed**: the scrollbar is inside the section
+  (`settings-group`, 815 px in an 831 px shell) and nowhere else.
+- **Nine tests added this session**, each watched failing first.
+
+## 2. MEASURED AND DELIBERATELY NOT ACTED ON
+
+- Shadow bake cadence (1.2 points of 21); 2x MSAA (0.37 ms, clears nothing);
+  texture uploads; game logic (`walk.update` + `clubhouse.update` = 0.2 ms of a
+  22 ms frame). All refused on their own evidence.
+- **C5's dye** — the material is shared; mutating it would re-dye other meshes.
+- **Invariant 6's claim** narrowed to what its source scan actually checks, with
+  the live contradiction named rather than dropped.
+
+## 3. OPEN, WITH THE SEARCH NARROWED
+
+- **Invariant 1's remaining margin** — a taste decision among 0x MSAA, a
+  post-process AA pass, or a quality preset. All three priced.
+- **D2** — every component works in isolation and the whole does not;
+  `putDownCarried` is never entered. One probe from resolution.
+- **C1's first-open stall** — 3 runs in 10, 0.3-3.5 s, never recurring.
+- **C7's curvature raggedness** — layout is provably correct; the page mesh is
+  the lever.
+- **E1, E3, E4, E5.**
+
+## 4. NOT STARTED
+
+- Sections F, G, H.
+
+### The through-line
+
+**Seven instrument faults this session, and every one was the same shape**: a
+check that could return its answer for a reason other than the one being tested.
+A ladder outside its regime, a confirmation reading absent fields, a sweep whose
+setter never fired, a keypress on the wrong verb, a presence check for a
+visibility one, a grep pattern that could not match, and an acceptance criterion
+that would have rejected its own fix.
+
+**The last one was caught before it ran.** That is the only durable progress
+there is on this: not fewer mistakes, but finding them earlier — and the cheapest
+moment is always *"what would this say if the fix worked?"*, asked before the fix.
