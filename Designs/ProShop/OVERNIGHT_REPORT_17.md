@@ -16054,3 +16054,55 @@ behaviourally.
 Recorded with the pattern correction, the real API name, and the call-sites vs
 coverage distinction, so the next stretch starts from `audio.uiTick` rather than
 from three names that do not exist.
+
+
+## F1 — THE RUN IS VOID, AND THE DEAD-SPACE CONTROL IS WHAT SAYS SO
+
+Hooked the audio module and clicked nine buttons. **The headline reads
+perfectly:**
+
+```
+buttonsClicked      9
+buttonsThatSounded  9
+silentButtons       []
+```
+
+**And it means nothing, because the control failed:**
+
+```
+deadSpaceSilent     FALSE
+```
+
+Clicking empty canvas with no button under it **also** incremented the counter.
+So *"every button sounded"* is not evidence that any of them did.
+
+### The cause is in the hook
+
+I wrapped every function on the audio module — **105 of them** — and counted all
+calls as sounds. The tally shows what that swept up:
+
+| name | calls | what it is |
+|---|---|---|
+| `uiTick` | 19 | a real click sound |
+| `update` | 9 | **the per-frame audio update** |
+| `setToolLoop` | 18 | state |
+| `setPaused` | 7 | state |
+
+`update()` runs every frame, so the counter rises whether or not anything was
+pressed — and a click on dead space "ticks" purely by the passage of time.
+
+### Eleventh instrument fault, second caught automatically
+
+Without the dead-space click this would have been filed as *"F1 passes, nine of
+nine buttons make a sound"* — **a clean green result, entirely unearned**, against
+a requirement the brief asks to be swept exhaustively.
+
+**The fix follows from the tally**: count only names that do *not* fire during
+idle. The dead-space control already measures that set — whatever increments
+while nothing is pressed is per-frame noise and must be excluded. That turns the
+control from a pass/fail flag into **the thing that defines the measurement**,
+which is a better use of it.
+
+**What stands:** the hook works (105 methods wrapped, `uiTick` observed 19
+times), the button enumeration works (9 visible, enabled, clicked through the
+pause surface), and the control works. **Only the counting rule is wrong.**
