@@ -15999,3 +15999,58 @@ wants its own session.
 
 Recorded with the control, the split and the asymmetry, so the next attempt starts
 from a **mechanism** rather than from *"switching presets lags"*.
+
+
+## SECTION E GATE — 9 / 1 / 0, UNCHANGED
+
+Suite 2954 pass / 0 fail. No regression from E2's layout change or the E1/E3/E4
+measurements.
+
+---
+
+# SECTION F — AUDIO
+
+## PHASE 0 — THE CLICK SOUND IS `uiTick`, AND MY FIRST PATTERN WAS WRONG
+
+F1: *"A click on every button, everywhere… If it can be pressed, it makes a
+sound."*
+
+My first grep looked for `uiClick`, `playClick` and `audio.click`, and found
+nothing. **This session has been bitten hard enough by that shape** — an empty
+search that says more about the pattern than the codebase — **that I validated
+the mechanism before believing it**: grepping for `ledgerTurn`, a sound I know
+exists, returns hits. So the grep works and *the pattern was wrong*.
+
+The UI click sound is **`audio.uiTick()`**. 25 call sites:
+
+| file | calls |
+|---|---|
+| `toolWheel.js` | 6 |
+| `main.js` | 6 |
+| `settingsPanel.js` | 4 |
+| `ui.js` | 2 |
+| `frontDesk.js` | 1 |
+| `laptop.js` | 1 |
+
+### What that does NOT establish
+
+**Twenty-five call sites is a count of places that play a tick, not of buttons
+that make a sound.** F1's claim is universal — every pressable thing — and *a
+count cannot answer a universal*.
+
+`laptop.js` having **one** call site is the interesting number: the laptop is a
+whole back office in the brief, and one tick across all of it is either a
+delegated handler at the root or a great many silent buttons.
+
+### The measurement F1 needs
+
+A live audit mirroring D4's: enumerate every pressable element in each surface,
+click it, and record whether the audio graph fired. **The instrument has to hook
+the audio side**, because *"a call site exists in this file"* and *"this button
+makes a sound"* are different claims — the same gap that made invariant 6 read as
+covering three carry families when its four regexes covered none of them
+behaviourally.
+
+Recorded with the pattern correction, the real API name, and the call-sites vs
+coverage distinction, so the next stretch starts from `audio.uiTick` rather than
+from three names that do not exist.
