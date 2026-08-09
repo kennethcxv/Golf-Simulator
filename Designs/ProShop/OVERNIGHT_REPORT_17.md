@@ -14433,3 +14433,42 @@ Gate **9 pass / 1 FAIL / 0 unchecked**. Suite **2954 pass / 0 fail**.
 
 ## 4. NOT STARTED
 - Sections D, E, F, G, H.
+
+
+## C4 — MID-TURN CAPTURE, A DRIVER THAT WAITS FOR THE STATE, AND AN HONEST NULL
+
+C4: *"the page-turn animation phases through the previous page — flipping shows a
+slice of the last page through the turning leaf."* A settled spread cannot show
+that, so the leaf has to be caught in flight. Added mid-turn capture, **gated on
+`diagnostics().turning`** so a frame shot at a settled book is recorded as a miss
+rather than filed as evidence.
+
+Two things came out before any judgement about the defect.
+
+**The driver was losing whole runs.** It waited a fixed 1600 ms after the second E
+press and then broke out of the capture loop when the book was not open yet — one
+run returned **zero shots and zero misses**, meaning the loop body never executed.
+That is C1's own first-open stall, measured earlier at 0.3–3.5 s in three runs of
+ten. **A driver that waits less than the known worst case for a
+known-intermittent stall fails a third of the time for a reason already written
+down.** It now waits on the state with a 10 s ceiling and returns the moment it
+flips.
+
+**The turn is fast.** Six samples at 55 ms intervals catch the leaf on the first
+and miss on the other five — **26 misses to 4 catches**, putting the whole flight
+under about **110 ms**. That is shorter than screenshot latency, so one frame per
+turn is the ceiling, and the four frames come from four different turns at
+whatever phase the jitter lands on.
+
+### The null
+
+**The phasing is not visible in the frames captured.** The leaf occludes the
+incoming page correctly; where the right page shows its value column with no
+labels, the labels are simply behind the leaf — which is what occlusion looks
+like when it works.
+
+**Recorded as a null, not a clearance.** A defect that exists only at some angles
+cannot be ruled out by a sampler that reaches one angle per turn, and this one
+cannot reach more without going below the capture latency. Settling C4 either way
+needs the leaf **driven to a chosen angle and held there** — a different
+instrument from a sampler, and the next step if C4 is picked up again.

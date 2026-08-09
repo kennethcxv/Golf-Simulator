@@ -25,7 +25,7 @@ async (page) => {
   const path = process.getBuiltinModule('node:path');
   const OUT = path.resolve('qa/electron/c8-page-look');
   fs.mkdirSync(OUT, { recursive: true });
-  const out = { errs: [], shots: [] };
+  const out = { errs: [], shots: [], midTurn: [] };
   page.on('pageerror', (e) => out.errs.push(String(e.message || e)));
 
   const bootPath = `${process.cwd()}/tools/qa/lib/qa-boot.mjs`.replace(/\\/g, '/');
@@ -80,7 +80,26 @@ async (page) => {
   await page.waitForTimeout(1100);
   out.afterFirstPress = await diag();
   await page.keyboard.press('e');
-  await page.waitForTimeout(1600);
+  // WAIT FOR THE STATE, NOT FOR A GUESS AT HOW LONG IT TAKES.
+  //
+  // A fixed 1600 ms lost a whole run: the book had not reached `open` yet, the
+  // capture loop broke on its first check, and the artifact came back with zero
+  // shots and zero misses — the loop body never executed at all.
+  //
+  // That is C1's own first-open stall, measured earlier this session at 0.3-3.5 s
+  // in three runs out of ten. A driver that waits less than the known worst case
+  // for a known-intermittent stall is a driver that fails a third of the time for
+  // a reason already written down. Ten seconds is comfortably past it, and
+  // arriving early costs nothing because this returns as soon as the state flips.
+  await page.waitForFunction(
+    () => {
+      try { return window.__fw.scene3d.clubhouse().ledgerBook.diagnostics().state === 'open'; }
+      catch { return false; }
+    },
+    null,
+    { timeout: 10000 },
+  ).catch(() => {});
+  await page.waitForTimeout(400);
   out.afterSecondPress = await diag();
 
   out.camera = await page.evaluate(() => ({
@@ -100,7 +119,36 @@ async (page) => {
     out.shots.push({ i, name, ...d });
     // The real key, not a direct call, so this is the player's page turn.
     await page.keyboard.press('d');
-    await page.waitForTimeout(1400);
+    // C4 — MID-TURN, WHICH IS THE ONLY MOMENT THE DEFECT EXISTS.
+    //
+    // "The page-turn animation phases through the previous page. Flipping shows
+    // a slice of the last page through the turning leaf." A settled spread
+    // cannot show that; the leaf has to be caught in flight. Three samples
+    // across the turn, because the slice is a depth-sort artefact and which
+    // angles expose it is exactly what is unknown.
+    // SIX SAMPLES ACROSS THE WHOLE TURN, not three trailing off past its end.
+    // The first cut waited 160/200/220 ms and caught the leaf once per turn and
+    // missed eleven times out of fifteen -- the turn completes in under 360 ms,
+    // so two of every three samples were shot at a settled spread. A defect that
+    // exists only at some angles cannot be ruled out by a sampler that visits one
+    // angle. These cluster inside the flight instead.
+    for (const [k, wait] of [[0, 55], [1, 55], [2, 55], [3, 55], [4, 55], [5, 55]]) {
+      await page.waitForTimeout(wait);
+      const t = await page.evaluate(() => {
+        try {
+          const d = window.__fw.scene3d.clubhouse().ledgerBook.diagnostics();
+          return { turning: d.turning ?? null, spread: d.spread ?? null };
+        } catch { return null; }
+      }).catch(() => null);
+      if (t?.turning) {
+        const nm = `c4-midturn-${i}-${k}.png`;
+        await page.screenshot({ path: path.join(OUT, nm) });
+        out.midTurn.push({ i, k, name: nm, ...t });
+      } else {
+        out.midTurn.push({ i, k, missed: t });
+      }
+    }
+    await page.waitForTimeout(900);
   }
 
   // The flat canvases, straight out of the CanvasTexture — the typography with
@@ -159,6 +207,8 @@ async (page) => {
     shots: out.shots.filter((s) => s.name).map((s) => s.name),
     spreadsSeen: [...new Set(out.shots.filter((s) => s.name).map((s) => s.spread))],
     canvasesWritten: written,
+    midTurnShots: out.midTurn.filter((m) => m.name).map((m) => m.name),
+    midTurnMissed: out.midTurn.filter((m) => !m.name).length,
     camera: out.camera,
   };
   fs.writeFileSync(path.join(OUT, 'c8-page-look.json'), `${JSON.stringify(out, null, 2)}\n`);
