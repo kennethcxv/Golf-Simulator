@@ -15206,3 +15206,44 @@ is a single question with a single answer, and **none has needed revising.**
 The two counters and the diagnostics accessor stay in `main.js`: read-only,
 additive, one integer each. `carriedThing`'s answer being unreadable from outside
 is precisely why this took as long as it did.
+
+
+## SECTION D GATE — INVARIANT 6 WAS CERTIFYING SOMETHING MEASURED TO BE FALSE
+
+Gate after Section D: **9 pass, 1 FAIL, 0 unchecked.** Suite **2954 / 0**. No
+regression from any of Section D's work.
+
+**But invariant 6 reads *"Nothing carried is ever left floating, unputdownable, or
+allows a tool swap"* and reports PASS** — while the live audit has just proved the
+ledger **is** unputdownable. The set-down key leaves it carried, at the desk and
+in open floor, and `putDownCarried` is never entered: `calls === 0` after two
+presses, with eight links in that path each eliminated by measurement.
+
+It reads PASS because what it runs is **four regular expressions over
+`main.js`**. Those confirm the guards exist in the source *text* — real, worth
+pinning — and say nothing about whether the verb works when a player presses it.
+
+**The gap between what it checks and what its sentence claims is the whole
+fault**, and it is the third time this session the same gap has appeared:
+
+- the ledger overlap recorder was correct, and nothing exercised the page at full
+  content (C2/C3);
+- the carryable suite is correct, and never boots the game (D);
+- **this is both consequences arriving at once.**
+
+### What changed
+
+The claim is narrowed to what the check establishes, and the known-false clause
+is **named rather than quietly dropped**. The detail now says **SOURCE SCAN
+ONLY**, says it never boots the game, and carries the live contradiction plus the
+driver that found it.
+
+**A gate that reports PASS on a property with live evidence against it is worse
+than no gate: it is a green light with a defect behind it.** Invariant 6 still
+passes — the source guards genuinely are present — but it no longer claims to
+have checked the thing it cannot see.
+
+**Deliberately not flipped to FAIL.** The check does what it says now, and failing
+an invariant on a defect it was never able to detect would make the gate lie in
+the other direction. The defect is recorded as D2, open and fully measured; the
+invariant is recorded as narrower than its old sentence.

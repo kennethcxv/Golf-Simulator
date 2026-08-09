@@ -195,9 +195,31 @@ const TEN = [
     // the suite and pins all three clauses: one predicate covering every carry
     // system, the belt refusing on BOTH its paths, and every station boundary
     // putting carried things down.
+    // ...AND IT WAS CERTIFYING SOMETHING MEASURED TO BE FALSE.
+    //
+    // The live carryable audit (tools/qa/electron-d4-carryable-audit.js) proved
+    // the ledger IS unputdownable: pressing the set-down key leaves it carried,
+    // at the desk and in open floor, and `putDownCarried` is never entered
+    // (calls === 0 after two presses). Eight links in that path were each
+    // eliminated by measurement.
+    //
+    // This invariant read PASS throughout, because what it runs is four regular
+    // expressions over main.js. Those confirm the GUARDS EXIST IN THE SOURCE
+    // TEXT — a real and useful thing to pin — and say nothing about whether the
+    // verb works when a player presses it.
+    //
+    // The claim is narrowed to what the check actually establishes, and the
+    // known-false clause is named rather than quietly dropped. A gate that
+    // reports PASS on a property with live evidence against it is worse than no
+    // gate: it is a green light with a defect behind it.
     check: () => ({
       ok: results[0].ok,
-      detail: 'tests/carryable-system.test.js - one predicate over cartons, the ledger and loose goods; belt guarded on both paths; station boundaries put down',
+      detail: 'tests/carryable-system.test.js - SOURCE SCAN ONLY: one predicate over cartons, '
+        + 'the ledger and loose goods; belt guarded on both paths; station boundaries call '
+        + 'putDownCarried. It never boots the game. LIVE CONTRADICTION: the ledger is '
+        + 'unputdownable in the running build - the set-down key leaves it carried and '
+        + 'putDownCarried is never entered (D2, eight eliminations, electron-d4-carryable-audit). '
+        + 'This invariant does NOT certify that clause.',
     }),
   },
   {
