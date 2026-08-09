@@ -84,6 +84,23 @@ async (page) => {
           frames: deltas.length,
           worst: +Math.max(...deltas).toFixed(1),
           over33: deltas.filter((d) => d >= 33).length,
+          // C6 SAYS "UNDER 16 ms" AND THIS DRIVER GRADED AT 33.
+          //
+          // The header calls 33 ms "a visibly dropped frame", which it is at
+          // 60 Hz — but it is TWO dropped frames, and the brief's bound is one.
+          // Measured 29.3 ms worst during turns: passing at 33 and failing at
+          // 16.7, so the instrument has been certifying a looser requirement
+          // than the one written down.
+          //
+          // Both counts are reported rather than swapping one for the other.
+          // `over33` is what every previous run of this driver was graded on and
+          // dropping it would make the history incomparable; `over16` is what
+          // C6 actually asks for.
+          over16: deltas.filter((d) => d >= 16.7).length,
+          median: +(() => {
+            const v = deltas.slice().sort((a, b) => a - b);
+            return v.length ? v[Math.floor(v.length / 2)] : 0;
+          })().toFixed(1),
         });
       }
     };
@@ -184,7 +201,7 @@ async (page) => {
   // and the honest number is the turn's EXCESS over ambient.
   const ambient = [];
   for (let i = 0; i < 6; i += 1) ambient.push(await sample(750));
-  out.ambient = { worst: Math.max(...ambient.map((t) => t.worst)), over33: ambient.reduce((a, t) => a + t.over33, 0) };
+  out.ambient = { worst: Math.max(...ambient.map((t) => t.worst)), over33: ambient.reduce((a, t) => a + t.over33, 0), over16: ambient.reduce((a, t) => a + t.over16, 0), frames: ambient.reduce((a, t) => a + t.frames, 0) };
 
   const turns = [];
   for (let i = 0; i < 8; i += 1) turns.push(await turnOnce(1));
@@ -193,6 +210,8 @@ async (page) => {
     count: turns.length,
     worst: Math.max(...turns.map((t) => t.worst)),
     over33Total: turns.reduce((a, t) => a + t.over33, 0),
+    over16Total: turns.reduce((a, t) => a + t.over16, 0),
+    frames: turns.reduce((a, t) => a + t.frames, 0),
   };
   out.paintStats = await page.evaluate(
     () => window.__fw.scene3d.clubhouse().ledgerBook.diagnostics().paintStats,
@@ -256,6 +275,34 @@ async (page) => {
     // canvas-sync frame per turn is this stack's floor; the acceptance is
     // AT MOST ONE hitch frame per turn, bounded magnitude, over a clean
     // ambient control.
+    // C6, ATTRIBUTED RATHER THAN ASSERTED.
+    //
+    // "Page turns are laggy" is a claim that turning is worse than not turning,
+    // and the driver has always had the control to test it sitting right there:
+    // `ambient` is the same book, the same camera, the same second, with no turn
+    // happening. If the turn windows are no worse than ambient at the SAME bound,
+    // the turn is not what is laggy — the room it is turned in is.
+    //
+    // Measured elsewhere this session and consistent with it: the turn's own
+    // frame costs 0.8 ms, while standing still indoors runs 21% of frames over
+    // 16.7 ms because the GPU sits at 8.4 ms against an 8.33 ms refresh.
+    c6TurnVsAmbient: {
+      turnsOver16: out.turns.over16Total ?? null,
+      ambientOver16: out.ambient.over16 ?? null,
+      turnsWorst: out.turns.worst ?? null,
+      ambientWorst: out.ambient.worst ?? null,
+      // The honest headline: is the turn adding anything at all?
+      // RATES, NOT COUNTS. The turn windows and the ambient windows are not the
+      // same length, so comparing raw over-16 tallies compares how long each ran
+      // as much as how bad each was. Percentages are the only honest form.
+      turnsFrames: out.turns.frames ?? null,
+      ambientFrames: out.ambient.frames ?? null,
+      turnsOver16Pct: out.turns.frames ? +((out.turns.over16Total / out.turns.frames) * 100).toFixed(1) : null,
+      ambientOver16Pct: out.ambient.frames ? +((out.ambient.over16 / out.ambient.frames) * 100).toFixed(1) : null,
+      turnAddsHitches: (out.turns.frames && out.ambient.frames)
+        ? (out.turns.over16Total / out.turns.frames) > (out.ambient.over16 / out.ambient.frames) * 1.25
+        : null,
+    },
     ambientClean: out.ambient.over33 === 0,
     turnsOneHitchMax: out.turns.over33Total <= out.turns.count
       && out.turns.worst <= 90,

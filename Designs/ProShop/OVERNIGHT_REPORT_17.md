@@ -14472,3 +14472,46 @@ cannot be ruled out by a sampler that reaches one angle per turn, and this one
 cannot reach more without going below the capture latency. Settling C4 either way
 needs the leaf **driven to a chosen angle and held there** — a different
 instrument from a sampler, and the next step if C4 is picked up again.
+
+
+## C6 — GRADED AT THE BRIEF'S BOUND, AND THE RAW COUNTS NEARLY FOOLED ME
+
+C6 says **"Under 16 ms."** This driver graded at 33, and its own header called 33
+*"a visibly dropped frame"* — which it is at 60 Hz, but **it is two dropped frames
+and the brief's bound is one.** Measured 29.3 ms worst during turns: passing at
+33, failing at 16.7. The instrument had been certifying a looser requirement than
+the one written down.
+
+Both counts are reported now rather than one swapped for the other. `over33` is
+what every previous run was graded on and dropping it would make the history
+incomparable; `over16` is what C6 asks for.
+
+### Then the attribution — and the trap
+
+*"Page turns are laggy"* is a claim that **turning is worse than not turning**,
+and the control was already sitting in the driver: `ambient` is the same book,
+same camera, same second, with no turn happening.
+
+The first cut compared **raw over-16 tallies** and reported `turnAddsHitches:
+true` on **73 against 20**. I had already written that the turn is not what is
+laggy, so this looked like a correction I owed — **and I nearly published it.**
+
+It was the denominator.
+
+| | over 16.7 ms | frames | rate | worst |
+|---|---|---|---|---|
+| turns | 65 | 1307 | **5.0%** | 33.3 ms |
+| ambient | 46 | 488 | **9.4%** | 33.3 ms |
+
+**`turnAddsHitches: false`.** Turns are *better* than standing still with the book
+open, and the worst frame is identical. The raw counts said turns were worse
+purely because the turn windows ran nearly three times as long.
+
+**So the original reading stands: the turn is not what is laggy — the room is.**
+The GPU sits at 8.4 ms against an 8.33 ms refresh interval, which is why every
+window in this book, turning or still, carries the same worst frame.
+
+The instrument reports rates now and cannot make that mistake again. Recorded in
+full because **a raw count that agrees with a plausible story is exactly how this
+session's other faults got in** — and this time the check came before the claim
+rather than after it.
