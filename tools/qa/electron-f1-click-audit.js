@@ -39,20 +39,35 @@ async (page) => {
   // Hook every sound-producing method on the audio module, not just uiTick — a
   // button that plays a DIFFERENT sound still satisfies "it makes a sound", and
   // counting only uiTick would report those as silent.
+  // HOOK THE AUDIO GRAPH, NOT THE MODULE'S METHOD NAMES.
+  //
+  // The first two rounds counted calls to `window.__fw.audio.*` and could not
+  // pass their own dead-space control. `update` runs every frame; `setPaused`
+  // and `setToolLoop` fire on any interaction. Both are audio-module methods and
+  // neither is a sound, so no name-based filter separates them — the distinction
+  // is not in the names, it is in whether anything reached the speakers.
+  //
+  // A source node that STARTS is a sound. A state setter is not. Wrapping
+  // `start` on the two node types that produce audio measures the thing itself
+  // rather than its side effects — the same move that made `putDownCarried`'s
+  // entry counter decisive in Section D.
   out.hook = await page.evaluate(() => {
-    const a = window.__fw?.audio;
-    if (!a) return { ok: false, why: 'no window.__fw.audio' };
     window.__f1 = { total: 0, byName: {} };
-    const names = Object.keys(a).filter((k) => typeof a[k] === 'function');
-    for (const n of names) {
-      const orig = a[n].bind(a);
-      a[n] = (...args) => {
+    const wrapped = [];
+    for (const ctor of ['AudioBufferSourceNode', 'OscillatorNode', 'ConstantSourceNode']) {
+      const C = window[ctor];
+      if (!C?.prototype?.start) continue;
+      const orig = C.prototype.start;
+      C.prototype.start = function started(...args) {
         window.__f1.total += 1;
-        window.__f1.byName[n] = (window.__f1.byName[n] || 0) + 1;
-        return orig(...args);
+        window.__f1.byName[ctor] = (window.__f1.byName[ctor] || 0) + 1;
+        return orig.apply(this, args);
       };
+      wrapped.push(ctor);
     }
-    return { ok: true, wrapped: names.length, names: names.slice(0, 30) };
+    return wrapped.length
+      ? { ok: true, wrapped: wrapped.length, names: wrapped }
+      : { ok: false, why: 'no source node constructors found' };
   }).catch((e) => ({ ok: false, threw: String(e && e.message) }));
 
   // WHICH NAMES FIRE WHEN NOTHING IS PRESSED.

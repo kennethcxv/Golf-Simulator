@@ -16149,3 +16149,56 @@ thing itself, not its side effects.**
 **Standing for F1:** the hook works, the enumeration works, the control works and
 is currently red, and the counting layer is identified as wrong with its
 replacement named.
+
+
+## F1 — THE GRAPH-LEVEL HOOK WORKS, AND THE CONTROL FINALLY PASSES
+
+Wrapped `start` on the source-node constructors instead of counting audio-module
+method calls:
+
+```
+audioMethodsWrapped   3  (AudioBufferSourceNode, OscillatorNode, ConstantSourceNode)
+perFrameNamesExcluded []       nothing plays continuously — correct
+deadSpaceSilent       TRUE     ← the control, finally valid
+buttonsClicked        9
+buttonsThatSounded    9
+silentButtons         []
+soundsHeard           {OscillatorNode: 13}
+```
+
+**A source node that starts is a sound; a state setter is not.** That distinction
+is invisible at the module's API and obvious at the graph, which is why two
+rounds of name filtering could not make the dead-space control pass and this made
+it pass immediately.
+
+Also learned: **the UI click is a synthesised `OscillatorNode`, not a sample** —
+13 starts across nine buttons and the surrounding navigation.
+
+### What this establishes, and its honest scope
+
+**F1 passes for the nine buttons reachable in the pause and settings surfaces**,
+with a valid negative control. That is a real result — the first time in three
+rounds the numbers mean what they say.
+
+**It is not all of F1.** The brief names *"menus, settings, the laptop, the
+register, the ledger, the desktop UI"*. This reached two of six. The open question
+from Phase 0 stands unanswered: **`laptop.js` has one `uiTick` call site for a
+whole back office**, and whether that is a delegated handler or a great many
+silent buttons is exactly what this driver can now answer — it just has to be
+pointed at the laptop.
+
+The instrument is now correct and the remaining work is coverage rather than
+design: reach each surface, enumerate, click, and let the same control keep the
+readings honest.
+
+### Three rounds, and what each one bought
+
+| round | counted | control | outcome |
+|---|---|---|---|
+| 1 | all 105 module methods | **failed** | void — `update` ticked with time |
+| 2 | minus per-frame names | **failed** | void — `setPaused` fires on interaction |
+| 3 | **source-node starts** | **passed** | **9/9 sounded, meaningfully** |
+
+**Every round was caught by the same dead-space click.** Without it, round one
+would have shipped as "F1 passes" — a green result on a requirement the brief
+asks to be swept exhaustively.
