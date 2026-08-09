@@ -14860,3 +14860,44 @@ something you know is there.**
 Read `actionForKey(bindings, 'z')` **at runtime**. That distinguishes a stale
 stored profile from a routing fault from a handler fault, and it depends on no
 grep pattern of mine.
+
+
+## D2 NARROWED ON LIVE DATA — THE ROUTING IS PROVEN, THE QUESTION IS `placeAt`
+
+Ran the probe I should have run three explanations ago: **dumped the binding
+table out of the running game** instead of grepping for it.
+
+```
+setDown binding : "z"
+z maps to       : ["setDown"]
+21 bindings     : moveForward … carry, setDown, toolBelt, dirtSense …
+```
+
+**The binding is present at runtime and `z` maps to `setDown`.** The routing is
+not the defect, and my "no binding" claim is refuted by the game itself as well
+as by `keyBindings.js`.
+
+That leaves a short handler chain. `case 'setDown'` calls `putDownCarried()`,
+whose ledger branch resolves the book and the walk state, computes a spot half a
+yard in front of the player, and calls `book.placeAt({x, z, ry})`. **It never
+clears a carried flag itself** — `placeAt` is what must do that.
+
+Live, after pressing z, `ledgerBook.isCarried()` is **still true**.
+
+### So the remaining candidate is one function
+
+Whether `placeAt` clears the carried state or only moves the mesh. **One question
+about one call — and the first D2 position this session built on live
+measurement rather than on reading source and inferring.**
+
+**I am deliberately not asserting it.** Three of my last four conclusions about
+this item were wrong, and every one came from reasoning about code I had read
+rather than behaviour I had watched. The next step distinguishes the two
+remaining causes without another inference: **call `placeAt` directly from a
+driver and see whether `isCarried()` goes false.** If it does, the handler never
+ran; if it does not, `placeAt` is the defect.
+
+**What is measured and banked**: the binding exists live, `z` maps to `setDown`,
+the handler exists, `putDownCarried`'s ledger branch exists and calls `placeAt`,
+and the book is still carried afterwards. The cause is one call away and
+unproven.

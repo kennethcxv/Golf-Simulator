@@ -96,6 +96,15 @@ async (page) => {
 
   const keys = await page.evaluate(() => window.__fw.preferences?.values?.controls?.bindings || {});
   const beltKey = keys.toolBelt || 'f';
+  // THE LIVE BINDING TABLE, dumped rather than inferred.
+  //
+  // Three wrong explanations of D2 in a row came from reading source instead of
+  // the running game -- including one that declared the setDown binding absent
+  // because a grep for "setDown:" could not match . This asks the
+  // game what it actually holds, and what it thinks the z key means.
+  out.liveBindings = keys;
+  out.zMapsTo = Object.entries(keys).filter(([, v]) => String(v).toLowerCase() === 'z').map(([k]) => k);
+  out.setDownBinding = keys.setDown ?? 'ABSENT FROM LIVE BINDINGS';
 
   // Try the belt and report whether the held tool CHANGED. Used twice: once
   // empty-handed (must change) and once carrying (must not).
