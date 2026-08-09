@@ -15554,3 +15554,43 @@ that would have rejected its own fix.
 **The last one was caught before it ran.** That is the only durable progress
 there is on this: not fewer mistakes, but finding them earlier — and the cheapest
 moment is always *"what would this say if the fix worked?"*, asked before the fix.
+
+
+## E4 PHASE 0 — SPECIFIED AS A LIVE TEST, DELIBERATELY NOT SOURCE-READ
+
+E4: *"Rebinding must update the general controls display. Changing a key in
+Controls must change it in the formatted controls list too, immediately, in the
+same layout."*
+
+One thing is known from work already done, and it is a **measurement rather than
+a reading**: the formatted prompts are built through a helper taking an action id
+and a default — the set-down prompt is composed that way — and the live binding
+dump confirmed the table it reads holds all 21 actions with `setDown` mapped to
+`z`. **So the prompt strings are derived from bindings, not hard-coded.**
+
+**That is not E4 answered.** E4 has three clauses and derivation touches one:
+
+| clause | status |
+|---|---|
+| the list shows the **current** binding | derivation suggests yes |
+| it updates **immediately** on rebind | **unknown** — needs a re-render, which derivation alone does not provide |
+| it keeps the **same layout** after the change | **unknown** — a longer key name can reflow a row |
+
+**Clause 2 is the one the brief emphasises and the one derivation cannot
+promise.** A list built from live bindings still shows stale text if nothing
+re-renders it after the rebind commits.
+
+### Stopping the source reading here, on purpose
+
+Section D cost six wrong explanations, every one reasoned from code I had read,
+and every one would have been avoided by the run I eventually did. **The pattern
+is clear enough now that continuing to grep for the render path would be
+repeating it knowingly.**
+
+**The test, which needs no source knowledge:** open Settings → Controls, capture
+the formatted controls list as text, rebind one action to a key with a visibly
+different name, capture again **without closing or reopening anything**, and
+diff. Same-layout is a bounding-box comparison of the rows before and after.
+
+That is E4's Phase 0 deliverable and it is one driver — recorded now so the
+specification survives independently of when the run happens.
