@@ -14722,3 +14722,54 @@ one being tested** — a ladder outside its regime, a confirmation reading absen
 fields, a sweep whose setter never fired, a keypress on the wrong verb, and now a
 presence check standing in for a visibility one. The measurements were fine. The
 questions were wrong.
+
+
+## D2 — THE SET-DOWN FAILS AT THE DESK TOO, WHICH KILLS MY OWN EXPLANATION
+
+Last entry offered two readings of the failed put-down: a genuine defect, or a
+surface-in-view precondition the driver did not satisfy after walking into open
+floor. **Testing both positions settles it against my own explanation.**
+
+The driver now presses the set-down key **twice**: once immediately after pick-up,
+still standing at and facing the desk the book came from, and again after walking
+3.3 yd away.
+
+| attempt | result |
+|---|---|
+| set down **at the desk**, surface certainly in view | **still carried** |
+| set down **in open floor** | **still carried** |
+
+**The precondition hypothesis is dead.** It fails where a surface is guaranteed,
+so "it needs something to put the book on" does not explain it.
+
+### The one thing I have not eliminated
+
+`setDown` **is not in the bindings table** — `preferences.js` does not define it,
+so `keys.setDown` is `undefined` and the driver fell back to `'z'`, which is the
+default `main.js` itself prints to the player: `${k('setDown', 'Z')} set down`.
+
+So the remaining uncertainty is narrow but real: **whether the key the game
+listens for is the key its own prompt advertises.** `case 'setDown'` exists and
+handles `carriedThing() === 'ledger'`, so the handler is there; what is unproven
+is that pressing Z reaches it.
+
+**That is the next step and it is a small one** — dispatch the action directly
+rather than through the keyboard, and see whether the book goes down. If it does,
+the defect is in the key routing. If it does not, it is in the handler. Either
+way D2 stands **open**, and it is now open on one question instead of three.
+
+Recorded rather than guessed at, because this item has already produced one
+retraction from a driver pressing the wrong key, and the difference between "the
+verb does not work" and "my driver cannot reach the verb" is exactly the
+distinction that cost it.
+
+### Fault 104 — the same shell fault, two hours after making the rule unconditional
+
+The commit above failed first time: the message was passed inline with `-m` and
+contained a `${...}` sequence quoting `main.js`'s own prompt, which bash tried to
+substitute. **Fault 102 was backticks in an inline `-m`**, and the rule written
+then was unconditional — *author every commit message as a file*.
+
+I reached for `-m` again on the very next long message. **The rule was not the
+problem; reaching for the convenient form under time pressure was.** No inline
+`-m` for the rest of this session.

@@ -161,6 +161,27 @@ async (page) => {
   // D3: the belt must NOT work now.
   out.beltWhenCarrying = await tryBelt();
 
+  // D2, FIRST HALF: set down WITHOUT moving, still facing the desk it came from.
+  //
+  // The earlier run pressed the set-down key only after walking 3.3 yd into open
+  // floor and reported that the book stayed carried. That is two hypotheses at
+  // once — "there is no put-down" and "the put-down needs a surface" — and they
+  // want different fixes. Trying it here, where a surface is certainly in view,
+  // separates them: if it works at the desk and not in the open, the verb exists
+  // and its precondition is the finding.
+  const setDownKeyEarly = keys.setDown || 'z';
+  await page.keyboard.press(setDownKeyEarly);
+  await page.waitForTimeout(1300);
+  out.setDownAtDesk = await probe();
+  // Pick it back up so the walk-away half starts carrying again. If the desk
+  // set-down failed, this press is a no-op and the state is unchanged, which the
+  // probe below records either way.
+  if (out.setDownAtDesk?.carried !== 'ledger') {
+    await page.keyboard.press('x');
+    await page.waitForTimeout(1200);
+  }
+  out.reCarried = await probe();
+
   // D1: walk away and see whether the book comes too.
   const beforeWalk = await probe();
   await page.keyboard.down('s');
@@ -199,7 +220,9 @@ async (page) => {
     unreached: ['carton', 'goods'],
     // D2 pick-up and put-down, on the same verb.
     pickedUp: out.afterPickUp?.carried === 'ledger',
-    putDown: out.afterPutDown?.carried === null,
+    putDownAtDesk: out.setDownAtDesk?.carried === null,
+    reCarriedForWalk: out.reCarried?.carried === 'ledger',
+    putDownInOpenFloor: out.afterPutDown?.carried === null,
     setDownKey: out.setDownKey ?? null,
     // D1 again, at the moment it matters most: after setting down, the book must
     // be somewhere, not nowhere. A null position here would be a thing put down
