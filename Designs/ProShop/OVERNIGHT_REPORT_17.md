@@ -14949,3 +14949,47 @@ inferences.
 **What D2 is: a real, reproducible defect.** The book cannot be put down by the
 key the game itself teaches, on a build where every component of that path works
 in isolation.
+
+
+## D2 — THE LEDGER KEY HANDLER IS ELIMINATED TOO, LIVE
+
+The leading candidate for eating the `setDown` keypress was `ledgerKeyHandler`:
+it reads `boundAction` on every keydown and calls `stopPropagation` on the
+branches it handles, by design.
+
+**It is not the culprit.** Its first line is `if (!app.ledgerOpen) return;`, and
+measured live at all three points in the carry sequence:
+
+| point | carried | ledgerOpen | view | mode |
+|---|---|---|---|---|
+| empty-handed | null | **false** | course | walk |
+| after pick-up | ledger | **false** | course | walk |
+| at set-down | ledger | **false** | course | walk |
+
+**Carrying the book does not put the app in ledger mode.** The handler returns
+before touching the event — no `preventDefault`, no `stopPropagation` — so the
+walk keydown handler downstream should see the z keydown with `boundAction`
+returning `setDown`.
+
+### The elimination list, all on live data
+
+| candidate | verdict |
+|---|---|
+| the binding — present, z maps to setDown | **not the cause** |
+| keyboard delivery — x and f work in the same run | **not the cause** |
+| `placeAt` — clears `isCarried` when called | **not the cause** |
+| `ledgerKeyHandler` — returns early, `ledgerOpen` false | **not the cause** |
+
+**Four candidates eliminated by measurement rather than by reading.** What
+remains is inside the walk keydown handler itself: either an earlier branch
+returns before the switch reaches `case 'setDown'`, or the case runs and its own
+`carriedThing() === 'ledger'` test does not take the branch I expect.
+
+### The next probe needs no source reading
+
+**Patch the page to observe**: listen alongside the real handler, press z, and
+record whether `boundAction` returned `'setDown'` and whether `putDownCarried`
+was entered. That turns the last unknown into a measurement like the other four.
+
+**I am not speculating about which it is.** Four wrong explanations of this item
+all came from doing exactly that.

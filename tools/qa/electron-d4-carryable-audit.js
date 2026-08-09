@@ -63,6 +63,11 @@ async (page) => {
       player: st ? { x: +st.x.toFixed(2), z: +st.z.toFixed(2) } : null,
       tool: s3?.walk?.getTool?.() ?? null,
       prompt: String(s3?.walk?.getFocusLabel?.() || '').slice(0, 90),
+      // Does CARRYING the book put the app in ledger mode? If so, ledgerKeyHandler
+      // runs on every keydown and is the first suspect for eating setDown.
+      ledgerOpen: !!fw?.ledgerOpen,
+      walkActiveView: fw?.view ?? null,
+      courseMode: fw?.courseMode ?? null,
     };
   }).catch((e) => ({ threw: String(e && e.message) }));
 
