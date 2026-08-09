@@ -154,6 +154,23 @@ async (page) => {
     shortShellWidth: out.short?.scan?.shell?.w ?? null,
     scrollerSpansPanel: s.length === 1 && out.scan?.shell?.w
       ? (s[0].w / out.scan.shell.w) > 0.9 : null,
+    // E2'S ACCEPTANCE, STATED SO IT CAN FAIL.
+    //
+    // "Put it inside the scrolling section and nowhere else." Measured at the
+    // SHORT viewport, because that is the only size where anything scrolls at
+    // all: there must be a scroller, it must not be the panel-width page, and
+    // its width must be materially narrower than the shell it sits in.
+    //
+    // On the current build this reads false — the sole scroller is
+    // `.settings-page` at 831 px inside an 831 px shell. That is the check
+    // watched failing before the fix, which is what the RULES ask for, and it is
+    // the same driver that will confirm the fix rather than a different one.
+    e2Ok: (() => {
+      const short = out.short?.scan?.scrollables || [];
+      const shellW = out.short?.scan?.shell?.w || 0;
+      if (!short.length || !shellW) return false;
+      return short.every((r) => !/settings-page/.test(r.cls) && (r.w / shellW) < 0.9);
+    })(),
   };
   fs.writeFileSync(path.join(OUT, 'e2-settings-scroll.json'), `${JSON.stringify(out, null, 2)}\n`);
   console.log('E2-SCROLL', JSON.stringify(out.verdict));

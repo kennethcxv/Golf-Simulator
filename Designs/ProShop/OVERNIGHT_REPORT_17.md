@@ -15374,3 +15374,40 @@ Move the scroll from `.settings-page` to the section that actually overflows, so
 the bar sits beside those rows rather than at the panel edge. **The check is this
 same driver**: at the short viewport, the scrollable element's width must be
 materially less than the shell's, and it must not be `.settings-page`.
+
+
+## E2 ACCEPTANCE WIRED AND WATCHED FAILING ON THE UNFIXED BUILD
+
+Stated E2's acceptance so that it *can* fail, and ran it:
+
+```
+shortScrollables   ["settings-page overBy=23 w=831"]
+e2Ok               false
+```
+
+**The check:** at the short viewport — the only size where anything scrolls at
+all — there must be a scroller, it must not be the panel-width page, and its
+width must be materially narrower than the shell it sits in. On the current build
+the sole scroller is `.settings-page` at 831 px inside an 831 px shell, so it
+reads **false**.
+
+That is **the check watched failing before the fix**, which is what the RULES ask
+for, and it is **the same driver that will confirm the fix** rather than a
+different one. Both halves matter: a check written *after* a fix tends to
+describe the fix rather than the requirement.
+
+### The fix is not started, deliberately
+
+The shape is known — the scroll must move off `.settings-page` and onto the
+section that overflows, which means `.settings-page` becomes a flex column whose
+groups can shrink and scroll individually rather than one scrolling block.
+
+**That is a change that can look wrong in ways only a screenshot shows** — a
+scrollbar per group is a plausible bad outcome — and the RULES require a
+default-camera capture before it counts. Starting it without the budget to look
+at the result would produce exactly the kind of unverified visual change this
+session has been careful to avoid.
+
+**So E2 stands: reproduced, located to one element, acceptance wired, check red.**
+Whoever picks it up has the measurement, the target and the failing check already
+in place.
