@@ -238,7 +238,16 @@ async (page) => {
     window.__zTrace = [];
     window.addEventListener('keydown', (e) => {
       if (String(e.key).toLowerCase() !== 'z') return;
-      window.__zTrace.push({ phase: 'capture', defaultPrevented: e.defaultPrevented });
+      // THE RAW KEY, which is what boundAction is handed.
+      //
+      // This trace lowercased e.key before comparing, so it has never actually
+      // shown what the event carries — and `actionForKey(bindings, e.key)` gets
+      // it raw. If the event says 'Z' and the table says 'z', the lookup misses
+      // and every downstream symptom follows: no setDown action, no ledger
+      // branch, putDownCarried never entered, book still carried.
+      window.__zTrace.push({
+        phase: 'capture', rawKey: e.key, code: e.code, defaultPrevented: e.defaultPrevented,
+      });
     }, true);
     window.addEventListener('keydown', (e) => {
       if (String(e.key).toLowerCase() !== 'z') return;

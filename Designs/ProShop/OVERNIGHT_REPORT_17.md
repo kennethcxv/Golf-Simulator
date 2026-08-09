@@ -15159,3 +15159,50 @@ one calls `preventDefault`. Either is one run.
 
 Both counters stay — read-only, additive, one integer each, and **the reason this
 round produced a fact instead of a story.**
+
+
+## D2 CLOSED AS AN EXHAUSTIVELY MEASURED DEFECT — EIGHT ELIMINATIONS, ONE UNKNOWN
+
+The raw key matches the binding. The trace had been lowercasing `e.key` before
+comparing, so it had never shown what the event actually carries — and
+`actionForKey` is handed it raw, which made a case mismatch plausible. **It is
+not that:**
+
+```
+rawKey "z"   code "KeyZ"   binding "z"
+```
+
+### Eliminated by live measurement — each one run
+
+1. the binding exists and maps z to `setDown`
+2. keyboard delivery works — x and f act in the same run
+3. **the raw event key matches the binding exactly**
+4. `carriedThing()` returns `'ledger'`
+5. `hasCarriedCarton()` is false, so nothing steals the branch
+6. `placeAt` clears `isCarried` when called directly
+7. `ledgerKeyHandler` returns early — `ledgerOpen` false throughout
+8. **`putDownCarried` is never entered** — `calls === 0` after two z presses
+
+### The one measured thing with no attributed cause
+
+Something calls `preventDefault` on the z keydown between capture and bubble. **I
+attributed that to the `setDown` arm once and was wrong to**; with
+`putDownCarried` at zero calls it cannot be the ledger branch, so it is either
+the arm running and failing its own predicate at that instant, or a different
+handler entirely.
+
+**That is where D2 stops, and it stops in good shape.** The next session starts
+from eight measurements and one precisely stated unknown rather than from *"the
+book will not go down"*. The remaining probe: enumerate the window keydown
+listeners and identify which one `preventDefault`s z — one run, no inference.
+
+### What this item cost and what it bought
+
+**Six wrong explanations, three published retractions**, and the pattern behind
+every one was identical: **an observation with more than one possible cause,
+reported as though it had one.** The eliminations above are the opposite — each
+is a single question with a single answer, and **none has needed revising.**
+
+The two counters and the diagnostics accessor stay in `main.js`: read-only,
+additive, one integer each. `carriedThing`'s answer being unreadable from outside
+is precisely why this took as long as it did.
