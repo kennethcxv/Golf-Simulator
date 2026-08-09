@@ -16305,3 +16305,45 @@ unreadable.
 The fix is one `audio.uiTick()` in the clock chip's handler, alongside the
 `setSpeed` call — but it wants the same treatment as everything else here: a
 check watched failing first, which this driver now provides.
+
+
+## F1 — THE FIX DID NOT TAKE, AND THE CHECK CAUGHT IT
+
+Added `app.audio?.uiTick?.()` to the clock chip's handler and re-ran the audit:
+
+```
+deadSpaceSilent  true
+buttonsClicked   10
+sounded          9
+silent           ["hud-chip:Y1 · Spring · Day 1 · 6:02 A"]   ← unchanged
+```
+
+**Still silent.** The check I built to watch fail is doing its second job:
+refusing to go green for a change that did not work.
+
+### One hypothesis eliminated
+
+`app.audio` **is** assigned in `main.js`, and the HUD receives it —
+`makeHud(app, handlers)`. So *"the object is not there"* is not the explanation,
+and I am not guessing at a second one.
+
+### What is left, stated as candidates rather than a conclusion
+
+- **The chip may never be clicked in the state I test it.** `hud.js` hides the
+  whole HUD while paused (`root.style.display = quiet ? 'none' : ''`), and the
+  audit opens the pause menu first. My enumeration filters on `offsetParent`, so
+  a hidden chip should not be listed at all — **yet it is**, which means the HUD
+  was visible at that moment and the timing is worth watching rather than
+  assuming.
+- **`uiTick` may be internally guarded** on a readiness flag that the other nine
+  buttons happen to satisfy and this path does not.
+
+Distinguishing those is one probe: count `uiTick` entries directly alongside the
+graph-level count, and see whether the call happens and produces no sound, or
+never happens at all. **That is the same "instrument the thing itself" step that
+settled `putDownCarried` in Section D**, and it is where this resumes.
+
+**Left in place**: the added call is optional-chained and harmless, and it is the
+right line in the right place once the route is understood. **It is not a fix
+yet, and the report says so** — an unverified change described as done is the one
+outcome this session has worked hardest to avoid.

@@ -19,7 +19,20 @@ export function makeHud(app, handlers) {
   const clock = el('button', {
     class: 'hud-chip hud-clock',
     title: 'Click or Space: pause / resume',
-    onclick: () => handlers.setSpeed(app.speedIdx === 0 ? 1 : 0),
+    // F1: "A click on every button, everywhere. If it can be pressed, it makes
+    // a sound." This chip was the only silent control among the ten the click
+    // audit reached — measured, not assumed: tools/qa/electron-f1-click-audit.js
+    // hooks AudioBufferSourceNode/OscillatorNode `start`, so it counts sounds
+    // that actually reach the graph rather than calls to the audio module, and
+    // it reported `silent: ["hud-chip:Y1 · Spring · Day 1 · 6:02 A"]` with its
+    // dead-space control passing.
+    //
+    // It is a real button doing a substantial thing — cycling game speed — and
+    // its own title advertises the press. Silence there is the defect F1 names.
+    onclick: () => {
+      app.audio?.uiTick?.();
+      handlers.setSpeed(app.speedIdx === 0 ? 1 : 0);
+    },
   });
 
   // MODIFIER CHIP — what is holding a modifier, on screen.
