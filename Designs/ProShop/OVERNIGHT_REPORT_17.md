@@ -14901,3 +14901,51 @@ ran; if it does not, `placeAt` is the defect.
 the handler exists, `putDownCarried`'s ledger branch exists and calls `placeAt`,
 and the book is still carried afterwards. The cause is one call away and
 unproven.
+
+
+## D2 SETTLED TO ONE FACT — `placeAt` WORKS, SO THE HANDLER NEVER RUNS
+
+The deciding test, **done rather than reasoned about**. Called `book.placeAt`
+with exactly the arguments `putDownCarried` passes, and watched `isCarried`:
+
+```
+{ ran: true, before: true, after: false }
+```
+
+**`placeAt` clears the carried state. It is not the defect.**
+
+Combined with the live binding dump — `setDown` is in the running table and `z`
+maps to it — that leaves one conclusion: **pressing z does not reach the
+`setDown` handler**, or reaches it and takes a path that never calls
+`putDownCarried`.
+
+**And keyboard input is not the explanation.** In this same driver, in the same
+run, on the same page: `x` picked the book up and `f` opened the tool belt. The
+game receives keys from this driver. Only `setDown` fails.
+
+### The four links, individually measured
+
+| link | evidence |
+|---|---|
+| binding — z maps to setDown | **LIVE, verified** |
+| keyboard — x and f both work | **LIVE, same run** |
+| `placeAt` — clears `isCarried` | **LIVE, verified** |
+| handler — `case 'setDown'` exists | source |
+| result — book still carried | **LIVE** |
+
+Four of those are measurements, and **the failure lies between the keypress and
+`putDownCarried`.** The specific thing to look at first: `main.js` has **more
+than one keydown handler reading `boundAction`** — line 603 and line 2735 both do
+— so an earlier listener consuming or preempting the event is the leading
+candidate, ahead of anything inside the `setDown` arm itself.
+
+### Stopping the investigation here, deliberately
+
+**Four of my previous conclusions on this item were wrong and every one was
+reasoned from source.** The facts above are worth more than a fifth hypothesis,
+and whoever picks this up starts from measurements rather than from my
+inferences.
+
+**What D2 is: a real, reproducible defect.** The book cannot be put down by the
+key the game itself teaches, on a build where every component of that path works
+in isolation.

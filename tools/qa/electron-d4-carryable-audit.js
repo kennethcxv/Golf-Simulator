@@ -222,8 +222,47 @@ async (page) => {
   await page.waitForTimeout(1400);
   out.afterPutDown = await probe();
 
+  // D2, THE DECIDING TEST. Call `placeAt` directly, exactly as putDownCarried
+  // does, and watch `isCarried`.
+  //
+  // The keypress route is proven as far as the binding: the live table maps z to
+  // setDown. What is unproven is whether the handler runs and `placeAt` fails to
+  // clear the carried state, or the handler never runs at all. Calling `placeAt`
+  // with the same arguments separates them without another inference:
+  //
+  //   isCarried goes false  -> placeAt works, so the handler never ran
+  //   isCarried stays true  -> placeAt is the defect
+  //
+  // This is the one question left, and it is answered by doing rather than by
+  // reading — which is what the last three wrong explanations of this item all
+  // failed to do.
+  out.placeAtDirect = await page.evaluate(() => {
+    const fw = window.__fw;
+    const ch = fw?.scene3d?.clubhouse?.();
+    const walk = fw?.scene3d?.walk;
+    const book = ch?.ledgerBook;
+    if (!book || !walk || !ch) return { ran: false, why: 'missing book/walk/clubhouse' };
+    const before = !!book.isCarried?.();
+    if (typeof book.placeAt !== 'function') return { ran: false, before, why: 'placeAt is not a function' };
+    const off = ch.interior.position;
+    try {
+      book.placeAt({
+        x: walk.x - Math.sin(walk.yaw) * 0.52 - off.x,
+        z: walk.z - Math.cos(walk.yaw) * 0.52 - off.z,
+        ry: walk.yaw,
+      });
+    } catch (e) { return { ran: false, before, threw: String(e && e.message) }; }
+    return { ran: true, before, after: !!book.isCarried?.() };
+  }).catch((e) => ({ ran: false, threw: String(e && e.message) }));
+
   out.verdict = {
     focused: out.stand?.hit ?? null,
+    // Leads with the deciding test.
+    placeAtRan: out.placeAtDirect?.ran ?? null,
+    carriedBeforePlaceAt: out.placeAtDirect?.before ?? null,
+    carriedAfterPlaceAt: out.placeAtDirect?.after ?? null,
+    placeAtClearsCarried: out.placeAtDirect?.ran === true
+      && out.placeAtDirect?.before === true && out.placeAtDirect?.after === false,
     families: ['carton', 'ledger', 'goods'],
     exercised: ['ledger'],
     unreached: ['carton', 'goods'],
