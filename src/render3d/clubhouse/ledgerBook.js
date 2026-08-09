@@ -1250,6 +1250,29 @@ export function createLedgerBook({ THREE, state, anchor, counterTop, camera = nu
       ctx.stroke();
       y += step + noteDrop + labelDrop;
     }
+    // C8 — "RULING". THE FIELD CONTINUES PAST THE WRITING.
+    //
+    // "It reads as a canvas with text on it rather than a page from a book."
+    // A ruled book page is ruled all the way down: the lines are printed before
+    // anything is written on them, so they run past the last entry to the foot
+    // of the page. This page stopped ruling exactly where the text stopped,
+    // which is the signature of a canvas that has had text drawn on it.
+    //
+    // Same pitch, same inset, same ink as the separators above — because they
+    // ARE the same rules, just the ones nobody has written on yet — and a lighter
+    // alpha so an empty field reads as paper rather than as a table. Drawn after
+    // the rows so it can never push one off the page: it only fills what the
+    // rows did not use.
+    if (placed > 0 && step > 8) {
+      ctx.strokeStyle = 'rgba(120,104,72,0.10)';
+      ctx.lineWidth = 1;
+      for (let ry = y; ry < floor; ry += step) {
+        ctx.beginPath();
+        ctx.moveTo(48, ry + step * 0.24);
+        ctx.lineTo(PAGE_W - 48, ry + step * 0.24);
+        ctx.stroke();
+      }
+    }
     // `y` stays the return value, unchanged and still a plain number — several
     // painters do arithmetic on it and one of them comparing types would be a
     // silent break for no gain. How many rows actually landed goes out beside

@@ -14515,3 +14515,36 @@ The instrument reports rates now and cannot make that mistake again. Recorded in
 full because **a raw count that agrees with a plausible story is exactly how this
 session's other faults got in** — and this time the check came before the claim
 rather than after it.
+
+
+## C8 (ruling) — THE FIELD CONTINUES PAST THE WRITING
+
+*"It reads as a canvas with text on it rather than a page from a book."* A ruled
+book page is ruled **all the way down** — the lines are printed before anything is
+written on them, so they run past the last entry to the foot of the page. This
+book stopped ruling exactly where the text stopped, **which is the signature of a
+canvas that has had text drawn on it.**
+
+### The scoping is the whole of the design
+
+Done in `ruledRows`, not in `paperGround`. `paperGround` is called by **fifteen**
+painters including the guest register, which has its own printed grid and would
+have ended up double-ruled. `ruledRows` is the shared *list* renderer, it already
+draws a separator per row, and continuing those same rules at the same pitch
+through the unused remainder is **one edit that reaches exactly the pages that
+should have it.**
+
+Same pitch, same inset, same ink as the separators above — because they *are* the
+same rules, just the ones nobody has written on yet — at a lighter alpha so an
+empty field reads as paper rather than as a table. Drawn **after** the rows, so it
+can never push one off the page; it only fills what the rows did not use.
+
+### Verified both ways
+
+- **Complaints and Fixes** at the default camera: below the last entry sits its
+  separator, then a further faint rule continuing into the empty space before the
+  footer. Deliberately quiet, and modest on this page in particular because
+  `COMPLAINT_ROWS` is 4 and only about one row of space remains.
+- **The Deed** fills its page completely, has no remainder, and is **unchanged** —
+  which is exactly what *"only fills what the rows did not use"* should look like.
+  A change that showed up there would have meant the guard was wrong.
