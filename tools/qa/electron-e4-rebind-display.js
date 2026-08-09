@@ -87,14 +87,27 @@ async (page) => {
   // So click Controls, and then PROVE arrival by finding the key we are about to
   // change. The precondition is the control, promoted out of the report fields
   // so a run that lands in the wrong place cannot produce a reading at all.
-  out.tabClick = await page.evaluate(() => {
+  // A REAL POINTER, NOT element.click().
+  //
+  // The previous run found the tab and called .click() on it, and the page
+  // underneath stayed on Audio. A synthetic click dispatches one event; this
+  // strip evidently wants a pointer sequence. The register drivers in this repo
+  // already use page.mouse for exactly this reason, so take the element's box
+  // and click its centre for real.
+  out.tabBox = await page.evaluate(() => {
     const tab = [...document.querySelectorAll('button, [role=tab], .settings-tab')]
       .find((b) => /^\s*controls\s*$/i.test(b.textContent || ''));
-    if (!tab) return { clicked: false, why: 'no Controls tab' };
-    tab.click();
-    return { clicked: true };
-  }).catch((e) => ({ clicked: false, threw: String(e && e.message) }));
-  await page.waitForTimeout(1200);
+    if (!tab) return null;
+    const r = tab.getBoundingClientRect();
+    return { x: Math.round(r.left + r.width / 2), y: Math.round(r.top + r.height / 2) };
+  }).catch(() => null);
+  if (out.tabBox) {
+    await page.mouse.click(out.tabBox.x, out.tabBox.y);
+    out.tabClick = { clicked: true, via: 'page.mouse', at: out.tabBox };
+  } else {
+    out.tabClick = { clicked: false, why: 'no Controls tab box' };
+  }
+  await page.waitForTimeout(1400);
 
   out.arrival = await page.evaluate((want) => {
     const shell = document.querySelector('.settings-shell') || document.body;

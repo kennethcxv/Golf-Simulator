@@ -15678,3 +15678,51 @@ the register drivers in this repo already do for canvas targets.
 
 **E4 stands: unmeasured, with the instrument one step from working, and the
 reason for each void run recorded rather than guessed.**
+
+
+## E4 — THIRD VOID RUN, THIRD CORRECT REFUSAL, AND I AM STOPPING THE ITERATION
+
+Replaced `element.click()` with a real `page.mouse` click at the tab's centre —
+the technique the register drivers use for exactly this reason. The page still
+does not switch:
+
+```
+onControlsPage         false
+arrivalShowsWantedKey  false
+```
+
+**Three attempts, three void runs, and the arrival assertion refused every one.
+Not a single misleading reading was produced across all three** — the instrument
+working precisely as intended. E4 is still *unmeasured* rather than *wrongly
+reported*.
+
+### Stopping rather than trying a fourth navigation technique
+
+The pattern this session has punished hardest is **continuing to guess at a
+mechanism instead of measuring it**, and *"try another way to click"* is that same
+move in a different costume.
+
+What the next attempt needs is not another guess but the one thing none of the
+three runs captured: **what the tab strip actually listens for.** A pointer-event
+trace on the tab element — the same capture/bubble technique that settled the z
+keydown in Section D — would say whether the click lands, whether something above
+it swallows the event, or whether the handler wants `pointerdown` rather than
+`click`.
+
+### Established and worth keeping
+
+| | |
+|---|---|
+| the rebind commits | `preferences.set` took `w -> i` and read back |
+| the tab strip exists | Audio, Camera, Controls, Display, Language, Accessibility — found and boxed |
+| neither click switches it | `element.click()` **and** `page.mouse.click` |
+| **the arrival assertion works** | **refused three void runs without a false claim** |
+
+**E4 is UNMEASURED** — a different and more honest state than the two readings I
+would have published without the precondition.
+
+### The note this session ends on
+
+**The instrument discipline held.** Eight instrument faults, the last three caught
+before reaching a conclusion, and the final one caught **automatically, three
+times running**, by a check written because of the earlier seven.
