@@ -15052,3 +15052,58 @@ pressed. That converts the last link into a measurement like the five before it.
 
 **Eliminated live so far:** the binding, keyboard delivery, `placeAt`,
 `ledgerKeyHandler`, and now everything upstream of the predicate inside the arm.
+
+
+## D2 — THE CARTON HYPOTHESIS IS REFUTED, AND SO IS MY "THE CASE RUNS" CLAIM
+
+Exposed `carriedThing`'s answer through a read-only accessor and measured it:
+
+```
+carriedThing      "ledger"
+hasCarriedCarton  false
+ledgerIsCarried   true
+shopCarry         null
+```
+
+**The carton-first theory is dead.** `carriedThing` returns `'ledger'` exactly as
+the `setDown` arm needs, and `hasCarriedCarton` is false, so nothing is stealing
+the branch.
+
+**Which refutes my previous entry too.** I wrote *"the `setDown` case RUNS"* from
+one observation: `defaultPrevented` false at capture, true at bubble. What that
+measures is that **something** called `preventDefault`. I attributed it to the
+`setDown` arm because the arm calls `preventDefault` — and never ruled out any
+other handler on the page doing the same for `z`. **That is an inference wearing
+a measurement's clothes**, and it is the same shape as the five instrument faults
+before it: an observation with more than one cause, reported as though it had one.
+
+### The honest state of D2 — measurements only
+
+| fact | |
+|---|---|
+| something `preventDefault`s z between capture and bubble | MEASURED |
+| `carriedThing()` returns `'ledger'` | MEASURED |
+| `hasCarriedCarton()` is false | MEASURED |
+| `placeAt` clears `isCarried` when called | MEASURED |
+| the binding maps z to setDown | MEASURED |
+| keyboard delivery works (x, f in the same run) | MEASURED |
+| `ledgerKeyHandler` returns early, `ledgerOpen` false | MEASURED |
+| **the book is still carried after z** | MEASURED |
+
+**Every component works in isolation and the whole does not.** That is the entire
+finding, and it is worth more than another story about why.
+
+### No seventh explanation
+
+Six have been wrong, every one an inference from something read, or from an
+observation with more than one cause. The measurements above are solid and are
+where this should be picked up.
+
+**The one probe that settles it without inference:** instrument the arm itself
+rather than its side effects — wrap `putDownCarried` and record whether it is
+entered when z is pressed. *Entered and ineffective* versus *never entered* are
+different bugs, and no amount of watching `preventDefault` can tell them apart.
+
+The accessor added to `main.js` is read-only and additive, and worth keeping
+regardless: **`carriedThing`'s answer was unreadable from outside, which is why
+this took six rounds.**

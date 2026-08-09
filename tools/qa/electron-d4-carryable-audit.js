@@ -249,6 +249,11 @@ async (page) => {
   await page.waitForTimeout(900);
   out.zTrace = await page.evaluate(() => window.__zTrace).catch(() => null);
   out.carriedAfterTracedZ = (await probe()).carried;
+  // THE LAST LINK, MEASURED. What did the predicate see?
+  // THE LAST LINK, MEASURED. What did the predicate see at the moment z ran?
+  out.carryDiag = await page.evaluate(
+    () => (window.__fwCarryDiag ? window.__fwCarryDiag() : 'no accessor'),
+  ).catch((e) => ({ threw: String(e && e.message) }));
 
   // D2, THE DECIDING TEST. Call `placeAt` directly, exactly as putDownCarried
   // does, and watch `isCarried`.

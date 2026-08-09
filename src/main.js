@@ -374,6 +374,37 @@ function carriedThing() {
   return null;
 }
 
+// D2 — WHAT THE SET-DOWN PREDICATE ACTUALLY SEES, READABLE FROM OUTSIDE.
+//
+// The set-down arm was measured RUNNING (a capture/bubble listener pair caught
+// `defaultPrevented` flipping false -> true across it) while the book stayed
+// carried. That puts the fault on one predicate — `carriedThing() === 'ledger'`
+// — and `carriedThing` is module-scope, so no driver could read what it returns
+// at the moment the key is pressed.
+//
+// Five links in this path were each settled by one live measurement: the
+// binding, keyboard delivery, `placeAt`, `ledgerKeyHandler`, and everything
+// upstream of the predicate. This is the sixth, and it exists because guessing
+// at it produced four wrong answers first.
+//
+// A read-only accessor. It calls the same function the handler calls and adds
+// the sub-answers that decide its branch order, so a driver can see WHICH of the
+// three families claimed the carry.
+if (typeof window !== 'undefined') {
+  window.__fwCarryDiag = () => {
+    let carton = null;
+    let ledger = null;
+    try { carton = hasCarriedCarton(); } catch (e) { carton = `threw: ${e.message}`; }
+    try { ledger = !!app.scene3d?.clubhouse?.()?.ledgerBook?.isCarried?.(); } catch (e) { ledger = `threw: ${e.message}`; }
+    return {
+      carriedThing: carriedThing(),
+      hasCarriedCarton: carton,
+      ledgerIsCarried: ledger,
+      shopCarry: app.state?.shop?.carry ?? null,
+    };
+  };
+}
+
 // D1/D2 (Goal 17) — NOTHING IS EVER ABANDONED IN MID-AIR.
 //
 // The mechanism, found rather than guessed: the carried ledger is positioned
