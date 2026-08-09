@@ -165,11 +165,25 @@ async (page) => {
     // `.settings-page` at 831 px inside an 831 px shell. That is the check
     // watched failing before the fix, which is what the RULES ask for, and it is
     // the same driver that will confirm the fix rather than a different one.
+    // CORRECTED BEFORE IT COULD MISLEAD.
+    //
+    // The first cut also demanded the scroller be under 90% of the shell's
+    // width. That would have REJECTED A CORRECT FIX: a settings section spans
+    // the page minus its 8 px padding either side — about 98% of the shell — so
+    // moving the scroll onto the section, which is exactly what E2 asks for,
+    // could never have satisfied a 90% width test.
+    //
+    // The width was never the complaint. E2's objection is that the bar reads as
+    // the PAGE's ("it looks like the entire page scrolls"), and what fixes that
+    // is the bar belonging to the section — rendering inside the page's padding
+    // rather than at the panel's edge. So the criterion is IDENTITY, not size.
+    //
+    // Width is still reported, because a scroller that really did span the shell
+    // edge-to-edge would be worth seeing; it is just not the pass condition.
     e2Ok: (() => {
       const short = out.short?.scan?.scrollables || [];
-      const shellW = out.short?.scan?.shell?.w || 0;
-      if (!short.length || !shellW) return false;
-      return short.every((r) => !/settings-page/.test(r.cls) && (r.w / shellW) < 0.9);
+      if (!short.length) return false;
+      return short.every((r) => !/settings-page/.test(r.cls));
     })(),
   };
   fs.writeFileSync(path.join(OUT, 'e2-settings-scroll.json'), `${JSON.stringify(out, null, 2)}\n`);

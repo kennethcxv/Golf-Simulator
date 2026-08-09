@@ -15411,3 +15411,36 @@ session has been careful to avoid.
 **So E2 stands: reproduced, located to one element, acceptance wired, check red.**
 Whoever picks it up has the measurement, the target and the failing check already
 in place.
+
+
+## E2 — CORRECTED MY OWN ACCEPTANCE BEFORE IT COULD REJECT A CORRECT FIX
+
+The check wired last entry demanded two things of the scroller: that it not be
+`.settings-page`, **and that its width be under 90% of the shell's.**
+
+**The width half was wrong, and wrong in the worst direction — it would have
+rejected a correct fix.** A settings section spans the page minus its 8 px
+padding either side, about **98%** of the shell. Moving the scroll onto the
+section, which is precisely what E2 asks for, could never have passed a 90% width
+test. I would have made the change, watched my own check stay red, and had no way
+to tell *"the fix did not work"* from *"the check was never satisfiable"*.
+
+**Width was never the complaint.** E2 objects that the bar reads as the *page's*
+— *"it looks like the entire page scrolls"* — and what fixes that is the bar
+belonging to the section, rendering inside the page's padding rather than at the
+panel's edge. **The criterion is identity, not size.**
+
+Corrected to identity alone. Width is still reported — a scroller genuinely
+spanning the shell edge-to-edge would be worth seeing — it is just not the pass
+condition.
+
+Re-ran: **`e2Ok` still false**, which is what it must be. The check still fails
+**for the right reason** — the sole scroller *is* `.settings-page` — rather than
+for the wrong one.
+
+### Seventh instrument fault, and the first caught before it ran
+
+The pattern is identical to the other six: **a check that could return its answer
+for a reason other than the one being tested.** What differed is that I asked
+*"what would this say if the fix worked?"* **before** writing the fix rather than
+after — which is the cheapest possible moment to find it.
