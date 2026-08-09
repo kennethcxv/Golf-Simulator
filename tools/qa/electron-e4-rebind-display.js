@@ -106,18 +106,24 @@ async (page) => {
   // that the thing at those coordinates really is the tab. A candidate that
   // fails the hit test is rejected rather than clicked.
   out.tabBox = await page.evaluate(() => {
-    const NAMES = ['audio', 'camera', 'controls', 'display', 'language', 'accessibility'];
-    let strip = null;
-    for (const el of document.querySelectorAll('div, nav, ul, section')) {
-      const t = (el.textContent || '').toLowerCase();
-      if (!NAMES.every((n) => t.includes(n))) continue;
-      if (!strip || el.contains(strip) === false) strip = el;
-      // keep descending to the tightest container that still holds them all
-      strip = el;
-    }
-    if (!strip) return { found: false, why: 'no element holds all six tab names' };
-    const cands = [...strip.querySelectorAll('*')]
-      .filter((e) => !e.children.length && /^\s*controls\s*$/i.test(e.textContent || ''));
+    // THE STRUCTURE, DUMPED RATHER THAN GUESSED.
+    //
+    // Two elements in this app read exactly "Controls":
+    //   BUTTON.pause-nav-btn  inside .pause-nav      — the PAUSE MENU's nav item
+    //   BUTTON.settings-tab   inside .settings-tabs  — the actual tab
+    //
+    // The first is the decoy that three runs clicked. And my previous
+    // strip-finder overwrote its candidate on every match, so it ended on
+    // whichever container happened to come last in document order rather than
+    // the tightest one — which is why the hit test then rejected everything.
+    //
+    // With the subtree in hand the selector is one line and needs no cleverness:
+    // the tab is a .settings-tab inside .settings-tabs. Named classes beat text
+    // matching precisely because text is shared and classes are not.
+    const strip = document.querySelector('.settings-tabs');
+    if (!strip) return { found: false, why: 'no .settings-tabs' };
+    const cands = [...strip.querySelectorAll('.settings-tab, button')]
+      .filter((e) => /^\s*controls\s*$/i.test(e.textContent || ''));
     for (const c of cands) {
       const el = c.closest('button, [role=tab], .settings-tab') || c;
       const r = el.getBoundingClientRect();
@@ -185,6 +191,23 @@ async (page) => {
       sample: txt.replace(/\s+/g, ' ').slice(0, 160),
     };
   }, out.bindingsBefore.moveForward || 'w').catch(() => null);
+
+  // STRUCTURE, NOT ANOTHER GUESS. Dump the subtree around a tab name so the
+  // selector can be built from what is there rather than from what I assume.
+  out.stripDump = await page.evaluate(() => {
+    const leaf = [...document.querySelectorAll("*")]
+      .filter((e) => !e.children.length && /^s*Controlss*$/i.test(e.textContent || ""));
+    return leaf.slice(0, 4).map((el) => {
+      const chain = [];
+      let n = el;
+      for (let i = 0; i < 5 && n; i += 1) {
+        const r = n.getBoundingClientRect();
+        chain.push({ tag: n.tagName, cls: String(n.className || "").slice(0, 44), x: Math.round(r.left), y: Math.round(r.top), w: Math.round(r.width), h: Math.round(r.height) });
+        n = n.parentElement;
+      }
+      return chain;
+    });
+  }).catch((e) => ({ threw: String(e && e.message) }));
 
   out.before = await snapshot();
   await page.screenshot({ path: path.join(OUT, 'e4-before.png') });

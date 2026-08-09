@@ -15815,3 +15815,53 @@ tried, and it is the honest one.
 piece of navigation, the instrument never once produced a reading it had not
 earned. Earlier in this session that discipline did not exist, and it cost three
 published retractions.
+
+
+## E4 REACHED AND MEASURED — THE CONTROLS PAGE DOES NOT UPDATE ON A PROGRAMMATIC REBIND
+
+**The structure dump ended five runs of guessing in one look.** Two elements in
+this app read exactly "Controls":
+
+```
+BUTTON.pause-nav-btn   inside .pause-nav       the PAUSE MENU nav item
+BUTTON.settings-tab    inside .settings-tabs   the actual tab
+```
+
+The first is **the decoy three runs clicked**. And my previous strip-finder
+overwrote its candidate on every match, ending on whichever container came last
+in document order rather than the tightest — which is why the hit test then
+rejected everything. With the subtree in hand the selector is one line:
+`.settings-tab` inside `.settings-tabs`. **Named classes beat text matching
+precisely because text is shared and classes are not.**
+
+Now it lands:
+
+```
+tabBox               found, x 1187 y 460, cls settings-tab
+hitTest              settings-tab "Controls" BUTTON
+onControlsPage       TRUE
+oldKeyVisibleBefore  TRUE      ← the control passes: W is on screen before
+textChangedAtAll     FALSE
+rows                 63 -> 63, layout stable
+```
+
+**With the arrival precondition satisfied and the old-key control passing, the
+captured text is identical before and after `moveForward` changed from `w` to
+`i`. The Controls page did not update.**
+
+### Two caveats, stated rather than buried
+
+1. **The rebind was applied through `preferences.set`, not by driving the rebind
+   UI.** A programmatic set may not fire whatever change notification the panel
+   listens to — in which case this measures *"the display does not react to a
+   programmatic set"*, which is weaker than E4's claim about rebinding in
+   Controls. Settling it needs the rebind driven through the UI, **now reachable
+   since the tab is.**
+2. `newKeyVisibleAfter` reads true — but so does `oldKeyVisibleBefore`, and the
+   text did not change, so "I" was already present in ordinary prose. **That flag
+   is unreliable and nothing rests on it.** The load-bearing measurement is
+   `textChangedAtAll: false` across a 63-row capture.
+
+**What is solid:** the driver reaches the Controls page, proves it is there, and
+sees the old binding on screen. That is the instrument E4 needed — and it took a
+structure dump rather than a sixth guess to get it.
