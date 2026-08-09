@@ -14773,3 +14773,47 @@ then was unconditional — *author every commit message as a file*.
 I reached for `-m` again on the very next long message. **The rule was not the
 problem; reaching for the convenient form under time pressure was.** No inline
 `-m` for the rest of this session.
+
+
+## D2 ROOT CAUSE — A HANDLER, A PROMPT, AND NO BINDING
+
+The keydown switch dispatches on `boundAction(e)`, and `boundAction` is purely
+table-driven:
+
+```js
+const boundAction = (e) => actionForKey(preferences.values.controls.bindings, e.key);
+```
+
+**There is no `setDown` entry in that table.** Grepping all of `src/` for
+`setDown:` returns nothing; `preferences.js` contains neither a `setDown` action
+nor a `'z'` default. **So `boundAction` can never return `'setDown'`, and the
+`case 'setDown'` arm of the switch is unreachable.**
+
+Everything *else* about D2 was done:
+
+- the handler exists, and its comment says so in its own words — *"the book gets
+  the same verb as every other carryable... one extra branch, deliberately BEFORE
+  the carton branch"*;
+- it calls `putDownCarried()` and toasts `hud.bookSetDown`;
+- the HUD teaches the key — the walk prompt prints *"Z set down"*, and the
+  carrying prompt prints it again;
+- `prompt.setDown` is translated into ten languages.
+
+**A handler, a prompt, a toast, ten translations, and no wire between the key and
+the action.**
+
+That is why the audit found the book still carried after Z at the desk *and*
+after Z in open floor. **Both readings I offered were wrong**: not a missing verb,
+not a surface precondition. A verb that exists and cannot be reached — by the
+driver or by the player.
+
+### What caught it is worth keeping
+
+The audit's failure was ambiguous between *"the verb does not work"* and *"my
+driver cannot reach the verb"*, and **that ambiguity is what sent me to
+`boundAction` instead of to the handler.** The answer was the third thing:
+nobody can reach it.
+
+**A driver that had simply called `putDownCarried()` directly would have watched
+the book go down and reported D2 as passing.** Driving the real key is what made
+this findable — the same reason the RULES insist on real input.
