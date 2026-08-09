@@ -16202,3 +16202,54 @@ readings honest.
 **Every round was caught by the same dead-space click.** Without it, round one
 would have shipped as "F1 passes" — a green result on a requirement the brief
 asks to be swept exhaustively.
+
+
+## F1 — TWO CORRECTIONS: THE LAPTOP SELECTOR CLOSED IT, AND I OVERSTATED THE SCOPE
+
+### Correction 1 — the opener matched the closer
+
+```
+laptop attempt: {"via":"button","text":"Close Laptop"}
+```
+
+My selector was `/laptop/i` over button text. **"Close Laptop" matches it.** The
+driver clicked the button that shuts the laptop, so the laptop never opened and
+the audited set never grew past the pause menu.
+
+**Twelfth instrument fault, and the same one as E4's "Controls" decoy**: a text
+pattern matching a word that appears in both the thing and its opposite. E4 cost
+five runs to that; this cost one, because the button list in the artifact named
+what was actually clicked.
+
+### Correction 2 — I said "pause and settings"; it is pause only
+
+The nine audited buttons, in full:
+
+```
+pause-nav-btn: Resume, Overview, Save game, Load game, Settings,
+               Controls, Session
+pause-wide:    Move me to a safe position
+pause-resume-primary: Resume game
+```
+
+**All `pause-*`.** My previous entry called this *"the nine buttons reachable in
+the pause and settings surfaces"* — the settings half was not measured. The
+`Settings` and `Controls` entries above are **the pause menu's own nav items**,
+not settings-panel controls, which is exactly the decoy E4 already identified.
+
+**So F1's confirmed scope is the pause menu: 9 of 9 sounded, with a valid
+dead-space control.** That result stands. The claim about settings does not, and
+is withdrawn.
+
+### Where F1 actually stands
+
+| surface | audited |
+|---|---|
+| pause menu | **yes — 9/9 sounded** |
+| settings panel | no |
+| laptop | no — selector closed it |
+| register, ledger, desktop UI | no |
+
+One of six, not two. The instrument is correct and controlled; **the remaining
+work is reaching the other five surfaces**, and the first fix is a selector that
+distinguishes an opener from a closer — which, twice now, plain text cannot.
