@@ -227,6 +227,29 @@ async (page) => {
   await page.waitForTimeout(1400);
   out.afterPutDown = await probe();
 
+  // OBSERVE THE KEYDOWN ITSELF. The setDown case calls e.preventDefault() as its
+  // second statement, so defaultPrevented at a LATE listener says whether the arm
+  // ran -- no source access, no patching of game code, just watching the event.
+  //
+  //   reached=true, defaultPrevented=true   -> the case ran; the fault is inside it
+  //   reached=true, defaultPrevented=false  -> the case never ran
+  //   reached=false                         -> something consumed it before us
+  await page.evaluate(() => {
+    window.__zTrace = [];
+    window.addEventListener('keydown', (e) => {
+      if (String(e.key).toLowerCase() !== 'z') return;
+      window.__zTrace.push({ phase: 'capture', defaultPrevented: e.defaultPrevented });
+    }, true);
+    window.addEventListener('keydown', (e) => {
+      if (String(e.key).toLowerCase() !== 'z') return;
+      window.__zTrace.push({ phase: 'bubble', defaultPrevented: e.defaultPrevented });
+    }, false);
+  });
+  await page.keyboard.press('z');
+  await page.waitForTimeout(900);
+  out.zTrace = await page.evaluate(() => window.__zTrace).catch(() => null);
+  out.carriedAfterTracedZ = (await probe()).carried;
+
   // D2, THE DECIDING TEST. Call `placeAt` directly, exactly as putDownCarried
   // does, and watch `isCarried`.
   //

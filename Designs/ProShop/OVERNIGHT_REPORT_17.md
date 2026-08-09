@@ -14993,3 +14993,62 @@ was entered. That turns the last unknown into a measurement like the other four.
 
 **I am not speculating about which it is.** Four wrong explanations of this item
 all came from doing exactly that.
+
+
+## D2 — THE `setDown` CASE RUNS. THE FAULT IS INSIDE IT.
+
+**Observed the keydown rather than reasoning about it.** Two listeners on
+`window`, one capture and one bubble, both watching for `z`:
+
+```
+capture   defaultPrevented: false
+bubble    defaultPrevented: true
+after     still carried: ledger
+```
+
+The `setDown` arm calls `e.preventDefault()` as its **second statement**, so
+something between capture and bubble called it — and that something is the
+`setDown` arm. **The case runs.** The event is delivered, routed and handled, and
+the book stays in the player's arms.
+
+### Which locates the fault precisely
+
+```js
+case 'setDown': {
+  if (e.repeat) return;
+  e.preventDefault();                       // <- reached, measured
+  if (carriedThing() === 'ledger') {         // <- so this must be false
+    putDownCarried(); …; return;
+  }
+  …carton path…
+}
+```
+
+`preventDefault` is reached, so the `e.repeat` guard passed. `putDownCarried` is
+not reached, or returns early. Both funnel to one predicate: **`carriedThing()`
+is not returning `'ledger'` at that moment.**
+
+And `carriedThing`'s first line is the candidate:
+
+```js
+if (hasCarriedCarton()) return 'carton';
+```
+
+**It tests the carton system BEFORE the ledger.** If that returns true while the
+ledger is what is actually held, `carriedThing()` answers `'carton'`, the ledger
+branch is skipped, and the carton branch has no carton to put down — producing
+*exactly* what was measured: the arm runs, `preventDefault` fires, nothing is set
+down.
+
+**This is a hypothesis with a measurement behind it, not a fifth guess** — the
+`preventDefault` observation rules out everything upstream of the predicate.
+
+### The remaining step, and the elimination list
+
+`carriedThing` and `hasCarriedCarton` are module-scope in `main.js` and not
+exposed, so the honest next step is to **surface `carriedThing()`'s answer on a
+diagnostics accessor** — small and additive — and read it at the moment z is
+pressed. That converts the last link into a measurement like the five before it.
+
+**Eliminated live so far:** the binding, keyboard delivery, `placeAt`,
+`ledgerKeyHandler`, and now everything upstream of the predicate inside the arm.
