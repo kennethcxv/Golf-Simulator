@@ -302,13 +302,15 @@ export function makePhoneUi({ app, audio, keyLabel, onBooking = null }) {
     if (!open || !app.state) return;
     const key = event.key;
     const swallow = () => { event.preventDefault(); event.stopPropagation(); };
-    if (key === 'ArrowDown' || key === 'ArrowRight') {
+    if (key === 'ArrowDown' || key === 'ArrowRight' || key === 'ArrowUp' || key === 'ArrowLeft') {
       swallow();
-      focus = (focus + 1) % Math.max(1, focusables());
-      render();
-    } else if (key === 'ArrowUp' || key === 'ArrowLeft') {
-      swallow();
-      focus = (focus - 1 + Math.max(1, focusables())) % Math.max(1, focusables());
+      const count = Math.max(1, focusables());
+      // Verifier A: on the 2-column home grid, Down from the top-left tile
+      // landed on the tile to its RIGHT (list order). Home moves SPATIALLY;
+      // every other view is a single column where linear order is spatial.
+      const step = (view === 'home' && (key === 'ArrowDown' || key === 'ArrowUp')) ? 2 : 1;
+      const dir = (key === 'ArrowDown' || key === 'ArrowRight') ? 1 : -1;
+      focus = (focus + dir * step + count * step) % count;
       render();
     } else if (key === 'Enter') {
       swallow();

@@ -65,8 +65,11 @@ test('nothing in the drop animates the scale', () => {
     assert.doesNotMatch(updateBlock, pattern,
       `the drop must not animate scale (${pattern})`);
   }
-  assert.match(updateBlock, /scale\.copy\(motion\.baseScale\)/,
-    'it restores the size it was given');
+  // C1 (Goal 19): the size restore moved into the ONE packing rule; the drop
+  // hands its stored baseScale to it. The helper's own full-size guarantee is
+  // asserted in the every-path test below.
+  assert.match(updateBlock, /packMeshIntoBag\(motion\.mesh, \{ scale: motion\.baseScale \}\)/,
+    'it hands the size it was given to the one packing rule');
 });
 
 test('the item sinks into the bag and is left in it, not switched off', () => {
@@ -83,8 +86,10 @@ test('the item sinks into the bag and is left in it, not switched off', () => {
     'the second leg moves the item from the mouth down to the sink point');
   assert.doesNotMatch(updateBlock, /visible = false/,
     'nothing in the drop switches the item off - the bag is what hides it');
-  assert.match(updateBlock, /mesh\.visible = true/,
-    'and it is explicitly left visible once it is packed');
+  // C1 (Goal 19): the explicit visible=true now lives inside packMeshIntoBag
+  // (asserted in the every-path test); the drop must ROUTE there.
+  assert.match(updateBlock, /packMeshIntoBag\(motion\.mesh/,
+    'and it ends in the one packing rule, which leaves it visible');
 });
 
 test('the sink really is below the rim, not another point on it', () => {
@@ -168,30 +173,43 @@ test('the customer taking the bag is followed by a fresh one', () => {
   assert.match(branch, /resetBagAtCounter\(\)/, 'and put at the bagging position');
 });
 
-test('EVERY path that packs a good into the bag leaves it visible', () => {
+test('EVERY path that packs a good into the bag goes through the one rule, and it leaves goods visible', () => {
   // G4.2 was fixed in updateBagDropMotions - the DRAG path - and there are
   // THREE. The scan-motion path and the resume-restore path both still switched
   // the mesh off, and my original test only scanned the one function I had
   // changed. A live driver caught it: goods correctly inside the bag, correctly
   // at scale 1, and invisible.
   //
-  // This scans every site that marks an item packed, which is the class.
+  // C1 (Goal 19) UNIFIED the three sites into packMeshIntoBag - the anchor-
+  // volume placement - so the class check changes shape: there is exactly ONE
+  // place that marks an item packed (the helper), it must keep the goods
+  // visible at full size, and all three former sites must still route
+  // through it. A fourth path added by hand would either call the helper
+  // (fine) or mark 'packed-in-bag' itself (caught: the mark count grows).
   const src2 = fs.readFileSync(
     new URL('../src/render3d/clubhouse/simplifiedRegisterMode.js', import.meta.url), 'utf8',
   ).replace(/\/\/.*$/gm, '');
-  const sites = [];
+  const marks = [];
   let from = 0;
   for (;;) {
     const at = src2.indexOf("checkoutVisualState = 'packed-in-bag'", from);
     if (at < 0) break;
-    sites.push(at);
+    marks.push(at);
     from = at + 1;
   }
-  assert.ok(sites.length >= 3, `expected every packing site, found ${sites.length}`);
-  for (const at of sites) {
-    // the 400 characters before the mark are where the mesh is placed
-    const block = src2.slice(Math.max(0, at - 400), at);
-    assert.doesNotMatch(block, /visible = false/,
-      'a packing path must not switch the good off - the bag hides it');
-  }
+  assert.equal(marks.length, 1,
+    `exactly one authority may mark an item packed (packMeshIntoBag); found ${marks.length}`);
+  const helperAt = src2.indexOf('function packMeshIntoBag');
+  assert.ok(helperAt > 0 && marks[0] > helperAt,
+    'the one mark lives inside packMeshIntoBag');
+  const helper = src2.slice(helperAt, marks[0]);
+  assert.match(helper, /visible = true/,
+    'the packing rule must switch the good ON - the bag hides it, nothing else may');
+  assert.doesNotMatch(helper, /visible = false/,
+    'the packing rule must not switch the good off');
+  assert.match(helper, /scale\.copy\(scale \|\| mesh\.userData\.originalScale/,
+    'the packing rule keeps goods at FULL SIZE (F3: no miniature stack)');
+  const calls = src2.match(/packMeshIntoBag\(/g) || [];
+  assert.ok(calls.length >= 4,
+    `the helper plus its three call sites (scan, drag, restore); found ${calls.length}`);
 });

@@ -452,7 +452,7 @@
   {
     "from": "Assets/checkout/glb/shopping_bag.glb",
     "to": "vendor/models/checkout/shopping_bag.glb",
-    "sha1": "5fcea4c6b6b72db5057df68b1d114a9f4ce6cb36"
+    "sha1": "6d0026f9a640e7dcd4142e6ef393104d92fa80e4"
   },
   {
     "from": "Assets/checkout/glb/snack_shelf.glb",

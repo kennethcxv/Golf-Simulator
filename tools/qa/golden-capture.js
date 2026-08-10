@@ -128,6 +128,112 @@ async (page) => {
     manifest.poses.push(`tool-${tool}`);
   }
   await page.evaluate(() => { try { window.__fw.scene3d.walk.setTool(null); } catch { /* bare hands may not be a tool id */ } });
+
+  // C1 (Goal 19) — THE BAG POSE. Stages the canonical 3-item sale on the
+  // pinned world, bags everything through the shipped click interaction,
+  // despawns the customer, and photographs the packed carrier from the
+  // cashier's stand. This is the pose that makes "items stick out of the
+  // bag" impossible to regress invisibly. If any staging step fails the
+  // pose is SKIPPED LOUDLY in the manifest rather than captured wrong.
+  try {
+    // deterministic staging: the customer's spawn draws (shirt, cap, name)
+    // come from runtime randomness — pin it for the staging span so the
+    // person in frame is the same person every capture
+    await page.evaluate((s) => {
+      const original = Math.random;
+      window.__qaRestoreRandom2 = () => { Math.random = original; delete window.__qaRestoreRandom2; };
+      Math.random = () => s;
+    }, 0.4242);
+    await page.evaluate(async ([skuIds]) => {
+      const app = window.__fw;
+      const { REGISTER } = await import(new URL('src/data/shopLayout.js', document.baseURI).href);
+      const ch = app.scene3d.clubhouse();
+      ch.setOrganicWalkins(false);
+      for (const id of skuIds) {
+        const inv = app.state.shop.inventory[id];
+        if (inv) inv.shelf = Math.max(inv.shelf, 12);
+      }
+      ch.rebuildStock();
+      const w = app.scene3d.walk.state;
+      const off = ch.interior.position;
+      w.x = REGISTER.stand.x + off.x;
+      w.z = REGISTER.stand.z + off.z;
+      const dx = REGISTER.monitor.x - REGISTER.stand.x;
+      const dz = REGISTER.monitor.z - REGISTER.stand.z;
+      const h = Math.hypot(dx, dz) || 0.001;
+      w.yaw = Math.atan2(-dx / h, -dz / h);
+      w.pitch = Math.atan2(1.18 - 1.62, h);
+      return ch.sendToCounter(skuIds, 'card');
+    }, [['balls1', 'water1', 'sportdrink2']]);
+    await page.waitForFunction(() => {
+      const tx = window.__fw.scene3d.clubhouse().register.getTx();
+      return tx && tx.items.length === 3;
+    }, null, { timeout: 30000 });
+    await page.keyboard.press('e');
+    await page.waitForFunction(() => window.__fw.scene3d.clubhouse().register.isActive(), null, { timeout: 15000 });
+    await waitFrames(60);
+    const uids = await page.evaluate(() => window.__fw.scene3d.clubhouse().register.getTx().items.map((i) => i.uid));
+    for (const uid of uids) {
+      const spot = await page.evaluate(async (id) => {
+        const THREE = await import(new URL('vendor/three.module.js', document.baseURI).href);
+        const app = window.__fw;
+        let found = null;
+        app.scene3d.clubhouse().interior.traverse((o) => {
+          if (!found && o.visible && o.userData?.kind === 'item' && o.userData?.uid === id) found = o;
+        });
+        if (!found) return null;
+        const world = new THREE.Box3().setFromObject(found).getCenter(new THREE.Vector3());
+        world.project(app.scene3d.camera);
+        const rect = document.querySelector('canvas').getBoundingClientRect();
+        return {
+          x: rect.left + ((world.x + 1) / 2) * rect.width,
+          y: rect.top + ((-world.y + 1) / 2) * rect.height,
+          ok: Math.abs(world.x) <= 1 && Math.abs(world.y) <= 1,
+        };
+      }, uid);
+      if (spot && spot.ok) {
+        await page.mouse.click(spot.x, spot.y);
+        await waitFrames(50);
+      }
+    }
+    const packed = await page.evaluate(() => {
+      const app = window.__fw;
+      const ch = app.scene3d.clubhouse();
+      let count = 0;
+      ch.interior.traverse((o) => { if (o.userData?.checkoutVisualState === 'packed-in-bag') count += 1; });
+      // freeze the frame: customer gone, camera square on the carrier
+      return count;
+    });
+    if (packed >= 3) {
+      await page.evaluate(async () => {
+        const app = window.__fw;
+        const { REGISTER } = await import(new URL('src/data/shopLayout.js', document.baseURI).href);
+        const ch = app.scene3d.clubhouse();
+        const w = app.scene3d.walk.state;
+        const off = ch.interior.position;
+        w.x = REGISTER.stand.x + off.x;
+        w.z = REGISTER.stand.z + off.z;
+        const dx = REGISTER.bag.x - REGISTER.stand.x;
+        const dz = REGISTER.bag.z - REGISTER.stand.z;
+        const h = Math.hypot(dx, dz) || 0.001;
+        w.yaw = Math.atan2(-dx / h, -dz / h);
+        w.pitch = Math.atan2(0.95 - 1.62, h);
+      });
+      // NO despawn for this pose: killing the customer mid-sale voids the
+      // transaction and resets the carrier. The customer is pinned-spawn
+      // deterministic and the camera is on the bag.
+      await waitFrames(45);
+      const canvas = await page.$('#game');
+      await (canvas || page).screenshot({ path: path.join(OUT, 'bag-packed.png') });
+      manifest.poses.push('bag-packed');
+    } else {
+      manifest.poses.push(`SKIP bag-packed: only ${packed} goods packed`);
+    }
+    await page.evaluate(() => { window.__qaRestoreRandom2?.(); });
+  } catch (error) {
+    await page.evaluate(() => { window.__qaRestoreRandom2?.(); }).catch(() => {});
+    manifest.poses.push(`SKIP bag-packed: ${String(error && error.message ? error.message : error).slice(0, 120)}`);
+  }
   fs.writeFileSync(path.join(OUT, 'manifest.json'), JSON.stringify(manifest, null, 2));
   console.log(JSON.stringify(manifest, null, 2));
 }

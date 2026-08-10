@@ -63,7 +63,7 @@ test('retail retry projects product presentation from durable transaction facts'
     'retry reads each durable item checkpoint instead of replaying every bag action');
   assert.match(
     projection,
-    /item\.bagged[\s\S]*?(?:bagGroup\.add\([^)]*mesh|(?:project|restore|reconcile|rebuild)\w*(?:Item|Product))/i,
+    /item\.bagged[\s\S]*?(?:bagGroup\.add\([^)]*mesh|packMeshIntoBag\(|(?:project|restore|reconcile|rebuild)\w*(?:Item|Product))/i,
     'bagged item flags drive their rendered ownership or placement',
   );
   assert.doesNotMatch(projection, /\b(?:packReceipt|bagItem|handOverGoods)\s*\(/,
@@ -214,8 +214,11 @@ test('separate-handoff products never enter the compact bag-drop scale path', ()
   // The no-scale-collapse half of F3 stands and is asserted below.
   assert.doesNotMatch(compactMotion, /mesh\.visible = false/,
     'bagged goods stay in the carrier rather than being switched off inside it');
-  assert.match(compactMotion, /mesh\.visible = true/,
-    'and they are explicitly left visible once packed');
+  // C1 (Goal 19): visible=true is the one packing rule's own guarantee
+  // (tests/bag-drop-nothing-shrinks pins it inside packMeshIntoBag); the
+  // compact path must ROUTE through that rule.
+  assert.match(compactMotion, /packMeshIntoBag\(/,
+    'and they are packed through the one rule, which leaves them visible');
   assert.doesNotMatch(compactMotion, /multiplyScalar\(0\.(38|48|52)\)|1 - t \* 0\.52/,
     'no scale collapse anywhere in the compact drop path');
 });

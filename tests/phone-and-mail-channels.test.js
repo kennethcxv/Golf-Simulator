@@ -86,7 +86,14 @@ test('answering books through bookSlot with the channel recorded, and texts back
   assert.equal(result.res.source, 'phone', 'the reservation does not record its channel');
   const phone = ensurePhone(state);
   assert.equal(phone.calls[0].outcome, 'booked');
+  // Verifier A read "today 12:00 AM" off a live text: the default-stamp guard
+  // tested Number(null) — which is 0, and finite — so every default stamp was
+  // midnight day zero. The stamp must be the clock at the moment of the call.
+  assert.equal(phone.calls[0].atAbs, Math.floor(state.clock.minutes),
+    'a call is stamped with the clock at the moment it happened');
   assert.equal(phone.texts.length, 1, 'no confirmation text arrived');
+  assert.equal(phone.texts[0].atAbs, Math.floor(state.clock.minutes),
+    'a text is stamped with the clock at the moment it arrived');
   assert.equal(phone.texts[0].kind, 'bookingConfirmed');
   assert.equal(phone.texts[0].from, 'Leah Everett');
   // the caller is now a CONTACT with history

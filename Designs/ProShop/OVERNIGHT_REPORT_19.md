@@ -315,6 +315,52 @@ diff as it must. C1 and E2 now have a gate that can actually fail.
 
 ## C — CHECKOUT
 
+### C1 The bag anchor re-authored, one packing rule, a golden pose — DONE
+Through golf-assets: `ANCHOR_BagContents` in `build_checkout_kit.py` moved
+from a floor-adjacent point the runtime never read to the CENTRE of the
+contents volume (BH·0.40), carrying the interior half-extents as authored
+props (`interior_half_x/_depth/_mouth`). Rebuilt `shopping_bag.glb`
+(preview LOOKED at — visually unchanged, as an anchor move must be),
+validated clean, vendor manifest hash updated, staged copy verified.
+Runtime: the THREE hand-placed packing sites (scan-slide, drag, restore —
+two hardcoded `(0,0.15,0)`, one ad-hoc stack; the restore site computed the
+anchor and then never used it) unified into ONE `packMeshIntoBag` rule:
+measure the body's bag-frame box, clamp it WHOLE inside the anchored volume,
+fill deep-end-first in two columns. The flattened-depth axis overflow pushes
+toward the face the bag rests on (the first live run photographed two ball
+domes grazing the upper paper — fixed and re-measured). LIVE:
+`insideFrac 1` on all three goods, tops 2.8 cm under the rim
+(`qa/electron/c1c2-evidence/`); the contract tests re-encoded to pin ONE
+authority (exactly one 'packed-in-bag' mark, inside the helper, visible=true
+and full-size asserted there, ≥3 call sites). GOLDEN: new `bag-packed` pose —
+a staged, pinned-spawn 3-item sale photographed at the cashier's stand —
+two-run noise 0.105%, budget 0.35, and the one-pixel control fails it
+strictly. Items sticking out of the bag can no longer regress invisibly.
+
+### C2 The card is held flat, pinched, angled toward the cashier — DONE
+The Goal-18 fix authored grip-LOCAL constants and trusted the fist bone's
+frame — which stands the card up like a sign (image 1). The pose is now
+authored in WORLD terms at attach time and converted into the grip frame:
+face normal tipped 34° from flat toward the cashier's eye, long edge across,
+centre pushed 5 cm out of the fist so the fingers close on the near edge.
+MEASURED live: upDot 0.825 (=cos 34°), towardEyeDot 0.565 (=sin 34°) —
+exactly the authored numbers — and photographed
+(`qa/electron/c23-evidence/c2-card-closeup.png`): flat green face up toward
+the till in the outstretched hand. The register also gained `cardNode()`
+(forwarded through the narrow facade, whose own comment records what an
+unforwarded accessor costs): tonight's hunt-by-name found a scorecard holder
+and a pile of wood chips before the handle existed.
+
+### C3 One size from the moment it leaves the hand — DONE (pop measured first)
+Mechanism: customer bodies are scaled 0.87–0.99; carried goods inherit that,
+and `interior.attach()` at placement start faithfully PRESERVES it — so
+goods sat on the counter at the customer's size, and when the LAST one
+landed, `begin()` rebuilt them all at authored scale: the pop. WATCHED
+FIRST: measured live popRatio 1.089 (world 0.9186 → 1.0). Fix: one line at
+the attach — normalize to world-true authored scale as the good leaves the
+hand. Re-measured: placing world scale 1.0, register world scale 1.0,
+popRatio 1.000.
+
 ## D — THE LEDGER
 
 ## G — PERFORMANCE

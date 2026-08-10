@@ -1365,6 +1365,114 @@ export function createRegisterMode(B) {
   const bagDeliverAnchorFrom = new THREE.Vector3();
   const bagDeliverAnchorAt = new THREE.Vector3();
   const _bagClearScratch = new THREE.Vector3();
+
+  // C1 (Goal 19) — ONE packing rule for every path. The bag's authored
+  // ANCHOR_BagContents is the CONTENTS VOLUME: its position is the centre of
+  // the space goods may occupy, and its userData carries the interior
+  // half-extents (interior_half_x / _depth / _mouth, authored in
+  // build_checkout_kit.py). Every packed body is measured (a bag-frame AABB;
+  // the pack pose is quaternion.identity, so the item's own box IS its
+  // bag-frame box — child rotations inside product proxies are ignored and
+  // said so) and CLAMPED whole inside the volume, so nothing can sit proud
+  // of the mouth whatever the bag's world pose. Three sites used to place by
+  // hand — (0, 0.15, 0) twice and a third ad-hoc stack — and image 1 of
+  // Full_Goal_19 (a good lying ON the carrier) is what that looked like.
+  const _packBox = new THREE.Box3();
+  const _packPt = new THREE.Vector3();
+  const _packCentre = new THREE.Vector3();
+  const _packCentre2 = new THREE.Vector3();
+  const _packQuat = new THREE.Quaternion();
+  const _packOne = new THREE.Vector3(1, 1, 1);
+  function bagLocalBoxOf(object) {
+    _packBox.makeEmpty();
+    const visit = (node, px, py, pz, sx, sy, sz) => {
+      if (node.isMesh && node.geometry) {
+        if (!node.geometry.boundingBox) node.geometry.computeBoundingBox();
+        const b = node.geometry.boundingBox;
+        _packBox.expandByPoint(_packPt.set(px + b.min.x * sx, py + b.min.y * sy, pz + b.min.z * sz));
+        _packBox.expandByPoint(_packPt.set(px + b.max.x * sx, py + b.max.y * sy, pz + b.max.z * sz));
+      }
+      for (const child of node.children) {
+        visit(
+          child,
+          px + child.position.x * sx,
+          py + child.position.y * sy,
+          pz + child.position.z * sz,
+          sx * child.scale.x,
+          sy * child.scale.y,
+          sz * child.scale.z,
+        );
+      }
+    };
+    visit(object, 0, 0, 0, object.scale.x, object.scale.y, object.scale.z);
+    return _packBox;
+  }
+  function packMeshIntoBag(mesh, { scale = null } = {}) {
+    if (!bagGroup || !mesh) return;
+    bagGroup.add(mesh);
+    // G4.2: packed goods STAY VISIBLE at FULL SIZE — the bag's own walls are
+    // what hides them. No path may switch a packed good off or shrink it.
+    mesh.visible = true;
+    mesh.scale.copy(scale || mesh.userData.originalScale || _packOne);
+    mesh.quaternion.identity();
+    const index = bagGroup.children.filter(
+      (c) => c !== mesh && c.userData?.checkoutVisualState === 'packed-in-bag',
+    ).length;
+    _packCentre.set(0, 0.14, 0);
+    let halfX = 0.125;
+    let halfMouth = 0.126;
+    if (bagContentsNode) {
+      bagGroup.updateWorldMatrix(true, false);
+      _packCentre.copy(bagGroup.worldToLocal(bagContentsNode.getWorldPosition(_packPt)));
+      const authored = bagContentsNode.userData || {};
+      if (Number.isFinite(authored.interior_half_x)) halfX = authored.interior_half_x;
+      if (Number.isFinite(authored.interior_half_mouth)) halfMouth = authored.interior_half_mouth;
+    }
+    const box = bagLocalBoxOf(mesh);
+    const bodyHalfY = Math.max(0.005, (box.max.y - box.min.y) / 2);
+    const bodyHalfX = Math.max(0.005, (box.max.x - box.min.x) / 2);
+    const bodyHalfZ = Math.max(0.005, (box.max.z - box.min.z) / 2);
+    // two columns filling from the DEEP end toward the mouth; every body is
+    // clamped whole inside the authored extents (an item taller than the
+    // whole volume centres — those belong to the oversize handoff path)
+    const column = index % 2;
+    const layer = Math.floor(index / 2);
+    const targetX = THREE.MathUtils.clamp(
+      (column ? 1 : -1) * 0.055,
+      -(halfX - bodyHalfX),
+      halfX - bodyHalfX,
+    );
+    const targetY = Math.min(
+      (_packCentre.y - halfMouth) + bodyHalfY + layer * Math.min(0.075, bodyHalfY * 2 + 0.006),
+      _packCentre.y + halfMouth - bodyHalfY,
+    );
+    // The DEPTH axis is flattened at runtime (model.scale.z = BAG_FLATTEN),
+    // so a body deeper than the collapsed gusset would graze through a face.
+    // Whatever overflows is pushed toward the face the bag RESTS ON — the
+    // counter hides that side; the first live run photographed two ball
+    // domes peeking through the upper paper when this was left centred.
+    let targetZ = 0;
+    const authoredHalfDepth = Number.isFinite(bagContentsNode?.userData?.interior_half_depth)
+      ? bagContentsNode.userData.interior_half_depth : 0.07;
+    const flatten = bagContentsNode
+      ? Math.abs(bagContentsNode.getWorldScale(_packPt).z)
+        / Math.max(1e-6, Math.abs(bagGroup.getWorldScale(_packCentre2).z))
+      : 1;
+    const effHalfDepth = Math.max(0.01, authoredHalfDepth * flatten);
+    const depthOverflow = bodyHalfZ - effHalfDepth;
+    if (depthOverflow > 0) {
+      // local +z toward world-up? push the other way (into the resting face)
+      _packPt.set(0, 0, 1).applyQuaternion(bagGroup.getWorldQuaternion(_packQuat));
+      targetZ = _packPt.y >= 0 ? -depthOverflow : depthOverflow;
+    }
+    mesh.position.set(
+      targetX - (box.min.x + box.max.x) / 2,
+      targetY - (box.min.y + box.max.y) / 2,
+      targetZ - (box.min.z + box.max.z) / 2,
+    );
+    mesh.userData.checkoutVisualState = 'packed-in-bag';
+    mesh.userData.checkoutOwner = 'bag';
+  }
   let bagDeliverScaleFrom = BAG_COUNTER_SCALE;
   // The laid carrier's CLOSED BASE sits exactly on its authored layout point —
   // the counter's LEFT end, on the staff half, left of every staged item — and
@@ -1725,6 +1833,18 @@ export function createRegisterMode(B) {
   let hoveredItem = null;
 
   let cardMesh = null;
+  // C2 (Goal 19) scratch for the world-authored in-hand card pose
+  const _cardPoseEye = new THREE.Vector3();
+  const _cardPoseGrip = new THREE.Vector3();
+  const _cardPoseFwd = new THREE.Vector3();
+  const _cardPoseUp = new THREE.Vector3();
+  const _cardPoseWorldUp = new THREE.Vector3();
+  const _cardPoseLong = new THREE.Vector3();
+  const _cardPoseShort = new THREE.Vector3();
+  const _cardPoseAt = new THREE.Vector3();
+  const _cardPoseBasis = new THREE.Matrix4();
+  const _cardPoseQuat = new THREE.Quaternion();
+  const _cardPoseGripQuat = new THREE.Quaternion();
   let cardU = 0;
   let cardPresentationTimer = 0;
   let cardInsertTimer = 0;
@@ -3674,12 +3794,36 @@ export function createRegisterMode(B) {
     cardMesh.scale.setScalar(1);
     grip.attach(cardMesh);
     // C2 (Goal 18): attach() preserves the WORLD pose, so the card kept the
-    // air gap it had at the ready point and floated beside the fingers
-    // (image 3). A card in a hand is at the grip, so the local transform is
-    // authored here: centred in the fist, leading edge presented forward.
-    cardMesh.position.set(0, 0.015, 0.035);
-    cardMesh.quaternion.identity();
-    cardMesh.rotateX(-0.28);
+    // air gap it had at the ready point and floated beside the fingers.
+    //
+    // C2 (Goal 19): the Goal-18 fix authored grip-LOCAL constants and trusted
+    // the fist bone's frame — which stands the card up like a little sign
+    // (image 1). A handed-over card is held FLAT, pinched between finger and
+    // thumb, angled toward the receiver — so the pose is authored in WORLD
+    // terms at the moment of attach and converted into the grip's frame:
+    // face normal mostly up and tipped ~34° toward the cashier's eye, long
+    // edge across, the far short edge in the pinch.
+    const eye = camera.getWorldPosition(_cardPoseEye);
+    const gripAt = grip.getWorldPosition(_cardPoseGrip);
+    const toEye = _cardPoseFwd.subVectors(eye, gripAt);
+    toEye.y = 0;
+    if (toEye.lengthSq() < 1e-6) toEye.set(0, 0, 1);
+    toEye.normalize();
+    const TILT = 0.6; // radians the face tips from flat toward the receiver
+    const normal = _cardPoseUp.set(0, 1, 0).multiplyScalar(Math.cos(TILT))
+      .addScaledVector(toEye, Math.sin(TILT)).normalize();
+    const longAxis = _cardPoseLong.crossVectors(_cardPoseWorldUp.set(0, 1, 0), toEye).normalize();
+    const shortAxis = _cardPoseShort.crossVectors(longAxis, normal).normalize();
+    _cardPoseBasis.makeBasis(longAxis, normal, shortAxis);
+    _cardPoseQuat.setFromRotationMatrix(_cardPoseBasis);
+    // world orientation into the grip's local frame
+    grip.getWorldQuaternion(_cardPoseGripQuat).invert();
+    cardMesh.quaternion.copy(_cardPoseGripQuat).multiply(_cardPoseQuat);
+    // the pinch: card centre a few centimetres out of the fist toward the
+    // cashier, slightly above the fingers, so the digits close on the near
+    // edge instead of passing through the middle of the plastic
+    _cardPoseAt.copy(gripAt).addScaledVector(toEye, 0.05).addScaledVector(_cardPoseWorldUp.set(0, 1, 0), 0.012);
+    cardMesh.position.copy(grip.worldToLocal(_cardPoseAt));
     return true;
   }
 
@@ -5820,16 +5964,9 @@ export function createRegisterMode(B) {
     if (motion.destinationKind === 'bag') {
       // F3: fully past the mouth - the item now belongs to the carrier at FULL
       // SIZE. G4.2 (Goal 17): it stays VISIBLE and the bag's own walls hide it.
-      // This is the SCAN-MOTION path; the drag path was fixed first and this one
-      // was missed, which a live driver caught by reading visible:false on goods
-      // that were correctly inside the bag at scale 1.
-      bagGroup.add(motion.mesh);
-      motion.mesh.visible = true;
-      motion.mesh.position.set(0, 0.15, 0);
-      motion.mesh.quaternion.identity();
-      motion.mesh.scale.copy(motion.fromScale);
-      motion.mesh.userData.checkoutVisualState = 'packed-in-bag';
-      motion.mesh.userData.checkoutOwner = 'bag';
+      // This is the SCAN-MOTION path; C1 (Goal 19) routed it through the one
+      // packing rule so it can never disagree with the drag or restore paths.
+      packMeshIntoBag(motion.mesh, { scale: motion.fromScale });
     } else {
       settleScannedProduct(motion.mesh);
     }
@@ -6544,29 +6681,11 @@ export function createRegisterMode(B) {
       // NOTHING here touches motion.mesh.scale, on either leg, by design.
       if (motion.elapsed < total) continue;
       bagDropMotions.splice(index, 1);
-      bagGroup.add(motion.mesh);
       // G4.2: "Scanned items go into that bag, one at a time, and STAY VISIBLE
-      // in it until the sale completes."
-      //
-      // This used to set visible = false once the item was parented in, which is
-      // the same disappearance G3 objects to - just moved later. The bag's own
-      // walls are what should hide it, and they already do from the counter
-      // angle; looking down into the mouth should show the goods sitting in
-      // there, because that is what a bag with things in it looks like.
-      motion.mesh.visible = true;
-      // Stacked, not stacked IN THE SAME SPOT. Every packed item used to be put
-      // at exactly (0, 0.15, 0), so two goods occupied one point and fought for
-      // the same pixels.
-      const packedIndex = bagGroup.children.filter(
-        (c) => c.userData?.checkoutVisualState === 'packed-in-bag',
-      ).length;
-      motion.mesh.position.set(
-        ((packedIndex % 2) - 0.5) * 0.06,
-        0.10 + packedIndex * 0.035,
-        (Math.floor(packedIndex / 2) % 2 - 0.5) * 0.05,
-      );
-      motion.mesh.scale.copy(motion.baseScale);
-      motion.mesh.userData.checkoutVisualState = 'packed-in-bag';
+      // in it until the sale completes." C1 (Goal 19): the DRAG path packs
+      // through the same one rule as the scan and restore paths — measured
+      // body, clamped whole inside the anchor's authored contents volume.
+      packMeshIntoBag(motion.mesh, { scale: motion.baseScale });
       sfx('bagItem');
     }
   }
@@ -6652,19 +6771,14 @@ export function createRegisterMode(B) {
           oversizeIndex += 1;
           continue;
         }
-        bagGroup.add(mesh);
-        const contents = bagContentsNode
-          ? bagGroup.worldToLocal(bagContentsNode.getWorldPosition(new THREE.Vector3()))
-          : new THREE.Vector3(0, 0.18, 0);
-        const column = compactIndex % 2;
         // F3: restored contents sit at FULL SIZE inside the carrier, exactly
         // like freshly bagged ones - no miniature stack on resume. G4.2: and
         // VISIBLE, because a resumed sale must look like the one it resumes.
-        mesh.position.set(0, 0.15, 0);
-        mesh.quaternion.identity();
-        mesh.scale.copy(mesh.userData.originalScale || new THREE.Vector3(1, 1, 1));
-        mesh.visible = true;
-        mesh.userData.checkoutVisualState = 'packed-in-bag';
+        // C1 (Goal 19): the RESTORE path packs through the same one rule —
+        // the anchor-volume placement — so a resumed bag looks like the live
+        // one. (The old code computed the anchor point here and then never
+        // used it.)
+        packMeshIntoBag(mesh);
         mesh.userData.checkoutOwner = 'bag';
         compactIndex += 1;
         continue;
@@ -8712,6 +8826,10 @@ export function createRegisterMode(B) {
     // after the fibres went instanced. G4.1 says a bag is ALWAYS at the bagging
     // position; anything checking that should ask, not search.
     bagNode: () => bagGroup,
+    // C2 (Goal 19): the offered card, exposed for the same reason as bagNode
+    // — a driver that hunts the graph by name or size finds scorecard
+    // holders and wood chips (both happened tonight) and reports on them.
+    cardNode: () => cardMesh,
     // The mesh for a ticket line, by uid. Same reason as bagNode: a driver that
     // hunts the scene graph for a product finds nothing when it guesses wrong,
     // and a scan that finds nothing is indistinguishable from an empty counter.

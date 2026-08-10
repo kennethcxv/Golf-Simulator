@@ -838,8 +838,18 @@ def build_shopping_bag(M):
     # Alias anchors shared by the live register and customer handoff paths.
     K.empty("ANCHOR_BagDrop", (0, 0, BH + 0.010), parent=root, size=0.04,
             props={"socket": "bag_drop"})
-    K.empty("ANCHOR_BagContents", (0, 0, 0.055), parent=root, size=0.04,
-            props={"socket": "bag_contents"})
+    # C1 (Goal 19): the anchor IS the contents volume. Its position is the
+    # CENTRE of the space goods may occupy and its props carry the interior
+    # half-extents, so the register can place and CLAMP whole bodies inside
+    # the paper instead of guessing offsets. The old point (0,0,0.055) sat by
+    # the floor and the runtime never used it — goods packed at a hardcoded
+    # local offset poked out of the mouth whenever the bag lay on its side.
+    # Mouth-axis half 0.36*BH keeps the topmost content 8+ cm below the rim.
+    K.empty("ANCHOR_BagContents", (0, 0, BH * 0.40), parent=root, size=0.04,
+            props={"socket": "bag_contents",
+                   "interior_half_x": round(BW / 2 - 0.025, 4),
+                   "interior_half_depth": round(BD / 2 - 0.020, 4),
+                   "interior_half_mouth": round(BH * 0.36, 4)})
     K.empty("ANCHOR_BagHandoff", (0, 0, BH + 0.055), parent=root, size=0.04,
             props={"socket": "bag_handoff"})
     K.empty("ANCHOR_ReceiptPocket", (0.075, -BD / 2 - 0.004, BH * 0.70), parent=root, size=0.025,

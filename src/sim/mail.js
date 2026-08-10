@@ -71,7 +71,9 @@ export function deliverMail(state, { kind = 'system', from = '', data = {}, dedu
     kind: MAIL_KINDS[kind] ? kind : 'system',
     from: String(from),
     data,
-    atAbs: Number.isFinite(Number(atAbs)) ? Number(atAbs) : Math.floor(state.clock?.minutes || 0),
+    // Number(null) is 0 and finite — the guard must test the RAW value or
+    // every default-stamped message reads "today 12:00 AM" (Verifier A).
+    atAbs: Number.isFinite(atAbs) ? Number(atAbs) : Math.floor(state.clock?.minutes || 0),
     read: false,
     resolved: null,
     dedupeKey,

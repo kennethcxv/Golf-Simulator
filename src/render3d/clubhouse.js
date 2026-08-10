@@ -9700,6 +9700,7 @@ export function makeClubhouse(ctx) {
     return c.itemMeshes;
   }
 
+  const _placeScaleScratch = new THREE.Vector3();
   function clearCustomerItemMeshes(c) {
     if (c.itemMeshes) {
       for (const mesh of c.itemMeshes.values()) disposeCustomerProductMesh(c, mesh);
@@ -9748,6 +9749,14 @@ export function makeClubhouse(ctx) {
         }
         // Preserve the hand's world pose while changing ownership to the counter.
         interior.attach(mesh);
+        // C3 (Goal 19): the carried mesh inherited the customer BODY scale
+        // (char roots run 0.87-0.99) and attach() preserves it — so goods
+        // landed on the counter at the customer's size and popped ~9% bigger
+        // when the register rebuilt them at authored scale on the last
+        // placement (measured live: world 0.9186 -> 1.0, popRatio 1.089).
+        // One size from the moment it leaves the hand: world-true authored.
+        const worldScale = mesh.getWorldScale(_placeScaleScratch);
+        if (worldScale.x > 1e-6) mesh.scale.multiplyScalar(1 / worldScale.x);
         if (wristStart) mesh.position.copy(wristStart);
         c.placeMotion = {
           uid: item.uid,
@@ -11963,6 +11972,9 @@ export function makeClubhouse(ctx) {
       // never built. A probe reported registerKeysMatching /bag/i as [] and
       // accessorType undefined, which is what settled it.
       bagNode: () => (register.bagNode ? register.bagNode() : null),
+      // C2 (Goal 19): forwarded the day it was added — the facade's own note
+      // above records what an unforwarded accessor costs.
+      cardNode: () => (register.cardNode ? register.cardNode() : null),
       itemMesh: (uid) => (register.itemMesh ? register.itemMesh(uid) : null),
       bagIsAtCounter: () => (register.bagIsAtCounter ? register.bagIsAtCounter() : false),
       enter: () => register.enter(),

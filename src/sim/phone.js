@@ -80,7 +80,9 @@ export function logCall(state, { name, partySize = 1, dayAbs = 0, minute = 0, ou
     dayAbs,
     minute,
     outcome,
-    atAbs: Number.isFinite(Number(atAbs)) ? Number(atAbs) : Math.floor(state.clock?.minutes || 0),
+    // Number(null) is 0, and 0 is finite — the first draft of this line
+    // stamped every call "today 12:00 AM". Verifier A read it off the screen.
+    atAbs: Number.isFinite(atAbs) ? Number(atAbs) : Math.floor(state.clock?.minutes || 0),
     // a missed call carries a badge until the player has LOOKED at the phone;
     // answered calls were seen by definition
     seen: outcome !== 'missed',
@@ -98,7 +100,7 @@ export function sendText(state, { from, kind, args = {}, atAbs = null }) {
     from: String(from),
     kind: String(kind),
     args,
-    atAbs: Number.isFinite(Number(atAbs)) ? Number(atAbs) : Math.floor(state.clock?.minutes || 0),
+    atAbs: Number.isFinite(atAbs) ? Number(atAbs) : Math.floor(state.clock?.minutes || 0),
     read: false,
   };
   p.texts.unshift(entry);
