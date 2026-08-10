@@ -65,6 +65,17 @@ async (page) => {
       };
       wrapped.push(ctor);
     }
+    // AND uiTick ITSELF, separately. The graph hook answers "did a sound play";
+    // this answers "was the call even made". A clock chip that calls uiTick and
+    // stays silent is a different defect from one that never calls it, and only
+    // watching both tells them apart -- the putDownCarried lesson from Section D.
+    const a = window.__fw?.audio;
+    if (a && typeof a.uiTick === 'function') {
+      const ot = a.uiTick.bind(a);
+      a.uiTick = (...args) => { window.__f1.uiTickCalls = (window.__f1.uiTickCalls || 0) + 1; return ot(...args); };
+      wrapped.push('uiTick(counted separately)');
+    }
+    window.__f1.uiTickCalls = 0;
     return wrapped.length
       ? { ok: true, wrapped: wrapped.length, names: wrapped }
       : { ok: false, why: 'no source node constructors found' };
@@ -104,6 +115,31 @@ async (page) => {
     for (const [k, v] of Object.entries(f.byName)) if (!f.perFrame.has(k)) n += v;
     return n;
   }).catch(() => -1);
+
+  // THE HUD CHIP IN NORMAL PLAY, BEFORE ANY MENU IS OPENED.
+  //
+  // The audit has been pressing this chip with the pause menu OPEN, which is not
+  // when a player presses it. A modal backdrop spans the whole viewport in that
+  // state, and even though elementFromPoint reports the chip on top, a
+  // capture-phase dismiss handler on the overlay can consume the event before
+  // the chip's own onclick runs. Either way the reading would describe the menu,
+  // not the chip.
+  //
+  // So click it in normal play first, where F1's claim actually applies.
+  out.chipInPlay = await page.evaluate(() => {
+    const el = document.querySelector('.hud-clock');
+    if (!el) return null;
+    const r = el.getBoundingClientRect();
+    return { x: Math.round(r.left + r.width / 2), y: Math.round(r.top + r.height / 2), text: (el.textContent || '').trim().slice(0, 24) };
+  }).catch(() => null);
+  if (out.chipInPlay) {
+    const b0 = await ticks();
+    await page.mouse.click(out.chipInPlay.x, out.chipInPlay.y);
+    await page.waitForTimeout(600);
+    out.chipInPlay.before = b0;
+    out.chipInPlay.after = await ticks();
+    out.chipInPlay.sounded = out.chipInPlay.after > b0;
+  }
 
   const keys = await page.evaluate(() => window.__fw.preferences?.values?.controls?.bindings || {});
   await page.keyboard.press(keys.pause || 'p');
@@ -178,11 +214,19 @@ async (page) => {
     const next = list.find((b) => !seen.has(`${b.cls}|${b.text}`));
     if (!next) break;
     seen.add(`${next.cls}|${next.text}`);
+    // HIT-TEST BEFORE CLICKING. E4 taught this: a bounding box is not a promise
+    // that the element is on top. If something covers the button, the click
+    // lands on the cover and the button reads as silent when it was never
+    // pressed -- which would turn an occlusion into a false defect report.
+    const onTop = await page.evaluate((pt) => {
+      const el = document.elementFromPoint(pt.x, pt.y);
+      return { cls: String(el?.className || el?.tagName || '').slice(0, 40), text: (el?.textContent || '').trim().slice(0, 24) };
+    }, { x: next.x, y: next.y }).catch(() => null);
     const before = await ticks();
     await page.mouse.click(next.x, next.y);
     await page.waitForTimeout(420);
     const after = await ticks();
-    out.buttons.push({ ...next, before, after, sounded: after > before });
+    out.buttons.push({ ...next, onTop, reached: !!onTop && (onTop.text === next.text || onTop.cls.includes(next.cls)), before, after, sounded: after > before });
     // Some buttons navigate away; if the pause surface vanished, reopen it.
     const stillOpen = await page.evaluate(() => !!document.querySelector('.pause-panel, .settings-shell'))
       .catch(() => false);
@@ -194,6 +238,7 @@ async (page) => {
 
   const sounded = out.buttons.filter((b) => b.sounded);
   out.byName = await page.evaluate(() => window.__f1?.byName ?? {}).catch(() => ({}));
+  out.uiTickCalls = await page.evaluate(() => window.__f1?.uiTickCalls ?? null).catch(() => null);
   out.verdict = {
     hookOk: out.hook?.ok ?? false,
     perFrameNamesExcluded: out.idleSet2 ?? null,
@@ -204,6 +249,8 @@ async (page) => {
     buttonsThatSounded: sounded.length,
     silentButtons: out.buttons.filter((b) => !b.sounded).map((b) => `${b.cls}:${b.text}`),
     soundsHeard: out.byName,
+    uiTickCalls: out.uiTickCalls ?? null,
+    chipInPlay: out.chipInPlay ?? null,
   };
   fs.writeFileSync(path.join(OUT, 'f1-click-audit.json'), `${JSON.stringify(out, null, 2)}\n`);
   console.log('F1-CLICK', JSON.stringify(out.verdict));

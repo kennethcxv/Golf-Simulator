@@ -16347,3 +16347,47 @@ settled `putDownCarried` in Section D**, and it is where this resumes.
 right line in the right place once the route is understood. **It is not a fix
 yet, and the report says so** — an unverified change described as done is the one
 outcome this session has worked hardest to avoid.
+
+
+## F1 FIXED AND CONFIRMED — AND MY "THE FIX DID NOT TAKE" ENTRY WAS WRONG
+
+Two entries ago I reported the clock-chip fix as not working. **It works. The
+audit was testing it in the wrong state.**
+
+Clicking the chip **in normal play**, before any menu is opened:
+
+| build | result |
+|---|---|
+| **without** `uiTick` | `before: 0, after: 0` — **silent** |
+| **with** `uiTick` | `before: 0, after: 1` — **sounds** |
+
+That is the defect watched failing on the unfixed build and passing on the fixed
+one, which is exactly what the RULES ask for — and it took reverting the change to
+get it, because a fix that appears not to work and a test that cannot see it look
+identical from the outside.
+
+### What went wrong with the audit, and it is instructive
+
+The audit opens the pause menu first and then enumerates buttons. **In that state
+a `.modal-backdrop` spans the whole viewport**, and although `elementFromPoint`
+reports the chip on top — my hit test said `reached: true` — the click never
+reaches the chip's own handler.
+
+**So the hit test passed and was still not enough.** `elementFromPoint` answers
+*"what is painted here"*; it says nothing about *"who handles the event"*. That is
+a subtler version of the same fault that has run through this whole session: a
+check that returns its answer for a reason other than the one being tested.
+
+### Three claims corrected in sequence
+
+1. *"The HUD clock chip is pressable and silent"* — **right**, but for the wrong
+   reason: I had evidence only from the modal state, where nothing sounds.
+2. *"The fix did not take"* — **wrong**. The fix took; the test bed was invalid.
+3. **Now**: the chip was genuinely silent in normal play, the fix makes it sound,
+   and both halves are measured on the same probe.
+
+`chipInPlay` — clicking the chip before any menu opens — is kept in the driver as
+the right test bed, alongside the menu sweep which remains valid for menu buttons.
+
+**F1 status:** pause menu 9/9 sound; **HUD clock chip fixed and confirmed**;
+settings, laptop, register, ledger and desktop UI still unreached.
