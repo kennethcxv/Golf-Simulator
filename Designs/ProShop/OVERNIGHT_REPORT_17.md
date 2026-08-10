@@ -16474,3 +16474,48 @@ iteration dressed as a sixth idea.
 
 **F1 stands where it stood**: instrument correct and controlled, pause menu 9/9,
 HUD clock chip fixed and confirmed, five surfaces unreached.
+
+
+## F1 — WHY THE PAUSE MENU SOUNDS: `setPage` TICKS, NOT THE BUTTONS
+
+Read the pause panel's construction rather than guessing at it again, and the
+answer to a question I had not thought to ask was sitting there:
+
+```js
+const setPage = (key) => {
+  …content.replaceChildren(); PAGES[key](content); …
+  if (audio.ready) audio.uiTick();          // <- here
+};
+const navItem = (key, label, action) =>
+  el('button', { class: 'pause-nav-btn', text: label, onclick: action || (() => setPage(key)) });
+```
+
+**Every pause-nav button sounds because `setPage` ticks — not because each button
+is wired.** That is why the audit found 9 of 9 with no exceptions: there is one
+call site serving the whole surface.
+
+### That reframes Phase 0's open question
+
+Phase 0 flagged `laptop.js` as having **one** `uiTick` call site for a whole back
+office, and asked whether that meant delegation or many silent buttons. **The
+pause menu is the proof that one call site can legitimately cover a surface** — so
+a low count is not evidence of silence, and the count-based reading I started
+from was the wrong instrument for the question. Only clicking tells you.
+
+It also explains the HUD clock chip cleanly: it is **not** a pause-nav button, so
+it never went through `setPage`, and nothing else ticked for it. **A centralised
+tick covers exactly the buttons that route through the centre, and the chip
+did not.** That is a coherent account of both the pass and the defect, and it
+predicts where the other surfaces' risks lie: any control that bypasses its
+surface's common path.
+
+### Stopping the navigation chase here, properly this time
+
+I have not reached the settings surface and I am not going to try a sixth
+approach in this stretch. What I did instead — reading the mechanism — produced
+more in one look than the previous four runs combined, which is the same lesson
+as E4's DOM dump and D2's entry counter, arriving for the third time.
+
+**F1's honest state:** the pause menu is covered and understood, the HUD chip is
+fixed and confirmed, and the remaining five surfaces need the same treatment —
+find each surface's common path, then check what bypasses it.
