@@ -60,6 +60,63 @@ opens; the frames win over any instrument.
 
 ## THE FOUR REGRESSION STATEMENTS (what each check measured, why it passed)
 
+Written before changing anything, checked against the two known shapes.
+
+**B4 (ledger open glitch).** The check (`electron-b-ledger-evidence.js`) grabbed
+45 rAF frames at 640w around each E press and I judged them by eye for "boards
+through the swing." Why it passed: the DoubleSide fix genuinely cured the class
+it targeted (the cover's inner face CULLING for the whole swing), and in the
+early swing (0–70°) the board IS visible — I generalized from those frames.
+The late swing is the part the player sees: the cover crosses 70–140° nearly
+edge-on (invisible at video scale), the title page stands "bare" against the
+barrel spine, and at swing 0.72 the shell swap pops to the full spread
+(`ledgerBook.js` SWAP_POINT). The user's 10fps recording samples land exactly
+in that window (1.8–1.9s, 6.3–6.4s). The instrument had no per-frame predicate
+— "a cover board must be visible in any frame where a page is" — so a human
+eyeball passed a composition the design cannot actually produce. Instrument
+shape: eyeball generalization, not two-populations.
+
+**B5 (double set-down).** The check traced ONE object's state machine —
+`ledgerBook.diagnostics().state/stateT` every rAF for 3.5s through the close —
+and saw `open → closing → lowering → closed`, one clean pass, no repeats, no
+stateT rewind. That result was TRUE and is precisely the evidence: the user's
+footage shows the second animation starting ~0.2s AFTER `closed` lands
+(14.10s at rest → 14.30s airborne again at held scale), INSIDE my trace
+window. A bookState re-entry would have been caught; none was. Therefore the
+second animation is driven from OUTSIDE the state machine — a second driver
+moving the book (the user's own hypothesis: "two objects animating where I
+see one" / a re-present at held scale). The instrument watched the right
+object with the wrong scope. Shape: two-populations, the animation edition.
+Candidates for section D: E key auto-repeat re-triggering `advance()` on the
+freshly-closed book plus an auto-close reversing it, or a second driver in
+clubhouse.js's ledger wiring. To be settled with a keylog + call-site trace.
+
+**F2 (stuck rule).** The check (`tests/nav-stuck-one-second.test.js`) asserts
+the pure `navStuckVerdict()` function on synthetic inputs plus two regex
+source contracts (the 0.35s ladder gate, the give-up notification). "Watched
+fail" was the pure function failing with the old constant restored. Nothing in
+the check launches the game or watches an actor move. Why it passed while NPCs
+still grind: customers sliding along a box face can register as MAKING
+progress by the verdict's own inputs (moved≈step), actor-vs-actor collisions
+produce no verdict at all, and whether the live plumbing even feeds
+`noProgressT` for the movement states the player watches was never observed.
+Shape: tested code with zero live observation — the same family as
+tested-code-with-zero-call-sites. Section B settles what the live ladder
+actually receives while a customer walks into a box.
+
+**E1 (broom grip).** The check (`electron-e1-broom-grip.js`) applied four
+`frame.yaw` candidates at ONE forced pose and I picked from four screenshots;
+`broomDiagnostics()` supplied presence booleans (vmActive/twoHanded). It
+measured one degree of freedom (yaw) at one camera pitch, and hand PRESENCE.
+The complaints are hand SHAPE (the support hand renders as a fingerless
+blob), hand ORIENTATION (upper-hand thumb on the wrong side), residual head
+SLANT (a roll/pitch/bake composite that a yaw sweep cannot see), and SHADER
+artefacts — none of which any instrument graded. Worse: the golden suite DID
+flag the yaw bake as a visual family shift, and I accepted the new baselines
+as "the intended change" — the one gate that could have argued was silenced
+by my own rebaseline. Shape: instrument measures presence, complaint is about
+form.
+
 ## A — THE PHONE AND THE EMAIL
 
 ## B — THE QUEUE
@@ -90,7 +147,7 @@ opens; the frames win over any instrument.
 
 | Item | What was reported | What the check measured | Why it passed while broken |
 |---|---|---|---|
-| B4 ledger open glitch | "same frame window now shows the full boards through the swing" | (statement pending — frames first) | (pending) |
-| B5 double set-down | "CANNOT REPRODUCE, traced per frame" | (statement pending — frames first) | (pending) |
-| F2 stuck rule | "watched fail with old threshold restored" | (statement pending) | (pending) |
-| E1 broom grip | "yaw 0.02 baked, both hands verified on screen" | (statement pending) | (pending) |
+| B4 ledger open glitch | "full boards through the swing" | 45 rAF frames judged by eye | Early-swing frames show the board; the player-visible late window (cover edge-on + swap pop) had no predicate. Eyeball generalization. |
+| B5 double set-down | "CANNOT REPRODUCE, traced per frame" | ONE object's bookState per rAF | The trace is true — the second animation never touches bookState. A second driver moves the book after `closed` lands. Two-populations, animation edition. |
+| F2 stuck rule | "watched fail with old threshold restored" | Pure verdict fn + source regex | Never launched the game. Sliding registers as progress; actor-pair collisions produce no verdict; live plumbing unobserved. |
+| E1 broom grip | "yaw 0.02 baked, both hands verified" | One DOF at one pose + presence booleans | Complaint is hand shape/orientation, head slant composite, shader artefacts — none instrumented; the golden flag was rebaselined away. |
