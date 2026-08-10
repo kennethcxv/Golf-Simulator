@@ -14,8 +14,11 @@ __pycache__/
 *.py[cod]
 *.blend1
 # Claude Code session state; /.claude/worktrees holds live git worktrees whose
-# .git files would corrupt this repository if committed.
-/.claude/
+# .git files would corrupt this repository if committed. Written as /.claude/*
+# so the one exception below can re-include the committed project skills —
+# git cannot re-include anything inside an excluded directory.
+/.claude/*
+!/.claude/skills/
 
 # SDD scratch ledger (session tooling, not project state)
 .superpowers/
