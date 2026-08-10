@@ -176,8 +176,9 @@ test('the sidebar and every tab bar are built from one page map', () => {
   // Two hand-maintained copies of these labels is how a result comes to name a page by a
   // label the destination no longer uses.
   const nav = navEntries();
+  // 'mail' joined 2026-08-10 (Goal 19 A2): a real email client page.
   assert.deepEqual(nav.map((n) => n.id),
-    ['home', 'reservations', 'shop', 'course', 'upgrades', 'finances', 'settings']);
+    ['home', 'reservations', 'mail', 'shop', 'course', 'upgrades', 'finances', 'settings']);
   assert.equal(nav.length, LAPTOP_SECTIONS.length);
   assert.deepEqual(tabsOf('shop').map((t) => t[0]), ['stock', 'order', 'cart', 'prices', 'deliveries']);
   assert.deepEqual(tabsOf('home'), []);

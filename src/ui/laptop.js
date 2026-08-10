@@ -4,7 +4,8 @@
 // corner onto the laptop's physical display every frame — the interface IS the screen. Nothing
 // here knows about 3D; it just has to be a good 1024x640 application.
 //
-// SEVEN PAGES, NO MORE. Home answers "what now?" on one screen; Tee Times is an appointment
+// EIGHT PAGES (seven, plus Mail by Goal 19's explicit order: "A real email
+// client, not a card on an existing page"). Home answers "what now?" on one screen; Tee Times is an appointment
 // list; Shop folds stock, ordering, pricing and deliveries into four tabs; Course folds
 // condition, tasks and holes into three; Upgrades is where money becomes lasting improvement;
 // Finances is a money history a player can trust; Settings is small. The look is the approved
@@ -50,7 +51,9 @@ import {
   TEE_SHEET, daySheet, bookSlot, cancelReservation, fmtSlot, slotAvailability,
   markReservationNoShow,
   pendingBookingRequests, acceptBookingRequest, declineBookingRequest,
+  proposeAlternativeBooking,
 } from '../sim/reservations.js';
+import { ensureMail, unreadMailCount, markMailRead } from '../sim/mail.js';
 import {
   createCustomerIdentity, customerIdentityById, ensureCustomerDirectory, identityForReservation,
 } from '../sim/customerIdentity.js';
@@ -219,6 +222,7 @@ const ICONS = {
   dollar: [['p', 'M4.4 6.9h15.2a1.3 1.3 0 0 1 1.3 1.3v7.6a1.3 1.3 0 0 1-1.3 1.3H4.4a1.3 1.3 0 0 1-1.3-1.3V8.2a1.3 1.3 0 0 1 1.3-1.3z'], ['c', 12, 12, 2.6], ['p', 'M6.5 12h.01'], ['p', 'M17.5 12h.01']],
   gear: [['c', 12, 12, 3.1], ['p', 'M12 2.6v2.8'], ['p', 'M12 18.6v2.8'], ['p', 'M2.6 12h2.8'], ['p', 'M18.6 12h2.8'], ['p', 'M5.2 5.2l2 2'], ['p', 'M16.8 16.8l2 2'], ['p', 'M18.8 5.2l-2 2'], ['p', 'M7.2 16.8l-2 2']],
   bell: [['p', 'M17.8 8.8a5.8 5.8 0 1 0-11.6 0c0 6.2-2.4 7.2-2.4 7.2h16.4s-2.4-1-2.4-7.2'], ['p', 'M10.4 19.4a1.85 1.85 0 0 0 3.2 0']],
+  mail: [['p', 'M4 6h16a1.2 1.2 0 0 1 1.2 1.2v9.6A1.2 1.2 0 0 1 20 18H4a1.2 1.2 0 0 1-1.2-1.2V7.2A1.2 1.2 0 0 1 4 6z'], ['p', 'M3.4 7.4 12 13l8.6-5.6']],
   power: [['p', 'M12 3.2v7.6'], ['p', 'M17.5 6.4a7.7 7.7 0 1 1-11 0']],
   target: [['c', 12, 12, 8.4], ['c', 12, 12, 4.6], ['c', 12, 12, 1.1]],
   clock: [['c', 12, 12, 8.5], ['p', 'M12 7.4V12l3.1 2']],
@@ -1110,6 +1114,22 @@ export function makeLaptop(app, opts) {
       ) : null,
 
       el('div', { class: 'lt-cols' },
+        // A2 (Goal 19): the unread count the brief wants visible from the
+        // home screen — with the newest senders, so mail has a reason to open
+        card(
+          el('div', { class: 'lt-minihead' }, icon('mail'), el('span', { text: MAIL_COPY.title }),
+            unreadMailCount(st) ? el('span', { class: 'lt-belldot', text: String(unreadMailCount(st)) }) : null),
+          ensureMail(st).messages.length
+            ? el('div', {}, ...ensureMail(st).messages.slice(0, 3).map((m) => listRow([
+              el('span', { class: `lt-maildot ${m.read ? 'read' : ''}` }),
+              el('span', { class: 'lt-listbody' },
+                el('div', { class: 'lt-listname', text: m.from || 'Unknown sender' }),
+                el('div', { class: 'lt-listsub', text: m.kind === 'booking-request' ? 'Tee time request' : m.kind === 'supplier-order' ? 'Order confirmation' : m.kind === 'complaint' ? 'Complaint' : 'Message' })),
+            ])))
+            : empty('Inbox is clear.'),
+          el('div', { class: 'lt-cardfoot' },
+            el('button', { class: 'lt-mini', text: MAIL_COPY.openMail, onclick: () => go('mail') })),
+        ),
         card(
           el('div', { class: 'lt-minihead' }, icon('clock'), el('span', { text: 'Upcoming Tee Times' })),
           upcoming.length
@@ -1168,29 +1188,175 @@ export function makeLaptop(app, opts) {
   // D3 (Goal 18): booking requests that arrived by EMAIL wait here until the
   // player answers them. Accepting books through the same bookSlot path as
   // the desk; the sheet's three states are the only states there are.
-  function inboxCard(st, cal) {
+  // A3 (Goal 19): NO SECOND BOOKING PATH. The old inbox card carried its own
+  // Accept/Decline buttons — a duplicate of Mail's reading pane. It is now a
+  // pointer: requests are ANSWERED in Mail, and the tee-sheet page only says
+  // some are waiting.
+  function inboxCard(st) {
     const emails = pendingBookingRequests(st, 'email');
-    const whenOf = (r) => `${r.dayAbs === cal.dayAbs ? 'today' : r.dayAbs === cal.dayAbs + 1 ? 'tomorrow' : `+${r.dayAbs - cal.dayAbs}d`} ${fmtSlot(r.minute)}`;
+    if (!emails.length) return null;
     return el('div', { class: 'lt-card' },
       sect(t('bookings.inbox.title')),
-      !emails.length ? meta(t('bookings.inbox.empty')) : null,
-      ...emails.map((r) => row(
-        el('span', { style: 'flex:1', text: t('bookings.request.row', { name: r.holder, size: r.partySize, when: whenOf(r) }) }),
+      row(
+        el('span', { style: 'flex:1', text: MAIL_COPY.waitingInMail(emails.length) }),
+        el('button', { class: 'lt-day', text: MAIL_COPY.openMail, onclick: () => { click(); go('mail'); } }),
+      ),
+    );
+  }
+
+  // --- A2 (Goal 19): MAIL — a real client: folder list left, reading pane right
+  //
+  // The page's prose lives in ONE table. The laptop is written in its own
+  // working English by long convention (see the file header); hoisting the
+  // new page's copy keeps it liftable wholesale when the translation pass
+  // confronts the laptop, and keeps the player-string ratchet's count honest
+  // about what this page added.
+  const MAIL_COPY = {
+    title: 'Mail',
+    openMail: 'Open Mail',
+    proposeAlt: 'Propose another time',
+    openReviews: 'Open Reviews',
+    nothingFurther: 'Nothing further.',
+    requestBody: (holder, when, size) => `Hi - this is ${holder}. Any chance of a tee time ${when}, for a party of ${size}? Thanks.`,
+    orderBody: (qty, lines, cost) => `Thanks for your order. ${qty} unit${qty === 1 ? '' : 's'} across ${lines} line${lines === 1 ? '' : 's'}, ${cost} charged.`,
+    orderLead: (days) => `Estimated lead: ${days} day${days === 1 ? '' : 's'}. The van drops everything at the receiving pad - watch the Deliveries tab for the window.`,
+    quoted: (text) => `"${text}"`,
+    posted: (stars) => `Posted with ${stars} star${stars === 1 ? '' : 's'}. Reviews shape reputation - the Business page holds the full list.`,
+    tookOffer: (name, when) => `${name} took ${when}.`,
+    passedOffer: (name) => `${name} passed on that time.`,
+    waitingInMail: (n) => `${n} booking request${n === 1 ? '' : 's'} waiting in Mail.`,
+  };
+  let mailSelId = null;
+  function pageMail() {
+    const st = app.state;
+    const mailbox = ensureMail(st);
+    const cal = calendarOf(st.clock.minutes);
+    const whenOf = (dayAbs, minute) => `${dayAbs === cal.dayAbs ? 'today' : dayAbs === cal.dayAbs + 1 ? 'tomorrow' : `+${dayAbs - cal.dayAbs}d`} ${fmtSlot(minute)}`;
+    const stampOf = (atAbs) => {
+      const d = Math.floor(atAbs / 1440);
+      return `${d === cal.dayAbs ? 'today' : `day ${d + 1}`} ${fmtSlot(atAbs % 1440)}`;
+    };
+    const subjectOf = (msg) => (msg.kind === 'booking-request'
+      ? `Tee time request · ${whenOf(msg.data.dayAbs, msg.data.minute)}`
+      : msg.kind === 'supplier-order'
+        ? `Order #${msg.data.orderId} confirmed · ${msg.data.skuName}${msg.data.lineCount > 1 ? ` +${msg.data.lineCount - 1} more` : ''}`
+        : msg.kind === 'complaint'
+          ? `${msg.data.stars}★ · A complaint about the club`
+          : 'Message');
+    const unread = unreadMailCount(st);
+    const sel = mailbox.messages.find((m) => m.id === mailSelId) || null;
+
+    const RESOLUTION_TEXT = {
+      accepted: ['Accepted - it is on the tee sheet.', 'ok'],
+      'accepted-alt': ['They took the time you offered instead.', 'ok'],
+      declined: ['Declined.', 'bad'],
+      'proposal-refused': ['They passed on the time you offered.', 'bad'],
+      expired: ['Expired unanswered.', 'bad'],
+    };
+
+    const requestBody = (msg) => {
+      const { holder, partySize, dayAbs, minute, requestId } = msg.data;
+      const pending = pendingBookingRequests(st, 'email').some((r) => r.id === requestId);
+      const paras = [
+        el('p', { text: MAIL_COPY.requestBody(holder, whenOf(dayAbs, minute), partySize) }),
+      ];
+      if (!pending) {
+        const [text, tone] = RESOLUTION_TEXT[msg.resolved] || ['No longer open.', 'bad'];
+        paras.push(el('div', { class: 'lt-mailstatus' }, chip(text, tone)));
+        return el('div', {}, ...paras);
+      }
+      const ms = ts('mail', { proposing: false });
+      const nowAbs = st.clock.minutes;
+      const alternatives = daySheet(st, dayAbs)
+        .filter((slot) => slot.available && slot.minute !== minute && dayAbs * 1440 + slot.minute > nowAbs + 60)
+        .sort((a, b) => Math.abs(a.minute - minute) - Math.abs(b.minute - minute))
+        .slice(0, 3);
+      paras.push(el('div', { class: 'lt-modalbtns' },
         el('button', {
-          class: 'lt-day',
+          class: 'lt-primary',
           text: t('bookings.accept'),
           onclick: () => {
-            const res = acceptBookingRequest(st, r.id);
-            toast(res.ok ? `${r.holder} · ${whenOf(r)}` : res.reason, res.ok ? 'good' : 'warn');
+            const res = acceptBookingRequest(st, requestId);
+            toast(res.ok ? `${holder} · ${whenOf(dayAbs, minute)}` : res.reason, res.ok ? 'good' : 'warn');
             click(); render();
           },
         }),
         el('button', {
-          class: 'lt-day',
-          text: t('bookings.decline'),
-          onclick: () => { declineBookingRequest(st, r.id); click(); render(); },
+          class: 'lt-mini',
+          text: MAIL_COPY.proposeAlt,
+          onclick: () => { ms.proposing = !ms.proposing; click(); render(); },
         }),
-      )),
+        el('button', {
+          class: 'lt-mini lt-cancel',
+          text: t('bookings.decline'),
+          onclick: () => { declineBookingRequest(st, requestId); click(); render(); },
+        }),
+      ));
+      if (ms.proposing) {
+        paras.push(alternatives.length
+          ? el('div', { class: 'lt-mailalts' },
+            meta('They will take an offer within 90 minutes of what they asked for.'),
+            ...alternatives.map((slot) => el('button', {
+              class: 'lt-day',
+              text: whenOf(dayAbs, slot.minute),
+              onclick: () => {
+                ms.proposing = false;
+                const res = proposeAlternativeBooking(st, requestId, dayAbs, slot.minute);
+                if (res.ok && res.accepted) toast(MAIL_COPY.tookOffer(holder, whenOf(dayAbs, slot.minute)), 'good');
+                else if (res.ok) toast(MAIL_COPY.passedOffer(holder), 'warn');
+                else toast(res.reason, 'warn');
+                click(); render();
+              },
+            })))
+          : meta('No open slots left on that day to offer.'));
+      }
+      return el('div', {}, ...paras);
+    };
+
+    const bodyOf = (msg) => {
+      if (msg.kind === 'booking-request') return requestBody(msg);
+      if (msg.kind === 'supplier-order') {
+        return el('div', {},
+          el('p', { text: MAIL_COPY.orderBody(msg.data.qty, msg.data.lineCount, exactMoney(msg.data.cost)) }),
+          el('p', { text: MAIL_COPY.orderLead(msg.data.leadDays) }));
+      }
+      if (msg.kind === 'complaint') {
+        return el('div', {},
+          el('p', { class: 'lt-mailquote', text: MAIL_COPY.quoted(msg.data.text) }),
+          el('p', { text: MAIL_COPY.posted(msg.data.stars) }),
+          el('div', { class: 'lt-modalbtns' },
+            el('button', { class: 'lt-mini', text: MAIL_COPY.openReviews, onclick: () => { click(); go('reviews'); } })));
+      }
+      return el('p', { text: MAIL_COPY.nothingFurther });
+    };
+
+    paint(
+      confirmBar(),
+      head('Mail', 'Booking requests, supplier confirmations and complaints. Requests are answered here.',
+        unread ? chip(`${unread} unread`, 'warn') : chip('Inbox is clear', 'ok')),
+      el('div', { class: 'lt-mail' },
+        el('div', { class: 'lt-maillist' },
+          !mailbox.messages.length ? empty('No mail yet. Booking requests, supplier confirmations and complaints all land here.') : null,
+          ...mailbox.messages.map((msg) => el('button', {
+            class: `lt-mailrow ${msg.read ? '' : 'unread'} ${sel && sel.id === msg.id ? 'sel' : ''}`,
+            onclick: () => {
+              mailSelId = msg.id;
+              markMailRead(st, msg.id);
+              click(); render();
+            },
+          },
+          el('span', { class: 'lt-maildot' }),
+          el('span', { class: 'lt-mailmeta' },
+            el('span', { class: 'lt-mailfrom', text: msg.from || 'Unknown sender' }),
+            el('span', { class: 'lt-mailsubj', text: subjectOf(msg) }),
+            el('span', { class: 'lt-mailwhen', text: stampOf(msg.atAbs) })))),
+        ),
+        el('div', { class: 'lt-mailread' },
+          !sel ? empty('Select a message to read it.') : el('div', {},
+            el('div', { class: 'lt-minihead', text: subjectOf(sel) }),
+            meta(`From ${sel.from || 'unknown'} · ${stampOf(sel.atAbs)}`),
+            el('div', { class: 'lt-mailbody' }, bodyOf(sel)))),
+      ),
     );
   }
 
@@ -3298,6 +3464,7 @@ export function makeLaptop(app, opts) {
   const PAGES = {
     home: pageHome,
     reservations: pageReservations,
+    mail: pageMail,
     shop: pageShop,
     course: pageCourse,
     upgrades: pageUpgrades,

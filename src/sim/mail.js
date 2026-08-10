@@ -12,7 +12,13 @@
 //
 // Deliberately mirrors notifications.js: capped, healed, deduped. The bell
 // stays for real-time facts (a van at the door, a customer giving up); mail
-// carries the CORRESPONDENCE — things a person would have written down.
+// carries the CORRESPONDENCE — things a person would have written down. Each
+// delivery ALSO files one bell line ("new mail") pointing at the Mail page:
+// that line is how a player learns the laptop has an inbox at all (A4), and
+// the content itself never rides the bell.
+
+import { notify } from './notifications.js';
+import { t } from '../core/i18n.js';
 
 export const MAIL_CAP = 80;
 
@@ -72,6 +78,11 @@ export function deliverMail(state, { kind = 'system', from = '', data = {}, dedu
   };
   m.messages.unshift(message);
   if (m.messages.length > MAIL_CAP) m.messages.length = MAIL_CAP;
+  notify(state, {
+    kind: 'mail',
+    text: t('mail.notif.arrived', { from: message.from || t('mail.notif.unknownSender') }),
+    dedupeKey: `mail-arrived:${message.id}`,
+  });
   return message;
 }
 

@@ -35,6 +35,7 @@ import { makeShedChecklist } from './ui/shedChecklist.js';
 import { makeCourseMaintenancePanel } from './ui/courseMaintenancePanel.js';
 import { makeGolfDayPanel } from './ui/golfDayPanel.js';
 import { makeLaptop } from './ui/laptop.js';
+import { makePhoneUi } from './ui/phone.js';
 import { makeSettingsPanel } from './ui/settingsPanel.js';
 import { makeToolWheel } from './ui/toolWheel.js';
 import { makeToolTuner } from './ui/toolTuner.js';
@@ -617,26 +618,33 @@ let ledgerHintEl = null;
 let phoneChipEl = null;
 let phoneRingForId = null;
 let phoneLastBellAt = 0;
+let phoneUi = null;
+const phoneKeyLabel = () => describeKey(keyForAction(preferences.values.controls?.bindings, 'phone') || 't');
 function updatePhoneRing(nowMs) {
   const state = app.state;
   if (!state || app.screen !== 'game') { removePhoneChip(); return; }
   const ring = app.laptopOpen || app.frontDeskOpen || regActive() ? null : ringingPhoneRequest(state);
   if (!ring) { removePhoneChip(); return; }
+  // A1 (Goal 19): the ring is a RINGTONE now, and it keeps trilling whether
+  // the phone is up or in the pocket — it stops when the call is dealt with.
+  if (ring.id !== phoneRingForId || nowMs - phoneLastBellAt > 2600) {
+    phoneRingForId = ring.id;
+    if (audio.ready) (audio.phoneRing || audio.doorbell)?.();
+    phoneLastBellAt = nowMs;
+  }
+  // with the phone in hand the incoming-call screen carries the choice; the
+  // banner is only for a phone still in the pocket
+  if (phoneUi?.isOpen()) {
+    if (phoneChipEl) { phoneChipEl.remove(); phoneChipEl = null; }
+    return;
+  }
   const cal = Math.floor(state.clock.minutes / 1440);
   const when = `${ring.dayAbs === cal ? 'today' : `+${ring.dayAbs - cal}d`} ${fmtSlot(ring.minute)}`;
   if (!phoneChipEl) {
     phoneChipEl = el('div', { class: 'shop-lockhint phone-ring-chip' });
     document.getElementById('ui')?.appendChild(phoneChipEl);
   }
-  phoneChipEl.textContent = `${t('bookings.phone.ringing')} · ${t('bookings.request.row', { name: ring.holder, size: ring.partySize, when })} · Y ${t('bookings.accept')} · N ${t('bookings.decline')}`;
-  if (ring.id !== phoneRingForId) {
-    phoneRingForId = ring.id;
-    if (audio.ready) audio.doorbell?.();
-    phoneLastBellAt = nowMs;
-  } else if (nowMs - phoneLastBellAt > 2600) {
-    if (audio.ready) audio.doorbell?.();
-    phoneLastBellAt = nowMs;
-  }
+  phoneChipEl.textContent = `${t('bookings.phone.ringing')} · ${t('bookings.request.row', { name: ring.holder, size: ring.partySize, when })} · Y ${t('bookings.accept')} · N ${t('bookings.decline')} · ${phoneKeyLabel()} ${t('phone.chip.open')}`;
 }
 function removePhoneChip() {
   if (phoneChipEl) { phoneChipEl.remove(); phoneChipEl = null; }
@@ -2909,6 +2917,11 @@ window.addEventListener('keydown', (e) => {
       case 'courseEditor': // the drafting table: open the course editor from your feet
         enterEditor();
         return;
+      case 'phone': // A1: the pocket phone — up and away on the same key
+        if (e.repeat) return;
+        e.preventDefault();
+        phoneUi?.toggle();
+        return;
       case 'mowerBlades': {
         const bladeResult = app.scene3d.walk.toggleBlades?.();
         if (bladeResult?.handled) {
@@ -3169,6 +3182,7 @@ function walkControlHintText() {
     `${k('carry', 'X')} carry`,
     `${k('setDown', 'Z')} set down`,
     `tap/hold ${k('toolBelt', 'F')} tools`,
+    `${k('phone', 'T')} phone`,
     `${k('courseEditor', 'J')} course editor`,
     `${k('overview', 'Tab')} overview`,
     `${k('pause', 'P')} pause`,
@@ -3428,6 +3442,7 @@ function frame(ts) {
     hud.update();
     golfDayPanel?.update();
     updatePhoneRing(ts); // D3: the desk phone rings through the frame loop
+    phoneUi?.update(); // A1: badge, incoming-call face, status clock
   }
   // Weld the interface to the glass. Every frame, unconditionally, for as long as the lid is
   // open — through the camera's ease into the seat, through the lid's swing, through a window
@@ -3850,6 +3865,22 @@ function boot() {
   });
   toolTuner = makeToolTuner(app);
   app.toolTuner = toolTuner; // reachable from QA via window.__fw
+
+  // A1 (Goal 19) — the pocket phone. Lives in #ui beside the ring chip; the
+  // world keeps running while it is up (no pause, pointer lock untouched).
+  if (!phoneUi) {
+    phoneUi = makePhoneUi({
+      app,
+      audio,
+      keyLabel: phoneKeyLabel,
+      onBooking: () => {
+        if (app.frontDeskOpen) frontDeskUi?.refresh();
+        hud?.update();
+      },
+    });
+    document.getElementById('ui')?.appendChild(phoneUi.root);
+    app.phone = phoneUi; // reachable from QA via window.__fw
+  }
 
   walkPrompt = el('div', { class: 'shop-prompt', text: '' });
   walkCondition = el('div', { class: 'shop-cond', text: '', style: 'display:none' });

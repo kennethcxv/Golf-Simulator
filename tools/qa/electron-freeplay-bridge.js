@@ -14,6 +14,12 @@
 //   {"cmd":"sweep","dx":30,"dy":0,"n":10}   pointer-locked look: n relative steps
 //   {"cmd":"wait","ms":2000}                let the world run
 //   {"cmd":"shot"}                          extra screenshot, no input
+//   {"cmd":"qa","script":"ring"|"email"}    ALLOWLISTED state injection — the
+//       booking channels fire on a slow sim trickle (~1 per 2 game-hours), so
+//       a session-scoped verifier gets exactly these two fixed triggers: one
+//       phone request ("ring") or one email request with its mail row
+//       ("email"). No arbitrary code crosses this bridge; a verifier that
+//       uses one must record the concession in its report.
 //   {"cmd":"end"}                           finish the session
 //
 // Coordinates are in the 1600x900 content space set below. state.json reports
@@ -76,6 +82,43 @@ async (page) => {
           for (const k of c.keys) await page.keyboard.down(k);
           await page.waitForTimeout(c.ms || 500);
           for (const k of [...c.keys].reverse()) await page.keyboard.up(k);
+        } else if (c.cmd === 'qa' && (c.script === 'ring' || c.script === 'email')) {
+          await page.evaluate((kind) => {
+            const app = window.__fw;
+            if (!app?.state?.reservations) return;
+            const state = app.state;
+            const book = state.reservations;
+            book.requests = Array.isArray(book.requests) ? book.requests : [];
+            const nowAbs = Math.floor(state.clock.minutes);
+            const dayAbs = Math.floor(nowAbs / 1440) + (kind === 'email' ? 1 : 0);
+            book.nextRequestId = (book.nextRequestId || 1) + 1;
+            const id = `req_qa_bridge_${book.nextRequestId}`;
+            const minute = kind === 'email' ? 9 * 60 : 14 * 60;
+            book.requests.push({
+              id,
+              channel: kind === 'ring' ? 'phone' : 'email',
+              holder: kind === 'ring' ? 'Dana Whitfield' : 'Omar Reyes',
+              partySize: 2,
+              dayAbs,
+              minute,
+              createdAtAbs: nowAbs,
+              expiresAtAbs: kind === 'ring' ? nowAbs + 30 : dayAbs * 1440 + minute - 60,
+              status: 'pending',
+            });
+            if (kind === 'email') {
+              state.mail = state.mail && Array.isArray(state.mail.messages) ? state.mail : { messages: [], nextId: 1 };
+              state.mail.messages.unshift({
+                id: state.mail.nextId++,
+                kind: 'booking-request',
+                from: 'Omar Reyes',
+                data: { requestId: id, holder: 'Omar Reyes', partySize: 2, dayAbs, minute },
+                atAbs: nowAbs,
+                read: false,
+                resolved: null,
+                dedupeKey: `qa-bridge:${id}`,
+              });
+            }
+          }, c.script);
         } else if (c.cmd === 'move') await page.mouse.move(c.x, c.y, { steps: 6 });
         else if (c.cmd === 'click') { await page.mouse.move(c.x, c.y, { steps: 4 }); await page.mouse.click(c.x, c.y, { button: c.button || 'left' }); }
         else if (c.cmd === 'sweep') await sweep(c);

@@ -25,6 +25,9 @@ export const BINDABLE_ACTIONS = Object.freeze([
   Object.freeze({ id: 'setDown', label: 'Set down', group: 'Actions', defaultKey: 'z' }),
   Object.freeze({ id: 'toolBelt', label: 'Tools (tap next, hold wheel)', group: 'Actions', defaultKey: 'f', hold: true }),
   Object.freeze({ id: 'dirtSense', label: 'Dirt sense (hold)', group: 'Actions', defaultKey: 'q', hold: true }),
+  // A1 (Goal 19): the pocket phone. T was free across the whole table — no
+  // collision to resolve — and it is the key the brief suggested.
+  Object.freeze({ id: 'phone', label: 'Phone', group: 'Interface', defaultKey: 't' }),
   Object.freeze({ id: 'overview', label: 'Overview map', group: 'Interface', defaultKey: 'tab' }),
   Object.freeze({ id: 'courseEditor', label: 'Course editor', group: 'Interface', defaultKey: 'j' }),
   Object.freeze({ id: 'pause', label: 'Pause', group: 'Interface', defaultKey: 'p' }),

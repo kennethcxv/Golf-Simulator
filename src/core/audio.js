@@ -399,6 +399,26 @@ export function makeAudio(preferences = null) {
     }
   }
 
+  // A1 (Goal 19) — the pocket phone's ringtone: a bright double trill,
+  // unmistakably a phone against the doorbell's two-note chime. One call
+  // plays one trill; the ring loop retriggers it while the caller waits.
+  function phoneRing() {
+    if (!ctx) return;
+    const t0 = ctx.currentTime;
+    for (const [freq, at] of [[1046.5, 0], [1318.5, 0.085], [1046.5, 0.26], [1318.5, 0.345]]) {
+      const osc = ctx.createOscillator();
+      osc.type = 'triangle';
+      osc.frequency.value = freq;
+      const g = ctx.createGain();
+      g.gain.setValueAtTime(0, t0 + at);
+      g.gain.linearRampToValueAtTime(0.075, t0 + at + 0.015);
+      g.gain.exponentialRampToValueAtTime(0.0001, t0 + at + 0.22);
+      osc.connect(g).connect(sfxBus);
+      osc.start(t0 + at);
+      osc.stop(t0 + at + 0.24);
+    }
+  }
+
   let lastUiTickAt = -1;
   function uiTick() {
     if (!ctx) return;
@@ -2165,6 +2185,7 @@ export function makeAudio(preferences = null) {
     bagHandoff,
     checkoutComplete,
     doorbell,
+    phoneRing,
     uiTick,
     uiConfirm,
     uiError,

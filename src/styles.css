@@ -2830,3 +2830,232 @@ body.register-mode .view-toggle { display: none !important; }
   font: 14px/1.3 system-ui, sans-serif;
   pointer-events: none;
 }
+
+/* --- the pocket phone (A1, Goal 19) ---------------------------------------- */
+
+.phone-dock {
+  position: absolute;
+  right: 20px;
+  bottom: 62px;
+  pointer-events: none;
+  z-index: 30;
+}
+.phone-dock.open { pointer-events: auto; }
+.phone-body {
+  width: 252px;
+  height: 456px;
+  border-radius: 22px;
+  background: linear-gradient(160deg, #171d19, #0c100d);
+  border: 1px solid rgba(190, 158, 92, 0.5);
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.55), inset 0 1px rgba(255, 255, 255, 0.06);
+  padding: 10px 10px 8px;
+  display: flex;
+  flex-direction: column;
+  transform: translateY(140%);
+  opacity: 0;
+  transition: transform 0.22s ease-out, opacity 0.18s ease-out;
+}
+.phone-body.up { transform: translateY(0); opacity: 1; }
+.phone-status {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  color: #cfc7ae;
+  font: 700 0.72rem/1.4 ui-monospace, Consolas, monospace;
+  padding: 2px 6px 6px;
+  border-bottom: 1px solid rgba(151, 174, 153, 0.22);
+}
+.phone-carrier { letter-spacing: 0.08em; font-size: 0.62rem; color: #97ae99; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 60%; }
+.phone-view { flex: 1; overflow: hidden auto; padding: 8px 4px; display: flex; flex-direction: column; gap: 6px; }
+.phone-footline {
+  color: #8b9a8d;
+  font-size: 0.62rem;
+  text-align: center;
+  padding-top: 5px;
+  border-top: 1px solid rgba(151, 174, 153, 0.18);
+}
+.phone-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 10px 6px; }
+.phone-appbtn {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 14px 6px 10px;
+  background: rgba(40, 49, 44, 0.85);
+  border: 1px solid rgba(151, 174, 153, 0.3);
+  border-radius: 14px;
+  color: #f3edda;
+  cursor: pointer;
+  font: 600 0.72rem/1.2 system-ui, sans-serif;
+}
+.phone-appbtn .phone-appglyph { font-size: 1.5rem; line-height: 1; }
+.phone-appbtn.focus, .phone-action.focus, .phone-back.focus {
+  outline: 2px solid #b58a42;
+  outline-offset: 1px;
+}
+.phone-badge {
+  position: absolute;
+  top: 6px;
+  right: 8px;
+  min-width: 1.35em;
+  padding: 0.06em 0.3em;
+  border-radius: 999px;
+  background: #a5372c;
+  color: #fff;
+  font: 700 0.62rem/1.5 system-ui, sans-serif;
+  text-align: center;
+}
+.phone-pocket { position: relative; }
+.phone-pocket .phone-badge { top: -7px; right: -8px; }
+.phone-apphead {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: #e9dcba;
+  font: 700 0.82rem/1.3 Georgia, serif;
+  padding: 0 4px 4px;
+}
+.phone-back {
+  background: rgba(40, 49, 44, 0.85);
+  border: 1px solid rgba(151, 174, 153, 0.3);
+  border-radius: 8px;
+  color: #cfc7ae;
+  font-size: 0.66rem;
+  padding: 3px 9px;
+  cursor: pointer;
+}
+.phone-list { display: flex; flex-direction: column; gap: 5px; }
+.phone-row {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  background: rgba(24, 31, 26, 0.85);
+  border: 1px solid rgba(151, 174, 153, 0.16);
+  border-radius: 10px;
+  padding: 7px 9px;
+}
+.phone-row-glyph { font-size: 0.86rem; line-height: 1.3; }
+.phone-row-glyph.bad { color: #d4645a; }
+.phone-row-glyph.good { color: #7fb069; }
+.phone-row-glyph.dim { color: #8b9a8d; }
+.phone-row-body { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.phone-row-name { color: #f3edda; font: 600 0.76rem/1.3 system-ui, sans-serif; }
+.phone-row-sub { color: #a9b4a6; font-size: 0.66rem; line-height: 1.35; }
+.phone-row-when { color: #77857a; font-size: 0.6rem; }
+.phone-empty { color: #8b9a8d; text-align: center; font-size: 0.72rem; padding: 26px 8px; }
+.phone-incoming-label {
+  text-align: center;
+  color: #b58a42;
+  font: 700 0.66rem/1.3 system-ui, sans-serif;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  padding-top: 14px;
+}
+.phone-caller { text-align: center; color: #f7f2e6; font: 700 1.12rem/1.3 Georgia, serif; padding: 4px 6px 0; }
+.phone-callwant { text-align: center; color: #cfc7ae; font-size: 0.72rem; padding: 2px 8px 12px; }
+.phone-actions { display: flex; flex-direction: column; gap: 8px; padding: 4px 10px; }
+.phone-action {
+  background: rgba(40, 49, 44, 0.9);
+  border: 1px solid rgba(151, 174, 153, 0.32);
+  border-radius: 10px;
+  color: #f3edda;
+  font: 600 0.78rem/1.4 system-ui, sans-serif;
+  padding: 9px 10px;
+  cursor: pointer;
+}
+.phone-action.good { border-color: rgba(127, 176, 105, 0.6); color: #cfe6c2; }
+.phone-action.bad { border-color: rgba(212, 100, 90, 0.55); color: #eec5c0; }
+.phone-action.dim { color: #a9b4a6; }
+.phone-card {
+  margin: auto 10px;
+  text-align: center;
+  color: #f3edda;
+  background: rgba(40, 49, 44, 0.9);
+  border: 1px solid rgba(190, 158, 92, 0.4);
+  border-radius: 12px;
+  padding: 18px 12px;
+  font: 600 0.8rem/1.5 system-ui, sans-serif;
+}
+.phone-pocket {
+  position: absolute;
+  right: 2px;
+  bottom: -44px;
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  color: #cfc7ae;
+  background: rgba(14, 20, 16, 0.86);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 5px 10px;
+  font-size: 0.72rem;
+  pointer-events: none;
+}
+.phone-pocket-key {
+  display: inline-block;
+  min-width: 1.5em;
+  padding: 0.04em 0.34em;
+  border: 1px solid #66766b;
+  border-bottom-width: 2px;
+  border-radius: 5px;
+  background: #28312c;
+  color: #f7f2e6;
+  font: 700 0.68rem/1.4 ui-monospace, Consolas, monospace;
+  text-align: center;
+}
+
+/* --- laptop Mail page (A2, Goal 19) ---------------------------------------- */
+
+.lt-mail { display: flex; gap: 14px; align-items: stretch; min-height: 340px; }
+.lt-maillist {
+  width: 40%;
+  min-width: 230px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  overflow-y: auto;
+  max-height: 430px;
+}
+.lt-mailrow {
+  display: flex;
+  gap: 9px;
+  align-items: flex-start;
+  text-align: left;
+  background: #fff;
+  border: 1px solid #e3e1d8;
+  border-radius: 10px;
+  padding: 9px 11px;
+  cursor: pointer;
+  font: inherit;
+}
+.lt-mailrow:hover { border-color: #b9c6cf; }
+.lt-mailrow.sel { border-color: #4c7ea8; box-shadow: 0 0 0 1px #4c7ea8 inset; }
+.lt-maildot {
+  width: 8px;
+  height: 8px;
+  margin-top: 6px;
+  border-radius: 50%;
+  background: #4c7ea8;
+  flex: none;
+}
+.lt-mailrow:not(.unread) .lt-maildot, .lt-maildot.read { background: #d8d5ca; }
+.lt-mailmeta { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.lt-mailfrom { font-weight: 700; font-size: 0.82em; color: #2c3238; }
+.lt-mailrow.unread .lt-mailfrom { color: #14384f; }
+.lt-mailsubj { font-size: 0.78em; color: #4a5157; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 240px; }
+.lt-mailwhen { font-size: 0.68em; color: #8b9096; }
+.lt-mailread {
+  flex: 1;
+  background: #fff;
+  border: 1px solid #e3e1d8;
+  border-radius: 12px;
+  padding: 16px 18px;
+  overflow-y: auto;
+  max-height: 430px;
+}
+.lt-mailbody { margin-top: 12px; font-size: 0.86em; line-height: 1.55; color: #33393f; }
+.lt-mailbody p { margin: 0 0 10px; }
+.lt-mailquote { font-style: italic; color: #4a5157; border-left: 3px solid #d8d5ca; padding-left: 10px; }
+.lt-mailstatus { margin-top: 6px; }
+.lt-mailalts { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 8px; }

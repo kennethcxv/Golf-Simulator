@@ -525,7 +525,7 @@ export function configureTeeSheet(state, patch = {}) {
   if (next.openMin < 0 || next.closeMin > 1440 || next.openMin >= next.closeMin) {
     return { ok: false, reason: 'Opening time must be before closing time on the same day.' };
   }
-  if (next.stepMin < 5 || next.stepMin > 180) return { ok: false, reason: 'Slot interval must be 5-180 minutes.' };
+  if (next.stepMin < 5 || next.stepMin > 180) return { ok: false, reason: t('reservations.slotIntervalRange') };
   if (next.maxPartySize < 1 || next.slotCapacity < 1 || next.maxPartySize > next.slotCapacity) {
     return { ok: false, reason: 'Maximum party size must fit the slot capacity.' };
   }
@@ -711,9 +711,9 @@ export function resolveTeeTimeRequest(state, dayAbs, requestedMinute, options = 
   // 8:30 inside a 9:30 ask's comfort zone, which is a different tee time.
   const windowMin = Number.isFinite(options.windowMin) ? options.windowMin : TEE_OFFER.windowMin;
   const asked = Math.floor(Number(requestedMinute));
-  if (!Number.isFinite(asked)) return { ok: false, none: true, reason: 'No time was asked for.' };
+  if (!Number.isFinite(asked)) return { ok: false, none: true, reason: t('reservations.noTimeAsked') };
   const slots = availableSlots(state, dayAbs, { partySize, walkIn: options.walkIn !== false });
-  if (!slots.length) return { ok: false, none: true, reason: 'No open tee times remain.' };
+  if (!slots.length) return { ok: false, none: true, reason: t('reservations.noOpenSlots') };
   let best = null;
   for (const slot of slots) {
     const delta = Math.abs(slot.minute - asked);
