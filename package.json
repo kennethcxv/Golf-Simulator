@@ -22,6 +22,7 @@
     "@gltf-transform/core": "^4.4.2",
     "@gltf-transform/extensions": "^4.4.2",
     "electron": "^39.8.10",
+    "esbuild": "^0.28.2",
     "eslint": "^10.8.1",
     "globals": "^17.9.0",
     "gltf-validator": "^2.0.0-dev.3.10",
@@ -29,7 +30,10 @@
     "pixelmatch": "^7.2.0",
     "playwright": "^1.61.1",
     "pngjs": "^7.0.0",
-    "sharp": "^0.35.3"
+    "postprocessing": "^6.39.4",
+    "sharp": "^0.35.3",
+    "three-mesh-bvh": "^0.9.14",
+    "troika-three-text": "^0.52.5"
   },
   "dependencies": {
     "three": "^0.185.1"

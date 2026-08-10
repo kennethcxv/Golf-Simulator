@@ -36,6 +36,11 @@ Installed `eslint pixelmatch pngjs @gltf-transform/cli gltf-validator` (+`global
 
 Suite: green baseline 2954/2954 in 212 s (run immediately before this commit; commit touches no src/tests).
 
+### H2 Vendored renderer libraries — DONE
+`troika-three-text@0.52.5`, `postprocessing@6.39.4`, `three-mesh-bvh@0.9.14` installed, then vendored by the new `tools/vendor-libs.mjs` (esbuild, single-file ESM each, unminified): `vendor/troika-three-text.module.js` (254 KB), `vendor/postprocessing.module.js` (623 KB), `vendor/three-mesh-bvh.module.js` (250 KB).
+**Reading taken on "rewrite their internal three imports":** `three` stays external and BARE in the bundles because index.html's import map (`"three": "./vendor/three.module.js"`) is the single authority for where three lives — that IS pointing at our copy, and it guarantees one three instance (a second copy breaks `instanceof` across library boundaries).
+**Electron proof (`tools/qa/electron-vendor-libs.js`, pine-hills-v2): PASS** — troika `new Text()` is an Object3D; postprocessing `BloomEffect` builds its fragment shader, `EffectComposer/RenderPass/EffectPass/SMAAEffect` present; `MeshBVH` over a real BoxGeometry built 6 roots. **Negative control: importing `vendor/definitely-absent.module.js` REJECTED** (`ERR_FILE_NOT_FOUND`) — the instrument can see the npm-resolves-but-app-404s failure shape. Report: `qa/electron/vendor-libs/report.json`.
+
 ---
 
 ## Running lists (updated continuously)
