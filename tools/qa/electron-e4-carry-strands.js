@@ -23,11 +23,14 @@ async (page) => {
     const o = app.scene3d.clubhouse().interior.position;
     const w = app.scene3d.walk;
     w.clearKeys();
-    w.state.x = o.x - 2.0; w.state.z = o.z + 1.0; w.state.yaw = Math.PI / 2; w.state.pitch = -0.1;
+    // the proven bright pose from the golden set: broom-wall corner, lit
+    w.state.x = o.x - 5.6; w.state.z = o.z + 4.4; w.state.yaw = -Math.PI / 2; w.state.pitch = -0.25;
     app.speedIdx = 0;
     w.setTool('mop');
   });
-  await page.waitForFunction(() => !!window.__fw.scene3d.strandRigFor?.('mop'), null, { timeout: 30000 }).catch(() => {});
+  // HARD GATE: without the rig handle the sampler measures nothing — a
+  // caught timeout here voided the first run.
+  await page.waitForFunction(() => !!window.__fw.scene3d.strandRigFor?.('mop'), null, { timeout: 60000 });
   await page.waitForTimeout(2200);
   await page.mouse.click(800, 450);
   await page.waitForTimeout(300);
