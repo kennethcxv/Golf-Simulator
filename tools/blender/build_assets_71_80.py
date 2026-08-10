@@ -244,7 +244,9 @@ def _materials() -> dict[str, bpy.types.Material]:
                                     texture="PaintedMetal001", uv_scale=2.6, texture_mode="surface"),
         # Warm ecru cotton yarn (#E4DCC6, linear-converted per lib convention) —
         # the straight white spoke-fan read as plastic; ecru reads as damp-able cotton.
-        "mop_cotton": A.material("S08_MopCotton", A.hex_to_linear_rgba("E4DCC6"), roughness=0.90,
+        # E2 (Goal 18): a used string mop is DAMP GREY, not cream — the white
+        # read was defect one of four in the playtest image.
+        "mop_cotton": A.material("S08_MopCotton", A.hex_to_linear_rgba("A9A294"), roughness=0.96,
                                  texture="Fabric030", uv_scale=4.0),
         "bristle": A.material("S08_Bristle", (0.038, 0.036, 0.034, 1.0), roughness=0.80,
                               texture="Fabric030", uv_scale=5.0),
@@ -390,11 +392,11 @@ def _mop_skirt(name: str, parent: bpy.types.Object, mat: bpy.types.Material, *,
         w = ((i * 4) % 3) / 2.0        # 0..1
         u = ((i * 3) % 7) / 6.0        # 0..1
         r_belly = belly_r * (0.86 + 0.24 * w)
-        rad = 0.0078 + 0.0032 * u
+        rad = 0.0050 + 0.0022 * u  # E2: finer yarn
         # Belly sits around mid-height, so each strand eases out to a rounded shoulder and
         # then hangs down, curling back in at the hem (r_tip well inside r_belly) — the soft
         # drooping cotton read, not a wide spoke brim with pointy tips.
-        belly_z = tip_z + span * (0.50 - 0.05 * w)
+        belly_z = tip_z + span * (0.40 - 0.05 * w)  # E2: shoulder rides lower — heavy
         r_tip = r_belly * (0.66 + 0.16 * v)
         p_hub = (ox + ca * hub_r, oy + sa * hub_r, hub_z)
         p_belly = (ox + ca * r_belly, oy + sa * r_belly, belly_z)
@@ -479,9 +481,12 @@ def _mop_geometry(parent: bpy.types.Object, m: dict, *, tip_z: float = 0.0,
     # A drooping two-segment cotton skirt, hem at the floor-contact plane. It hangs under
     # gravity regardless of how the handle is held, and ships as one MESH_MopSkirt the
     # runtime damp-tint retints between wet and dry.
-    strands = _mop_skirt("MopStrand", parent, m["mop_cotton"], count=52,
+    # E2 (Goal 18): 52 chunky spokes read as a shaving brush. Ninety-six
+    # finer strands, a tighter belly and a lower shoulder read as wet cotton
+    # hanging heavy.
+    strands = _mop_skirt("MopStrand", parent, m["mop_cotton"], count=96,
                          origin=(0.0, dy * 0.178, tip_z + 0.190), tip_z=tip_z,
-                         belly_r=0.122)
+                         belly_r=0.112)
     _join(strands, "MopSkirt", parent)
     return {
         "collar": (0.0, collar_y, collar_z),

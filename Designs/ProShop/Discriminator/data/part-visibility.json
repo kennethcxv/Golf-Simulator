@@ -1044,7 +1044,7 @@
       "n": 72,
       "file": "asset_072_mop.glb",
       "sheet": "sheet_08",
-      "sha256": "b1249a9a3f2ab89bce5fc141d1f7a9c3fd350a9422da93e6c6a828c0545c0ea7",
+      "sha256": "f1f797fac36ed5936a340faead227809a122be612e6adbcc36ef7faf78e29bc9",
       "opaqueParts": 10,
       "transparentParts": [],
       "animations": [],
@@ -1052,72 +1052,72 @@
         {
           "name": "MESH_MopBand",
           "triangles": 212,
-          "maxPx": 1017,
+          "maxPx": 1038,
           "seenAngles": 26,
-          "sharePct": 1.582
+          "sharePct": 1.799
         },
         {
           "name": "MESH_MopCollar",
           "triangles": 188,
-          "maxPx": 566,
+          "maxPx": 589,
           "seenAngles": 25,
-          "sharePct": 6.911
+          "sharePct": 7.616
         },
         {
           "name": "MESH_MopGripBand_0",
           "triangles": 168,
-          "maxPx": 16,
+          "maxPx": 18,
           "seenAngles": 24,
-          "sharePct": 0.184
+          "sharePct": 0.2
         },
         {
           "name": "MESH_MopGripBand_1",
           "triangles": 168,
-          "maxPx": 20,
+          "maxPx": 21,
           "seenAngles": 24,
-          "sharePct": 0.205
+          "sharePct": 0.22
         },
         {
           "name": "MESH_MopGripBand_2",
           "triangles": 168,
-          "maxPx": 21,
+          "maxPx": 22,
           "seenAngles": 24,
-          "sharePct": 0.223
+          "sharePct": 0.229
         },
         {
           "name": "MESH_MopGripWrap",
           "triangles": 236,
-          "maxPx": 1302,
+          "maxPx": 1312,
           "seenAngles": 24,
-          "sharePct": 15.231
+          "sharePct": 16.676
         },
         {
           "name": "MESH_MopHandle",
           "triangles": 236,
-          "maxPx": 1377,
+          "maxPx": 1387,
           "seenAngles": 24,
-          "sharePct": 17.608
+          "sharePct": 19.058
         },
         {
           "name": "MESH_MopHandleCap",
           "triangles": 212,
-          "maxPx": 156,
+          "maxPx": 158,
           "seenAngles": 25,
-          "sharePct": 1.295
+          "sharePct": 1.407
         },
         {
           "name": "MESH_MopHangHole",
           "triangles": 144,
           "maxPx": 11,
           "seenAngles": 9,
-          "sharePct": 0.028
+          "sharePct": 0.037
         },
         {
           "name": "MESH_MopSkirt",
-          "triangles": 4576,
-          "maxPx": 6171,
+          "triangles": 8448,
+          "maxPx": 5125,
           "seenAngles": 26,
-          "sharePct": 56.734
+          "sharePct": 52.758
         }
       ],
       "invisible": [],
