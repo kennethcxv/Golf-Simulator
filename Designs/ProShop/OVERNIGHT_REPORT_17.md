@@ -16572,3 +16572,53 @@ guard.
 **The pattern that predicts F1 defects is now explicit**: a control that does not
 route through its surface's common path. That is exactly what the clock chip was,
 and it is the cheapest thing to look for on the four remaining surfaces.
+
+
+## F1 — THE COMMON PATH IS THE `el()` FACTORY, AND IT WAS BUILT IN GOAL 16
+
+`src/ui/ui.js` states the architecture I had been reconstructing surface by
+surface:
+
+> *"every button clicks. Nearly all player-facing buttons are born here, so the
+> cue rides pointerdown at the factory; the sink (`main.js __fwUiClick`) excludes
+> the laptop, whose own dispatcher already ticks centrally, and uiTick's
+> press-window absorbs surfaces that still…"*
+
+And it handles the cases I had not thought about:
+
+> *"a button clicks on pointerdown, a `<select>` does its work on `change` after
+> the OS popup closes, and a slider fires `input` continuously while dragging — so
+> it rides the same 120 ms debounce inside uiTick."*
+
+**So F1's coverage is not 25 call sites. It is one factory**, plus a documented
+exclusion for the laptop's own dispatcher, plus a debounce for controls that fire
+continuously.
+
+### Which makes my Phase 0 framing wrong at the root
+
+I opened Section F by counting `uiTick` call sites and asking whether 25 was
+enough for a universal claim. **The count was never the mechanism.** Buttons get
+their sound by being born in `el()`, so the meaningful questions are *"is this
+control born there"* and *"does anything exclude it"* — neither of which a call-site
+tally can answer.
+
+The pause menu's `setPage` and the laptop's `click()` are real, but they are
+**second** ticks on surfaces the factory already covers, not the coverage itself.
+
+### And it sharpens what the HUD chip actually was
+
+The chip **is** built with `el('button', …)`, so the factory should have covered
+it — and measurement says it did not: silent before my fix, sounding after,
+watched both ways. **So the chip is a hole in a scheme that was supposed to be
+universal**, which is a more interesting defect than "someone forgot a call". The
+`__fwUiClick` sink and its exclusions are where that hole lives, and that is a
+precise place to look rather than a surface to sweep.
+
+**Recorded rather than chased**, because I have already spent four runs this
+stretch chasing instead of reading, and reading has produced every real advance in
+this section: the factory comment, the `setPage` tick, the laptop's `click()`, and
+the `uiSounds` label that stopped a false report.
+
+**F1's honest close:** the mechanism is understood, one genuine hole was found and
+fixed with a watched-failing check, and the remaining question is narrow and
+named — why a factory-born button escaped the factory's cue.
