@@ -135,6 +135,19 @@ The walk overlay (and its control line) hides when the book rises, leaving only 
 ### B5 Set-down animation plays twice — CANNOT REPRODUCE (divergence recorded)
 Both put-away routes traced at per-frame resolution: E-close = `open → closing (77–701 ms) → lowering (713–1043) → closed` — one clean pass, no state repeats, no timer rewind; X-carry + Z-set-down = instant placement, no animation at all. If it recurs for you, the repro detail that matters is WHICH route and what was held/pressed during the descent — the traces are in `qa/electron/b-ledger/report.json` to compare against.
 
+## D — TEE TIMES
+
+### D1 Almost nobody reserves — DONE (cause found and measured)
+**Live probe first** (`electron-d1-teesheet-probe.js`): `generator.generatedDays = []`, 0 booked, 20/20 slots open — **`generateReservations` and `ensureReservationHorizon` existed, were fully tested, and had ZERO production call sites.** The tee sheet could never fill. Live before-measurement (`electron-c3d1f1-observe2.js`, 2.7 game hours): **6/6 golfers were walk-ins, 0 reserved.** Wired: the hourly `golfOperationsTick` now fills the horizon (idempotent per day; closed campaign businesses excepted; `autoBookings` config can turn the channel off — a real policy switch). Test `tests/reservations-generator-wired.test.js`, **watched fail with the wire removed.** After-measurement running; numbers land below when it completes.
+
+### D2 Early arrivals + check-in — DONE (the window was a caption, not a gate)
+`checkInWindow()` (60 min before tee → tee) existed with **zero consumers anywhere in src/**. `checkInReservation` never asked it — a walk-in could book 3 pm at 9 am and check straight in, which is exactly your sighting. The gate is enforced in the sim now, with t()'d reasons in all ten locales ("Check-in opens 60 minutes before the tee time — N minutes to go" / "That tee time has passed"). Test `tests/checkin-window-enforced.test.js`, **watched fail with the gate disabled.** Nine existing tests re-encoded faithfully (arrivals now happen near their slots; exact-once censuses use the real `autoBookings:false` config). NOT yet re-verified across a full live day — queued behind the running observation; flagged UNCONFIRMED for the full-day-watch clause.
+
+### D3 Email + phone channels — DONE and proven live
+Sim: `state.reservations.requests` — requests trickle in through open hours (~one per two open hours), email waits until an hour before its slot, **a phone call rings for 3 game-minutes and rings out into `missed`** (expiry lazy at the read so a live phone can never over-ring). `acceptBookingRequest`/`declineBookingRequest` book through the SAME `bookSlot` as the desk and the generator — the sheet's three states are the only states there are (`source: 'email'|'phone'` recorded per booking). Tests: `tests/booking-request-channels.test.js` (arrival, accept-books-real-sheet, no-double-book, decline, ring-out).
+Player-facing: **email** lands in the laptop's Booking & Check-In page as a "Booking inbox" card (Accept/Decline buttons, 10-locale strings); **the phone rings at the desk** — doorbell chime every ~2.6 s plus a bottom chip that says WHO is calling and what they want before you decide ("The phone is ringing · Miriam Call · party of 2 · today 2:00 PM · Y Accept · N Decline"), answerable under pointer lock. How a player learns them: the ring is audible+visible on its own; the inbox sits inside the page they already manage bookings from.
+**Electron proof (`electron-d3-channels.js`): PASS** — chip appeared with the ask, Y booked source=phone; inbox row shown, Accept booked source=email. Screenshots: `qa/electron/d3-channels/*.png`. Suite green 2961/0.
+
 ---
 
 ## Running lists (updated continuously)

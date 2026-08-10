@@ -5,6 +5,7 @@
 
 import { BALANCE, simSpeedMultipliers } from './sim/balance.js';
 import { installFaultGuard } from './core/faultGuard.js';
+import { ringingPhoneRequest, acceptBookingRequest, declineBookingRequest, fmtSlot } from './sim/reservations.js';
 import { devSessionActive } from './data/clubhouseVariant.js';
 import { HOLE_STATUS, TURF_ZONES, ZONE } from './sim/constants.js';
 import {
@@ -608,6 +609,57 @@ let ledgerClickHandler = null;
 // spread — a raised-shut book taught nothing. This is the same bottom chip
 // as the tool control line, phase-aware, alive for the whole interaction.
 let ledgerHintEl = null;
+
+// D3 (Goal 18): the phone booking channel. The desk phone rings for a couple
+// of game-minutes; the chip says WHO is calling and what they want (read
+// first, then decide), and Y/N answer it without leaving pointer lock —
+// booking rides the same bookSlot path as every other channel.
+let phoneChipEl = null;
+let phoneRingForId = null;
+let phoneLastBellAt = 0;
+function updatePhoneRing(nowMs) {
+  const state = app.state;
+  if (!state || app.screen !== 'game') { removePhoneChip(); return; }
+  const ring = app.laptopOpen || app.frontDeskOpen || regActive() ? null : ringingPhoneRequest(state);
+  if (!ring) { removePhoneChip(); return; }
+  const cal = Math.floor(state.clock.minutes / 1440);
+  const when = `${ring.dayAbs === cal ? 'today' : `+${ring.dayAbs - cal}d`} ${fmtSlot(ring.minute)}`;
+  if (!phoneChipEl) {
+    phoneChipEl = el('div', { class: 'shop-lockhint phone-ring-chip' });
+    document.getElementById('ui')?.appendChild(phoneChipEl);
+  }
+  phoneChipEl.textContent = `${t('bookings.phone.ringing')} · ${t('bookings.request.row', { name: ring.holder, size: ring.partySize, when })} · Y ${t('bookings.accept')} · N ${t('bookings.decline')}`;
+  if (ring.id !== phoneRingForId) {
+    phoneRingForId = ring.id;
+    if (audio.ready) audio.doorbell?.();
+    phoneLastBellAt = nowMs;
+  } else if (nowMs - phoneLastBellAt > 2600) {
+    if (audio.ready) audio.doorbell?.();
+    phoneLastBellAt = nowMs;
+  }
+}
+function removePhoneChip() {
+  if (phoneChipEl) { phoneChipEl.remove(); phoneChipEl = null; }
+  phoneRingForId = null;
+}
+window.addEventListener('keydown', (event) => {
+  if (!phoneChipEl || !app.state) return;
+  const key = event.key.toLowerCase();
+  if (key !== 'y' && key !== 'n') return;
+  const ring = ringingPhoneRequest(app.state);
+  if (!ring) { removePhoneChip(); return; }
+  event.preventDefault();
+  event.stopPropagation();
+  if (key === 'y') {
+    const result = acceptBookingRequest(app.state, ring.id);
+    toast(result.ok ? `${ring.holder} · ${fmtSlot(ring.minute)}` : result.reason, result.ok ? 'good' : 'warn');
+    if (result.ok && audio.ready) audio.uiTick();
+  } else {
+    declineBookingRequest(app.state, ring.id);
+    if (audio.ready) audio.uiTick();
+  }
+  removePhoneChip();
+}, true);
 function updateLedgerHint() {
   if (!app.ledgerOpen) {
     if (ledgerHintEl) { ledgerHintEl.remove(); ledgerHintEl = null; }
@@ -3375,6 +3427,7 @@ function frame(ts) {
     }
     hud.update();
     golfDayPanel?.update();
+    updatePhoneRing(ts); // D3: the desk phone rings through the frame loop
   }
   // Weld the interface to the glass. Every frame, unconditionally, for as long as the lid is
   // open — through the camera's ease into the seat, through the lid's swing, through a window

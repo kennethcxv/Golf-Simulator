@@ -459,6 +459,12 @@ export function ensureReservations(state) {
   book.financeEntries = Array.isArray(book.financeEntries) ? book.financeEntries : [];
   book.processedTransactionIds = Array.isArray(book.processedTransactionIds) ? book.processedTransactionIds : [];
   book.generator ||= { lastSeed: null, generatedDays: [] };
+  // D3 (Goal 18): incoming booking REQUESTS — email waits in the laptop
+  // inbox, phone rings and expires if unanswered. Both accept into the same
+  // bookSlot path and the same three slot states as every other channel.
+  book.requests = Array.isArray(book.requests) ? book.requests : [];
+  book.nextRequestId = Number.isInteger(book.nextRequestId) ? book.nextRequestId : 1;
+  book.lastRequestRollMinute ??= null;
   book.lastProcessedMinute ??= nowOf(state);
 
   for (let i = 0; i < book.booked.length; i++) migrateReservation(state, book, book.booked[i], i, legacyCapacityDefault);
@@ -1687,6 +1693,117 @@ export function operationsSummary(state, dayAbs = calendarOf(nowOf(state)).dayAb
   };
 }
 
+
+// ---- D3 (Goal 18): the email and phone booking channels -------------------
+//
+// Golfers do not only appear at the desk: requests arrive THROUGH THE DAY.
+// An email waits in the laptop inbox until read; a phone call rings for a
+// couple of game-minutes and is missed if nobody answers. Accepting either
+// books through the same bookSlot() as the desk and the generator, so the
+// sheet's three states (free / reserved-and-expected / checked-in) are the
+// only states there are.
+
+export const PHONE_RING_MINUTES = 3;
+
+function rollBookingRequests(state, target) {
+  const book = bookOf(state);
+  if (book.config.autoBookings === false) return;
+  const minute = Math.floor(target);
+  if (book.lastRequestRollMinute != null && minute <= book.lastRequestRollMinute) return;
+  const from = book.lastRequestRollMinute ?? minute - 1;
+  const cal = calendarOf(minute);
+  const hourOfDay = Math.floor((minute % 1440) / 60);
+  // requests come in while the world is awake, ~one every couple of hours
+  if (hourOfDay >= 8 && hourOfDay < 18) {
+    const elapsed = Math.min(90, minute - from);
+    const rng = makeRng((state.seed || 1) * 31 + minute * 7);
+    if (rng.next() < elapsed * 0.009) {
+      const channel = rng.next() < 0.5 ? 'email' : 'phone';
+      const dayAbs = cal.dayAbs + (channel === 'email' ? 1 + rng.int(2) : rng.int(2));
+      const sheet = daySheet(state, dayAbs).filter((slot) => slot.available
+        && absoluteMinute(dayAbs, slot.minute) > minute + 90);
+      if (sheet.length) {
+        const slot = sheet[rng.int(sheet.length)];
+        const names = uniqueNamesForGeneration(state, dayAbs);
+        const holder = names[rng.int(Math.max(1, Math.min(names.length, 24)))] || 'Caller';
+        const sizeRoll = rng.next();
+        book.requests.push({
+          id: `req_${book.nextRequestId++}`,
+          channel,
+          holder,
+          partySize: sizeRoll < 0.3 ? 1 : sizeRoll < 0.75 ? 2 : sizeRoll < 0.9 ? 3 : 4,
+          dayAbs,
+          minute: slot.minute,
+          createdAtAbs: minute,
+          // a call rings briefly; an email waits until end of its tee day
+          expiresAtAbs: channel === 'phone'
+            ? minute + PHONE_RING_MINUTES
+            : absoluteMinute(dayAbs, slot.minute) - 60,
+          status: 'pending',
+        });
+      }
+    }
+  }
+  // expiry: a phone that rang out is MISSED and the player should know
+  for (const request of book.requests) {
+    if (request.status !== 'pending') continue;
+    if (minute >= request.expiresAtAbs) {
+      request.status = request.channel === 'phone' ? 'missed' : 'expired';
+    }
+  }
+  // the ledger of dead requests stays short
+  book.requests = book.requests.filter((request) => request.status === 'pending'
+    || minute - request.createdAtAbs < 1440);
+  book.lastRequestRollMinute = minute;
+}
+
+export function pendingBookingRequests(state, channel = null) {
+  const book = bookOf(state);
+  // Expiry is LAZY at the read as well as swept in the tick: the tick runs
+  // hourly, and a phone that kept "ringing" for a game-hour after its
+  // three-minute window would be the stuck-rule class of lie.
+  const now = nowOf(state);
+  for (const request of book.requests) {
+    if (request.status === 'pending' && now >= request.expiresAtAbs) {
+      request.status = request.channel === 'phone' ? 'missed' : 'expired';
+    }
+  }
+  return book.requests.filter((request) => request.status === 'pending'
+    && (channel == null || request.channel === channel));
+}
+
+export function ringingPhoneRequest(state) {
+  return pendingBookingRequests(state, 'phone')[0] || null;
+}
+
+export function acceptBookingRequest(state, requestId, options = {}) {
+  const book = bookOf(state);
+  const request = book.requests.find((entry) => entry.id === requestId);
+  if (!request || request.status !== 'pending') {
+    return { ok: false, reason: t('reservations.request.gone') };
+  }
+  const result = bookSlot(state, request.dayAbs, request.minute, {
+    holder: request.holder,
+    partySize: request.partySize,
+    source: request.channel,
+    ...options,
+  });
+  if (!result.ok) return result;
+  request.status = 'accepted';
+  request.reservationId = result.res.id;
+  return { ok: true, request, res: result.res };
+}
+
+export function declineBookingRequest(state, requestId) {
+  const book = bookOf(state);
+  const request = book.requests.find((entry) => entry.id === requestId);
+  if (!request || request.status !== 'pending') {
+    return { ok: false, reason: t('reservations.request.gone') };
+  }
+  request.status = 'declined';
+  return { ok: true, request };
+}
+
 export function golfOperationsTick(state, targetMinute = nowOf(state)) {
   const book = bookOf(state);
   const target = Math.floor(targetMinute);
@@ -1701,6 +1818,7 @@ export function golfOperationsTick(state, targetMinute = nowOf(state)) {
   if (book.config.autoBookings !== false
     && (!state.campaign?.enabled || state.campaign.businessOpen)) {
     ensureReservationHorizon(state);
+    rollBookingRequests(state, target); // D3: email/phone requests trickle in
   }
   const eventsBefore = book.nextEventSeq;
   const reservations = [...book.booked].sort((a, b) => (

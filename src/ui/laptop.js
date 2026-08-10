@@ -49,6 +49,7 @@ import { hasProductPackaging } from '../data/productPackaging.js';
 import {
   TEE_SHEET, daySheet, bookSlot, cancelReservation, fmtSlot, slotAvailability,
   markReservationNoShow,
+  pendingBookingRequests, acceptBookingRequest, declineBookingRequest,
 } from '../sim/reservations.js';
 import {
   createCustomerIdentity, customerIdentityById, ensureCustomerDirectory, identityForReservation,
@@ -1164,6 +1165,35 @@ export function makeLaptop(app, opts) {
   // ==========================================================================================
   // TEE TIMES — an appointment list for one day, with a small detail modal
   // ==========================================================================================
+  // D3 (Goal 18): booking requests that arrived by EMAIL wait here until the
+  // player answers them. Accepting books through the same bookSlot path as
+  // the desk; the sheet's three states are the only states there are.
+  function inboxCard(st, cal) {
+    const emails = pendingBookingRequests(st, 'email');
+    const whenOf = (r) => `${r.dayAbs === cal.dayAbs ? 'today' : r.dayAbs === cal.dayAbs + 1 ? 'tomorrow' : `+${r.dayAbs - cal.dayAbs}d`} ${fmtSlot(r.minute)}`;
+    return el('div', { class: 'lt-card' },
+      sect(t('bookings.inbox.title')),
+      !emails.length ? meta(t('bookings.inbox.empty')) : null,
+      ...emails.map((r) => row(
+        el('span', { style: 'flex:1', text: t('bookings.request.row', { name: r.holder, size: r.partySize, when: whenOf(r) }) }),
+        el('button', {
+          class: 'lt-day',
+          text: t('bookings.accept'),
+          onclick: () => {
+            const res = acceptBookingRequest(st, r.id);
+            toast(res.ok ? `${r.holder} · ${whenOf(r)}` : res.reason, res.ok ? 'good' : 'warn');
+            click(); render();
+          },
+        }),
+        el('button', {
+          class: 'lt-day',
+          text: t('bookings.decline'),
+          onclick: () => { declineBookingRequest(st, r.id); click(); render(); },
+        }),
+      )),
+    );
+  }
+
   function pageReservations() {
     const st = app.state;
     if (!st.reservations) {
@@ -1323,6 +1353,7 @@ export function makeLaptop(app, opts) {
         meta(teeDay === 0 ? 'today' : teeDay === 1 ? 'tomorrow' : `${teeDay} days out`),
       ),
       addCard,
+      inboxCard(st, cal),
       filterTabs(rs, [
         { value: 'all', label: 'All' }, { value: 'waiting', label: 'Waiting' },
         { value: 'checkedin', label: 'Checked in' }, { value: 'noshow', label: 'No show' },
