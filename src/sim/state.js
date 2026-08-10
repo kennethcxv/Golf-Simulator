@@ -676,6 +676,8 @@ export function snapshot(state) {
     tutorial: state.tutorial,
     campaign: state.campaign || null,
     notifications: state.notifications, // unread warnings survive the reload
+    phone: state.phone || null, // A1: call history, missed calls, texts
+    mail: state.mail || null, // A2: the laptop inbox
     uiPrefs: state.uiPrefs || null, // the office machine's own settings (scale, default views)
     property: state.property, // the rent schedule, or reloading is a rent holiday
     propertyInventory: state.propertyInventory,

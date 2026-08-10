@@ -17,6 +17,7 @@ import {
 } from '../data/suppliers.js';
 import { calendarOf } from './time.js';
 import { BALANCE } from './balance.js';
+import { deliverMail } from './mail.js';
 import { addExpense, unbill } from './economy.js';
 import { capacityOf } from '../data/fixtureSlots.js';
 
@@ -951,6 +952,25 @@ export function submitPurchaseOrders(state, {
     lifecycleEvent(state, 'order-submitted', {
       orderId: order.id, supplierId: order.supplierId,
       quantity: order.quantity, totalCost: order.totalCost,
+    });
+    // A2 (Goal 19) — the supplier confirms in writing. This is the ONE commit
+    // point every order path shares (the laptop cart and the direct
+    // placeOrder wrapper both land here), so the confirmation cannot be
+    // missed by a second booking path. The bell keeps the real-time facts
+    // (the van arriving, the pad being full); the paperwork lives in mail.
+    const firstSku = skuById(order.lines[0]?.skuId);
+    deliverMail(state, {
+      kind: 'supplier-order',
+      from: order.supplierName || order.supplierId || 'Supplier',
+      dedupeKey: `supplier-order:${order.id}`,
+      data: {
+        orderId: order.id,
+        skuName: firstSku ? firstSku.name : (order.lines[0]?.skuId || ''),
+        lineCount: order.lines.length,
+        qty: order.quantity,
+        cost: order.totalCost,
+        leadDays: order.leadDays,
+      },
     });
   }
   rememberOrderKey(lifecycle, idempotencyKey, {

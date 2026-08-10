@@ -12,6 +12,7 @@
 import { clamp } from '../core/utils.js';
 import { calendarOf } from './time.js';
 import { notify } from './notifications.js';
+import { deliverMail } from './mail.js';
 import { shopCondition, exteriorScore } from './shop.js';
 import { exteriorWashScore } from './washing.js';
 import { clubRatings, fairGreenFee, amenityScore } from './club.js';
@@ -465,12 +466,27 @@ export function postReview(state, review) {
     relatedId: reviewId, reason: `${review.stars}-star review posted: ${review.text}`,
     day: review.day, metadata: { stars: review.stars, cited: (review.cited || []).map((factor) => factor.id) },
   });
-  // one heads-up per day, however many land — the Reviews page holds the rest
-  notify(state, {
-    kind: 'review',
-    text: `New review${review.stars <= 2 ? `: ${review.stars}★, worth reading` : `: ${review.stars}★`}. More may follow today.`,
-    dedupeKey: `review:${review.day}`,
-  });
+  // A2 (Goal 19) — a bad review is a COMPLAINT, and a complaint is
+  // correspondence: it lands in the laptop's mail with its full text, from its
+  // writer, instead of as a one-line bell notice. Ordinary reviews keep the
+  // bell heads-up (one per day; the Reviews page holds the rest) — a 4-star
+  // review is a fact, a 2-star review is a letter you answer for.
+  if (review.stars <= 2) {
+    deliverMail(state, {
+      kind: 'complaint',
+      // reviews carry no display name anywhere in the game today, so the
+      // sender is honest about that rather than inventing one
+      from: review.stars <= 1 ? 'A very unhappy golfer' : 'An unhappy golfer',
+      dedupeKey: `complaint:${reviewId}`,
+      data: { reviewId, stars: review.stars, text: review.text, day: review.day },
+    });
+  } else {
+    notify(state, {
+      kind: 'review',
+      text: `New review: ${review.stars}★. More may follow today.`,
+      dedupeKey: `review:${review.day}`,
+    });
+  }
   return review;
 }
 

@@ -14,6 +14,8 @@ import { cancelReservationCustomer, scheduleReservationCustomer } from './custom
 import { allocateCustomerIdentity, identityForReservation } from './customerIdentity.js';
 import { bankServiceCharge, serviceTicketByReference } from './register.js';
 import { TEE_OFFER, walkInAcceptsOffer } from './teeTimeOffer.js';
+import { logCall, sendText } from './phone.js';
+import { deliverMail, resolveMailForRequest } from './mail.js';
 
 export const TEE_SHEET = Object.freeze({
   openMin: 7 * 60,
@@ -1727,7 +1729,7 @@ function rollBookingRequests(state, target) {
         const names = uniqueNamesForGeneration(state, dayAbs);
         const holder = names[rng.int(Math.max(1, Math.min(names.length, 24)))] || 'Caller';
         const sizeRoll = rng.next();
-        book.requests.push({
+        const request = {
           id: `req_${book.nextRequestId++}`,
           channel,
           holder,
@@ -1740,21 +1742,58 @@ function rollBookingRequests(state, target) {
             ? minute + PHONE_RING_MINUTES
             : absoluteMinute(dayAbs, slot.minute) - 60,
           status: 'pending',
-        });
+        };
+        book.requests.push(request);
+        // A2: an email request IS an email — it lands in the laptop inbox the
+        // moment it exists, and stays there as history after it resolves
+        if (channel === 'email') {
+          deliverMail(state, {
+            kind: 'booking-request',
+            from: holder,
+            dedupeKey: `booking-request:${request.id}`,
+            data: {
+              requestId: request.id,
+              holder,
+              partySize: request.partySize,
+              dayAbs,
+              minute: slot.minute,
+            },
+          });
+        }
       }
     }
   }
-  // expiry: a phone that rang out is MISSED and the player should know
-  for (const request of book.requests) {
-    if (request.status !== 'pending') continue;
-    if (minute >= request.expiresAtAbs) {
-      request.status = request.channel === 'phone' ? 'missed' : 'expired';
-    }
-  }
+  settleExpiredRequests(state, book, minute);
   // the ledger of dead requests stays short
   book.requests = book.requests.filter((request) => request.status === 'pending'
     || minute - request.createdAtAbs < 1440);
   book.lastRequestRollMinute = minute;
+}
+
+// Expiry writes the DURABLE traces in the same breath as the status flip: a
+// phone that rang out becomes a missed call on the phone's own log (the badge
+// the player clears by looking), and an expired email is stamped on its inbox
+// row. Two call sites (the hourly tick and the lazy read) share this, so a
+// transition can never happen without its trace.
+function settleExpiredRequests(state, book, minute) {
+  for (const request of book.requests) {
+    if (request.status !== 'pending') continue;
+    if (minute < request.expiresAtAbs) continue;
+    if (request.channel === 'phone') {
+      request.status = 'missed';
+      logCall(state, {
+        name: request.holder,
+        partySize: request.partySize,
+        dayAbs: request.dayAbs,
+        minute: request.minute,
+        outcome: 'missed',
+        atAbs: minute,
+      });
+    } else {
+      request.status = 'expired';
+      resolveMailForRequest(state, request.id, 'expired');
+    }
+  }
 }
 
 export function pendingBookingRequests(state, channel = null) {
@@ -1762,12 +1801,7 @@ export function pendingBookingRequests(state, channel = null) {
   // Expiry is LAZY at the read as well as swept in the tick: the tick runs
   // hourly, and a phone that kept "ringing" for a game-hour after its
   // three-minute window would be the stuck-rule class of lie.
-  const now = nowOf(state);
-  for (const request of book.requests) {
-    if (request.status === 'pending' && now >= request.expiresAtAbs) {
-      request.status = request.channel === 'phone' ? 'missed' : 'expired';
-    }
-  }
+  settleExpiredRequests(state, book, nowOf(state));
   return book.requests.filter((request) => request.status === 'pending'
     && (channel == null || request.channel === channel));
 }
@@ -1791,6 +1825,24 @@ export function acceptBookingRequest(state, requestId, options = {}) {
   if (!result.ok) return result;
   request.status = 'accepted';
   request.reservationId = result.res.id;
+  if (request.channel === 'phone') {
+    logCall(state, {
+      name: request.holder,
+      partySize: request.partySize,
+      dayAbs: request.dayAbs,
+      minute: request.minute,
+      outcome: 'booked',
+    });
+    // the caller texts back a confirmation — the Messages channel's first
+    // honest inhabitant (short things a call is too heavy for)
+    sendText(state, {
+      from: request.holder,
+      kind: 'bookingConfirmed',
+      args: { day: request.dayAbs, minute: request.minute, party: request.partySize },
+    });
+  } else {
+    resolveMailForRequest(state, request.id, 'accepted');
+  }
   return { ok: true, request, res: result.res };
 }
 
@@ -1801,7 +1853,76 @@ export function declineBookingRequest(state, requestId) {
     return { ok: false, reason: t('reservations.request.gone') };
   }
   request.status = 'declined';
+  if (request.channel === 'phone') {
+    logCall(state, {
+      name: request.holder,
+      partySize: request.partySize,
+      dayAbs: request.dayAbs,
+      minute: request.minute,
+      outcome: 'declined',
+    });
+  } else {
+    resolveMailForRequest(state, request.id, 'declined');
+  }
   return { ok: true, request };
+}
+
+// A1/A2 — "book it, offer an alternative, or turn them down." The alternative:
+// the golfer on the line (or on mail) is offered a DIFFERENT slot, and answers
+// by distance from what they asked for — within 90 minutes they take it, past
+// that they pass. Deterministic on purpose: a caller whose answer depended on
+// a hidden die would make the offer verb feel like a slot machine.
+export const ALTERNATIVE_ACCEPT_WINDOW_MIN = 90;
+
+export function proposeAlternativeBooking(state, requestId, dayAbs, minute) {
+  const book = bookOf(state);
+  const request = book.requests.find((entry) => entry.id === requestId);
+  if (!request || request.status !== 'pending') {
+    return { ok: false, reason: t('reservations.request.gone') };
+  }
+  const askedAbs = absoluteMinute(request.dayAbs, request.minute);
+  const offeredAbs = absoluteMinute(dayAbs, minute);
+  const accepted = Math.abs(offeredAbs - askedAbs) <= ALTERNATIVE_ACCEPT_WINDOW_MIN;
+  if (!accepted) {
+    request.status = 'declined';
+    if (request.channel === 'phone') {
+      logCall(state, {
+        name: request.holder,
+        partySize: request.partySize,
+        dayAbs: request.dayAbs,
+        minute: request.minute,
+        outcome: 'declined',
+      });
+    } else {
+      resolveMailForRequest(state, request.id, 'proposal-refused');
+    }
+    return { ok: true, accepted: false, request };
+  }
+  const result = bookSlot(state, dayAbs, minute, {
+    holder: request.holder,
+    partySize: request.partySize,
+    source: request.channel,
+  });
+  if (!result.ok) return result;
+  request.status = 'accepted';
+  request.reservationId = result.res.id;
+  if (request.channel === 'phone') {
+    logCall(state, {
+      name: request.holder,
+      partySize: request.partySize,
+      dayAbs,
+      minute,
+      outcome: 'booked-alt',
+    });
+    sendText(state, {
+      from: request.holder,
+      kind: 'bookingConfirmed',
+      args: { day: dayAbs, minute, party: request.partySize },
+    });
+  } else {
+    resolveMailForRequest(state, request.id, 'accepted-alt');
+  }
+  return { ok: true, accepted: true, request, res: result.res };
 }
 
 export function golfOperationsTick(state, targetMinute = nowOf(state)) {
