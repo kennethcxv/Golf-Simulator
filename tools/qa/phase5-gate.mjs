@@ -93,11 +93,18 @@ function g2Sweep() {
 const TEN = [
   {
     n: 1,
-    text: 'No frame over 16 ms during normal play',
+    // A2 (Goal 18): the bar points at the refresh the game actually ships —
+    // the 60 fps cap, whose real interval is 16.7 ms. The panel itself is a
+    // measured 240 Hz; higher caps exist in Settings but 60 is the only rung
+    // that held cadence (electron-a1-fps-cap.js), so 60 is what is shipped
+    // and 16.7 is the budget. Do not tighten this by editing the text: raise
+    // the cap default first, then re-point the number at what was achieved.
+    text: 'No frame over 16.7 ms (the shipped 60 fps cap interval) during normal play',
     check: () => (walk
       ? {
-        ok: walk.noFrameOver16 === true,
-        detail: `worst ${walk.worstFrameMs} ms, ${walk.framesOver16} frames over 16 (${walk.framesOver16Pct}%), ${walk.framesOver100} over 100`,
+        ok: (walk.noFrameOverBudget ?? walk.noFrameOver16) === true,
+        detail: `worst ${walk.worstFrameMs} ms, ${walk.framesOverBudget ?? walk.framesOver16} frames over `
+          + `${walk.budgetMs ?? 16} ms (${walk.framesOverBudgetPct ?? walk.framesOver16Pct}%), ${walk.framesOver100} over 100`,
       }
       : { ok: null, detail: 'walk did not run' }),
   },

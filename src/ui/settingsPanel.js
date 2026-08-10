@@ -234,9 +234,21 @@ export function makeSettingsPanel({
     ].map(([value, text]) => el('option', {
       value, text, selected: preferences.values.display.shadowQuality === value ? true : null,
     })));
+    // A1 (Goal 18): select values are strings, so the cap converts back to a
+    // number here — oneOf() in preferences would silently reject "120" and the
+    // row would appear to do nothing.
+    const fpsCap = el('select', {
+      'aria-label': t('settings.display.fpsCap'),
+      onchange: (event) => set('display.fpsCap', Number(event.currentTarget.value)),
+    }, ...[
+      [60, t('settings.display.fpsCap.default60')], [120, '120'], [144, '144'], [0, t('settings.display.fpsCap.uncapped')],
+    ].map(([value, text]) => el('option', {
+      value: String(value), text, selected: preferences.values.display.fpsCap === value ? true : null,
+    })));
     const page = section(t('settings.display.title'), t('settings.display.intro'),
       row(t('settings.display.qualityRow'), t('settings.display.quality.detail'), quality),
       qualityNote,
+      row(t('settings.display.fpsCap'), t('settings.display.fpsCap.detail'), fpsCap),
       slider(t('settings.display.renderScale'), t('settings.display.renderScale.detail'), 'display.renderScale', {
         min: 0.65, max: 1.35, step: 0.05, format: pct,
       }),

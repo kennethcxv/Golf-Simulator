@@ -1719,9 +1719,15 @@ function showQualityApplying(ms = 1800) {
   }, ms);
 }
 
+let fpsCapIntervalMs = 0;
+let fpsCapLastRenderTs = 0;
+
 function applySettings() {
   const values = preferences.values;
   applyDocumentPreferences(values);
+  // A1 — cache the cap as an interval so the frame gate costs one compare.
+  const cap = Number(values.display.fpsCap) || 0;
+  fpsCapIntervalMs = cap > 0 ? 1000 / cap : 0;
   // E4 (Goal 17) — THE FORMATTED CONTROLS LIST FOLLOWS THE BINDINGS.
   //
   // "Changing a key in Controls must change it in the formatted controls list
@@ -3092,6 +3098,19 @@ function walkControlHintText() {
 }
 
 function frame(ts) {
+  // A1 (Goal 18) — the framerate cap. rAF on this panel ticks at 240 Hz; when
+  // a cap is set, non-render ticks return before any sim or render work so the
+  // whole frame's CPU is saved, not just the draw. lastRender advances by the
+  // interval (drift-corrected) rather than snapping to `ts`, so a late tick
+  // does not push every later frame late; the 1.2 ms tolerance keeps a tick
+  // that lands one rAF quantum early from forcing a double-length frame.
+  if (fpsCapIntervalMs > 0) {
+    if (ts - fpsCapLastRenderTs < fpsCapIntervalMs - 1.2) {
+      requestAnimationFrame(frame);
+      return;
+    }
+    fpsCapLastRenderTs = Math.max(fpsCapLastRenderTs + fpsCapIntervalMs, ts - fpsCapIntervalMs);
+  }
   const dtMs = Math.min(250, ts - lastTs || 16);
   lastTs = ts;
 

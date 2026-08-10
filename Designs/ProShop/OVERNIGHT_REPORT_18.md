@@ -69,6 +69,36 @@ Reference screenshots from the brief committed to `Designs/ProShop/Goal18_Refs/`
 
 **Section H complete: H0 finding + H1–H7 done, 8 commits, all pushed.**
 
+## A — PERFORMANCE
+
+**The 240 Hz question, answered first: the panel runs at 240 Hz** (Win32 `CurrentRefreshRate` = 240, max 240, RTX 5080 at 3840×2160). **The probe was wrong, not Windows** — a probe that reports "120" is reading the app's achieved rAF cadence, which vsync-halves when the frame exceeds 4.17 ms. Also verified: Electron renders on the RTX 5080 (`UNMASKED_RENDERER`), not the AMD iGPU.
+
+Order note: A3 was worked before A1/A2 because the cap default and the invariant number both depend on the post-A3 frame.
+
+### A3 Post chain — DONE (measured cut; pmndrs swap deliberately not taken)
+Attribution ladder (`tools/qa/electron-a3-post-attribution.js`, drift control 0.02 ms): baseline GPU **8.17 ms**, gtao OFF 3.83, bloom OFF 7.80, msaa0 6.82, post OFF 3.30 → **GTAO owned 4.34 ms — 53% of the entire GPU frame**; bloom 0.37; MSAA 1.35. The in-code "full-res AO is free indoors" note was measured at a smaller effective resolution; at 4K physical it was the whole problem.
+Config sweep with a screenshot per rung (`electron-a3-gtao-sweep.js`): **12 samples / 8 denoise / 0.75 scale keeps the box+counter contact darkening** (the exact surface the old full-res test pin was written about — compared by eye) at **8.7 → 5.2 ms**. Half-res saved nothing further. Applied to `GTAO_CONFIG`; the pinned test now pins the accepted floor (≥12/≥8/≥0.75) instead of full-res.
+**Before/after at the same fixed indoor pose, same instrument: 8.17 → 5.14 ms GPU (−37%)**; post chain 4.87 → 1.53 ms. **All 12 goldens pass on the new config** — the softening is invisible at every pinned pose. Suite green (gtao-config re-pinned with evidence).
+**Why not the pmndrs composer swap the brief named:** the ladder shows the milliseconds were GTAO's, and pmndrs does not have this GTAO — its SSAO is a different algorithm and a different look that §3 tuning would have to be redone against; six suite files pin the current chain's contracts (MSAA lever, gtao render interception, register AB harness). The libraries are vendored, proven loading in Electron (H2), and remain the path for a daytime composer rebuild if wanted. Recorded as the deliberate reading.
+
+### A1 Framerate cap — DONE
+Settings → Display now has **Framerate cap: 60 (default) / 120 / 144 / Uncapped**, persisted in preferences (`display.fpsCap`, migration-safe), applied as a drift-corrected gate at the top of `frame()` that skips the whole frame body (sim+render CPU both saved). i18n EN+ES.
+**Default 60, picked by measurement, not hope** (`electron-a1-fps-cap.js`, achieved-render-rate via `renderer.info.render.frame` deltas): cap 60 → **60.6 fps, 90–94% of intervals on cadence (HOLDS)**; cap 120 → 91.7 fps avg with **0% of intervals on the 8.33 ms target (does not hold)**; uncapped → 94–95 fps. Both failure directions covered: 60 must pace (a build without the gate fails this leg) and uncapped must clearly exceed it (a stuck-on gate fails that leg).
+**Why 120 does not hold although the GPU now fits:** `electron-a1-cpu-split.js` — the `scene3d.render` CALL costs **8.0 ms median of main-thread time** (everything else in the frame: 0.4 ms). The wall is CPU-side submit of the un-frozen ~2,208-object clubhouse subtree (the known next lever, now with a number). When that lands and 120 paces, flip the default — the comment in preferences.js says exactly this.
+Note for your 240 Hz panel: 144 can never pace evenly on it (rAF quantization alternates 8.3/4.2 ms); the honest rungs on this machine are 60/120/240.
+
+### A2 Invariant 1 re-grade — DONE
+The bar now points at the SHIPPED cadence: **16.7 ms, the real interval of the 60 fps cap** (the old "16" was a rounded 60 Hz budget that counted every correctly-capped frame as a failure by definition). `electron-sixty-second-walk.js` reports `overBudget`/`noFrameOverBudget` (old fields kept for older readers); `phase5-gate.mjs` invariant 1 reads the new field and its text forbids tightening by edit — raise the cap default first, then re-point.
+**Stated plainly: the invariant is RED today and stays red** — worst frame 9,598 ms — because of A4's action stalls, not cadence. That is the honest state; do not tune the invariant to hide it.
+
+### A4 Per-action spikes — RE-MEASURED (report, per the brief; fixes not chased past the stop rule)
+Sixty-second walk with real input beats, per-beat frame stats (`qa/electron/phase5-walk/phase5-walk.json`):
+- **Load-in:** page-to-playable **10.5 s**; the load beats own multi-second frames.
+- **Door: NO spike** — worst 26 ms in the door beat, 4.8% over budget. The earlier "door costs nothing" claim SURVIVES re-measurement with real input.
+- **Ledger open: 3,828 ms stall — REAL.** The earlier "ledger fixed" claim is FALSE tonight. Same stall family as first-equip (compile-on-first-use); flagged for section B's ledger work.
+- **Tool first-equip: 9,598 ms; a walk-beat lazy load: 9,528 ms; look beat: 2,065 ms.** These are the documented first-equip shader-stall family with SIXTEEN refuted fixes on record — per the stop rule and the brief's own warning, NOT chased tonight. They are the reason invariant 1 is red.
+- Steady-state medians everywhere: 6.5–10 ms (healthy between stalls); walkB (heaviest route) median 15.5 ms, p95 32 ms — the one beat where cadence itself struggles.
+
 ---
 
 ## Running lists (updated continuously)

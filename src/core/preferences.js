@@ -31,6 +31,14 @@ export const DEFAULT_PREFERENCES = Object.freeze({
     postProcessing: true,
     resolution: 'native',
     uiScale: 1,
+    // A1 (Goal 18): 0 = uncapped. 60 is the measured default and the only rung
+    // that HOLDS: cap 60 paced 60.6 fps with 90-94% of intervals on cadence;
+    // cap 120 averaged ~92 fps with 0% of intervals on the 8.33 ms target
+    // (tools/qa/electron-a1-fps-cap.js, 2026-08-10). The blocker is not the
+    // GPU (5.14 ms after the GTAO re-grade) but 8.0 ms median of CPU-side
+    // render submit (electron-a1-cpu-split.js) — the un-frozen clubhouse
+    // subtree. When that lever lands and 120 paces cleanly, flip this to 120.
+    fpsCap: 60,
   }),
   accessibility: Object.freeze({
     reducedMotion: false,
@@ -87,6 +95,7 @@ export function normalizePreferences(raw = {}) {
       postProcessing: bool(display.postProcessing, DEFAULT_PREFERENCES.display.postProcessing),
       resolution: oneOf(display.resolution, ['native', '1080p', '1440p', '4k'], DEFAULT_PREFERENCES.display.resolution),
       uiScale: clamp(display.uiScale, 0.9, 1.3, DEFAULT_PREFERENCES.display.uiScale),
+      fpsCap: oneOf(display.fpsCap, [0, 60, 120, 144], DEFAULT_PREFERENCES.display.fpsCap),
     },
     accessibility: {
       reducedMotion: bool(accessibility.reducedMotion, DEFAULT_PREFERENCES.accessibility.reducedMotion),

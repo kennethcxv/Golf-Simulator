@@ -661,6 +661,11 @@ async (page) => {
         worst: +Math.max(...list).toFixed(1),
         over16: list.filter((x) => x > 16).length,
         over16pct: +(100 * list.filter((x) => x > 16).length / list.length).toFixed(1),
+        // A2 (Goal 18): the shipped cadence is the 60 fps cap, so the budget
+        // is the real 60 Hz interval, 16.7 ms — not the rounded 16 that
+        // counted every capped frame as a failure by definition.
+        overBudget: list.filter((x) => x > 16.7).length,
+        overBudgetPct: +(100 * list.filter((x) => x > 16.7).length / list.length).toFixed(1),
         over33: list.filter((x) => x > 33).length,
         over100: list.filter((x) => x > 100).length,
       };
@@ -674,7 +679,14 @@ async (page) => {
   out.verdict = {
     everyBeatHappened: out.beats.every((b) => b.ok),
     beatsThatDidNot: out.beats.filter((b) => !b.ok).map((b) => b.name),
-    // Standing Invariant 1, stated as the brief states it.
+    // Standing Invariant 1, re-graded by A2 (Goal 18) to the SHIPPED cadence:
+    // the 60 fps cap's real interval, 16.7 ms. The old 16 was a rounded 60 Hz
+    // budget that counted every correctly-capped frame as a failure. The old
+    // field is kept so older readers do not silently read a hole.
+    budgetMs: 16.7,
+    noFrameOverBudget: out.frames.all.overBudget === 0,
+    framesOverBudget: out.frames.all.overBudget,
+    framesOverBudgetPct: out.frames.all.overBudgetPct,
     noFrameOver16: out.frames.all.over16 === 0,
     worstFrameMs: out.frames.all.worst,
     framesOver16: out.frames.all.over16,
