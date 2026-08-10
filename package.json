@@ -13,14 +13,22 @@
     "dev": "electron . --dev",
     "serve": "node tools/serve.cjs",
     "test": "node --test",
+    "lint": "eslint src",
     "gen:broom-metrics": "node tools/gen/extract-broom-metrics.mjs"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@gltf-transform/cli": "^4.4.2",
     "@gltf-transform/core": "^4.4.2",
     "@gltf-transform/extensions": "^4.4.2",
     "electron": "^39.8.10",
+    "eslint": "^10.8.1",
+    "globals": "^17.9.0",
+    "gltf-validator": "^2.0.0-dev.3.10",
     "ktx2-encoder": "^0.6.0",
+    "pixelmatch": "^7.2.0",
     "playwright": "^1.61.1",
+    "pngjs": "^7.0.0",
     "sharp": "^0.35.3"
   },
   "dependencies": {
