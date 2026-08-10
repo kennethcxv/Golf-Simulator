@@ -79,9 +79,12 @@ export const SHOP_FOOTFALL = Object.freeze({
   // one made the starter shop a one-at-a-time room FOREVER (drive ~0.1 at
   // reputation 30 with a filthy floor rounds to 0 and clamps to the floor),
   // so the multiplicity mechanic was unreachable no matter how long you
-  // watched. Two is the smallest number that lets a queue exist; the curve
-  // above the floor still scales with standing exactly as designed.
-  openFloor: 2,
+  // watched. Two was tried first and MEASURED (2.7 game hours): concurrency
+  // reached 2 but a queue of two never formed — with exactly two in the
+  // room, both must reach the counter in the same beat. Three is the
+  // smallest floor where a two-queue can form while someone still shops;
+  // the curve above the floor scales with standing exactly as designed.
+  openFloor: 3,
 });
 
 /**
@@ -179,9 +182,11 @@ export function shopFootfallTarget(state, capacity, { open = true } = {}) {
   if (!open) return 0;
   const ceiling = Math.max(0, Math.round(Number(capacity) || 0));
   if (!ceiling) return 0;
+  // the floor cannot exceed the room: a two-person fit-out holds two,
+  // whatever the open floor asks for
   return clamp(
     Math.round(ceiling * shopFootfallDrive(state)),
-    SHOP_FOOTFALL.openFloor,
+    Math.min(SHOP_FOOTFALL.openFloor, ceiling),
     ceiling,
   );
 }

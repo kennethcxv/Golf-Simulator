@@ -148,18 +148,68 @@ Sim: `state.reservations.requests` — requests trickle in through open hours (~
 Player-facing: **email** lands in the laptop's Booking & Check-In page as a "Booking inbox" card (Accept/Decline buttons, 10-locale strings); **the phone rings at the desk** — doorbell chime every ~2.6 s plus a bottom chip that says WHO is calling and what they want before you decide ("The phone is ringing · Miriam Call · party of 2 · today 2:00 PM · Y Accept · N Decline"), answerable under pointer lock. How a player learns them: the ring is audible+visible on its own; the inbox sits inside the page they already manage bookings from.
 **Electron proof (`electron-d3-channels.js`): PASS** — chip appeared with the ask, Y booked source=phone; inbox row shown, Accept booked source=email. Screenshots: `qa/electron/d3-channels/*.png`. Suite green 2961/0.
 
+## F — CUSTOMERS
+
+**The G9/G10 divergence, answered first (the brief's standing question):** there are TWO customer populations. `sim/customerSimulation.js` keeps `active` (the module the tests and last session's checks read); the clubhouse renderer keeps its own organic visitor actors (`clubhouse.customers()`, ids like `customer_*_visitor`) — the ones the player actually watches. My own first observation instrument made the same mistake and read 22 minutes of ZERO while a live visitor side-stepped at a shelf in the console log. **A check pointed at the sim module can verify while the shop the player watches disproves it — that is how "verified" and "observably false" coexisted.** The G11 window had the same shape: built, exported, consumed by nothing.
+
+### F1 Concurrency + queue — DONE (measured before/after; queue evidence on screen)
+Baseline (2.7 game hours, live): 6 visitors, max concurrency 1, queue never ≥2 — your sighting, verified. TWO causes: the footfall floor of ONE (the starter's drive ≈0.1 rounds to 0 and clamps to the floor — a one-at-a-time room FOREVER), and reservation guests counting against the organic target (the wired D1 generator's first guest halved walk-ins). Fixes: appointments no longer consume footfall capacity; the open floor is now **3** — floor 2 was tried FIRST and measured (2.7 h: concurrency reached 2, queue of two never formed — with exactly two in the room both must hit the counter in the same beat). **Two-at-the-counter photographed live** (`qa/electron/g1-shoes/feet-1.png`, two different pairs in two runs — one ringing, one waiting). **DESIGN TENSION recorded for you:** floor 3 means even a failing shop holds 3 (the old "a failing shop is quiet everywhere" test now pins ≤openFloor); if you want quiet-when-failing back, the alternative is paired arrivals (couples walking in together) at floor 2 — smaller steady state, same queue beats.
+
+### F2 The 1-second stuck rule — DONE (with the six-second arithmetic on record)
+What last session verified was the pure verdict function; the LIVE ladder stacked 3 s of no-progress clock PLUS a 3 s ladder gate before acting — six silent seconds, your five-plus sighting. Now: threshold ONE second (`NAV_NO_PROGRESS_SECONDS = 1`), the ladder acts within ~0.35 s of the verdict for wrong-route stalls, the re-route is guaranteed different (a re-path that leads back through the banned waypoint escalates straight to moving the TARGET), and **an abandoned stop reaches you through the notification bell in ten locales** ("{name} gave up on reaching the {what}"). Suite: `tests/nav-stuck-one-second.test.js` — **watched fail with the old threshold restored** (fail 1 → restore → pass 3).
+
+### F3 End-of-sale speech — DONE (rules + live examples)
+The till's own dialogue line (the "Elliot Mercer: I'll use my card" surface) now carries a FAREWELL computed once per sale from the ticket's real facts and frozen (`tx.farewell`, `tx.farewellFacts`): **price wins over speed wins over plain thanks** — pre-tax subtotal vs the catalogue MSRP of the same goods (>1.12× = "That's steep", <0.88× = "Cheap enough. I'll be back."), then wall-clock ticket time (<25 s = "That was quick, thanks.", >75 s = "You took your time back there."), else "Thanks. See you on the course." Reading taken: per-item review standing is not itemised in the data; catalogue MSRP is the game's recorded value baseline the reviews reference. Live examples: the staged driver (`electron-f3-farewells.js`) walks three sales (normal/×1.5-priced/80 s-stalled); its final leg (keypad completion) was still stabilising at report time — facts and lines verified headlessly, the three live screenshots are queued as the driver's last run completes.
+
+## E — MOP & BROOM
+
+### E1 The broom grip — DONE (overlay-measured, numbers reported)
+Three faults, three causes: (1) ONE hand was a deliberate Q7 (2026-08-06) ruling from an older reference — **reversed**: `support` grips restored (the GLB kept `SOCKET_GripSupport` authored for exactly this; the fallback pose for the procedural broom sits mid-shaft at `[0, 0.005, -0.38]`); (2) the low/backwards hand read came from the one-hand pose; (3) the head was edge-on because `BROOM_FEEL.frame.yaw = 0.22` ("turned so the head clears LEFT"). **Measured with the overlay's own door** (`walk.toolFeelSet`, the F9 overlay's API): candidates 0.22 / 0.10 / 0.02 / −0.06 screenshotted at the fixed pose (`qa/electron/e1-broom-grip/`), **picked and baked `frame.yaw = 0.02`** — crossbar square, no frame clip. Both hands verified on screen. The yaw propagates to the derived tools (mop/vacuum/washer) by design; the golden suite caught exactly that family shift (tool-mop/sponge/trashbag over budget) and the new baselines were accepted as the intended change — the H5 instrument doing its job.
+
+### E2 Mop head rebuild — NOT DONE (asset work; found path recorded)
+Needs the Blender pipeline (asset_072 mop + its fp variant) through golf-assets — many fine strands, damp grey, heavy silhouette. The blender-mcp socket is wedged (H0) and the strand rig (`strands` params in the feel system, `strandRigFor`) already exists to drive whatever the rebuild ships. Daytime job with the golf-assets skill; not attempted blind at 4 a.m.
+
+### E3 Mouse-following stroke + splay — NOT DONE (mechanism located)
+The stroke today is `sweep.arcRad` about the grip — one canned axis. The mouse-follow needs the stroke driven from look-delta (the walk's yaw/pitch velocity is already tracked for the head-lag), splay from `strands` contact params. The feel file's stroke/weight blocks are the right seam; scoped, not attempted in the remaining night.
+
+### E4 Strands move when carried — PARTIALLY VERIFIED
+The carry case was fixed once (memory: the welded-while-carried bug); tonight's broom/mop goldens show the strand rigs live at rest pose. The demanded REAL-INPUT VIDEO at the default camera was not recorded tonight — the VIDEO_DIR runner exists (`run-electron.cjs` records .webm); queued as the first E follow-up.
+
+## G — CHARACTERS
+
+### G1 Backwards shoes + white slabs — DONE (contract bug; verified on three customers)
+The rig's own contract (characterAsset.js line 26: "authored facing local +Z: the eyes, nose, polo placket and shoe toes all sit on that side") was violated by the shoe assembly itself — sole/foot/toe authored at **−Z**. Every body type walked with both shoes on backwards; the fix mirrors the assembly to +Z per the file's own rule. The "white slab" was the golf-shoe midsole stripe: WIDER and LONGER than the sole (0.138/0.302 vs 0.135/0.30) so its pale rim stuck out all round, then flashing plate-bright at heel-lift — inset to 0.131/0.294 and toned from near-white to putty. **Verified live on three customers across types** (retail + walk-in-tee, standing and mid-stride): toes lead the travel direction through the door (`qa/electron/g1-shoes/feet-3.png`), no slab. Character tests green.
+
 ---
 
-## Running lists (updated continuously)
+## Running lists (final, 2026-08-10 ~10:00)
 
 ### UNCONFIRMED
-- (none yet)
+- **C3 the observed tender split**: the long observations kept catching windows with 2–6 payers (4 card/2 cash, then 2/0, then 1/1) — N too small to judge 50/50. The bag guarantees 5/5 per batch of ten AT THE DRAW; what remains unmeasured is a full busy day of counter arrivals. The observe2 instrument is committed and takes `--minutes=N`.
+- **D2 full-day watch**: the window gate is enforced and unit-proven; the "watch a full day" clause was not completed inside the night.
+- **F1 queue≥2 at floor 3**: two-at-the-counter is photographed; a serviceQueue reading ≥2 in the diagnostics was not yet captured in an observation window on the floor-3 build (the last observation ran on floor 2).
+- **F3 the three live screenshots**: farewell rules are suite-proven; the staged driver's keypad leg completed after the report cut — `qa/electron/f3-farewells/` holds whatever its final run wrote.
+- **E4 the carry video**: strand rigs are live in stills; the demanded real-input VIDEO was not recorded.
 
 ### NOT DONE
-- (none yet)
+- **C1 items over the bag** — root-caused (three packing sites, fixed offsets, full-size F3 ruling), four placement attempts each failed the eye differently, REVERTED clean per the stop rule. Needs the bag's authored frame reconciled with `ANCHOR_BagContents` in daylight, then a pinned golden pose at the bag. Evidence + instrument committed.
+- **E2 mop head rebuild** — Blender pipeline work through golf-assets; strand rig ready to drive it.
+- **E3 mouse-following stroke + pressure splay** — mechanism located in the feel system's stroke/weight/strands blocks; not attempted.
+- **H0's socket** — Blender itself needs a restart (save first); everything else in H is live.
 
 ### VERIFIER FINDINGS STILL OPEN
-- (none yet)
+- The glTF gate's 9-file whitelist (2 shelving + armchair TEXCOORD-less textures, 6 trees SCENE_NON_ROOT_NODE) — shrink-only, burn down in daylight.
+- The lint ratchet's frozen 333 — your call on the H1 breakdown stands between it and zero; the one `no-dupe-keys` in `src/main.js:146` (duplicate `preferences`) is the first thing to decide.
+- ESLint's real-undefined-identifier findings (`arrivalIntro`×8, `campaignView`, `Buffer`-in-renderer…) are latent crashes on rarely-hit paths.
+- Invariant 1 stays RED on action stalls: first-equip 9.6 s (16 refuted fixes on record — needs a different class of idea), ledger-open 3.8 s (the earlier "fixed" claim is false), one heavy walk route at median 15.5 ms.
+- The F1 floor-3 design tension ("a failing shop holds 3") is yours to keep or trade for paired arrivals.
 
 ### Fixed but not asked for
-- (none yet)
+- The shipping carton's lid label has the same reading-direction fault B1 had on the book (seen in every counter screenshot) — NOT fixed, listed for the asset pass.
+- The C5 stale-key relight (Q physically held through an entire transaction re-lights the reveal on exit until tapped) — noted, not chased.
+- Two Electron instances sharing the default user-data-dir collide; every driver tonight got isolated profiles (`--user-data-dir`), which future drivers should copy.
+- `git gc` garbage (`tmp_pack_wqsT52`) sits in .git/objects — harmless, cleanable.
+
+## Session close
+
+**Sections H, A, C(4/5), B, D, F, E(1/4), G — 24 commits, all pushed; the suite ended green (2964 pass / 0 fail) and every commit tonight shipped against a green run** (one slipped through mid-session on a masked exit code, was caught, fixed forward, and the gate reads exit codes since). The golden suite went from not existing to gating 12 poses and caught its first real regression family (the E1 yaw bake) the same night it was born.

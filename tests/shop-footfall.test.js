@@ -87,8 +87,13 @@ test('the room is filled in proportion to the club, and capped by its fit-out', 
   // people even to a badly run shop, so the floor here is 2 rather than 1.
   const failing = shopAt(25, 0, { feeRatio: 1.8 });
   const drawn = shopFootfallTarget(failing, 8);
-  assert.ok(drawn <= 2,
-    `a big empty shop with no standing stays near empty, got ${drawn}`);
+  // F1 (Goal 18) raised the open floor to 3 so a two-deep queue can form
+  // while someone still shops - measured at floor 2, it never did. That
+  // means even a failing shop holds the floor. The DESIGN TENSION with "a
+  // failing shop is quiet everywhere" is real and recorded in the overnight
+  // report; the ceiling above the floor still scales with standing.
+  assert.ok(drawn <= SHOP_FOOTFALL.openFloor,
+    `a big empty shop with no standing stays at the open floor, got ${drawn}`);
 });
 
 test('an open shop is never completely empty of prospects, and a closed one always is', () => {

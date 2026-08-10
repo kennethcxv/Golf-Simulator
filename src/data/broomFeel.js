@@ -53,7 +53,11 @@ export const BROOM_FEEL = Object.freeze({
   // y −1.55, off-screen until ~23° of down-look).
   frame: Object.freeze({
     place: [0.42, -0.48, -0.60],   // rig origin in camera space (right, down, forward)
-    yaw: 0.22,                     // turned so the head clears LEFT of the grips
+    // E1 (Goal 18): measured with the live overlay door (toolFeelSet sweep,
+    // qa/electron/e1-broom-grip: 0.22 / 0.10 / 0.02 / -0.06 screenshotted at
+    // the fixed pose). 0.22 read edge-on — the playtest's "head sideways" —
+    // and 0.02 squares the crossbar to the floor without clipping the frame.
+    yaw: 0.02,
     // CARRY pose: at level look the broom is carried nearly horizontal, head
     // ahead and RAISED into frame (the drawn head cannot sit at the true
     // floor contact and be visible — 1.4 yd ahead from 1.6 yd up is ~49°

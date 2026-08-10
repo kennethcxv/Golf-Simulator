@@ -496,12 +496,15 @@ export function makeCharacter({ polo = 0x3b6fb3, khaki = 0xc2b190, cap = 0xf2efe
     knee.add(shin);
     // a real shoe: a soft leather upper on a rubber sole with a rounded toe, in place of the
     // dark block that used to sit under the trouser cuff.
-    const sole = box(0.135, 0.035, 0.30, mSole, -0.452, -0.03);
+    // G1 (Goal 18): the rig's contract at the top of this file says the toes
+    // sit on local +Z with the face — these were authored on -Z, so every
+    // body type walked with both shoes on backwards (image 7). Mirrored.
+    const sole = box(0.135, 0.035, 0.30, mSole, -0.452, 0.03);
     sole.castShadow = true;
     knee.add(sole);
-    const foot = ellipsoid(0.128, 0.115, 0.235, mShoe, -0.398, -0.05, 12);
+    const foot = ellipsoid(0.128, 0.115, 0.235, mShoe, -0.398, 0.05, 12);
     knee.add(foot);
-    const toe = ellipsoid(0.118, 0.088, 0.13, mShoe, -0.41, -0.135, 12);
+    const toe = ellipsoid(0.118, 0.088, 0.13, mShoe, -0.41, 0.135, 12);
     knee.add(toe);
     const tongue = box(0.075, 0.05, 0.10, mShoe, -0.352, 0.01);
     tongue.rotation.x = -0.25;
@@ -510,7 +513,14 @@ export function makeCharacter({ polo = 0x3b6fb3, khaki = 0xc2b190, cap = 0xf2efe
     // Q6: a golf shoe, not a street shoe. Two tells, both cheap: a pale
     // midsole stripe between the upper and the sole, and a trouser cuff that
     // BREAKS over the shoe instead of a khaki tube ending in mid-air.
-    const midsole = box(0.138, 0.014, 0.302, M(0xe6e3dc, 0.62), -0.4335, -0.03);
+    // G1: the stripe was WIDER and LONGER than the sole (0.138/0.302 vs
+    // 0.135/0.30), so its pale rim stuck out under the dark rubber all round
+    // — the "white slab beneath each foot". Inset, it reads on the side
+    // profile only, which is what a midsole is.
+    // ...and toned from near-white to putty: at a stride's heel-lift the pale
+    // underside caught the light as a bright plate (the last of the "white
+    // slab" read), which a real midsole never does at ten paces.
+    const midsole = box(0.131, 0.014, 0.294, M(0x9a958a, 0.7), -0.4335, 0.03);
     fineDetail(midsole);
     knee.add(midsole);
     const trouserCuff = new THREE.Mesh(

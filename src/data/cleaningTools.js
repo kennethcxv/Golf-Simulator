@@ -132,13 +132,14 @@ export const CLEANING_TOOLS = {
     },
     sockets: { nozzle: { pos: [0, 0.0678, -0.7444], rot: [-0.16, 0, 0] } },
     grip: { pos: [0.0, -0.13, 0.20], rot: [-0.35, 0, 0.12] },
-    // Q7 (2026-08-06): ONE HAND ON THE SHAFT, per the reference the player
-    // supplied - a single hand wrapping the handle with the forearm running out
-    // of frame. Two hands is also what produced the same-side grip complaint:
-    // with both on the shaft, whichever roll puts the fingers camera-side on
-    // one puts them camera-side on the other too. The support socket stays
-    // authored in the GLB so a two-handed tool can opt back in.
-    support: null,
+    // Q7 (2026-08-06) ruled ONE hand from the then-reference; E1 (Goal 18)
+    // REVERSES it from the new playtest: "One hand, not two. It should be
+    // held with both hands." The GLB kept SOCKET_GripSupport authored for
+    // exactly this opt-back-in; the old same-side-grip complaint is handled
+    // by the separate handRollUpper/handRollLower in the feel file.
+    // The authored SOCKET_GripSupport in the fp GLB takes over when loaded;
+    // this is the procedural fallback pose for the lower hand, mid-shaft.
+    support: { pos: [0.0, 0.005, -0.38], rot: [-0.08, 0, -0.10] },
     // a pressurised wand does not swing, it trembles and pushes back against
     // the hands; the tremble is what sells the pressure
     useMotion: { rate: 15.0, swing: [0.006, 0.013], roll: 0.014, jitter: 0.005 },
@@ -240,13 +241,14 @@ export const CLEANING_TOOLS = {
     },
     sockets: { contact: { pos: [0, -0.115, -1.90], rot: [-Math.PI / 2, 0, 0] } },
     grip: { pos: [0.0, 0.005, 0.08], rot: [-0.08, 0, 0.10] },
-    // Q7 (2026-08-06): ONE HAND ON THE SHAFT, per the reference the player
-    // supplied - a single hand wrapping the handle with the forearm running out
-    // of frame. Two hands is also what produced the same-side grip complaint:
-    // with both on the shaft, whichever roll puts the fingers camera-side on
-    // one puts them camera-side on the other too. The support socket stays
-    // authored in the GLB so a two-handed tool can opt back in.
-    support: null,
+    // Q7 (2026-08-06) ruled ONE hand from the then-reference; E1 (Goal 18)
+    // REVERSES it from the new playtest: "One hand, not two. It should be
+    // held with both hands." The GLB kept SOCKET_GripSupport authored for
+    // exactly this opt-back-in; the old same-side-grip complaint is handled
+    // by the separate handRollUpper/handRollLower in the feel file.
+    // The authored SOCKET_GripSupport in the fp GLB takes over when loaded;
+    // this is the procedural fallback pose for the lower hand, mid-shaft.
+    support: { pos: [0.0, 0.005, -0.38], rot: [-0.08, 0, -0.10] },
     recoil: 0.018,
     // a wet slap, duller than bristles
     tone: { startHz: 1150, stopHz: 700, startGain: 0.038, stopTail: 0.22, q: 0.9 },
@@ -287,13 +289,14 @@ export const CLEANING_TOOLS = {
     },
     sockets: { contact: { pos: [0, -0.215, -1.85], rot: [-Math.PI / 2, 0, 0] } },
     grip: { pos: [0.0, 0.005, 0.08], rot: [-0.08, 0, 0.10] },
-    // Q7 (2026-08-06): ONE HAND ON THE SHAFT, per the reference the player
-    // supplied - a single hand wrapping the handle with the forearm running out
-    // of frame. Two hands is also what produced the same-side grip complaint:
-    // with both on the shaft, whichever roll puts the fingers camera-side on
-    // one puts them camera-side on the other too. The support socket stays
-    // authored in the GLB so a two-handed tool can opt back in.
-    support: null,
+    // Q7 (2026-08-06) ruled ONE hand from the then-reference; E1 (Goal 18)
+    // REVERSES it from the new playtest: "One hand, not two. It should be
+    // held with both hands." The GLB kept SOCKET_GripSupport authored for
+    // exactly this opt-back-in; the old same-side-grip complaint is handled
+    // by the separate handRollUpper/handRollLower in the feel file.
+    // The authored SOCKET_GripSupport in the fp GLB takes over when loaded;
+    // this is the procedural fallback pose for the lower hand, mid-shaft.
+    support: { pos: [0.0, 0.005, -0.38], rot: [-0.08, 0, -0.10] },
     recoil: 0.020,
     // No `tone`: the broom is the approved standard and keeps its own
     // hand-authored broomStart/broomStop in core/audio.js. The shared
