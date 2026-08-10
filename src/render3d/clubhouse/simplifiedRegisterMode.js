@@ -3632,6 +3632,13 @@ export function createRegisterMode(B) {
     // the reader; a card held by a person is measured against the person.
     cardMesh.scale.setScalar(1);
     grip.attach(cardMesh);
+    // C2 (Goal 18): attach() preserves the WORLD pose, so the card kept the
+    // air gap it had at the ready point and floated beside the fingers
+    // (image 3). A card in a hand is at the grip, so the local transform is
+    // authored here: centred in the fist, leading edge presented forward.
+    cardMesh.position.set(0, 0.015, 0.035);
+    cardMesh.quaternion.identity();
+    cardMesh.rotateX(-0.28);
     return true;
   }
 
@@ -4183,12 +4190,51 @@ export function createRegisterMode(B) {
     return mesh;
   }
 
+
+  // C4 (Goal 18): a fresh bag ARRIVES rather than teleporting in. Of the two
+  // offered designs (arrival animation vs manual placement) the animation was
+  // chosen because the register's whole language is tactile automatic
+  // presentation — the reader rises from its bay, the drawer slides — and a
+  // manual placement click adds friction to every sale while deciding
+  // nothing. The bag comes up from below the counter lip, the same move as
+  // the reader, so it reads as the cashier reaching down for a new one.
+  let bagArrivalT = -1; // -1 idle; 0..BAG_ARRIVAL_TIME animating
+  const BAG_ARRIVAL_TIME = 0.45;
+  const BAG_ARRIVAL_DROP = 0.34;
+  // Recovery paths set this so their re-assert does not bounce the carrier;
+  // the flag lasts exactly one reset. Kept OUTSIDE the signature because the
+  // source contracts pin the bare resetBagAtCounter() call at those sites.
+  let nextBagResetIsQuiet = false;
+  function updateBagArrival(dt) {
+    if (bagArrivalT < 0 || !bagGroup) return;
+    bagArrivalT = Math.min(BAG_ARRIVAL_TIME, bagArrivalT + dt);
+    const u = bagArrivalT / BAG_ARRIVAL_TIME;
+    // ease-out cubic with a 4% overshoot that settles — a soft "set down"
+    const eased = 1 - Math.pow(1 - u, 3);
+    const overshoot = Math.sin(Math.min(1, u) * Math.PI) * 0.04;
+    bagGroup.position.copy(BAG_POS);
+    bagGroup.position.y = BAG_POS.y - BAG_ARRIVAL_DROP * (1 - eased) + overshoot * (1 - u);
+    if (bagArrivalT >= BAG_ARRIVAL_TIME) {
+      bagGroup.position.copy(BAG_POS);
+      bagArrivalT = -1;
+    }
+  }
   function resetBagAtCounter() {
     if (!bagGroup) return;
+    const quiet = nextBagResetIsQuiet;
+    nextBagResetIsQuiet = false;
+    const hadContents = bagGroup.children.some((c) => c.userData?.checkoutVisualState === 'packed-in-bag');
     bagGroup.visible = true;
     bagGroup.position.copy(BAG_POS);
     bagGroup.quaternion.copy(bagCounterQuaternion());
     bagGroup.scale.setScalar(BAG_COUNTER_SCALE);
+    // Animate only a genuinely NEW bag while the till is up. A mid-sale
+    // re-assert (recovery, retry, restore) must not bounce the carrier the
+    // customer's goods are already in.
+    if (!quiet && active && !hadContents) {
+      bagArrivalT = 0;
+      bagGroup.position.y = BAG_POS.y - BAG_ARRIVAL_DROP;
+    }
   }
 
   // Kraft outside, SHADOW inside. Laid on its face the bag is read almost
@@ -4988,6 +5034,7 @@ export function createRegisterMode(B) {
       if (cust) cust.checkoutHandoffBag = null;
     } else {
       if (!bagGroup) buildBag();
+      nextBagResetIsQuiet = true; // recovery re-assert, not a new bag
       resetBagAtCounter();
       if (resetCounterBag && cust) cust.checkoutHandoffBag = null;
     }
@@ -5193,6 +5240,14 @@ export function createRegisterMode(B) {
     active = true;
     let entered = false;
     try {
+      // C5 (Goal 18): the walk update stops while the till is up, so its
+      // per-frame stationOpen zeroing cannot clear a Q reveal lit at the
+      // moment of entry. Every mark Q made — markers, reveal, legend — goes
+      // out with the reveal alpha, here, at the transition. Held keys are
+      // cleared too: a keyup delivered while the walk is frozen is lost, and
+      // the stale hold relit the reveal the moment the player stepped away.
+      B.setDirtReveal?.(0);
+      B.walk?.clearKeys?.();
       // Checkout's fixed close cameras make the whole active register the
       // measured allocation hotspot, not only the card workspace. Hold the
       // player's exact prior AO setting once per entry and restore it on every
@@ -6511,6 +6566,7 @@ export function createRegisterMode(B) {
     bagDropMotions.length = 0;
     scanDrag = null;
     scanMotion = null;
+    nextBagResetIsQuiet = true; // retry reclaims the same carrier
     resetBagAtCounter();
     bagGroup.userData.checkoutOwner = 'register';
     if (cust) {
@@ -6614,6 +6670,7 @@ export function createRegisterMode(B) {
       if (projected) toast(t('till.pickedTheSaleBack'));
       return projected;
     }
+    nextBagResetIsQuiet = true; // restarting a handoff, same bag
     resetBagAtCounter();
     const restarted = finishAutomaticFulfillment();
     if (restarted) toast(t('till.handingItOverAgain'));
@@ -8220,6 +8277,7 @@ export function createRegisterMode(B) {
     updateTerminalKeyPulses(dt);
     updateTerminalFloat(dt);
     const animationDt = checkoutAnimationDelta(dt, accessibilityPrefs);
+    updateBagArrival(animationDt);
     // Settings are inaccessible while the register owns input, but a renderer
     // refresh can still replace the live value. Reassert without recapturing;
     // inactive front-desk play never reads or writes the player's setting.
@@ -8530,6 +8588,18 @@ export function createRegisterMode(B) {
     simplified: true,
     presentedCashScreenPoint,
     presentedCardScreenPoint,
+    // C2 (Goal 18): the gap between the presented card and the customer's
+    // grip, in metres, so "the card is in the hand" is measured, not eyeballed.
+    cardGripDiagnostics: () => {
+      const grip = customerGripNode('R');
+      if (!cardMesh || !grip) return { gap: null, cardParent: cardMesh?.parent?.name ?? null };
+      const cardWorld = cardMesh.getWorldPosition(new THREE.Vector3());
+      const gripWorld = grip.getWorldPosition(new THREE.Vector3());
+      return {
+        gap: +cardWorld.distanceTo(gripWorld).toFixed(4),
+        cardParent: cardMesh.parent === grip ? 'grip' : (cardMesh.parent?.name || 'other'),
+      };
+    },
     presentedTenderScreenPoints,
     // QA-only: the game's own X hit-test and screen UV at a page point, so a
     // driver can measure the exact math a real click runs instead of rebuilding

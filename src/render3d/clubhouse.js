@@ -5573,6 +5573,11 @@ export function makeClubhouse(ctx) {
    * `columns` stands each marker into a tall pillar for the overview camera,
    * where a floor-hugging blob is invisible from above the roof.
    */
+  // C5 (Goal 18): the register freezes the walk update, so courseScene's
+  // per-frame stationOpen zeroing never runs while the till is up — a reveal
+  // lit at the moment of entry stayed lit behind the UI. The register mode
+  // zeroes it at the entry transition through this handle.
+  B.setDirtReveal = (...args) => setDirtReveal(...args);
   function setDirtReveal(alpha, columns = false, toolId = null) {
     const a = Math.max(0, Math.min(1, Number.isFinite(alpha) ? alpha : 0));
     const tool = CLEANING_TOOLS[toolId] ? toolId : null;

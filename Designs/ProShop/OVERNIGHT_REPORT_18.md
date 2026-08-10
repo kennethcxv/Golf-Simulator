@@ -99,6 +99,23 @@ Sixty-second walk with real input beats, per-beat frame stats (`qa/electron/phas
 - **Tool first-equip: 9,598 ms; a walk-beat lazy load: 9,528 ms; look beat: 2,065 ms.** These are the documented first-equip shader-stall family with SIXTEEN refuted fixes on record — per the stop rule and the brief's own warning, NOT chased tonight. They are the reason invariant 1 is red.
 - Steady-state medians everywhere: 6.5–10 ms (healthy between stalls); walkB (heaviest route) median 15.5 ms, p95 32 ms — the one beat where cadence itself struggles.
 
+## C — CHECKOUT
+
+### C5 Q markers behind the till — DONE (root cause found)
+The F2-era fix zeroes the reveal per-frame from the WALK update — and the register freezes the walk update, so a reveal lit at the moment of entry stayed lit behind the UI forever (your image 6). **Watched fail:** `tools/qa/electron-c5-reveal-into-register.js` — alpha 1.0 before entry, stayed 1.0 inside the till with Q held AND released. Fix: `register.enter()` zeroes the reveal at the transition (`B.setDirtReveal(0)`) and clears held keys (a keyup delivered while the walk is frozen is lost — the stale hold relit the reveal on exit). **Verified: alpha 0 in-register both phases.** Residual noted: physically holding Q through the entire transaction still relights after exit until tapped — edge case, not chased.
+
+### C2 Card into the customer's grip — DONE
+`attachCardToCustomerHand` used `attach()`, which preserves the WORLD pose — the card kept its air gap from the ready point and floated beside the fingers (image 3). The local transform is now authored after the parent swap (centred in the fist, slight presentation tilt). `register.cardGripDiagnostics()` added for measurement. Evidence: `qa/electron/c1c2-evidence/c1-bagged.png` frames show the card at the fingertips through presentation/insert; the live gap sample missed its window (stage advances past card-ready quickly), noted honestly.
+
+### C4 Bag arrival — DONE (choice: animation, and why)
+**Chose the arrival animation over manual placement**: the register's design language is tactile automatic presentation (the reader rises from its bay, the drawer slides) and a manual placement click decides nothing while adding friction to every sale. A fresh bag now rises from below the counter lip (0.45 s ease-out with a soft settle), driven from the register's own update; recovery/retry re-asserts are explicitly quiet so a mid-sale carrier never bounces (source contracts pin the bare `resetBagAtCounter()` calls — a one-shot quiet flag keeps them intact).
+
+### C1 Items over the bag — NOT DONE (stop rule; reverted to shipped behaviour)
+Root cause IS identified: all three packing paths place goods at fixed offsets (`(0,0.15,0)` twice; a drag-path stack that RISES 0.035/item out of the mouth), at full size per F3's no-miniature-stack ruling — your image 2's cylinders are that. **Four placement attempts failed the eye test in different ways** (shrink-to-fit → broke F3's source contracts, 7 suite failures; world-frame flat-lay → carton corner through the flank; local-frame fit → carton ON the flank, bottle on the counter; authored `ANCHOR_BagContents` → still half-embedded). The bag's authored frame (mouth +Y, world-up +Z, flattened gusset) and the anchor's actual position need daytime reconciliation with the kit asset — likely the anchor itself needs re-authoring in `checkout/shopping_bag.glb`. Everything reverted to the shipped text (suite green 2955); the instrument (`tools/qa/electron-c1c2-evidence.js`) + 4 screenshot rounds live in `qa/electron/c1c2-evidence/`. **A bbox measure kept passing what the eye failed — through-surface clipping is invisible to bounding boxes; this item needs the golden treatment (a pinned pose at the bag) once placement is right.**
+
+### C3 Tender split — measurement running
+First 22-min observation returned honest zeros: the save's clock was overnight and the shop closed — the instrument now verifies its own preconditions (clock 09:00, businessOpen, signOpen). Second observation in flight; split lands below when it completes.
+
 ---
 
 ## Running lists (updated continuously)
