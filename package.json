@@ -19,6 +19,7 @@
     "golden": "npm run golden:capture && npm run golden:diff",
     "golden:accept": "node tools/golden-diff.mjs --accept",
     "golden:control": "node tools/golden-control.mjs",
+    "gate": "node tools/lint-ratchet.mjs && node tools/build-vendor-models.mjs --check && npm test && npm run golden && npm run golden:control",
     "gen:broom-metrics": "node tools/gen/extract-broom-metrics.mjs"
   },
   "devDependencies": {

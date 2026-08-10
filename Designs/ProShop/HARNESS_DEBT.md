@@ -1,5 +1,11 @@
 # QA HARNESS MECHANICAL DEBT — counts before and after
 
+> **Every new probe goes through the `golf-qa` skill** (`.claude/skills/golf-qa/`)
+> — it is the distillation of this file's lessons into the five laws every
+> instrument must satisfy (negative control, launch-the-game, watched-fail,
+> and the repo-specific gotchas). Check new probes against BOTH: the skill for
+> the discipline, this file for the specific shapes that have lied before.
+
 Session of 2026-08-03 (B11). Three named categories, each counted before the
 work and after it, with every remaining file listed and given a reason.
 
