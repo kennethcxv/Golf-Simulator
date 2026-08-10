@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { makeRng } from '../src/core/utils.js';
 import { newGame, serialize, deserialize } from '../src/sim/state.js';
 import { calendarOf } from '../src/sim/time.js';
-import {
+import { configureTeeSheet,
   TEE_SHEET,
   ensureReservations,
   configureReservations,
@@ -278,6 +278,7 @@ test('a reservation deposit banks one durable ticket and replay after save/load 
 
 test('minute-zero generated deposits defer into the new ledger window and then bank once', () => {
   const state = newGame('relaxed', 3113);
+  configureTeeSheet(state, { autoBookings: false }); // exact-once deposit accounting
   state.clock.minutes = 1440;
   const cashBefore = state.cash;
   const revenueBefore = state.ledger.today.revenue.greenFees;

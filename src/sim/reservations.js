@@ -7,6 +7,7 @@
 
 import { makeRng } from '../core/utils.js';
 import { calendarOf } from './time.js';
+import { t } from '../core/i18n.js';
 import { amenityScore, clubRatings, demandMultiplier, fairGreenFee } from './club.js';
 import { addExpense, addRevenue, postLedgerEntry, recordOutcome, unbill } from './economy.js';
 import { cancelReservationCustomer, scheduleReservationCustomer } from './customerSimulation.js';
@@ -24,6 +25,10 @@ export const TEE_SHEET = Object.freeze({
   maxPartySize: 4,
   slotCapacity: 4,
   minWalkInLeadMin: 0,
+  // D1 (Goal 18): whether the horizon fill books NPC parties on its own.
+  // Production default ON; a club (or a test that needs a controlled sheet)
+  // can switch the channel off — refusing online bookings is a real policy.
+  autoBookings: true,
 });
 
 export const DEFAULT_OPERATIONS_POLICY = Object.freeze({
@@ -501,6 +506,7 @@ function normalizedConfigPatch(patch) {
 export function configureTeeSheet(state, patch = {}) {
   const book = bookOf(state);
   const next = { ...book.config, ...normalizedConfigPatch(patch) };
+  if (patch.autoBookings != null) next.autoBookings = patch.autoBookings !== false;
   const integerKeys = [
     'openMin', 'closeMin', 'stepMin', 'horizonDays', 'dueLeadMin',
     'gracePeriodMin', 'maxPartySize', 'slotCapacity', 'minWalkInLeadMin',
@@ -1486,6 +1492,22 @@ export function checkInReservation(state, id, options = {}) {
     return { ok: true, reservation, res: reservation, fee, amountDue: 0, courseAccess: reservation.courseAccess, cart };
   }
   if (!['arrived', 'late'].includes(reservation.arrival.status)) return { ok: false, reason: 'The party has not arrived.' };
+  // D2 (Goal 18): checkInWindow existed and NOTHING consulted it — the
+  // 60-minute window was a display string, not a gate, so a walk-in could
+  // book a 3 pm slot at 9 am and check straight in. The desk's answer now
+  // correlates with the clock: early parties are told when the window opens,
+  // and a missed slot is said plainly instead of silently accepted.
+  const window = reservationCheckInWindow(reservation, Math.floor(options.atMinute ?? nowOf(state)));
+  if (window.state === 'early') {
+    return {
+      ok: false,
+      window,
+      reason: t('reservations.checkin.early', { lead: CHECK_IN_WINDOW_MINUTES, wait: window.minutesUntilOpen }),
+    };
+  }
+  if (window.state === 'missed') {
+    return { ok: false, window, reason: t('reservations.checkin.missed', { late: window.minutesLate }) };
+  }
   if (reservation.checkIn.status !== 'confirmed') return { ok: false, reason: 'Confirm the reservation first.' };
   refreshPayment(reservation);
   if (reservation.payment.amountDue > EPSILON) {
@@ -1668,6 +1690,18 @@ export function operationsSummary(state, dayAbs = calendarOf(nowOf(state)).dayAb
 export function golfOperationsTick(state, targetMinute = nowOf(state)) {
   const book = bookOf(state);
   const target = Math.floor(targetMinute);
+  // D1 (Goal 18): generateReservations and ensureReservationHorizon existed
+  // and were called by NOTHING outside the tests — the production tee sheet
+  // stayed empty forever and every golfer was a walk-in (measured live:
+  // 6/6 walk-ins over 2.7 game hours, generator.generatedDays []). The
+  // horizon fill is idempotent per day, so the hourly tick is a safe home:
+  // a fresh save books out its first sheet within the boot hour, and each
+  // midnight extends the window. A CLOSED campaign business takes no
+  // bookings — the same open-for-business predicate the daily accruals use.
+  if (book.config.autoBookings !== false
+    && (!state.campaign?.enabled || state.campaign.businessOpen)) {
+    ensureReservationHorizon(state);
+  }
   const eventsBefore = book.nextEventSeq;
   const reservations = [...book.booked].sort((a, b) => (
     absoluteMinute(a.dayAbs, a.minute) - absoluteMinute(b.dayAbs, b.minute)

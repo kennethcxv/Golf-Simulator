@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { newGame, update, serialize, deserialize } from '../src/sim/state.js';
 import { addRevenue, financialSummary } from '../src/sim/economy.js';
 import { checkoutSale, pickFromShelf } from '../src/sim/checkout.js';
-import { bookSlot, completeReservationPayment, reservationsDailyTick } from '../src/sim/reservations.js';
+import { configureTeeSheet, bookSlot, completeReservationPayment, reservationsDailyTick } from '../src/sim/reservations.js';
 import { purchaseUpgrade } from '../src/sim/progression.js';
 import {
   setGreenFee, setMembershipDue, setProductMarkup, setRentalPrice,
@@ -59,6 +59,7 @@ test('checkout revenue and COGS cannot replay across save/load', () => {
 
 test('no-show fees post once even when housekeeping and save/load repeat', () => {
   const state = newGame('relaxed', 903);
+  configureTeeSheet(state, { autoBookings: false }); // exact-once accounting needs a controlled sheet
   assert.equal(bookSlot(state, 0, 7 * 60, { holder: 'No Show', cardOnFile: true }).ok, true);
   reservationsDailyTick(state, 1);
   const cash = state.cash;

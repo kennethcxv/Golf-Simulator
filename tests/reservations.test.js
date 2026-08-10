@@ -74,6 +74,8 @@ test('a booked golfer pays and checks in through explicit exact-once steps', () 
 
   assert.equal(dueForCheckIn(state).length, 0, 'nothing due the day before');
   update(state, MINUTES_PER_DAY); // roll into the booked day (also runs daily ticks)
+  // D2: check-in is windowed; walk to 07:15, inside the 08:00 slot's hour
+  state.clock.minutes = day * 1440 + 7 * 60 + 15;
   markReservationArrived(state, res.id);
   const due = dueForCheckIn(state);
   assert.equal(due.length, 1, 'the 8:00 booking is due at the counter');
