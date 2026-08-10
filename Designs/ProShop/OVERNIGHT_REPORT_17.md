@@ -16519,3 +16519,56 @@ as E4's DOM dump and D2's entry counter, arriving for the third time.
 **F1's honest state:** the pause menu is covered and understood, the HUD chip is
 fixed and confirmed, and the remaining five surfaces need the same treatment —
 find each surface's common path, then check what bypasses it.
+
+
+## F1 — THE LAPTOP'S ONE CALL SITE IS DELEGATION, AND A NEAR-MISS I ALMOST FILED
+
+Phase 0 asked whether `laptop.js` having a single `uiTick` call site for a whole
+back office meant delegation or many silent buttons. **It is delegation:**
+
+```js
+function click() {
+  if (prefsOf().uiSounds === false) return;
+  if (app.audio && app.audio.ready) app.audio.uiTick();
+}
+```
+
+A named helper the laptop's controls call — the same shape as the pause menu's
+`setPage`, reached from the other direction. **So the count-based reading I opened
+Section F with was answering the wrong question**, and the pause menu had already
+shown why: one call site can legitimately serve a surface.
+
+### The near-miss
+
+The laptop's helper checks `uiSounds`; **none of the other seven `uiTick` sites
+do** — `main.js` x5, `settingsPanel.js`, and the audio module's own definition. My
+first reading was *"a preference honoured inconsistently"*, which is a tidy defect
+and would have been wrong.
+
+The setting's own label says otherwise:
+
+```
+'Laptop sounds', 'Clicks and chimes on this screen.'
+```
+
+**It is scoped to the laptop by design, and says so in the words the player
+reads.** A guard present in one file and absent in seven looks like an
+inconsistency right up until you read what the toggle claims to control.
+
+That is the same shape as every other fault this session — **evidence that
+arrives for a reason other than the one assumed** — and this time the cost was one
+grep rather than a published claim, because the label was one line away from the
+guard.
+
+### What F1 now knows structurally
+
+| surface | common path | status |
+|---|---|---|
+| pause menu | `setPage()` ticks | **9/9 verified by clicking** |
+| laptop | `click()` helper, `uiSounds`-gated | delegation confirmed by reading; **not yet clicked** |
+| HUD chip | **none** — bypassed both | **was silent, fixed, confirmed** |
+| settings, register, ledger, desktop UI | unknown | unreached |
+
+**The pattern that predicts F1 defects is now explicit**: a control that does not
+route through its surface's common path. That is exactly what the clock chip was,
+and it is the cheapest thing to look for on the four remaining surfaces.
