@@ -248,6 +248,45 @@ locales) — the ratchet ends BELOW its baseline.
 
 ## B — THE QUEUE
 
+### B1 Single file, back from the desk — DONE (photographed)
+The line was SIDEWAYS by design: a 2026-07-28 ruling pitched it east along the
+desk face to keep the tail out of the door lane. Goal 19 supersedes it,
+recorded: `shopLayout.js` v2 queue pitch is now (0.18, −0.66) — each next
+person 0.66 BACK from the one ahead with a small eastward drift, head
+unchanged (F5's fix keeps), spacing 0.68 in the proven body band. The
+overflow pocket sat directly in the new line's corridor and moved east into
+the pinch between the line, member_station, the tour vault and the x 5.70
+partition (radius caps 0.85 → 0.70 to fit; the audit walks all nine points).
+The layout audit test was re-encoded FIRST and watched to fail on the old
+geometry ("line slot 1 does not step BACK from the desk"), then the geometry
+moved and the full audit passed 21/0 — desk-slab clearance, exit-lane
+exclusion, reachability, spacing all held. LIVE:
+`qa/electron/b1-single-file/line-default-camera.png` — three walk-ins one
+behind another at their slots (measured (3.04,2.30) (3.20,1.72) (3.36,1.14),
+sideways spread 0.32, `noneInSlab: true`). The image-5 counter clip class is
+side-by-side contention at the face; with the file running back, no actor
+stands in the slab (asserted live). NEGATIVE CONTROL: empty queue lists
+nobody before the first send.
+
+### B2 "IN QUEUE" tells the truth — DONE (the lie watched first)
+NOT the two-populations shape this time — one population with a stale flag
+and a dishonest map: `queued` flips true the moment the counter becomes a
+walk-in's route STOP (decided from across the room), and the screen printed
+`queueIndex === 0 ? 'AT DESK' : 'IN QUEUE'` — so someone still crossing the
+floor read AT DESK, and someone who LEFT the line entirely (queueIndex −1)
+read IN QUEUE. Both halves of the user's sighting from one mapping.
+WATCHED FAIL on the unfixed build: `electron-b2-queue-truth.js` sampled a
+real walk-in's whole approach — 15 samples with the actor >1.2 yd from the
+slot while the old labels said AT DESK / IN QUEUE (`LIE_CONFIRMED: true`,
+`qa/electron/b2-queue-truth/report.json`). The fix: the bridge rows now
+carry `atSlot` (body within 0.55 yd of its queue slot, measured per read)
+and drop customers whose phase is 'leaving'; the screen maps
+AT DESK = head AND at slot, IN QUEUE = at slot, otherwise WALKING UP. Same
+driver on the fixed build: `NEW_MAP_HONEST: true` — every far sample maps to
+WALKING UP, every arrived sample carries atSlot. If they leave the line, the
+row leaves the list (the 'leaving' filter) — the exact sentence of the
+instruction.
+
 ## GOLDEN GATE — WORLD-Y PIN
 
 ## C — CHECKOUT

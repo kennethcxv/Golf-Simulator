@@ -284,7 +284,7 @@ test('every stand point is deliverable: clear of all colliders (the item-3 lesso
   }
 });
 
-test('the queue ruling: line east along the desk face, exit lane never crossed', () => {
+test('the queue ruling: single file BACK from the desk, exit lane never crossed', () => {
   const slab = {
     minX: V2.x - V2.frontLength / 2, maxX: V2.x + V2.frontLength / 2,
     minZ: V2.z - V2.frontDepth / 2, maxZ: V2.z + V2.frontDepth / 2,
@@ -304,17 +304,20 @@ test('the queue ruling: line east along the desk face, exit lane never crossed',
     assert.ok(!inBounds(p, exitLane),
       `queue slot ${i} at (${p.x.toFixed(2)}, ${p.z.toFixed(2)}) stands in the exit lane`);
   }
-  // The line itself: monotone east (the tail grows AWAY from the door), body
-  // spacing in the tight-retail band, and every line slot on the face band.
+  // B1 (Goal 19) SUPERSEDES the 2026-07-28 east ruling: "I want a single-file
+  // line running BACK from the desk, one behind another." The line steps
+  // SOUTH away from the desk face (monotone -z), with only a small eastward
+  // drift allowed (it keeps the tail off the overflow pocket), body spacing
+  // in the tight-retail band, and the whole line still east of the exit lane.
   for (let i = 1; i < L.queue.lineSlots; i++) {
     const prev = v2Slot(i - 1);
     const cur = v2Slot(i);
-    assert.ok(cur.x > prev.x + 0.5, `line slot ${i} does not step east`);
+    assert.ok(prev.z - cur.z > 0.5, `line slot ${i} does not step BACK from the desk`);
+    assert.ok(Math.abs(cur.x - prev.x) <= 0.30,
+      `line slot ${i} drifts ${Math.abs(cur.x - prev.x).toFixed(2)} sideways - that is a second lane, not a file`);
     const spacing = Math.hypot(cur.x - prev.x, cur.z - prev.z);
     assert.ok(spacing >= 0.60 && spacing <= 1.00,
       `line spacing ${spacing.toFixed(3)} outside the 0.60-1.00 body band`);
-    assert.ok(cur.z > 2.0 && cur.z < slab.minZ,
-      `line slot ${i} off the desk-face band`);
   }
   // F5 (Full_Goal_16): the paying customer stands RIGHT of the bag strip,
   // opposite the cashier — the head moved 0.22 east (2.82 → 3.04) by

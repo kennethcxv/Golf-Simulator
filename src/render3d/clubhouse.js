@@ -10338,23 +10338,42 @@ export function makeClubhouse(ctx) {
           && String(c.checkoutPhase || '').startsWith('reservation'))
         .map((c) => c.reservationId),
     ),
+    // B2 (Goal 19): the desk list must not outlive the person. A customer who
+    // gave up and walked ("leaving") LEAVES THE LIST, and every row carries
+    // `atSlot` — is this body physically standing on its queue slot right now
+    // — so the screen can stop printing IN QUEUE for someone still crossing
+    // the room (queued flips true when the counter becomes their STOP, which
+    // is decided from across the floor).
     walkIns: () => customers
-      .filter((customer) => openWalkInCustomer(customer))
-      .map((customer) => ({
-        customerId: customer.customerId,
-        name: customer.fullName,
-        fullName: customer.fullName,
-        partySize: customer.partySize || 1,
-        paymentPreference: customer.paymentPreference,
-        phase: customer.checkoutPhase,
-        queued: customer.queued,
-        queueIndex: customer.queued ? counterQueue.indexOf(customer) : -1,
-        // L1: the ask crosses the bridge — the desk cannot honour a time it
-        // never hears
-        requestedTeeMinute: Number.isFinite(customer.requestedTeeMinute)
-          ? customer.requestedTeeMinute
-          : null,
-      })),
+      .filter((customer) => openWalkInCustomer(customer)
+        && customer.checkoutPhase !== 'leaving')
+      .map((customer) => {
+        const queueIndex = customer.queued ? counterQueue.indexOf(customer) : -1;
+        let atSlot = false;
+        if (queueIndex >= 0 && customer.mesh) {
+          const slot = queueSlotW(queueIndex);
+          atSlot = Math.hypot(
+            customer.mesh.position.x - slot.x,
+            customer.mesh.position.z - slot.z,
+          ) < 0.55;
+        }
+        return {
+          customerId: customer.customerId,
+          name: customer.fullName,
+          fullName: customer.fullName,
+          partySize: customer.partySize || 1,
+          paymentPreference: customer.paymentPreference,
+          phase: customer.checkoutPhase,
+          queued: customer.queued,
+          queueIndex,
+          atSlot,
+          // L1: the ask crosses the bridge — the desk cannot honour a time it
+          // never hears
+          requestedTeeMinute: Number.isFinite(customer.requestedTeeMinute)
+            ? customer.requestedTeeMinute
+            : null,
+        };
+      }),
     customerFor: (id) => customers.find((c) => sameReservationId(c.reservationId, id)) || null,
     readyCustomerFor: (id) => {
       const customer = customers.find((c) => sameReservationId(c.reservationId, id));

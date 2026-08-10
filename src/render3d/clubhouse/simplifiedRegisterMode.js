@@ -2684,7 +2684,11 @@ export function createRegisterMode(B) {
           ? `Asks ${fmtSlot(customer.requestedTeeMinute)}`
           : 'Walk-in tee request',
         partySize: customer.partySize || 1,
-        status: customer.queueIndex === 0 ? 'AT DESK' : 'IN QUEUE',
+        // B2 (Goal 19): IN QUEUE means STANDING IN THE LINE, physically, right
+        // now — `atSlot` is measured from the actor's body to its queue slot.
+        // Someone still crossing the room is WALKING UP, whatever their index.
+        status: customer.queueIndex === 0 && customer.atSlot ? 'AT DESK'
+          : customer.atSlot ? 'IN QUEUE' : 'WALKING UP',
         disabled: locked,
       }));
       const slots = selectedWalkIn ? walkInSlots(selectedWalkIn.customerId).slice(0, 3) : [];
@@ -2709,7 +2713,8 @@ export function createRegisterMode(B) {
           extras: 'Book a same-day time',
           depositPaid: 0,
           balanceDue: (state.club ? state.club.greenFee : 0) * (selectedWalkIn.partySize || 1),
-          status: selectedWalkIn.queueIndex === 0 ? 'READY AT DESK' : 'WAITING IN QUEUE',
+          status: selectedWalkIn.queueIndex === 0 && selectedWalkIn.atSlot ? 'READY AT DESK'
+            : selectedWalkIn.atSlot ? 'WAITING IN QUEUE' : 'WALKING UP',
           // L1: the note states the resolver's verdict on the ask, so the
           // player knows whether the top button IS the asked time
           note: ask

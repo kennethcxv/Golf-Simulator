@@ -376,9 +376,12 @@ export const PINE_HILLS_V2_LAYOUT = Object.freeze({
     // left. Was -0.48 — a bag-adjacent stand that hid the face behind the
     // laid carrier from the working camera.
     headLocal: Object.freeze({ x: -0.26, z: -1.05 }),
-    // pitch shortened with the F5 head move (0.80 → 0.69) so slot 2 lands on
-    // exactly the member_station clearance the old line proved out
-    pitchLocal: Object.freeze({ x: 0.69, z: 0.10 }),
+    // B1 (Goal 19) SUPERSEDES the 2026-07-28 east re-pitch: "a single-file
+    // line running BACK from the desk, one behind another." The pitch runs
+    // SOUTH away from the face with a small eastward drift that walks the
+    // tail off the exit-lane side; spacing 0.68 stays in the body band the
+    // old line proved. The head does not move (F5's fix keeps).
+    pitchLocal: Object.freeze({ x: 0.18, z: -0.66 }),
     lineSlots: 3,
     // Room-absolute sunflower packing: r = min(r0 + rGrow*sqrt(k), rMax) at
     // angle k*goldenAngle. The nine points a full house uses (k 0-8) are all
@@ -387,8 +390,14 @@ export const PINE_HILLS_V2_LAYOUT = Object.freeze({
     // Anchor sits SW with z capped at 1.80 (first requeue day run): the first
     // anchor's crowd reached z 2.30 and pressed browsing customers into the
     // member_station stand band (z ≈ 2.15) and toward the corridor mouth.
+    // B1: the pocket moves east — the old anchor (3.15, 0.95) sat directly in
+    // the new back-running line's corridor (measured 0.08-0.37 yd from line
+    // slots). Same packing, same caps; the audit test walks all nine points.
+    // The pocket now lives in the pinch between the line's tail, the
+    // member_station stand band, the tour vault and the x 5.70 partition, so
+    // its radius caps came in (0.85 → 0.70) to fit — nine points still pack.
     overflow: Object.freeze({
-      x: 3.15, z: 0.95, r0: 0.45, rGrow: 0.26, rMax: 0.85,
+      x: 4.35, z: 0.70, r0: 0.45, rGrow: 0.22, rMax: 0.70,
       goldenAngle: 2.399963229728653,
     }),
   }),
