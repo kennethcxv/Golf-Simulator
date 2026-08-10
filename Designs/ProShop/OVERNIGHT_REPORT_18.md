@@ -116,6 +116,25 @@ Root cause IS identified: all three packing paths place goods at fixed offsets (
 ### C3 Tender split — measurement running
 First 22-min observation returned honest zeros: the save's clock was overnight and the shop closed — the instrument now verifies its own preconditions (clock 09:00, businessOpen, signOpen). Second observation in flight; split lands below when it completes.
 
+## B — THE LEDGER
+
+Instrument: `tools/qa/electron-b-ledger-evidence.js` — closed-cover shot, per-rAF 640w frame grabs around both E presses (a screenshot loop cannot catch a 1-frame glitch), full-frame open shot, and a per-frame `bookState` trace through both put-away routes. Evidence in `qa/electron/b-ledger/`.
+
+### B1 Mirrored cover — DONE (cause: in-plane rotation, not a mirror)
+The title is a canvas plane on the authored cover anchor; it was legible only from behind the counter — rotated 180° in-plane from the player's approach (the plane's FRONT was visible, so not a true back-face mirror; "reads back to front" was the last-word-first read of a 180° spin). Fix: `titlePlane.rotateZ(Math.PI)` — the spin is about the plane's own normal so the lettering stays on the leather. **Verified: the raised-shut frame reads "PINE HILLS MUNICIPAL GOLF / MEMBERS AND GUESTS" correctly.** Other painted faces checked: the interior page faces were already correct. NOTED (out of B's charter): the brown shipping carton on the counter has the same reading-direction fault in its lid label — different asset, listed under "not asked for" findings.
+
+### B2 Opens off-centre — DONE (cause: shut states framed with the open spread's bounds)
+Every pose state reused the OPEN spread's measured bounds; the closed block occupies the right half of that region, so the raised-shut book (your image 1 IS the shut stage — the clasp is on) rode right-of-centre. The framing solve now takes a mode: shut states centre the measured CLOSED block (`measureClosedBounds`), open states keep the spread. **Verified: the shut rise now frames centred; the open spread was and remains centred.**
+
+### B4 Bare-page frame on open — DONE (cause: backface culling, present for the WHOLE swing, not one frame)
+The rAF grabs caught it: from swing start to the 0.72 swap point (~8 frames), the scene showed a floating title page with no cover board — the swinging cover's INNER side faces the camera and its single-sided leather CULLED, leaving only the double-sided painted title visible. Fix: the cover renders DoubleSide. **Verified: the same frame window now shows the full boards through the swing.**
+
+### B3 No key prompt — DONE
+The walk overlay (and its control line) hides when the book rises, leaving only the footer inside the open spread — a raised-shut book taught nothing. Added the same bottom chip as the tool control line, phase-aware and reading the LIVE bindings: shut → "E open the book · Esc put it back"; open → "A/D or click · turn pages · E put the book away". **Verified on-screen in the open state; strings passed the em-dash gate (it caught my first draft).**
+
+### B5 Set-down animation plays twice — CANNOT REPRODUCE (divergence recorded)
+Both put-away routes traced at per-frame resolution: E-close = `open → closing (77–701 ms) → lowering (713–1043) → closed` — one clean pass, no state repeats, no timer rewind; X-carry + Z-set-down = instant placement, no animation at all. If it recurs for you, the repro detail that matters is WHICH route and what was held/pressed during the descent — the traces are in `qa/electron/b-ledger/report.json` to compare against.
+
 ---
 
 ## Running lists (updated continuously)

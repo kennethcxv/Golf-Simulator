@@ -518,12 +518,28 @@ export function createLedgerBook({ THREE, state, anchor, counterTop, camera = nu
         }),
       );
       titlePlane.rotation.x = -Math.PI / 2;
+      // B1 (Goal 18): without the in-plane half turn the title read rotated
+      // 180° from the player's approach side — "PINE HILLS ... " legible only
+      // from behind the counter (image 1). The spin is about the plane's own
+      // normal, so the lettering stays ON the leather, the right way up for
+      // the reader standing at the desk.
+      titlePlane.rotateZ(Math.PI);
       titleAnchor.add(titlePlane);
     }
+    // B4 (Goal 18): while the cover swings, its INNER side faces the camera
+    // and single-sided leather CULLS — every frame of the swing drew the
+    // double-sided painted title as a bare floating page with no board
+    // behind it (caught on the rAF frame grabs, b4-press2-05..08). A cover
+    // is a board with two sides; render it as one.
+    coverNode.traverse((o) => {
+      if (!o.isMesh || !o.material) return;
+      for (const m of Array.isArray(o.material) ? o.material : [o.material]) m.side = THREE.DoubleSide;
+    });
     paintTitleFace();
     // the framing solve needs the real book, so it is re-measured the moment
     // the GLB replaces the fallback slab
     openBounds = null;
+    closedBounds = null;
     // if the player opened the book during the load, the update loop owns
     // the shells from the next frame - only a closed book gets reposed here
     if (bookState === 'closed') applyClosedPose();
@@ -1821,22 +1837,25 @@ export function createLedgerBook({ THREE, state, anchor, counterTop, camera = nu
   // BOTH axes. The margin is then a guarantee at any window size, not a hope.
   const FRAME_FILL = 0.74;      // the fraction of the frame the book may cover
   let openBounds = null;        // { center: Vector3, corners: Vector3[] } in root space
+  let closedBounds = null;      // same, for the shut block (B2)
 
-  function measureOpenBounds() {
-    if (!openShell.children.length) return null;
-    const wasVisible = openShell.visible;
-    openShell.visible = true;
+  function measureOpenBounds() { return measureShellBounds(openShell); }
+  function measureClosedBounds() { return measureShellBounds(closedShell); }
+  function measureShellBounds(shell) {
+    if (!shell.children.length) return null;
+    const wasVisible = shell.visible;
+    shell.visible = true;
     root.updateMatrixWorld(true);
     const box = new THREE.Box3();
     let found = false;
-    openShell.traverse((node) => {
+    shell.traverse((node) => {
       if (!node.isMesh || !node.geometry) return;
       if (node === leafFront.mesh || node === leafBack.mesh) return;  // the leaf is transient
       node.geometry.computeBoundingBox();
       const bounds = node.geometry.boundingBox.clone().applyMatrix4(node.matrixWorld);
       if (found) box.union(bounds); else { box.copy(bounds); found = true; }
     });
-    openShell.visible = wasVisible;
+    shell.visible = wasVisible;
     if (!found) return null;
     // back into the root's own frame, so it survives the book being moved
     const inverse = new THREE.Matrix4().copy(root.matrixWorld).invert();
@@ -1851,7 +1870,7 @@ export function createLedgerBook({ THREE, state, anchor, counterTop, camera = nu
     return { center: local.getCenter(new THREE.Vector3()), corners };
   }
 
-  function computeFacePose() {
+  function computeFacePose(mode = 'open') {
     if (!camera) return null;
     camera.updateMatrixWorld(true);
     const eye = camera.getWorldPosition(new THREE.Vector3());
@@ -1861,16 +1880,22 @@ export function createLedgerBook({ THREE, state, anchor, counterTop, camera = nu
     const quaternion = new THREE.Quaternion()
       .setFromEuler(new THREE.Euler(FACE_TILT - Math.PI / 2, yaw + Math.PI, 0, 'YXZ'));
     if (!openBounds) openBounds = measureOpenBounds();
+    // B2 (Goal 18): the shut book was framed with the OPEN spread's bounds,
+    // which sit half a book to the left of the closed block — so the raised
+    // block rode right-of-centre (image 1). Shut states centre the block
+    // they actually show.
+    if (mode === 'shut' && !closedBounds) closedBounds = measureClosedBounds();
+    const bounds = mode === 'shut' ? (closedBounds || openBounds) : openBounds;
 
     let distance = FACE_DISTANCE;
     let offset = new THREE.Vector3(1, 0, 0).applyQuaternion(quaternion).multiplyScalar(-HINGE_X);
-    if (openBounds && Number.isFinite(camera.fov) && Number.isFinite(camera.aspect)) {
+    if (bounds && Number.isFinite(camera.fov) && Number.isFinite(camera.aspect)) {
       // the book's extent along the camera's own right/up axes, once turned
       const right = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion);
       const up = new THREE.Vector3(0, 1, 0).applyQuaternion(camera.quaternion);
-      const center = openBounds.center.clone().applyQuaternion(quaternion);
+      const center = bounds.center.clone().applyQuaternion(quaternion);
       let halfRight = 0; let halfUp = 0;
-      for (const corner of openBounds.corners) {
+      for (const corner of bounds.corners) {
         const turned = corner.clone().applyQuaternion(quaternion).sub(center);
         halfRight = Math.max(halfRight, Math.abs(turned.dot(right)));
         halfUp = Math.max(halfUp, Math.abs(turned.dot(up)));
@@ -2214,7 +2239,7 @@ export function createLedgerBook({ THREE, state, anchor, counterTop, camera = nu
       // up to the hands and stops there.
       stateT = Math.min(1, stateT + dt / RAISE_SECONDS);
       const rise = smoothstep(stateT);
-      const liveFace = computeFacePose();
+      const liveFace = computeFacePose('shut');
       if (liveFace) facePose = liveFace;
       if (facePose && deskSpot && root.parent) {
         scratchPos.set(deskSpot.x, deskSpot.y, deskSpot.z).lerp(
@@ -2230,7 +2255,7 @@ export function createLedgerBook({ THREE, state, anchor, counterTop, camera = nu
       if (stateT >= 1) { bookState = 'held'; stateT = 0; }
     } else if (bookState === 'held') {
       // in your hands, shut, following your view the way the open book does
-      const pose = computeFacePose();
+      const pose = computeFacePose('shut');
       if (pose && root.parent) {
         const alpha = Math.min(1, FOLLOW_RATE * dt);
         root.position.lerp(root.parent.worldToLocal(pose.position.clone()), alpha);

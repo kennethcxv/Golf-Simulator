@@ -603,6 +603,27 @@ function exitFrontDesk(silent = false) {
 // stands back up. No DOM UI — the book itself is the interface.
 let ledgerKeyHandler = null;
 let ledgerClickHandler = null;
+// B3 (Goal 18): the walk overlay (and its control line) hides the moment the
+// book rises, and the only key teaching left was the footer INSIDE the open
+// spread — a raised-shut book taught nothing. This is the same bottom chip
+// as the tool control line, phase-aware, alive for the whole interaction.
+let ledgerHintEl = null;
+function updateLedgerHint() {
+  if (!app.ledgerOpen) {
+    if (ledgerHintEl) { ledgerHintEl.remove(); ledgerHintEl = null; }
+    return;
+  }
+  if (!ledgerHintEl) {
+    ledgerHintEl = el('div', { class: 'shop-lockhint ledger-keys-hint' });
+    document.getElementById('ui')?.appendChild(ledgerHintEl);
+  }
+  const b = preferences.values.controls?.bindings;
+  const key = (action, fallback) => describeKey(keyForAction(b, action)) || fallback;
+  const book = ledgerBookApi();
+  ledgerHintEl.textContent = book && book.isOpen()
+    ? `${key('moveLeft', 'A')}/${key('moveRight', 'D')} or click · turn pages · ${key('interact', 'E')} put the book away`
+    : `${key('interact', 'E')} open the book · Esc put it back`;
+}
 function ledgerBookApi() {
   const ch = app.scene3d?.clubhouse?.();
   return ch && ch.ledgerBook ? ch.ledgerBook : null;
@@ -659,6 +680,9 @@ function enterLedger() {
       if (held && !held.isOpen()) {
         held.advance();
         if (audio.ready) audio.ledgerOpen();
+        // the hint flips from "open the book" to the page controls a beat
+        // after the cover starts to swing
+        setTimeout(updateLedgerHint, 300);
       } else {
         exitLedger();
       }
@@ -687,6 +711,7 @@ function enterLedger() {
   };
   window.addEventListener('keydown', ledgerKeyHandler, true);
   window.addEventListener('pointerdown', ledgerClickHandler, true);
+  updateLedgerHint(); // B3: teach the keys from the first (shut) stage
   // E2: the book has its own voice — clasp, cover, leaves — not a menu tick
   if (audio.ready) audio.ledgerOpen();
 }
@@ -694,6 +719,7 @@ function exitLedger(silent = false) {
   if (!app.ledgerOpen) return;
   app.ledgerOpen = false;
   document.body.classList.remove('ledger-mode');
+  updateLedgerHint(); // B3: the chip leaves with the book
   if (ledgerKeyHandler) window.removeEventListener('keydown', ledgerKeyHandler, true);
   if (ledgerClickHandler) window.removeEventListener('pointerdown', ledgerClickHandler, true);
   ledgerKeyHandler = null;
