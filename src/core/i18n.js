@@ -905,7 +905,7 @@ const RU = Object.freeze({
   'settings.display.windowMode.detail': "Полный экран использует активный монитор. Оконный режим поддерживает точные размеры.",
   'settings.display.qualityRow': "Качество графики",
   'settings.display.fpsCap': "Ограничение FPS",
-  'settings.display.fpsCap.detail': "Ограничивает частоту отрисовки. 60 — самый высокий стабильный уровень сегодня; Без ограничения следует за экраном.",
+  'settings.display.fpsCap.detail': "Ограничивает частоту отрисовки. 60 сейчас самый высокий стабильный уровень; Без ограничения следует за экраном.",
   'settings.display.fpsCap.default60': "60 (по умолчанию)",
   'settings.display.fpsCap.uncapped': "Без ограничения",
   'settings.display.quality.detail': "Задаёт сразу масштаб рендера, фоновое затенение, свечение и тени.",
