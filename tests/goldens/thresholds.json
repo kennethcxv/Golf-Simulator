@@ -1,0 +1,24 @@
+{
+  "_comment": "maxDiffPct per pose = ~2x the measured two-run noise floor (2026-08-09: shop-floor 0.089, tools 0.22-0.56, stockroom 1.03). ignore rects mask measured nondeterminism that is not the subject: the window view of animated outdoor content, and the loose boxes whose landing spots vary per boot. stockroom-wall needs better masks - budget is wide until then.",
+  "*": {
+    "ignore": [[1400, 0, 520, 560], [960, 600, 260, 270]]
+  },
+  "shop-floor": {
+    "maxDiffPct": 0.35,
+    "ignore": [[1400, 0, 520, 560], [960, 600, 260, 270]]
+  },
+  "stockroom-wall": {
+    "maxDiffPct": 2.2,
+    "ignore": [[0, 760, 380, 268], [1620, 760, 300, 268], [1020, 930, 320, 98]]
+  },
+  "tool-broom": { "maxDiffPct": 0.6 },
+  "tool-cloth": { "maxDiffPct": 1.2 },
+  "tool-dustpan": { "maxDiffPct": 0.8 },
+  "tool-mop": { "maxDiffPct": 0.6 },
+  "tool-paint": { "maxDiffPct": 0.9 },
+  "tool-sponge": { "maxDiffPct": 0.75 },
+  "tool-spray": { "maxDiffPct": 0.9 },
+  "tool-trashbag": { "maxDiffPct": 0.5 },
+  "tool-vacuum": { "maxDiffPct": 0.65 },
+  "tool-washer": { "maxDiffPct": 0.7 }
+}

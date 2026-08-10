@@ -14,6 +14,11 @@
     "serve": "node tools/serve.cjs",
     "test": "node --test",
     "lint": "eslint src",
+    "golden:capture": "node tools/qa/run-electron.cjs tools/qa/golden-capture.js --clubhouse=pine-hills-v2",
+    "golden:diff": "node tools/golden-diff.mjs",
+    "golden": "npm run golden:capture && npm run golden:diff",
+    "golden:accept": "node tools/golden-diff.mjs --accept",
+    "golden:control": "node tools/golden-control.mjs",
     "gen:broom-metrics": "node tools/gen/extract-broom-metrics.mjs"
   },
   "devDependencies": {
