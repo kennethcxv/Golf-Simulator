@@ -236,9 +236,17 @@ export function markGrassInstanceBuffersUpdated(grassMesh, instanceCount) {
 export const GTAO_CONFIG = Object.freeze({
   radius: 1.5,
   blendIntensity: 1.0,
-  samples: 24,
-  resolutionScale: 1, // 1 = full resolution
-  pd: Object.freeze({ lumaPhi: 10, depthPhi: 2, normalPhi: 3, radius: 2, radiusExponent: 1, rings: 2, samples: 16 }),
+  // A3 2026-08-10: 24 samples / 16 pd / full res measured 4.34 ms of an
+  // 8.17 ms GPU frame at 4K physical (the old "full res is free indoors"
+  // number was taken at a smaller effective resolution). The sweep
+  // (qa/electron/a3-gtao-sweep) walked samples/pd/scale with a screenshot per
+  // rung at the ledger-desk pose — the exact surface the old full-res pin was
+  // written about — and 12/8/0.75 keeps the box and counter contact shadows
+  // while cutting the whole frame 8.7 -> 5.2 ms. Half res saved nothing more
+  // (denoise is the remaining cost), so 0.75 is the floor worth paying for.
+  samples: 12,
+  resolutionScale: 0.75,
+  pd: Object.freeze({ lumaPhi: 10, depthPhi: 2, normalPhi: 3, radius: 2, radiusExponent: 1, rings: 2, samples: 8 }),
 });
 
 const WALK_FOCUS_MIN_FACING = 0.3;
@@ -10468,6 +10476,22 @@ export function makeCourseScene(canvas, state) {
     return postEnabled;
   }
 
+  // Per-pass diagnostic lever, same philosophy as setAntialiasSamples above:
+  // exposed, not changed. The A3 attribution sweep needs gtao and bloom
+  // addressable individually — a saving locked inside a constructor cannot be
+  // measured, and a measurement that toggles the whole composer cannot say
+  // WHICH pass owns the milliseconds.
+  const postDiag = {
+    gtaoEnabled: () => gtao.enabled,
+    setGtaoEnabled: (v) => { gtao.enabled = v !== false; return gtao.enabled; },
+    bloomEnabled: () => bloom.enabled,
+    setBloomEnabled: (v) => { bloom.enabled = v !== false; return bloom.enabled; },
+    // The pass object itself, for parameter sweeps (updateGtaoMaterial /
+    // updatePdMaterial / setSize). Read-write by design: a sweep that cannot
+    // reconfigure the pass live costs one app relaunch per rung.
+    gtaoPass: () => gtao,
+  };
+
   // THE MOST EXPENSIVE SINGLE ATTRIBUTE IN THIS RENDERER, AND UNTIL NOW A LITERAL.
   //
   // `composerTarget` is built with `samples: 4` — 4x MSAA on a HalfFloatType
@@ -12131,6 +12155,7 @@ export function makeCourseScene(canvas, state) {
     setPostEnabled,
     setAntialiasSamples,
     antialiasSamples,
+    postDiag,
     assetBarrier: (timeoutMs = 12000) => ({
       idle: !assetsInFlight,
       promise: whenAssetsIdle(timeoutMs),
