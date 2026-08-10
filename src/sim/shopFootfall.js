@@ -74,9 +74,14 @@ export const SHOP_FOOTFALL = Object.freeze({
   // alone, which reads as a bug rather than a pricing decision.
   priceFloor: 0.55,
   priceCeiling: 1.35,
-  // An open shop always has room for one person. A shop that is open and
-  // completely empty of prospects is a bug the player cannot diagnose.
-  openFloor: 1,
+  // F1 (Goal 18): "I want multiple customers in the shop at once and a queue
+  // of two or more at the counter, and I want to see it happen." A floor of
+  // one made the starter shop a one-at-a-time room FOREVER (drive ~0.1 at
+  // reputation 30 with a filthy floor rounds to 0 and clamps to the floor),
+  // so the multiplicity mechanic was unreachable no matter how long you
+  // watched. Two is the smallest number that lets a queue exist; the curve
+  // above the floor still scales with standing exactly as designed.
+  openFloor: 2,
 });
 
 /**

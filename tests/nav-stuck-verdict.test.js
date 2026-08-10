@@ -27,6 +27,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
+  NAV_NO_PROGRESS_SECONDS,
   navStuckVerdict, NAV_SLIDING_SECONDS,
 } from '../src/render3d/clubhouse.js';
 
@@ -50,10 +51,11 @@ test('a slide is invisible to displacement, and NOW it escalates anyway', () => 
     'and it carries its own reason, because a wrong route needs a different answer from a wedge');
 });
 
-test('just under three seconds is not yet stuck', () => {
+test('just under the threshold is not yet stuck', () => {
   // The boundary matters: this is what stops an ordinary pause at a shelf being
-  // treated as a blocked route.
-  const nearly = navStuckVerdict({ moved: 0.055, step: 0.06, noProgressT: 2.9 });
+  // treated as a blocked route. F2 (Goal 18) moved the threshold to ONE second;
+  // the boundary case rides the constant rather than a stale literal.
+  const nearly = navStuckVerdict({ moved: 0.055, step: 0.06, noProgressT: NAV_NO_PROGRESS_SECONDS - 0.1 });
   assert.equal(nearly.stuck, false);
   assert.equal(nearly.reason, 'none');
 });

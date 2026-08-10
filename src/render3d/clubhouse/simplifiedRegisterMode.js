@@ -1789,6 +1789,42 @@ export function createRegisterMode(B) {
     || 'card'
   );
 
+  // F3 (Goal 18): a line when the sale completes, chosen from what actually
+  // happened - not random flavour. Price wins over speed wins over plain
+  // thanks. PRICE compares the pre-tax subtotal the customer just paid with
+  // the catalogue MSRP of the same goods (the game's recorded value baseline
+  // for every item); SPEED is wall-clock from ticket start to payment
+  // complete - the player's own hands. Computed once and frozen on the tx so
+  // the same sale never re-rolls its verdict.
+  function farewellLine() {
+    if (!tx || !cust) return '';
+    if (!['receipt', 'bagging', 'done'].includes(tx.stage)) return '';
+    if (!tx.farewell) {
+      const name = cust.fullName || cust.name || 'Customer';
+      let subtotal = 0;
+      let msrp = 0;
+      for (const item of tx.items) {
+        subtotal += Number(item.price) || 0;
+        const sku = skuById(item.skuId || item.sku || item.id);
+        msrp += Number(sku?.msrp) || Number(item.price) || 0;
+      }
+      const ratio = msrp > 0 ? subtotal / msrp : 1;
+      const seconds = tx.startedAtMs ? (performance.now() - tx.startedAtMs) / 1000 : null;
+      tx.farewell = ratio > 1.12 ? `${name}: $${subtotal.toFixed(2)} for this? That's steep.`
+        : ratio < 0.88 ? `${name}: Cheap enough. I'll be back.`
+          : seconds != null && seconds < 25 ? `${name}: That was quick, thanks.`
+            : seconds != null && seconds > 75 ? `${name}: You took your time back there.`
+              : `${name}: Thanks. See you on the course.`;
+      tx.farewellFacts = {
+        subtotal: +subtotal.toFixed(2),
+        msrp: +msrp.toFixed(2),
+        ratio: +ratio.toFixed(3),
+        seconds: seconds == null ? null : +seconds.toFixed(1),
+      };
+    }
+    return tx.farewell;
+  }
+
   function paymentChoiceLine() {
     const name = cust && (cust.fullName || cust.name) ? (cust.fullName || cust.name) : 'Customer';
     return preferredPayment() === 'cash'
@@ -2822,7 +2858,7 @@ export function createRegisterMode(B) {
       total: tx ? dueOf(tx) : (display.total || 0),
       payment: tx ? (tx.method || null) : display.method,
       customerChoice: paymentChoiceVisible() ? (tx ? preferredPayment() : display.method) : null,
-      paymentDialogue: paymentChoiceVisible() && cust ? paymentChoiceLine() : '',
+      paymentDialogue: farewellLine() || (paymentChoiceVisible() && cust ? paymentChoiceLine() : ''),
       tendered: tx && tx.method === 'cash'
         ? (tx.tenderedTotal != null ? tx.tenderedTotal : stackTotal(tx.tendered || {}))
         : undefined,
@@ -5103,6 +5139,9 @@ export function createRegisterMode(B) {
       taxLabel: taxJurisdictionLabel(state),
     });
     tx.number = transactionNumber;
+    // F3 (Goal 18): the farewell reads the ACTUAL processing time, so the
+    // clock starts when the ticket does.
+    tx.startedAtMs = performance.now();
     tx.checkoutFlow = customer.checkoutFlow || createCheckoutFlow({
       state: 'WaitingForCashier',
       nowMs: flowNow(),

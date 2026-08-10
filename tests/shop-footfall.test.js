@@ -93,8 +93,12 @@ test('the room is filled in proportion to the club, and capped by its fit-out', 
 
 test('an open shop is never completely empty of prospects, and a closed one always is', () => {
   const failing = shopAt(5, 0);
-  assert.equal(shopFootfallTarget(failing, 4), 1,
-    'the worst shop in the world still gets someone through the door');
+  // F1 (Goal 18): the open floor is TWO now — one-at-a-time made the queue
+  // mechanic unreachable from the starter shop however long you watched.
+  assert.equal(shopFootfallTarget(failing, 4), SHOP_FOOTFALL.openFloor,
+    'the worst shop in the world still gets a couple of people through the door');
+  assert.ok(SHOP_FOOTFALL.openFloor >= 2,
+    'a queue of two can only exist if at least two can be in the room');
   assert.equal(shopFootfallTarget(shopAt(85, 1), 8, { open: false }), 0,
     'the door sign is a gate, not a scale');
   assert.equal(shopFootfallTarget(shopAt(85, 1), 0), 0, 'a room with no capacity holds nobody');

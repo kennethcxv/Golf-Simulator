@@ -11,6 +11,7 @@
 
 import * as THREE from 'three';
 import { t } from '../core/i18n.js';
+import { notify } from '../sim/notifications.js';
 import { fitDistance } from '../core/screenFit.js';
 import { clamp, rngOf } from '../core/utils.js';
 import { LAPTOP, screenCornersLocal, screenNormalLocal } from '../core/laptopRig.js';
@@ -454,8 +455,12 @@ const FLOOR_TOP = 0.3; // interior floor (and porch deck) height over the terrai
 // "stuck", which is the whole claim, and the live diagnostics report the
 // high-water mark so the threshold can be argued about with a number.
 export const NAV_PROGRESS_EPSILON_YD = 0.08;
-// G10 (Goal 17): the brief asks for three seconds of no progress, not 2.5.
-export const NAV_NO_PROGRESS_SECONDS = 3;
+// G10 (Goal 17) asked for three seconds; F2 (Goal 18) tightens it to ONE:
+// "New threshold: 1 second of no progress. Then they take a genuinely
+// different route, even a much longer one." The live ladder must also act
+// promptly — the old arithmetic stacked 3 s of no-progress plus 3 s of
+// ladder gate, which is the six silent seconds the playtest watched.
+export const NAV_NO_PROGRESS_SECONDS = 1;
 // Kept as an alias so nothing that imported the old name breaks silently.
 export const NAV_SLIDING_SECONDS = NAV_NO_PROGRESS_SECONDS;
 
@@ -10716,7 +10721,12 @@ export function makeClubhouse(ctx) {
     // Arrivals per GAME hour, not per wall second. This was the single biggest
     // contributor to the empty fast-forward shop: the roll fired on wall time,
     // so a 16x game hour rolled 1/16th as many times as a 1x one.
-    if (organicWalkins && open && customers.length < targetCount
+    // F1 (Goal 18): appointments are not footfall. A reservation guest at the
+    // desk was counted against the organic target, so one booked arrival
+    // crowded every walk-in shopper out of a floor-of-one room (measured:
+    // the wired generator's first guest halved observed walk-ins).
+    const organicCount = customers.filter((c) => c.reservationId == null).length;
+    if (organicWalkins && open && organicCount < targetCount
         && Math.random() < Math.min(0.9, decisionDt * 0.15)) {
       spawnCustomer(false, null, { allowWalkInRequest: true });
     }
@@ -11210,7 +11220,11 @@ export function makeClubhouse(ctx) {
         if (verdict.wouldSlide && !verdict.stuck) navSlidingRescues += 1;
         if (verdict.stuck) {
           c.stuckT = (c.stuckT || 0) + dt;
-          if (c.stuckT > 3.0) {
+          // F2: a wrong ROUTE gets acted on within ~a beat of the 1 s verdict;
+          // a displacement scrape keeps the patient 3 s gate (its sidesteps
+          // are cheap but jittery when too eager).
+          const ladderGate = verdict.reason === 'no-progress' ? 0.35 : 3.0;
+          if (c.stuckT > ladderGate) {
             c.stuckEscalation = (c.stuckEscalation || 0) + 1;
             // G10: "Not a nudge, not a repath along the same line: a genuinely
             // different path, and if none exists, they abandon that stop."
@@ -11224,6 +11238,17 @@ export function makeClubhouse(ctx) {
             if (verdict.reason === 'no-progress' && c.stuckEscalation < 3) {
               c.stuckEscalation = 3;
             }
+            // F2: "a genuinely different route". The nudge rung repositions
+            // and repaths, but the fresh path can lead straight back through
+            // the same blocked waypoint — the sidestep/nudge/retarget trio
+            // looping at one shelf in the logs is that cycle. Ban the
+            // waypoint the stall happened at: if the next path leads there
+            // again, skip straight to moving the TARGET instead.
+            if (verdict.reason === 'no-progress' && c.bannedWp
+              && Math.hypot(c.bannedWp.x - wp.x, c.bannedWp.z - wp.z) < 0.5) {
+              c.stuckEscalation = Math.max(c.stuckEscalation, 4);
+            }
+            if (verdict.reason === 'no-progress') c.bannedWp = { x: wp.x, z: wp.z };
             const rung = Math.min(5, c.stuckEscalation);
             recordNavBlock(c, ['sidestep', 'sidestep', 'nudge', 'retarget', 'skip'][rung - 1], tx, tz, wp);
             if (rung <= 2) {
@@ -11248,8 +11273,20 @@ export function makeClubhouse(ctx) {
               }
             } else if (rung >= 5 && stop && stop.kind !== 'exit' && stop.kind !== 'gone') {
               if (stop.kind === 'counter') leaveQueue(c);
+              // F2: "if they cannot find any way to reach what they want,
+              // tell me. I should never have a customer silently stuck in my
+              // shop without knowing." The bell carries it; the dedupe key
+              // keeps one report per customer+stop, not a stream.
+              try {
+                notify(state, {
+                  kind: 'shop',
+                  text: t('shop.customerGaveUpStop', { name: c.name || 'A customer', what: stop.kind }),
+                  dedupeKey: `nav-giveup:${c.id}:${c.stopIdx}`,
+                });
+              } catch { /* a notification must never take the walker down */ }
               c.stopIdx += 1;
               c.stuckEscalation = 0;
+              c.bannedWp = null;
             }
             c.pathGoal = null;
             c.stuckT = 0;
