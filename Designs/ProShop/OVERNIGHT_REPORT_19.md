@@ -287,7 +287,31 @@ WALKING UP, every arrived sample carries atSlot. If they leave the line, the
 row leaves the list (the 'leaving' filter) — the exact sentence of the
 instruction.
 
-## GOLDEN GATE — WORLD-Y PIN
+## GOLDEN GATE — WORLD-Y PIN — DONE (the diagnosis was wrong, the fix is total)
+
+Last night's top open finding said "boot-varying world-Y shifts the camera".
+Measured tonight with a two-boot probe: **there is no Y jitter — every
+harness boot starts a NEW GAME with a fresh random seed** (Continue is never
+enabled on the QA profile; qa-boot then clicks New Game, and main.js draws
+`(Math.random()*2^31)|0`). Seeds 97236116 vs 2066143097, interior world-Y
+1.6 yd apart: the golden suite was comparing screenshots of two different
+planets, and every "noise" number in last night's calibration was
+world-vs-world difference.
+
+The pin: `clickThroughMenu(page, { forceNew, pinSeed })` — qa-boot stubs
+Math.random around the New Game flow (the menu consumes the seed in an async
+continuation, so a 150 ms restore measured a wrong seed; the capture now
+restores AFTER the walk rig is active) and golden-capture always boots
+`forceNew` + `pinSeed: 0.4242`, recording seed and interiorY in its manifest
+(1035912314 / −0.45135, identical every run). Runtime randomness is restored
+after boot on purpose — the window's live golfers stay masked.
+
+Result: two-run noise fell from 3.6–5.1% raw to **0.0000–0.0622%** across
+all 12 poses (shop-floor and stockroom-wall at literal zero). Budgets
+restored from the temporary 6.0 to **0.25** (≈4× the worst measured noise —
+the E1-yaw family class at >1% can never hide again), baselines re-accepted
+under the pinned world, and the one-pixel control still fails the strict
+diff as it must. C1 and E2 now have a gate that can actually fail.
 
 ## C — CHECKOUT
 

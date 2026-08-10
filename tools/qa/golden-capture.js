@@ -27,8 +27,17 @@ async (page) => {
   const OUT = path.resolve(outArg ? outArg.slice(6) : 'qa/golden/current');
   fs.mkdirSync(OUT, { recursive: true });
 
-  await (await import(`file:///${process.cwd().replace(/\\/g, '/')}/tools/qa/lib/qa-boot.mjs`)).clickThroughMenu(page);
+  // GOAL 19 WORLD PIN: every capture runs the SAME world. The harness profile
+  // always boots a NEW GAME with a fresh random seed (measured: two boots,
+  // two seeds, interior world-Y 1.6 yd apart — the "boot-varying world-Y"
+  // that degraded every budget to 6.0). forceNew + pinSeed makes the seed a
+  // constant, so the terrain, the building height, the sun-vs-floor geometry
+  // and the outdoor content are byte-comparable across runs.
+  const boot = await (await import(`file:///${process.cwd().replace(/\\/g, '/')}/tools/qa/lib/qa-boot.mjs`))
+    .clickThroughMenu(page, { forceNew: true, pinSeed: 0.4242 });
   await page.waitForFunction(() => window.__fw?.scene3d?.walk?.isActive?.(), null, { timeout: 300000 });
+  // the world is built; hand real randomness back to the runtime
+  await page.evaluate(() => window.__qaRestoreRandom?.());
   try {
     const win = (await page.electronApp.browserWindow(page)) || null;
     if (win) await win.evaluate((w) => { w.setContentSize(1600, 940); });
@@ -43,7 +52,13 @@ async (page) => {
     app.scene3d.walk.clearKeys?.();
     const ui = document.getElementById('ui');
     if (ui) ui.style.visibility = 'hidden';
-    return { clock: app.state.clock.minutes, speedIdx: app.speedIdx };
+    return {
+      clock: app.state.clock.minutes,
+      speedIdx: app.speedIdx,
+      // the pinned world, recorded: a drifting seed here means the pin broke
+      seed: app.state.seed,
+      interiorY: +app.scene3d.clubhouse().interior.position.y.toFixed(5),
+    };
   });
 
   const waitFrames = (n) => page.evaluate((frames) => new Promise((res) => {

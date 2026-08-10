@@ -1,5 +1,5 @@
 {
-  "_comment": "DEGRADED 2026-08-10 ~11:00: boot-varying WORLD-Y (the known random-seed gotcha) shifts the camera height per launch, misaligning every horizontal edge between boots \u2014 measured 3.6-5.1% raw between two same-save launches after a night at 0.09-0.56% (that pair had drawn the same Y). Budgets below are TEMPORARY at 6.0 so the gate catches only gross breaks; the real fix is pinning or reading back world-Y in golden-capture (or a shift-tolerant compare) \u2014 top of the open findings list. The one-pixel control still proves the differ itself. Original calibration notes: maxDiffPct per pose = ~2x the measured two-run noise floor (2026-08-09: shop-floor 0.089, tools 0.22-0.56, stockroom 1.03). ignore rects mask measured nondeterminism that is not the subject: the window view of animated outdoor content, and the loose boxes whose landing spots vary per boot. stockroom-wall needs better masks - budget is wide until then. 2026-08-10 second calibration: the lower window half is the LIVE COURSE (golfers/carts vary per boot) and the loose box can topple and scatter wider than it stands - both masked full-extent.",
+  "_comment": "PINNED 2026-08-11: the 'boot-varying world-Y' was never a Y jitter - every harness boot started a NEW GAME with a fresh random seed (measured: seeds 97236116 vs 2066143097, interior Y 1.6 yd apart), so the gate was comparing different worlds. golden-capture now boots forceNew with pinSeed 0.4242 (qa-boot stubs Math.random for exactly the New Game flow and the capture restores it once the walk rig is active; manifest records seed+interiorY - 1035912314 / -0.45135 every run). Measured two-run noise after the pin: 0.0000-0.0622 percent across all 12 poses (shop-floor and stockroom-wall at literal zero). Budgets are 0.25 = roughly 4x the worst measured noise, tight enough that the E1-yaw class (>1 percent family shift) can never hide again. Ignore rects stay: the window view shows LIVE course golfers (runtime randomness is restored after boot, deliberately) and the loose stockroom boxes can topple.",
   "*": {
     "ignore": [
       [
@@ -17,7 +17,7 @@
     ]
   },
   "shop-floor": {
-    "maxDiffPct": 6.0,
+    "maxDiffPct": 0.25,
     "ignore": [
       [
         1400,
@@ -34,7 +34,7 @@
     ]
   },
   "stockroom-wall": {
-    "maxDiffPct": 6.0,
+    "maxDiffPct": 0.25,
     "ignore": [
       [
         0,
@@ -57,33 +57,33 @@
     ]
   },
   "tool-broom": {
-    "maxDiffPct": 6.0
+    "maxDiffPct": 0.25
   },
   "tool-cloth": {
-    "maxDiffPct": 6.0
+    "maxDiffPct": 0.25
   },
   "tool-dustpan": {
-    "maxDiffPct": 6.0
+    "maxDiffPct": 0.25
   },
   "tool-mop": {
-    "maxDiffPct": 6.0
+    "maxDiffPct": 0.25
   },
   "tool-paint": {
-    "maxDiffPct": 6.0
+    "maxDiffPct": 0.25
   },
   "tool-sponge": {
-    "maxDiffPct": 6.0
+    "maxDiffPct": 0.25
   },
   "tool-spray": {
-    "maxDiffPct": 6.0
+    "maxDiffPct": 0.25
   },
   "tool-trashbag": {
-    "maxDiffPct": 6.0
+    "maxDiffPct": 0.25
   },
   "tool-vacuum": {
-    "maxDiffPct": 6.0
+    "maxDiffPct": 0.25
   },
   "tool-washer": {
-    "maxDiffPct": 6.0
+    "maxDiffPct": 0.25
   }
 }

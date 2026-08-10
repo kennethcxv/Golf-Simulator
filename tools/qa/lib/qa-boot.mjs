@@ -69,7 +69,7 @@ export async function ownerResolution(page, electronApp) {
   }
 }
 
-export async function clickThroughMenu(page) {
+export async function clickThroughMenu(page, { forceNew = false, pinSeed = null } = {}) {
   // "Continue" renders on every menu — DISABLED on a clean profile. Resume
   // only when it is actually clickable; otherwise start fresh.
   //
@@ -77,7 +77,19 @@ export async function clickThroughMenu(page) {
   // the live button carries label+detail spans, so its flattened textContent
   // is never the bare word. Match containment on the button, click the node
   // directly.
-  const canResume = await page.evaluate(() => {
+  //
+  // GOLDEN PIN (Goal 19): every harness boot lands here with Continue
+  // disabled, clicks New Game, and rolls a FRESH RANDOM SEED — measured
+  // 2026-08-11: two boots, seeds 97236116 vs 2066143097, interior world-Y
+  // -2.23 vs -0.67. The golden suite was comparing screenshots of different
+  // worlds, which is the entire "boot-varying world-Y" degradation.
+  // `pinSeed` stubs Math.random for exactly the New Game click (main.js
+  // draws the seed as (Math.random()*2^31)|0 inside the click handler, which
+  // runs synchronously) and restores it immediately after — the world is
+  // then identical every run while runtime randomness stays live. `forceNew`
+  // keeps an instrument honest even on a profile that could resume: a
+  // resumed save is an ARBITRARY world, not the canonical one.
+  const canResume = forceNew ? false : await page.evaluate(() => {
     const button = [...document.querySelectorAll('button')]
       .find((candidate) => /\bContinue\b/.test(candidate.textContent || ''));
     if (!button || button.disabled) return false;
@@ -87,6 +99,13 @@ export async function clickThroughMenu(page) {
   if (canResume) {
     await page.click('button[data-qa-resume="true"]');
     return 'continue';
+  }
+  if (pinSeed != null) {
+    await page.evaluate((s) => {
+      const original = Math.random;
+      window.__qaRestoreRandom = () => { Math.random = original; delete window.__qaRestoreRandom; };
+      Math.random = () => s;
+    }, pinSeed);
   }
   // The menu renders its buttons disabled until the boot manifest is ready;
   // drivers that navigated and clicked immediately used to race it.
@@ -99,6 +118,11 @@ export async function clickThroughMenu(page) {
   await page.locator('.difficulty-card').filter({ hasText: 'Relaxed' }).click();
   const confirm = page.getByRole('button', { name: /^(Start|Confirm|Yes)/i }).first();
   if (await confirm.isVisible({ timeout: 1500 }).catch(() => false)) await confirm.click();
+  // pinSeed note: the menu invokes onNewGame in an ASYNC continuation (a
+  // 150 ms post-click restore measured seed 1035912314 — NOT the pinned
+  // draw), so the stub must stay installed until the game is actually
+  // running. The CALLER restores after its walk-active wait:
+  //   await page.evaluate(() => window.__qaRestoreRandom?.());
   return 'new-game';
 }
 
