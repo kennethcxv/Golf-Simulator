@@ -236,6 +236,42 @@ async (page) => {
     }
   }
 
+  // THE SETTINGS SURFACE, REACHED THE WAY E4 ESTABLISHED.
+  //
+  // The pause sweep did not get here: its Settings entry is a pause-nav item, and
+  // the settings TABS live under .settings-tabs, which E4 had to find by class
+  // after text matching kept hitting the pause menu decoy of the same name.
+  // Reuse that knowledge rather than rediscovering it.
+  out.settingsTabs = [];
+  // OPEN IT BY OUTCOME. The pause sweep clicked its Settings entry early and had
+  // navigated away by the time this block ran -- settingsTabs came back 0. So
+  // reopen, and define success as .settings-tabs EXISTING rather than as having
+  // clicked something called Settings. Same rule that found the laptop opener:
+  // an opener is what it does.
+  out.settingsOpen = { openedBy: null };
+  const tabsPresent = () => page.evaluate(() => !!document.querySelector('.settings-tabs .settings-tab')).catch(() => false);
+  if (!(await tabsPresent())) {
+    await page.keyboard.press(keys.pause || 'p');
+    await page.waitForTimeout(900);
+    const cands = await page.evaluate(() => [...document.querySelectorAll('button')]
+      .filter((x) => { const r = x.getBoundingClientRect(); return r.width > 4 && !!x.offsetParent; })
+      .map((x) => { const r = x.getBoundingClientRect(); return { text: (x.textContent || '').trim().slice(0, 20), x: Math.round(r.left + r.width / 2), y: Math.round(r.top + r.height / 2) }; })).catch(() => []);
+    for (const c of cands.slice(0, 10)) {
+      await page.mouse.click(c.x, c.y);
+      await page.waitForTimeout(700);
+      if (await tabsPresent()) { out.settingsOpen.openedBy = c.text; break; }
+    }
+  } else out.settingsOpen.openedBy = 'already open';
+  const tabs = await page.evaluate(() => [...document.querySelectorAll('.settings-tabs .settings-tab')]
+    .map((t) => { const r = t.getBoundingClientRect(); return { text: (t.textContent || '').trim().slice(0, 20), x: Math.round(r.left + r.width / 2), y: Math.round(r.top + r.height / 2) }; })).catch(() => []);
+  for (const t of tabs) {
+    const b0 = await ticks();
+    await page.mouse.click(t.x, t.y);
+    await page.waitForTimeout(420);
+    const a0 = await ticks();
+    out.settingsTabs.push({ ...t, sounded: a0 > b0 });
+  }
+
   const sounded = out.buttons.filter((b) => b.sounded);
   out.byName = await page.evaluate(() => window.__f1?.byName ?? {}).catch(() => ({}));
   out.uiTickCalls = await page.evaluate(() => window.__f1?.uiTickCalls ?? null).catch(() => null);
@@ -251,6 +287,8 @@ async (page) => {
     soundsHeard: out.byName,
     uiTickCalls: out.uiTickCalls ?? null,
     chipInPlay: out.chipInPlay ?? null,
+    settingsTabsClicked: out.settingsTabs.length,
+    settingsTabsSilent: out.settingsTabs.filter((t) => !t.sounded).map((t) => t.text),
   };
   fs.writeFileSync(path.join(OUT, 'f1-click-audit.json'), `${JSON.stringify(out, null, 2)}\n`);
   console.log('F1-CLICK', JSON.stringify(out.verdict));

@@ -16391,3 +16391,43 @@ the right test bed, alongside the menu sweep which remains valid for menu button
 
 **F1 status:** pause menu 9/9 sound; **HUD clock chip fixed and confirmed**;
 settings, laptop, register, ledger and desktop UI still unreached.
+
+
+## F1 — STOPPING THE NAVIGATION ITERATION, AND WHAT F1 ACTUALLY HAS
+
+Two attempts to reach the settings surface from inside the audit both returned
+`openedBy: null`. The cause is state, not selectors: the sweep has already been
+through the pause menu by that point, and `pause` is a **toggle** — pressing it
+again closes what was open, so the candidate list is whatever the game shows next,
+which is not a settings panel.
+
+**I am stopping here rather than trying a third arrangement.** This is the same
+pattern E4 cost five runs to, and I said then that repeating it knowingly would be
+the mistake. Navigating a stateful UI from inside a sweep that has already changed
+that state is a driver-design problem, not an audit problem, and mixing the two is
+what makes it iterate.
+
+**The right shape, recorded rather than attempted:** one surface per run, opened
+from a known-clean start, rather than one run walking every surface. The audit
+logic is already correct and reusable — it is only the navigation that wants
+separating.
+
+### What F1 has, measured
+
+| | |
+|---|---|
+| instrument | graph-level hook, `deadSpaceSilent: true`, `uiTickCalls == OscillatorNode` exactly |
+| pause menu | **9 buttons, 9 sound** |
+| **HUD clock chip** | **was silent, fixed, confirmed** — watched failing on the unfixed build |
+| settings / laptop / register / ledger / desktop UI | **not reached** |
+
+**One real defect found and fixed, on a requirement that had no measurement at
+all when this section started.** The instrument is the durable part: it counts
+sounds that reach the audio graph, it has a control that passes, and it caught
+three of its own earlier versions being wrong.
+
+### The honest scale
+
+F1 says *"everywhere"*. **This reached one surface of six.** Calling F1 done would
+be the same error as invariant 6 claiming three carry families from four regexes —
+and I would rather leave it explicitly one-sixth measured than round it up.
