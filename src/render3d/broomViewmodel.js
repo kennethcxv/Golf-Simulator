@@ -755,7 +755,16 @@ export function createBroomViewmodel({
     // fanned, the collar inherited the fan, and the strands rode it welded.
     // headLag.angle is that fan, and it is the signal the yarn should trail.
     const strandRig = broomGroup?.userData?.strandRig;
-    if (strandRig) {
+    if (strandRig?.isVerlet) {
+      // B2 (Goal 20): a world-space solver needs NO drive signal. It reads the
+      // anchor's own world matrix, so the stroke, the carry fan and the head's
+      // world delta — three separate inputs the filtered rig below had to be
+      // told about one at a time — are all simply where the head is. What it
+      // does need is the boards, for the floor contact that makes the yarn
+      // spread. floorWorldY is computed further down this same function; one
+      // frame of latency on a floor height is invisible and costs no raycast.
+      strandRig.update(dt, state._floorWorldY ?? null);
+    } else if (strandRig) {
       // E4 (Goal 19): the carry drive listens to the WHOLE head's world
       // motion, not only the swing fan. A yaw turn slides the head across
       // the room without fanning it, and the yarn hung dead through every
@@ -891,6 +900,7 @@ export function createBroomViewmodel({
     // height across the whole pitch range and the floor terms below go inert.
     const workBlend = feel.anchor === 'carry' ? 0 : workT * workT * (3 - 2 * workT); // smoothstep
     const floorWorldY = fy == null ? camera.position.y - 1.62 : fy;
+    state._floorWorldY = floorWorldY; // the yarn solver reads this next frame
     // A8: BOTH POSES ARE FLOOR-REFERENCED. What blends is the HOVER HEIGHT.
     //
     // This used to blend a floor-referenced work drop against a constant carry

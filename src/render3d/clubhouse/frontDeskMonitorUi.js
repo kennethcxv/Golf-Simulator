@@ -655,9 +655,61 @@ export function createFrontDeskMonitorUi(canvas) {
     fillRound(ctx, 24, 162, 606, 454, 14, COLORS.paper, COLORS.line, 2);
     // Reference column order: Product | Price | Unit | Total.
     drawLabel(ctx, 'Product', 46, 196);
-    drawLabel(ctx, 'Price', 434, 196, COLORS.muted, 12);
-    drawLabel(ctx, 'Unit', 506, 196, COLORS.muted, 12);
-    drawLabel(ctx, 'Total', 566, 196, COLORS.muted, 12);
+
+    // D3 (Goal 20) — THE COLUMNS ARE MEASURED, NOT ASSUMED.
+    //
+    // Price, Unit and Total used to be right-aligned at three hard-coded x
+    // positions (476, 530, 604). A total is drawn at 20px bold, so "$279.00" is
+    // about 78px wide and begins near x=526 — four pixels INSIDE the unit
+    // column's right edge at 530. The screen printed "1$279.00" and the two
+    // numbers read as one. A bigger total moves its left edge further left, so
+    // the fault was going to get worse with every sale, not better.
+    //
+    // summaryRow() a few lines below already learned this ("the figure is
+    // measured FIRST... sizing them independently is what printed CHANGE
+    // D$21.78"). The lesson just never reached this table. Now every numeric
+    // column is as wide as the widest thing in it — its own header included —
+    // and the columns are laid out right to left with a guaranteed gap, so
+    // nothing can touch whatever the numbers grow to.
+    const ROW_RIGHT = 604;
+    const NAME_LEFT = 76;
+    const COL_GAP = 18;
+    const cells = items.map((item) => {
+      const quantity = Math.max(1, Math.round(finite(item.qty ?? item.quantity, 1)));
+      return {
+        item,
+        quantity,
+        price: money(item.unitPrice ?? item.price),
+        qty: String(quantity),
+        total: money(item.subtotal ?? finite(item.unitPrice ?? item.price) * quantity),
+      };
+    });
+    const widest = (pick, header) => {
+      setFont(ctx, 20, 700);
+      let w = cells.reduce((max, c) => Math.max(max, ctx.measureText(pick(c)).width), 0);
+      setFont(ctx, 12, 700);
+      return Math.max(w, ctx.measureText(header).width);
+    };
+    const colTotal = { right: ROW_RIGHT, width: widest((c) => c.total, 'TOTAL') };
+    const colUnit = {
+      right: colTotal.right - colTotal.width - COL_GAP,
+      width: widest((c) => c.qty, 'UNIT'),
+    };
+    const colPrice = {
+      right: colUnit.right - colUnit.width - COL_GAP,
+      width: widest((c) => c.price, 'PRICE'),
+    };
+    const nameMax = Math.max(120, colPrice.right - colPrice.width - COL_GAP - NAME_LEFT);
+
+    // Headers sit over their own columns, right-aligned the way a numeric
+    // column header has to be if it is to stay over the figures beneath it.
+    setFont(ctx, 12, 700);
+    ctx.fillStyle = COLORS.muted;
+    ctx.textAlign = 'right';
+    ctx.textBaseline = 'alphabetic';
+    ctx.fillText('PRICE', colPrice.right, 196);
+    ctx.fillText('UNIT', colUnit.right, 196);
+    ctx.fillText('TOTAL', colTotal.right, 196);
 
     if (!items.length) {
       setFont(ctx, 21, 700);
@@ -670,7 +722,8 @@ export function createFrontDeskMonitorUi(canvas) {
       return;
     }
 
-    items.forEach((item, index) => {
+    cells.forEach((cell, index) => {
+      const { item } = cell;
       const y = 214 + index * 55;
       const scanned = Boolean(item.scanned || item.status === 'scanned');
       ctx.fillStyle = index % 2 ? COLORS.cream : COLORS.white;
@@ -683,15 +736,17 @@ export function createFrontDeskMonitorUi(canvas) {
       ctx.fillStyle = scanned ? COLORS.muted : COLORS.charcoal;
       ctx.textAlign = 'left';
       ctx.textBaseline = 'middle';
-      ctx.fillText(fitText(ctx, text(item.name ?? item.label ?? item.sku, 'Product'), 336), 76, y + 24);
+      ctx.fillText(
+        fitText(ctx, text(item.name ?? item.label ?? item.sku, 'Product'), nameMax),
+        NAME_LEFT, y + 24,
+      );
       setFont(ctx, 20, 700);
       ctx.textAlign = 'right';
-      const quantity = Math.max(1, Math.round(finite(item.qty ?? item.quantity, 1)));
-      ctx.fillText(money(item.unitPrice ?? item.price), 476, y + 24);
+      ctx.fillText(cell.price, colPrice.right, y + 24);
       ctx.fillStyle = COLORS.muted;
-      ctx.fillText(String(quantity), 530, y + 24);
+      ctx.fillText(cell.qty, colUnit.right, y + 24);
       ctx.fillStyle = COLORS.green;
-      ctx.fillText(money(item.subtotal ?? finite(item.unitPrice ?? item.price) * quantity), 604, y + 24);
+      ctx.fillText(cell.total, colTotal.right, y + 24);
     });
 
     if (data.itemsRemaining !== undefined) {

@@ -185,6 +185,27 @@ const MODELS = [
   },
   { view: 'checkout', givingState: 'short', giving: 100, changeDue: 250, givingDeltaCents: -150, clubName: 'Pine Hills Municipal Golf' },
   { view: 'checkout', awaitingCash: true, changeDue: 250, clubName: 'Pine Hills Municipal Golf' },
+  // D3 (Goal 20) — THE CHECKOUT TABLE WITH ROWS IN IT.
+  //
+  // Every checkout model above this line omits `items`, so all three of them
+  // drew the EMPTY state ("Waiting for products") and this sweep has never once
+  // rendered the item table. That is why it reported clean while the owner
+  // photographed the screen printing "1$279.00": the recorder was right, it was
+  // never given the input. The rows below are the ones that actually collide —
+  // a wide total against the unit column beside it — plus a long product name
+  // and a multi-digit quantity, so the whole width is under load at once.
+  {
+    view: 'checkout',
+    heading: 'Checkout',
+    clubName: 'Pine Hills Municipal Golf',
+    itemsRemaining: 2,
+    items: [
+      { name: 'Laser rangefinder', unitPrice: 279, qty: 1, scanned: true },
+      { name: 'Premium tour golf balls, dozen', unitPrice: 64.99, qty: 12 },
+      { name: 'Glove', unitPrice: 9.5, qty: 1, scanned: true },
+      { name: 'Carbon stand bag, waterproof', unitPrice: 1249.95, qty: 1 },
+    ],
+  },
   { view: 'cash', heading: 'Cash', clubName: 'Pine Hills Municipal Golf' },
 ];
 

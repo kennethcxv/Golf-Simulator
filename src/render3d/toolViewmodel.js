@@ -12,6 +12,7 @@ import * as THREE from 'three';
 import { CLEANING_TOOLS, PALETTE } from '../data/cleaningTools.js';
 import { attachSocket } from './toolSockets.js';
 import { createMopStrands } from './mopStrands.js';
+import { createVerletMopStrands } from './mopVerlet.js';
 
 // Scratch for resolving an authored socket into the tool group's frame. Reused every frame the
 // hands re-sync onto live sockets, so allocating here rather than per-call keeps it off the heap.
@@ -416,79 +417,45 @@ export function buildToolViewmodels() {
                 // further apart, which is what trailing IS; more push and drag
                 // means they swing wider than the head; a bigger carry deficit
                 // is the direct answer to "welded when walked about".
-                const rig = createMopStrands({
+                // B2 (Goal 20) — THE SIXTH ATTEMPT, AND THE FIRST WITH PHYSICS.
+                //
+                // Everything above this line is the history of tuning a lag
+                // filter: density, thickness, push, chase, deficit, splay. The
+                // measurements were honest and the tuning was real, and the
+                // owner's verdict after all of it was still "rigid and
+                // animated". A filter chasing a target angle cannot be anything
+                // else — it has no momentum, no floor, and no idea where it is
+                // in the room.
+                //
+                // The yarn is now simulated: Verlet integration with iterated
+                // distance constraints and a real floor contact, in WORLD space.
+                // See src/render3d/mopVerlet.js for why that solver and why it
+                // was not vendored. The broom keeps the filtered rig above,
+                // untouched, because the owner says its bristles are right.
+                //
+                // B3 asked for more strands, finer, with length variation:
+                // 640 fibres at 3.0 mm tapering to 1.6 mm (was 480 at 3.8/2.6),
+                // each cut to its own length within +/-18% so the hem is ragged
+                // instead of machined. Four segments instead of three, so the
+                // drape can curve rather than kink. Still one draw call per
+                // segment index, because they are instanced: 4 calls total.
+                const rig = createVerletMopStrands({
                   THREE,
                   material: yarn,
-                  // A hollow ring of 84 read as a spiky ball. Filling the disc
-                  // evenly needs enough strands that the fill is continuous:
-                  // 240 over a 0.115 m radius is one per 17 mm^2, and at an
-                  // 18 mm strand they overlap heavily, which is what a mop head
-                  // is. Still 3 draw calls, because they are instanced.
-                  // ...AND THEN IT READ AS BROKEN STICKS, NOT YARN. At 240
-                  // strands the disc filled, but each segment was 100 mm long
-                  // and 18 mm thick - a 5:1 ratio, where real mop yarn is
-                  // nearer 50:1. Chunky cylinders at that scale look like
-                  // kindling however many you draw.
-                  //
-                  // Thinner is the whole answer, and thinner needs more of
-                  // them to keep the disc covered: 480 strands at 7.6 mm gives
-                  // about half the disc area before splay, which overlaps into
-                  // a solid bundle. 480 x 3 segments is 1440 instance matrices
-                  // a frame - a fraction of a millisecond - and still 3 draw
-                  // calls, so the only thing this costs is the CPU compose.
-                  count: 480,
+                  // ...AND THEN THE PLAYER CAMERA DISAGREED WITH THE NUMBERS.
+                  // At 640 x 3.0 mm the head photographed as a translucent fan:
+                  // fine enough, but the disc no longer FILLED, and a planted
+                  // head splayed the gaps open. B3 wants finer AND denser, and
+                  // finer only reads as yarn when there is enough of it to be
+                  // opaque. 820 at 3.4 mm covers the disc at the same fibre
+                  // slenderness. Still 4 draw calls.
+                  count: 820,
                   radius: 0.115,
                   length: 0.30,
-                  strandRadiusTop: 0.0038,
-                  strandRadiusBottom: 0.0026,
-                  params: {
-                    // A planted mop's yarn lies along the direction of travel,
-                    // it does not burst outward like a dandelion. The starburst
-                    // at splayBase 0.45 came from every azimuth splaying
-                    // equally; halving it keeps the floor contact reading
-                    // without the seed-head silhouette.
-                    // B1 (Goal 17) — MEASURED AGAINST THE FROZEN CONTROL, AND
-                    // THE PREVIOUS DIRECTION WAS BACKWARDS.
-                    //
-                    // electron-b1-divergence, default camera:
-                    //     live 76,134 px    frozen 127,938 px    ratio 0.60
-                    // The rig changed FORTY PERCENT FEWER pixels than yarn
-                    // welded rigid to the head, while its tips travelled
-                    // 0.46 m. Motion was never the problem.
-                    //
-                    // Every value below used to push the same way - lag more.
-                    // Past a point "trail harder" stops meaning the yarn
-                    // sweeps behind the head and starts meaning THE HEAD
-                    // LEAVES THE YARN BEHIND. A strand that lags enough is a
-                    // strand that does not move on screen: the stick swings,
-                    // the fibres hang near where they already were, and the
-                    // eye sees static yarn on a moving pole. That is the
-                    // owner's "welded to a swinging head" exactly - not
-                    // frozen, too slow to keep up.
-                    //
-                    // The shape that beats the frozen baseline is a WHIP, not
-                    // a drag: carried WITH the head (low deficit, prompt
-                    // chase) and overshooting PAST it (high push, far target).
-                    // Rigid attachment scores 1.0 by definition, so anything
-                    // that only lags can never exceed it.
-                    // HELD AT THE OLD VALUES ON PURPOSE. Splay changes the
-                    // RESTING pose, so it moves the frozen control as well as
-                    // the live rig - raising it took the baseline from 127,938
-                    // to 148,771 px and made the ratio uninterpretable. The
-                    // motion params below are the subject; these two are part
-                    // of the measuring stick and do not move during a tuning
-                    // comparison.
-                    splayBase: 0.22,
-                    splayGrow: 0.30,
-                    pushGain: 3.0,      // was 2.2  - overshoot BEYOND the head
-                    dragGain: 0.08,     // was 0.22 - stop falling behind
-                    chaseBase: 11.0,    // was 5.5  - arrive promptly, keep up
-                    chaseFall: 2.0,     // was 1.6
-                    targetBase: 0.70,   // was 0.55 - travel further per stroke
-                    targetGrow: 0.55,   // was 0.45 - the tip travels furthest
-                    deficitBase: 0.25,  // was 0.85 - BE CARRIED, not left
-                    deficitGrow: 0.15,  // was 0.40
-                  },
+                  segments: 4,
+                  strandRadiusTop: 0.0034,
+                  strandRadiusBottom: 0.0020,
+                  lengthVariation: 0.18,
                 });
                 collar.add(rig.root);
                 entry.strandRig = rig;
@@ -717,18 +684,25 @@ export function buildToolViewmodels() {
       if (!entry || id !== 'mop') return false;
       const cap = Number(capacity) || 0;
       const wet = cap > 0 ? Math.max(0, Math.min(1, (Number(charge) || 0) / cap)) : 0;
+      const damp = (material) => {
+        if (!material?.color) return;
+        if (!Number.isFinite(material.userData.cleaningBaseColor)) {
+          material.userData.cleaningBaseColor = material.color.getHex();
+        }
+        material.color.setHex(material.userData.cleaningBaseColor);
+        if (wet > 0.01) material.color.multiplyScalar(1 - 0.34 * wet);
+      };
       entry.root.traverse((object) => {
         if (!object.isMesh || !/skirt/i.test(object.name || '')) return;
         const materials = Array.isArray(object.material) ? object.material : [object.material];
-        for (const material of materials) {
-          if (!material?.color) continue;
-          if (!Number.isFinite(material.userData.cleaningBaseColor)) {
-            material.userData.cleaningBaseColor = material.color.getHex();
-          }
-          material.color.setHex(material.userData.cleaningBaseColor);
-          if (wet > 0.01) material.color.multiplyScalar(1 - 0.34 * wet);
-        }
+        for (const material of materials) damp(material);
       });
+      // ...AND THE YARN THE PLAYER CAN ACTUALLY SEE. MESH_MopSkirt is hidden
+      // (Goal 19, E1) and the procedural fibres are the mop's visible head, so
+      // for as long as the skirt has been invisible the wetness tint has been
+      // painting a mesh nobody renders. Exactly the fault E1 was: the right
+      // material, on the wrong mesh.
+      damp(entry.strandMaterial);
       entry.root.userData.mopWet = wet;
       return true;
     },
