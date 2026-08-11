@@ -312,3 +312,180 @@ is untouched this session and is on record as unfixed after sixteen attempts. A3
 found what is very likely the same mechanism firing on the clubhouse exterior,
 which nobody had attributed before. Neither is fixed tonight and neither is
 claimed to be.
+
+---
+
+# B — THE TRANSACTION
+
+## What the checks measured, before anything was changed
+
+`tests/one-visit-one-payment.test.js` drives `createTx` → `scanItem` →
+`attachGreenFeeToTx` → `payOnce` → `finalizeReservationCheckIn` **directly on the
+sim modules**. Eleven tests, every one honest, every one green. Not one asks
+whether a customer in the shop can reach that path.
+
+They could not. **Four structural walls**, none of which a sim-level test can see:
+
+1. the tee-time errand was raised from the **paid-sale site**
+   (`clubhouse.js:1850`, inside `onCustomerPaid`), so the words arrived after the
+   money;
+2. `attachGreenFeeToTx` requires `tx.stage === 'scanning'` on an unbanked ticket;
+3. the desk list filtered on `checkoutPhase` starting `'reservation'`, and a
+   customer mid-sale is `'placing'` — so the booking was not on screen;
+4. the **auto-payment timer starts payment on the last barcode**, so even a
+   correctly timed ask arrived as the door shut behind it.
+
+The queue checks (Goals 20, 21) measured the **list** — is IN QUEUE true, does
+the front of the line abandon, does the look-ahead run. All true. None ever
+measured the distance between two **bodies** during a handover, which is the
+entire complaint.
+
+## B1 They stay at the desk. DONE.
+
+The desk branch is guarded by `stop.kind === 'counter'`, and the shopping
+route's counter stop has already been **consumed** by the purchase that just
+completed. On the next frame the route reads `'exit'` and the person walks out
+mid-sentence, with their own line still on screen.
+
+The route is pinned back to the counter, the F8 cart exclusion stops applying
+once `bought` is true, and both desk-resolution sites clear the flag. Proven in
+the same Electron run as B2: `stillInShop: true`, `phase: reservation-waiting`,
+`errandPending: true`. They wait to be answered.
+
+## B2 Three walls of four. NOT DONE.
+
+Watched fail → watched pass, same driver, same staging, file-copy revert (never
+`git stash`), revert asserted to have changed the file:
+
+| | before | after |
+|---|---|---|
+| `deskErrandSpoken` | false | **true** |
+| `tx.stage` at the ask | `card-ready` | **`scanning`** |
+| dialogue | "These are all for me." | **"While I am here, can I check in for my tee time?"** |
+| booking on the desk list | — | **`["1"]`, with `dueNow: false`** |
+
+`dueNow: false` is the control: the booking is four hours out, so it is on that
+list because **the person is standing there**, not because it came due.
+
+**Where it stops.** The fourth thing a player must do — *click the row* — does
+not render. `monitorScreenPoint` finds `tab-tee-sheet` and the click lands;
+`deskHitTargets` then reports an empty hotspot list, so `select-reservation:1`
+has no point to click. **The row is on the list and not on the screen.** The
+driver stops exactly there rather than calling the sim underneath, which is how
+this was reported done twice.
+
+### One wrong fix, tried and reverted with evidence
+
+`openWalkInCustomer` has carried a "still holding goods is a shopper" exclusion
+since F8; `openReservationCustomer` never got one, so I added the mirror. **It
+fires the F8 invariant.** With it the customer flips to `reservation-leaving` and
+the console prints *"combined visitor reached the exit with 2 unpaid item(s)
+after a desk outcome"* — the exact escape the exclusion exists to prevent, caused
+by adding the exclusion. Something downstream releases a booking holder who is
+neither desk business nor due. That release is the real bug; the exclusion only
+exposes it. Left out, with the finding written into the predicate.
+
+**Also found, not worked around:** attaching a reservation to a shopper *at
+spawn* removes the customer outright.
+
+## B3 The line advances when the FLOOR is clear. DONE.
+
+The queue target is recomputed every frame as
+`queueSlotW(counterQueue.indexOf(c))`. The instant the served customer is
+**spliced out of the array**, every index behind them drops by one and the whole
+line starts walking — into a slot the served customer is still physically
+standing on, because leaving the array and leaving the floor are seconds apart.
+Both previous fixes tuned steering and avoidance, which is downstream of a target
+that was already wrong.
+
+`queueAdvanceSlot` / `queueSlotIsClear` ask the floor: fall back freely, move up
+**one step at a time**, and only into room that is genuinely empty. Clearance
+0.95, wider than the 0.6 the steering code calls contact.
+
+In Electron, four staged, positions sampled at 20 Hz:
+`nobodyStartedEarly: true` — cleared at 3,357 ms, started moving at 148,601 ms.
+`nobodyTouched: true` — closest approaches 1.324 / 0.599 / 0.600 yd.
+
+**Limitation, plainly:** only the *second* person in the line moved inside the
+run window, so the rule is exercised across one handover, not three. The
+0.599/0.600 figures are the resolver's own resting separation, not near misses.
+A side-on drain clip is still owed — the camera follows the player to the till,
+because that is where a sale is taken.
+
+**My first check was mis-calibrated and I am saying so:** it asked for more than
+0.6 yd of clearance and failed at 0.599. `resolveCustomer` rejects any point
+within 0.6 of another body, so two people in line **rest** at exactly that.
+Asking for more than the simulation guarantees is a check that cannot pass, and
+reporting it as a queue fault would have been wrong.
+
+---
+
+# C — NPC MOVEMENT. I looked first, and the answer is a measurement.
+
+The brief names three candidates and asks me to pick one, say why, and vendor it.
+**All three are available; the deciding fact is about this repository, not about
+the libraries.**
+
+## The requirement that eliminates two of them
+
+> "a real navmesh baked from the shop's actual geometry, not a collider list"
+
+- **`yuka` (0.7.8)** — pure ESM, trivially vendorable, good steering behaviours.
+  Its navmesh is a **consumer**: `NavMesh.fromPolygons` takes a mesh someone
+  already authored. It cannot bake one from the shop.
+- **`three-pathfinding` (1.3.0)** — same, and smaller: A* over a navmesh you
+  supply. No crowd avoidance at all.
+- **`recast-navigation` (0.43.1)** — the WASM port of Recast/Detour. It is the
+  only one that **generates** a navmesh from arbitrary geometry, and the only one
+  with crowd simulation. It is the industry answer and it is the one the brief
+  wants.
+
+The shop has no authored navmesh. So the brief's own requirement selects recast.
+
+## And recast cannot load in this build
+
+The shipped CSP is:
+
+```
+script-src 'self' 'sha256-DMUMbakyPffSnql8XgUOiWKLXyTzINB6e9E0l4EGHiI='
+```
+
+with no `'wasm-unsafe-eval'`. **I did not assert this from the header text** — a
+claim about a security policy is worth as much as a claim about a rendering path,
+which is nothing until it is run. `tools/qa/electron-c-wasm-feasibility.js`
+instantiates a real eight-byte WebAssembly module inside the shipped page:
+
+```
+syncCompile            refused: CompileError ... 'unsafe-eval' is not an allowed source of script
+asyncCompile           refused: CompileError ...
+instantiate            refused: CompileError ...
+instantiateStreaming   refused: CompileError ...
+```
+
+Four entry points, all refused, in Chromium's own words.
+
+## The decision, and why it is not mine to take alone
+
+Adopting recast requires adding **`'wasm-unsafe-eval'`** to `script-src`. That
+directive is much narrower than `'unsafe-eval'` — it permits WebAssembly
+compilation and nothing else, no `eval()` of strings — and it is the standard
+directive for exactly this case. But it is still a change to the security posture
+of a game that ships on Steam, on the same page that renders the store's payment
+flow, and the same repository already declined a full `'unsafe-eval'` for KTX2.
+
+So **C is NOT DONE**, and it is not stalled on my judgement of the libraries. It
+is one line of `index.html` away from being possible, and that line is the
+owner's to approve:
+
+```html
+script-src 'self' 'wasm-unsafe-eval' 'sha256-…'
+```
+
+Say the word and recast goes in. Until then, vendoring `yuka` would buy steering
+behaviours the shop already has hand-rolled (`steerAhead.js`) and **not** the
+navmesh, which is the part that is actually missing — so it would be motion for
+its own sake.
+
+**What I did NOT do:** I did not spend the remaining session hand-rolling the
+navigation again. Four attempts are on record, one of them in a module the game
+does not import. The measurement above is worth more than a fifth.
