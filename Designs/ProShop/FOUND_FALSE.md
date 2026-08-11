@@ -225,3 +225,27 @@ The differ then compared LAST RUN'S leftover file, scored 0.0000%, and printed
 the row green. The pose the gate was most confident about was the one that never
 ran. Fixed both ways: the capture clears its output directory first, and the
 differ walks the GOLDENS as the contract so a missing pose fails as NOT CAPTURED.
+
+
+## A TOOL VIEWMODEL DRAWS ONLY IN ITS OWN DOMAIN (Goal 23)
+
+Four photographs failed this session for one reason, and it took all four to see
+it. `setTool(id)` reports `equipped: true` and the viewmodel reports
+`vmActive: true` in every case, and the tool is simply NOT DRAWN:
+
+  * the MOP, photographed outdoors, three times -- black or empty frames
+  * the BUNKER RAKE, photographed at the golden suite's indoor tool pose --
+    equipped, active, and a picture of a wall
+
+The belts are split by domain: broom, mop, vacuum, spray, cloth, sponge,
+dustpan and trashbag are the INDOOR belt; washer, hose, divot kit and rake are
+the OUTDOOR one. A tool draws in its own domain and not in the other, and
+nothing in the API says so -- `equipped` and `vmActive` are both true either
+way, which is what made it look like a missing mesh four times running.
+
+The rake photographs perfectly well OUTDOORS
+(Designs/ProShop/J_BUNKER_RAKE.png). The mop will photograph indoors, in a lit
+room, which a fresh save does not have.
+
+> BEFORE PHOTOGRAPHING A HELD TOOL, PUT THE PLAYER WHERE THE TOOL BELONGS.
+> `equipped: true` and `vmActive: true` do not mean it is on screen.
