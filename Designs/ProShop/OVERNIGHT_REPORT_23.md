@@ -374,7 +374,7 @@ once `bought` is true, and both desk-resolution sites clear the flag. Proven in
 the same Electron run as B2: `stillInShop: true`, `phase: reservation-waiting`,
 `errandPending: true`. They wait to be answered.
 
-## B2 All four walls down. The merged ticket is reachable. Banking unproven.
+## B2 DONE. One visit, one payment, proven end to end.
 
 Watched fail → watched pass, same driver, same staging, file-copy revert (never
 `git stash`), revert asserted to have changed the file:
@@ -425,10 +425,40 @@ hasGreenFee true · serviceLines 1 · goodsLines 2 · total 68.38
    check somebody in four hours early.
 3. I clicked `tab-tee-sheet`; the rows live on `tab-check-in`.
 
-**Still not proven: the banking half.** My payment leg drives the sim modules on
-the ticket directly and the *register* banks its own sales, so `ticketsAdded` is
-0 and the ledger deltas are 0. That is my driver, not the game, and the four
-checks that depend on it are red and honest.
+### And then the banking half — B2 IS DONE
+
+```
+CardPresented -> CardInsertReady -> CardInserting -> CardAmountEntry
+              -> CardApproved -> BagHandoff -> CustomerLeaving
+
+typed        6838
+shopDelta    34.00      the goods
+greenDelta   32.00      the round
+ticketsAdded 1          ONE ticket
+newestRow    total 68.38 - serviceTotal 32 - ref "reservation:1:check-in"
+booking      status "played", ticket 1
+```
+
+**Every check green.** The ask arrives while the ticket can still take it, the
+booking is on the desk list, the row is clickable, one ticket carries both, one
+card run, one ticket banked, the fee banked *exactly*, the goods banked, the
+round checked in.
+
+**The last half was my driver, three times over.**
+
+1. Driving the sim modules on the ticket by hand — the *register* banks sales,
+   so a ticket walked through the sim never reaches the code that posts it.
+2. Waiting for the register to "bank itself" — it begins payment on its own and
+   then **stops at the reader**, waiting for a hand. Two minutes of waiting for
+   a machine that was waiting for me.
+3. Clicking the terminal at `CardInsertReady` — twenty-six clicks, no movement.
+   The gesture is on the **card**. Clicking the card advanced it four states in
+   one go, then sat at `CardAmountEntry` because nothing was typing.
+
+`cardKeyScreenPoint` projects the physical key caps, so the driver types 6838
+and presses OK the way a player does. **That is eight instrument faults this
+session, every one reported as a game fault until the next reading corrected
+it.**
 
 ### One wrong fix, tried and reverted with evidence
 
@@ -1228,7 +1258,7 @@ CLAUDE.md says it stays. The variant working, not faults.
 
 # FINAL
 
-**Thirty-two commits, all pushed. Suite 3081/3081. Lint ratchet frozen at 332.
+**Thirty-four commits, all pushed. Suite 3081/3081. Lint ratchet frozen at 332.
 i18n ratchet 0 missing across ten locales. Golden gate 12 of 12 green with the
 lens pinned, one honest red row (`bag-packed`, NOT CAPTURED).**
 
