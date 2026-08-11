@@ -8474,10 +8474,28 @@ export function makeCourseScene(canvas, state) {
         : walk.radius;
       let mx = 0;
       let mz = 0;
-      if (heldAction('moveForward')) mz -= 1;
-      if (heldAction('moveBack')) mz += 1;
-      if (heldAction('moveLeft')) mx -= 1;
-      if (heldAction('moveRight')) mx += 1;
+      // I2 (Goal 23) — HOLDING THE BOOK LOCKS YOU TO IT.
+      //
+      // "While I am holding the book, WASD must not move me. No walking, no
+      // strafing. I am reading."
+      //
+      // Carrying the register was a full walking state with a book in frame, so
+      // a player reading a page drifted across the room while they read it. The
+      // keys are read and DISCARDED rather than left unread, so `walkMoving`
+      // goes false, the footstep and bob systems settle, and nothing downstream
+      // has to learn about the book.
+      //
+      // Look is deliberately untouched: turning your head over a page you are
+      // holding is not walking, and taking the mouse away as well would make it
+      // feel broken rather than deliberate.
+      const readingTheBook = !!(clubhouseApi && clubhouseApi.ledgerCarried
+        && clubhouseApi.ledgerCarried());
+      if (!readingTheBook) {
+        if (heldAction('moveForward')) mz -= 1;
+        if (heldAction('moveBack')) mz += 1;
+        if (heldAction('moveLeft')) mx -= 1;
+        if (heldAction('moveRight')) mx += 1;
+      }
       walkMoving = !!(mx || mz);
       // DID THE MOVEMENT HANDLER RUN, and what did it want? The one question about the
       // input chain that cannot be answered from outside this closure: position delta is

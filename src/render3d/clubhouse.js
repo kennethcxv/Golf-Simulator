@@ -12128,6 +12128,10 @@ export function makeClubhouse(ctx) {
       };
     },
     carrySpeedFactor: () => carrySpeedFactor(state),
+    // I2 (Goal 23): is the player holding the register? courseScene reads this
+    // to refuse WASD -- "while I am holding the book, WASD must not move me.
+    // I am reading."
+    ledgerCarried: () => !!(ledgerBook && ledgerBook.isCarried && ledgerBook.isCarried()),
     carryCollisionRadius: () => {
       const box = carriedBox(state);
       if (!box || box.flat) return 0;
