@@ -86,19 +86,16 @@ async (page) => {
   // and the LONGEST for the reference.
   out.aim = await page.evaluate(() => {
     const ch = window.__fw.scene3d.clubhouse();
-    const w = window.__fw.scene3d.walk.state;
+    const w = window.__fw.scene3d.walk;
     const ip = ch.interior.position;
-    const ox = ip.x; const oz = ip.z;
     const rays = [];
     for (let i = 0; i < 16; i += 1) {
       const yaw = (i / 16) * Math.PI * 2;
-      let d = 0;
-      for (; d < 14; d += 0.25) {
-        const x = ox - Math.sin(yaw) * d;
-        const z = oz - Math.cos(yaw) * d;
-        if (!ch.isInside(x, z, 0.35)) break;
-      }
-      rays.push({ yaw: +yaw.toFixed(4), clear: +d.toFixed(2) });
+      // walk.clearRun asks the PLAYER'S OWN collision predicate, props
+      // included. isInside answers about the room envelope and is blind to
+      // furniture, which is why the first two versions of this driver aimed
+      // their reference leg at a shelf.
+      rays.push({ yaw: +yaw.toFixed(4), clear: w.clearRun ? w.clearRun(yaw) : 0 });
     }
     const sorted = rays.slice().sort((a, b) => a.clear - b.clear);
     return { rays, nearestWall: sorted[0], longestRun: sorted[sorted.length - 1] };

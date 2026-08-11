@@ -12333,6 +12333,26 @@ export function makeCourseScene(canvas, state) {
       // apart from "the key arrived and the walker ignored it" — the exact
       // ambiguity that let two D-key harnesses pass a broken D key.
       heldKeys: () => [...walkHeld],
+      // K (Goal 23) — HOW FAR CAN I ACTUALLY WALK THAT WAY?
+      //
+      // A collision driver aimed itself with clubhouse.isInside(), which answers
+      // about the ROOM ENVELOPE and is blind to furniture -- so its "clearest"
+      // direction walked into a shelf and its reference leg travelled 1.15 yd
+      // against wall legs of 3.4 and 5.7. Every verdict it produced was
+      // unreadable.
+      //
+      // walkFreeAt is the predicate the PLAYER'S OWN movement is resolved
+      // against, props included. Asking it along a bearing is the only honest
+      // way to find open floor.
+      clearRun: (yaw, maxYd = 14, step = 0.2) => {
+        const r = walk.radius;
+        for (let d = step; d <= maxYd; d += step) {
+          const x = walk.x - Math.sin(yaw) * d;
+          const z = walk.z - Math.cos(yaw) * d;
+          if (!walkFreeAt(x, z, r)) return +(d - step).toFixed(2);
+        }
+        return maxYd;
+      },
       // Diagnostics for the stranded-modifier class: how many phantoms the
       // reconcile has caught, and which. Non-empty means the page WAS carrying a
       // modifier the OS had already released.
