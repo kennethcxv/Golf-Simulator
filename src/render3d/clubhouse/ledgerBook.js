@@ -60,7 +60,10 @@ const LEAF_SECONDS = 0.55;
 const RAISE_SECONDS = 0.34;
 const COVER_SECONDS = 0.34;
 const OPEN_SECONDS = 0.4;
-const CLOSE_SECONDS = 0.65;
+// D3 (Goal 19): closing is now ONLY the in-place cover shut (the descent
+// belongs to 'lowering' alone). 0.65 was sized for swing+fall together; the
+// shut half of that gesture ran ~0.39 s, and that is what this is now.
+const CLOSE_SECONDS = 0.42;
 // 2026-08-06 ruling: "closer to the user so its more visible... up and on an
 // angle". FACE_TILT is measured from VERTICAL: PI/2 lies the spread flat on
 // its back, 0 stands it straight up. 0.60 rad is a lectern angle - the pages
@@ -75,7 +78,13 @@ const HINGE_X = 0.151;        // the spine hinge line = the open book's gutter
 const LEAF_W = 0.264;         // the turning leaf, just inside the painted faces
 const LEAF_D = 0.174;
 const LEAF_SEGS = 24;
-const SWAP_POINT = 0.72;      // cover swing fraction where closed<->open swap hides
+// D1 (Goal 19): the shells exchange at the EDGE-ON moment. At the old 0.72
+// the cover stood past vertical and the closed block showed its bare title
+// page with no board behind it — the recording's 1.8s / 6.3s frames. At 0.50
+// the cover is at 90° (a line, from the reader's side) exactly when the
+// closed block exchanges for the open spread, whose boards lie flat under
+// the pages — so no frame shows a page without a board.
+const SWAP_POINT = 0.50;      // cover swing fraction where closed<->open swap hides
 
 const smoothstep = (t) => t * t * (3 - 2 * t);
 
@@ -2162,7 +2171,15 @@ export function createLedgerBook({ THREE, state, anchor, counterTop, camera = nu
   // about +Z: positive angles open the cover over the spine
   const COVER_SIGN = 1;
   function setCoverSwing(fraction) {
-    glbNodes.cover.rotation.z = COVER_SIGN * fraction * Math.PI;
+    const f = Math.min(1, Math.max(0, fraction));
+    glbNodes.cover.rotation.z = COVER_SIGN * f * Math.PI;
+    // D1 (Goal 19): a paper-thin board at 90° to the eye is a LINE — the old
+    // swing passed through invisibility and the title page read "bare, no
+    // cover" (the recording's 1.8s frames). A slight tip toward the reader
+    // through the MIDDLE of the swing keeps a face of the board presented
+    // the whole way; sin() zeroes it at both rest poses so the shut and open
+    // books are exactly as authored.
+    glbNodes.cover.rotation.x = 0.14 * Math.sin(f * Math.PI);
   }
 
   function applyClosedPose() {
@@ -2308,21 +2325,28 @@ export function createLedgerBook({ THREE, state, anchor, counterTop, camera = nu
       }
     } else if (bookState === 'closing') {
       stateT = Math.min(1, stateT + dt / CLOSE_SECONDS);
-      const fall = smoothstep(stateT);
-      const swing = 1 - smoothstep(Math.min(1, stateT / 0.6));
+      // D2/D3 (Goal 19) — THE COVER SHUTS IN PLACE, AND ONLY 'lowering' EVER
+      // DESCENDS. The old closing ran the swing AND the whole fall together:
+      // the open presentation rode down to the desk (the recording's 13.7 s
+      // bare-page-on-the-desk frames, D2) — and then 'lowering' began at
+      // stateT 0 and lerped from the FACE POSE all over again, so every
+      // close descended TWICE (D3; measured on the caller-logging driver:
+      // closing y 1.493→1.055, then lowering y 1.055→1.491→1.055). The
+      // states never repeated, which is why Goal 18's bookState trace called
+      // it one clean pass — it watched the right object and the wrong
+      // variable.
+      const swing = 1 - smoothstep(stateT);
       setCoverSwing(swing);
       if (swing < SWAP_POINT && openShell.visible) {
         openShell.visible = false;
         closedShell.visible = true;
         play('paper');
       }
-      if (facePose && deskSpot && root.parent) {
-        const from = root.parent.worldToLocal(facePose.position.clone());
-        scratchPos.copy(from).lerp(new THREE.Vector3(deskSpot.x, deskSpot.y, deskSpot.z), fall);
-        root.position.copy(scratchPos);
-        scratchEuler.set(0, deskSpot.ry, 0, 'YXZ');
-        scratchQuat.setFromEuler(scratchEuler);
-        root.quaternion.copy(facePose.quaternion).slerp(scratchQuat, fall);
+      // hold at the face while the cover comes over — a book is shut in the
+      // hands, then laid down
+      if (facePose && root.parent) {
+        root.position.copy(root.parent.worldToLocal(facePose.position.clone()));
+        root.quaternion.copy(facePose.quaternion);
       }
       if (stateT >= 1) { bookState = 'lowering'; stateT = 0; }
     } else if (bookState === 'lowering') {

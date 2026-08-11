@@ -99,24 +99,30 @@ async (page) => {
   await page.waitForTimeout(800);
   await page.keyboard.press('e');
   await page.waitForTimeout(1500);
+  // D4: E on the open book TURNS THE NEXT PAGE now
+  await page.keyboard.press('e');
+  await page.waitForTimeout(1000);
+  const spreadAfterE = await page.evaluate(() => window.__fw.scene3d.clubhouse().ledgerBook.diagnostics().spread);
+  // Esc is the one way down — with a human-length hold and its repeat train
   await page.evaluate(() => new Promise((resolve) => {
     const fire = (type, repeat) => window.dispatchEvent(new KeyboardEvent(type, {
-      key: 'e', code: 'KeyE', bubbles: true, cancelable: true, repeat,
+      key: 'Escape', code: 'Escape', bubbles: true, cancelable: true, repeat,
     }));
     fire('keydown', false);
     let count = 0;
     const iv = setInterval(() => {
       count += 1;
-      fire('keydown', true); // the OS repeat train
-      if (count >= 8) {
+      fire('keydown', true);
+      if (count >= 5) {
         clearInterval(iv);
         fire('keyup', false);
         resolve();
       }
     }, 90);
   }));
-  // hands off for 4 s — the double happens ~0.2 s after landing
+  // hands off for 4 s — the double happened ~0.2 s after landing
   await page.waitForTimeout(4000);
+  out.spreadAfterE = spreadAfterE;
 
   const data = await page.evaluate(() => window.__d3);
   out.keyEvents = data.keyEvents;

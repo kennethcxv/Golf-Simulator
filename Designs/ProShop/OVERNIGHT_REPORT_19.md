@@ -363,6 +363,49 @@ popRatio 1.000.
 
 ## D — THE LEDGER
 
+### D3 The double set-down — FOUND AND FIXED (it was the state machine)
+The hunt ran four instrumented replays (caller-logging wrapper on every book
+verb + per-frame position sampling): single synthetic press, an OS-style
+key-repeat train through the close, held tool + live sim speed — every call
+came from a legitimate main.js site, no re-entry, no second driver. Then the
+instrument's own y-extents gave it up: **`closing` lerped the book ALL THE
+WAY DOWN (y 1.493→1.055) and then `lowering` began at stateT 0 and lerped
+from the FACE POSE down again (y 1.055→1.491→1.055)** — two full descents,
+back to back, in the machine, on every close. The states never repeat, which
+is exactly why Goal 18's bookState trace called it "one clean pass": it
+watched the right object and the wrong variable. Fix: `closing` now shuts
+the cover IN PLACE at the face (no descent; CLOSE_SECONDS re-sized 0.65 →
+0.42 for the shut alone) and `lowering` owns the ONE descent. Re-measured:
+closing y constant at 1.494, lowering 1.494→1.056, done. Filmed and the
+frames VIEWED (`qa/electron/d-ledger-film/`): shut in place with the title
+face reading through the swing, one closed descent, stillness after.
+
+### D2 The set-down bare page — FIXED (same fix)
+The old `closing` swung the cover WHILE falling, so the open presentation
+rode down to the desk — the recording's 13.7 s title-page-on-the-desk
+frames. With the shut-in-place phase, nothing open ever descends. Filmed ✓.
+
+### D1 The open glitch — IMPROVED, RESIDUAL RECORDED
+Two changes: the shell swap moved from swing 0.72 (cover past vertical, the
+closed block showing a bare title page — the recording's 1.8 s frames) to
+0.50, the edge-on moment, so the exchange lands exactly when the cover is a
+line and the open spread arrives with both boards flat under its pages; and
+the swing carries a slight tip (0.14·sin) meant to keep a face of the board
+presented mid-swing. Close-range rAF frames after the fix: the bare-page
+window shrank from ~8 frames to ~4 (≈70 ms at the 0.34 s swing) — the tip
+did not visibly widen the board at the reader's camera (wrong axis for this
+rig, or too small). RESIDUAL: a ~70 ms thin-cover flash on OPEN remains;
+the honest cure is cover THICKNESS in the GLB (a board with sides cannot
+vanish edge-on) — queued for the asset pass, stop rule applied here.
+
+### D4 One key — DONE (filmed)
+E opens the shut book, opens the cover, and TURNS THE NEXT PAGE — the same
+key the whole way forward (`spread` advanced on film and in diagnostics);
+A (or click) turns back, and Esc is the one way down. The HUD chip and the
+book's own footer teach the new keys from the live bindings ("E next page ·
+A back · Esc put the book away"). E ignores key-repeat (a held key is one
+action, not a page-riffle).
+
 ## G — PERFORMANCE
 
 ## E — THE MOP AND THE BROOM

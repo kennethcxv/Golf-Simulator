@@ -680,8 +680,10 @@ function updateLedgerHint() {
   const b = preferences.values.controls?.bindings;
   const key = (action, fallback) => describeKey(keyForAction(b, action)) || fallback;
   const book = ledgerBookApi();
+  // D4 (Goal 19): ONE key opens and turns forward — E all the way through the
+  // book; Esc is the one way back down. "Do not make me learn two."
   ledgerHintEl.textContent = book && book.isOpen()
-    ? `${key('moveLeft', 'A')}/${key('moveRight', 'D')} or click · turn pages · ${key('interact', 'E')} put the book away`
+    ? `${key('interact', 'E')} next page · ${key('moveLeft', 'A')} back · Esc put the book away`
     : `${key('interact', 'E')} open the book · Esc put it back`;
 }
 function ledgerBookApi() {
@@ -693,11 +695,12 @@ function enterLedger() {
   const book = ledgerBookApi();
   if (!book) return;
   cancelToolKey();
-  // the book's own footer teaches the keys, so it needs the LIVE bindings
+  // the book's own footer teaches the keys, so it needs the LIVE bindings.
+  // D4 (Goal 19): the interact key opens AND turns forward; Esc closes.
   book.setControlLabels?.({
     prev: describeKey(keyForAction(preferences.values.controls?.bindings, 'moveLeft')) || 'A',
-    next: describeKey(keyForAction(preferences.values.controls?.bindings, 'moveRight')) || 'D',
-    close: describeKey(keyForAction(preferences.values.controls?.bindings, 'interact')) || 'E',
+    next: describeKey(keyForAction(preferences.values.controls?.bindings, 'interact')) || 'E',
+    close: 'Esc',
   });
   // THE BOOK COMES TO THE PLAYER (2026-08-05 ruling): no lens change, no
   // camera focus — the journal rises to the face, the clasp frees, the cover
@@ -734,8 +737,11 @@ function enterLedger() {
     } else if (action === 'interact') {
       event.preventDefault();
       event.stopPropagation();
-      // C1: E means the next step, not "shut it". A book raised and shut opens;
-      // an open book shuts and goes back down.
+      if (event.repeat) return; // a held E is one action, not a page-riffle
+      // D4 (Goal 19): ONE key, forward, the whole way — E raises the shut
+      // book, opens it, and then TURNS THE NEXT PAGE. It never closes;
+      // Esc is the one way down. ("Opening the book and turning to the next
+      // page should be the same key. Do not make me learn two.")
       const held = ledgerBookApi();
       if (held && !held.isOpen()) {
         held.advance();
@@ -743,8 +749,9 @@ function enterLedger() {
         // the hint flips from "open the book" to the page controls a beat
         // after the cover starts to swing
         setTimeout(updateLedgerHint, 300);
-      } else {
-        exitLedger();
+      } else if (held) {
+        const turned = held.turnPage(1);
+        if (turned && audio.ready) audio.ledgerTurn();
       }
     } else if (key === 'arrowright' || action === 'moveRight') {
       event.preventDefault();
