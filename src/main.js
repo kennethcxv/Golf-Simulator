@@ -1418,11 +1418,9 @@ function ensureLoadVeil() {
   // The club's own name goes under the logo, because "GOLF EMPIRE" is the game
   // and the player is arriving somewhere specific.
   el.innerHTML = `
-    <div class="load-veil-scene menu-atmosphere" aria-hidden="true">
-      <div class="menu-sun"></div>
-      <div class="menu-horizon menu-horizon-far"></div>
-      <div class="menu-horizon menu-horizon-near"></div>
-    </div>
+    <div class="load-veil-plate" aria-hidden="true"></div>
+    <div class="load-veil-scrim" aria-hidden="true"></div>
+    <div class="load-veil-place" aria-hidden="true"></div>
     <div class="load-veil-card">
       <div class="load-veil-logo">GOLF EMPIRE</div>
       <div class="load-veil-club"></div>
@@ -1432,6 +1430,41 @@ function ensureLoadVeil() {
       <div class="load-veil-tip" aria-live="off"></div>
     </div>`;
   document.body.appendChild(el);
+  // E (Goal 21) — REAL GAME IMAGES, A DIFFERENT ONE EVERY TIME.
+  //
+  // The CSS landscape this replaces was never the ask, and worse, the check
+  // that passed it counted DOM NODES rather than pixels — the same error as
+  // X3's. These are photographs of this club, taken at the player's own eye
+  // height with the shipped renderer (tools/qa/electron-e-loading-plates.js),
+  // graded and compressed by tools/build-loading-plates.mjs.
+  //
+  // Chosen fresh on every show(), never repeating the previous one, so two
+  // consecutive loads are never the same picture.
+  const plateEl = el.querySelector('.load-veil-plate');
+  const placeEl = el.querySelector('.load-veil-place');
+  const PLATES = [
+    { file: 'approach.jpg', caption: 'The approach, Pine Hills Municipal' },
+    { file: 'porch.jpg', caption: 'The clubhouse porch, late light' },
+    { file: 'fairway.jpg', caption: 'Looking down the first' },
+    { file: 'treeline.jpg', caption: 'The shed and the treeline' },
+    { file: 'shopfront.jpg', caption: 'The pro shop windows' },
+    { file: 'green.jpg', caption: 'A green at first light' },
+  ];
+  let lastPlate = -1;
+  const showPlate = () => {
+    if (PLATES.length === 0) return;
+    let pick = Math.floor(Math.random() * PLATES.length);
+    if (PLATES.length > 1 && pick === lastPlate) pick = (pick + 1) % PLATES.length;
+    lastPlate = pick;
+    const plate = PLATES[pick];
+    plateEl.style.backgroundImage = `url("Assets/loading/${plate.file}")`;
+    // restart the drift so every load gets the whole slow push, not the tail
+    plateEl.style.animation = 'none';
+    void plateEl.offsetWidth;
+    plateEl.style.animation = '';
+    placeEl.textContent = plate.caption;
+  };
+
   const clubEl = el.querySelector('.load-veil-club');
   const title = el.querySelector('.load-veil-title');
   const stepEl = el.querySelector('.load-veil-step');
@@ -1470,6 +1503,7 @@ function ensureLoadVeil() {
       revision += 1;
       if (hideTimer !== null) clearTimeout(hideTimer);
       hideTimer = null;
+      showPlate(); // a different photograph of the club every load
       title.textContent = t || 'Loading';
       // the club you are arriving at, named. Falls back to the starting
       // property so the very first load is not blank.

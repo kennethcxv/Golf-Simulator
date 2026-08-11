@@ -49,7 +49,26 @@ async (page) => {
         step: v.querySelector('.load-veil-step')?.textContent || '',
         tip: v.querySelector('.load-veil-tip')?.textContent || '',
         fill: v.querySelector('.load-veil-fill')?.style.width || '',
-        sceneNodes: v.querySelectorAll('.load-veil-scene *').length,
+        // E (Goal 21): what is PAINTED, not what exists. The check this
+        // replaces counted DOM nodes under .load-veil-scene and called that a
+        // backdrop -- the same error as X3, where every CSS property was
+        // correct and the element was behind the canvas.
+        plateImage: (() => {
+          const p = v.querySelector(".load-veil-plate");
+          if (!p) return null;
+          const bg = getComputedStyle(p).backgroundImage || "";
+          const m = bg.match(/([^/"\)]+.jpg)/);
+          return m ? m[1] : null;
+        })(),
+        plateIsPainted: (() => {
+          const p = v.querySelector(".load-veil-plate");
+          if (!p) return false;
+          const r = p.getBoundingClientRect();
+          const top = document.elementFromPoint(Math.round(r.x + r.width / 2), Math.round(r.y + r.height * 0.22));
+          return !!top && (top === p || v.contains(top));
+        })(),
+        place: v.querySelector(".load-veil-place")?.textContent || "",
+        sceneNodes: v.querySelectorAll(".load-veil-plate, .load-veil-scrim").length,
       };
     });
     if (!state) continue; // the veil is created lazily on the first show()
@@ -64,6 +83,8 @@ async (page) => {
     veilSeconds: visible.length ? +(visible.at(-1).atMs / 1000).toFixed(1) : 0,
     frames: shots.length,
     club: visible[0]?.club || null,
+    plate: visible[0]?.plateImage || null,
+    place: visible[0]?.place || null,
     sceneNodes: visible[0]?.sceneNodes || 0,
     distinctTips: [...new Set(visible.map((s) => s.tip).filter(Boolean))],
     steps: [...new Set(visible.map((s) => s.step).filter(Boolean))],
@@ -73,7 +94,10 @@ async (page) => {
     clubNamed: !!out.club,
     // three: the sun and two horizon bands. The clubhouse and flag were tried
     // and removed after the photograph showed the flagpole crossing the title.
-    hasBackdrop: out.sceneNodes >= 3,
+    hasBackdrop: out.sceneNodes >= 2,
+    plateIsARealImage: !!(visible[0] && visible[0].plateImage),
+    plateIsActuallyPainted: !!(visible[0] && visible[0].plateIsPainted),
+    placeIsNamed: !!(visible[0] && visible[0].place && visible[0].place.length > 4),
     tipsRotate: out.distinctTips.length >= 2,
     progressMoves: new Set(visible.map((s) => s.fill)).size >= 2,
     noPageErrors: errs.length === 0,

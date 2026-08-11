@@ -182,16 +182,52 @@ canvas#game {
   transition: opacity 0.4s ease;
 }
 
-/* I (Goal 20): the menu's own clubhouse scene, behind the card. Reused class
-   for class from .menu-atmosphere, so it costs no new art and no image decode
-   on a frame that is already compiling shaders. Dimmed and pushed back so the
-   card stays the thing you read. */
-.load-veil-scene {
+/* E (Goal 21): a REAL PHOTOGRAPH of this club behind the card, a different one
+   every load. The slow push is what stops a still image reading as a frozen
+   game: barely perceptible frame to frame, unmistakable across a long wait. */
+.load-veil-plate {
   position: absolute;
   inset: 0;
   z-index: 0;
-  opacity: 0.55;
-  filter: saturate(0.8) brightness(0.7);
+  background-position: center;
+  background-size: cover;
+  background-repeat: no-repeat;
+  pointer-events: none;
+  animation: load-plate-drift 26s ease-out both;
+}
+
+@keyframes load-plate-drift {
+  from { transform: scale(1.06) translate3d(0, 0, 0); }
+  to { transform: scale(1.13) translate3d(-1.1%, -0.8%, 0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .load-veil-plate { animation: none; transform: scale(1.06); }
+}
+
+/* The scrim is what makes the type legible over ANY plate, rather than tuning
+   each photograph until the text happens to land on something dark. Darkest
+   through the middle where the card sits, and along the bottom for the caption. */
+.load-veil-scrim {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(58% 46% at 50% 52%, rgba(8, 12, 9, 0.86) 0%, rgba(8, 12, 9, 0.55) 55%, rgba(8, 12, 9, 0.22) 100%),
+    linear-gradient(180deg, rgba(8, 12, 9, 0.55) 0%, rgba(8, 12, 9, 0.10) 30%, rgba(8, 12, 9, 0.20) 62%, rgba(8, 12, 9, 0.78) 100%);
+}
+
+/* where you are, bottom left, in the club's own voice */
+.load-veil-place {
+  position: absolute;
+  left: 26px;
+  bottom: 20px;
+  z-index: 1;
+  color: rgba(226, 235, 219, 0.74);
+  font: italic 500 0.74rem/1.4 Georgia, 'Times New Roman', serif;
+  letter-spacing: 0.02em;
+  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.75);
   pointer-events: none;
 }
 
