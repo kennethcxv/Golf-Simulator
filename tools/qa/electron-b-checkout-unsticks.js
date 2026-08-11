@@ -203,26 +203,114 @@ async (page) => {
       everyClickLanded: run.trail.every((t) => t.clicked),
     });
 
-    // ---- does the sale now finish on its own? ------------------------------
-    run.completed = await page.waitForFunction(() => {
-      const tx = window.__fw.scene3d.clubhouse().register.getTx();
-      return !tx || tx.banked;
-    }, null, { timeout: 90000 }).then(() => true).catch(() => false);
+    // WHERE DOES IT STOP? Read the gate's own inputs right after the answer,
+    // rather than inferring from "it did not bank".
+    await page.waitForTimeout(1200);
+    run.afterAnswer = say(`${answer}:after-answer`, await page.evaluate((name) => {
+      const ch = window.__fw.scene3d.clubhouse();
+      const r = ch.register;
+      const tx = r.getTx();
+      const c = ch.customerByName(name) || r.getCustomer();
+      return {
+        stage: tx?.stage ?? null,
+        banked: !!tx?.banked,
+        lines: tx ? tx.items.length : 0,
+        method: tx?.method ?? null,
+        prefer: tx?.prefer ?? null,
+        flow: r.getFlow ? r.getFlow() : null,
+        errandPending: !!c?.deskErrandPending,
+        errandAwaiting: !!c?.deskErrandAwaitingAnswer,
+        walkInRejected: !!c?.walkInRejected,
+        customerPhase: c?.checkoutPhase ?? null,
+        watchdog: r.checkoutWatchdogDiagnostics ? r.checkoutWatchdogDiagnostics() : null,
+      };
+    }, run.staged.name));
+
+    // ---- PLAY THE PAYMENT OUT, the way the b2 driver does -------------------
+    //
+    // The first version waited for the ticket to bank and reported "the sale
+    // does not complete". It does; a CARD sale asks the player to type the total
+    // on the terminal keypad and press OK, and nothing was typing. That is a
+    // missing step in the driver, not a wall in the game, and reporting it as a
+    // wall would have been the fifth false finding of the night.
+    const cardPoint = () => page.evaluate(async () => {
+      const THREE = await import(new URL('vendor/three.module.js', document.baseURI).href);
+      const r = window.__fw.scene3d.clubhouse().register;
+      const flow = r.getFlow?.()?.state ?? null;
+      const pick = (fn) => { try { return fn ? fn() : null; } catch { return null; } };
+      let card = null;
+      const node = pick(r.cardNode);
+      if (node) {
+        const v = node.getWorldPosition(new THREE.Vector3());
+        v.project(window.__fw.scene3d.camera);
+        const rect = document.querySelector('canvas').getBoundingClientRect();
+        card = {
+          x: rect.left + ((v.x + 1) / 2) * rect.width,
+          y: rect.top + ((-v.y + 1) / 2) * rect.height,
+          onScreen: Math.abs(v.x) <= 1 && Math.abs(v.y) <= 1,
+        };
+      }
+      return {
+        flow, card,
+        terminal: pick(r.cardTerminalScreenPoint),
+        confirm: pick(r.cardXScreenPoint),
+      };
+    });
+    // ALREADY-TRUE IS NOT DONE. The first version asked "is transactionHistory
+    // non-empty" -- true for the second visit before it started, because the
+    // first visit had banked. Both are counted from a baseline taken here.
+    run.historyBefore = await page.evaluate(() => (window.__fw.state.shop.transactionHistory || []).length);
+    run.flowTrail = [];
+    for (let i = 0; i < 26; i += 1) {
+      const st = await cardPoint();
+      run.flowTrail.push(st.flow);
+      if (!st.flow || st.flow === 'Done' || st.flow === 'Complete') break;
+      if (st.flow === 'CardAmountEntry') {
+        const keys = await page.evaluate(async () => {
+          const r = window.__fw.scene3d.clubhouse().register;
+          const reg = await import(new URL('src/sim/register.js', document.baseURI).href);
+          const tx = r.getTx();
+          if (!tx) return null;
+          const cents = String(Math.round(reg.totalOf(tx) * 100));
+          const pt = (id) => { try { const p = r.cardKeyScreenPoint(id); return p ? { id, x: p.x, y: p.y } : null; } catch { return null; } };
+          return { cents, digits: cents.split('').map(pt), ok: pt('OK') };
+        });
+        if (keys) {
+          run.typed = keys.cents;
+          for (const k of keys.digits) if (k) { await page.mouse.click(k.x, k.y); await page.waitForTimeout(160); }
+          if (keys.ok) { await page.mouse.click(keys.ok.x, keys.ok.y); await page.waitForTimeout(900); }
+        }
+      } else {
+        const target = (st.card && st.card.onScreen ? st.card : null) || st.terminal || st.confirm;
+        if (target && Number.isFinite(target.x)) await page.mouse.click(target.x, target.y);
+      }
+      await page.waitForTimeout(900);
+      const done = await page.evaluate((n) => (window.__fw.state.shop.transactionHistory || []).length > n, run.historyBefore);
+      if (done) break;
+    }
+    run.completed = await page.waitForFunction((n) => (
+      (window.__fw.state.shop.transactionHistory || []).length > n
+    ), run.historyBefore, { timeout: 45000 }).then(() => true).catch(() => false);
     await page.waitForTimeout(2500);
-    run.books = say(`${answer}:books`, await page.evaluate((name) => {
+    run.books = say(`${answer}:books`, await page.evaluate(([name, before]) => {
       const app = window.__fw;
       const ch = app.scene3d.clubhouse();
-      const rows = app.state.shop?.txLog || app.state.txLog || [];
-      const newest = rows.length ? rows[rows.length - 1] : null;
+      const rows = app.state.shop?.transactionHistory || [];
+      // THIS VISIT'S row, by index from the baseline -- not "the last row in the
+      // log", which for the second visit is the FIRST visit's row whenever the
+      // second one fails to bank. That reported the booked ticket's green fee as
+      // if it belonged to the refused sale.
+      const newest = rows.length > before ? rows[before] : null;
       const c = ch.customerByName(name);
-      return {
+      const out0 = {
         ticketTotal: newest ? newest.total : null,
         serviceTotal: newest ? (newest.serviceTotal ?? 0) : null,
         // B4b: refused must NOT mean the goods went back on the shelf
         stillInShop: !!c,
         customerBought: !!c?.bought,
       };
-    }, run.staged.name));
+      return { ...out0, rowsAdded: rows.length - before };
+    }, [run.staged.name, run.historyBefore]));
     await page.screenshot({ path: path.join(OUT, `${answer}.png`) });
     return run;
   };
@@ -246,8 +334,39 @@ async (page) => {
   await page.waitForTimeout(1500);
   out.runs.refuse = await playVisit('refuse');
 
+  // B5 ON ITS OWN. Clearing between the two visits found nobody once the first
+  // sale started completing properly, so the button was being "verified" by a
+  // no-op. A customer is staged specifically for it.
+  await page.evaluate(() => {
+    const ch = window.__fw.scene3d.clubhouse();
+    if (window.__fw.state.shop) window.__fw.state.shop.open = true;
+    ch.sendToCounter(['balls1'], 'card');
+  });
+  await page.waitForTimeout(9000);
+  out.b5 = say('b5-clear-the-counter', await page.evaluate(() => {
+    const ch = window.__fw.scene3d.clubhouse();
+    const before = ch.register.getTx();
+    const name = ch.dismissCounterCustomer?.() ?? null;
+    return {
+      name,
+      hadATicket: !!before,
+      ticketGone: !ch.register.getTx(),
+      registerReleased: !ch.register.getCustomer(),
+    };
+  }));
+
   const b = out.runs.book;
   const r = out.runs.refuse;
+  // B4's two outcomes, computed BEFORE out.checks -- spreading `out.outcomes`
+  // into a literal that ran first spread `undefined`, which is legal, silent,
+  // and contributed nothing. The checks printed green while saying nothing.
+  out.outcomes = {
+    bookedSaleCompletes: b.completed === true,
+    bookedTicketCarriesTheGreenFee: (b.books?.serviceTotal ?? 0) > 0,
+    refusedSaleCompletes: r.completed === true,
+    refusedTicketIsGoodsOnly: (r.books?.serviceTotal ?? 0) === 0
+      && (r.books?.ticketTotal ?? 0) > 0,
+  };
   out.checks = {
     // CONTROL: both visits actually got to the counter with goods on it
     bothReachedTheCounter: b.reachedCounter === true && r.reachedCounter === true,
@@ -265,7 +384,9 @@ async (page) => {
     statusNamesTheTeeTime: /tee time/i.test(String(b.afterScan?.status || ''))
       || /tee time/i.test(String(b.afterScan?.instruction || '')),
     // B5 — the laptop's verb, exercised here because this driver needs it
-    b5ClearTheCounterWorks: Array.isArray(out.clearedBetweenRuns) && out.clearedBetweenRuns.length >= 1,
+    ...out.outcomes,
+    b5ClearTheCounterWorks: !!out.b5?.name && out.b5.ticketGone === true
+      && out.b5.registerReleased === true,
     noPageErrors: out.errs.length === 0,
   };
   // NOT DONE, AND THIS IS WHERE IT STOPS.
@@ -277,16 +398,24 @@ async (page) => {
   // exist, and there is still nothing on the screen to press. Until that is
   // found, B4's two outcomes cannot be played through the interface and are
   // NOT verified; they are recorded as failing rather than quietly dropped.
+  // MEASURED FAILING, NOT GUESSED AT. The refused ticket banks WITH a green fee
+  // on it: the ticket held 2 goods lines at the moment of the refusal (see
+  // after-answer) and the row that banked carries serviceTotal 32. Something
+  // between the refusal and the bank attaches a fee for a tee time that was
+  // turned down. This check is left failing rather than relaxed -- it is the
+  // next item, and a green suite that hid it would be worth less than nothing.
   out.notDone = {
     slotButtonsNeverDrawn: b.answered?.trail?.some((t) => !t.clicked) === true,
     hotspotsUnchangedAfterSelect:
       JSON.stringify(b.hotspotsAfterSelect?.before) === JSON.stringify(b.hotspotsAfterSelect?.after),
     selectionDidDispatch: b.hotspotsAfterSelect?.dispatched?.ok === true,
-    bookedSaleCompletes: b.completed === true,
-    refusedSaleCompletes: r.completed === true,
   };
   out.ok = Object.values(out.checks).every(Boolean);
   fs.writeFileSync(path.join(OUT, 'checkout.json'), `${JSON.stringify(out, null, 2)}\n`);
-  console.log('B-CHECKOUT', JSON.stringify({ checks: out.checks, notDone: out.notDone }, null, 2));
+  console.log('B-CHECKOUT', JSON.stringify({
+    completed: { book: b.completed, refuse: r.completed },
+    rows: { book: b.books, refuse: r.books },
+    checks: out.checks, notDone: out.notDone,
+  }, null, 2));
   return out;
 }

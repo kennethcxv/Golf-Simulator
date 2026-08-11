@@ -3180,7 +3180,11 @@ export function createRegisterMode(B) {
       const nowMinute = state.clock.minutes % 1440;
       const selectedWalkIn = activeWalkIn();
       const ask = selectedWalkIn ? walkInAsk(selectedWalkIn.customerId) : null;
-      const bookable = !!selectedWalkIn && selectedWalkIn.queueIndex === 0 && !tx;
+      // B1 (Goal 24): `!tx` here was the same wall on the Full Sheet tab -- the
+      // grid the check-in panel's own "Full Sheet" button sends you to, greyed
+      // out for the one customer who needs it. Same rule as everywhere else now.
+      const bookable = !!selectedWalkIn && selectedWalkIn.queueIndex === 0
+        && (!tx || (tx.stage === 'scanning' && !tx.banked));
       const party = selectedWalkIn ? (selectedWalkIn.partySize || 1) : 1;
       let nowMarked = false;
       const rawSheet = daySheet(state, dayAbs);
@@ -7299,9 +7303,28 @@ export function createRegisterMode(B) {
       return true;
     }
     if (action.startsWith('select-walkin:')) {
-      if (tx) {
+      // B1 (Goal 24) — THE LAST WALL, AND IT IS THE SAME ONE AS LAST TIME.
+      //
+      // This was a bare `if (tx)`: selecting a walk-in was refused outright the
+      // moment any ticket existed. Goal 23 corrected exactly this for the desk
+      // ROWS 250 lines above -- "This was `!!tx`: every reservation row on the
+      // desk went grey the moment a ticket existed... One rule now, and it is
+      // the handler's" -- and the walk-in SELECT handler was not part of that
+      // change. So the row painted live, the click ran, and the handler threw
+      // it away. It is the reason the panel drew no slot buttons: nothing was
+      // ever selected.
+      //
+      // AND IT RETURNED TRUE. A handler that refuses and reports success is
+      // indistinguishable from one that acted, which is why the probe read
+      // `ok: true, result: true` while nothing happened. Refusal returns false
+      // now, so an instrument can tell the two apart.
+      //
+      // The rule is `select-reservation:`'s, verbatim: a ticket still being
+      // SCANNED can take a tee time on it -- that is the entire combined visit.
+      // Only a ticket that has started payment is too late to add to.
+      if (tx && (tx.stage !== 'scanning' || tx.banked)) {
         toast(t('till.finishTheActiveTransaction'), 'warn');
-        return true;
+        return false;
       }
       selectedWalkInCustomerId = action.slice('select-walkin:'.length);
       selectedReservationId = null;
