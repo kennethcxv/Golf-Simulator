@@ -794,14 +794,25 @@ export function createLedgerBook({ THREE, state, anchor, counterTop, camera = nu
       ctx.fillText(cells.right, PAGE_W - FOOT_MARGIN, y);
       rightEdge = textBox(ctx, cells.right, CONTROL_FONT(), PAGE_W - FOOT_MARGIN, y, 'right').x0;
     }
-    // the folio only prints if the measured gap actually holds it
+    // I3 (Goal 23) — SAY WHERE YOU ARE, NOT JUST WHICH PAGE THIS IS.
+    //
+    // F1 asks for "obvious at a glance where I am". The folio printed "2". A
+    // bare page number tells you where you are only if you already know how big
+    // the book is, which is exactly the thing a reader does not know. "2 of 10"
+    // answers the question the number was pretending to answer.
+    //
+    // It still only prints if the measured gap holds it: the foot row's key
+    // hints are the load-bearing text and the folio gives way to them, which is
+    // why this is measured rather than assumed to fit.
     if (Number.isFinite(folio)) {
-      const box = textBox(ctx, folio, FOLIO_FONT(), PAGE_W / 2, folioBaseline(), 'center');
+      const pages = spreadCount() * 2;
+      const folioText = pages > 0 ? `${folio} of ${pages}` : String(folio);
+      const box = textBox(ctx, folioText, FOLIO_FONT(), PAGE_W / 2, folioBaseline(), 'center');
       if (box.x0 > leftEdge + 16 && box.x1 < rightEdge - 16) {
         ctx.fillStyle = '#9a927e';
         ctx.font = FOLIO_FONT();
         ctx.textAlign = 'center';
-        ctx.fillText(String(folio), PAGE_W / 2, folioBaseline());
+        ctx.fillText(folioText, PAGE_W / 2, folioBaseline());
       }
     }
     ctx.textAlign = 'left';
