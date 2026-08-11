@@ -4092,6 +4092,10 @@ function boot() {
       autosave();
       return result;
     },
+    // B5 (Goal 24): the laptop's way out of a wedged counter. The clubhouse owns
+    // the verb — it funnels through removeCustomer so the register lets go and
+    // the stock returns — and this only carries the result back to the screen.
+    clearCounterCustomer: () => app.scene3d?.clubhouse?.()?.dismissCounterCustomer?.() ?? null,
   });
   // The laptop component itself, reachable from window.__fw — the drivers already read
   // app.laptopOpen for the door state, and tools/qa/laptop-search-navigate.js needs the

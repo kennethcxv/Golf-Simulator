@@ -3448,6 +3448,40 @@ export function makeLaptop(app, opts) {
           }),
       ),
       note('These preferences change the physical register interaction. They are saved with this club.'),
+      // B5 (Goal 24) — A WAY OUT WHEN THE COUNTER WEDGES.
+      //
+      // "When the game wedges or I do not want them there, I need a way to clear
+      // them. Put it on the laptop." It lives under Checkout rather than on a
+      // business page because it is not a business decision — it voids the
+      // ticket, puts the stock back, and takes the sale with it.
+      card(
+        el('div', { class: 'lt-minihead', text: t('laptop.counterSection') }),
+        row(
+          el('span', { class: 'lt-mulabel', text: t('laptop.sendCustomerAway') }),
+          // `lt-primary lt-danger` is the existing pair for a destructive
+          // action; `lt-btn` (my first guess) has no rule in styles.css at all
+          // and would have drawn as an unstyled browser button on the glass.
+          el('button', {
+            class: 'lt-primary lt-danger',
+            text: t('laptop.clearCounter'),
+            title: 'Voids the open ticket, returns the goods to the shelf, and clears whoever is at the till.',
+            onclick: () => askConfirm(
+              t('laptop.clearCounterAsk'),
+              t('laptop.clearCounter'),
+              () => {
+                const name = opts.clearCounterCustomer?.();
+                // Through t(), like every other message on this screen: a string
+                // handed straight to toast() reaches the player in English on
+                // every locale, which is what the player-strings ratchet counts.
+                toast(name ? t('laptop.counterCleared', { name }) : t('laptop.counterEmpty'),
+                  name ? 'good' : 'warn');
+                render();
+              },
+            ),
+          }),
+        ),
+        meta(t('laptop.clearCounterNote')),
+      ),
     ];
 
     paint(

@@ -9274,12 +9274,34 @@ export function makeClubhouse(ctx) {
     c.deskErrandRaisedMidSale = true;
     c.patience = PATIENCE_FULL;
     setPatience(c);
-    c.dialogue = c.reservationId != null
-      ? 'While I am here, can I check in for my tee time?'
-      : 'One more thing, have you got a time free today?';
+    c.dialogue = combinedVisitDeskLine(c);
     if (hooks.toast) hooks.toast(t('shop.customerSays', { name: c.name, line: c.dialogue }), 'info');
     visitTally.combinedStarted += 1;
     return true;
+  }
+
+  // B2 (Goal 24) — THE ASK NAMES A TIME, because there is nothing to offer
+  // otherwise.
+  //
+  // "One more thing, have you got a time free today?" is a question the player
+  // cannot answer: the desk books a SLOT, and the customer never said which. The
+  // shape already existed for a plain walk-in twenty lines further down
+  // (`could I get the 10:40 tee time?`) and the combined visit simply did not
+  // use it — even though `requestedTeeMinute` is the very field that lets this
+  // errand be raised at all, so the time was always known and never spoken.
+  //
+  // Same flow, same wording shape, same desk buttons: the player offers,
+  // adjusts, or refuses the named time.
+  function combinedVisitDeskLine(c) {
+    if (c.reservationId != null) return 'While I am here, can I check in for my tee time?';
+    const party = c.partySize || 1;
+    if (!Number.isFinite(c.requestedTeeMinute)) {
+      // no minute to name: keep it honest rather than inventing one
+      return `One more thing: anything open today for ${party}?`;
+    }
+    return party > 1
+      ? `One more thing: could we get ${fmtSlot(c.requestedTeeMinute)} for ${party}?`
+      : `One more thing: could I get the ${fmtSlot(c.requestedTeeMinute)} tee time?`;
   }
 
   function beginPendingDesk(c) {
@@ -9323,10 +9345,9 @@ export function makeClubhouse(ctx) {
     if (!c.deskErrandSpoken) {
       c.deskErrandSpoken = true;
       // asked AFTER the goods, and the wording follows whether they hold a
-      // booking or are hoping for one
-      c.dialogue = c.reservationId != null
-        ? 'While I am here, can I check in for my tee time?'
-        : 'One more thing, have you got a time free today?';
+      // booking or are hoping for one. B2 (Goal 24): one authority for the
+      // wording, so the two sites cannot drift into asking differently.
+      c.dialogue = combinedVisitDeskLine(c);
       if (hooks.toast) hooks.toast(t('shop.customerSays', { name: c.name, line: c.dialogue }), 'info');
     }
     visitTally.combinedStarted += 1;
@@ -10334,6 +10355,38 @@ export function makeClubhouse(ctx) {
     return openReservationCustomer(c) || openWalkInCustomer(c);
   }
 
+  // B1/B4 (Goal 24) — THE ASK HAD TO BE ANSWERABLE, AND WAS NOT.
+  //
+  // openWalkInCustomer deliberately excludes anyone still holding goods; that
+  // exclusion is the unpaid-exit guard and it stays. But the desk bridge used it
+  // for two different jobs — "is this person desk business" (routing) and "may
+  // the player act on their request" (the screen) — and the second job needs the
+  // opposite answer. A combined visitor asks for a tee time on the last barcode,
+  // and from that moment:
+  //
+  //   * walkIns() filtered them out, so no row appeared on Check In
+  //   * with no row there was no slot to book and no button to refuse
+  //   * so `deskErrandPending` could never be cleared
+  //   * and the automatic payment advance is gated on !deskErrandOutstanding()
+  //
+  // The result is the owner's B1 exactly: everything bagged, the sale will not
+  // complete, no card offered, and no action anywhere that unsticks it. The
+  // customer asked a question the game gave the player no way to answer.
+  //
+  // This predicate is the SCREEN's answer, never the router's. It admits the one
+  // extra case — a customer mid-sale who has spoken — and nothing else, so
+  // nobody is reclassified as desk business while they still owe for goods.
+  function deskActionableWalkIn(c) {
+    if (!c) return false;
+    if (openWalkInCustomer(c)) return true;
+    return c.customerType === 'walk-in-tee'
+      && c.reservationId == null
+      && !c.reservationReleased
+      && !c.walkInRejected
+      && !!c.deskErrandRaisedMidSale
+      && !!c.deskErrandPending;
+  }
+
   function reservationCustomerSnapshot(c) {
     if (!c || c.reservationId == null) return null;
     const reservation = reservationRecordForCustomer(c);
@@ -10494,7 +10547,7 @@ export function makeClubhouse(ctx) {
     // the room (queued flips true when the counter becomes their STOP, which
     // is decided from across the floor).
     walkIns: () => customers
-      .filter((customer) => openWalkInCustomer(customer)
+      .filter((customer) => deskActionableWalkIn(customer)
         && customer.checkoutPhase !== 'leaving')
       .map((customer) => {
         const queueIndex = customer.queued ? counterQueue.indexOf(customer) : -1;
@@ -10546,7 +10599,7 @@ export function makeClubhouse(ctx) {
     },
     walkInSlotsFor: (customerId) => {
       const customer = customers.find((candidate) => candidate.customerId === customerId);
-      if (!customer || !openWalkInCustomer(customer)) return [];
+      if (!customer || !deskActionableWalkIn(customer)) return [];
       const dayAbs = Math.floor(state.clock.minutes / 1440);
       const slots = walkInAvailability(state, {
         dayAbs,
@@ -10572,7 +10625,7 @@ export function makeClubhouse(ctx) {
     },
     walkInAskFor: (customerId) => {
       const customer = customers.find((candidate) => candidate.customerId === customerId);
-      if (!customer || !openWalkInCustomer(customer)) return null;
+      if (!customer || !deskActionableWalkIn(customer)) return null;
       const asked = Number.isFinite(customer.requestedTeeMinute)
         ? customer.requestedTeeMinute
         : null;
@@ -10587,7 +10640,7 @@ export function makeClubhouse(ctx) {
     },
     bookWalkIn: (customerId, dayAbs, minute) => {
       const customer = customers.find((candidate) => candidate.customerId === customerId);
-      if (!customer || !openWalkInCustomer(customer)) {
+      if (!customer || !deskActionableWalkIn(customer)) {
         return { ok: false, reason: 'That walk-in request is no longer waiting.' };
       }
       if (!customer.queued || counterQueue.indexOf(customer) !== 0) {
@@ -10613,17 +10666,46 @@ export function makeClubhouse(ctx) {
       customer.paymentStatus = result.res.paymentStatus;
       customer.reservationStatus = result.res.status;
       customer.checkInStatus = result.res.checkInStatus;
-      customer.checkoutPhase = 'reservation-waiting';
-      customer.currentDestination = 'front-desk';
+      // B1 (Goal 24): a combined visitor booking mid-sale stays the COUNTER
+      // customer. Reclassifying them as desk business here is the F8 unpaid-exit
+      // escape by another door -- they still have goods on the counter, and the
+      // fee is about to join that same ticket in beginReservationPayment.
+      if (!(customer.deskErrandRaisedMidSale && customer.cart && customer.cart.length)) {
+        customer.checkoutPhase = 'reservation-waiting';
+        customer.currentDestination = 'front-desk';
+      } else {
+        customer.deskErrandPending = false;
+        customer.deskErrandAwaitingAnswer = false;
+      }
       result.res.currentDestination = 'front-desk';
       result.res.checkInStatus = 'waiting';
       return { ...result, customer };
     },
     rejectWalkIn: (customerId) => {
       const customer = customers.find((candidate) => candidate.customerId === customerId);
-      if (!customer || !openWalkInCustomer(customer)) return false;
+      if (!customer || !deskActionableWalkIn(customer)) return false;
       customer.walkInRejected = true;
       customer.deskErrandAwaitingAnswer = false; // B1: turned away IS an answer
+      // B4 (Goal 24) — REFUSING THE TEE TIME MUST NOT LOSE THE SALE.
+      //
+      // Everything below sends the body to the door. For a plain walk-in that is
+      // right: they came for a time, there is no time, they leave. For a
+      // combined visitor it is a customer with UNPAID GOODS ON THE COUNTER being
+      // walked out of the shop by the player answering their question, and the
+      // goods restock as a lost sale.
+      //
+      // Refusal is an ANSWER, so the errand is settled and the payment gate
+      // opens. They stay exactly where they are, at the head of the counter,
+      // and pay for the goods. Just the goods.
+      if (customer.deskErrandRaisedMidSale && customer.cart && customer.cart.length) {
+        customer.deskErrandPending = false;
+        customer.requestedTeeMinute = null;
+        customer.dialogue = 'No luck? Never mind, just these then.';
+        if (hooks.toast) {
+          hooks.toast(t('shop.customerSays', { name: customer.name, line: customer.dialogue }), 'info');
+        }
+        return true;
+      }
       customer.checkoutPhase = 'walk-in-leaving';
       customer.currentDestination = 'exit';
       leaveQueue(customer);
@@ -12243,6 +12325,17 @@ export function makeClubhouse(ctx) {
       // clicks monitorScreenPoint for a row that is not drawn gets null and
       // cannot tell "the row is missing" from "I asked for the wrong id".
       deskHitTargets: () => (register.deskHitTargets ? register.deskHitTargets() : null),
+      // B3 (Goal 24): the status line and its instruction, forwarded the day
+      // they were needed. `ch.register` is a NARROW FACADE — the note on
+      // bagNode above records the three driver runs an unforwarded accessor
+      // costs, and a check that cannot read the screen cannot verify the words
+      // printed on it.
+      // deskAction reports whether the action was DRAWN as well as whether it
+      // ran, which is the difference between "the mouse missed" and "the screen
+      // never offered it" — two opposite causes with one symptom.
+      deskAction: (action) => (register.deskAction ? register.deskAction(action) : null),
+      checkoutStatus: () => (register.checkoutStatus ? register.checkoutStatus() : null),
+      checkoutInstruction: () => (register.checkoutInstruction ? register.checkoutInstruction() : null),
       cardXScreenPoint: () => register.cardXScreenPoint(),
       presentedCashScreenPoint: () => register.presentedCashScreenPoint(),
       // ITEM 12: the offered notes INDIVIDUALLY. presentedCashScreenPoint
@@ -12429,6 +12522,30 @@ export function makeClubhouse(ctx) {
     // read-only QA: the staged-customer HANDLE (sendToCounter returns the
     // display name; drivers need the live entity to watch phases/poses)
     customerByName: (n) => customers.find((c) => c.name === n || c.fullName === n) || null,
+    // B5 (Goal 24) — CLEAR THE PERSON AT THE COUNTER.
+    //
+    // "When the game wedges or I do not want them there, I need a way to clear
+    // them." This is deliberately routed through removeCustomer, which is the
+    // single funnel every shopper already leaves through: it voids the live
+    // transaction so the register cannot bank a sale for goods that have gone
+    // back on the shelf, returns the stock, releases fixture claims, drops them
+    // from the queue and lets the register go. Anything hand-rolled here would
+    // be the money-out-of-nothing bug that comment was written about.
+    //
+    // Reported honestly: nothing to clear returns null rather than pretending.
+    dismissCounterCustomer() {
+      const atTill = register.getCustomer();
+      const target = atTill || counterQueue[0]
+        || customers.find((c) => c.awaitingCheckout || (c.cart && c.cart.length));
+      if (!target) return null;
+      const name = target.fullName || target.name || null;
+      const index = customers.indexOf(target);
+      if (index < 0) return null;
+      // removeCustomer SPLICES the array itself (last line of it). Splicing
+      // again here removed an innocent bystander standing behind them.
+      removeCustomer(index);
+      return name;
+    },
     sendToCounter(skuIds, payMethod = null) {
       const c = spawnCustomer(false);
       if (!c) return null;

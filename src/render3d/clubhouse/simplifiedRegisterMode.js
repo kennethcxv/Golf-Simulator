@@ -2903,7 +2903,16 @@ export function createRegisterMode(B) {
     if (tx.stage === 'card-ready') return 'INSERTING CARD';
     if (tx.stage === 'card-entry') return 'ENTER CARD TOTAL';
     if (tx.stage === 'card-present') return 'CARD PRESENTED';
-    if (unscannedCount(tx) === 0) return 'ALL ITEMS BAGGED';
+    // B3 (Goal 24) — SAY WHAT THE HOLD-UP IS.
+    //
+    // "All items are bagged, the customer's cash is being prepared" was a lie
+    // whenever a tee time was outstanding: nothing was being prepared, the
+    // payment advance was deliberately held for the question the customer had
+    // just asked, and the screen described the state the register WOULD be in if
+    // it were not waiting. The player is owed the reason they are stuck.
+    if (unscannedCount(tx) === 0) {
+      return deskErrandOutstanding() ? 'TEE TIME REQUESTED' : 'ALL ITEMS BAGGED';
+    }
     return workspace === 'scan' ? 'RINGING PRODUCTS' : 'PRODUCTS READY';
   }
 
@@ -2911,6 +2920,13 @@ export function createRegisterMode(B) {
     if (!tx) return 'The register is ready for the next customer.';
     if (tx.stage === 'scanning') {
       if (unscannedCount(tx)) return 'Click each product once to ring it up and place it in the bag.';
+      // B3: the tee time is why payment has not started. Name it, and name the
+      // two ways out — both of which end in the customer paying for the goods.
+      if (deskErrandOutstanding()) {
+        const asked = Number.isFinite(cust?.requestedTeeMinute)
+          ? ` (${fmtSlot(cust.requestedTeeMinute)})` : '';
+        return `Items bagged. The customer wants a tee time${asked}. Book it on Check In to put it on this ticket, or turn it down and they pay for the goods.`;
+      }
       return `All items are bagged. The customer’s ${preferredPayment() === 'cash' ? 'cash' : 'card'} is being prepared.`;
     }
     if (tx.stage === 'card-present') return 'The customer is handing their card across the counter.';
@@ -9199,8 +9215,16 @@ export function createRegisterMode(B) {
     deskHitTargets: () => monitorUi.hotspots()
       .map((h) => ({ id: h.id, kind: h.kind, disabled: h.disabled }))
       .filter((h) => h.id),
+    // B3 (Goal 24): the words on the screen, so a check can read them
+    checkoutStatus: () => checkoutStatus(),
+    checkoutInstruction: () => checkoutInstruction(),
     deskAction: (action) => {
-      const drawn = monitorUi.hotspots().some((h) => h.action === action);
+      // B1 (Goal 24): hotspots carry `id`, and have never carried `action`.
+      // `h.action === action` is therefore false for EVERY hotspot, so this
+      // reported 'not-on-screen' for things plainly on screen and could never
+      // dispatch anything. It is the same mistake the comment directly above
+      // records for deskHitTargets, made twice in one object.
+      const drawn = monitorUi.hotspots().some((h) => h.id === action);
       if (!drawn) return { ok: false, reason: 'not-on-screen', action };
       const result = handleMonitorAction(action);
       return { ok: result !== false, action, result };
