@@ -445,7 +445,7 @@ cheaper to catch at the merge than at the gate. 684 values, zero refusals.
 
 Judgement calls the translators flagged, kept here because a later edit could
 undo them by accident: `till.method.card` / `till.method.cash` are written to COMPOSE into
-, so Russian uses the instrumental and Turkish uses
+`till.iWillPayWith`, so Russian uses the instrumental and Turkish uses
 "{method} ile" (reusing those keys as standalone labels would read oddly);
 Russian avoids case inflection on injected names and uses gender-free verb forms
 because the game does not know a customer's gender; and "The deed is done" is a
