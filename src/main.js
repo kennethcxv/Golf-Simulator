@@ -2650,6 +2650,7 @@ canvas.addEventListener('pointerdown', (e) => {
     }
     const tool = walkActive() && app.scene3d.walk.getTool();
     if (e.button === 0 && tool) {
+      toolPressStartedAt = performance.now(); // Verifier 3 finding 1: tap vs hold
       const toggle = preferences.values.accessibility.toolActivation === 'toggle';
       const active = toggle ? !app.scene3d.walk.isSpraying() : true;
       app.scene3d.walk.setSpraying(active);
@@ -2696,9 +2697,33 @@ canvas.addEventListener('pointermove', (e) => {
   dragging.lastY = e.clientY;
 });
 
+// VERIFIER 3, FINDING 1 — SILENCE ON A WRONG INPUT IS THE FAILURE.
+//
+// A stranger spent fifteen minutes on the porch. The door asked them to wash it,
+// they had the washer in hand, they clicked it five times and NOTHING happened:
+// no water, no refusal, no hint. The tool is correct and their input was
+// correct-but-too-short — a held button is the use trigger, and a tap sets
+// spraying on and off inside a frame, which produces exactly nothing.
+//
+// A player who taps is not doing something forbidden, they are doing something
+// incomplete, and the game had no way to say so. It does now, once per tool per
+// session, so it teaches without nagging the player who already knows.
+const TAP_HINT_MS = 260;
+let toolPressStartedAt = 0;
+const tappedToolsHinted = new Set();
+
 window.addEventListener('pointerup', (e) => {
   if (regActive()) { regApi().onUp(e); return; }
+  const heldFor = toolPressStartedAt ? performance.now() - toolPressStartedAt : Infinity;
+  const tool = walkActive() && app.scene3d.walk.getTool && app.scene3d.walk.getTool();
+  toolPressStartedAt = 0;
   if (preferences.values.accessibility.toolActivation === 'hold') stopToolUse();
+  if (tool && heldFor < TAP_HINT_MS
+    && preferences.values.accessibility.toolActivation === 'hold'
+    && !tappedToolsHinted.has(tool)) {
+    tappedToolsHinted.add(tool);
+    toast(t('hud.holdToUseTool'));
+  }
 });
 
 canvas.addEventListener('pointerup', () => {
