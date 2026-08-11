@@ -1127,9 +1127,13 @@ function startGameNow(state, loadNotice = null, generation = sceneStartGeneratio
   app.scene3d.walk.hooks.recovered = (how) => toast(
     how === 'lastSafe' ? 'Stepped you back to where you last had room.' : 'Moved you clear of the furniture.',
   );
-  app.scene3d.walk.hooks.sfx = (name) => {
+  // G2 (Goal 23): the extra arguments are forwarded. They were dropped here, so
+  // a cue that wants to know HOW FULL the drawer already is — which is the whole
+  // difference between a note landing on wood and a note landing on nine other
+  // notes — could not be told, and every deposit would have sounded identical.
+  app.scene3d.walk.hooks.sfx = (name, ...args) => {
     if (!audio.ready) return;
-    if (audio[name]) { audio[name](); return; }
+    if (audio[name]) { audio[name](...args); return; }
     // E1: an unmapped cue is a sender defect, not a silent no-op. Named once
     // per cue; the list stays readable for QA drivers.
     window.__fwUnknownCues = window.__fwUnknownCues || [];

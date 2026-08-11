@@ -13,6 +13,8 @@ export const CHECKOUT_CUE_APIS = Object.freeze([
   'cashPresent', 'billHandle', 'coinHandle',
   // H2 (Goal 20): notes and coins landing are two different events
   'notesDown', 'coinsDown', 'cardOut',
+  // G2 (Goal 23): money landing IN THE DRAWER, on top of what is already there
+  'billDeposit', 'coinDeposit',
   'drawerUnlock', 'drawerOpen', 'drawerClose',
   'changeSelect', 'changeHandoff',
   'receiptPrint', 'receiptTear',
@@ -1220,6 +1222,50 @@ export function makeAudio(preferences = null) {
   // several bright partials that arrive slightly apart, because they never land
   // all at once.
 
+  // G2 (Goal 23) — THE MONEY GOING INTO THE DRAWER. ITS OWN VOICE.
+  //
+  // "Still cannot hear it. What I want is each note or coin LANDING ON THE ONE
+  // BEFORE IT — that stacking, satisfying sound. Not the handling rustle, which
+  // is what billHandle/coinHandle currently play."
+  //
+  // He is exactly right about the mechanism: settleTenderDrag, the one place a
+  // piece is actually deposited, fired `billHandle`/`coinHandle` — the sound of
+  // money being MOVED IN THE HAND. There was never a deposit sound at all, so
+  // the most satisfying moment in the whole checkout was scored with a rustle.
+  //
+  // What separates a landing from a handling is a TRANSIENT: a rustle is a
+  // sustained brush with no attack, a landing is an impact with a decay. And
+  // what makes it stack is the pile it lands on — the first note hits a wooden
+  // well and thuds; the tenth hits nine notes and barely does. `depth` (0..1,
+  // how full the compartment already is) shortens the thud and lifts the
+  // partials, which is the whole "on the one before it" effect.
+  function billDeposit(depth = 0) {
+    const d = Math.max(0, Math.min(1, Number(depth) || 0));
+    // the slap of the note going flat onto the pile — short, broad, with attack
+    checkoutNoise({ dur: 0.055, band: 1750 + 500 * d, toBand: 850, q: 1.1, peak: 0.040, attack: 0.0015 });
+    // the well underneath, which is what a full drawer takes away
+    checkoutTone({
+      at: 0.004, freq: 128 - 22 * d, to: 82 - 14 * d, type: 'triangle',
+      dur: 0.085 - 0.03 * d, peak: 0.030 * (1 - 0.45 * d), filter: 480,
+    });
+    // and a short paper settle after it, so it reads as coming to rest
+    checkoutNoise({ at: 0.045, dur: 0.07, band: 2400, toBand: 1500, q: 0.7, peak: 0.014 });
+  }
+
+  function coinDeposit(depth = 0) {
+    const d = Math.max(0, Math.min(1, Number(depth) || 0));
+    // metal on metal: two close partials, the second a beat later, because a
+    // coin never lands flat first time
+    checkoutTone({ freq: 2450 + 380 * d, to: 2180 + 380 * d, type: 'triangle', dur: 0.055, peak: 0.030, attack: 0.001 });
+    checkoutTone({ at: 0.013, freq: 3320 + 460 * d, to: 2960 + 460 * d, type: 'sine', dur: 0.075, peak: 0.020, attack: 0.001 });
+    // the ring it leaves behind — this is the part that says "on the one before"
+    checkoutTone({ at: 0.02, freq: 1560 + 240 * d, to: 1500 + 240 * d, type: 'sine', dur: 0.20, peak: 0.013, attack: 0.002 });
+    // the tray under it, fading out as the compartment fills
+    checkoutTone({ at: 0.002, freq: 190, to: 120, type: 'triangle', dur: 0.06, peak: 0.022 * (1 - 0.55 * d), filter: 620 });
+    // the little rattle of it settling against its neighbours
+    checkoutNoise({ at: 0.03, dur: 0.06, band: 4200, toBand: 3000, q: 1.6, peak: 0.010 * (0.4 + 0.6 * d) });
+  }
+
   function notesDown() {
     // the brush of the notes...
     checkoutNoise({ dur: 0.16, band: 980, toBand: 1900, q: 0.5, peak: 0.030, attack: 0.008 });
@@ -2238,6 +2284,8 @@ export function makeAudio(preferences = null) {
     cardOut,
     billHandle,
     coinHandle: coin,
+    billDeposit,
+    coinDeposit,
     drawerUnlock,
     drawerOpen: drawer,
     drawerClose,

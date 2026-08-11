@@ -941,7 +941,7 @@ export function createRegisterMode(B) {
   const canvas = B.ctx.canvas || document.querySelector('canvas');
   const focusOn = B.ctx.focusOn || (() => {});
   const clearFocus = B.ctx.clearFocus || (() => {});
-  const sfx = (name) => { if (hooks.sfx) hooks.sfx(name); };
+  const sfx = (name, ...args) => { if (hooks.sfx) hooks.sfx(name, ...args); };
   const toast = (message, kind) => (hooks.toast ? hooks.toast(message, kind) : null);
   const displayClubName = () => checkoutDisplayClubName(state);
   const activeRegisterGtaoOverride = createScopedBooleanOverride({
@@ -6320,7 +6320,20 @@ export function createRegisterMode(B) {
     drag.mesh.removeFromParent();
     tenderMeshes = tenderMeshes.filter((mesh) => mesh !== drag.mesh);
     refillDrawerMoney();
-    sfx(BILLS.includes(drag.denom) ? 'billHandle' : 'coinHandle');
+    // G2 (Goal 23) — THE DEPOSIT HAS ITS OWN VOICE NOW.
+    //
+    // This line played `billHandle`/`coinHandle`: the sound of money being
+    // MOVED IN THE HAND. There was no deposit sound anywhere in the build, so
+    // the most satisfying moment in the checkout was scored with a rustle --
+    // which is exactly what the owner reported twice.
+    //
+    // `depth` is how full that denomination's compartment already is, so the
+    // first note thuds into a wooden well and the tenth lands on nine notes.
+    // That is the "on the one before it" the brief asks for, and it is real
+    // rather than a fixed sample played over and over.
+    const stackedNow = Number(deposited.drawer?.[drag.denom]) || 1;
+    const depth = Math.max(0, Math.min(1, (stackedNow - 1) / 9));
+    sfx(BILLS.includes(drag.denom) ? 'billDeposit' : 'coinDeposit', depth);
     if (deposited.deposited) {
       if (checkoutFlowState() === 'DrawerOpening' && drawerAmount >= 0.98) {
         flowTo('DepositingCash', 'drawer-open-and-player-depositing-cash');

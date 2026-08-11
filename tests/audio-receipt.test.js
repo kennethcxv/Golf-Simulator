@@ -74,6 +74,11 @@ const EXPECTED_CHECKOUT_CUES = [
   // H2 (Goal 20): notes and coins landing on the desk are two different events,
   // and the card leaving the wallet is not the terminal's chirp.
   'notesDown', 'coinsDown', 'cardOut',
+  // G2 (Goal 23): money landing IN THE DRAWER is a third event again, and it is
+  // not the handling rustle. settleTenderDrag played billHandle/coinHandle --
+  // the sound of money moving in the hand -- for every deposit, which is why
+  // "I still cannot hear the cash going in" survived two rounds.
+  'billDeposit', 'coinDeposit',
   'drawerUnlock', 'drawerOpen', 'drawerClose',
   'changeSelect', 'changeHandoff',
   'receiptPrint', 'receiptTear',
