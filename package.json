@@ -42,6 +42,8 @@
     "troika-three-text": "^0.52.5"
   },
   "dependencies": {
+    "@recast-navigation/core": "^0.43.1",
+    "@recast-navigation/generators": "^0.43.1",
     "three": "^0.185.1"
   },
   "allowScripts": {
