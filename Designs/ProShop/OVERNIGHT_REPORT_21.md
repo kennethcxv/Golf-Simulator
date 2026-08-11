@@ -117,22 +117,192 @@ have frame evidence attached.
 
 ---
 
+# VERIFIER 3 — THE OPENING RUN
+
+Real input, no concessions used, 88 shots, ~25 minutes, game clock 6:04 → 8:47.
+
+> **Did they get inside the pro shop? NO. Never.**
+
+The door states its price clearly ("Clear the entrance and wash the porch before
+repairing the doors") and the rail even carries live numbers ("wash to 60%,
+currently 11%"). It still could not be done, for three reasons, and one of them
+was not on anyone's list:
+
+1. **The door-pocket warp trap** — eight "Stepped you back to where you last had
+   room" toasts; every walk over ~1.5 s warped them into the front-door alcove,
+   once from mid-lawn during a sprint. **A third of the session.** Fixed, X1.
+2. **The critical path is hold-only**, and the bridge has no mouse-hold command,
+   so the 60% wash gate was untestable end to end. The Goal-20 tap hint *did*
+   fire and was quoted back verbatim ("Hold the button down to use a tool. A tap
+   does nothing.") — a stranger-verified fix, and still not enough on its own.
+3. **"Clear the entrance" maps to no verb the player can find.** Debris ignores
+   E and X *silently*, and the tool belt holds washer, hose, divot kit and rake —
+   no broom, no debris bag. The Debris bag exists, unconnected, in the tablet's
+   equipment list.
+
+Its other findings, all now on NOT DONE: the bunker rake viewmodel fills the top
+third of the screen with deformed lumps; no current task is visible without
+opening a menu, and the trackers that exist are only discoverable from the pause
+menu's Controls page; the Q chip says "reveal dirt" but omits that it is a hold;
+Tab opens on blank forest with no player pin and no legend, and its view chips
+are overlapped by the phone badge; failed E/X interactions are completely silent;
+unhealthy turf renders as flat salmon that reads as a debug tint.
+
+What it praised: a ~6 s boot to a clean menu with a correctly-disabled Continue,
+the door's live requirement numbers, tools that teach their own controls on
+equip, held-Q's dirt reveal ("excellent"), the muddy footprints and CLOSED
+plaque selling the fantasy, an honest pause menu, and a management layer that is
+genuinely deep once found.
+
+**Harness debt it found:** PowerShell's `Add-Content -Encoding utf8` puts a BOM
+on the first line of `commands.jsonl` and the bridge drops that line silently;
+and a pointer-locked `click` steers the camera before clicking, so DOM surfaces
+must be driven by keyboard. Both belong in the bridge.
+
+---
+
+# A — THE QUEUE
+
+## A1 "IN QUEUE" is deleted
+
+Not fixed — removed. Three sessions went into making that badge tell the truth;
+the answer is that it should not exist. The check-in screen shows the person **at
+the desk** and nobody else, because everyone behind them has not asked for
+anything yet, and a row for someone who has not spoken is a row the player can
+plan against before the conversation happens. That is why it kept reading wrong
+however accurate the label became. The constants are gone too — a constant left
+lying about is how a deleted concept comes back.
+
+## A2 The front of the line never leaves
+
+Positions one and two are unconditional, however long it takes. From third place
+back, patience is real, and that is where the pressure the game wants actually
+lives: felt by the people you have not started on, not by the one you are halfway
+through serving.
+
+The rule sits at the single live fuse rather than at its call sites, because
+copies are how the last one drifted. **Its test caught a live defect:**
+`Number(null)` is `0`, and `0` is the front of the line, so any customer whose
+queue position came back null would have been pinned in the shop for ever,
+unable to leave. Second time this exact coercion has bitten.
+
+**A correction that belongs at the top of this section:** the rule was first
+written into `clubhouse/customers.js` — see section B — and would have done
+nothing. It is in `clubhouse.js` now.
+
+---
+
+# B — NPCs STILL WALK INTO THINGS
+
+## What the check measured, and why it passed
+
+Eight headless tests called `steerAround` directly against a hand-drawn room of
+literal boxes. All eight were correct. All eight passed.
+
+**Not one of them asked whether the shop ever calls it — and it does not.**
+
+`src/render3d/clubhouse/customers.js` is 1,400 lines containing `resolveMotion`,
+`servicePatienceExpired`, the queue handling and the look-ahead I added. Its only
+export, `createCustomerView`, **has zero call sites**. No file imports it, there
+is no dynamic import, and the two references to it anywhere in the repository are
+a comment and a test that reads it as *text*. The live customer loop is inline in
+`clubhouse.js`.
+
+That is shape 2 — zero call sites — at a scale nobody had considered: not a
+function, a whole module.
+
+## The hypothesis I had, and why measurement killed it
+
+I predicted shape 5, "shipped disabled", and blamed my own `minTravel: 0.62`
+guard against nav waypoints that are shifted at 0.28. It was a good story. It was
+wrong. On the live path:
+
+```
+calls 3269   engaged 3006 (92.0%)   tooShort 263   steered 297 (9.1%)   trapped 0
+travel mean 3.617 yd   max 12.02 yd   minTravel 0.62
+```
+
+The guard never mattered. Recorded in `FOUND_FALSE.md` as a refuted hypothesis,
+because one that measurement kills is worth as much as one it confirms.
+
+## What landed
+
+The look-ahead now runs where customers actually walk, using an occupancy test
+that mirrors `resolveCustomer` exactly — a look-ahead that disagrees with the
+resolver makes the walker jitter between two opinions. Counters ride on
+`navBlockDiagnostics().steer`, so "does this code run" is never again a question
+that needs a hypothesis.
+
+**Still UNCONFIRMED:** the brief asks for a clip following one customer past two
+obstacles and a second customer, with the frames where the course changes named.
+297 course changes in a minute is a number, not a clip, and B is a found-false
+item. Not claimed done.
+
+---
+
+# SECTION X — THE ONBOARDING BLOCKER
+
+## X1 The warp trap
+
+The mechanism is not a bug in any single line. Breadcrumbs are only recorded
+while **not** overlapping, so inside a persistent snag zone none are ever added;
+the newest surviving crumb is therefore wherever the player last stood cleanly,
+which can be minutes old and yards away; and `recall()` teleported them to it.
+
+A crumb now only counts as "where you last had room" if it is both **recent and
+near**. When none qualifies, `recall` declines and the caller falls through to
+`nearestFree` — a local step out of the geometry, which is what a player expects.
+The unbounded search is kept for the pause menu's own Unstick button, where the
+player has explicitly asked to be moved.
+
+Seven tests; **four fail on the old recall**, including the mid-lawn sprint
+verbatim.
+
+**Method note worth more than the fix:** the first attempt at that watched-fail
+silently patched nothing, and all seven tests passed. That would have been
+recorded as proof. It was caught only because passing was the wrong answer. A
+revert must now assert that it changed the file.
+
+---
+
 # RUNNING LISTS
 
 ## UNCONFIRMED
 
-_(nothing yet)_
+- **B** — the look-ahead demonstrably runs (92% engaged, 297 course changes) but
+  the brief asks for a **clip** naming the frames where a customer changes
+  course. B is a found-false item, so the clip is mandatory. Not claimed done.
+- **A2** — the rule is live and unit-tested; the brief asks for a queue of four
+  draining on a clip. Not claimed done.
+- **X1** — seven tests and a watched fail, but a stranger has not yet walked the
+  porch again. Verifier 3's closing run is the check that counts.
 
 ## NOT DONE
 
 - **Goal 20 F1, F2, F5** — the ledger's UI rebuild, its sounds, its open/close
-  gesture. Frame evidence in `qa/clips/ledger/tiles-10.png`.
+  gesture. Frame evidence in `qa/clips/ledger/tiles-10.png`: the shut book
+  presents as a flat card, the open book fills the frame and does not move for
+  25 frames, and the pages are empty.
 - **Goal 20 E2** — the card in the fingers. A measuring probe was written rather
   than a fourth guess; it returned null and needs work before the fix does.
+- **X2** — the pressure washer still gives nothing on a tap but the hint.
+- **X3** — the current task is invisible without opening a menu.
+- **X4** — the Tab overview has no player marker and no legend.
+- **C, D, E, F, G, H** — the mop's density and weight, the phone's mouse and
+  icons, the loading screen, the door lag, the translations, the draw calls.
+- **The bunker rake viewmodel** — deformed lumps filling the top third of the
+  screen (Verifier 3, finding 3).
+- **Silent E/X on debris**, and **"clear the entrance" mapping to no findable
+  verb** — the second half of why a stranger cannot get inside.
 
 ## VERIFIER FINDINGS STILL OPEN
 
-_(Verifier 3's opening run in flight)_
+Verifier 3's opening run, above: findings 2 through 9 are all open except the
+warp trap. Full write-up in `Designs/ProShop/verifier3_goal21_open.md`.
+
+**Harness debt:** the bridge drops a BOM'd first command line silently, and
+pointer-locked clicks steer the camera before clicking. Both need fixing before
+the closing stranger run, or that run inherits the same blindfold.
 
 ## FIXED BUT NOT ASKED FOR
 
