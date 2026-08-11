@@ -32,8 +32,11 @@ identified across Goals 18-20; the fourth and fifth were identified in Goal 21.
 | 4 | **Two selectors** — two different rules answer the same question, and the fix configured the one that does not run | *Which branch actually chose, and does it read what I set?* |
 | 5 | **Shipped disabled** — the fix is behind a guard that is almost never true in play | *Under what live conditions does this code execute at all?* |
 
-Shape 4 was found in Goal 21 (the ledger station selector). Shape 5 is the
-suspected cause of the NPC look-ahead's failure and is under investigation.
+Shape 4 was found in Goal 21 (the ledger station selector). Shape 5 was HYPOTHESISED
+for the NPC look-ahead and then REFUTED by measurement — the guard it blamed runs
+92% of the time. The real cause was shape 2 at a scale nobody had considered: a
+whole module with no importer. The hypothesis is kept because it is a real shape
+worth checking for, but it did not explain this one.
 
 ---
 
@@ -53,7 +56,7 @@ suspected cause of the NPC look-ahead's failure and is under investigation.
 |---|---|---|---|---|
 | 1 | Customers recover when stuck | The 1-second recovery fired | Recovery after contact is not avoidance | — |
 | 2 | Look-ahead added; they change course before contact | 8 headless tests against a hand-drawn room, all passing | The room was hand-drawn. Nothing measured whether the look-ahead runs in the real shop | 2 |
-| 3 | *(Goal 21, open)* They still bump into things | — | Under investigation; the `minTravel` guard is the suspect | **5?** |
+| 3 | Look-ahead added; they change course before contact | 8 headless tests, all passing | **The entire module the fix lives in — `clubhouse/customers.js`, 1,400 lines — is imported by NOTHING.** The live customer loop is inline in `clubhouse.js`. Eight tests passed against code the game never loads | **2, at module scale** |
 
 ### The broom — 3 appearances
 

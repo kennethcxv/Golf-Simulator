@@ -106,7 +106,8 @@ import {
   slotTimes, resolveTeeTimeRequest,
   // (the walk-in ask rule lives in the sim; see the import below)
 } from '../sim/reservations.js';
-import { walkInAskFrom } from '../sim/customerSimulation.js';
+import { walkInAskFrom, queuePositionMayAbandon } from '../sim/customerSimulation.js';
+import { steerAround, STEER_DEFAULTS } from './clubhouse/steerAhead.js';
 import {
   allocateCustomerIdentity, customerIdentityById, paymentChoiceDialogue,
   recordCustomerVisit,
@@ -10540,6 +10541,30 @@ export function makeClubhouse(ctx) {
     }
   }
 
+  // B (Goal 21): the SAME occupancy test resolveCustomer enforces, asked as a
+  // question about a point rather than applied as a correction. The two must
+  // agree exactly — a look-ahead that avoids something the resolver would have
+  // allowed makes the walker jitter on the boundary between the two opinions.
+  // The customer is held in a slot rather than closed over, because this runs
+  // several times per walker per frame.
+  const steerStats = {
+    calls: 0, engaged: 0, tooShort: 0, steered: 0, trapped: 0, travelSum: 0, travelMax: 0,
+  };
+  let _steerCustomer = null;
+  function _customerBlockedAt(px, pz) {
+    const r = 0.3;
+    for (const col of custCols) {
+      if (col.door) continue; // a doorway is a way through, not a wall
+      if (px + r > col.minX && px - r < col.maxX && pz + r > col.minZ && pz - r < col.maxZ) return true;
+    }
+    if (walk.active && Math.hypot(px - walk.x, pz - walk.z) < 0.72) return true;
+    for (const o of customers) {
+      if (o === _steerCustomer || !o.mesh) continue;
+      if (Math.hypot(px - o.mesh.position.x, pz - o.mesh.position.z) < 0.6) return true;
+    }
+    return false;
+  }
+
   function resolveCustomer(c, nx, nz) {
     const r = 0.3;
     for (const col of custCols) {
@@ -10851,7 +10876,20 @@ export function makeClubhouse(ctx) {
         // shop's day: at 16x a customer must not wait sixteen game-hours for a
         // cashier just because the wall clock says ten minutes.
         c.preServiceWait = (c.preServiceWait || 0) + decisionDt;
-        if (c.preServiceWait > PATIENCE_FULL) {
+        // A2 (Goal 21) — THE FRONT OF THE LINE NEVER LEAVES.
+        //
+        // A customer queues, waits while the player serves the person ahead,
+        // reaches the front, and walks out before they can be served. Whatever
+        // that modelled, what the player experiences is being punished for
+        // doing the job correctly. Positions one and two are unconditional;
+        // from third place back patience is real, and that is where the
+        // pressure the game wants actually lives.
+        //
+        // THIS IS THE LIVE FUSE. The same rule was first written into
+        // clubhouse/customers.js, which turns out to be imported by nothing —
+        // see the note in section B of Report 21.
+        if (c.preServiceWait > PATIENCE_FULL
+          && queuePositionMayAbandon(counterQueue.indexOf(c))) {
           beginCustomerImpatientBeat(c);
           continue;
         }
@@ -11199,7 +11237,28 @@ export function makeClubhouse(ctx) {
         const wdz = wp.z - c.mesh.position.z;
         const wdist = Math.hypot(wdx, wdz) || 1;
         const step = Math.min(wdist, c.speed * moveDt); // capped: see LOCOMOTION_SPEED_CAP
-        const res = resolveCustomer(c, c.mesh.position.x + (wdx / wdist) * step, c.mesh.position.z + (wdz / wdist) * step);
+        // B (Goal 21) — LOOK BEFORE STEPPING, IN THE CODE THAT ACTUALLY RUNS.
+        //
+        // resolveCustomer below is penetration resolution: it can only push a
+        // walker back out of something it is already inside, which is why a
+        // shopper grinds along a shelf end until the stuck timer notices. The
+        // look-ahead turns the heading first, by the smallest angle that clears.
+        //
+        // This was written last session into clubhouse/customers.js, which is
+        // imported by NOTHING — eight headless tests passed against a module the
+        // game never loads. That is why the owner still watched customers walk
+        // into things. Same code, now on the live path.
+        _steerCustomer = c;
+        const heading = steerAround(
+          c.mesh.position.x, c.mesh.position.z, wdx, wdz, wdist, _customerBlockedAt,
+        );
+        steerStats.calls += 1;
+        if (wdist > STEER_DEFAULTS.minTravel) steerStats.engaged += 1; else steerStats.tooShort += 1;
+        if (heading.steered) steerStats.steered += 1;
+        if (heading.trapped) steerStats.trapped += 1;
+        steerStats.travelSum += wdist;
+        if (wdist > steerStats.travelMax) steerStats.travelMax = wdist;
+        const res = resolveCustomer(c, c.mesh.position.x + heading.x * step, c.mesh.position.z + heading.z * step);
         const moved = Math.hypot(res.nx - c.mesh.position.x, res.nz - c.mesh.position.z);
         c.mesh.position.x = res.nx;
         c.mesh.position.z = res.nz;
@@ -12052,6 +12111,19 @@ export function makeClubhouse(ctx) {
     navBlockDiagnostics: () => ({
       total: navBlocksTotal,
       recent: navBlockLog.slice(-120),
+      // B (Goal 21): how often the look-ahead actually RUNS in the real shop,
+      // as opposed to in a test's hand-drawn room. engagedPct near zero means
+      // it is shipped disabled and every passing test measured unreached code.
+      steer: {
+        ...steerStats,
+        engagedPct: steerStats.calls
+          ? +(100 * steerStats.engaged / steerStats.calls).toFixed(1) : 0,
+        steeredPct: steerStats.calls
+          ? +(100 * steerStats.steered / steerStats.calls).toFixed(1) : 0,
+        travelMean: steerStats.calls
+          ? +(steerStats.travelSum / steerStats.calls).toFixed(3) : 0,
+        minTravel: STEER_DEFAULTS.minTravel,
+      },
       // G2: how near the sliding branch came to firing, and how often it was
       // the only thing that saw a stuck customer
       progressPeakSeconds: +navProgressPeak.toFixed(2),

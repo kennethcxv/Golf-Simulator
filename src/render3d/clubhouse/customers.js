@@ -8,7 +8,7 @@
 import * as THREE from 'three';
 import { characterYawToward, makeCharacter } from '../characterAsset.js';
 import { makeNav } from './nav.js';
-import { steerAround } from './steerAhead.js';
+import { steerAround, STEER_DEFAULTS } from './steerAhead.js';
 import { skuById } from '../../data/shopItems.js';
 import { REGISTER } from '../../data/shopLayout.js';
 import { placedFixtures } from '../../sim/layout.js';
@@ -405,6 +405,7 @@ export function createCustomerView(B, options) {
   // The actor is held in a module slot rather than closed over, because this is
   // called several times per actor per frame and a fresh closure each time is
   // garbage the frame does not need.
+  const steerStats = { calls: 0, engaged: 0, tooShort: 0, steered: 0, trapped: 0, travelSum: 0, travelMax: 0 };
   let _steerActor = null;
   function _isBlockedAt(px, pz) {
     const radius = 0.3;
@@ -508,6 +509,19 @@ export function createCustomerView(B, options) {
     const heading = steerAround(
       root.position.x, root.position.z, dx, dz, distance, isBlockedForActor(actor),
     );
+    // B (Goal 21) — DOES THIS CODE EVER RUN? The look-ahead passed eight
+    // headless tests against a hand-drawn room and the owner still watches
+    // customers walk into things. Nothing measured whether it EXECUTES here, so
+    // these counters do. They are four integer increments on a path that
+    // already composes matrices; the cost is not measurable and the answer is
+    // otherwise unobtainable.
+    steerStats.calls += 1;
+    if (distance > STEER_DEFAULTS.minTravel) steerStats.engaged += 1;
+    else steerStats.tooShort += 1;
+    if (heading.steered) steerStats.steered += 1;
+    if (heading.trapped) steerStats.trapped += 1;
+    steerStats.travelSum += distance;
+    if (distance > steerStats.travelMax) steerStats.travelMax = distance;
     const resolved = resolveMotion(
       actor,
       root.position.x + heading.x * step,
@@ -1349,6 +1363,16 @@ export function createCustomerView(B, options) {
       })),
       runtimeSeconds,
       pool: { active: actors.length, available: pool.length, created: actors.length + pool.length },
+      // B (Goal 21): how often the look-ahead actually runs in the real shop,
+      // as opposed to in a test's hand-drawn room.
+      steer: {
+        ...steerStats,
+        engagedPct: steerStats.calls
+          ? +(100 * steerStats.engaged / steerStats.calls).toFixed(1) : 0,
+        travelMean: steerStats.calls
+          ? +(steerStats.travelSum / steerStats.calls).toFixed(3) : 0,
+        minTravel: STEER_DEFAULTS.minTravel,
+      },
     };
   }
 
