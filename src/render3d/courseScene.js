@@ -252,6 +252,24 @@ export const GTAO_CONFIG = Object.freeze({
 const WALK_FOCUS_MIN_FACING = 0.3;
 const WALK_FOCUS_CROSS_TRACK_WEIGHT = 3.8;
 const WALK_FOCUS_DEPTH_WEIGHT = 0.18;
+// Decision 3 (Goal 24): what counts as "under the crosshair" rather than merely
+// "nearby". BOTH gates have to pass, and they bind at opposite ends of the
+// range, which is the point:
+//
+//   * the ANGLE is what "aimed at" actually means — the crosshair is a point on
+//     the screen, so the test is how far off centre the prop draws. It does the
+//     work at close range. A yards-only gate was the first version and it let
+//     the book win while the player looked level over the desk from a yard
+//     away: 0.3 yd below the eye-line is well inside 0.6 yd, and reads on
+//     screen as a third of the way down the picture. That is not aimed at.
+//   * the YARDS cap does the work at distance, where a fixed angle sweeps an
+//     ever-wider circle and would start claiming things across the room.
+//
+// 12 deg comfortably covers the ledger's whole cover at every range a player
+// reads it from (the cover subtends about 9 deg at a yard), so this is a gate on
+// aim, not a demand for marksmanship.
+const WALK_CROSSHAIR_YD = 0.6;
+const WALK_CROSSHAIR_MIN_FACING = Math.cos(12 * Math.PI / 180);
 
 // A first-person prop with a real authored Y point should be selected by the
 // crosshair, not merely by whichever XZ origin is closest to the player. The
@@ -7691,12 +7709,52 @@ export function makeCourseScene(canvas, state) {
       const facing = (dx / spatial) * -Math.sin(walk.yaw) * cp
         + (dy / spatial) * Math.sin(walk.pitch)
         + (dz / spatial) * -Math.cos(walk.yaw) * cp;
-      return { dist, facing, score: walkPropFocusScore3d(spatial, facing, focusBias) };
+      return {
+        dist, facing, spatial, score: walkPropFocusScore3d(spatial, facing, focusBias),
+      };
     }
     const safeDist = Math.max(0.001, dist);
     const facing = ((dx / safeDist) * -Math.sin(walk.yaw))
       + ((dz / safeDist) * -Math.cos(walk.yaw));
-    return { dist, facing, score: dist - focusBias };
+    return { dist, facing, spatial: safeDist, score: dist - focusBias };
+  }
+
+  // Decision 3 (Goal 24) — THE CROSSHAIR OUTRANKS THE STATION.
+  //
+  // "If I am aimed at the ledger, the prompt says ledger." The station rule was
+  // written to be forgiving — arrive at a counter looking down at the floor you
+  // were mopping and E still works — and forgiving turned into greedy: standing
+  // anywhere inside the desk's radius, the desk answered for everything,
+  // including the book directly under the crosshair. A documented rule that the
+  // owner and a stranger both read as broken is broken.
+  //
+  // So a prop the player is genuinely AIMED AT now pre-empts both the station
+  // shortcut and the equipped tool's prompt. The gate is deliberately stricter
+  // than the general prop scan's `facing > 0.3` (about 72 deg off axis, which is
+  // "nearby", not "aimed"): the focus point has to land within
+  // WALK_CROSSHAIR_YD of the aim ray, measured as real cross-track distance in
+  // yards. That is the difference between looking AT the book and merely
+  // standing near it holding a mop, and it is why this does not reopen the Goal
+  // 16 complaint it sits on top of — at the till, aimed at the till, the till is
+  // itself the crosshair prop and still wins.
+  function walkPropUnderCrosshair() {
+    let best = null;
+    let bestLabel = '';
+    let bestScore = Infinity;
+    for (const p of walkProps) {
+      const coarseDx = p.x - walk.x;
+      const coarseDz = p.z - walk.z;
+      if (Math.hypot(coarseDx, coarseDz) > p.r + 0.75) continue;
+      const { dist, facing, spatial, score } = walkPropAimScore(p);
+      if (dist > p.r || !Number.isFinite(score) || score >= bestScore) continue;
+      if (!(facing > WALK_CROSSHAIR_MIN_FACING)) continue;
+      const crossTrack = spatial * Math.sqrt(Math.max(0, 1 - facing * facing));
+      if (crossTrack > WALK_CROSSHAIR_YD) continue;
+      const label = p.label();
+      if (!label) continue; // a falsy label = the prop is dormant right now
+      best = p; bestLabel = label; bestScore = score;
+    }
+    return best ? { prop: best, label: bestLabel } : null;
   }
 
   function walkStationPropInReach() {
@@ -7775,6 +7833,17 @@ export function makeCourseScene(canvas, state) {
           return;
         }
       }
+    }
+    // Decision 3 (Goal 24): AIMED BEATS NEARBY. This sits above both the station
+    // shortcut and the equipped-tool blocks, because both of those return early
+    // and either one could answer for a prop the player is looking straight at.
+    // The owner named the station; the tool blocks are the same fault one step
+    // later, and fixing only the named half would have left "I am aimed at the
+    // ledger and the prompt says something else" true with a mop in hand.
+    const aimedProp = walkPropUnderCrosshair();
+    if (aimedProp) {
+      walkFocus = { kind: 'prop', label: aimedProp.label, prop: aimedProp.prop };
+      return;
     }
     // F1 (Full_Goal_16): a work station in reach OUTRANKS the equipped
     // tool's prompt — Q+mop at the till must read the till, not the mop.
@@ -12605,6 +12674,8 @@ export function makeCourseScene(canvas, state) {
       toolFeelSnapshot: () => JSON.parse(JSON.stringify(liveToolFeel)),
       toolFeelApplyOverrides: (overrides) => applyToolFeelOverrides(overrides),
       strandRigFor: (id) => heldGroups[id]?.userData?.strandRig || null,
+      // D (Goal 23): forwarded so the yarn sweep can rebuild between shots.
+      rebuildYarn: (id, overrides) => toolViewmodels.rebuildYarn(id, overrides),
       pushStrandParams,
       // B3/B4: the framing sweep sets a tool's hand anchor live and reads the
       // head's plant back, so the two constraints can be satisfied together

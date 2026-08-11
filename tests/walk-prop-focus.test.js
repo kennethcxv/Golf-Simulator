@@ -9,10 +9,14 @@ const source = fs.readFileSync(new URL('../src/render3d/courseScene.js', import.
 const sliceStart = source.indexOf('const WALK_FOCUS_MIN_FACING');
 const sliceEnd = source.indexOf('// --- asset-idle tracking', sliceStart);
 assert.ok(sliceStart >= 0 && sliceEnd > sliceStart, '3D walk-focus scoring slice is present');
-const scoringSource = source.slice(sliceStart, sliceEnd)
-  .replace('export function walkPropFocusScore3d', 'function walkPropFocusScore3d')
-  .replace('export function walkPropRetainsFocus', 'function walkPropRetainsFocus')
-  .replace('export function walkFocusPromptLabel', 'function walkFocusPromptLabel');
+// Strip EVERY export keyword in the slice, not three named ones. The named list
+// was a tripwire: adding an `export const` inside this range made the whole file
+// die with "Unexpected token 'export'" from inside a Function() constructor, and
+// the stack points at the test rather than at the line that caused it. A slice
+// evaluated as a function body cannot carry an export in any case, so removing
+// them all is required for this technique to work rather than a way of hiding
+// anything. (Recorded in Designs/ProShop/HARNESS_DEBT.md.)
+const scoringSource = source.slice(sliceStart, sliceEnd).replace(/^export /gm, '');
 const {
   walkPropFocusScore3d,
   walkPropRetainsFocus,

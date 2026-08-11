@@ -398,3 +398,25 @@ characters' stride rate"*, and nothing enforces that. Four copies of 8.7 exist
 test's literal). Any stride retune desynchronises the held-tool bob — the "tool
 reads as detached from the body" regression the constant exists to prevent —
 with every check green. **Not fixed here.**
+
+---
+
+## Goal 24
+
+**3 — `tests/walk-prop-focus.test.js` slices source and evals it.** It reads a
+character range out of `courseScene.js`, strips the `export` keyword, and runs
+it through `Function()`. Adding an `export const` anywhere inside that range
+killed the whole file with `SyntaxError: Unexpected token 'export'` — and the
+stack points at the test's own line 20, not at the line that caused it, so the
+error tells you nothing about where to look. Fixed narrowly (strip every
+`export`, not three named ones), but the technique still means any edit inside
+an invisible line range can break a test in a distant file. **The range is
+delimited by two comment strings**; renaming either comment silently changes
+what is under test rather than failing.
+
+**4 — a station-versus-crosshair check that passes on both builds.** The
+Goal 24 driver `electron-d3-crosshair-outranks-station.js` scored identically
+with its own rule reverted, in all three configurations tried. Its checks are
+renamed `noRegression_*` for that reason. Recorded here because the SHAPE
+recurs: a scenario that cannot reach the code it is aimed at looks exactly like
+a scenario in which the code already works.
