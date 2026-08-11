@@ -5470,6 +5470,13 @@ export function createRegisterMode(B) {
         return false;
       }
       selectedReservationId = reservation.id;
+      // ANSWERED. The desk errand is settled on this ticket, so the automatic
+      // payment advance may run again and the post-payment path must not send
+      // them back to the desk for the same errand.
+      if (cust) {
+        cust.deskErrandPending = false;
+        cust.deskErrandAwaitingAnswer = false;
+      }
       layoutGoods();
       drawScreen();
       drawTerm();
@@ -5778,6 +5785,12 @@ export function createRegisterMode(B) {
     if (!laidNotes && !laidCoins) sfx('cashPresent');
   }
 
+  // Has the customer at this counter asked for something the player has not
+  // answered yet? Only true between the last barcode and the desk resolving it.
+  function deskErrandOutstanding() {
+    return !!(cust && cust.deskErrandRaisedMidSale && cust.deskErrandPending);
+  }
+
   function choosePayment(method) {
     if (!tx || tx.stage !== 'scanning') return false;
     paymentAutoTimer = 0;
@@ -5983,6 +5996,19 @@ export function createRegisterMode(B) {
     setScannerFeedback('success', 0.55);
     sfx('scanSuccess');
     sfx('posAdd');
+    // B2 (Goal 23) — THE ASK BELONGS HERE, BEFORE THE PAYMENT.
+    //
+    // The combined visit raised its desk errand from the PAID-SALE site
+    // (clubhouse.js onCustomerPaid), which put the words "one more thing, I
+    // have a tee time" AFTER the money had already been taken. The merged
+    // ticket needs tx.stage === 'scanning' and an unbanked ticket, so one
+    // payment was unreachable in play no matter how correct the machinery was.
+    //
+    // The last barcode is the moment the owner's flow asks for: goods down,
+    // goods scanned, THEN the tee time, then one payment.
+    if (tx.items.length && tx.items.every((candidate) => candidate.scanned)) {
+      try { cust?.onGoodsScanned?.(tx); } catch { /* an ask must never void a scan */ }
+    }
     drawScreen();
     return true;
   }
@@ -8591,7 +8617,20 @@ export function createRegisterMode(B) {
         setWorkspace('monitor');
       }
     }
+    // B2 (Goal 23) — THE MERGE WINDOW WAS ZERO WIDTH.
+    //
+    // The customer asks for their tee time on the last barcode, and in the same
+    // gesture this timer started the payment. attachGreenFeeToTx requires
+    // tx.stage 'scanning', so by the time the words were on screen the ticket
+    // had already moved to 'card-present' and could not take the fee. The ask
+    // arrived and the door shut behind it in the same frame.
+    //
+    // Only the AUTOMATIC advance is held. The player can still choose a payment
+    // method on the monitor and go straight through — that is a decision to
+    // ignore the request, which is theirs to make. What the game may not do is
+    // race past a question the customer just asked.
     if (paymentAutoTimer > 0 && !paymentAutoSuppressed && tx?.stage === 'scanning'
+        && !deskErrandOutstanding()
         && unscannedCount(tx) === 0 && !scanMotion) {
       paymentAutoTimer = Math.max(0, paymentAutoTimer - animationDt);
       if (paymentAutoTimer === 0) choosePayment(preferredPayment());
@@ -8961,6 +9000,25 @@ export function createRegisterMode(B) {
     bagIsAtCounter: () => !!(bagGroup && bagGroup.visible
       && bagGroup.userData?.checkoutOwner !== 'customer'),
     getCustomer: () => cust,
+    // THE DESK SCREEN, DRIVEN THE WAY THE PLAYER DRIVES IT (Goal 23).
+    //
+    // handleMonitorAction is only reachable through a raycast onto the screen
+    // plane, so a driver either hunts for pixel coordinates on a canvas texture
+    // or gives up and calls the sim underneath — and calling the sim underneath
+    // is exactly how "buy and book in one visit" was reported done twice while
+    // no player could do it.
+    //
+    // deskAction REFUSES an action that is not currently drawn and hit-testable.
+    // That is the whole point: it can only do what the player could do at this
+    // instant, so a green result means the row was on screen and the click
+    // would have landed.
+    deskHitTargets: () => monitorUi.hotspots().map((h) => h.action).filter(Boolean),
+    deskAction: (action) => {
+      const drawn = monitorUi.hotspots().some((h) => h.action === action);
+      if (!drawn) return { ok: false, reason: 'not-on-screen', action };
+      const result = handleMonitorAction(action);
+      return { ok: result !== false, action, result };
+    },
     getFlow: () => (tx && tx.checkoutFlow ? tx.checkoutFlow : null),
     checkoutWatchdogDiagnostics: () => ({
       managedStates: [...SIMPLIFIED_REGISTER_WATCHDOG_STATES],

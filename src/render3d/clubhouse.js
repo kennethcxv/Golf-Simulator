@@ -103,7 +103,7 @@ import { ceilingCircuitPowered as ceilingCircuitPoweredSim } from '../sim/clubho
 import {
   dueForCheckIn, dueForArrivals, markReservationEnRoute, markReservationArrived,
   walkInAvailability, selectWalkInSlot, fmtSlot, deskReservationList,
-  slotTimes, resolveTeeTimeRequest,
+  slotTimes, resolveTeeTimeRequest, reservationById,
   // (the walk-in ask rule lives in the sim; see the import below)
 } from '../sim/reservations.js';
 import { walkInAskFrom, queuePositionMayAbandon } from '../sim/customerSimulation.js';
@@ -9210,9 +9210,52 @@ export function makeClubhouse(ctx) {
   // at the same counter without queueing twice. Called from the paid-sale
   // site; returns false when there is nothing pending, which leaves a
   // shop-only customer's behaviour exactly as it was.
+  // B2 (Goal 23) — THE ASK, RAISED WHILE THE TICKET IS STILL OPEN.
+  //
+  // WHAT THE OLD CHECK MEASURED: tests/one-visit-one-payment.test.js drives
+  // createTx -> scanItem -> attachGreenFeeToTx -> payOnce ->
+  // finalizeReservationCheckIn directly on the sim modules. Eleven tests, all
+  // honest, all green, and not one of them asks whether a customer in the shop
+  // ever reaches that path. They never did: the only thing that raised the tee
+  // time errand was beginPendingDesk, called from the paid-sale site, and
+  // attachGreenFeeToTx requires tx.stage 'scanning' on an unbanked ticket. The
+  // merged ticket was provably correct and structurally unreachable.
+  //
+  // This is the ask itself, and nothing else. It deliberately does NOT
+  // reclassify the customer as desk business, because doing that while they
+  // still hold unpaid goods is the unpaid-exit escape recorded at
+  // openWalkInCustomer: booked or rejected, both desk outcomes released them to
+  // the door and the goods silently restocked as a lost sale. They stay the
+  // counter customer with an open ticket; what changes is that the player now
+  // HEARS the request in time to put it on the same ticket.
+  function raiseDeskErrandAtCounter(c) {
+    if (!c || !c.deskErrandPending || c.deskErrandSpoken) return false;
+    if (c.reservationId == null && !c.requestedTeeMinute) return false;
+    c.deskErrandSpoken = true;
+    c.deskErrandRaisedMidSale = true;
+    c.patience = PATIENCE_FULL;
+    setPatience(c);
+    c.dialogue = c.reservationId != null
+      ? 'While I am here, can I check in for my tee time?'
+      : 'One more thing, have you got a time free today?';
+    if (hooks.toast) hooks.toast(t('shop.customerSays', { name: c.name, line: c.dialogue }), 'info');
+    visitTally.combinedStarted += 1;
+    return true;
+  }
+
   function beginPendingDesk(c) {
     if (!c || !c.deskErrandPending) return false;
     if (c.reservationId == null && !c.requestedTeeMinute) return false;
+    // Already settled on the ticket they just paid: the merged path ran, the
+    // round is checked in, and sending them back to the desk for it would ask
+    // the player to serve the same errand twice.
+    if (c.reservationId != null) {
+      const booking = reservationById(state, c.reservationId);
+      if (booking && booking.status !== 'booked') {
+        c.deskErrandPending = false;
+        return false;
+      }
+    }
     c.deskErrandPending = false;
     // they stay where they are - already at the head of the counter - and
     // become desk business, which is what puts them on the check-in list
@@ -9221,6 +9264,23 @@ export function makeClubhouse(ctx) {
     c.awaitingCheckout = false;
     c.patience = PATIENCE_FULL;
     setPatience(c);
+    // B1 (Goal 23) — NOBODY WHO HAS ASKED FOR SOMETHING LEAVES BEFORE IT IS
+    // ANSWERED.
+    //
+    // Setting checkoutPhase was not enough to keep them here, and this is why
+    // "they announce a tee time and then walk out" survived: the desk branch is
+    // guarded by `stop.kind === 'counter'`, and the shopping route's counter
+    // stop has already been CONSUMED by the purchase that just completed. On
+    // the next frame the route reads 'exit' and the person leaves mid-sentence,
+    // with their own line still on screen.
+    //
+    // So the route is pinned back to the counter, which is where they are
+    // standing and where the answer has to come from.
+    const counterStop = Array.isArray(c.stops)
+      ? c.stops.findIndex((s) => s && s.kind === 'counter') : -1;
+    if (counterStop >= 0) c.stopIdx = counterStop;
+    c.linger = 0;
+    c.deskErrandAwaitingAnswer = true;
     if (!c.deskErrandSpoken) {
       c.deskErrandSpoken = true;
       // asked AFTER the goods, and the wording follows whether they hold a
@@ -10183,6 +10243,25 @@ export function makeClubhouse(ctx) {
 
   function openReservationCustomer(c) {
     if (!c || c.reservationId == null || c.reservationReleased) return false;
+    // GOODS FIRST, THEN THE DESK — TRIED, AND REVERTED WITH EVIDENCE (Goal 23).
+    //
+    // openWalkInCustomer has carried a "still holding goods is a shopper"
+    // exclusion since F8; this predicate never got one, so I added the mirror:
+    //   if (c.cart?.length && !c.bought) return false;
+    //
+    // It fires the F8 invariant. Watched on both builds with the same driver:
+    // WITHOUT it the customer sits at 'reservation-waiting' and the sale runs;
+    // WITH it they flip to 'reservation-leaving' and the console prints
+    // "[F8-INVARIANT] combined visitor reached the exit with 2 unpaid item(s)
+    // after a desk outcome" — the exact escape the exclusion exists to prevent,
+    // caused by adding the exclusion. Something downstream releases a booking
+    // holder who is neither desk business nor due, and that release is the real
+    // bug; the exclusion only exposes it.
+    //
+    // Left out rather than shipped, because a wrong fix that fires a live
+    // invariant is worse than the asymmetry it was meant to correct. The three
+    // changes that DO reach one payment (the ask at scan-complete, the payment
+    // hold, and the desk list) do not need it.
     const reservation = reservationRecordForCustomer(c);
     return !!reservation && reservation.status === 'booked';
   }
@@ -10201,9 +10280,15 @@ export function makeClubhouse(ctx) {
       // lost sale. (__f8LegacyClassifier is the QA-only reintroduction the
       // escape driver's negative control flips on — the ledgerTurnLegacy
       // pattern; never set by the game.)
+      // F8 exclusion, with the one exception it was never meant to cover:
+      // a customer who has ALREADY PAID and has since asked for a tee time.
+      // The escape this guards against is an UNPAID exit — a desk outcome
+      // releasing someone who still owes for the goods in their hands. Once
+      // `bought` is true there is nothing left to escape with, and holding the
+      // exclusion past that point is what made them walk out mid-sentence (B1).
       && (typeof window !== 'undefined' && window.__f8LegacyClassifier
         ? true
-        : !(c.cart && c.cart.length));
+        : (!(c.cart && c.cart.length) || (c.bought && c.deskErrandAwaitingAnswer)));
   }
 
   function openDeskCustomer(c) {
@@ -10249,6 +10334,7 @@ export function makeClubhouse(ctx) {
     if (!c || c.reservationId == null) return false;
     if (c.reservationReleased) return true;
     c.reservationReleased = true;
+    c.deskErrandAwaitingAnswer = false; // B1: the errand has been answered
     c.reservationExitReason = reason;
     // C6: checked in, and they came in for a sleeve of balls as well. The desk
     // is finished with them — `reservationReleased` already removes them from
@@ -10349,7 +10435,17 @@ export function makeClubhouse(ctx) {
       state,
       customers
         .filter((c) => c.reservationId != null && !c.reservationReleased
-          && String(c.checkoutPhase || '').startsWith('reservation'))
+          && (String(c.checkoutPhase || '').startsWith('reservation')
+            // B2 (Goal 23) — THE LAST LINK IN THE ONE-PAYMENT CHAIN.
+            //
+            // A combined visitor mid-sale has checkoutPhase 'placing', not
+            // 'reservation-*', so their booking was absent from the desk list
+            // at exactly the moment they asked for it. The merged-ticket code
+            // was correct, the ask now arrives in time, and the player still
+            // could not find the row to click. Someone standing at the counter
+            // who has just asked to check in is the definition of "physically
+            // here for a booking", which is what this list is for.
+            || c.deskErrandRaisedMidSale))
         .map((c) => c.reservationId),
     ),
     // B2 (Goal 19): the desk list must not outlive the person. A customer who
@@ -10488,6 +10584,7 @@ export function makeClubhouse(ctx) {
       const customer = customers.find((candidate) => candidate.customerId === customerId);
       if (!customer || !openWalkInCustomer(customer)) return false;
       customer.walkInRejected = true;
+      customer.deskErrandAwaitingAnswer = false; // B1: turned away IS an answer
       customer.checkoutPhase = 'walk-in-leaving';
       customer.currentDestination = 'exit';
       leaveQueue(customer);
@@ -11134,6 +11231,10 @@ export function makeClubhouse(ctx) {
             const placed = updateCustomerPlacement(c, dt);
             if (placed && !register.hasTx()) {
               c.onPaid = (transaction) => onCustomerPaid(c, transaction);
+              // B2 (Goal 23): the register owns the barcode, clubhouse owns the
+              // person, so the register says WHEN the goods are all scanned and
+              // this decides what the person does about it.
+              c.onGoodsScanned = () => raiseDeskErrandAtCounter(c);
               c.awaitingCheckout = handPlacedItemsToRegister(c);
             }
           }
@@ -12074,6 +12175,10 @@ export function makeClubhouse(ctx) {
       hint: () => register.hint(),
       monitorActionPoint: (id) => register.monitorActionPoint(id),
       monitorScreenPoint: (id) => register.monitorScreenPoint(id),
+      // B2 (Goal 23): WHAT IS ON THE DESK SCREEN RIGHT NOW. A driver that
+      // clicks monitorScreenPoint for a row that is not drawn gets null and
+      // cannot tell "the row is missing" from "I asked for the wrong id".
+      deskHitTargets: () => (register.deskHitTargets ? register.deskHitTargets() : null),
       cardXScreenPoint: () => register.cardXScreenPoint(),
       presentedCashScreenPoint: () => register.presentedCashScreenPoint(),
       // ITEM 12: the offered notes INDIVIDUALLY. presentedCashScreenPoint
