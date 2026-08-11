@@ -343,13 +343,32 @@ ipcMain.handle('fw:set-resolution', (event, width, height) => {
     // borderless-fullscreen — which is what picking "4K" on a 4K monitor
     // means. (Previously this path threw, which is the reported bug.)
     win.setFullScreen(true);
-    return true;
+    return { ok: true, requested: { width: w, height: h }, applied: physical, fullscreen: true };
   }
   if (win.isFullScreen()) win.setFullScreen(false);
+  // A2 (Goal 23) — A MAXIMISED WINDOW IGNORES setContentSize ON WINDOWS.
+  //
+  // Since A5 (Goal 17) the game maximises before the first paint. From that
+  // moment this handler returned `true` for every resolution the player picked
+  // and the window never moved: measured 1920x1080 and 2560x1440 both still
+  // drawing 3840x2055. The one control a player reaches for when the game
+  // feels heavy reported success and did nothing.
+  //
+  // Leaving the maximised state is part of honouring the request — a window
+  // that is "as big as the screen" cannot also be 1920x1080.
+  if (win.isMaximized()) win.unmaximize();
   // Electron sizes windows in DIP; convert so the CONTENT is w x h physical.
   win.setContentSize(Math.round(w / scale), Math.round(h / scale), true);
   win.center();
-  return true;
+  // Report what actually happened, in physical pixels. A caller that cannot
+  // tell a resize from a refusal is how this went unnoticed for six sessions.
+  const [gotW, gotH] = win.getContentSize();
+  return {
+    ok: true,
+    requested: { width: w, height: h },
+    applied: { width: Math.round(gotW * scale), height: Math.round(gotH * scale) },
+    maximized: win.isMaximized(),
+  };
 });
 
 ipcMain.handle('fw:quit', (event) => {
