@@ -30,7 +30,9 @@
 async (page) => {
   const fs = process.getBuiltinModule('node:fs');
   const path = process.getBuiltinModule('node:path');
-  const OUT = path.resolve('qa/electron/freeplay');
+  // two verifiers must never share a command file — each session gets its
+  // own dir via QA_FREEPLAY_DIR
+  const OUT = path.resolve(process.env.QA_FREEPLAY_DIR || 'qa/electron/freeplay');
   fs.mkdirSync(OUT, { recursive: true });
   const cmdFile = path.join(OUT, 'commands.jsonl');
   const stateFile = path.join(OUT, 'state.json');
@@ -82,6 +84,45 @@ async (page) => {
           for (const k of c.keys) await page.keyboard.down(k);
           await page.waitForTimeout(c.ms || 500);
           for (const k of [...c.keys].reverse()) await page.keyboard.up(k);
+        } else if (c.cmd === 'qa' && c.script === 'inside') {
+          // ALLOWLISTED concession for verifiers: a fresh save cannot walk
+          // through the restoration-locked doors, and the four regression
+          // subjects (ledger, broom, queue) live indoors. This places the
+          // player inside the shop near the front desk, opens the business,
+          // and turns organic walk-ins on. Everything after it is real input;
+          // a verifier that uses it must record the concession.
+          await page.evaluate(() => {
+            const app = window.__fw;
+            const ch = app.scene3d?.clubhouse?.();
+            if (!ch) return;
+            const st = app.scene3d.walk.state;
+            const o = ch.interior.position;
+            st.x = o.x + 1.4;
+            st.z = o.z + 1.2;
+            st.yaw = Math.PI;
+            st.pitch = -0.1;
+            app.state.clock.minutes = Math.floor(app.state.clock.minutes / 1440) * 1440 + 10 * 60;
+            if (app.state.campaign) app.state.campaign.businessOpen = true;
+            if (app.state.shop) app.state.shop.signOpen = true;
+            ch.setOrganicWalkins?.(true);
+          });
+        } else if (c.cmd === 'qa' && c.script === 'sale') {
+          // ALLOWLISTED concession: stages the canonical 3-item card sale at
+          // the counter (the same sendToCounter path every checkout driver
+          // uses), so a verifier can judge bagging/card/sizes without waiting
+          // out organic shopping. Recorded by the verifier that uses it.
+          await page.evaluate(async () => {
+            const app = window.__fw;
+            const ch = app.scene3d?.clubhouse?.();
+            if (!ch) return;
+            const skus = ['balls1', 'water1', 'sportdrink2'];
+            for (const id of skus) {
+              const inv = app.state.shop?.inventory?.[id];
+              if (inv) inv.shelf = Math.max(inv.shelf, 12);
+            }
+            ch.rebuildStock?.();
+            ch.sendToCounter?.(skus, 'card');
+          });
         } else if (c.cmd === 'qa' && (c.script === 'ring' || c.script === 'email')) {
           await page.evaluate((kind) => {
             const app = window.__fw;

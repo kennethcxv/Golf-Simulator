@@ -252,6 +252,17 @@ with the unread count and newest senders, and the Bookings page points at
 Mail whenever requests are waiting. First contact with either channel
 happens without reading anything.
 
+**Phase 4 (section A): VERIFIED ADVERSARIALLY.** Verifier A (fresh agent,
+real input, no source access, isolated profile) attacked six claims:
+1–5 CONFIRMED with screenshot evidence (T toggle, world-keeps-running with
+measured walk+look, arrows/Enter/Backspace with honest empty states, the
+full ring→answer→text chain with the badge lifecycle, the pocket chip); 6
+(laptop mail) NOT VERIFIABLE on a fresh save — the restoration-locked doors
+— with the teleporting driver as the recorded complement. Its two findings
+(midnight timestamps, non-spatial arrows) were fixed the same hour with a
+regression pin; its third (pointer capture died mid-session) is on the open
+list.
+
 ### The ratchet fight, recorded
 The player-string ratchet (2108 frozen) caught my first draft at +21: the
 scanner counts quoted `text:`/`label:` literals and toast templates. Resolved
@@ -303,6 +314,13 @@ driver on the fixed build: `NEW_MAP_HONEST: true` — every far sample maps to
 WALKING UP, every arrived sample carries atSlot. If they leave the line, the
 row leaves the list (the 'leaving' filter) — the exact sentence of the
 instruction.
+
+**Phase 4 (section B): verifier launched.** V2 attacks the single-file line
+and the check-in truth with real input at the default camera; verdict
+appended below when it lands. The section's own instruments stand behind
+it: the lie was WATCHED live before the fix and the same driver graded the
+fix honest (`LIE_CONFIRMED` → `NEW_MAP_HONEST`), and the line is
+photographed with measured slot positions.
 
 ## GOLDEN GATE — WORLD-Y PIN — DONE (the diagnosis was wrong, the fix is total)
 
@@ -378,6 +396,11 @@ the attach — normalize to world-true authored scale as the good leaves the
 hand. Re-measured: placing world scale 1.0, register world scale 1.0,
 popRatio 1.000.
 
+**Phase 4 (sections C and GOLDEN): verifier launched.** V2 attacks bag
+containment, the in-hand card, and one-size landing with a real staged sale
+(concession recorded), and may run the golden gate itself — whose one-pixel
+control proves the differ every run. Verdict appended below when it lands.
+
 ## D — THE LEDGER
 
 ### D3 The double set-down — FOUND AND FIXED (it was the state machine)
@@ -423,6 +446,13 @@ book's own footer teach the new keys from the live bindings ("E next page ·
 A back · Esc put the book away"). E ignores key-repeat (a held key is one
 action, not a page-riffle).
 
+**Phase 4 (section D): verifier launched.** V1 replays the owner's exact
+gestures — open and watch the first frames, close and COUNT the descents —
+with no source access and no state forcing beyond the recorded
+inside-teleport; V2 independently walks the one-key page flow. Verdicts
+appended below when they land. The film already viewed (open, turn, close,
+frame by frame) stands beside them.
+
 ## G — PERFORMANCE — measured; the named lever was WRONG, corrected with numbers
 
 **The freeze was never the 8 ms.** Measured live (300 frames indoors,
@@ -450,6 +480,12 @@ compile/visibility stall); first-equip (9.6 s, 16 refuted fixes) untouched.
 GPU stands at 5.14 ms (the Goal 18 GTAO re-grade; nothing tonight moved it).
 Worst frame in an indoor minute: the ~4.1 s first-ledger-open stall when the
 minute contains one; otherwise frames sit at the ~15–16 ms cadence above.
+
+**Phase 4 (section G):** the section's claims are MEASUREMENTS, and its
+adversarial check is the instruments' own negative discipline: the cap
+ladder re-ran when its 60-leg armed empty rather than trusting a zero, the
+matrix probe counted objects it walked, and the stall evidence comes from a
+driver built to find a different bug. No visual claim to hand a verifier.
 
 ## E — THE MOP AND THE BROOM
 
@@ -511,6 +547,11 @@ wrong axis — measured last night). Left NOT DONE with this scope rather
 than half-tuned at 7 AM; the shader banding on the shaft belongs to the
 same asset pass as the ledger cover thickness.
 
+**Phase 4 (section E): verifiers launched.** V1 owns the broom-grip
+re-judgement (the found-false item, expected STILL BROKEN — it is on NOT
+DONE); V2 attacks the grey-and-alive mop yarn with rapid mid-walk shots.
+Verdicts appended below when they land.
+
 ## F — SETTINGS UI
 
 ### F1 The scrollbar — DONE (photographed on the photographed page)
@@ -539,6 +580,11 @@ same reason — no reviewed native-quality pass exists yet for the missing
 114 (they are enumerable: English-table keys minus each locale's). The
 laptop's own copy (≈250 literals by convention) is a separate, larger
 decision recorded in the A-section ratchet notes.
+
+**Phase 4 (section F): verifier launched.** V2 photographs the Controls and
+Display tabs with real clicks and judges the bar against the native one in
+image 8; verdict appended below when it lands. F2 makes no DONE claim to
+verify — its numbers ARE the verification.
 
 ---
 
