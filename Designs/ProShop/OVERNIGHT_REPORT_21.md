@@ -263,6 +263,56 @@ silently patched nothing, and all seven tests passed. That would have been
 recorded as proof. It was caught only because passing was the wrong answer. A
 revert must now assert that it changed the file.
 
+## X3 The current task was painted behind the game
+
+**One line.** `main.js` appended the objectives card to `gameUi` — inside `#ui`,
+`position:absolute`, `z-index: 3`, layered over the canvas — and then, one line
+later, appended it **again** to `document.body`. `append()` moves a node. The
+card was torn out of the overlay and re-parented to `<body>`, where it painted
+behind the game.
+
+### What the check measured, and why it passed — six times over
+
+| What I asked | Answer | Correct? |
+|---|---|---|
+| `display` | not `none` | yes |
+| `visibility` | not `hidden` | yes |
+| `opacity` | 1 | yes |
+| bounding rect | 300 x 104 at (16, 778), inside the viewport | yes |
+| any ancestor hiding it | none | yes |
+| `checkVisibility({checkOpacity, checkVisibilityCSS})` | **true** | yes |
+
+Every answer was right and the card was invisible. `document.elementFromPoint`
+at the card's own centre returned **the canvas**.
+
+**SHAPE 6 for the ledger — VISIBLE BUT NOT PAINTED:** every property the check
+reads is correct and the pixels belong to something else. The question that
+catches it is *"what does elementFromPoint say is actually there?"*, and it is in
+the driver now.
+
+Confirmed by **looking at the frame**, which is the standard this session set:
+the card reads "INSPECT THE FURNISHED BUT NEGLECTED PROPERTY · 1/19 · Survey the
+neglected property" in the bottom-left of
+`qa/electron/x3-current-task/arrival.png`.
+
+### Two things found on the way, both kept, neither the cause
+
+I went down a wrong path first and it is worth recording, because the wrongness
+was caught by the method rather than by luck:
+
+1. **I "fixed" the panel's campaign gating and the driver still passed with the
+   fix reverted.** The panel gated every branch on `state.tutorial` while a real
+   new game is a *campaign*, and its dismiss button wrote `tutorial.hidden`,
+   which campaign mode never reads — so the × did nothing. Both are real and
+   both are kept. Neither was why the card was invisible. I only knew that
+   because the revert was **asserted to have changed the file** and the checks
+   passed anyway.
+2. **`qa-boot` hard-coded Relaxed.** Every driver in this repository has only
+   ever booted one of the two difficulty modes; Realistic — which the stranger
+   was playing — had never been exercised by any check. It takes a `mode` now.
+   Two populations, at the harness level, for the whole life of the harness.
+   (It was *not* the cause either: the card is equally invisible in both.)
+
 ---
 
 # RUNNING LISTS
@@ -286,7 +336,9 @@ revert must now assert that it changed the file.
 - **Goal 20 E2** — the card in the fingers. A measuring probe was written rather
   than a fourth guess; it returned null and needs work before the fix does.
 - **X2** — the pressure washer still gives nothing on a tap but the hint.
-- **X3** — the current task is invisible without opening a menu.
+- **The harness cannot hold a mouse button**, so the porch wash gate is still
+  untestable end to end by a stranger. Needs a mousehold command on the bridge.
+- **The bridge drops a BOM-prefixed first command line silently.**
 - **X4** — the Tab overview has no player marker and no legend.
 - **C, D, E, F, G, H** — the mop's density and weight, the phone's mouse and
   icons, the loading screen, the door lag, the translations, the draw calls.
