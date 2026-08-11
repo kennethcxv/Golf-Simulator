@@ -61,6 +61,74 @@ recorded (`qa inside`, `qa sale`). Full write-up in
 `CHECK IN · CARD` while the register ran the **cash** flow ($80 received, $16
 change). The tender narration contradicts the tender used.
 
+## AND A SECOND ONE, DISPROVED OUTRIGHT
+
+**C2 — "a missed caller leaves a voicemail you can play, and you can ring them
+back" — DISPROVED by Verifier 2.** The row was there. The mouse always reached
+it. The phone's **own** input model could not.
+
+`focusables()` returned a flat `1` for every list view — "the back action" —
+written before any app rendered anything clickable. So `ArrowDown` computed
+`(0 + 1 + 1) % 1 = 0` and never moved, and `Enter` clicked the only button
+wearing the focus class, which was Back, which left the app. The verifier wrote
+"those are the presses that did nothing". They did something: they went home.
+
+**What my check measured:** that `playVoicemail` and `callBackRequest` behave
+correctly in the sim (5 tests), and that `src/ui/phone.js` contains calls to
+both and renders the row as a `<button>` (a source assertion I wrote
+specifically to avoid the zero-call-sites trap). All true. All passed. Nobody
+pressed the keys the phone's own header documents as its input model.
+
+Fixed: list views count the buttons their app actually rendered, and focus is
+assigned by DOM order across the rows and then Back — so the next app added to
+the registry gets keyboard reach for free, which was the point of that seam.
+`tools/qa/electron-c2-phone-keyboard.js` now drives it with a real keyboard and
+no mouse: focus starts on a row, arrows move it, Enter plays the message, Enter
+again rings back and Dana answers. Eight checks, all green.
+
+## VERIFIER 2 — THE FIVE VERDICTS
+
+Two real-input sessions, 68 commands each, clean exits. Concessions recorded
+(`qa inside` x3, `qa ring` x1). Full write-up in
+`Designs/ProShop/verifier2_goal20.md`.
+
+1. **Menu sound — UNVERIFIABLE for audibility, behaviour intact.** It said so
+   plainly rather than guessing from a picture, which is the right answer:
+   screenshots carry no audio. It verified what it could — every press responds
+   visibly, no errors in either runner log, and the Settings audio tab exposes a
+   "Menus" category. **H1's audibility remains unverified by anyone but me.**
+2. **Voicemail and ring-back — DISPROVED.** See above.
+3. **Arrival frequency — CONFIRMED in direction.** Three organic phone calls in
+   about 40 open game minutes with nothing injected: roughly 4-7 an hour against
+   the old ~1 per two hours. It notes the 21/day figure is untestable in that
+   span, which is fair. It also reports zero organic emails — consistent with
+   ~12 a day over a 40-minute window, and its instrument was the phone's
+   Messages app, which carries texts; booking emails land in the laptop inbox.
+4. **Ledger keys — NOT REACHED, and the premise disproved in real play.** In
+   ~40 minutes across two sessions **the book never opened.** The front-desk
+   flow captures E whenever any customer is waiting, even with the crosshair
+   dead on the cover; X does nothing; and in the one genuinely free-desk window
+   E on the book did nothing and **no gaze prompt ever named the ledger**, while
+   the prompt system provably works on other props ("Old clutter - E haul it
+   out"). So F3 and F4 are green in the source and **unexercised by a player**,
+   and there is a discoverability defect underneath them that is arguably worse
+   than the key bindings I fixed.
+5. **Loading screen — baseline recorded, and it caught my instrument.** It
+   measured **24-25 seconds** from clicking Relaxed to standing in the world,
+   with the renderer blocking for ~14 s. My own driver reported "veil visible
+   6.4 s". Both numbers are real and mine is misleading: it reports the last
+   sample that *saw* the veil, and while the renderer blocks, `page.evaluate`
+   blocks with it, so the veil's whole stalled period is invisible to a polling
+   loop. **The loading screen is roughly four times longer than my report
+   implied.** (Verifier 2's session predates the I commit, so its description of
+   a flat page with no artwork is a baseline of the old screen, which is what it
+   was asked for and confirms the brief.)
+
+**Its bonus findings, now on NOT DONE:** a customer-navigation stuck-shopper
+retarget loop spams the log; the anti-stuck helper twice teleported the player
+while they were walking normally through the entrance; and an unanswered phone
+request rings for its entire 30-game-minute lifetime.
+
 ## CARRIED IN FROM GOAL 19 — TWO VERDICTS THAT NEVER LANDED
 
 Report 19 closed with Verifier 1 and Verifier 2 launched and their verdicts
@@ -740,9 +808,26 @@ pose for precisely this reason, and it is on NOT DONE.
 - **K — the translations.** Not finished. Coverage is 59.4% (167/281 per
   locale) — the five new C2 keys were written in all ten locales, so the
   fraction held rather than dropping.
+- **The ledger is not reachable in normal play** (Verifier 2, finding 4). The
+  front desk captures E whenever a customer waits, X does nothing, and no gaze
+  prompt ever names the book. F3 and F4 are correct in the source and have never
+  been exercised by a player. This is a bigger problem than the keys were.
+- **E2 — the card in the fingers.** A measuring probe
+  (`tools/qa/electron-e2-card-pinch.js`) was written rather than a fourth guess
+  at the offset, and it returned `null`: it could not find the card parented to
+  a hand within its window. The probe needs work before the fix does. What is
+  known: the pose places the card's centre 5 cm out from the grip along the
+  look direction, which is about where a fist's fingertips are, and nobody has
+  ever measured the hand.
+- **Verifier 2's bonus findings:** a stuck-shopper retarget loop spamming the
+  log; the anti-stuck helper teleporting the player twice during normal walking
+  through the entrance; a phone request ringing for its whole 30-minute life.
 - **Verifier 3's twelve findings** are open except where a section happened to
-  touch one. In particular finding 1 — a new player cannot get past the porch —
-  is untouched and is the most serious thing in this report.
+  touch one. Its finding 1 — a new player cannot get past the porch — got its
+  smaller half fixed (a tap on a tool now says why nothing happened, in ten
+  locales); the rest of it, X and E on the threshold debris giving no pickup, no
+  prompt and no refusal, is untouched and remains the most serious single thing
+  in this report.
 
 ## VERIFIER FINDINGS STILL OPEN
 
@@ -843,8 +928,65 @@ the session. That is itself the finding.
    Verifier 1's caveat; both sites now share one exported rule, and the test
    covers the grid path as well as the planner.
 
-6. **"The bag clamps every body inside its authored volume" (Goal 19, C).** The
+6. **"You can play a voicemail and ring the caller back" — MY OWN CLAIM,
+   DISPROVED THE SAME NIGHT BY VERIFIER 2.** What passed: five sim tests on
+   `playVoicemail` and `callBackRequest`, plus a source assertion that the UI
+   calls both and renders the row as a button — written specifically to avoid
+   the zero-call-sites trap, and it did avoid that one. It could not see that
+   the shell's keyboard focus never reached the button. **A feature reachable
+   only by the input device the screen does not use is not reachable.**
+
+7. **"The loading veil is up for 6.4 seconds" — MY OWN MEASUREMENT, WRONG.**
+   Verifier 2's wall clock says 24-25 seconds. My driver polls the page for the
+   veil's state, and while the renderer blocks — about 14 s of it — the poll
+   blocks too, so the veil's longest stretch is exactly the part a polling loop
+   cannot see. The number I reported is "the last sample that saw the veil",
+   which is not what I called it.
+
+8. **"The bag clamps every body inside its authored volume" (Goal 19, C).** The
    clamp inverts its own bounds as soon as the body is wider than the bag, so
    the rule that was reported as containing items was, for exactly the items it
    was written for, pushing them out through both side walls. Arithmetic on the
    record in `tests/bag-long-item-stands-up.test.js`.
+
+---
+
+# SESSION CLOSE
+
+**Landed and verified:** A (the cursor trap, 1,802 OS samples clean and
+confirmed independently at 813/813), B2/B3 (the mop's yarn simulated, confirmed
+by a verifier as reading like a real string mop), C1 (4.27 → 21.40 contacts a
+day), C2 (voicemail and ring-back — disproved once, fixed, then driven by a real
+keyboard), C4 (only the phone and inbox invent bookings), D1, D2 (twice — the
+second generator was found by a verifier), D3, E1, F3, F4, G, H1, H2, I.
+
+**Not reached:** C3, E2, F1, F2, F5, J, K, the broom's head angle, and the mop's
+appearance.
+
+**The four things I got wrong tonight, all caught inside the night:**
+
+1. **D2 measured one of two populations.** I fixed the arrival planner, watched
+   its test fail on the old constants, and published — while every walk-in
+   spawning on the shop floor used a second, independent rule reaching five
+   hours. Verifier 1's caveat found it. This is the named instrument fault from
+   the standing rules, walked into with the rule in front of me.
+2. **C2 was tested everywhere except through its own input model.** The sim
+   verbs were right, the wiring assertion was right, and the arrow keys could
+   not reach the button.
+3. **My loading-screen timing was four times short**, because a polling loop
+   cannot see the interval in which the thing it polls is blocked.
+4. **My cursor watcher reported a free cursor as captured** on its first run,
+   and would have let me declare victory on a broken measurement. Its own
+   negative control caught it.
+
+**What the gate cannot see, stated so nobody reads a green row as cover it does
+not give:** the golden tool budgets (0.75%) are wider than a total replacement
+of a tool's fibres (0.4264%), so tool poses currently protect the POSE and not
+the appearance; and `bag-packed` cannot exercise E1 at all, because it stages
+three short items.
+
+**Where the next session should start:** the ledger is unreachable in normal
+play (Verifier 2, finding 4) and a new player cannot get off the porch
+(Verifier 3, finding 1). Both are worth more than any remaining item in the
+brief, because a feature nobody can reach and a game nobody can start are the
+same problem twice.
