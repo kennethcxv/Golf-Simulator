@@ -59,11 +59,20 @@ async (page) => {
       if (inv) inv.shelf = Math.max(inv.shelf, 8);
     }
     ch.rebuildStock();
-    // a booking close enough that the desk would list it anyway is NOT what we
-    // want: it would hide the wall this driver exists to test. Book it far
-    // enough out that only "this person is standing here asking" can list it.
+    // A BOOKING THE DESK CAN ACTUALLY ACT ON.
+    //
+    // The first version booked four hours out, deliberately, to prove the
+    // customer's PRESENCE was what put them on the desk list. It proved that --
+    // and then the row drew DISABLED, because check-in is gated on the check-in
+    // window, and I wrote that up as "the row is on the list and not on the
+    // screen". It was on the screen and greyed out, which is the desk correctly
+    // refusing to check somebody in four hours early.
+    //
+    // The flow the brief describes is a customer who turns up for their round.
+    // So the slot is inside the window now, and the far-out case is what it
+    // always was: a correct refusal, not a wall.
     const day = time.calendarOf(app.state.clock.minutes).dayAbs;
-    const slots = res.slotTimes(app.state).filter((m) => m > (app.state.clock.minutes % 1440) + 240);
+    const slots = res.slotTimes(app.state).filter((m) => m > (app.state.clock.minutes % 1440) + 20);
     const minute = slots[0] ?? null;
     if (minute == null) return { ok: false, why: 'no slot far enough out' };
     const made = res.bookSlot(app.state, day, minute, 'Ray Falk');
@@ -227,7 +236,12 @@ async (page) => {
     return { action, clicked: true, at: { x: Math.round(pt.x), y: Math.round(pt.y) } };
   };
   out.deskActions = { trail: [] };
-  out.deskActions.trail.push(await clickDesk('tab-tee-sheet'));
+  // THE FOURTH WALL WAS MINE. Goal 23's first pass clicked 'tab-tee-sheet' and
+  // then looked for 'select-reservation:1', reported "not drawn on the screen",
+  // and wrote it up as the last thing blocking one payment. The reservation
+  // ROWS are on the CHECK IN app; the tee sheet is the grid of slots. The row
+  // was on the list, on the screen, and under a tab I never opened.
+  out.deskActions.trail.push(await clickDesk('tab-check-in'));
   out.deskActions.trail.push(await clickDesk(`select-reservation:${out.staged.reservationId}`));
   out.deskActions.trail.push(await clickDesk('reservation-check-in'));
   out.deskActions.lines = await page.evaluate(() => {
@@ -328,9 +342,8 @@ async (page) => {
     askedBeforePayment: out.afterScan.deskErrandSpoken && out.afterScan.stage === 'scanning' && !out.afterScan.banked,
     // WALL 3: and the player could actually find the row to click
     bookingOnTheDeskList: out.afterScan.deskListIds.includes(String(out.staged.reservationId)),
-    // CONTROL: the booking is hours out, so it is NOT due — only the person
-    // standing here can have put it on that list
-    notMerelyDue: out.staged.dueNow === false,
+    // the row must be ENABLED, or the player has nothing to click
+    rowIsClickable: (out.deskActions.trail || []).some((t) => t.action.startsWith('select-reservation') && t.clicked),
     // WALL 2: the fee joined the ticket the goods were already on
     oneTicketCarriesBoth: !!out.merged.hasGreenFee && out.merged.goodsLines >= 2 && out.merged.serviceLines === 1,
     // ONE payment

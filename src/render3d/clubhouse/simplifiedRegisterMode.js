@@ -3056,7 +3056,21 @@ export function createRegisterMode(B) {
     if (activeTab === 'check-in') {
       const selected = activeReservation();
       const selectedWalkIn = activeWalkIn();
-      const locked = !!tx;
+      // B2 (Goal 23) — THE FOURTH WALL, AND THE LAST ONE.
+      //
+      // This was `!!tx`: every reservation row on the desk went grey the moment
+      // a ticket existed. So a customer with goods on the counter -- which is
+      // the ENTIRE combined visit -- could never have their booking selected.
+      //
+      // And it contradicts the handler two thousand lines below, which has
+      // allowed exactly this since Goal 22: "A ticket that is still being
+      // scanned can take a tee time on it, so selecting one is exactly what the
+      // player is here to do. Only a ticket that has started payment is too
+      // late to add to." The action was open and the row was painted shut.
+      //
+      // One rule now, and it is the handler's: a ticket still being scanned can
+      // take a tee time; one that has started payment cannot.
+      const locked = !!tx && (tx.stage !== 'scanning' || !!tx.banked);
       const selectedReady = selected ? !!readyReservationCustomer(selected.id) : false;
       const reservationRows = reservationsWaiting().map((reservation) => ({
         id: reservation.id,
@@ -9213,7 +9227,15 @@ export function createRegisterMode(B) {
     // That is the whole point: it can only do what the player could do at this
     // instant, so a green result means the row was on screen and the click
     // would have landed.
-    deskHitTargets: () => monitorUi.hotspots().map((h) => h.action).filter(Boolean),
+    // The hotspot record's field is `id`, not `action` -- addHotspot stores
+    // {id, label, kind, x, y, width, height, disabled}. Mapping h.action gave
+    // an array of undefined, filtered to empty, and an empty list is
+    // indistinguishable from a screen with nothing on it. That reading cost a
+    // whole write-up: "the row is on the list and not on the screen" was my
+    // accessor, not the game.
+    deskHitTargets: () => monitorUi.hotspots()
+      .map((h) => ({ id: h.id, kind: h.kind, disabled: h.disabled }))
+      .filter((h) => h.id),
     deskAction: (action) => {
       const drawn = monitorUi.hotspots().some((h) => h.action === action);
       if (!drawn) return { ok: false, reason: 'not-on-screen', action };
