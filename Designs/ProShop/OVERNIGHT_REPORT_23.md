@@ -374,7 +374,7 @@ once `bought` is true, and both desk-resolution sites clear the flag. Proven in
 the same Electron run as B2: `stillInShop: true`, `phase: reservation-waiting`,
 `errandPending: true`. They wait to be answered.
 
-## B2 Three walls of four. NOT DONE.
+## B2 All four walls down. The merged ticket is reachable. Banking unproven.
 
 Watched fail → watched pass, same driver, same staging, file-copy revert (never
 `git stash`), revert asserted to have changed the file:
@@ -389,12 +389,46 @@ Watched fail → watched pass, same driver, same staging, file-copy revert (neve
 `dueNow: false` is the control: the booking is four hours out, so it is on that
 list because **the person is standing there**, not because it came due.
 
-**Where it stops.** The fourth thing a player must do — *click the row* — does
-not render. `monitorScreenPoint` finds `tab-tee-sheet` and the click lands;
-`deskHitTargets` then reports an empty hotspot list, so `select-reservation:1`
-has no point to click. **The row is on the list and not on the screen.** The
-driver stops exactly there rather than calling the sim underneath, which is how
-this was reported done twice.
+### The fourth wall — found, and it was the row being painted shut
+
+```js
+const locked = !!tx;
+```
+
+**Every reservation row on the desk went grey the moment a ticket existed.** So a
+customer with goods on the counter — which is the entire combined visit — could
+never have their booking selected. And it contradicted the handler two thousand
+lines below, which has allowed exactly this since Goal 22 in its own words:
+*"A ticket that is still being scanned can take a tee time on it… Only a ticket
+that has started payment is too late to add to."* **The action was open and the
+row was painted shut.** One rule now, and it is the handler's.
+
+**Measured, through real clicks on the real screen:**
+
+```
+tab-check-in           clicked at 1816,494
+select-reservation:1   clicked at 1896,584
+reservation-check-in   clicked at 2141,792
+ticket lines           balls1 15 · glove1 19 · service:green-fee 32
+hasGreenFee true · serviceLines 1 · goodsLines 2 · total 68.38
+```
+
+**That is the thing reported done twice and never once seen.**
+
+### Three wrong readings before the real wall was visible — all mine
+
+1. *"The row is on the list and not on the screen."* My `deskHitTargets` mapped
+   `h.action`; `addHotspot` stores `h.id`. An array of `undefined` filtered to
+   empty, and an empty list is indistinguishable from a screen with nothing on it.
+2. Then it read `disabled: true` — and I had booked the tee time **four hours
+   out on purpose**, so that first grey row was the desk correctly refusing to
+   check somebody in four hours early.
+3. I clicked `tab-tee-sheet`; the rows live on `tab-check-in`.
+
+**Still not proven: the banking half.** My payment leg drives the sim modules on
+the ticket directly and the *register* banks its own sales, so `ticketsAdded` is
+0 and the ledger deltas are 0. That is my driver, not the game, and the four
+checks that depend on it are red and honest.
 
 ### One wrong fix, tried and reverted with evidence
 
@@ -1194,7 +1228,7 @@ CLAUDE.md says it stays. The variant working, not faults.
 
 # FINAL
 
-**Thirty commits, all pushed. Suite 3081/3081. Lint ratchet frozen at 332.
+**Thirty-two commits, all pushed. Suite 3081/3081. Lint ratchet frozen at 332.
 i18n ratchet 0 missing across ten locales. Golden gate 12 of 12 green with the
 lens pinned, one honest red row (`bag-packed`, NOT CAPTURED).**
 
