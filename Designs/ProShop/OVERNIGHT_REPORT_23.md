@@ -1,23 +1,26 @@
 # OVERNIGHT REPORT 23
 
-> **PERCEPTION RATIO — 4 of 12.** Twelve things were fixed and certified tonight.
-> Four were verified by a check that could actually perceive what it certified:
-> the golden lens (two captures at the same scale, an edge-position fit, twelve
-> red rows to twelve green), the queue drain (277 clip frames extracted and
-> looked at), the broom roll (a contact sheet read with my own eyes), and the six
-> payment cards (six faces painted through the shipped painter and laid out side
-> by side). The other eight rest on properties read: frame intervals, buffer
-> sizes, customer state, instance-matrix drift, walk distance, audio peak.
+> **PERCEPTION RATIO — 5 of 16.** Sixteen things were fixed and certified
+> tonight. Five were verified by a check that could actually perceive what it
+> certified: the golden lens (two captures at the same scale, an edge-position
+> fit, twelve red rows to twelve green), the queue drain (277 clip frames
+> extracted and looked at), the broom roll (a contact sheet read with my own
+> eyes), the six payment cards (six faces painted through the shipped painter and
+> laid side by side), and the ledger cover (both signs of the swing photographed
+> at the same five fractions — the frames chose the value, not me). The other
+> eleven rest on properties read: frame intervals, buffer sizes, customer state,
+> instance-matrix drift, walk distance, audio peak, luma histograms.
 >
 > One of the twelve, **G1, I could not confirm at all** — the gain tripled and my
 > tap could not see it move. It is kept on arithmetic, not measurement, and
 > labelled.
 >
 > **And the ratio understates the point.** Looking at pixels did not just verify
-> tonight's work — it CAUGHT THREE OF MY OWN PROBES LYING, in code I had just
-> written. A clip showed doors that my instrument swore were shut. Three
-> photographs of the mop came back black or empty. A number would have caught
-> none of it.
+> tonight's work — it CAUGHT FIVE OF MY OWN PROBES LYING, in code I had just
+> written. A clip showed doors my instrument swore were shut. A luma probe read
+> midday as pitch black. A contact sheet showed thirteen photographs of grass. A
+> number would have caught none of it — and one of those probes had already
+> produced a written conclusion before the frames contradicted it.
 >
 > The one thing I could not do is the one I most wanted: **I have never seen the
 > mop head.** It is measured, simulated and unphotographed, and it is not claimed.
@@ -919,3 +922,147 @@ Golden gate 12 of 12 green with the lens pinned, one honest red row.**
 
 **Waiting on you:** `'wasm-unsafe-eval'` in the CSP (unblocks C), and a number
 from the broom contact sheet.
+
+---
+
+# I1 — The cover opens right to left. DONE, and the frames decided it.
+
+**What the previous filming measured:** a clip whose frames showed *"the shut
+book presenting as a flat card and the open book snapping into place without
+moving for 25 frames."* True, and it is a report about the **rise and the shell
+swap** — the *direction* was never isolated, because it was a bare local
+constant with no way to see the alternative.
+
+It is one sign. Both signs, same swing, same five fractions, side by side:
+
+| | 0% | 25% | 50% | 75% | 100% |
+|---|---|---|---|---|---|
+| **+1 (shipped)** | shut | **cover not there** | **cover not there** | open | open |
+| **−1** | shut | board arcing up from the **right** | standing vertical | come over to the **left** | open |
+
+**The +1 column *is* the complaint, photographed:** a flat card, then an open
+book, with nothing in between — the cover swings down behind the block and out
+of sight. `COVER_SIGN = −1`. **`Designs/ProShop/I1_COVER_SWING.png`.**
+
+The swing is driven to exact fractions rather than filmed, deliberately: a clip
+samples wherever the frames land, so two recordings of the same gesture do not
+line up and cannot be compared.
+
+# I3 — NOT DONE
+
+The sounds half is G3 (player and licence gate in, no recordings obtainable).
+The UI rebuild is untouched.
+
+---
+
+# K — the stranger's fourteen
+
+## K1 The refusal rule passes the door now. DONE.
+
+His first finding, and it is four lines of `walkInteract`. A prop that is
+focusable and **labelled** — which is why its name is on the prompt bar, and why
+the player pressed E at it — but carries no `action` fell off the end of the
+prop branch **with no else**:
+
+```js
+if (walkFocus.prop.action) walkFocus.prop.action();
+}                                    // and if it has none, silence
+```
+
+Section 1's entrance door got a refusal naming the obstacle, and that refusal is
+why a stranger finally got inside. The rule stopped at the door. A named prop
+with no verb now says so, using the name the player is already reading.
+
+The string goes through `t()` with a new key in **all ten locales** — I would
+rather write ten translations than ship an eleventh English string into nine
+other languages.
+
+## K3 Eleven of twelve, not one. DONE.
+
+He found *"the tool wheel says B is the push broom; B opens Build mode."*
+Reading the table against `keyBindings.js`:
+
+```
+washer W = move forward   vacuum V = cart camera    mop  M = empire panel
+broom  B = BUILD MODE     dustpan D = move right    spray S = move back
+cloth  C = club panel     sponge G = grounds panel  trash T = phone
+rake   R = mower blades   divot  D = move right AND dustpan
+```
+
+**Eleven of twelve collided with a global binding.** And one control was *dead*:
+divot and dustpan both claimed D, and `toolShortcutIndex` returns the first
+match, so the divot kit could never be selected by letter. Nobody had pressed it.
+
+The wheel already handles **1–9 by position**, so the advertised key is the
+position now — collides with nothing, correct whichever belt is showing, and an
+entry past the ninth is left unlabelled rather than advertising a "10".
+
+## K4 Measured, and it does NOT reproduce. And I am correcting myself.
+
+**What the previous measurement measured:** the B8 sweep (2026-07-30, four
+poses, four scales) concluded *"panel faces stayed readable at EVERY step"*.
+Honest — and it never records **what time it ran**, while by its own account
+what lights an unpowered interior is "sun and sky through the glazing".
+
+Measured at the hour the game actually starts, fresh save, circuit unpowered:
+
+| pose | dawn mean | <10 | spread | noon mean |
+|---|---|---|---|---|
+| golden shop-floor | 50.8 | 4.3% | 96.5 | 89.2 |
+| interior origin | 28.2 | 6.3% | 47.9 | 73.0 |
+
+Dim, and **readable**. Both brighten at noon, so the instrument sees the clock.
+
+**And I have to correct myself.** In the D1 commit I wrote that three black mop
+photographs *"independently confirmed K4"*. **They did not.** Those frames had
+legible HUD over black 3D — a scene not being drawn, or a camera inside geometry,
+not a dark room. I attributed one unexplained symptom to another because they
+looked alike, which is exactly the reasoning this project keeps paying for. **The
+mop blackness remains unexplained and is not evidence about lighting.**
+
+## K2 Diagnosed, NOT fixed
+
+*"The prompt bar is sticky — it advertises objects the crosshair is nowhere
+near."* The mechanism is `walkStationPropInReach()`: a work station within reach
+**outranks** the crosshair, by design, with a comment explaining why (*"Q+mop at
+the till must read the till, not the mop"*). So the stranger is describing a
+deliberate rule doing exactly what it was written to do, and the two goals are in
+direct conflict. **That is an owner call, not a bug fix**, and I will not
+overturn a documented ruling on a session I cannot verify it in.
+
+## The other ten — NOT STARTED
+
+Enterable grey slab · named-object-with-no-verb (**this one is K1, now fixed**) ·
+tool use taught only by failing · Tab overview forest (**J**, blocked on the Tab
+camera path) · silent mouse-look loss · floating PRO SHOP sign · double-printed
+task card · grey placeholders · counter banding · collision feel · "authored"
+jargon.
+
+---
+
+# SESSION CLOSE
+
+**Twenty-two commits, all pushed. Suite 3081/3081. Lint ratchet frozen at 332.
+i18n ratchet 0 missing across ten locales. Golden gate 12 of 12 green with the
+lens pinned, one honest red row (`bag-packed`, NOT CAPTURED).**
+
+## Waiting on you
+
+1. **`'wasm-unsafe-eval'` in the CSP** — one line, unblocks recast and section C.
+2. **A number from `E_BROOM_ROLL_CONTACT_SHEET.png`** (#1–#13).
+3. **K2**: should a station in reach outrank the crosshair? The rule is
+   deliberate and the stranger hates it.
+
+## The four sentences worth keeping
+
+1. **The golden gate never had a regression.** The world was pinned and the lens
+   was not; a saved preference on this machine had moved it 66 → 60.
+2. **"It never feels smooth" was being said at 60 fps on a 181.8 Hz panel** — a
+   default this project chose and defended with a measurement that could not
+   score the rung that won.
+3. **Four instruments this session were running somewhere the game is not** —
+   the door timings, the golden lens, my desk-list probe, and the Tab overview.
+   Before changing anything, prove the code you are about to change is the code
+   the player reaches.
+4. **Looking at pixels caught five of my own probes lying**, in code I had just
+   written. A number would have caught none of them.
