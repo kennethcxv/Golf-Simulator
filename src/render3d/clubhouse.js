@@ -8907,6 +8907,43 @@ export function makeClubhouse(ctx) {
     interior.add(group);
     suppressInteriorSunShadows(group);
 
+    // K (Goal 23) — THE SIGN WAS FLOATING, AND IT HAD TO BE.
+    //
+    // The stranger's word was "floating" and the geometry agrees exactly: an
+    // 0.012 yd board centred 0.10 yd off the wall leaves its back face 8.6 cm
+    // proud of the plaster with nothing whatever between them.
+    //
+    // And it cannot simply be pushed flush, because this card SPINS THROUGH 180
+    // DEGREES to flip between OPEN and CLOSED -- that turn is the whole gesture
+    // and a card against the wall cannot make it. A thing that must stand off a
+    // wall needs something holding it there, so: a bracket arm out of the wall
+    // and a collar at the pivot.
+    //
+    // The mount is a sibling of the card, NOT a child of it. The card turns; the
+    // bracket must not turn with it, or the fixture swings out of the wall every
+    // time the shop opens.
+    const mount = new THREE.Group();
+    mount.name = 'ClubhouseOpenClosedSignMount';
+    const wallZ = INTERIOR.d / 2;                    // the plaster face
+    const armLen = Math.max(0.02, wallZ - signLocal.z); // wall face to the card
+    const arm = new THREE.Mesh(
+      new THREE.BoxGeometry(0.022, 0.022, armLen),
+      mats.brass,
+    );
+    // spans the gap: half its length back from the card toward the wall
+    arm.position.set(0, 0.075, armLen / 2);
+    const plate = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.07, 0.008), mats.brass);
+    plate.position.set(0, 0.075, armLen - 0.004);
+    const collar = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.014, 0.014, 0.055, 10),
+      mats.brass,
+    );
+    collar.position.set(0, 0.05, 0);
+    mount.add(arm, plate, collar);
+    mount.position.set(signLocal.x, signLocal.y, signLocal.z);
+    interior.add(mount);
+    suppressInteriorSunShadows(mount);
+
     // CLOSED shows the customer-facing side to the player; OPEN turns the card
     // around. The yaw IS the state, so there is nothing to keep in sync.
     //
