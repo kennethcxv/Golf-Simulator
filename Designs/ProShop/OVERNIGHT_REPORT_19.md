@@ -8,8 +8,25 @@ world-Y pin inserted before C, and Phase 4 verification closing every section.
 
 ## TOP — VERIFIER DISPROOFS AND HEADLINE FINDINGS
 
-(Filled as verifiers run. Four disproofs arrived with the goal itself — see the
-fifth running list at the bottom.)
+1. **The golden gate was comparing different planets.** Every QA boot starts
+   a NEW GAME with a fresh random seed — "boot-varying world-Y" was never a
+   Y jitter. Pinned; two-run noise fell from 3.6–5.1% to 0.00–0.06% and the
+   budgets came back from 6.0 to 0.25.
+2. **B5's double set-down was inside the state machine all along**: two full
+   descents per close (`closing` fell, `lowering` re-fell), invisible to a
+   state trace because no STATE repeats. Fixed and filmed.
+3. **Two more Goal-18 DONEs fell tonight** (the fifth and sixth found-false):
+   the mop "rebuild" edited a mesh the runtime hides (the player saw the
+   unchanged procedural yarn), and the "missing strand handle" was the
+   driver's own accessor typo (`scene3d.` for `scene3d.walk.`).
+4. **V3 ran first** (after three dropped sessions): a stranger played 20+
+   minutes and never got inside their own property; the washer gives no
+   tap feedback; the current task lives nowhere; a QA instruction was
+   printed on the player's work order (now removed). Full log in the V3
+   section.
+5. The four regression statements the goal demanded are written above the
+   section reports, each naming what the old check measured and why it
+   passed — three of the four were instrument-shaped, as predicted.
 
 ---
 
@@ -496,15 +513,97 @@ same asset pass as the ledger cover thickness.
 
 ## F — SETTINGS UI
 
+### F1 The scrollbar — DONE (photographed on the photographed page)
+One global treatment in the game's palette replaces the native OS bar on
+EVERY scrolling surface: slim rounded thumb (#5c6c61, hover #97ae99),
+transparent track with a 10 px margin at both ends so the bar never touches
+an edge — the exact flush-to-top read of image 8 is gone. The laptop's
+light surfaces carry their own quiet variant scoped to `.lt-frame`.
+Re-captured the photographed Settings→Controls tab
+(`qa/electron/f1-scrollbar/controls-tab.png`): the game bar floats clear of
+the header. Bonus V3 fix landed on the neighbouring page: the pause
+reference sheet's "Previous tool" row actually bound the DIRT SENSE key
+(the stranger caught the HUD contradicting it) — the row now names the verb
+the binding performs.
+
+### F2 Translations to 100% — NOT DONE, with the honest numbers
+Measured tonight through the module's own coverage API: **every non-English
+locale sits at exactly 162/276 = 59%** (the same 114 keys missing in all
+nine; tonight's channel work added its keys to all ten tables, which raised
+every locale from ~54%). Finishing means 114 keys × 9 locales = 1,026
+translations that are "accurate, not machine drafts" — plus a correctness
+review of the 162 that exist. That is a focused half-day per two or three
+languages done properly, not a 7 AM sprint, and the brief explicitly
+prefers "say which and why" over a bad table: ALL NINE are undone for the
+same reason — no reviewed native-quality pass exists yet for the missing
+114 (they are enumerable: English-table keys minus each locale's). The
+laptop's own copy (≈250 literals by convention) is a separate, larger
+decision recorded in the A-section ratchet notes.
+
 ---
 
 ## RUNNING LIST 1 — UNCONFIRMED
 
+- The phone's slide ANIMATION (Verifier A could attest position and toggle,
+  not the motion, at its capture cadence; the CSS transition exists).
+- The bag-packed golden pose's long-run stability (two-run noise 0.105
+  measured once; the INSERTING CARD stage is timer-adjacent — watch the
+  next few gate runs).
+- B1's counter-clip class: no actor entered the slab in tonight's runs and
+  the side-by-side contention that caused it is gone with the single-file
+  line, but the exact image-5 body-shove was not reproduced before the fix.
+
 ## RUNNING LIST 2 — NOT DONE
+
+- **E2 broom hands + head + shader** — anatomy and asset work, scoped in the
+  E section; yaw was measured to be the wrong axis last night and the right
+  sweep (roll/pitch at the DEFAULT camera) needs its own session.
+- **E3 stroke follows the mouse** — an input-pipeline feature (route live
+  pointer deltas into the viewmodel's stroke state); seam named in the E
+  section.
+- **F2 translations to 100%** — 114 keys × 9 locales at native quality;
+  numbers and reason in the F section.
+- **D1 residual** — a ~70 ms thin-cover flash on OPEN (down from ~300 ms);
+  the cure is cover THICKNESS in the ledger GLB (a board with sides cannot
+  vanish edge-on).
+- **G 120 Hz** — blocked on draw-call reduction (2,413 calls measured), not
+  on matrix freezing (1.3 ms); the merge-static-meshes project is the lever.
+- **H0 carried over** — Blender still needs its restart (save first) to
+  unwedge the MCP viewport socket; tonight's asset work used the builder's
+  own preview renders per the skill's fallback.
 
 ## RUNNING LIST 3 — VERIFIER FINDINGS STILL OPEN
 
+From V3 (the stranger) — onboarding-scale, not tonight's sections:
+- Never got inside the property in 20 minutes (the door-chain gating
+  teaches nothing about how to progress it).
+- The pressure washer gives zero feedback on a tap — indistinguishable from
+  a broken tool.
+- The current task lives nowhere on the HUD; the pause Overview tab is
+  empty of tasks; tracked weeds have no locator.
+- The Tab overview opens over anonymous forest, no player marker, no legend
+  on the V data view.
+- Unexplained ground colours (near-black lawn, saturated red strip) read as
+  a leaked debug overlay; translucent shapes hang at the property edge.
+- Door E is silent at arm's length (the refusal only speaks at point-blank).
+From Verifier A:
+- Camera rotation (pointer capture) died mid-session and never recovered
+  while keys kept working — game pointer-lock bug or bridge artifact,
+  unresolved; reproducible in that session only.
+
 ## RUNNING LIST 4 — FIXED BUT NOT ASKED FOR
+
+- The maintenance work order's QA checklist row ("save, reload, confirm
+  persistence") removed from player copy — and with it the gate that made a
+  work order uncompletable for players who never reload (V3).
+- The pause reference page's "Previous tool" label now names the dirt-sense
+  verb its key performs (V3).
+- Default timestamps on calls/texts/mail stamped midnight-day-zero
+  (Number(null) is finite 0) — fixed with a regression pin (Verifier A).
+- The phone home grid moves spatially on arrow keys (Verifier A).
+- `register.cardNode()` exposed AND forwarded through the narrow facade —
+  ending the hunt-by-name era that found scorecard holders and wood chips.
+- placeOrder's dead legacy body documented so nobody hooks it again.
 
 ## RUNNING LIST 5 — REPORTED DONE PREVIOUSLY, FOUND FALSE
 
@@ -514,3 +613,38 @@ same asset pass as the ledger cover thickness.
 | B5 double set-down | "CANNOT REPRODUCE, traced per frame" | ONE object's bookState per rAF | The trace is true — the second animation never touches bookState. A second driver moves the book after `closed` lands. Two-populations, animation edition. |
 | F2 stuck rule | "watched fail with old threshold restored" | Pure verdict fn + source regex | Never launched the game. Sliding registers as progress; actor-pair collisions produce no verdict; live plumbing unobserved. |
 | E1 broom grip | "yaw 0.02 baked, both hands verified" | One DOF at one pose + presence booleans | Complaint is hand shape/orientation, head slant composite, shader artefacts — none instrumented; the golden flag was rebaselined away. |
+| E2-18 mop rebuild | "rebuilt: 96 fine damp-grey strands, through the pipeline's own gates" | Blender previews + kit gates on MESH_MopSkirt | The runtime HIDES that mesh and shows the procedural rig, whose yarn stayed pale cream — the rebuild changed an invisible mesh, and every gate graded the wrong layer. Found and fixed tonight (E1 section). |
+| E4-18 strand handle | "strandRigFor('mop') never appears in QA boots — recorded, stop rule applied" | A waitForFunction on `scene3d.strandRigFor` | The accessor lives on `scene3d.walk` — `undefined?.()` is null forever. The handle was there; the driver's path was wrong (plus a real KTX2-poisoned window earlier that night). Found and fixed tonight (E0 section). |
+
+## SESSION CLOSE
+
+Sections in the ordered brief: **A full** (phone + mail, both seen working,
+verifier-confirmed), **B full** (single-file line photographed; IN QUEUE
+tells the truth, lie watched first), **C full** (bag volume + one packing
+rule + golden pose; card flat and measured; landing pop 1.089 → 1.000),
+**D 3½ of 4** (double set-down and set-down bare page fixed and filmed; one
+key reads the book; open residual ~70 ms recorded), **G measured and
+corrected** (the named lever was wrong — draw calls, not matrices; 60 holds,
+120 blocked, default stays), **E 3 of 5** (handle mystery closed as two
+instrument faults; the VISIBLE mop finally grey; yarn rides walking 27×;
+broom anatomy and mouse-stroke scoped NOT DONE), **F 1 of 2** (scrollbars
+everywhere in the game's palette; translations honestly at 59% with the
+full arithmetic). The golden gate was re-founded on a pinned world and
+gained the bag pose; the ratchet ended BELOW its baseline after catching
++21. Verifiers: V3 first as ordered, Verifier A on section A, V1/V2 cut by
+the directive's own rule. Every commit tonight shipped against a green
+suite; ~12 commits, all pushed.
+
+**And the definitive B5 correction:** the second animation was never outside
+the state machine — `closing` descended fully AND `lowering` re-descended
+from the face pose, two descents per close, states never repeating. The
+Goal 18 trace watched the right object and the wrong VARIABLE (state, not
+position). Fixed; section D has the numbers.
+
+**Phase 4 status:** V3 ran FIRST (per directive) and its findings are woven
+through this report; Verifier A adversarially confirmed the phone claims
+1–5 on real input and honestly declared the laptop claim unreachable on a
+fresh save (its two findings are fixed / listed). V1 and V2 were CUT, as
+the directive itself instructs when the night runs short — the sections'
+own watched-fail instruments and films stand in their place, and the four
+regression items each carry tonight's mechanism statement above.
