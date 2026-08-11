@@ -2433,20 +2433,32 @@ let toolHoldOpened = false;
 let previousWalkTool = null;
 let walkToolWheelRemainder = 0;
 
-const WALK_TOOL_SHORTCUTS = Object.freeze({
-  washer: 'W',
-  vacuum: 'V',
-  mop: 'M',
-  broom: 'B',
-  dustpan: 'D',
-  spray: 'S',
-  cloth: 'C',
-  sponge: 'G',
-  trashbag: 'T',
-  hose: 'H',
-  divot: 'D',
-  rake: 'R',
-});
+// K3 (Goal 23) — THE TOOL WHEEL ADVERTISED KEYS THAT MEAN SOMETHING ELSE.
+//
+// The stranger found one instance: "the tool wheel says B is the push broom;
+// B opens Build mode." Reading the table against src/core/keyBindings.js, ELEVEN
+// OF TWELVE collided with a global binding, and two collided with each other:
+//
+//   washer W = move forward     vacuum V = cart camera    mop M = empire panel
+//   broom  B = BUILD MODE       dustpan D = move right    spray S = move back
+//   cloth  C = club panel       sponge G = grounds panel  trashbag T = phone
+//   rake   R = mower blades     divot D = move right AND dustpan
+//
+// The letters only fire while the wheel is OPEN, so they worked — but the label
+// promises a key that does something else everywhere else in the game, which is
+// worse than no label. And divot/dustpan sharing D meant the divot kit could
+// never be selected by letter at all, because toolShortcutIndex returns the
+// first match: a dead control nobody had pressed.
+//
+// The wheel already handles 1-9 by POSITION. So the advertised key is now the
+// position, which collides with nothing, is correct whichever set is showing
+// (indoor and outdoor belts differ), and needs no second table to drift from
+// the first. tests/tool-wheel-shortcuts.test.js holds the line.
+function numberToolEntries(entries) {
+  return entries.map((entry, index) => (index < 9
+    ? { ...entry, shortcut: String(index + 1) }
+    : { ...entry, shortcut: null }));
+}
 
 function walkToolEntries() {
   const walk = app.scene3d?.walk;
@@ -2461,25 +2473,24 @@ function walkToolEntries() {
       return {
         id,
         label: def.label,
-        shortcut: WALK_TOOL_SHORTCUTS[id],
         available: inside && cleaningKitOwned,
         reason: !inside ? 'Use this inside the clubhouse' : 'Order the cleaning kit from the laptop',
         detail: def.equipToast,
       };
     });
-  const handsFree = { id: null, label: 'Hands free', shortcut: 'X', detail: 'Interact, carry, and inspect' };
-  if (inside) return [handsFree, ...indoorTools];
-  return [
+  const handsFree = { id: null, label: 'Hands free', detail: 'Interact, carry, and inspect' };
+  if (inside) return numberToolEntries([handsFree, ...indoorTools]);
+  return numberToolEntries([
     handsFree,
     {
-      id: 'washer', label: washer?.name || 'Pressure washer', shortcut: WALK_TOOL_SHORTCUTS.washer,
+      id: 'washer', label: washer?.name || 'Pressure washer',
       available: true,
       detail: 'LMB washes · RMB applies soap',
     },
-    { id: 'hose', label: 'Watering hose', shortcut: WALK_TOOL_SHORTCUTS.hose, detail: 'Raises live turf moisture' },
-    { id: 'divot', label: 'Divot kit', shortcut: WALK_TOOL_SHORTCUTS.divot, detail: 'Repairs worn turf patches' },
-    { id: 'rake', label: 'Bunker rake', shortcut: WALK_TOOL_SHORTCUTS.rake, detail: 'Smooths footprinted sand' },
-  ];
+    { id: 'hose', label: 'Watering hose', detail: 'Raises live turf moisture' },
+    { id: 'divot', label: 'Divot kit', detail: 'Repairs worn turf patches' },
+    { id: 'rake', label: 'Bunker rake', detail: 'Smooths footprinted sand' },
+  ]);
 }
 
 function selectWalkTool(tool) {
