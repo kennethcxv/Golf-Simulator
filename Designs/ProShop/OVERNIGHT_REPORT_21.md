@@ -315,6 +315,49 @@ was caught by the method rather than by luck:
 
 ---
 
+# E — THE LOADING SCREEN
+
+## What the check measured, and why it passed
+
+The Goal-20 driver photographed the veil, read its DOM, and asserted
+`sceneNodes >= 3` — **a count of DOM nodes, not pixels.** Every reading was
+true. Counting nodes proves elements exist; it does not prove anything is
+painted, which is precisely what X3 turned out to be.
+
+A second, separate instrument fault sat next to it: **"the veil is up for 6.4
+seconds"** was the last poll sample that still saw the veil. The renderer blocks
+for ~14 s and `page.evaluate` blocks with it, so a polling loop cannot see the
+longest part of the wait. Independent wall clock: **24-25 s**. Both are in
+`FOUND_FALSE.md`.
+
+## What landed
+
+Six plates captured from the **shipped renderer at the player's own eye height**
+— the approach, the porch in late light, down the first, the shed and the
+treeline, the shop windows, a green at first light. Graded and compressed to
+**1.34 MB total**. One is chosen at random on every `show()` and never repeats
+the previous one, so two consecutive loads are never the same picture.
+
+The first capture run put the money chip, the clock, the objectives card and the
+control hint bar into every plate. Caught by looking at the frame; the interface
+is hidden before the shutter now.
+
+A slow 26-second push stops a still reading as a frozen game. A radial-plus-
+linear scrim keeps the type legible over **any** plate, rather than tuning each
+photograph until the text happens to land somewhere dark. The plate is captioned
+in the club's own voice, bottom left.
+
+**The check measures paint now:** it reads the background-image filename and
+asks `document.elementFromPoint` whether the plate is what is actually there.
+Confirmed by looking — `qa/electron/i-loading/veil-00.png` shows dusk over the
+treeline with the clubhouse at right, "GOLF EMPIRE / PINE HILLS MUNICIPAL GOLF",
+a teaching tip, and "The approach, Pine Hills Municipal".
+
+**Still true and not fixed by this:** the wait is 24-25 s. Making it beautiful
+is not making it short; that is section H's problem.
+
+---
+
 # RUNNING LISTS
 
 ## UNCONFIRMED
@@ -340,8 +383,8 @@ was caught by the method rather than by luck:
   untestable end to end by a stranger. Needs a mousehold command on the bridge.
 - **The bridge drops a BOM-prefixed first command line silently.**
 - **X4** — the Tab overview has no player marker and no legend.
-- **C, D, E, F, G, H** — the mop's density and weight, the phone's mouse and
-  icons, the loading screen, the door lag, the translations, the draw calls.
+- **C, D, F, G, H** — the mop's density and weight, the phone's mouse and icons,
+  the door lag, the translations, the draw calls.
 - **The bunker rake viewmodel** — deformed lumps filling the top third of the
   screen (Verifier 3, finding 3).
 - **Silent E/X on debris**, and **"clear the entrance" mapping to no findable
