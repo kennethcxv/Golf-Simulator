@@ -684,3 +684,94 @@ The single most useful sentence in this report is probably not a fix at all:
 **the complaint "it never feels smooth" was being made at 60 fps on a 181.8 Hz
 panel**, by a default this project chose and defended with a measurement that
 could not score the rung that won.
+
+---
+
+# F — THE BAG. Faked. DONE in code, UNVERIFIED visually.
+
+G4.2 said *"packed goods STAY VISIBLE at FULL SIZE — the bag's own walls are
+what hides them; no path may switch a packed good off."* That is now reversed on
+instruction.
+
+G4.2 was itself a correction of a worse fault: goods used to **shrink and pop
+out** in full view above the rim. That objection is about *where* the item
+disappears, not whether it does, and the two-leg motion already answers it —
+travel to the mouth, then sink **down inside** at full size. Hiding now happens
+only after that, behind the paper. Nothing pops, nothing shrinks, **and no body
+has to fit**.
+
+The bag still reads as full: the mouth grows a kraft-coloured mass rising with
+the count and never reaching the rim (`1 − 1/(1 + n·0.55)`), authored to the
+bag's own interior rather than measured off a product, so it cannot clip.
+
+### The test would have passed unchanged, and that is the part worth recording
+
+`visible = true` is still at the top of `packMeshIntoBag`, and the new
+`visible = false` sits below the slice the assertion cut at — **the suite went
+green on a build whose contract had been turned round.** A green test asserting
+a contract nobody holds is worse than no test. It now asserts the new rule, and
+its title says so.
+
+**Not verified visually.** I have no clip of an item entering this bag. The
+golden `bag-packed` pose — exactly the picture that would show it — still fails
+to stage at *"only 1 goods packed"* of three. That is the gate's one honest red
+row, and the staging fault is in the click-to-bag path, not the packing rule.
+
+---
+
+# G1 — The click is measured at −25.9 dBFS and raised. NOT CONFIRMED.
+
+**What the old check measured:** Goal 22 counted graph *events* — oscillators
+created, gains scheduled, `start()` called. That proved the menu was no longer
+silent. It says nothing about loudness: a node at 0.0001 and a node at 0.5
+produce identical event counts.
+
+Measured off the master bus with the audio module's own `qaMasterTap`, against a
+clean **zero** silence floor:
+
+| cue | peak | dBFS |
+|---|---|---|
+| `uiTick` | 0.0509 | **−25.9** |
+| `uiConfirm` | 0.0615 | −24.1 |
+
+**And the menu and the in-game clicks are the same call.** `window.__fwUiClick`
+routes every button in the game to `uiTick`, so *"match them to the in-game UI
+clicks"* was already true — they were equally quiet together.
+
+**The first measurement was not trustworthy and the fix was to the instrument.**
+One shot read −33.7 dBFS on one run and −29.4 on the next with no code change
+between them: the cue decays over 50 ms and the tap polls on animation frames.
+The driver fires eight shots per window and takes the max.
+
+**And I cannot confirm the fix.** `uiTick` went 0.05 → 0.16, a factor of 3.2,
+and the measured peak did **not** rise: −25.9 before, −27.9 after, inside the
+tap's own scatter. The chain is a plain gain cascade — `uiTick → uiBus → master
+→ destination`, no compressor anywhere in `audio.js` — so 3.2× at the source *is*
+3.2× at the output by arithmetic. The change is almost certainly real and my
+instrument cannot see it, which means **it is not verified**.
+
+Kept, because reverting a correct fix on the word of a broken instrument is the
+same error in the other direction. **G1 is NOT DONE**: it needs a tap that can
+resolve a 10 dB step, or your ears.
+
+---
+
+# SESSION CLOSE
+
+**Eleven commits, all pushed. Suite 3064/3064. Lint ratchet frozen at 332.
+Golden gate 12 of 12 green with the lens pinned, and one honest red row.**
+
+**Not started: G2, G3, H, I, J, K.** Named here rather than quietly dropped.
+
+The three sentences worth keeping:
+
+1. **The golden gate never had a regression.** The world was pinned and the
+   *lens* was not, and a saved player preference on this machine had moved it
+   from 66 to 60. Refusing to rebaseline last session is what made it
+   recoverable.
+2. **"It never feels smooth" was being said at 60 fps on a 181.8 Hz panel**, by
+   a default this project chose and defended with a measurement that could not
+   score the rung that won.
+3. **Three of my own probes lied tonight, in code I had just written**, and all
+   three were caught by looking at pixels. A number would have caught none of
+   them.
