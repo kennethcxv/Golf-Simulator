@@ -444,7 +444,7 @@ a player sees a literal brace; the suite fails the build on an em dash. Both are
 cheaper to catch at the merge than at the gate. 684 values, zero refusals.
 
 Judgement calls the translators flagged, kept here because a later edit could
-undo them by accident: / are written to COMPOSE into
+undo them by accident: `till.method.card` / `till.method.cash` are written to COMPOSE into
 , so Russian uses the instrumental and Turkish uses
 "{method} ile" (reusing those keys as standalone labels would read oddly);
 Russian avoids case inflection on injected names and uses gender-free verb forms
@@ -457,7 +457,7 @@ joke.
 A player could not tell where they were standing. There is now a map pin at the
 walk position, built once, shown only in overview, drawn over the terrain.
 
-**It is still not the fix, and the number says so: .** The pin is
+**It is still not the fix, and the number says so: `ndcX -1.282`.** The pin is
 28% off the LEFT EDGE of the screen, because the overview frames the COURSE and
 the player stands at x -360, outside the picture. That is the stranger's "opens
 on blank forest" reproduced exactly.
