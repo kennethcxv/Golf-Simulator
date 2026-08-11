@@ -7928,6 +7928,26 @@ export function makeCourseScene(canvas, state) {
         return;
       }
       if (walkFocus.prop.action) walkFocus.prop.action();
+      else {
+        // K1 (Goal 23) — E WAS SILENT INDOORS ON OBJECTS THE GAME ITSELF NAMES.
+        //
+        // The stranger's first finding, and this is the whole of it: a prop
+        // that is focusable and LABELLED -- which is why its name is on the
+        // prompt bar and why the player pressed E at it -- but carries no
+        // `action` fell off the end of this branch with no else. Nothing
+        // happened and nothing said why.
+        //
+        // Section 1's entrance door got a refusal that names the obstacle and
+        // it is the reason a stranger finally got inside. That rule stopped at
+        // the door. It does not now.
+        const named = typeof walkFocus.prop.label === 'function'
+          ? walkFocus.prop.label()
+          : walkFocus.prop.label;
+        const name = typeof named === 'string' ? named.split(String.fromCharCode(10))[0].trim() : '';
+        if (name && walkHooks.toast) {
+          walkHooks.toast(t('hud.nothingToDoWith', { name }), 'info');
+        }
+      }
     } else if ((walkFocus.kind === 'turf' || walkFocus.kind === 'hose') && walkFocus.cell && walkHooks.inspectAt) {
       if (!isRepeat) walkHooks.inspectAt(
         walkFocus.cell.x,

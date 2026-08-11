@@ -200,6 +200,7 @@ const EN = Object.freeze({
   'build.storageEmpty': "Property storage is empty.",
   'build.setDownFirst': "Set down or cancel the item in your hands first.",
   'build.nothingToUndo': "Nothing to undo.",
+  'hud.nothingToDoWith': "Nothing to do with the {name} yet.",
   'build.undone': "Last property placement undone.",
   'build.onlyStoredSell': "Only stored items can be sold.",
   'build.modeHint': "Build mode - [I] property inventory · look at placed items and [E] to move · [B] stop.",
@@ -683,6 +684,7 @@ const ES = Object.freeze({
   'build.storageEmpty': "El almacén de la propiedad está vacío.",
   'build.setDownFirst': "Primero deja o cancela el objeto que llevas en las manos.",
   'build.nothingToUndo': "Nada que deshacer.",
+  'hud.nothingToDoWith': "Todavía no hay nada que hacer con {name}.",
   'build.undone': "Última colocación deshecha.",
   'build.onlyStoredSell': "Solo se pueden vender los objetos almacenados.",
   'build.modeHint': "Modo construcción - [I] inventario de la propiedad · mira un objeto colocado y [E] para moverlo · [B] salir.",
@@ -983,6 +985,7 @@ const FR = Object.freeze({
   'build.storageEmpty': "La réserve de la propriété est vide.",
   'build.setDownFirst': "Posez ou annulez d'abord l'objet que vous avez en main.",
   'build.nothingToUndo': "Rien à annuler.",
+  'hud.nothingToDoWith': "Rien à faire avec {name} pour le moment.",
   'build.undone': "Dernier placement annulé.",
   'build.onlyStoredSell': "Seuls les objets en réserve peuvent être vendus.",
   'build.modeHint': "Mode construction - [I] inventaire de la propriété · visez un objet placé, [E] pour déplacer · [B] quitter.",
@@ -1283,6 +1286,7 @@ const DE = Object.freeze({
   'build.storageEmpty': "Das Lager der Anlage ist leer.",
   'build.setDownFirst': "Erst das Objekt in deinen Händen absetzen oder abbrechen.",
   'build.nothingToUndo': "Nichts rückgängig zu machen.",
+  'hud.nothingToDoWith': "Mit {name} gibt es noch nichts zu tun.",
   'build.undone': "Letzte Platzierung rückgängig gemacht.",
   'build.onlyStoredSell': "Nur eingelagerte Objekte können verkauft werden.",
   'build.modeHint': "Baumodus - [I] Inventar der Anlage · platzierte Objekte ansehen und [E] zum Verschieben · [B] beenden.",
@@ -1568,6 +1572,7 @@ const PT_BR = Object.freeze({
   'build.storageEmpty': "Depósito da propriedade vazio.",
   'build.setDownFirst': "Primeiro solte ou cancele o item nas suas mãos.",
   'build.nothingToUndo': "Nada para desfazer.",
+  'hud.nothingToDoWith': "Ainda não há nada a fazer com {name}.",
   'build.undone': "Última colocação desfeita.",
   'build.onlyStoredSell': "Só dá para vender itens guardados.",
   'build.modeHint': "Modo construção - [I] inventário · olhe para um item e [E] para mover · [B] sair.",
@@ -1853,6 +1858,7 @@ const RU = Object.freeze({
   'build.storageEmpty': "Склад имущества пуст.",
   'build.setDownFirst': "Сначала поставьте или уберите то, что в руках.",
   'build.nothingToUndo': "Отменять нечего.",
+  'hud.nothingToDoWith': "С {name} пока делать нечего.",
   'build.undone': "Последнее размещение отменено.",
   'build.onlyStoredSell': "Продать можно только вещи со склада.",
   'build.modeHint': "Режим стройки - [I] инвентарь · смотрите на предмет и жмите [E] для переноса · [B] выход.",
@@ -1862,6 +1868,7 @@ const RU = Object.freeze({
 });
 
 const ZH_HANS = Object.freeze({
+  'hud.nothingToDoWith': "{name}暂时还没有可做的事。",
   'settings.reset.footerButton': "重置所有设置",
   'settings.reset.confirm': "再按一次即可全部重置",
   'settings.title': "设置",
@@ -2147,6 +2154,7 @@ const ZH_HANS = Object.freeze({
 });
 
 const JA = Object.freeze({
+  'hud.nothingToDoWith': "{name}にはまだできることがありません。",
   'settings.reset.footerButton': "すべての設定をリセット",
   'settings.reset.confirm': "もう一度押すとすべてリセットします",
   'settings.title': "設定",
@@ -2432,6 +2440,7 @@ const JA = Object.freeze({
 });
 
 const KO = Object.freeze({
+  'hud.nothingToDoWith': "{name}(으)로 아직 할 수 있는 일이 없습니다.",
   'settings.reset.footerButton': "모든 설정 초기화",
   'settings.reset.confirm': "다시 누르면 전부 초기화됩니다",
   'settings.title': "설정",
@@ -2717,6 +2726,7 @@ const KO = Object.freeze({
 });
 
 const TR = Object.freeze({
+  'hud.nothingToDoWith': "{name} ile şimdilik yapılacak bir şey yok.",
   'settings.reset.footerButton': "Tüm ayarları sıfırla",
   'settings.reset.confirm': "Hepsini sıfırlamak için tekrar basın",
   'settings.title': "Ayarlar",
