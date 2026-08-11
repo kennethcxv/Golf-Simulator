@@ -334,6 +334,27 @@ export function makeMenu(handlers) {
     audio.uiTick();
   };
 
+  // A2 (Goal 22) — THE MENU WAS SILENT BECAUSE THIS LINE NEVER RAN.
+  //
+  // The press handler above is correct and was correct when H1 shipped it. It
+  // was attached in exactly one place: inside setVisible(true). And the menu is
+  // BORN VISIBLE — `root` carries no display:none, main.js appends it at
+  // uiRoot.append(menu.root, gameUi), and the only setVisible calls on the boot
+  // path are setVisible(FALSE) for the shed scope. setVisible(true) exists for
+  // RETURNING to the menu from a game. So on the one path every player takes,
+  // launching the game, the listener was never installed and every button was
+  // silent.
+  //
+  // The check that certified this was four regexes over the text of this file
+  // (tests/menu-sound.test.js). One of them asserts this very
+  // addEventListener line exists. It does exist. It never ran. A test that
+  // reads the source cannot ask what the source does.
+  //
+  // Attaching here, at construction, matches the element's own initial state.
+  // setVisible removes before it adds, so this cannot double-subscribe.
+  document.addEventListener('pointerdown', pressSound, true);
+  root.addEventListener('pointerover', hoverSound);
+
   function setVisible(visible) {
     root.style.display = visible ? '' : 'none';
     root.setAttribute('aria-hidden', String(!visible));
