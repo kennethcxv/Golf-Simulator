@@ -10587,9 +10587,64 @@ export function makeCourseScene(canvas, state) {
     shadowClock = Infinity;
   }
 
+  // X4 (Goal 21) — WHERE AM I ON THIS MAP?
+  //
+  // The stranger pressed Tab, got "18 dirty spots marked", saw blank forest with
+  // none of them in frame, and could not tell where they were standing. An
+  // overview you cannot locate yourself on is a picture, not a map.
+  //
+  // A pin at the walk position, built once and only ever shown while the
+  // overview camera is live. Deliberately unlit and depth-test-free so it reads
+  // through a hill rather than hiding behind one: the whole job of this object
+  // is to be findable.
+  let playerPin = null;
+  function ensurePlayerPin() {
+    if (playerPin) return playerPin;
+    const group = new THREE.Group();
+    group.name = 'OverviewPlayerPin';
+    const mat = (color) => new THREE.MeshBasicMaterial({
+      color, depthTest: false, depthWrite: false, transparent: true, opacity: 0.96,
+    });
+    const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.35, 9, 8), mat(0xf2f7ea));
+    stem.position.y = 4.5;
+    const head = new THREE.Mesh(new THREE.ConeGeometry(1.9, 4.2, 12), mat(0xd8482f));
+    head.position.y = 11;
+    head.rotation.x = Math.PI; // point DOWN at the spot, the way a map pin does
+    const ring = new THREE.Mesh(new THREE.RingGeometry(2.2, 3.0, 24), mat(0xd8482f));
+    ring.rotation.x = -Math.PI / 2;
+    ring.position.y = 0.12;
+    group.add(stem, head, ring);
+    // drawn last, over everything, so a tree cannot swallow the one thing the
+    // player opened this view to find
+    group.traverse((n) => { if (n.isMesh) n.renderOrder = 9000; });
+    group.visible = false;
+    scene.add(group);
+    playerPin = group;
+    return group;
+  }
+
+  // The app owns this, not the scene. `activeCourseCamera` looks like the right
+  // signal and is not: nothing sets it when the player presses Tab — it is
+  // written by frameCourse(), which only the resize handler and the editor call.
+  // Gating the pin on it produced a pin that never once existed while the app
+  // was demonstrably in overview mode.
+  let overviewPinWanted = false;
+
+  function updatePlayerPin() {
+    const showing = overviewPinWanted || activeCourseCamera?.kind === 'overview';
+    if (!showing && !playerPin) return; // never built, never needed
+    const pin = ensurePlayerPin();
+    pin.visible = showing;
+    if (!showing) return;
+    pin.position.set(walk.x, heightAt(walk.x, walk.z) ?? 0, walk.z);
+    // a slow turn, so the eye catches it as the only moving thing on a still map
+    pin.rotation.y += 0.012;
+  }
+
   function render(dtMs, st) {
     if (sceneDisposed) return;
     guardCourseWaterReflection.beginFrame();
+    updatePlayerPin();
     time += dtMs / 1000;
     // Repack flora at most once before a frame begins. A mesh onBeforeRender
     // hook is invoked again by AO and shadow passes and can also rebucket a
@@ -12100,6 +12155,11 @@ export function makeCourseScene(canvas, state) {
   return {
     renderer,
     scene,
+    // X4 (Goal 21): the APP tells the scene when the overview is up.
+    // activeCourseCamera looks like the right signal and is not -- nothing
+    // writes it when the player presses Tab, so a pin gated on it never once
+    // existed while the game was demonstrably in overview mode.
+    setOverviewPin: (on) => { overviewPinWanted = !!on; },
     prewarm,
     // Ranked, measured load cost. Empty until prewarm has run once.
     prewarmTimings: () => prewarmTimings.map((entry) => ({ ...entry })),

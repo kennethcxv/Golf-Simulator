@@ -235,6 +235,7 @@ function enterWalk(spawn) {
     setTimeout(() => toast(t('hud.theOldTractorSits')), 1200);
   }
   app.courseMode = 'walk';
+  app.scene3d?.setOverviewPin?.(false);
   app.scene3d.walk.enter(spawn);
   if (document.activeElement instanceof HTMLElement && document.activeElement !== document.body
     && document.activeElement.closest('#ui')) document.activeElement.blur();
@@ -973,6 +974,7 @@ function exitEditor() {
     enterWalk('resume');
   } else {
     app.courseMode = 'overview';
+    app.scene3d?.setOverviewPin?.(true);
     const hint = document.querySelector('.hint-bar');
     if (hint) hint.style.display = '';
   }
@@ -1760,6 +1762,7 @@ const handlers = {
     resetCameraInput(); // the map opens still — nothing carries over from the walk
     if (app.courseMode === 'walk') {
       app.courseMode = 'overview';
+      app.scene3d?.setOverviewPin?.(true);
       exitWalk();
       // The overview is the half of dirt visibility that answers WHICH WAY to
       // go — House Flipper 2's Flipper Sense only lights what you already face,
