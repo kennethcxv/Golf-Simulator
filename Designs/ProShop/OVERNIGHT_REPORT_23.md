@@ -1,15 +1,16 @@
 # OVERNIGHT REPORT 23
 
-> **PERCEPTION RATIO — 5 of 16.** Sixteen things were fixed and certified
+> **PERCEPTION RATIO — 6 of 19.** Nineteen things were fixed and certified
 > tonight. Five were verified by a check that could actually perceive what it
 > certified: the golden lens (two captures at the same scale, an edge-position
 > fit, twelve red rows to twelve green), the queue drain (277 clip frames
 > extracted and looked at), the broom roll (a contact sheet read with my own
 > eyes), the six payment cards (six faces painted through the shipped painter and
-> laid side by side), and the ledger cover (both signs of the swing photographed
-> at the same five fractions — the frames chose the value, not me). The other
-> eleven rest on properties read: frame intervals, buffer sizes, customer state,
-> instance-matrix drift, walk distance, audio peak, luma histograms.
+> laid side by side), the ledger cover (both signs of the swing photographed at
+> the same five fractions — the frames chose the value, not me), and the task
+> card (its DOM read back beside its own screenshot). The other thirteen rest on
+> properties read: frame intervals, buffer sizes, customer state, instance-matrix
+> drift, walk distance, audio peak, luma histograms.
 >
 > One of the twelve, **G1, I could not confirm at all** — the gain tripled and my
 > tap could not see it move. It is kept on arithmetic, not measurement, and
@@ -18,9 +19,11 @@
 > **And the ratio understates the point.** Looking at pixels did not just verify
 > tonight's work — it CAUGHT FIVE OF MY OWN PROBES LYING, in code I had just
 > written. A clip showed doors my instrument swore were shut. A luma probe read
-> midday as pitch black. A contact sheet showed thirteen photographs of grass. A
-> number would have caught none of it — and one of those probes had already
-> produced a written conclusion before the frames contradicted it.
+> midday as pitch black. A contact sheet showed thirteen photographs of grass.
+> **Two of them had already produced a written conclusion before the frames
+> contradicted it, and in one case I built, translated into ten languages and
+> shipped a fix for a bug that did not exist — then reverted it.** A number would
+> have caught none of this.
 >
 > The one thing I could not do is the one I most wanted: **I have never seen the
 > mop head.** It is measured, simulated and unphotographed, and it is not claimed.
@@ -1066,3 +1069,107 @@ lens pinned, one honest red row (`bag-packed`, NOT CAPTURED).**
    the player reaches.
 4. **Looking at pixels caught five of my own probes lying**, in code I had just
    written. A number would have caught none of them.
+
+---
+
+# K — the rest of the fourteen
+
+## The task card stutter. DONE.
+
+*"The task card is double-printed."* It is not, structurally — one card, one
+title, printed once anywhere on screen (`electron-k-hud-card.js` reads the DOM
+back beside the screenshot). What it **is**, is the same instruction twice in
+different words, stacked, and it was the very first thing a new player read:
+
+```
+Inspect the furnished but neglected property     <- phase
+Survey the neglected property                    <- task
+```
+
+A phase is the chapter you are in; the task is what to do next. When the chapter
+restates the task the card wastes its most valuable line and reads as a stutter.
+The phases are chapter names now — **"Arriving at Pine Hills"**, "Getting the
+office running", "Stocking the shop", "Opening day".
+
+## "Authored" is gone from the game. DONE.
+
+His fourteenth, and it was in **five** player-facing strings: *protected authored
+relationships*, *retains the authored green*, *the safe authored layout*, *its
+authored fleet slot*, *v1 authored room*. Every one is a word from the tools that
+build the game leaking into the game. They say what they mean now.
+
+## The silent mouse-look loss. CLOSED — not a bug, and I got it wrong twice.
+
+Measured with the control first (look held → hint must be **absent**):
+
+| | pointer | hint |
+|---|---|---|
+| look held | locked | hidden ✓ |
+| overview (Tab) | free | walk hint hidden |
+| back on foot | free | **shown** ✓ |
+
+So the way out is not silent. I then reported the silence was *inside* the
+overview and **built the fix** — a gate change plus a new i18n key in all ten
+locales.
+
+**It was dead on arrival.** The overview raises its own `.hint-bar`: *"Course
+overview · drag to pan · right-drag to rotate · wheel to zoom · V data view ·
+Tab returns on foot · P pause"* — and always has. My driver was reading
+`.shop-lockhint` in a view that uses `.hint-bar`. "No hint" and "a hint I was not
+looking at" are indistinguishable from a selector.
+
+**That is the fifth wrong-element fault of this session** — the door's
+`ch.doorApi`, the desk list's `ch.frontDeskReservations`, the mop viewmodel
+outdoors, the Tab overview camera path, and this. Reverted: the gate change and
+all ten translations. A dead string in ten languages plus a branch that does
+nothing is exactly the noise I have spent this session objecting to elsewhere.
+
+## The prompt bar. DIAGNOSED, deliberately not fixed.
+
+`walkStationPropInReach()` — a work station within reach **outranks** the
+crosshair, by design, with a comment explaining why (*"Q+mop at the till must
+read the till, not the mop"*). The stranger is describing a documented ruling
+doing exactly what it was written to do. **Owner call, not a bug fix.**
+
+## Not started, and why
+
+- **enterable grey slab · grey placeholders · counter banding** — these are the
+  greybox. `pine-hills-v2` suppresses assets 61/62/63 to grey volumes on purpose
+  and CLAUDE.md says the greybox stays. They are the variant working, not faults.
+- **tool use taught only by failing · floating PRO SHOP sign · collision feel** —
+  untouched.
+- **I3's UI rebuild** — untouched. Its sounds half is G3.
+
+---
+
+# FINAL
+
+**Twenty-seven commits, all pushed. Suite 3081/3081. Lint ratchet frozen at 332.
+i18n ratchet 0 missing across ten locales. Golden gate 12 of 12 green with the
+lens pinned, one honest red row (`bag-packed`, NOT CAPTURED).**
+
+## Three decisions waiting on you
+
+1. **`'wasm-unsafe-eval'` in the CSP** — one line, unblocks recast and section C.
+2. **A number from `E_BROOM_ROLL_CONTACT_SHEET.png`** (#1–#13).
+3. **Should a station in reach outrank the crosshair?** The rule is deliberate
+   and documented; the stranger hates it. Both cannot be right.
+
+## What this session was actually about
+
+Five of my own probes lied tonight, in code I had written that same hour, and
+**every one was caught by looking at pixels**. Two of them had already produced a
+written conclusion before the frames contradicted it — including one where I
+built and shipped a fix for a bug that did not exist, and had to revert it.
+
+The single most useful line in this report is not a fix:
+
+> **The golden gate never had a regression.** The world was pinned and the *lens*
+> was not, and a saved preference on this machine had moved it from 66 to 60.
+> Refusing to rebaseline last session is the only reason it was recoverable.
+
+And the one that will change how the game feels:
+
+> **"It never feels smooth" was being said at 60 fps on a 181.8 Hz panel** — by a
+> default this project chose, and defended with a measurement that could not
+> score the rung that won.
