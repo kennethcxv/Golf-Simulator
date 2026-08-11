@@ -1,6 +1,6 @@
 # OVERNIGHT REPORT 23
 
-> **PERCEPTION RATIO — 6 of 19.** Nineteen things were fixed and certified
+> **PERCEPTION RATIO — 6 of 22.** Twenty-two things were fixed and certified
 > tonight. Five were verified by a check that could actually perceive what it
 > certified: the golden lens (two captures at the same scale, an edge-position
 > fit, twelve red rows to twelve green), the queue drain (277 clip frames
@@ -8,7 +8,7 @@
 > eyes), the six payment cards (six faces painted through the shipped painter and
 > laid side by side), the ledger cover (both signs of the swing photographed at
 > the same five fractions — the frames chose the value, not me), and the task
-> card (its DOM read back beside its own screenshot). The other thirteen rest on
+> card (its DOM read back beside its own screenshot). The other sixteen rest on
 > properties read: frame intervals, buffer sizes, customer state, instance-matrix
 > drift, walk distance, audio peak, luma histograms.
 >
@@ -1140,11 +1140,61 @@ doing exactly what it was written to do. **Owner call, not a bug fix.**
   untouched.
 - **I3's UI rebuild** — untouched. Its sounds half is G3.
 
+## The floating sign. DONE.
+
+The geometry agreed before it was measured: an 0.012 yd board centred 0.10 yd off
+the wall leaves its back face **8.6 cm proud of the plaster with nothing between
+them**.
+
+And it cannot be pushed flush — the card **spins through 180°** to flip between
+OPEN and CLOSED, and that turn is the whole gesture. A thing that must stand off
+a wall needs something holding it there: a brass bracket arm, a backplate at the
+wall, a collar at the pivot. Mount span 0.114 yd against the card's 0.012, so the
+bracket reaches further than the board it carries.
+
+**The mount is a sibling of the card, not a child** — a bracket parented to the
+spinning card would swing out of the wall every time the shop opens, and would
+still pass any check that only asked whether a bracket existed.
+
+*One leg is weak and I am saying so:* the "did not move when the card turned" leg
+never turned the card (`cardYaw` 0 before and after — my flip trigger is not an
+exposed accessor). The sibling assertion covers the same risk structurally; the
+dynamic proof is owed.
+
+## Tool use taught only by failing. DONE.
+
+Measured by reading, and it is stark. Every cleaning tool carries an
+`equipToast` saying exactly how to work it — *"sweep dirt and leaves into a pile,
+then collect it with the dustpan"*, *"LMB washes, RMB applies soap"*. Grepping
+the whole repository, that field is referenced in **one place**:
+
+```
+src/main.js:2478    detail: def.equipToast,
+```
+
+…the detail line of a tool-wheel row. The game had written the lesson for every
+tool and only ever showed it **inside a menu the player may never open** — never
+at the moment they pick the thing up. Everything else had to be discovered by
+trying and watching nothing happen.
+
+Said on equip now, once per tool per session.
+
+**The strings ratchet caught my first version and was right:** I wrote
+``toast(`${def.label}: ${def.equipToast}`)``, a new player-facing string built at
+runtime that would have reached nine other languages in English.
+
+## Still not started
+
+**enterable grey slab · grey placeholders · counter banding** — the greybox.
+`pine-hills-v2` suppresses assets 61/62/63 to grey volumes on purpose and
+CLAUDE.md says it stays. The variant working, not faults.
+**collision feel** and **I3's UI rebuild** — untouched.
+
 ---
 
 # FINAL
 
-**Twenty-seven commits, all pushed. Suite 3081/3081. Lint ratchet frozen at 332.
+**Thirty commits, all pushed. Suite 3081/3081. Lint ratchet frozen at 332.
 i18n ratchet 0 missing across ten locales. Golden gate 12 of 12 green with the
 lens pinned, one honest red row (`bag-packed`, NOT CAPTURED).**
 
