@@ -63,6 +63,24 @@ const DEFAULT_PARAMS = Object.freeze({
   maxStep: 1 / 90,    // fixed sub-step, so feel never depends on frame rate
 });
 
+// THE YARN THE PLAYER ACTUALLY SEES, owned in one place.
+//
+// This used to live only as arguments at the single call site in
+// toolViewmodel.js, while the function defaults below said something else and
+// the test asserted the DEFAULTS. Two populations: the shipped mop could change
+// without the test noticing, and the test could pass about a mop nobody holds.
+// Both now read this object.
+export const SHIPPED_MOP_YARN = Object.freeze({
+  count: 16,
+  radius: 0.098,
+  length: 0.30,
+  segments: 4,
+  strandRadiusTop: 0.0062,
+  strandRadiusBottom: 0.0048,
+  radialSegments: 8,
+  lengthVariation: 0.24,
+});
+
 export function createVerletMopStrands({
   THREE, material,
   radius = 0.115,

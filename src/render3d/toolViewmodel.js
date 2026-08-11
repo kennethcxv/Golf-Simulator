@@ -12,7 +12,7 @@ import * as THREE from 'three';
 import { CLEANING_TOOLS, PALETTE } from '../data/cleaningTools.js';
 import { attachSocket } from './toolSockets.js';
 import { createMopStrands } from './mopStrands.js';
-import { createVerletMopStrands } from './mopVerlet.js';
+import { createVerletMopStrands, SHIPPED_MOP_YARN } from './mopVerlet.js';
 
 // Scratch for resolving an authored socket into the tool group's frame. Reused every frame the
 // hands re-sync onto live sockets, so allocating here rather than per-call keeps it off the heap.
@@ -442,20 +442,34 @@ export function buildToolViewmodels() {
                 const rig = createVerletMopStrands({
                   THREE,
                   material: yarn,
-                  // ...AND THEN THE PLAYER CAMERA DISAGREED WITH THE NUMBERS.
-                  // At 640 x 3.0 mm the head photographed as a translucent fan:
-                  // fine enough, but the disc no longer FILLED, and a planted
-                  // head splayed the gaps open. B3 wants finer AND denser, and
-                  // finer only reads as yarn when there is enough of it to be
-                  // opaque. 820 at 3.4 mm covers the disc at the same fibre
-                  // slenderness. Still 4 draw calls.
-                  count: 820,
-                  radius: 0.115,
-                  length: 0.30,
-                  segments: 4,
-                  strandRadiusTop: 0.0034,
-                  strandRadiusBottom: 0.0020,
-                  lengthVariation: 0.18,
+                  // B (Goal 22) — SIXTH ATTEMPT, AND THE COUNT WAS THE FAULT.
+                  //
+                  // Every previous pass chased DENSITY. 480 -> 640 -> 820, each
+                  // time because the disc "no longer FILLED" and a planted head
+                  // "splayed the gaps open". The reasoning was internally sound
+                  // and aimed at the wrong target: it was trying to make an
+                  // opaque disc, and an opaque disc is not what a string mop is.
+                  //
+                  // Go and look at one. It is fifteen to thirty THICK BANDS of
+                  // yarn. Each band is a rope several millimetres across that
+                  // hangs heavy and moves as one piece, and you can see daylight
+                  // between them. The gaps are not a defect to be filled; they
+                  // are most of what makes it read as a mop and not a brush. A
+                  // thousand 3.4 mm fibres packed to 54% coverage of the disc is
+                  // a pom-pom.
+                  //
+                  // So: 16 bands at 11 mm, not 820 fibres at 3.4 mm. The solver
+                  // is untouched — it was never the problem, and fewer heavier
+                  // bodies read BETTER under it, because each one is now large
+                  // enough on screen to show its own momentum instead of
+                  // averaging into a mass. radialSegments rises to 8 because a
+                  // rope that wide shows its facets where a hair could not; at
+                  // 16 strands that is free. Cost falls from 3,280 instances to
+                  // 64, still 4 draw calls.
+                  // ...and the numbers live in mopVerlet.js beside the solver,
+                  // so the test that guards them measures the mop that SHIPS
+                  // rather than the function defaults nobody holds.
+                  ...SHIPPED_MOP_YARN,
                 });
                 collar.add(rig.root);
                 entry.strandRig = rig;

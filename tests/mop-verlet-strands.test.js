@@ -6,7 +6,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import { createVerletMopStrands } from '../src/render3d/mopVerlet.js';
+import { createVerletMopStrands, SHIPPED_MOP_YARN } from '../src/render3d/mopVerlet.js';
 
 const LENGTH = 0.30;
 const RADIUS = 0.115;
@@ -166,10 +166,19 @@ test('frame rate does not change the settled shape', () => {
   assert.ok(Math.abs(ds - df) < 0.01, `30 fps drop ${ds} vs 60 fps drop ${df}`);
 });
 
-test('B3: more fibres, finer, and cut to varying lengths', () => {
+test('B (Goal 22): a string mop is a few thick bands, not a thousand hairs', () => {
+  // This assertion used to read `strandCount === 820`, "denser than the old
+  // 480", and it was the fifth pass in a row to move this number UP because the
+  // disc did not look filled. Filling the disc was the wrong goal: a real string
+  // mop is 15-30 thick ropes with visible daylight between them, and the gaps
+  // are most of what distinguishes it from a brush. The owner asked for 10-20.
+  //
+  // The count is asserted as a RANGE rather than a value, because the point is
+  // the reading ("a person can count the bands"), not any one number in it.
   const material = new THREE.MeshBasicMaterial();
-  const rig = createVerletMopStrands({ THREE, material });
-  assert.equal(rig.strandCount, 820, 'the shipped default is denser than the old 480');
+  const rig = createVerletMopStrands({ THREE, material, ...SHIPPED_MOP_YARN });
+  assert.ok(rig.strandCount >= 10 && rig.strandCount <= 20,
+    `a string mop has 10-20 bands of yarn, got ${rig.strandCount}`);
   assert.equal(rig.drawCalls, 4, 'still one instanced call per segment index');
   const head = new THREE.Group();
   head.add(rig.root);
