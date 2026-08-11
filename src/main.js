@@ -687,10 +687,10 @@ function updateLedgerHint() {
   const key = (action, fallback) => describeKey(keyForAction(b, action)) || fallback;
   const book = ledgerBookApi();
   // D4 (Goal 19): ONE key opens and turns forward — E all the way through the
-  // book; Esc is the one way back down. "Do not make me learn two."
+  // book. F3 (Goal 20): and Q is the one that shuts it, not Esc.
   ledgerHintEl.textContent = book && book.isOpen()
-    ? `${key('interact', 'E')} next page · ${key('moveLeft', 'A')} back · Esc put the book away`
-    : `${key('interact', 'E')} open the book · Esc put it back`;
+    ? `${key('interact', 'E')} next page · ${key('moveLeft', 'A')} back · ${key('dirtSense', 'Q')} put the book away`
+    : `${key('interact', 'E')} open the book · ${key('dirtSense', 'Q')} put it back`;
 }
 function ledgerBookApi() {
   const ch = app.scene3d?.clubhouse?.();
@@ -706,7 +706,11 @@ function enterLedger() {
   book.setControlLabels?.({
     prev: describeKey(keyForAction(preferences.values.controls?.bindings, 'moveLeft')) || 'A',
     next: describeKey(keyForAction(preferences.values.controls?.bindings, 'interact')) || 'E',
-    close: 'Esc',
+    // F3 (Goal 20): Q closes the book. It was Esc, which is the menu key
+    // everywhere else in the game and reads as "abandon" rather than "shut the
+    // book". Q is the near hand on the keyboard while E is the far one, which
+    // is the shape of opening and closing something you are holding.
+    close: describeKey(keyForAction(preferences.values.controls?.bindings, 'dirtSense')) || 'Q',
   });
   // THE BOOK COMES TO THE PLAYER (2026-08-05 ruling): no lens change, no
   // camera focus — the journal rises to the face, the clasp frees, the cover
@@ -736,7 +740,12 @@ function enterLedger() {
     // CONSUMES the key: without it the walk controller's bubble listener
     // still records the hold and the character strafes under the book.
     const action = boundAction(event);
-    if (key === 'escape') {
+    // F3 (Goal 20): Q is the close key and it is what the footer teaches.
+    // Escape still works and is deliberately NOT advertised: it is the key
+    // every player reaches for to get out of anything, and letting it fall
+    // through to the pause menu would open the pause veil on top of an open
+    // book, which is a worse state than an unadvertised second way out.
+    if (key === 'escape' || action === 'dirtSense') {
       event.preventDefault();
       event.stopPropagation();
       exitLedger();
@@ -759,7 +768,13 @@ function enterLedger() {
         const turned = held.turnPage(1);
         if (turned && audio.ready) audio.ledgerTurn();
       }
-    } else if (key === 'arrowright' || action === 'moveRight') {
+    } else if (key === 'arrowright') {
+      // F4 (Goal 20): the moveRight binding (D by default) used to turn
+      // forward here as well as E. Two keys for one verb, one of them never
+      // taught by the footer, and the player found it by accident. E is the
+      // forward key; D does nothing in the book now. The arrows keep working
+      // because they are the one pair nobody has to be told about, and A still
+      // turns BACK, which is the direction E cannot express.
       event.preventDefault();
       event.stopPropagation();
       const turned = ledgerBookApi()?.turnPage(1);
@@ -3800,6 +3815,7 @@ function openMenuSettings() {
 
 function boot() {
   menu = makeMenu({
+    audio, // H1 (Goal 20): the menu was silent because nothing gave it a voice
     async onNewGame(mode) {
       // Begin in the authored three-hole fixer-upper. Later acquisitions belong
       // on the physical clubhouse laptop, after the player knows the space.

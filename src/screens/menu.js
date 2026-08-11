@@ -304,9 +304,47 @@ export function makeMenu(handlers) {
     }
   }
 
+  // H1 (Goal 20) — THE MAIN MENU HAD NO SOUND AT ALL.
+  //
+  // Not a quiet one: this file contained zero audio references, so every press
+  // on New Game, Settings, Load and Quit was silent, and a silent button is
+  // indistinguishable from a broken one. The stranger verifier reached the same
+  // conclusion from the other end.
+  //
+  // ONE delegated capture-phase listener rather than a sound on each of the
+  // twelve onclick sites, because the menu's dialogs (new game, load, credits,
+  // the delete confirmation) build their own buttons and every one of them
+  // needs to speak too. pointerdown, not click, so the sound lands with the
+  // press the way the in-game button factory already does.
+  //
+  // audio.init() is called first: the context can only be created from a user
+  // gesture, and this IS the first gesture of the session, so without it the
+  // very click that should make the first sound is the one that cannot.
+  const audio = handlers.audio || null;
+  const pressSound = (event) => {
+    const target = event.target?.closest?.('button');
+    if (!target || target.disabled) return;
+    audio?.init?.();
+    if (target.classList.contains('menu-action-primary')) audio?.uiConfirm?.();
+    else audio?.uiTick?.();
+  };
+  const hoverSound = (event) => {
+    const target = event.target?.closest?.('button');
+    if (!target || target.disabled || !audio?.ready) return;
+    audio.uiTick();
+  };
+
   function setVisible(visible) {
     root.style.display = visible ? '' : 'none';
     root.setAttribute('aria-hidden', String(!visible));
+    // listeners live only while the menu is up, so nothing in the game world
+    // ever ticks because a menu handler was left attached to the document
+    document.removeEventListener('pointerdown', pressSound, true);
+    root.removeEventListener('pointerover', hoverSound);
+    if (visible) {
+      document.addEventListener('pointerdown', pressSound, true);
+      root.addEventListener('pointerover', hoverSound);
+    }
     if (visible) {
       refresh().then(() => {
         const target = continueBtn.disabled ? actionList.querySelector('button:not([disabled])') : continueBtn;
