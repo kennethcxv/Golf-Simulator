@@ -1,0 +1,5 @@
+{
+  "_comment": "G3 (Goal 23). Every vendored audio sample, with the licence and the source it came from. tests/audio-sample-licences.test.js FAILS THE BUILD if any entry is missing a licence, a source URL, or an attribution line where its licence requires one - so a file cannot reach a player without its provenance reaching the credits. Allowed licences are CC0 and CC-BY only; anything with a non-commercial or share-alike term is refused, because this ships on Steam.",
+  "allowedLicences": ["CC0-1.0", "CC-BY-3.0", "CC-BY-4.0"],
+  "samples": []
+}

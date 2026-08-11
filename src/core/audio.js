@@ -5,6 +5,7 @@
 
 import { BROOM_FEEL } from '../data/broomFeel.js';
 import { CLEANING_TOOLS } from '../data/cleaningTools.js';
+import { createSampleBank } from './sampleBank.js';
 
 export const CHECKOUT_CUE_APIS = Object.freeze([
   'productPlace', 'productPickup', 'productRotate',
@@ -50,6 +51,14 @@ export function makeAudio(preferences = null) {
   let sfxBus = null;
   let capture = null;
   let uiBus = null;
+  let sampleBank = null;
+
+  // Ask the bank first. `true` means a recording played and the caller must
+  // return; `false` means synthesise, which is the normal path today.
+  function sampled(cue, bus, options = {}) {
+    if (!sampleBank || !ctx) return false;
+    return sampleBank.play(cue, { ctx, destination: bus || sfxBus, ...options });
+  }
   let paused = false;
   let lifecycleActive = true;
 
@@ -123,6 +132,39 @@ export function makeAudio(preferences = null) {
     uiBus = ctx.createGain();
     uiBus.connect(master);
     applyVolume();
+
+    // G3 (Goal 23) — THE SAMPLE PLAYER, BESIDE THE SYNTH.
+    //
+    // Every cue below is oscillators and filtered noise, which is why the game
+    // sounds electric. The bank serves a cue from a real recording when one has
+    // been vendored for it, and REFUSES otherwise, so each cue keeps its synth
+    // voice until a sample earns its place. Nothing goes silent because a file
+    // failed to decode.
+    //
+    // Assets/audio/manifest.json is currently EMPTY and this therefore changes
+    // nothing you can hear today. It is the plumbing and the licence gate; the
+    // recordings need a source with a credential (see Assets/audio/CREDITS.md).
+    //
+    // Guarded on `document` and `fetch`: audio.js is constructed head-less by
+    // the test fixtures, and reaching for document.baseURI there took five
+    // audio tests down with "document is not defined". A player that only
+    // exists in a browser has no business being built anywhere else.
+    const hasDom = typeof document !== 'undefined' && typeof fetch === 'function';
+    if (hasDom) {
+      sampleBank = createSampleBank({
+        decode: (data) => ctx.decodeAudioData(data),
+        fetchFn: async (url) => {
+          const res = await fetch(new URL(url, document.baseURI).href);
+          if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+          return res.arrayBuffer();
+        },
+        now: () => ctx.currentTime,
+      });
+      fetch(new URL('Assets/audio/manifest.json', document.baseURI).href)
+        .then((r) => (r.ok ? r.json() : { samples: [] }))
+        .then((m) => sampleBank.loadAll(m.samples || []))
+        .catch(() => { /* no manifest is the normal case today; the synth covers it */ });
+    }
 
     // rain: looped noise through a low-pass, gain driven by weather
     const noiseBuf = ctx.createBuffer(1, ctx.sampleRate * 2, ctx.sampleRate);
@@ -425,6 +467,7 @@ export function makeAudio(preferences = null) {
 
   let lastUiTickAt = -1;
   function uiTick() {
+    if (sampled('uiTick', uiBus)) return;
     if (!ctx) return;
     const t0 = ctx.currentTime;
     // E1: one click per press. The button factory speaks on pointerdown and
@@ -461,6 +504,7 @@ export function makeAudio(preferences = null) {
   }
 
   function uiConfirm() {
+    if (sampled('uiConfirm', uiBus)) return;
     if (!ctx) return;
     const t0 = ctx.currentTime;
     for (const [frequency, offset] of [[520, 0], [700, 0.065]]) {
@@ -690,6 +734,7 @@ export function makeAudio(preferences = null) {
   }
 
   function ledgerTurn() {
+    if (sampled('ledgerTurn')) return;
     if (!ctx) return;
     const t0 = ctx.currentTime;
     ledgerLeaf(t0, 0.06);
@@ -707,6 +752,7 @@ export function makeAudio(preferences = null) {
 
   // the clasp frees, the cover thuds open, the first leaf settles
   function ledgerOpen() {
+    if (sampled('ledgerOpen')) return;
     if (!ctx) return;
     const t0 = ctx.currentTime;
     const tick = ctx.createOscillator();
@@ -733,6 +779,7 @@ export function makeAudio(preferences = null) {
 
   // the leaves settle, then the cover shuts on them
   function ledgerClose() {
+    if (sampled('ledgerClose')) return;
     if (!ctx) return;
     const t0 = ctx.currentTime;
     ledgerLeaf(t0, 0.04);
@@ -1240,6 +1287,7 @@ export function makeAudio(preferences = null) {
   // how full the compartment already is) shortens the thud and lifts the
   // partials, which is the whole "on the one before it" effect.
   function billDeposit(depth = 0) {
+    if (sampled('billDeposit', sfxBus, { rate: 1 + 0.06 * depth })) return;
     const d = Math.max(0, Math.min(1, Number(depth) || 0));
     // the slap of the note going flat onto the pile — short, broad, with attack
     checkoutNoise({ dur: 0.055, band: 1750 + 500 * d, toBand: 850, q: 1.1, peak: 0.040, attack: 0.0015 });
@@ -1253,6 +1301,7 @@ export function makeAudio(preferences = null) {
   }
 
   function coinDeposit(depth = 0) {
+    if (sampled('coinDeposit', sfxBus, { rate: 1 + 0.06 * depth })) return;
     const d = Math.max(0, Math.min(1, Number(depth) || 0));
     // metal on metal: two close partials, the second a beat later, because a
     // coin never lands flat first time
