@@ -66,3 +66,6 @@ logs/
 !/Designs/Course/
 !/Designs/NamedGolfers/
 !/Designs/FoundObjects/
+
+# Goal 21 section Y: extracted clip frames are evidence, not artefacts to keep
+qa/clips/

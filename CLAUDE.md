@@ -1,5 +1,28 @@
 # GOLF EMPIRE — project rules
 
+## The found-false ledger outranks everything else here
+
+`Designs/ProShop/FOUND_FALSE.md` lists every item that has been reported DONE
+and then found false by the owner, with what each check measured and why it
+passed. Four sessions running have shipped items that passed their own checks
+and failed in his hands.
+
+> **An item on the found-false ledger cannot be marked DONE again without a
+> CLIP.** Real input, default camera, frames extracted and VIEWED, and the
+> report names the frame that proves it by timestamp. A number is not enough for
+> these.
+
+**And for anything that MOVES, a clip is the standard whether or not it is on
+the ledger** — the ledger open, a set-down, a customer walking past a box, the
+mop's stroke. A screenshot cannot show a gesture, and the gesture is what keeps
+failing. Record with `VIDEO_DIR=qa/<name> node tools/qa/run-electron.cjs ...`,
+extract with the ffmpeg tile pattern in `tools/qa/clip-frames.mjs`, and **look at
+the frames**. Never report a number about a clip you have not looked at.
+
+Before claiming a ledger item done, write down what the new check measures and
+how that differs from the check that passed last time. If it is a number of the
+same kind, it is not a new check.
+
 ## The two skills are the law
 
 - **Assets go through `golf-assets`** (`.claude/skills/golf-assets/`): palette
