@@ -5988,6 +5988,7 @@ export function makeCourseScene(canvas, state) {
   const stuckMon = createStuckMonitor({ softMs: 700, hardMs: 1800 });
   const cartCol = []; // the parked cart, as a collider, only while it is parked
   let safeClock = 0;
+  let walkTrailClock = 0; // monotonic ms, so breadcrumbs can be aged (Goal 21)
 
   function walkColliderGroups() {
     cartCol.length = 0;
@@ -6013,9 +6014,12 @@ export function makeCourseScene(canvas, state) {
 
     // 2. breadcrumb ground we know is good
     safeClock += dtMs;
+    walkTrailClock += dtMs;
     if (!overlapping && safeClock > 180) {
       safeClock = 0;
-      safeTrail.record(walk.x, walk.z);
+      // stamped, so recall can tell "where I stood a moment ago" from "where I
+      // stood before I walked across the lawn" (Verifier 3's warp trap)
+      safeTrail.record(walk.x, walk.z, walkTrailClock);
     }
 
     // 3. still pinned? escalate. (read the keys, not walkMoving — a wedged cart counts too)
@@ -6037,7 +6041,11 @@ export function makeCourseScene(canvas, state) {
       }
     }
     if (how !== 'nearestFree') {
-      const back = safeTrail.recall((x, z) => walkFreeAt(x, z, r));
+      // Recovery is LOCAL. 'manual' is the pause menu's own button, where the
+      // player has explicitly asked to be moved and a longer reach is welcome;
+      // the automatic escalation must never warp them back across the lawn.
+      const from = how === 'manual' ? null : { x: walk.x, z: walk.z, atMs: walkTrailClock };
+      const back = safeTrail.recall((x, z) => walkFreeAt(x, z, r), from);
       if (back) {
         walk.x = back.x;
         walk.z = back.z;
