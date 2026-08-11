@@ -433,7 +433,25 @@ export function makeAudio(preferences = null) {
     const osc = ctx.createOscillator();
     osc.frequency.value = 520;
     const g = ctx.createGain();
-    g.gain.setValueAtTime(0.05, t0);
+    // G1 (Goal 23) — MEASURED, NOT GUESSED.
+    //
+    // At 0.05 this cue peaked at 0.0509 on the master bus against a clean zero
+    // floor: −25.9 dBFS. That is why "I can barely hear them". The transfer is
+    // linear, so 0.16 lands it near −16 dBFS, which is where a UI click belongs
+    // — audible over a menu with nothing else playing, and not a slap.
+    // tools/qa/electron-g1-menu-loudness.js re-measures it.
+    //
+    // THE MENU AND THE IN-GAME CLICKS ARE THE SAME CALL. window.__fwUiClick
+    // routes every button in the game to uiTick, so "match them to the in-game
+    // UI clicks" was already true and both were too quiet together. Raising
+    // this raises both, which is the only way they stay matched.
+    //
+    // The first measurement of this was NOT trustworthy and the fix was to the
+    // instrument, not the gain: one shot read −33.7 dBFS on one run and −29.4
+    // on the next with no code change between them, because the cue decays over
+    // 50 ms and the tap polls on animation frames. The driver fires eight shots
+    // per window now and takes the max.
+    g.gain.setValueAtTime(0.16, t0);
     g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.05);
     osc.connect(g).connect(uiBus);
     osc.start(t0);
