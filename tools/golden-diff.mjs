@@ -46,6 +46,12 @@ if (flag('--accept')) {
     const png = await sharp(join(CURRENT, `${name}.png`)).resize({ width: WIDTH, kernel: 'lanczos3' }).png().toBuffer();
     writeFileSync(join(GOLDENS, `${name}.png`), png);
   }
+  // The manifest travels WITH the goldens (Goal 23). The seed, the interior
+  // origin, the lens, the canvas and the device pixel ratio are the conditions
+  // the reference was shot under; without them a future divergence is a day of
+  // pixel archaeology, and with them it is one line of diff.
+  const manifest = join(CURRENT, 'manifest.json');
+  if (existsSync(manifest)) copyFileSync(manifest, join(GOLDENS, 'capture-conditions.json'));
   console.log(`accepted ${poseNames.length} goldens into tests/goldens/ at ${WIDTH}w`);
   process.exit(0);
 }
@@ -101,6 +107,19 @@ for (const name of poseNames) {
     writeFileSync(join(DIFFOUT, `${name}.png`), PNG.sync.write(diff));
   }
   rows.push({ pose: name, diffPct: +pct.toFixed(4), maxPct, verdict: ok ? 'ok' : `FAIL (diff written to qa/golden/diff/${name}.png)` });
+}
+// A GOLDEN WITH NO CAPTURE IS A POSE THAT DID NOT HAPPEN (Goal 23). This loop
+// only ever walked the CURRENT directory, so a pose that failed to stage
+// simply vanished from the table — twelve rows of green and no thirteenth, and
+// nothing said the thirteenth was missing. The committed goldens are the
+// contract; every one of them must be answered by this run.
+const captured = new Set(poseNames);
+for (const f of readdirSync(GOLDENS)) {
+  if (!f.endsWith('.png')) continue;
+  const name = f.slice(0, -4);
+  if (captured.has(name)) continue;
+  rows.push({ pose: name, verdict: 'NOT CAPTURED (the pose did not run — see the capture manifest)' });
+  failed++;
 }
 console.table(rows);
 process.exit(failed ? 1 : 0);

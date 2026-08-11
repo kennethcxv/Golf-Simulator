@@ -26,6 +26,14 @@ async (page) => {
   const outArg = process.argv.find((a) => a.startsWith('--out='));
   const OUT = path.resolve(outArg ? outArg.slice(6) : 'qa/golden/current');
   fs.mkdirSync(OUT, { recursive: true });
+  // A SKIPPED POSE USED TO READ AS A PASS (Goal 23). bag-packed failed to
+  // stage, the manifest said so honestly — and the differ then compared LAST
+  // run's leftover file, scored 0.0000%, and reported the pose green. The
+  // capture that did not happen was the one the gate was most sure about.
+  // Nothing survives a run it was not produced by.
+  for (const stale of fs.readdirSync(OUT)) {
+    if (stale.endsWith('.png')) fs.rmSync(path.join(OUT, stale));
+  }
 
   // GOAL 19 WORLD PIN: every capture runs the SAME world. The harness profile
   // always boots a NEW GAME with a fresh random seed (measured: two boots,
@@ -52,13 +60,51 @@ async (page) => {
     app.scene3d.walk.clearKeys?.();
     const ui = document.getElementById('ui');
     if (ui) ui.style.visibility = 'hidden';
+    const canvas = document.getElementById('game');
     return {
       clock: app.state.clock.minutes,
       speedIdx: app.speedIdx,
       // the pinned world, recorded: a drifting seed here means the pin broke
       seed: app.state.seed,
       interiorY: +app.scene3d.clubhouse().interior.position.y.toFixed(5),
+      // THE LENS AND THE FRAME (Goal 23). Twelve poses failed for a week at
+      // 7.7-9.2% and the bisect found nothing, because the cause was never in
+      // the repository: the capture was running a different FIELD OF VIEW than
+      // the run that was accepted. A pin that records the world but not the
+      // lens pins half the picture. Magnification about the exact principal
+      // point is what a lens change looks like and nothing else does, so these
+      // four numbers turn a day of pixel archaeology into one line of diff.
+      walkFov: app.scene3d.walk?.diagnostics?.()?.fov ?? null,
+      dpr: window.devicePixelRatio,
+      canvasCss: canvas ? `${Math.round(canvas.getBoundingClientRect().width)}x${Math.round(canvas.getBoundingClientRect().height)}` : null,
+      canvasBuffer: canvas ? `${canvas.width}x${canvas.height}` : null,
     };
+  });
+
+  // PIN THE LENS THE WAY THE WORLD IS PINNED (Goal 23).
+  //
+  // The seed pin (47463cd) fixed the world and the gate still failed twelve
+  // poses for a week. The cause: the FIELD OF VIEW is a persisted PLAYER
+  // PREFERENCE, stored in the Electron profile's localStorage, shared by every
+  // driver and every free-play session on this machine. Somebody moved the
+  // slider to 60. The goldens were shot at the shipped 66. Every capture since
+  // has been the same room through a different lens — a clean 1.125x
+  // magnification about the exact principal point, which is what a lens change
+  // looks like and what nothing else looks like.
+  //
+  // The world pin was necessary and not sufficient. Anything the player can
+  // change and the profile can remember has to be pinned here, or the gate
+  // measures the machine instead of the code.
+  prep.lens = await page.evaluate(async () => {
+    const app = window.__fw;
+    const before = app.scene3d.walk?.diagnostics?.()?.fov ?? null;
+    let shipped = null;
+    try {
+      const m = await import(new URL('src/core/preferences.js', document.baseURI).href);
+      shipped = m.DEFAULT_PREFERENCES.camera.fov;
+    } catch (e) { return { before, error: `preferences unavailable: ${e.message}` }; }
+    app.scene3d.walk.configure({ fov: shipped });
+    return { before, shipped, after: app.scene3d.walk?.diagnostics?.()?.fov ?? null };
   });
 
   const waitFrames = (n) => page.evaluate((frames) => new Promise((res) => {

@@ -1,0 +1,33 @@
+{
+  "capturedAt": "fixed-clock 14:00",
+  "poses": [
+    "shop-floor",
+    "stockroom-wall",
+    "tool-broom",
+    "tool-mop",
+    "tool-vacuum",
+    "tool-spray",
+    "tool-cloth",
+    "tool-sponge",
+    "tool-dustpan",
+    "tool-trashbag",
+    "tool-washer",
+    "tool-paint",
+    "SKIP bag-packed: only 1 goods packed"
+  ],
+  "prep": {
+    "clock": 840,
+    "speedIdx": 0,
+    "seed": 1035912314,
+    "interiorY": -0.45135,
+    "walkFov": 60,
+    "dpr": 1.5,
+    "canvasCss": "2560x1370",
+    "canvasBuffer": "3840x2055",
+    "lens": {
+      "before": 60,
+      "shipped": 66,
+      "after": 66
+    }
+  }
+}
