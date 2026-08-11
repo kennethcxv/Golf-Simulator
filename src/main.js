@@ -2743,6 +2743,10 @@ canvas.addEventListener('pointermove', (e) => {
 // incomplete, and the game had no way to say so. It does now, once per tool per
 // session, so it teaches without nagging the player who already knows.
 const TAP_HINT_MS = 260;
+// X2: how long a tapped trigger sprays. Long enough to see the jet and hear it,
+// short enough that it reads as a squeeze rather than a stuck button.
+const TAP_BURST_MS = 260;
+let tapBurstTimer = null;
 let toolPressStartedAt = 0;
 const tappedToolsHinted = new Set();
 
@@ -2753,10 +2757,30 @@ window.addEventListener('pointerup', (e) => {
   toolPressStartedAt = 0;
   if (preferences.values.accessibility.toolActivation === 'hold') stopToolUse();
   if (tool && heldFor < TAP_HINT_MS
-    && preferences.values.accessibility.toolActivation === 'hold'
-    && !tappedToolsHinted.has(tool)) {
-    tappedToolsHinted.add(tool);
-    toast(t('hud.holdToUseTool'));
+    && preferences.values.accessibility.toolActivation === 'hold') {
+    // X2 (Goal 21) — A TAP IS A SHORT SQUEEZE OF THE TRIGGER, NOT A NO-OP.
+    //
+    // The stranger verifier tapped the pressure washer five times on the porch
+    // and got nothing: no water, no sound, no number moving. Goal 20 added a
+    // hint, which fires and which they quoted back, and a hint is still an
+    // apology for a dead control. A real trigger gives a real short burst.
+    //
+    // This routes through the SAME spray path a hold uses, so the jet, the
+    // sound and the actual cleaning progress are the genuine ones rather than a
+    // cosmetic puff. A short burst that cleans a little is honest: it is what
+    // the tool would do.
+    app.scene3d.walk.setSpraying(true);
+    if (audio.ready) audio.setToolLoop(tool);
+    if (tapBurstTimer) clearTimeout(tapBurstTimer);
+    tapBurstTimer = setTimeout(() => {
+      tapBurstTimer = null;
+      stopToolUse();
+    }, TAP_BURST_MS);
+    // ...and the hint still teaches the better gesture, once per tool.
+    if (!tappedToolsHinted.has(tool)) {
+      tappedToolsHinted.add(tool);
+      toast(t('hud.holdToUseTool'));
+    }
   }
 });
 
