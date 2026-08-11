@@ -268,7 +268,17 @@ export function makePhoneUi({ app, audio, keyLabel, onBooking = null }) {
     if (view === 'home') return APPS.length;
     if (view === 'incoming') return 3;
     if (view === 'offer') return (body.__offerCount || 0) + 1; // slots + back
-    return 1; // list views: the back action
+    // C2 (Goal 20): list views are NOT one button. An app may render actionable
+    // rows — a missed call you can play and ring back is the first, and the
+    // registry exists so there will be more. Counting the live DOM keeps the
+    // arrow keys correct for every app without the shell knowing what any of
+    // them render. Read fresh on each key press, which is why it counts the DOM
+    // rather than a number cached at render time.
+    if (view.startsWith('app:')) {
+      const rows = body.querySelectorAll('.phone-list button').length;
+      return rows + 1; // rows, then back
+    }
+    return 1;
   }
 
   function render() {
@@ -322,10 +332,31 @@ export function makePhoneUi({ app, audio, keyLabel, onBooking = null }) {
       if (appEntry) {
         viewEl.append(el('div', { class: 'phone-apphead' },
           el('span', { text: appEntry.label() }),
-          el('button', { class: `phone-back ${focus === 0 ? 'focus' : ''}`, text: t('phone.back'), onclick: () => { view = 'home'; focus = 0; render(); } })));
+          el('button', { class: 'phone-back', text: t('phone.back'), onclick: () => { view = 'home'; focus = 0; render(); } })));
         const list = el('div', { class: 'phone-list' });
         viewEl.append(list);
         appEntry.render(state, list);
+        // C2 (Goal 20), DISPROVED BY VERIFIER 2 AND FIXED HERE.
+        //
+        // I gave the calls app actionable rows and never taught the shell that
+        // list views could contain more than one button. focusables() returned
+        // a flat 1 ("the back action"), so ArrowDown computed
+        // (0 + 1 + 1) % 1 = 0 and never moved, and Enter clicked the only thing
+        // wearing the focus class — Back — which left the app. The verifier's
+        // words were "those are the presses that did nothing". They did
+        // something: they went home.
+        //
+        // The row buttons exist and the mouse always reached them, which is
+        // exactly why my own check passed: the sim verbs were tested, the
+        // wiring was asserted, and nobody drove the phone the way the phone
+        // says it is driven.
+        //
+        // Focus is assigned by DOM order over whatever the app rendered, so any
+        // future app gets keyboard reach for free — that seam was the point.
+        const rowButtons = [...list.querySelectorAll('button')];
+        const backButton = viewEl.querySelector('.phone-back');
+        const order = [...rowButtons, backButton].filter(Boolean);
+        order.forEach((btn, index) => btn.classList.toggle('focus', index === focus));
       }
     } else {
       // home
