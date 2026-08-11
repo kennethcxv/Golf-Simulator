@@ -1275,6 +1275,341 @@ collider **slides** rather than sticking, and a square hit stops. **And it is a
 soft number:** the reference run is only 1.153 yd, because the clearest bearing
 from the interior origin has barely a yard of floor in it. The shop is tight.
 
+**I3 — SUBSTANTIALLY DONE against F1.**
+
+The accessor it needed was mine to add: `ledgerBook.pageCanvas(side)` returns
+the face at native 768×512, the way the register hands over `cardBrandCanvas`.
+Looking at it immediately caught things — including one of my own.
+
+**Where you are.** The folio printed `2`. A bare page number tells you where you
+are only if you already know how big the book is, which is exactly what a reader
+does not know. It reads **`1 of 10`** and **`2 of 10`** now, still measured
+against the same box so the key hints keep priority.
+
+**How to get anywhere else.** The contents list printed page numbers — Guest
+Register 2, The Deed 9 — and there was no way to use them; crossing the book was
+four spread turns of pressing E. **The page numbers work now: press 1–9.**
+Jumping by *folio*, because that is the number on the page; refusing mid-turn,
+because a jump landing during a flip paints into a canvas the leaf is reading;
+clamping past the end, because somebody will press 9 in a five-page book.
+
+**The keys.** The footer read *"E close the book"* and *"next page D"* — wrong
+twice: `interact` (E) turns **forward**, `dirtSense` (Q) closes, and **D is not
+handled at all**. Goal 20's F3 and F4 were about exactly those keys. **I nearly
+reported it as a game fault.** `main.js` pushes live bindings on every open, so
+no player has seen those strings; I saw them because my driver opens the book
+directly and bypasses the push. **Seventh instrument fault of the session.** What
+*was* real: the fallbacks contradicted the code, which is a trap for anyone
+reading the file. Fixed.
+
+**The test caught my own arithmetic.** I asserted pages 2 and 3 were one opening;
+`paintSpread` pairs (1,2), (3,4). The code was right and the test was wrong,
+which is the correct direction for that argument to be settled in.
+
+**`Designs/ProShop/I3_LEDGER_SPREAD.png`** is the spread as it now paints. What
+remains is taste rather than function.
+
+---
+
+# FINAL COUNT
+
+**Sixteen commits, all pushed. Suite 3076/3076. Lint ratchet frozen at 332.
+Golden gate 12 of 12 green with the lens pinned, one honest red row.**
+
+| | |
+|---|---|
+| DONE | golden lens pin · A2 resolution · A1 vsync cap · B1 · B3 · D1 solver · D collar · E one value + sheet · F bag · G2 deposit voice · H cards · I2 book lock |
+| NOT DONE, located | A1 merge · A3 hitch · B2 (one wall left) · C (CSP) · D photograph · G1 (unconfirmable) · G3 (no recordings) · J (wrong path) |
+| NOT STARTED | I1, I3 · K |
+
+**Waiting on you:** `'wasm-unsafe-eval'` in the CSP (unblocks C), and a number
+from the broom contact sheet.
+
+---
+
+# I1 — The cover opens right to left. DONE, and the frames decided it.
+
+**What the previous filming measured:** a clip whose frames showed *"the shut
+book presenting as a flat card and the open book snapping into place without
+moving for 25 frames."* True, and it is a report about the **rise and the shell
+swap** — the *direction* was never isolated, because it was a bare local
+constant with no way to see the alternative.
+
+It is one sign. Both signs, same swing, same five fractions, side by side:
+
+| | 0% | 25% | 50% | 75% | 100% |
+|---|---|---|---|---|---|
+| **+1 (shipped)** | shut | **cover not there** | **cover not there** | open | open |
+| **−1** | shut | board arcing up from the **right** | standing vertical | come over to the **left** | open |
+
+**The +1 column *is* the complaint, photographed:** a flat card, then an open
+book, with nothing in between — the cover swings down behind the block and out
+of sight. `COVER_SIGN = −1`. **`Designs/ProShop/I1_COVER_SWING.png`.**
+
+The swing is driven to exact fractions rather than filmed, deliberately: a clip
+samples wherever the frames land, so two recordings of the same gesture do not
+line up and cannot be compared.
+
+# I3 — NOT DONE
+
+The sounds half is G3 (player and licence gate in, no recordings obtainable).
+The UI rebuild is untouched.
+
+---
+
+# K — the stranger's fourteen
+
+## K1 The refusal rule passes the door now. DONE.
+
+His first finding, and it is four lines of `walkInteract`. A prop that is
+focusable and **labelled** — which is why its name is on the prompt bar, and why
+the player pressed E at it — but carries no `action` fell off the end of the
+prop branch **with no else**:
+
+```js
+if (walkFocus.prop.action) walkFocus.prop.action();
+}                                    // and if it has none, silence
+```
+
+Section 1's entrance door got a refusal naming the obstacle, and that refusal is
+why a stranger finally got inside. The rule stopped at the door. A named prop
+with no verb now says so, using the name the player is already reading.
+
+The string goes through `t()` with a new key in **all ten locales** — I would
+rather write ten translations than ship an eleventh English string into nine
+other languages.
+
+## K3 Eleven of twelve, not one. DONE.
+
+He found *"the tool wheel says B is the push broom; B opens Build mode."*
+Reading the table against `keyBindings.js`:
+
+```
+washer W = move forward   vacuum V = cart camera    mop  M = empire panel
+broom  B = BUILD MODE     dustpan D = move right    spray S = move back
+cloth  C = club panel     sponge G = grounds panel  trash T = phone
+rake   R = mower blades   divot  D = move right AND dustpan
+```
+
+**Eleven of twelve collided with a global binding.** And one control was *dead*:
+divot and dustpan both claimed D, and `toolShortcutIndex` returns the first
+match, so the divot kit could never be selected by letter. Nobody had pressed it.
+
+The wheel already handles **1–9 by position**, so the advertised key is the
+position now — collides with nothing, correct whichever belt is showing, and an
+entry past the ninth is left unlabelled rather than advertising a "10".
+
+## K4 Measured, and it does NOT reproduce. And I am correcting myself.
+
+**What the previous measurement measured:** the B8 sweep (2026-07-30, four
+poses, four scales) concluded *"panel faces stayed readable at EVERY step"*.
+Honest — and it never records **what time it ran**, while by its own account
+what lights an unpowered interior is "sun and sky through the glazing".
+
+Measured at the hour the game actually starts, fresh save, circuit unpowered:
+
+| pose | dawn mean | <10 | spread | noon mean |
+|---|---|---|---|---|
+| golden shop-floor | 50.8 | 4.3% | 96.5 | 89.2 |
+| interior origin | 28.2 | 6.3% | 47.9 | 73.0 |
+
+Dim, and **readable**. Both brighten at noon, so the instrument sees the clock.
+
+**And I have to correct myself.** In the D1 commit I wrote that three black mop
+photographs *"independently confirmed K4"*. **They did not.** Those frames had
+legible HUD over black 3D — a scene not being drawn, or a camera inside geometry,
+not a dark room. I attributed one unexplained symptom to another because they
+looked alike, which is exactly the reasoning this project keeps paying for. **The
+mop blackness remains unexplained and is not evidence about lighting.**
+
+## K2 Diagnosed, NOT fixed
+
+*"The prompt bar is sticky — it advertises objects the crosshair is nowhere
+near."* The mechanism is `walkStationPropInReach()`: a work station within reach
+**outranks** the crosshair, by design, with a comment explaining why (*"Q+mop at
+the till must read the till, not the mop"*). So the stranger is describing a
+deliberate rule doing exactly what it was written to do, and the two goals are in
+direct conflict. **That is an owner call, not a bug fix**, and I will not
+overturn a documented ruling on a session I cannot verify it in.
+
+## The other ten — NOT STARTED
+
+Enterable grey slab · named-object-with-no-verb (**this one is K1, now fixed**) ·
+tool use taught only by failing · Tab overview forest (**J**, blocked on the Tab
+camera path) · silent mouse-look loss · floating PRO SHOP sign · double-printed
+task card · grey placeholders · counter banding · collision feel · "authored"
+jargon.
+
+---
+
+# SESSION CLOSE
+
+**Twenty-two commits, all pushed. Suite 3081/3081. Lint ratchet frozen at 332.
+i18n ratchet 0 missing across ten locales. Golden gate 12 of 12 green with the
+lens pinned, one honest red row (`bag-packed`, NOT CAPTURED).**
+
+## Waiting on you
+
+1. **`'wasm-unsafe-eval'` in the CSP** — one line, unblocks recast and section C.
+2. **A number from `E_BROOM_ROLL_CONTACT_SHEET.png`** (#1–#13).
+3. **K2**: should a station in reach outrank the crosshair? The rule is
+   deliberate and the stranger hates it.
+
+## The four sentences worth keeping
+
+1. **The golden gate never had a regression.** The world was pinned and the lens
+   was not; a saved preference on this machine had moved it 66 → 60.
+2. **"It never feels smooth" was being said at 60 fps on a 181.8 Hz panel** — a
+   default this project chose and defended with a measurement that could not
+   score the rung that won.
+3. **Four instruments this session were running somewhere the game is not** —
+   the door timings, the golden lens, my desk-list probe, and the Tab overview.
+   Before changing anything, prove the code you are about to change is the code
+   the player reaches.
+4. **Looking at pixels caught five of my own probes lying**, in code I had just
+   written. A number would have caught none of them.
+
+---
+
+# K — the rest of the fourteen
+
+## The task card stutter. DONE.
+
+*"The task card is double-printed."* It is not, structurally — one card, one
+title, printed once anywhere on screen (`electron-k-hud-card.js` reads the DOM
+back beside the screenshot). What it **is**, is the same instruction twice in
+different words, stacked, and it was the very first thing a new player read:
+
+```
+Inspect the furnished but neglected property     <- phase
+Survey the neglected property                    <- task
+```
+
+A phase is the chapter you are in; the task is what to do next. When the chapter
+restates the task the card wastes its most valuable line and reads as a stutter.
+The phases are chapter names now — **"Arriving at Pine Hills"**, "Getting the
+office running", "Stocking the shop", "Opening day".
+
+## "Authored" is gone from the game. DONE.
+
+His fourteenth, and it was in **five** player-facing strings: *protected authored
+relationships*, *retains the authored green*, *the safe authored layout*, *its
+authored fleet slot*, *v1 authored room*. Every one is a word from the tools that
+build the game leaking into the game. They say what they mean now.
+
+## The silent mouse-look loss. CLOSED — not a bug, and I got it wrong twice.
+
+Measured with the control first (look held → hint must be **absent**):
+
+| | pointer | hint |
+|---|---|---|
+| look held | locked | hidden ✓ |
+| overview (Tab) | free | walk hint hidden |
+| back on foot | free | **shown** ✓ |
+
+So the way out is not silent. I then reported the silence was *inside* the
+overview and **built the fix** — a gate change plus a new i18n key in all ten
+locales.
+
+**It was dead on arrival.** The overview raises its own `.hint-bar`: *"Course
+overview · drag to pan · right-drag to rotate · wheel to zoom · V data view ·
+Tab returns on foot · P pause"* — and always has. My driver was reading
+`.shop-lockhint` in a view that uses `.hint-bar`. "No hint" and "a hint I was not
+looking at" are indistinguishable from a selector.
+
+**That is the fifth wrong-element fault of this session** — the door's
+`ch.doorApi`, the desk list's `ch.frontDeskReservations`, the mop viewmodel
+outdoors, the Tab overview camera path, and this. Reverted: the gate change and
+all ten translations. A dead string in ten languages plus a branch that does
+nothing is exactly the noise I have spent this session objecting to elsewhere.
+
+## The prompt bar. DIAGNOSED, deliberately not fixed.
+
+`walkStationPropInReach()` — a work station within reach **outranks** the
+crosshair, by design, with a comment explaining why (*"Q+mop at the till must
+read the till, not the mop"*). The stranger is describing a documented ruling
+doing exactly what it was written to do. **Owner call, not a bug fix.**
+
+## Not started, and why
+
+- **enterable grey slab · grey placeholders · counter banding** — these are the
+  greybox. `pine-hills-v2` suppresses assets 61/62/63 to grey volumes on purpose
+  and CLAUDE.md says the greybox stays. They are the variant working, not faults.
+- **tool use taught only by failing · floating PRO SHOP sign · collision feel** —
+  untouched.
+- **I3's UI rebuild** — untouched. Its sounds half is G3.
+
+## The floating sign. DONE.
+
+The geometry agreed before it was measured: an 0.012 yd board centred 0.10 yd off
+the wall leaves its back face **8.6 cm proud of the plaster with nothing between
+them**.
+
+And it cannot be pushed flush — the card **spins through 180°** to flip between
+OPEN and CLOSED, and that turn is the whole gesture. A thing that must stand off
+a wall needs something holding it there: a brass bracket arm, a backplate at the
+wall, a collar at the pivot. Mount span 0.114 yd against the card's 0.012, so the
+bracket reaches further than the board it carries.
+
+**The mount is a sibling of the card, not a child** — a bracket parented to the
+spinning card would swing out of the wall every time the shop opens, and would
+still pass any check that only asked whether a bracket existed.
+
+*One leg is weak and I am saying so:* the "did not move when the card turned" leg
+never turned the card (`cardYaw` 0 before and after — my flip trigger is not an
+exposed accessor). The sibling assertion covers the same risk structurally; the
+dynamic proof is owed.
+
+## Tool use taught only by failing. DONE.
+
+Measured by reading, and it is stark. Every cleaning tool carries an
+`equipToast` saying exactly how to work it — *"sweep dirt and leaves into a pile,
+then collect it with the dustpan"*, *"LMB washes, RMB applies soap"*. Grepping
+the whole repository, that field is referenced in **one place**:
+
+```
+src/main.js:2478    detail: def.equipToast,
+```
+
+…the detail line of a tool-wheel row. The game had written the lesson for every
+tool and only ever showed it **inside a menu the player may never open** — never
+at the moment they pick the thing up. Everything else had to be discovered by
+trying and watching nothing happen.
+
+Said on equip now, once per tool per session.
+
+**The strings ratchet caught my first version and was right:** I wrote
+``toast(`${def.label}: ${def.equipToast}`)``, a new player-facing string built at
+runtime that would have reached nine other languages in English.
+
+## Still not started
+
+**enterable grey slab · grey placeholders · counter banding** — the greybox.
+`pine-hills-v2` suppresses assets 61/62/63 to grey volumes on purpose and
+CLAUDE.md says it stays. The variant working, not faults.
+**collision feel — MEASURED. It slides.**
+
+I said it needed a prop-aware clear-run probe and that was mine to add.
+`walk.clearRun(yaw)` marches a bearing asking `walkFreeAt` — the predicate the
+player's own movement is resolved against — instead of `isInside`, which answers
+about the room envelope and is blind to furniture.
+
+| | before (`isInside` aim) | after (`clearRun` aim) |
+|---|---|---|
+| open floor — *the reference* | 1.15 yd | **1.153 yd** |
+| head on | 3.42 | **0.559** stops |
+| glancing | 5.67 | **0.548**, keeps 47.5% |
+| `referenceIsActuallyClear` | **false** | **TRUE** |
+
+Before, a leg that walked into a wall travelled three times further than the leg
+with nothing in the way. The driver refused to report its own verdicts while
+that was true.
+
+**The finding:** a glancing blow keeps 47.5% of the open-floor distance, so the
+collider **slides** rather than sticking, and a square hit stops. **And it is a
+soft number:** the reference run is only 1.153 yd, because the clearest bearing
+from the interior origin has barely a yard of floor in it. The shop is tight.
+
 **I3 — the page is photographable now, the rebuild is not done.**
 
 The accessor I said it needed was mine to add: `ledgerBook.pageCanvas(side)`
@@ -1617,7 +1952,7 @@ page canvas the way the register now hands over `cardBrandCanvas`.
 
 # FINAL
 
-**Forty-one commits, all pushed. Suite 3081/3081. Lint ratchet frozen at 332.
+**Forty-four commits, all pushed. Suite 3081/3081. Lint ratchet frozen at 332.
 i18n ratchet 0 missing across ten locales. Golden gate 12 of 12 green with the
 lens pinned, one honest red row (`bag-packed`, NOT CAPTURED).**
 
