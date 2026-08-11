@@ -4,6 +4,7 @@ import {
   DEFAULT_LOCALE, LOCALES, coverage, englishKeys, isLocale, locale, onLocaleChange, setLocale, t,
 } from '../src/core/i18n.js';
 import { normalizePreferences } from '../src/core/preferences.js';
+import fs from 'node:fs';
 
 // Q3 — the language layer. These pin the rules that keep a partly-translated
 // build playable rather than broken: English is the key set, everything else
@@ -127,6 +128,48 @@ test('coverage is reported honestly per locale', () => {
     );
   }
   assert.equal(coverage('en').fraction, 1);
+});
+
+test('no locale carries more untranslated keys than the baseline records', () => {
+  // G (Goal 21) — THE RATCHET, and the reason it exists.
+  //
+  // The check above says coverage never LIES. It does not say coverage never
+  // SLIPS, and for four sessions nothing did. The check that ran each time
+  // counted keys ADDED to all ten tables and never once looked at the
+  // denominator, so "translations done" was true on every run while nine
+  // locales sat at 168/282 and a Spanish player read a third of the game in
+  // English. Counting the numerator is not the same question as counting the
+  // fraction, and only the fraction is what the player experiences.
+  //
+  // Strict fraction === 1 was tried in Goal 16 and removed for a real reason
+  // (see the long note above): it made adding one English key a breaking
+  // change for nine languages at once, so 155 strings stayed raw rather than
+  // translatable. This is the third position, and it is the lint ratchet's
+  // contract: the number may fall freely and may never rise on its own.
+  // Adding an untranslated English key fails here, loudly, naming the locale —
+  // and the author may still bump the baseline, deliberately, in a diff a
+  // human reads. Drift is allowed. SILENT drift is not.
+  const baseline = JSON.parse(fs.readFileSync('tools/i18n-baseline.json', 'utf8')).missing;
+  const worse = [];
+  for (const entry of LOCALES) {
+    const c = coverage(entry.id);
+    const missing = c.total - c.done;
+    const allowed = baseline[entry.id];
+    assert.equal(typeof allowed, 'number', `${entry.id} is offered but has no baseline`);
+    if (missing > allowed) worse.push(`${entry.id} ${missing} missing, baseline allows ${allowed}`);
+  }
+  assert.deepEqual(worse, [], `untranslated keys grew:\n  ${worse.join('\n  ')}`);
+});
+
+test('the baseline covers every locale offered, and no locale it does not offer', () => {
+  // A baseline entry for a locale nobody can select certifies nothing, and a
+  // selectable locale with no entry walks straight past the ratchet. Both are
+  // the "zero call sites" shape: a rule that exists and governs nothing.
+  const baseline = JSON.parse(fs.readFileSync('tools/i18n-baseline.json', 'utf8')).missing;
+  assert.deepEqual(
+    Object.keys(baseline).sort(),
+    LOCALES.map((entry) => entry.id).sort(),
+  );
 });
 
 test('locale change notifies listeners exactly once, and a bad listener cannot strand the rest', () => {
