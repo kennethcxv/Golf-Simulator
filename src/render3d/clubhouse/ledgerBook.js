@@ -2169,10 +2169,35 @@ export function createLedgerBook({ THREE, state, anchor, counterTop, camera = nu
 
   // Blender's hinge swing (rotation about its -Y) lands in glTF as rotation
   // about +Z: positive angles open the cover over the spine
-  const COVER_SIGN = 1;
+  // I1 (Goal 23) — WHICH WAY THE COVER SWINGS, AS ONE VALUE.
+  //
+  // "It still opens wrong. Open it RIGHT TO LEFT -- the cover swings from the
+  // right side across to the left, the way a book opens."
+  //
+  // The direction is this sign and nothing else, and it was a bare local
+  // constant with no way to see the alternative. __qaCoverSign lets the sweep
+  // photograph both without a rebuild, the same way sweep.headRoll let the
+  // broom's roll be photographed instead of argued about.
+  // MEASURED, NOT CHOSEN. The sweep photographs both signs at the same five
+  // fractions of the same gesture (Designs/ProShop/I1_COVER_SWING.png):
+  //
+  //   +1  0% shut, 25% and 50% THE COVER IS NOT THERE -- it swings down behind
+  //       the block and out of sight, then the open spread appears at 75%.
+  //       That is exactly the report: "the shut book presents as a flat card
+  //       and the open book snaps into place without moving".
+  //   -1  0% shut, 25% the board is visibly arcing up from the RIGHT, 50% it
+  //       stands vertical, 75% it has come over to the LEFT and the spread is
+  //       open underneath.
+  //
+  // Right to left, the way a book opens. The frames say so.
+  const COVER_SIGN = -1;
+  const coverSign = () => {
+    const forced = typeof window !== 'undefined' && window.__qaCoverSign;
+    return forced === -1 || forced === 1 ? forced : COVER_SIGN;
+  };
   function setCoverSwing(fraction) {
     const f = Math.min(1, Math.max(0, fraction));
-    glbNodes.cover.rotation.z = COVER_SIGN * f * Math.PI;
+    glbNodes.cover.rotation.z = coverSign() * f * Math.PI;
     // D1 (Goal 19): a paper-thin board at 90° to the eye is a LINE — the old
     // swing passed through invisibility and the title page read "bare, no
     // cover" (the recording's 1.8s frames). A slight tip toward the reader
@@ -2409,6 +2434,15 @@ export function createLedgerBook({ THREE, state, anchor, counterTop, camera = nu
     isInHand,
     setCarried,
     isCarried: () => carried,
+    // I1 (Goal 23): drive the cover swing to an exact fraction. A clip samples
+    // wherever the frames happen to land, so two recordings of the same gesture
+    // do not line up for comparison; the sweep needs the SAME moment twice.
+    debugSetCoverSwing: (fraction) => {
+      openShell.visible = fraction > SWAP_POINT;
+      closedShell.visible = fraction <= SWAP_POINT;
+      setCoverSwing(fraction);
+      return true;
+    },
     followCarry,
     placeAt,
     position: () => ({ x: root.position.x, y: root.position.y, z: root.position.z }),
