@@ -1,12 +1,17 @@
 # OVERNIGHT REPORT 23
 
-> **PERCEPTION RATIO — 3 of 8.** Eight things were fixed and certified tonight.
-> Three were verified by a check that could actually perceive what it certified:
+> **PERCEPTION RATIO — 4 of 12.** Twelve things were fixed and certified tonight.
+> Four were verified by a check that could actually perceive what it certified:
 > the golden lens (two captures at the same scale, an edge-position fit, twelve
 > red rows to twelve green), the queue drain (277 clip frames extracted and
-> looked at), and the broom roll (a contact sheet I read with my own eyes). The
-> other five rest on properties read: frame intervals, buffer sizes, customer
-> state, instance-matrix drift.
+> looked at), the broom roll (a contact sheet read with my own eyes), and the six
+> payment cards (six faces painted through the shipped painter and laid out side
+> by side). The other eight rest on properties read: frame intervals, buffer
+> sizes, customer state, instance-matrix drift, walk distance, audio peak.
+>
+> One of the twelve, **G1, I could not confirm at all** — the gain tripled and my
+> tap could not see it move. It is kept on arithmetic, not measurement, and
+> labelled.
 >
 > **And the ratio understates the point.** Looking at pixels did not just verify
 > tonight's work — it CAUGHT THREE OF MY OWN PROBES LYING, in code I had just
@@ -775,3 +780,142 @@ The three sentences worth keeping:
 3. **Three of my own probes lied tonight, in code I had just written**, and all
    three were caught by looking at pixels. A number would have caught none of
    them.
+
+---
+
+# G2 — The cash going in has its own voice. DONE.
+
+`settleTenderDrag` — the one place a piece is actually deposited — fired
+`billHandle`/`coinHandle`: **the sound of money being moved in the hand**. There
+was no deposit sound anywhere in the build, and no check ever asked which cue a
+deposit plays, so "I still cannot hear the cash going in" survived two rounds
+against a green suite.
+
+`billDeposit` and `coinDeposit` have the thing a rustle does not: a **transient**.
+And they stack, because the pile is a parameter — the first note thuds into a
+wooden well and the tenth lands on nine notes.
+
+The sfx hook **dropped its arguments** (`audio[name]()`), so a cue could not be
+told anything about the world. That is what made depth possible at all.
+
+| cue | dBFS | |
+|---|---|---|
+| `billHandle` | −24.7 | |
+| `billDeposit` empty | −22.2 | +33% over the rustle |
+| `billDeposit` full | −23.6 | −18% under the empty drawer |
+| `coinHandle` | −23.7 | |
+| `coinDeposit` empty | −22.4 | +16% over the rustle |
+| `coinDeposit` full | −23.6 | **+13.6%, exactly on my own 12% bar** |
+
+**The instrument is weak and I am not hiding it.** `audibleFrames` was meant to
+separate a 55 ms landing from a 135 ms rustle; it reads **57 for every cue in the
+table**, because the analyser's own window is ~46 ms and smears them. Peak level
+is the only discriminator that worked, and one of four comparisons sits on the
+knife edge of a threshold I chose. **I did not move the threshold.**
+
+# G3 — The sample player and the licence gate. Recordings NOT DONE.
+
+**Measured first: there is not one audio file in this repository.** Every cue is
+an oscillator or a filtered noise burst.
+
+`src/core/sampleBank.js` serves a cue from a recording when one is vendored and
+**refuses otherwise**, so every cue keeps its synth voice and nothing goes silent
+because a file failed to decode. It varies pitch and level a few per cent and
+refuses a retrigger inside a minimum gap — four coins as four bit-identical
+impacts is the tell that gives a sample library away.
+
+**The licence gate is written before the first sample exists, deliberately.** A
+credits file written after the fact is a credits file with holes in it, and on a
+Steam release that is a legal problem rather than a tidiness one. The build fails
+on any entry missing a licence, a source URL, or a CC-BY attribution, and refuses
+any non-commercial or share-alike term outright.
+
+**I could not get the recordings.** freesound.org is the right shelf and needs an
+API key I did not create on your behalf. Wikimedia Commons I *checked* rather
+than assumed: searches for coin, page-turn and cash-register audio returned
+photographs of coins, photographs of pages and photographs of cash registers.
+opengameart.org needs no credential and is the next thing to try.
+
+# H — Six cards, six banks, six networks. DONE.
+
+There was **one** card face: the club's green-and-gold "FAIRWAY MEMBER" panel
+with the colours written into the body of the painter, so every customer paid
+with a membership card from the shop they were standing in.
+
+MERIDIAN/Northbank · ORBIS/Halloway Trust · CREST/Cedar Union · VANTA/Pinnacle
+Savings · TIDELINE/Ashgrove Mutual · and the club card, which is a perfectly good
+thing for a member to carry — being the **only** one was the bug.
+
+**Nothing trademarked, and the build enforces it.** The marks are drawn from
+primitives deliberately unlike the real ones — no interlocking circles, no split
+oval, no blue-and-gold roundel — and the test holds a refusal list of 30 real
+network and issuer names. It also refuses two cards sharing a palette, because
+four names on one picture would be the same one-card fault wearing a hat.
+
+**Photographed: `Designs/ProShop/H_CARD_VARIANTS.png`.**
+
+# I2 — Holding the book locks you to it. DONE.
+
+Carrying the register was a full walking state with a book in frame, so a player
+reading a page drifted across the room while they read it.
+
+| | forward | strafe |
+|---|---|---|
+| holding the book | **0.0000** | **0.0000** |
+| book put down, same keys, immediately after | **3.1064** | **2.8818** |
+
+Look is deliberately untouched — yaw still moves 0.588 rad while holding, because
+turning your head over a page you are holding is not walking.
+
+**Three instrument faults on the way, all mine:** the first `w` after boot
+travelled 0.0000 while the identical key travelled 1.4011 later (the look is
+captured on mouse *movement*, not on the click); facing yaw 0 the forward leg was
+walking into a wall; and **the order was wrong** — my empty-handed control ran
+before the input chain was warm and read 0.0000 three runs running. A control
+that runs in a different state from the leg it controls for is not a control.
+
+# J — The overview solver can frame the player. Tab does not use it. NOT DONE.
+
+`overviewPose` solved the frame to contain the **property grid**, and the
+clubhouse sits off the course footprint — so a player standing in their own shop
+is outside every point the solver looks at. It takes `includePoints` now and
+widens to hold them.
+
+**And it changes nothing on Tab.** Re-running Goal 21's own driver after the fix:
+`ndcX −1.282`, unmoved to three decimal places. **Pressing Tab never reaches
+`frameCourse()`**, which is exactly what Goal 21's own comment warned in a
+different form. I fixed the solver for the two paths that use it and not the path
+the player takes.
+
+Kept rather than reverted: it is correct where it applies, and deleting a working
+improvement to hide a diagnosis is the wrong trade. **J is not done.**
+
+# K — Not started
+
+The fourteen findings the stranger brought back are untouched. I looked at K3
+(B means two things) far enough to see the collision is real —
+`buildMode` binds `b` in `keyBindings.js` — and not far enough to fix and verify
+it, so I did not touch it.
+
+**K4 I confirmed by accident and it is worse than reported.** The interior is not
+merely dark at 6 AM: three attempts to photograph the mop came back black at
+6:01 AM *and at 14:00*, because the interior lights are on the restoration path
+and a fresh save has none. The room really is that dark and no clock fixes it.
+Any fix here moves indoor pixels and will move `shop-floor` and `stockroom-wall`,
+so it needs the golden gate rebaselined knowingly in the same commit.
+
+---
+
+# FINAL COUNT
+
+**Sixteen commits, all pushed. Suite 3076/3076. Lint ratchet frozen at 332.
+Golden gate 12 of 12 green with the lens pinned, one honest red row.**
+
+| | |
+|---|---|
+| DONE | golden lens pin · A2 resolution · A1 vsync cap · B1 · B3 · D1 solver · D collar · E one value + sheet · F bag · G2 deposit voice · H cards · I2 book lock |
+| NOT DONE, located | A1 merge · A3 hitch · B2 (one wall left) · C (CSP) · D photograph · G1 (unconfirmable) · G3 (no recordings) · J (wrong path) |
+| NOT STARTED | I1, I3 · K |
+
+**Waiting on you:** `'wasm-unsafe-eval'` in the CSP (unblocks C), and a number
+from the broom contact sheet.
