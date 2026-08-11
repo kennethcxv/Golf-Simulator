@@ -44,15 +44,35 @@ async (page) => {
 
   const pngSize = (buf) => ({ w: buf.readUInt32BE(16), h: buf.readUInt32BE(20) });
   let shotIdx = 0;
+  let shotFailStreak = 0;
+  // A screenshot that throws used to end the whole session: shot() was called
+  // from outside the command try/catch, so one failure propagated past the
+  // loop and out of the driver. That is how Goal 22's first stranger run died
+  // two minutes in with a blank error and five usable frames — the app fell
+  // over during "Loading models" and took a 30-minute verifier slot with it.
+  // A dead frame is a FINDING, not a reason to stop playing, so record it and
+  // let the operator see the gap.
   const shot = async (label) => {
     const name = `shot-${String(shotIdx).padStart(3, '0')}.png`;
-    const buf = await page.screenshot();
-    fs.writeFileSync(path.join(OUT, name), buf);
-    const dim = pngSize(buf);
-    fs.writeFileSync(stateFile, JSON.stringify({
-      lastShot: name, label: label || null, pngW: dim.w, pngH: dim.h,
-      coordSpace: { w: 1600, h: 900 }, processed: shotIdx, t: Date.now(),
-    }, null, 2));
+    let dim = { w: 0, h: 0 };
+    let failed = null;
+    try {
+      const buf = await page.screenshot();
+      fs.writeFileSync(path.join(OUT, name), buf);
+      dim = pngSize(buf);
+      shotFailStreak = 0;
+    } catch (err) {
+      failed = String(err.message || err).slice(0, 300);
+      shotFailStreak += 1;
+      fs.appendFileSync(path.join(OUT, 'errors.log'), `shot ${shotIdx}: ${failed}\n`);
+    }
+    try {
+      fs.writeFileSync(stateFile, JSON.stringify({
+        lastShot: failed ? null : name, shotFailed: failed,
+        label: label || null, pngW: dim.w, pngH: dim.h,
+        coordSpace: { w: 1600, h: 900 }, processed: shotIdx, t: Date.now(),
+      }, null, 2));
+    } catch (_) { /* the operator still has the PNGs */ }
     shotIdx += 1;
   };
   await shot('boot');
@@ -190,6 +210,15 @@ async (page) => {
       }
       await page.waitForTimeout(120);
       await shot(JSON.stringify(c).slice(0, 80));
+      // The window is gone. Say so, rather than spinning silently for the rest
+      // of the half hour while the operator keeps typing at a corpse.
+      if (shotFailStreak >= 8) {
+        fs.writeFileSync(doneFile, JSON.stringify({
+          crashed: true, commands: processed + 1,
+          note: 'the game window stopped responding to screenshots; see errors.log',
+        }));
+        return { ok: false, crashed: true, commands: processed + 1 };
+      }
     }
   }
   await shot('timeout');

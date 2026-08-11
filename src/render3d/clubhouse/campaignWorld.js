@@ -40,7 +40,26 @@ const REPAIR_SITES = Object.freeze([
   { id: 'windows', x: 3.0, z: -5.82, y: 0.04, w: 1.1, d: 0.45 },
   { id: 'porch', x: 1.6, z: 7.55, y: 0.04, w: 1.25, d: 0.7 },
   { id: 'shell', x: -10.8, z: 0.1, y: 0.04, w: 0.55, d: 1.25 },
-  { id: 'entranceDoor', x: -0.8, z: 6.1, y: 0.04, w: 0.9, d: 0.45 },
+  // SECTION 1 (Goal 22) — THIS MARKER WAS THE FRONT DOOR.
+  //
+  // x: -0.8 is DOOR_MAIN.x exactly. This repair site sits ON the entrance,
+  // and with no focus bias it beat the door's own prop from every straight-on
+  // approach, because a player walking up to a door ends up standing on it and
+  // the score is distance-led. So the first thing a new player read at the
+  // front door was not "Shop doors - [E] open both", it was
+  //
+  //     "Entrance doors and hardware - blocked: Clear the entrance and wash
+  //      the porch before repairing the doors."
+  //
+  // The entrance it names is the clutter INSIDE the lobby, and the broom that
+  // clears it is on the indoor belt. The game told the player, at a closed
+  // door, to go and do the thing that is only possible on the other side of
+  // that door. Two strangers read that message and stopped playing.
+  //
+  // The sign three feet away already carries focusBias for this exact reason,
+  // with a comment saying the door must win. This marker needed the same and
+  // never got it.
+  { id: 'entranceDoor', x: -0.8, z: 6.1, y: 0.04, w: 0.9, d: 0.45, focusBias: -0.9 },
 ]);
 
 function outlineMarker(w, d, color = 0xc59a4a) {
@@ -130,8 +149,17 @@ export function buildCampaignWorld(B, { refreshWorld = () => {} } = {}) {
       x: world.x,
       z: world.z,
       r: Math.max(1.55, Math.hypot(site.w, site.d) * 0.8),
+      focusBias: site.focusBias || 0,
       label: () => {
         if (!state.campaign?.enabled) return null;
+        // A repair the player cannot start, at a door they have never been
+        // through, is noise that outranks the only verb that matters out here.
+        // The campaign's own objective order puts "Enter the closed clubhouse"
+        // BEFORE every repair, so until they have been inside once, these
+        // markers are dormant and the door owns the crosshair. A dormant prop
+        // returns a falsy label, which walkFindFocus already treats as
+        // "not offering anything right now".
+        if (!state.campaign?.events?.enteredClubhouse) return null;
         const status = campaignRepairStatus(state, site.id);
         if (!status.ok || status.complete) return null;
         if (!status.prerequisiteMet) return `${status.label} - blocked: ${status.blockedReason}`;
