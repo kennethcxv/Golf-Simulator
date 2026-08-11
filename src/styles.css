@@ -194,6 +194,11 @@ canvas#game {
   background-repeat: no-repeat;
   pointer-events: none;
   animation: load-plate-drift 26s ease-out both;
+  /* J (Goal 23): two layers cross-fade, so the plate changes without a pop.
+     The fade is long enough to read as a dissolve and short enough that a
+     six-second plate is mostly its own picture rather than a transition. */
+  opacity: 0;
+  transition: opacity 1.4s ease-in-out;
 }
 
 @keyframes load-plate-drift {

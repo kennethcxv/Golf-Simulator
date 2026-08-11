@@ -1433,6 +1433,7 @@ function ensureLoadVeil() {
   // and the player is arriving somewhere specific.
   el.innerHTML = `
     <div class="load-veil-plate" aria-hidden="true"></div>
+    <div class="load-veil-plate load-veil-plate-b" aria-hidden="true"></div>
     <div class="load-veil-scrim" aria-hidden="true"></div>
     <div class="load-veil-place" aria-hidden="true"></div>
     <div class="load-veil-card">
@@ -1464,19 +1465,71 @@ function ensureLoadVeil() {
     { file: 'shopfront.jpg', caption: 'The pro shop windows' },
     { file: 'green.jpg', caption: 'A green at first light' },
   ];
+  // J (Goal 23) — TWO OR THREE PLATES PER LOAD, CROSS-FADING.
+  //
+  // One photograph per load was the Goal 21 fix for a blank veil, and on a load
+  // that takes twenty seconds one picture is a still frame you sit and look at.
+  // Two layers, alternating: the incoming plate is set on the hidden one and the
+  // opacity is swapped, so the fade is a CSS transition and neither picture ever
+  // pops.
+  //
+  // The drift animation restarts on whichever layer is coming forward, so every
+  // plate gets the whole slow push rather than joining one already in progress.
+  const plateElB = el.querySelector('.load-veil-plate-b');
+  // MEASURED, and shorter than "a few seconds" sounds, for a reason. The veil on
+  // this machine is up for TWO SECONDS on a fresh boot
+  // (tools/qa/electron-j-loading-plates-alternate.js), so a six-second rotation
+  // never fired once and the player saw exactly the one picture the old code
+  // gave them. 3.5 s puts a second plate on screen inside a seven-second load
+  // and a third inside eleven, while still reading as a held photograph rather
+  // than a slideshow.
+  //
+  // On a fast machine with a short load the first plate is still the only one
+  // seen, and that is correct: there is nothing to fill.
+  const PLATE_SECONDS = 3.5;
   let lastPlate = -1;
-  const showPlate = () => {
-    if (PLATES.length === 0) return;
+  let frontIsB = false;
+  let plateTimer = null;
+
+  const paintPlate = (node, plate) => {
+    node.style.backgroundImage = `url("Assets/loading/${plate.file}")`;
+    node.style.animation = 'none';
+    void node.offsetWidth;
+    node.style.animation = '';
+  };
+  const pickPlate = () => {
     let pick = Math.floor(Math.random() * PLATES.length);
     if (PLATES.length > 1 && pick === lastPlate) pick = (pick + 1) % PLATES.length;
     lastPlate = pick;
-    const plate = PLATES[pick];
-    plateEl.style.backgroundImage = `url("Assets/loading/${plate.file}")`;
-    // restart the drift so every load gets the whole slow push, not the tail
-    plateEl.style.animation = 'none';
-    void plateEl.offsetWidth;
-    plateEl.style.animation = '';
+    return PLATES[pick];
+  };
+  const nextPlate = () => {
+    if (PLATES.length === 0) return;
+    const plate = pickPlate();
+    const incoming = frontIsB ? plateEl : plateElB;
+    const outgoing = frontIsB ? plateElB : plateEl;
+    paintPlate(incoming, plate);
+    incoming.style.opacity = '1';
+    outgoing.style.opacity = '0';
+    frontIsB = !frontIsB;
     placeEl.textContent = plate.caption;
+  };
+  const showPlate = () => {
+    if (PLATES.length === 0) return;
+    if (plateTimer) clearInterval(plateTimer);
+    // the first plate of a load appears immediately, without a fade from black
+    frontIsB = true;
+    const plate = pickPlate();
+    paintPlate(plateEl, plate);
+    plateEl.style.opacity = '1';
+    plateElB.style.opacity = '0';
+    frontIsB = false;
+    placeEl.textContent = plate.caption;
+    plateTimer = setInterval(nextPlate, PLATE_SECONDS * 1000);
+  };
+  const stopPlates = () => {
+    if (plateTimer) clearInterval(plateTimer);
+    plateTimer = null;
   };
 
   const clubEl = el.querySelector('.load-veil-club');
@@ -1546,6 +1599,10 @@ function ensureLoadVeil() {
       const expectedRevision = revision;
       if (tipTimer) clearInterval(tipTimer);
       tipTimer = null;
+      // J (Goal 23): a rotation left running behind a hidden veil keeps
+      // decoding jpegs and restarting a CSS animation for the rest of the
+      // session, and the next show() would inherit a plate mid-fade.
+      stopPlates();
       fill.style.width = '100%';
       progress.setAttribute('aria-valuenow', '100');
       el.setAttribute('aria-busy', 'false');
