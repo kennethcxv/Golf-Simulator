@@ -17,13 +17,91 @@ now the RIGHT one — see section L.
 
 ---
 
-## WHAT A VERIFIER DISPROVED, AND WHAT THE ORIGINAL CHECK MEASURED
+## VERIFIER 3, THE CLOSING RUN: **A STRANGER GOT INSIDE.**
 
-Nothing yet from Verifier 3's closing run; it is playing the fixed build as this
-is written. The opening run is recorded below under Phase 4 — it died on a model
-quota after 172 screenshots, and its last message was
-*"can ANY door in this game open?"*, which is the front door reproduced by a
-stranger in their own words.
+> **"YES. I GOT INSIDE."** — shot-014, *"OBJECTIVE ✓ Enter the closed clubhouse
+> — done."*
+>
+> "It took **14 commands** (6 of them real inputs). I never once felt lost
+> getting in. The door is dead ahead of the spawn, the walk is about three
+> seconds, and the prompt at the door is unambiguous. **Whatever was changed
+> today, the front door problem is solved.**"
+
+Two strangers previously spent a combined 45 minutes and never got through. This
+one was inside in six inputs.
+
+The opening run died on a model quota after 172 screenshots. Its last message was
+*"can ANY door in this game open?"* — the front door, reproduced by a stranger in
+their own words, without knowing what I had found.
+
+## WHAT THE VERIFIER FOUND ONCE INSIDE — all NOT DONE, all new
+
+Ranked as they ranked them. These are the next session's queue.
+
+1. **A grey slab swallowed the camera.** shot-065 is a 100% flat grey screen —
+   walked forward and ended up inside the geometry, HUD floating on a void.
+   shot-077: one untextured grey slab eats 60% of the lobby, with a visible gap
+   under it so it reads as floating. *(This is the greybox — 61/62/63 are
+   deliberately suppressed — but a stranger reads it as "the level isn't
+   finished", and one of them is enterable.)*
+2. **Total silence on E at things** — shot-023, shot-058, shot-060, including at
+   an object the game itself named. The engine gives good refusals elsewhere
+   ("blocked: Vacuum and mop the lobby…"); it just says nothing when the answer
+   is "nothing here". **This is 1A's silence rule, still open indoors.**
+3. **An object is named with no verb.** shot-056: "Rangefinder display — Laser
+   rangefinder 3/6 — backroom empty", same prompt styling as actionable prompts,
+   no key at all.
+4. **The prompt bar is sticky** — shot-054 and shot-062 show it advertising
+   objects the crosshair is nowhere near. "I cannot trust the prompt bar to tell
+   me what I'm aiming at."
+5. **B means two things.** The tool wheel labels "4 | B | Push broom"; pressing B
+   opens **Build mode** (shot-088). "A stranger will trip this every time."
+6. **Tool use is taught only by failing.** Broom equipped, E at debris →
+   silence (shot-095). Only a click produced "Hold the button down to use a
+   tool" (shot-097).
+7. **Tab overview from indoors shows dense forest**, no clubhouse, none of the
+   "18 dirty spots marked" (shot-069) — **M1 confirmed by a second stranger** —
+   and returning via Tab silently drops mouse-look (shot-073 pixel-identical to
+   shot-067).
+8. **The PRO SHOP sign floats in mid-air**, attached to nothing, clipping the
+   door frame, cropped to read "HOP" (shot-077, 088, 097, 100).
+9. **The task card double-prints**: a faded second text layer bleeds under the
+   header from shot-030 to shot-102, and the body text was stale at shot-016.
+10. Untextured grey placeholders through the retail space, including **a grey
+    block floating in mid-air** beside the ledger (shot-102); counter has a grey
+    top and end cap with a wood front.
+11. Hard stepped banding across the counter surface (shot-105, shot-109).
+12. **The interior is unreadably dark at 6:00 AM** — shots 014–027 near-black in
+    the upper third. Fine by 8:00.
+13. Collision has no feel: nose-first against flat surfaces, no slide, no cue.
+14. "Recover any missing **authored** workstation" — dev jargon in player UI.
+
+What they praised: the door, the tee desk and tee sheet, the tool wheel's key
+legend, the layered carton interaction (tape → flap → armful), the clutter haul
+bumping shop condition 9→10, and the laptop back-office — "the most
+finished-looking thing in the build".
+
+## THE GOLDEN GATE IS FAILING, AND I DID NOT REBASELINE IT
+
+`npm run golden`: **12 of 13 poses FAIL** at 7.75–9.17% against thresholds of
+0.25–0.75. `bag-packed` is the only pass, at 0.
+
+It is not tonight's work. Nothing I changed touches `shop-floor`,
+`stockroom-wall` or eleven tool poses. And looking at the diff images, the
+changed pixels are **edges only** — wall/floor seams, counter edges, the door
+frame — with flat interiors untouched. That is an antialiasing or sub-pixel
+signature, not a content change.
+
+I suspected GPU contention, because the first capture ran while the verifier's
+Electron was live. **Refuted**: re-run alone, the numbers reproduce to four
+decimal places (8.4134 both times). It is deterministic.
+
+The baseline was last accepted at `c27d3a2`, and render-loop changes have landed
+since — notably X4's `ensurePlayerPin()` call added to the top of `render()`.
+
+**I have not run `golden:accept`.** Accepting would bake in whatever changed and
+destroy the only evidence of it. This needs a bisect between `c27d3a2` and HEAD,
+and that is the first item of the next session.
 
 ---
 
@@ -165,6 +243,94 @@ problem. The handler simply never ran.
 
 The context being alive and running while every button was silent is why this
 survived: every reasonable property of the audio system was correct.
+
+## A3 — cash into the register. **NOT DONE**, but the reason is located.
+
+It is not missing a call. `settleTenderDrag` in `simplifiedRegisterMode.js`
+fires on every piece that lands in the drawer — but it fires
+`sfx('billHandle')` or `sfx('coinHandle')`, which are **handling** sounds: paper
+and metal moving in a hand. There is no voice in the vocabulary for money
+*landing in a till well*, and the cue list confirms it — `drawerUnlock`,
+`drawerOpen`, `drawerClose`, `notesDown`, `coinsDown` (those two are notes and
+coins landing on the DESK), `billHandle`, `coinHandle`. Nothing for the deposit.
+
+So the moment you describe — the money leaving the desk and landing in the
+drawer — plays the same faint rustle as picking it up, which is why it reads as
+mute. It needs its own voice with weight to it, not another call site.
+
+## A1 — real recorded audio. **NOT STARTED.**
+
+---
+
+# SECTION B — THE MOP. **Count fixed. NOT DONE: the solver is not running.**
+
+## The count — done
+
+You asked for 10 to 20. It was 820.
+
+Every previous pass chased **density**: 480 → 640 → 820, each time because the
+disc "no longer FILLED" and a planted head "splayed the gaps open". The
+reasoning was internally sound and aimed at the wrong target. A string mop is
+not an opaque disc. It is fifteen to thirty thick bands of yarn with daylight
+between them, and **the gaps are most of what makes it read as a mop rather than
+a brush**. 820 fibres at 3.4 mm covering 54% of the disc is a pom-pom.
+
+Now **16 bands at 11 mm**, radial segments 5 → 8 (a rope that wide shows facets
+where a hair could not). The solver is untouched, as you asked. 3,280 instances
+→ 64, still 4 draw calls.
+
+**Two populations, closed on the way past.** The shipped numbers lived only as
+arguments at the single call site; the function defaults said something else; and
+the test asserted **the defaults**. The shipped mop could change without the test
+noticing, and the test could pass about a mop nobody holds. Both now read
+`SHIPPED_MOP_YARN`. The assertion is a **range** (10–20), because the point is
+that a person can count the bands, not any one number in it.
+
+## What the frames showed — NOT DONE
+
+At the player camera the yarn **radiates stiffly along the shaft axis instead of
+hanging**. That is the seeded rest pose, not a simulation. Verlet nodes live in
+world space under gravity 19, so a stepping solver would drop them toward
+world-down however the head is held.
+
+`tools/qa/electron-b-mop-is-simulated.js` reads the drawn instance matrices:
+
+| | drift |
+|---|---|
+| head motionless, 0.5 s | **0** |
+| walking, 0.7 s | **0** |
+| after stopping, 1.4 s | **0** |
+
+The mop's yarn does not move at all, ever, on the held mop. Six attempts at this
+tool have been spent tuning how the yarn *behaves*, and it has not been animating.
+
+**Stated plainly: that driver's negative control is VOID.** "A motionless head
+must be still" passes trivially when every number is zero, and a control that
+passes for the same reason the test fails is not a control. The independent
+corroboration is the **viewed frames** — `qa/electron/mop-strand-clip/carried.png`
+and `mopping.png` show the seed pose directly, strands along the shaft. A
+positive control is owed before the frozen solver is called proven, and that is
+the first thing to do on B next.
+
+---
+
+# SECTION C — THE BROOM HEAD. **NOT DONE**, but with the reason the last three
+# checks passed.
+
+I did not get to the roll/pitch contact sheet. What I did find is why this keeps
+coming back:
+
+**`tools/qa/broom-pitch-sweep.js` — the existing sweep — boots with
+`page.goto('http://localhost:8457/')`.** It is a dev-server run in a browser
+context, not the Electron build. That is **shape 7, wrong runtime**: exactly the
+fault that voided the door-lag checks in Goal 21, sitting unnoticed in the broom
+tooling as well. Any candidate chosen from that sweep was chosen in a runtime the
+player never uses.
+
+The head orientation is also not an exposed parameter — it is composed inside the
+rig from `rollLean`, `rollStroke` and a tilt axis in `broomViewmodel.js`, which is
+why "sweep roll and pitch" is not a one-line job. The sweep must drive those, in
+Electron, at the default camera.
 
 ---
 
