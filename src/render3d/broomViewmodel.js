@@ -100,6 +100,14 @@ const _axisY = new THREE.Vector3();
 const _axisZ = new THREE.Vector3();
 const _qMin = new THREE.Quaternion();
 const _qRoll = new THREE.Quaternion();
+// F1 (Goal 24) — the square-to-the-floor solve
+const _bristle = new THREE.Vector3();
+const _bristleNow = new THREE.Vector3();
+const _downLocal = new THREE.Vector3();
+const _perpA = new THREE.Vector3();
+const _perpB = new THREE.Vector3();
+const _parentQ = new THREE.Quaternion();
+const _pivotInv = new THREE.Matrix4();
 const _qHandRoll = new THREE.Quaternion();
 const _basis = new THREE.Matrix4();
 const _sleeveAim = new THREE.Vector3();
@@ -328,6 +336,10 @@ export function createBroomViewmodel({
     upper: new THREE.Vector3(),
     lower: new THREE.Vector3(),
     axis: new THREE.Vector3(),
+    // F1: tool-local direction the bristles point, measured off the drawn mesh
+    // in measureBristleAxis(). Perpendicular to `axis` by construction.
+    bristle: new THREE.Vector3(),
+    hasBristle: false,
     len: 0,
   };
   // I1: socket NAMES are per-asset vocabulary, not per-rig. The broom and mop
@@ -370,6 +382,7 @@ export function createBroomViewmodel({
     liveGeom.len = liveGeom.axis.length();
     if (!(liveGeom.len > 0.25)) return null; // a degenerate pose keeps the fallback
     liveGeom.axis.divideScalar(liveGeom.len);
+    measureBristleAxis(headLag.parts);
     return liveGeom;
   }
 
@@ -404,6 +417,7 @@ export function createBroomViewmodel({
     vel: 0,           // radians/s
     lastPos: new THREE.Vector3(),
     hasLast: false,
+    parts: null,      // F1: the head meshes, kept so the bristle axis can be measured
     reason: 'not built',
   };
   const HEAD_LAG = {
@@ -453,9 +467,14 @@ export function createBroomViewmodel({
     }
     parent.remove(pivot);
     headLag.pivot = null;
+    headLag.parts = null;
     headLag.angle = 0;
     headLag.vel = 0;
     headLag.hasLast = false;
+    // a different asset has a different bristle direction and different parts;
+    // the cached part centres are keyed on the old objects and must go with them
+    liveGeom.hasBristle = false;
+    _partCentres.clear();
   }
 
   function buildHeadLag() {
@@ -492,7 +511,92 @@ export function createBroomViewmodel({
       pivot.add(child);
     }
     headLag.pivot = pivot;
+    headLag.parts = near;
     headLag.reason = `swinging ${near.length} head part(s) of ${parent.children.length - 1} siblings`;
+  }
+
+  // F1 (Goal 24) — WHICH WAY THE BRISTLES POINT, MEASURED FROM THE MESH.
+  //
+  // Called from the END of readRigGeometry, never from buildHeadLag: the lag
+  // pivot is built BEFORE liveGeom.head and liveGeom.axis are filled in, so
+  // measuring there reads a zero socket and a zero shaft and produces a bristle
+  // direction that is simply the negated centroid. That measured perfectly and
+  // was perfectly wrong — the same shape as every other probe that lied tonight.
+  //
+  // Six rounds of "the head is tilted right" were answered with a roll CONSTANT,
+  // and the contact sheet finally showed why that could never work: the sheet's
+  // own 0 deg IS the shipped value, and of the thirteen it was already the
+  // squarest in that pose. A constant is square in at most ONE shaft direction,
+  // and the shaft direction changes with every step, look and stroke.
+  //
+  // So the roll is solved instead of guessed, and solving it needs one thing the
+  // rig never knew: the tool-local direction the bristles point. The authored
+  // FloorContact socket sits at the point the bristles touch the floor and the
+  // head meshes sit above it, so centroid -> socket IS that direction. It is
+  // measured from whatever is actually drawn, which means it survives the GLB
+  // being swapped for the procedural fallback.
+  //
+  // IT IS MEASURED EVERY FRAME, AND THAT IS NOT AN OVERSIGHT.
+  //
+  // The first version measured once and cached, and the same build then came
+  // back 1.9 deg tilted in one run and 8.3 deg in the next. Two things move the
+  // head under the cache: the authored equip clip drives the hierarchy above it
+  // for the first second or so, and the lag pivot swings it. Whichever the first
+  // successful frame happened to catch got frozen in as "the" bristle direction,
+  // and every pose afterwards inherited that error uniformly — which is exactly
+  // what an 8 deg tilt in all five poses looks like. Sockets on this rig are
+  // animated and must never be cached; the same is true of what hangs off them.
+  //
+  // Per frame is cheap because the only per-frame work is transforming ONE
+  // cached point per part. The parts are rigid children of the lag pivot, so
+  // their centres in pivot-local space really are constant, and reading them
+  // there is what makes the result lag-invariant: the swing lives entirely in
+  // the pivot's own rotation, which this deliberately does not apply.
+  const _partCentres = new Map();
+  function measureBristleAxis(headParts) {
+    liveGeom.hasBristle = false;
+    const pivot = headLag.pivot;
+    if (!headParts?.length || !pivot || !pivot.parent) return;
+    const box = new THREE.Box3();
+    const invPivot = _pivotInv;
+    pivot.updateWorldMatrix(true, true);
+    invPivot.copy(pivot.matrixWorld).invert();
+    _bristle.set(0, 0, 0);
+    let n = 0;
+    for (const part of headParts) {
+      let centre = _partCentres.get(part);
+      if (!centre) {
+        box.setFromObject(part);
+        if (box.isEmpty()) continue;
+        // world -> pivot-local. The lag rotation is in BOTH terms here and
+        // cancels, so a centre cached mid-swing is still the right centre.
+        centre = box.getCenter(new THREE.Vector3()).applyMatrix4(invPivot);
+        _partCentres.set(part, centre);
+      }
+      _bristle.add(centre);
+      n += 1;
+    }
+    if (!n) return;
+    _bristle.divideScalar(n);
+    // pivot-local -> the socket parent's frame, WITHOUT the pivot's swing
+    _bristle.add(pivot.position);
+    // -> world through the parent (this carries the live equip animation, which
+    // is the part that genuinely changes and so must not be cached)
+    pivot.parent.updateWorldMatrix(true, false);
+    _bristle.applyMatrix4(pivot.parent.matrixWorld);
+    // -> tool-local, the same frame `geom.head`/`geom.axis` live in
+    broomGroup.updateWorldMatrix(true, false);
+    _inv.copy(broomGroup.matrixWorld).invert();
+    _bristle.applyMatrix4(_inv);
+    // socket minus centroid: down the bristles, toward the floor
+    _bristle.subVectors(liveGeom.head, _bristle);
+    // strip the component along the shaft — roll about the shaft cannot change
+    // it, and leaving it in tilts the solve by however much the head is raked
+    _bristle.addScaledVector(liveGeom.axis, -_bristle.dot(liveGeom.axis));
+    if (_bristle.lengthSq() < 1e-8) return; // centroid on the shaft line: unusable
+    _bristle.normalize();
+    liveGeom.bristle.copy(_bristle);
+    liveGeom.hasBristle = true;
   }
 
   function hasMeshUnder(object) {
@@ -1130,8 +1234,44 @@ export function createBroomViewmodel({
     // against a wall (tiltAxis). So at rest and while carrying, the head's roll
     // has been an accident of the authored mesh — which is why five rounds of
     // "the head is tilted right" found nothing to change.
+    // F1 (Goal 24) — SQUARE TO THE FLOOR IS SOLVED, NOT GUESSED.
+    //
+    // The contact sheet from Goal 23 is what settled this. Its 0 deg tile is the
+    // SHIPPED value, and of the thirteen it was already the squarest in that
+    // pose — so there was no number on that sheet to bake. A roll constant is
+    // square in at most one shaft direction, and `_dir` changes with every step,
+    // every look and every stroke; that is why six rounds of nudging a constant
+    // each fixed one screenshot and left the complaint standing.
+    //
+    // Instead: rotate the measured bristle direction as close to world-down as
+    // rolling about the shaft allows. Exactly solvable, because both vectors get
+    // projected into the plane perpendicular to `_dir` and the answer is the
+    // signed angle between them. When the shaft is vertical the projection is
+    // degenerate and there is genuinely no preferred roll, so the term drops to
+    // zero rather than snapping to a random one.
+    let squareRoll = 0;
+    if (liveGeom.hasBristle && geom === liveGeom) {
+      // world down, carried into the frame `_dir` is expressed in
+      _downLocal.set(0, -1, 0);
+      if (rigParent) _downLocal.applyQuaternion(_parentQ.setFromRotationMatrix(rigParent.matrixWorld).invert());
+      _perpA.copy(_downLocal).addScaledVector(_dir, -_downLocal.dot(_dir));
+      _bristleNow.copy(liveGeom.bristle).applyQuaternion(_qMin);
+      _bristleNow.addScaledVector(_dir, -_bristleNow.dot(_dir));
+      // both projections must survive; either collapsing means the shaft is
+      // pointing straight down and no roll is more square than another
+      if (_perpA.lengthSq() > 1e-6 && _bristleNow.lengthSq() > 1e-6) {
+        _perpA.normalize();
+        _bristleNow.normalize();
+        _perpB.crossVectors(_dir, _bristleNow); // the +90 deg partner of _bristleNow
+        squareRoll = Math.atan2(_perpB.dot(_perpA), _bristleNow.dot(_perpA));
+      }
+    }
+    state.squareRoll = squareRoll;
+    // headRoll survives as a deliberate offset ON TOP of square — a rake, if one
+    // is ever wanted — rather than as the thing that carries squareness.
     const headRoll = feel.sweep.headRoll ?? 0;
-    _qRoll.setFromAxisAngle(_dir, headRoll + (using ? rollLean + rollStroke : 0) + tilt * 0.5 * tiltAxis);
+    _qRoll.setFromAxisAngle(_dir, squareRoll + headRoll
+      + (using ? rollLean + rollStroke : 0) + tilt * 0.5 * tiltAxis);
     broomGroup.quaternion.copy(_qRoll).multiply(_qMin);
     // position = head anchor minus the rotated tool-local head socket
     _tmp.copy(geom.head).applyQuaternion(broomGroup.quaternion);
@@ -1394,6 +1534,11 @@ export function createBroomViewmodel({
       // which shaft axis the solve believed in, and where the DRAWN mesh
       // actually ended up pointing (see update() for why both are needed)
       geomSource: state.geomSource ?? null,
+      // F1: the solved square-to-the-floor roll, and whether the bristle
+      // direction it needs was measurable at all. `hasBristle: false` means the
+      // solve silently did nothing, which looks identical to "already square".
+      squareRoll: state.squareRoll == null ? null : +state.squareRoll.toFixed(4),
+      hasBristle: !!liveGeom.hasBristle,
       shaftDrop: state.shaftDrop == null ? null : +state.shaftDrop.toFixed(3),
       shaftDropUnit: state.shaftDropUnit == null ? null : +state.shaftDropUnit.toFixed(3),
       headAboveFloor: state.headAboveFloor == null ? null : +state.headAboveFloor.toFixed(3),
