@@ -248,6 +248,25 @@ export const BROOM_FEEL = Object.freeze({
     // how much of the stroke's swing the wrist carries. Translation alone
     // reads as a hand being DRAGGED; the roll is what reads as driving.
     handRoll: 0.55,
+    // E (Goal 23) — THE HEAD'S ROLL ABOUT THE SHAFT. ONE VALUE. Radians.
+    //
+    // "The broom head is still tilted right. Fifth time."
+    //
+    // It was never an exposed parameter because nothing set it. The shaft is
+    // aimed with `setFromUnitVectors(geom.axis, dir)`, the MINIMAL rotation
+    // between two directions — which by construction says nothing about roll
+    // ABOUT that direction. Whatever roll the head ends up with is whatever
+    // falls out of the authored mesh's axis, and the only other terms
+    // (rollLean, rollStroke, tiltAxis) are all zero unless the player is
+    // mid-stroke or wedged against a wall. So at rest, and while carrying, the
+    // head has been sitting at an angle nobody chose and nobody could reach.
+    //
+    // This is that angle, as one number, applied always. Positive rolls the
+    // head clockwise seen from behind along the shaft. It is deliberately left
+    // at 0 -- the unchosen value -- because the brief says: do not report a
+    // number you chose. tools/qa/electron-e-broom-roll-sweep.js photographs the
+    // candidates at the default player camera and numbers them; the owner picks.
+    headRoll: 0,
   }),
 
   // --- the arms -------------------------------------------------------------

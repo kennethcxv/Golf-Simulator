@@ -44,6 +44,12 @@ const SLIDERS = [
   { group: 'Sweep', label: 'stroke rate', path: 'stroke.rate', min: 1, max: 10, step: 0.05 },
   { group: 'Sweep', label: 'hand follow', path: 'sweep.handFollow', min: 0, max: 1.2, step: 0.005 },
   { group: 'Sweep', label: 'wrist roll', path: 'sweep.handRoll', min: 0, max: 1.5, step: 0.01 },
+  // E (Goal 23): a 'head roll' slider belongs here and is NOT here, because the
+  // player-strings ratchet correctly counted its label as a new string reaching
+  // a player in English on every locale. The value is exposed where the brief
+  // asked for it — `sweep.headRoll` in src/data/broomFeel.js — and swept by
+  // tools/qa/electron-e-broom-roll-sweep.js. Adding the slider means adding an
+  // i18n key in ten locales for a developer overlay, which is the owner's call.
   { group: 'Weight', label: 'lag Hz', path: 'weight.lagHz', min: 1, max: 12, step: 0.05 },
   { group: 'Weight', label: 'damping', path: 'weight.lagDamping', min: 0.1, max: 1.5, step: 0.01 },
   { group: 'Weight', label: 'settle time', path: 'equip.settleTime', min: 0, max: 0.3, step: 0.005 },

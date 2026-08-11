@@ -1121,7 +1121,17 @@ export function createBroomViewmodel({
     // says the hand is driving the head rather than being towed by it.
     const rollLean = Math.max(-w.rollMax, Math.min(w.rollMax, state.lagV * w.rollVelGain));
     const rollStroke = strokeX * (feel.sweep.handRoll ?? 0);
-    _qRoll.setFromAxisAngle(_dir, (using ? rollLean + rollStroke : 0) + tilt * 0.5 * tiltAxis);
+    // E (Goal 23) — THE HEAD'S ROLL, AS ONE VALUE, APPLIED ALWAYS.
+    //
+    // `_qMin` is the MINIMAL rotation from the tool's authored axis onto the
+    // grip->head direction, and a minimal-arc quaternion by construction says
+    // nothing about roll ABOUT that direction. The other three terms here are
+    // all zero unless the player is mid-stroke (rollLean, rollStroke) or wedged
+    // against a wall (tiltAxis). So at rest and while carrying, the head's roll
+    // has been an accident of the authored mesh — which is why five rounds of
+    // "the head is tilted right" found nothing to change.
+    const headRoll = feel.sweep.headRoll ?? 0;
+    _qRoll.setFromAxisAngle(_dir, headRoll + (using ? rollLean + rollStroke : 0) + tilt * 0.5 * tiltAxis);
     broomGroup.quaternion.copy(_qRoll).multiply(_qMin);
     // position = head anchor minus the rotated tool-local head socket
     _tmp.copy(geom.head).applyQuaternion(broomGroup.quaternion);
