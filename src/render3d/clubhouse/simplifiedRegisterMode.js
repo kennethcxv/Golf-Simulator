@@ -163,6 +163,34 @@ export function suppressLegacyCheckoutBrandNodes(root, surface) {
   return suppressed;
 }
 
+// D1 (Goal 20) — WHO IS ON THE CHECK-IN LIST, AND WHAT IT SAYS ABOUT THEM.
+//
+// Pulled out of the render closure so it can be tested without a clubhouse: the
+// two rules the owner stated are pure functions of one customer's position, and
+// both of them regressed inside a 3,000-line module where nothing could reach
+// them.
+//
+//   1. The list is THE LINE. A walk-in who is not in the counter queue is not
+//      on it at all — someone who came in ten minutes ago and is browsing the
+//      shelves used to sit here reading WALKING UP for as long as they shopped.
+//   2. IN QUEUE means standing in the line RIGHT NOW (`atSlot`, measured body
+//      to slot), and you only learn the time they want when they are AT DESK in
+//      front of you asking for it.
+export const WALK_IN_QUEUE_STATUS = Object.freeze({
+  atDesk: 'AT DESK', inQueue: 'IN QUEUE', walkingUp: 'WALKING UP',
+});
+
+export function walkInQueueStatus(customer) {
+  if (!customer || !(customer.queueIndex >= 0)) return null; // not in the line
+  if (customer.queueIndex === 0 && customer.atSlot) return WALK_IN_QUEUE_STATUS.atDesk;
+  return customer.atSlot ? WALK_IN_QUEUE_STATUS.inQueue : WALK_IN_QUEUE_STATUS.walkingUp;
+}
+
+export function walkInShowsAsk(customer) {
+  return walkInQueueStatus(customer) === WALK_IN_QUEUE_STATUS.atDesk
+    && Number.isFinite(customer?.requestedTeeMinute);
+}
+
 export function terminalBusyDotPhase(elapsedSeconds) {
   const elapsed = Number(elapsedSeconds);
   if (!Number.isFinite(elapsed) || elapsed <= 0) return 0;
@@ -2795,22 +2823,35 @@ export function createRegisterMode(B) {
             : reservation.arrivalStatus === 'arrived' ? 'ARRIVING' : 'EN ROUTE',
         disabled: locked,
       }));
-      const walkInRows = walkInsWaiting().map((customer) => ({
-        id: `walkin:${customer.customerId}`,
-        actionId: `select-walkin:${customer.customerId}`,
-        name: customer.fullName || customer.name,
-        // L1: the row leads with what they ASKED for, not a generic label
-        time: Number.isFinite(customer.requestedTeeMinute)
-          ? `Asks ${fmtSlot(customer.requestedTeeMinute)}`
-          : 'Walk-in tee request',
-        partySize: customer.partySize || 1,
-        // B2 (Goal 19): IN QUEUE means STANDING IN THE LINE, physically, right
-        // now — `atSlot` is measured from the actor's body to its queue slot.
-        // Someone still crossing the room is WALKING UP, whatever their index.
-        status: customer.queueIndex === 0 && customer.atSlot ? 'AT DESK'
-          : customer.atSlot ? 'IN QUEUE' : 'WALKING UP',
-        disabled: locked,
-      }));
+      // D1 (Goal 20) — THE LIST IS THE LINE, AND NOTHING ELSE.
+      //
+      // Goal 19 got the STATUS right and left the MEMBERSHIP wrong: walkIns()
+      // hands over every open walk-in in the building, so a golfer who came in
+      // ten minutes ago and is browsing the shelves sat on the check-in list
+      // reading WALKING UP for as long as they shopped. They are not walking
+      // up. They are shopping. Requiring a queue index means the list contains
+      // the people standing in the line and the people joining it, which is
+      // what the player is looking at when they look at the desk.
+      const walkInRows = walkInsWaiting()
+        .filter((customer) => walkInQueueStatus(customer) !== null)
+        .map((customer) => {
+          const status = walkInQueueStatus(customer);
+          return {
+            id: `walkin:${customer.customerId}`,
+            actionId: `select-walkin:${customer.customerId}`,
+            name: customer.fullName || customer.name,
+            // D1, second rule: you only learn what time they want when they are
+            // IN FRONT OF YOU ASKING FOR IT. A person in the line has not asked
+            // yet, and printing their ask over their head turned the queue into
+            // a spreadsheet the player could plan against before anyone spoke.
+            time: walkInShowsAsk(customer)
+              ? `Asks ${fmtSlot(customer.requestedTeeMinute)}`
+              : 'Walk-in tee request',
+            partySize: customer.partySize || 1,
+            status,
+            disabled: locked,
+          };
+        });
       const slots = selectedWalkIn ? walkInSlots(selectedWalkIn.customerId).slice(0, 3) : [];
       const ask = selectedWalkIn ? walkInAsk(selectedWalkIn.customerId) : null;
       const allRows = [...walkInRows, ...reservationRows];

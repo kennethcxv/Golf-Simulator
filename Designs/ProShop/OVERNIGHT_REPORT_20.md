@@ -315,6 +315,122 @@ mesh. The visible yarn is tinted now too.
 
 ---
 
+# C — THE PHONE AND THE EMAIL
+
+## C1 Traffic, measured before and after
+
+`tools/qa/booking-traffic-measure.mjs`, 3 seeds x 10 days, ticking the real
+`golfOperationsTick` a minute at a time:
+
+| | before | after |
+|---|---|---|
+| contacts per day | **4.27** | **21.40** |
+| by phone | 1.87 | 9.43 |
+| by email | 2.40 | 11.97 |
+
+The window widened to the hours a club actually takes calls (7am–8pm) and the
+rate is now stated as `CONTACTS_PER_DAY = 26` — the figure the brief asks to be
+reported is the figure the code states, rather than a per-minute probability
+somebody has to reverse-engineer. The realised 21.4 is below 26 because some
+rolls find no free slot on the day they draw, which is honest rather than
+padded.
+
+**A defect found while measuring, which nobody had looked for.** The old form
+could create at most ONE request per roll however much game time had passed, so
+at 2x and 4x sim speed — where a tick covers several minutes — the traffic
+silently thinned out exactly when the player was skipping through the quiet
+hours. Measured: **a 10-minute tick produced 1 contact where a 1-minute tick
+produced 7.** The count is drawn now (whole part plus a fractional remainder),
+so the daily rate is independent of tick cadence.
+
+## C2 A phone, not a call log
+
+A caller who rings out leaves a **voicemail**, and the log remembers *which*
+request rang out. An actionable missed call renders as a `<button>`, so the
+shell's existing arrow-key focus reaches it with no new input model: **Enter
+plays the message, Enter again rings them back.** They answer — the request goes
+back to `pending` — which routes straight into the incoming-call face that
+already existed, with its Answer / Offer another time / Decline.
+
+Calling back fails honestly, with a code, when the slot was taken while the
+phone rang out or the tee time has simply gone.
+
+The message text is not stored. It is rendered from the request's own facts at
+display time, so it translates with the rest of the UI instead of freezing one
+language into the save file. Five keys, all ten locales.
+
+**The trap this walked into and out of:** `ensurePhone` REBUILDS every call row
+when it heals, so a field the healer does not name is silently dropped on the
+first load after a save. Without naming the four new fields there, every missed
+call in an existing save would become unanswerable with no error anywhere.
+Pinned by a test.
+
+## C3 More apps — NOT DONE
+
+Not started. The section's time went to C1, C2 and C4. The app registry is still
+the one-entry seam it was designed as, so this remains a small piece of work
+rather than a blocked one.
+
+## C4 Only the phone and the inbox invent bookings
+
+`ensureReservationHorizon()` generated a whole day of reservations and ran on
+**every tick** — a third booking channel with no fiction behind it, where names
+simply appeared on the sheet with nobody having asked. It now seeds the diary
+once and never again.
+
+**Reading taken, because the line permits two:** the generator still runs that
+first time. Those are the bookings the club already had when you took it over —
+a starting state, not the game inventing bookings while you play — and without
+them a brand-new club opens with an empty sheet and no check-in loop at all,
+which is the beat Verifier 3 rated highest in the whole game. Cutting it
+outright would have removed a working feature to satisfy a line about a
+different one.
+
+**The C4 test took three attempts to become capable of failing.**
+`generatedDays` is pruned to a sliding window on every call, so its *length* is
+flat whether or not the generator is running: the test passed against the
+un-guarded code twice, once even after being extended past the seven-day
+horizon. It counts the union of every day ever generated now, and fails on the
+un-guarded code.
+
+---
+
+# D1 — THE QUEUE, AND WHEN YOU LEARN WHAT THEY WANT
+
+Goal 19 got the **status** right and left the **membership** wrong. `walkIns()`
+hands the desk every open walk-in in the building, so a golfer who came in ten
+minutes ago and is browsing the shelves sat on the check-in list reading
+`WALKING UP` for as long as they shopped. That is the owner's "not waiting ten
+minutes ago, not just walked in the door", and it was never about the label.
+
+The list is the line now: no queue index, not on the list. And the second rule —
+`Asks 8:30` appears only when the status is `AT DESK`. Printing the ask over
+everyone's head turned the queue into a spreadsheet the player could plan
+against before anybody had spoken.
+
+Both rules were pulled out of the 3,000-line render closure into two pure
+exported functions (`walkInQueueStatus`, `walkInShowsAsk`), because that is the
+reason they could regress unnoticed: nothing headless could reach them.
+
+# D2 — A WALK-IN CANNOT BOOK 8:30 AT 6:46
+
+The lead was `45 + rng.int(300)` — **up to five hours**. Somebody who had walked
+through the door at 6:46 could ask for 12:30 and, presumably, wait. They were
+not walk-ins in any sense a player could read; they were strangers who had
+driven to the club to make an advance booking in person. Anybody planning that
+far ahead rings up, which is exactly what C1 made worth doing.
+
+`WALK_IN_ASK_MIN = 20`, `WALK_IN_ASK_MAX = 65`, named constants rather than an
+inline expression — it reached five hours because it was buried in one and
+nobody re-read it. The clock did not need to move faster; the ask needed to move
+closer.
+
+**Watched failing**, and it reproduced the owner's report almost to the word:
+
+```
+someone arriving at 451 (7:31 am) asked to tee off at 750 (12:30 pm)
+```
+
 # D3 — THE CHECKOUT TABLE'S NUMERIC COLUMNS
 
 Image 1 shows `1$279.00`. The cause is arithmetic, not taste: `drawItemRows`
@@ -338,6 +454,45 @@ rendered the empty "Waiting for products" state and the sweep has never once
 drawn the item table. The recorder was right; it was never given the input. Added
 a checkout fixture with four rows, including a $1,249.95 total and a 12-unit
 quantity.
+
+---
+
+# F3, F4 — THE LEDGER'S KEYS
+
+**F3.** Q closes the book. It was Esc, which is the menu key everywhere else in
+the game and reads as "abandon" rather than "shut the book". The footer teaches
+Q now. Escape still works and is deliberately **not** advertised: it is what
+every player reaches for to get out of anything, and letting it fall through
+would open the pause veil on top of an open book, which is a worse state than an
+unadvertised second way out.
+
+**F4.** The `moveRight` binding (D by default) turned pages forward as well as E
+— two keys for one verb, one of them never taught by the footer, found by
+accident. D does nothing in the book now. A still turns *back*, which is the
+direction E cannot express, and the arrows keep working.
+
+Both watched failing against the committed `main.js` before the change.
+
+**F1, F2, F5 are NOT DONE.** The book's UI rebuild, its sounds and its
+open/close gesture were not reached.
+
+# H1 — THE MAIN MENU HAD NO SOUND AT ALL
+
+Not a quiet menu: `src/screens/menu.js` contained **zero audio references**, so
+every press on New Game, Load, Settings and Quit was silent from a cold boot.
+The owner and the stranger verifier reported it independently.
+
+One delegated capture-phase `pointerdown` listener rather than a sound bolted
+onto each of the twelve `onclick` sites, because the new-game, load, credits and
+delete-confirmation dialogs build their own buttons and a per-site fix would
+have missed every one of them. It calls `audio.init()` first: a Web Audio
+context may only be created from a user gesture, and the first menu press *is*
+the first gesture of the session, so without it the one click that should make
+the first sound is the only one that cannot. Detached when the menu hides, so
+nothing in the game world ticks because a menu handler was left attached to the
+document.
+
+**H2 (the money sounds) is NOT DONE.**
 
 ---
 
@@ -365,6 +520,20 @@ quantity.
 - **B4 — the broom's head is still sideways.** Not started; the section's time
   went to the solver, and the run that would have diagnosed it produced only the
   uninformative symmetric-bar statistic described in B5.
+- **C3 — more phone apps.** Not started.
+- **E1, E2 — the bag's side walls and the card in the fingers.** Not reached.
+- **F1, F2, F5 — the ledger's UI rebuild, its sounds, its gesture.** Not
+  reached.
+- **G — NPC path look-ahead.** Not reached.
+- **H2 — the money sounds.** Not reached.
+- **I — the loading screen.** Not reached. Verifier 3 independently confirmed
+  the brief's description of it.
+- **J — draw-call batching and the cap ladder.** Not reached. The first-equip
+  and first-ledger stalls are therefore **unchanged and still fire**; nothing
+  this session touched either.
+- **K — the translations.** Not finished. Coverage is 59.4% (167/281 per
+  locale) — the five new C2 keys were written in all ten locales, so the
+  fraction held rather than dropping.
 
 ## VERIFIER FINDINGS STILL OPEN
 

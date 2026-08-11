@@ -51,6 +51,13 @@ export const CUSTOMER_STATE = Object.freeze({
   RECOVERY: 'Recovery',
 });
 
+// D2 (Goal 20): how far ahead somebody standing at the desk asks to tee off.
+// Exported because it is the contract the desk, the sheet and the tests all
+// have to agree on, and because a lead time buried in an expression is how it
+// came to be five hours without anyone noticing.
+export const WALK_IN_ASK_MIN = 20;
+export const WALK_IN_ASK_MAX = 65;
+
 export const CUSTOMER_INTENT = Object.freeze({
   PRO_SHOP_SHOPPER: 'pro-shop-shopper',
   RESERVATION_CHECK_IN: 'reservation-check-in',
@@ -339,8 +346,23 @@ export function planCustomerArrivals(state, dayAbs = calendarOf(state.clock.minu
     // you got anything around 4?" — snapped to the half hour because that is
     // how the ask is phrased, not to what happens to be open. The scheduler
     // (resolveTeeTimeRequest) is what reconciles the ask with the sheet.
+    //
+    // D2 (Goal 20) — AND THAT TIME IS SOON, BECAUSE THEY ARE STANDING HERE.
+    //
+    // The lead used to be `45 + rng.int(300)`: up to FIVE HOURS. That is how a
+    // clubhouse at 6:46 in the morning ended up full of people asking to tee
+    // off at 8:30 — they were not walk-ins in any sense a player could read,
+    // they were strangers who had driven to the club to make an advance
+    // booking in person and then wait two hours. Somebody who plans that far
+    // ahead rings up or emails, which is exactly what C1 made worth doing.
+    //
+    // A walk-in wants the next hour. Snapped to the half hour, that is the
+    // next slot or the one after it, and the bookings correlate with the clock
+    // on the wall.
     const requestedTeeMinute = intent === CUSTOMER_INTENT.WALK_IN_TEE_TIME
-      ? Math.min(19 * 60, Math.round((minute + 45 + rng.int(300)) / 30) * 30)
+      ? Math.min(19 * 60, Math.round(
+        (minute + WALK_IN_ASK_MIN + rng.int(WALK_IN_ASK_MAX - WALK_IN_ASK_MIN)) / 30,
+      ) * 30)
       : null;
     pushArrival(sim, {
       dayAbs,
