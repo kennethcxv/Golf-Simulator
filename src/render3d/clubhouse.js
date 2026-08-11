@@ -9163,6 +9163,65 @@ export function makeClubhouse(ctx) {
     return L2W(s.x, s.z);
   }
 
+  // C3 (Goal 24) — NOTHING IS HANDED OVER UNTIL THEY ARE AT THE DESK.
+  //
+  // "They hand goods THROUGH the body of the person being served, before their
+  // turn." The gate on placing goods was `counterQueue.indexOf(c) === 0`, which
+  // is a position in an ARRAY, not a position on the floor. Goal 23's own note
+  // on queue advancement says why that is not the same thing: "THE LINE ADVANCES
+  // WHEN THE FLOOR IS CLEAR, NOT WHEN THE ARRAY IS" — the moment the served
+  // customer is spliced out, the next person is index 0 while still standing
+  // several yards back, with the person ahead of them physically in the way.
+  //
+  // They then began reaching for the staging mat from there, and the product's
+  // flight is a straight line from their wrist to the counter, so it passes
+  // through whoever is still standing at the desk. Nothing was wrong with the
+  // motion; the person playing it was in the wrong place.
+  //
+  // So the body has to have arrived. QUEUE_HEAD_REACH_YD is a stride and a bit:
+  // tight enough that there is nobody between them and the counter, loose enough
+  // that the last few inches of settling do not stall the sale.
+  const QUEUE_HEAD_REACH_YD = 0.8;
+  // Half a set of shoulders, plus a little. A product whose path comes closer
+  // than this to somebody's centre line has gone through them.
+  const BODY_CLEARANCE_YD = 0.32;
+  function customerIsAtTheDesk(c) {
+    if (!c || !c.mesh) return false;
+    const slot = queueSlotW(0);
+    if (Math.hypot(c.mesh.position.x - slot.x, c.mesh.position.z - slot.z)
+      > QUEUE_HEAD_REACH_YD) return false;
+    return deskApproachIsClear(c);
+  }
+
+  // ...AND NOBODY IS STANDING IN THE WAY OF THE HAND.
+  //
+  // Standing at the head slot is not sufficient, which the measurement found
+  // and I would not have guessed. When the line advances, the customer who has
+  // just been served is STILL WALKING AWAY and is briefly between the new head
+  // and the counter — so the next person, correctly at the desk by every other
+  // test, reaches straight through the back of someone who has not left yet.
+  // The corridor from the placing hand to the staging mat has to be empty.
+  function deskApproachIsClear(c) {
+    const target = L2W(REGISTER.staging.x, REGISTER.staging.z);
+    const ax = c.mesh.position.x;
+    const az = c.mesh.position.z;
+    const vx = target.x - ax;
+    const vz = target.z - az;
+    const len2 = (vx * vx) + (vz * vz);
+    if (len2 < 1e-4) return true;
+    for (const other of customers) {
+      if (other === c || !other.mesh) continue;
+      const t = (((other.mesh.position.x - ax) * vx) + ((other.mesh.position.z - az) * vz)) / len2;
+      // behind the hand, or past the counter: not in the way
+      if (t <= 0.15 || t >= 1) continue;
+      const cx = ax + (vx * t);
+      const cz = az + (vz * t);
+      if (Math.hypot(other.mesh.position.x - cx, other.mesh.position.z - cz)
+        < BODY_CLEARANCE_YD) return false;
+    }
+    return true;
+  }
+
   function experienceStop(fixture, claimed) {
     if (!fixture?.experience) return null;
     const socket = fixtureSockets(fixture).find((candidate) => !claimed.has(candidate.key));
@@ -11363,7 +11422,7 @@ export function makeClubhouse(ctx) {
             c.reachedRegHead = true;
             c.patience = PATIENCE_FULL;
           }
-          if (!c.awaitingCheckout) {
+          if (!c.awaitingCheckout && customerIsAtTheDesk(c)) {
             // One product crosses from their hands to the staging mat at a time.
             // Only after the last settles does registerMode take ownership.
             const placed = updateCustomerPlacement(c, dt);
@@ -12522,6 +12581,14 @@ export function makeClubhouse(ctx) {
     // read-only QA: the staged-customer HANDLE (sendToCounter returns the
     // display name; drivers need the live entity to watch phases/poses)
     customerByName: (n) => customers.find((c) => c.name === n || c.fullName === n) || null,
+    // C3 (Goal 24): where the head of the line physically stands, in world
+    // space. A driver measuring "did they hand goods over before their turn"
+    // needs the floor position, not the queue array index — the two disagree for
+    // several seconds every time the line advances, which is the whole bug.
+    queueHeadSlot: () => {
+      const s = queueSlotW(0);
+      return { x: s.x, z: s.z };
+    },
     // B5 (Goal 24) — CLEAR THE PERSON AT THE COUNTER.
     //
     // "When the game wedges or I do not want them there, I need a way to clear
