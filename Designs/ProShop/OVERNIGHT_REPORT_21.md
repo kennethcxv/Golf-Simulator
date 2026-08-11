@@ -418,6 +418,57 @@ split are right, only its arrival is wrong.
 
 ---
 
+---
+
+# G — TRANSLATIONS
+
+## What the check measured, and why it passed
+
+"New keys present in all ten tables" was true every time it was asked. It
+counted keys ADDED and never the denominator, so the fraction could sit at 59%
+through several sessions of honest green checks. Shape 3.
+
+The gap was exactly **114 keys, identical in all nine locales.**
+
+## Where it stands
+
+| locale | before | now |
+|---|---|---|
+| zh-Hans, ja, ko | 168/282 | **282/282** |
+| pt-BR, ru, tr | 168/282 | **282/282** |
+| es, fr, de | 168/282 | 168/282 (in flight) |
+
+Every merged value passed two guards: the placeholder multiset must match
+English exactly, and no em dashes. A placeholder that drifts is invisible until
+a player sees a literal brace; the suite fails the build on an em dash. Both are
+cheaper to catch at the merge than at the gate. 684 values, zero refusals.
+
+Judgement calls the translators flagged, kept here because a later edit could
+undo them by accident: / are written to COMPOSE into
+, so Russian uses the instrumental and Turkish uses
+"{method} ile" (reusing those keys as standalone labels would read oddly);
+Russian avoids case inflection on injected names and uses gender-free verb forms
+because the game does not know a customer's gender; and "The deed is done" is a
+property pun that does not carry, so all six render the sense rather than the
+joke.
+
+## X4 — the overview pin
+
+A player could not tell where they were standing. There is now a map pin at the
+walk position, built once, shown only in overview, drawn over the terrain.
+
+**It is still not the fix, and the number says so: .** The pin is
+28% off the LEFT EDGE of the screen, because the overview frames the COURSE and
+the player stands at x -360, outside the picture. That is the stranger's "opens
+on blank forest" reproduced exactly.
+
+My first check reported all six green: exists, visible, correct world position,
+right geometry, correct on-foot lifecycle. Every one true, and the pin was not in
+the frame. **Shape 6 for the third time tonight, in code I had just written.**
+The driver projects into the camera now and asks whether the NDC lands on screen.
+
+**NOT DONE:** the overview needs to FRAME the player, not merely mark them.
+
 # RUNNING LISTS
 
 ## UNCONFIRMED
@@ -444,6 +495,7 @@ split are right, only its arrival is wrong.
 - **X4** — the Tab overview has no player marker and no legend.
 - **C, D, H** — the mop's density and weight, the phone's mouse and icons, the
   draw calls.
+- **G for es, fr and de** — 168/282 each, translator still running.
 - **F** — the door lag. Investigated, root cause of the OLD checks found, my own
   replacement void. See the section above.
 - **X4** — the Tab overview still has no player marker and no legend. Located:
