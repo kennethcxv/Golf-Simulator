@@ -8,6 +8,7 @@
 // simulator reference and keep the shared counter readable.
 
 import * as THREE from 'three';
+import { PAYMENT_CARDS, DEFAULT_PAYMENT_CARD, paymentCardFor } from '../../data/paymentCards.js';
 import { t } from '../../core/i18n.js';
 import {
   FRONT_DESK_FRAME, REGISTER, COUNTER, COUNTER_TOP,
@@ -816,43 +817,130 @@ function coinTexture(denom) {
   return texture;
 }
 
-function paymentCardTexture(clubName = DEFAULT_DISPLAY_BRAND) {
+// H (Goal 23) — THE NETWORK DEVICE, DRAWN FROM PRIMITIVES.
+//
+// Deliberately unlike every real scheme's mark: no interlocking circles, no
+// split oval, no blue-and-gold roundel. Each of these is a plain geometric
+// device any designer would arrive at independently. See the note at the top of
+// src/data/paymentCards.js for why that matters.
+function drawCardMark(ctx, kind, x, y, w, h, colour) {
+  ctx.save();
+  ctx.fillStyle = colour;
+  ctx.strokeStyle = colour;
+  ctx.lineWidth = Math.max(3, h * 0.13);
+  ctx.lineCap = 'round';
+  if (kind === 'chevrons') {
+    for (let i = 0; i < 3; i += 1) {
+      const off = i * h * 0.3;
+      ctx.beginPath();
+      ctx.moveTo(x, y + off + h * 0.22);
+      ctx.lineTo(x + w / 2, y + off);
+      ctx.lineTo(x + w, y + off + h * 0.22);
+      ctx.stroke();
+    }
+  } else if (kind === 'ring-bar') {
+    ctx.beginPath();
+    ctx.arc(x + w / 2, y + h / 2, Math.min(w, h) * 0.42, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(x + w * 0.08, y + h / 2);
+    ctx.lineTo(x + w * 0.92, y + h / 2);
+    ctx.stroke();
+  } else if (kind === 'lattice') {
+    const cols = 4;
+    const cw = w / cols;
+    for (let i = 0; i < cols; i += 1) {
+      ctx.beginPath();
+      ctx.moveTo(x + i * cw, y + h);
+      ctx.lineTo(x + i * cw + cw / 2, y);
+      ctx.lineTo(x + (i + 1) * cw, y + h);
+      ctx.closePath();
+      if (i % 2 === 0) ctx.fill(); else ctx.stroke();
+    }
+  } else if (kind === 'wave') {
+    for (let k = 0; k < 2; k += 1) {
+      ctx.beginPath();
+      for (let i = 0; i <= 24; i += 1) {
+        const t = i / 24;
+        const px = x + t * w;
+        const py = y + h / 2 + Math.sin(t * Math.PI * 2 + k * 0.9) * h * 0.3;
+        if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+      }
+      ctx.stroke();
+    }
+  } else { // keystone
+    ctx.beginPath();
+    ctx.moveTo(x + w * 0.12, y);
+    ctx.lineTo(x + w * 0.88, y);
+    ctx.lineTo(x + w * 0.7, y + h);
+    ctx.lineTo(x + w * 0.3, y + h);
+    ctx.closePath();
+    ctx.fill();
+  }
+  ctx.restore();
+}
+
+// H (Goal 23) — ONE PAINTER, ANY ROW.
+//
+// This used to hard-code the club's green-and-gold membership panel, so every
+// customer in the shop paid with a card from the shop they were standing in.
+// It now paints whichever row it is handed; a new card is a new row in
+// src/data/paymentCards.js and nothing else.
+function paymentCardTexture(clubName = DEFAULT_DISPLAY_BRAND, design = DEFAULT_PAYMENT_CARD) {
+  const d = design || DEFAULT_PAYMENT_CARD;
   const canvas = document.createElement('canvas');
   canvas.width = 768;
   canvas.height = 480;
   const ctx = canvas.getContext('2d');
   const gradient = ctx.createLinearGradient(0, 0, 768, 480);
-  gradient.addColorStop(0, '#173f2d');
-  gradient.addColorStop(1, '#0e2d21');
+  gradient.addColorStop(0, d.base);
+  gradient.addColorStop(1, d.baseEnd);
   ctx.fillStyle = gradient;
   ctx.fillRect(0, 0, 768, 480);
-  ctx.strokeStyle = '#b9974e';
+  ctx.strokeStyle = d.accent;
   ctx.lineWidth = 8;
   ctx.strokeRect(20, 20, 728, 440);
-  ctx.fillStyle = '#f8f0dc';
-  const brand = checkoutDisplayClubName({ clubName }).toUpperCase();
-  setFittedCanvasFont(ctx, brand, {
-    maxWidth: 650,
-    startSize: 52,
-    minimumSize: 28,
-    weight: 700,
-    family: 'Georgia, serif',
+
+  // The issuer sits where a bank's name sits: top left, largest thing on the
+  // card. The club card has no issuer and wears the club's name there instead.
+  const issuer = (d.issuer || checkoutDisplayClubName({ clubName })).toUpperCase();
+  ctx.fillStyle = d.ink;
+  setFittedCanvasFont(ctx, issuer, {
+    maxWidth: 520, startSize: 52, minimumSize: 26, weight: 700, family: 'Georgia, serif',
   });
-  ctx.fillText(brand, 58, 105);
-  ctx.fillStyle = '#d6bd81';
+  ctx.fillText(issuer, 58, 105);
+  ctx.fillStyle = d.accent;
   ctx.font = '700 24px Arial, sans-serif';
-  ctx.fillText('FAIRWAY MEMBER', 60, 150);
-  ctx.fillStyle = '#d9bd76';
+  ctx.fillText(String(d.tier || '').toUpperCase(), 60, 150);
+
+  // chip
+  ctx.fillStyle = d.chip;
   ctx.fillRect(62, 210, 145, 105);
-  ctx.strokeStyle = '#73551f';
+  ctx.strokeStyle = 'rgba(0,0,0,0.45)';
   ctx.lineWidth = 4;
   ctx.strokeRect(62, 210, 145, 105);
-  ctx.fillStyle = '#f8f0dc';
+  ctx.beginPath();
+  for (let i = 1; i < 3; i += 1) {
+    ctx.moveTo(62, 210 + (105 * i) / 3);
+    ctx.lineTo(207, 210 + (105 * i) / 3);
+  }
+  ctx.moveTo(62 + 145 / 2, 210);
+  ctx.lineTo(62 + 145 / 2, 315);
+  ctx.lineWidth = 3;
+  ctx.stroke();
+
+  ctx.fillStyle = d.ink;
   ctx.font = '600 27px monospace';
-  ctx.fillText('MEMBER 042 718', 62, 382);
-  ctx.fillStyle = '#d6bd81';
-  ctx.font = 'italic 22px Georgia, serif';
-  ctx.fillText('Play the long game.', 510, 410);
+  ctx.fillText(String(d.numberMask || ''), 62, 382);
+
+  // the network device and its name, bottom right, where a scheme mark lives
+  drawCardMark(ctx, d.mark, 566, 250, 150, 84, d.accent);
+  ctx.fillStyle = d.ink;
+  ctx.font = '700 26px Arial, sans-serif';
+  ctx.textAlign = 'right';
+  ctx.fillText(String(d.network || '').toUpperCase(), 716, 372);
+  ctx.textAlign = 'left';
+
   const texture = new THREE.CanvasTexture(canvas);
   texture.colorSpace = THREE.SRGBColorSpace;
   texture.anisotropy = 8;
@@ -943,7 +1031,21 @@ export function createRegisterMode(B) {
   const clearFocus = B.ctx.clearFocus || (() => {});
   const sfx = (name, ...args) => { if (hooks.sfx) hooks.sfx(name, ...args); };
   const toast = (message, kind) => (hooks.toast ? hooks.toast(message, kind) : null);
+  // Declared HERE rather than 900 lines down, because syncPhysicalBrand() runs
+  // during setup and currentPaymentCard() reads this: with the declaration
+  // below, that was a temporal dead zone and three teardown tests died with
+  // "Cannot access 'cust' before initialization".
+  let cust = null;
   const displayClubName = () => checkoutDisplayClubName(state);
+  // H (Goal 23): whose card is at the reader. Keyed on the customer's stable
+  // identity rather than their name, so two people called Ray Falk do not share
+  // a bank account. QA can pin it with __qaPaymentCardId.
+  const currentPaymentCard = () => {
+    const forced = typeof window !== 'undefined' && window.__qaPaymentCardId;
+    if (forced) return PAYMENT_CARDS.find((c) => c.id === forced) || DEFAULT_PAYMENT_CARD;
+    const who = cust && (cust.customerId ?? cust.fullName ?? cust.name);
+    return who == null ? DEFAULT_PAYMENT_CARD : paymentCardFor(who);
+  };
   const activeRegisterGtaoOverride = createScopedBooleanOverride({
     read: B.ctx.postEffects?.getGtaoEnabled,
     write: B.ctx.postEffects?.setGtaoEnabled,
@@ -988,7 +1090,10 @@ export function createRegisterMode(B) {
     // the shop wordmark panel. Round 7: "make the card look better when
     // inserted": the wordmark read as a green sliver in the reader's slot;
     // the bank-card layout reads as a card at any protrusion.
-    cardBrandMaterial.map = paymentCardTexture(signature);
+    // H (Goal 23): the card at the reader is the card THIS customer carries,
+    // chosen deterministically from their own identity so a person who pays
+    // twice does not change bank between visits.
+    cardBrandMaterial.map = paymentCardTexture(signature, currentPaymentCard());
     bagBrandMaterial.needsUpdate = true;
     cardBrandMaterial.needsUpdate = true;
     physicalBrandSignature = signature;
@@ -1944,7 +2049,6 @@ export function createRegisterMode(B) {
 
   let active = false;
   let tx = null;
-  let cust = null;
   let transactionKind = 'retail';
   let activeTab = 'checkout';
   let workspace = 'monitor';
@@ -5774,7 +5878,7 @@ export function createRegisterMode(B) {
         new THREE.BoxGeometry(CARD_WIDTH, CARD_THICKNESS, CARD_HEIGHT),
         new THREE.MeshStandardMaterial({ color: 0x173f2d, roughness: 0.36 }),
       );
-      const faceTexture = paymentCardTexture(displayClubName());
+      const faceTexture = paymentCardTexture(displayClubName(), currentPaymentCard());
       const face = new THREE.Mesh(
         new THREE.PlaneGeometry(CARD_WIDTH - 0.004, CARD_HEIGHT - 0.004),
         new THREE.MeshStandardMaterial({
@@ -9079,6 +9183,17 @@ export function createRegisterMode(B) {
     // — a driver that hunts the graph by name or size finds scorecard
     // holders and wood chips (both happened tonight) and reports on them.
     cardNode: () => cardMesh,
+    // H (Goal 23): repaint the card faces from the current design. The painter
+    // lives in this closure, so a driver photographing the four variants has to
+    // ask the register to repaint rather than reimplement the artwork — a
+    // driver's own copy of a painter proves nothing about the shipped one.
+    repaintBrand: () => { physicalBrandSignature = null; return syncPhysicalBrand(); },
+    // The painted card FACE, available without entering the register. cardNode
+    // is null until a customer brings a sale, so a driver photographing the
+    // card artwork would otherwise have to stage a whole transaction to look at
+    // a texture that is painted at construction.
+    cardBrandCanvas: () => (cardBrandMaterial && cardBrandMaterial.map
+      && cardBrandMaterial.map.image ? cardBrandMaterial.map.image : null),
     // The mesh for a ticket line, by uid. Same reason as bagNode: a driver that
     // hunts the scene graph for a product finds nothing when it guesses wrong,
     // and a scan that finds nothing is indistinguishable from an empty counter.

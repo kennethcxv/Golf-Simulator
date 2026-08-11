@@ -70,7 +70,14 @@ const composite = [];
 tiles.forEach((t, i) => {
   const cx = (i % cols) * tileW;
   const cy = Math.floor(i / cols) * (tileH + CAPTION);
-  composite.push({ input: label(`#${t.row.n}`, `${t.row.degrees}°  (${t.row.radians} rad)`), top: cy, left: cx });
+  // The caption comes from the row. A sweep of angles wants degrees and
+  // radians; a set of card designs wants names, and printing "MERIDIAN° (…
+  // rad)" is how a generic tool embarrasses itself.
+  const caption = t.row.caption
+    ?? (t.row.degrees != null && typeof t.row.degrees === 'number'
+      ? `${t.row.degrees}°  (${t.row.radians} rad)`
+      : [t.row.degrees, t.row.radians].filter(Boolean).join('  ·  '));
+  composite.push({ input: label(`#${t.row.n}`, caption), top: cy, left: cx });
   composite.push({ input: t.buf, top: cy + CAPTION, left: cx });
 });
 

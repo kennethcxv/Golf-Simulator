@@ -12158,6 +12158,10 @@ export function makeClubhouse(ctx) {
       // C2 (Goal 19): forwarded the day it was added — the facade's own note
       // above records what an unforwarded accessor costs.
       cardNode: () => (register.cardNode ? register.cardNode() : null),
+      // H (Goal 23): forwarded the day it was added. The facade's own note
+      // above records what an unforwarded accessor costs.
+      repaintBrand: () => (register.repaintBrand ? register.repaintBrand() : false),
+      cardBrandCanvas: () => (register.cardBrandCanvas ? register.cardBrandCanvas() : null),
       itemMesh: (uid) => (register.itemMesh ? register.itemMesh(uid) : null),
       bagIsAtCounter: () => (register.bagIsAtCounter ? register.bagIsAtCounter() : false),
       enter: () => register.enter(),
