@@ -107,7 +107,8 @@ worth checking for, but it did not explain this one.
 
 | # | What was claimed | What the check measured | Why it passed | Shape |
 |---|---|---|---|---|
-| 1-2 | Measured as costing nothing, twice | Frame timings around the door | The owner still feels it on **first approach and first open**. A warm measurement cannot see a first-time cost | ? — under investigation |
+| 1-2 | Measured as costing nothing, twice | tools/qa/doors-performance.js, which runs against **http://localhost:8457 in headless Chrome** | It never touched the shipped Electron build, never cold-booted, and never had a player walk up to a door. The runner header already records three defects that shipped this way | **WRONG RUNTIME** |
+| 3 | *(Goal 21)* Measured free a THIRD time, by me | rAF frame times across still / control / approach / open, cold boot, real input, Electron | **My own instrument never reached the door.** The frame shows the player short of it, the door shut, and the E press pulling WEEDS. 4.2 ms median describes walking on a porch | 2 |
 
 ### The stranger's own instrument — 1 appearance
 
