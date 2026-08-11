@@ -71,6 +71,9 @@ const EXPECTED_CHECKOUT_CUES = [
   'scannerActivate', 'scanSuccess', 'scanInvalid', 'posAdd',
   'cardMove', 'cardSwipe', 'cardInsert', 'cardProcessing', 'cardApproved', 'cardDeclined',
   'cashPresent', 'billHandle', 'coinHandle',
+  // H2 (Goal 20): notes and coins landing on the desk are two different events,
+  // and the card leaving the wallet is not the terminal's chirp.
+  'notesDown', 'coinsDown', 'cardOut',
   'drawerUnlock', 'drawerOpen', 'drawerClose',
   'changeSelect', 'changeHandoff',
   'receiptPrint', 'receiptTear',

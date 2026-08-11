@@ -11,6 +11,8 @@ export const CHECKOUT_CUE_APIS = Object.freeze([
   'scannerActivate', 'scanSuccess', 'scanInvalid', 'posAdd',
   'cardMove', 'cardSwipe', 'cardInsert', 'cardProcessing', 'cardApproved', 'cardDeclined',
   'cashPresent', 'billHandle', 'coinHandle',
+  // H2 (Goal 20): notes and coins landing are two different events
+  'notesDown', 'coinsDown', 'cardOut',
   'drawerUnlock', 'drawerOpen', 'drawerClose',
   'changeSelect', 'changeHandoff',
   'receiptPrint', 'receiptTear',
@@ -1191,6 +1193,49 @@ export function makeAudio(preferences = null) {
     checkoutTone({ at: 0.025, freq: 220, to: 196, type: 'triangle', dur: 0.075, peak: 0.009, filter: 650 });
   }
 
+  // H2 (Goal 20) — CASH GOING DOWN ON THE DESK, AND NOTES ARE NOT COINS.
+  //
+  // `cashPresent` played for every tender whatever it was made of, so a handful
+  // of quarters landed with the same soft paper sound as a twenty. These are two
+  // different events and the ear knows it immediately: paper is a broadband
+  // brush with a low wooden thud under it and nothing metallic; coins are
+  // several bright partials that arrive slightly apart, because they never land
+  // all at once.
+
+  function notesDown() {
+    // the brush of the notes...
+    checkoutNoise({ dur: 0.16, band: 980, toBand: 1900, q: 0.5, peak: 0.030, attack: 0.008 });
+    checkoutNoise({ at: 0.055, dur: 0.13, band: 1700, toBand: 1050, q: 0.65, peak: 0.020 });
+    // ...and the counter under them. This is the half that says "on the desk".
+    checkoutTone({ at: 0.02, freq: 150, to: 96, type: 'triangle', dur: 0.13, peak: 0.024, filter: 520 });
+  }
+
+  function coinsDown() {
+    if (!ctx) return;
+    // A handful of coins is several impacts within about 90 ms, never one. The
+    // spread and the pitches are drawn from the shared varier so two payments
+    // are never the same handful, which is the whole reason a repeated sound
+    // grates.
+    const pieces = 3 + Math.floor(Math.random() * 3);
+    for (let i = 0; i < pieces; i += 1) {
+      const at = i * (0.018 + Math.random() * 0.026);
+      const f = 2100 + Math.random() * 1500;
+      checkoutTone({ at, freq: f, to: f * 0.72, type: 'triangle', dur: 0.075, peak: 0.013 });
+      checkoutTone({ at: at + 0.004, freq: f * 1.51, to: f * 1.1, type: 'sine', dur: 0.05, peak: 0.007 });
+    }
+    // the wood they land on, once, under the lot
+    checkoutTone({ at: 0.01, freq: 138, to: 88, type: 'triangle', dur: 0.11, peak: 0.019, filter: 500 });
+    checkoutNoise({ dur: 0.07, band: 2600, toBand: 3400, q: 1.2, peak: 0.010, attack: 0.004 });
+  }
+
+  // H2: the card COMING OUT — plastic sliding out of a wallet and being turned
+  // over, which is the gesture the player watches. Dry, short, no chirp: the
+  // terminal's own chirp is cardTap and the two must not be confused.
+  function cardOut() {
+    checkoutNoise({ dur: 0.11, band: 2400, toBand: 3600, q: 1.4, peak: 0.016, attack: 0.006 });
+    checkoutTone({ at: 0.05, freq: 640, to: 880, type: 'triangle', dur: 0.055, peak: 0.010, filter: 2200 });
+  }
+
   function drawerUnlock() {
     checkoutTone({ freq: 980, to: 620, type: 'square', dur: 0.045, peak: 0.017, filter: 1800 });
     checkoutTone({ at: 0.024, freq: 142, to: 88, type: 'triangle', dur: 0.085, peak: 0.026, filter: 650 });
@@ -2170,6 +2215,9 @@ export function makeAudio(preferences = null) {
     cardApproved: approve,
     cardDeclined: decline,
     cashPresent,
+    notesDown,
+    coinsDown,
+    cardOut,
     billHandle,
     coinHandle: coin,
     drawerUnlock,

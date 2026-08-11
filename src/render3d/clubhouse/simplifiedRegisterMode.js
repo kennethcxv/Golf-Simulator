@@ -5729,6 +5729,9 @@ export function createRegisterMode(B) {
     suppressInteriorSunShadows(base);
     root.add(base);
     cardMesh = base;
+    // H2: the card COMING OUT. The terminal chirp (cardTap) is a different
+    // event and must not stand in for the plastic leaving the wallet.
+    sfx('cardOut');
   }
 
   function createTender() {
@@ -5754,7 +5757,18 @@ export function createRegisterMode(B) {
       }
     }
     presentTender();
-    sfx('cashPresent');
+    // H2 (Goal 20): notes and coins are not the same sound. cashPresent played
+    // for every tender whatever it was made of, so a handful of quarters landed
+    // with the same soft paper brush as a twenty. Both fire on a mixed tender,
+    // because that is what you hear.
+    const laid = Object.entries(tx.tendered || {})
+      .filter(([, n]) => Number(n) > 0)
+      .map(([denom]) => Number(denom));
+    const laidNotes = laid.some((denom) => BILLS.includes(denom));
+    const laidCoins = laid.some((denom) => !BILLS.includes(denom));
+    if (laidNotes) sfx('notesDown');
+    if (laidCoins) sfx('coinsDown');
+    if (!laidNotes && !laidCoins) sfx('cashPresent');
   }
 
   function choosePayment(method) {

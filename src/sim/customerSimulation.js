@@ -58,6 +58,40 @@ export const CUSTOMER_STATE = Object.freeze({
 export const WALK_IN_ASK_MIN = 20;
 export const WALK_IN_ASK_MAX = 65;
 
+/**
+ * The ask, chosen off a real slot grid. THE SECOND GENERATOR (Goal 20, found by
+ * Verifier 1): the arrival planner below is not the only place a walk-in
+ * acquires a time. A golfer who spawns on the shop floor gets one from
+ * clubhouse.js, which had its own rule — the nearest ten slots ahead, biased
+ * toward soon — and on a thirty-minute grid that is FIVE HOURS. Fixing the
+ * planner alone left half the walk-ins asking for the afternoon, which is the
+ * two-populations fault exactly: the check passed because it only ever measured
+ * one of them.
+ *
+ * Both sites call this now, so there is one rule and one place to change it.
+ *
+ * @param roll 0..1, the caller's own deterministic draw
+ */
+export function walkInAskFrom(nowMinute, gridMinutes, roll = 0.5) {
+  const grid = (Array.isArray(gridMinutes) ? gridMinutes : []).filter(Number.isFinite);
+  if (!grid.length) return null;
+  const lo = nowMinute + WALK_IN_ASK_MIN;
+  // NO slack past the window. The first draft allowed a grid step of it, on the
+  // reasoning that an ask should be able to round up to the next real slot —
+  // and that alone put 12:30 back within reach of a 10:58 arrival, 92 minutes,
+  // which is the very number Verifier 1 photographed and questioned. The
+  // fallback below already covers the case the slack was meant to protect.
+  const hi = nowMinute + WALK_IN_ASK_MAX;
+  const within = grid.filter((minute) => minute >= lo && minute <= hi);
+  // Nothing inside the window (late in the day, or a sparse grid): take the
+  // very next slot that exists rather than reaching hours out. Somebody at the
+  // desk at ten to six asks about the last light, not tomorrow afternoon.
+  const pool = within.length ? within : grid.filter((minute) => minute >= lo).slice(0, 1);
+  if (!pool.length) return null;
+  const reach = Math.pow(Math.min(0.999999, Math.max(0, roll)), 1.6); // biased toward soon
+  return pool[Math.min(pool.length - 1, Math.floor(reach * pool.length))];
+}
+
 export const CUSTOMER_INTENT = Object.freeze({
   PRO_SHOP_SHOPPER: 'pro-shop-shopper',
   RESERVATION_CHECK_IN: 'reservation-check-in',

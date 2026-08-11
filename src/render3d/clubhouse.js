@@ -104,7 +104,9 @@ import {
   dueForCheckIn, dueForArrivals, markReservationEnRoute, markReservationArrived,
   walkInAvailability, selectWalkInSlot, fmtSlot, deskReservationList,
   slotTimes, resolveTeeTimeRequest,
+  // (the walk-in ask rule lives in the sim; see the import below)
 } from '../sim/reservations.js';
+import { walkInAskFrom } from '../sim/customerSimulation.js';
 import {
   allocateCustomerIdentity, customerIdentityById, paymentChoiceDialogue,
   recordCustomerVisit,
@@ -9295,12 +9297,14 @@ export function makeClubhouse(ctx) {
       if (Number.isFinite(options.requestedTeeMinute)) {
         walkInAskMinute = Math.floor(options.requestedTeeMinute);
       } else {
-        const nowMinute = state.clock.minutes % 1440;
-        const grid = slotTimes(state).filter((minute) => minute >= nowMinute + 30);
-        if (grid.length) {
-          const reach = Math.pow(rng.next(), 1.6); // biased toward soon
-          walkInAskMinute = grid[Math.min(grid.length - 1, Math.floor(reach * Math.min(grid.length, 10)))];
-        }
+        // D2 (Goal 20), found by Verifier 1: this used to reach up to the TENTH
+        // slot ahead, which on a thirty-minute grid is five hours — the same
+        // fault the arrival planner had, in a second place, so fixing the
+        // planner alone left half the walk-ins asking for the afternoon. One
+        // rule now, in customerSimulation.walkInAskFrom.
+        walkInAskMinute = walkInAskFrom(
+          state.clock.minutes % 1440, slotTimes(state), rng.next(),
+        );
       }
     }
     const visitorId = `visitor-${state.shop.nextVisitorId++}`;
