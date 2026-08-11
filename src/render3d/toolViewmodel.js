@@ -720,9 +720,31 @@ export function buildToolViewmodels() {
       entry.root.userData.mopWet = wet;
       return true;
     },
-    update(dtSec) {
+    update(dtSec, floorWorldY = null) {
       const dt = Math.max(0, Math.min(0.1, Number(dtSec) || 0));
-      for (const entry of loaded.values()) entry.mixer?.update(dt);
+      for (const entry of loaded.values()) {
+        entry.mixer?.update(dt);
+        // D1 (Goal 23) — THE SOLVER WAS NEVER CALLED. ZERO CALL SITES.
+        //
+        // Six passes have gone into how the mop's yarn behaves — momentum,
+        // trailing, whip, floor spread, frame-rate independence — and every one
+        // was tuned against unit tests that step the rig by hand. In the game
+        // it has never moved: createVerletMopStrands builds the rig here and
+        // stores it on the entry, and the only `strandRig.update(...)` in the
+        // repository is in broomViewmodel.js, which owns its own bespoke rig
+        // and knows nothing about this one. Goal 22 measured the drift while
+        // walking as exactly ZERO and read it as a frozen solver. The solver
+        // was fine. Nobody was turning the handle.
+        //
+        // The head's world matrix is already current when this runs (the rig
+        // hangs off the viewmodel group, which the camera rig has posed for
+        // this frame), and the nodes live in world space, so one call is all it
+        // needs.
+        if (entry.strandRig && typeof entry.strandRig.update === 'function') {
+          entry.strandRig.root?.parent?.updateMatrixWorld(true);
+          entry.strandRig.update(dt, floorWorldY);
+        }
+      }
     },
     diagnostics: () => ({
       authoredCount: loaded.size,

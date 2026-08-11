@@ -166,6 +166,49 @@ test('frame rate does not change the settled shape', () => {
   assert.ok(Math.abs(ds - df) < 0.01, `30 fps drop ${ds} vs 60 fps drop ${df}`);
 });
 
+test('D (Goal 23): the bands hang from a COLLAR, not from a point', () => {
+  // "It is too sparse and reads as spikes. A real string mop is thick bands
+  // that COVER the whole head... they hang from a wide collar and splay across
+  // the full width rather than radiating from a point."
+  //
+  // A sunflower fill is the right way to fill a disc and the wrong way to hang
+  // a mop: r = radius * sqrt(i/N) puts the first strands almost on the axis, so
+  // the head reads as spikes out of a centre. The collar is what fixes it, and
+  // this measures the thing the eye is complaining about — how close to the
+  // axis the NEAREST band starts.
+  const material = new THREE.MeshBasicMaterial();
+  const rig = createVerletMopStrands({ THREE, material, ...SHIPPED_MOP_YARN });
+  const head = new THREE.Group();
+  head.add(rig.root);
+  head.position.set(0, 1, 0);
+  run(rig, head, 240, 1 / 60);
+
+  const R = SHIPPED_MOP_YARN.radius;
+  const radii = rig.tipsWorld().map((t) => Math.hypot(t.x, t.z));
+  const nearest = Math.min(...radii);
+  const furthest = Math.max(...radii);
+
+  // CONTROL: the layout this replaces. Its innermost strand sits at
+  // radius * sqrt(0.5/N), which for 22 bands is under 8% of the head.
+  const oldNearest = R * Math.sqrt(0.5 / SHIPPED_MOP_YARN.count);
+  assert.ok(oldNearest < R * 0.2,
+    `control: the old fill starts at ${oldNearest.toFixed(4)} — 15% of a ${(R * 1000).toFixed(0)} mm `
+    + 'head, which is a spike out of the middle');
+
+  assert.ok(nearest > R * 0.35,
+    `no band may hang off the axis: nearest sits at ${nearest.toFixed(4)} of a ${R} head`);
+  assert.ok(furthest > R * 0.75,
+    `and the collar must still reach the rim: furthest ${furthest.toFixed(4)}`);
+
+  // ...and they are thick enough to mat rather than fan. Neighbouring anchors
+  // around the collar are about this far apart; a band whose diameter is a
+  // decent fraction of that reads as one mass.
+  const spacing = (2 * Math.PI * R * 0.8) / SHIPPED_MOP_YARN.count;
+  const bandDiameter = SHIPPED_MOP_YARN.strandRadiusTop * 2;
+  assert.ok(bandDiameter > spacing * 0.5,
+    `bands ${(bandDiameter * 1000).toFixed(0)} mm across must not rattle around in ${(spacing * 1000).toFixed(0)} mm of spacing`);
+});
+
 test('B (Goal 22): a string mop is a few thick bands, not a thousand hairs', () => {
   // This assertion used to read `strandCount === 820`, "denser than the old
   // 480", and it was the fifth pass in a row to move this number UP because the
@@ -175,10 +218,12 @@ test('B (Goal 22): a string mop is a few thick bands, not a thousand hairs', () 
   //
   // The count is asserted as a RANGE rather than a value, because the point is
   // the reading ("a person can count the bands"), not any one number in it.
+  // Goal 23 widened the range to the 16-24 the owner asked for: 16 was right in
+  // direction and read as spikes, and closing the gaps needs a few more.
   const material = new THREE.MeshBasicMaterial();
   const rig = createVerletMopStrands({ THREE, material, ...SHIPPED_MOP_YARN });
-  assert.ok(rig.strandCount >= 10 && rig.strandCount <= 20,
-    `a string mop has 10-20 bands of yarn, got ${rig.strandCount}`);
+  assert.ok(rig.strandCount >= 16 && rig.strandCount <= 24,
+    `a string mop has 16-24 bands of yarn, got ${rig.strandCount}`);
   assert.equal(rig.drawCalls, 4, 'still one instanced call per segment index');
   const head = new THREE.Group();
   head.add(rig.root);

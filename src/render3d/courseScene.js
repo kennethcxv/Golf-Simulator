@@ -7153,7 +7153,7 @@ export function makeCourseScene(canvas, state) {
       }
     }
     // the hands breathe, rise into frame, and shove back under the trigger — or draw the box
-    toolViewmodels.update(dt);
+    toolViewmodels.update(dt, walkFloorWorldY());
     if (walkTool && CLEANING_TOOLS[walkTool]) {
       fpHands.syncGrips(toolViewmodels.gripsFor(walkTool));
     }
@@ -8254,10 +8254,21 @@ export function makeCourseScene(canvas, state) {
     rig.apply();
   }
 
+  // D1 (Goal 23): the boards under the player's feet, for the held tool's yarn
+  // solver. Same source walkUpdate uses for the camera, so the mop's strands
+  // land on the floor the player is standing on rather than passing through it.
+  function walkFloorWorldY() {
+    if (!walk.active) return null;
+    const boards = clubhouseApi ? clubhouseApi.groundYAt(walk.x, walk.z) : null;
+    if (boards !== null && boards !== undefined) return boards;
+    const turf = walkSurfaceHeightAt(walk.x, walk.z);
+    return Number.isFinite(turf) ? turf : null;
+  }
+
   function walkUpdate(dtMs) {
     if (!walk.active) return;
     const dt = dtMs / 1000;
-    toolViewmodels.update(dt);
+    toolViewmodels.update(dt, walkFloorWorldY());
     const px0 = walk.x; // where this frame started, so recovery can tell moving from pinned
     const pz0 = walk.z;
 

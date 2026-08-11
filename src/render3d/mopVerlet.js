@@ -70,13 +70,33 @@ const DEFAULT_PARAMS = Object.freeze({
 // the test asserted the DEFAULTS. Two populations: the shipped mop could change
 // without the test noticing, and the test could pass about a mop nobody holds.
 // Both now read this object.
+// How far out the collar starts, as a fraction of the head radius. 0 is the old
+// point-source fill; 1 would be a bare ring with a hole in the middle. 0.52
+// keeps the whole width covered while leaving nothing on the axis.
+export const COLLAR_INNER = 0.52;
+
+// D (Goal 23) — 16 BANDS WAS RIGHT AND TOO THIN. MAKE THEM COVER THE HEAD.
+//
+// Goal 22 cut 820 hairs to 16 bands, which was the correct direction and, on
+// its own, produced spikes: sixteen 12 mm ropes hung off a sunflower fill that
+// puts the first few on the axis. What a string mop actually is, is a wide band
+// of yarn clamped across the head, thick enough that neighbours touch and mat.
+//
+// So three changes together, none of which works alone:
+//   * 22 bands rather than 16 — still inside the 16-24 the owner asked for, and
+//     enough to close the gaps at this diameter;
+//   * the collar (COLLAR_INNER) so they hang from the head's width, not a point;
+//   * bands more than twice as thick, 26 mm across at the top tapering to 20 mm,
+//     which at ~40 mm anchor spacing is nearly touching at rest and fully matted
+//     once they splay.
+// Cost is 88 instances against 3,280 before Goal 22, still 4 draw calls.
 export const SHIPPED_MOP_YARN = Object.freeze({
-  count: 16,
-  radius: 0.098,
+  count: 22,
+  radius: 0.105,
   length: 0.30,
   segments: 4,
-  strandRadiusTop: 0.0062,
-  strandRadiusBottom: 0.0048,
+  strandRadiusTop: 0.013,
+  strandRadiusBottom: 0.010,
   radialSegments: 8,
   lengthVariation: 0.24,
 });
@@ -133,7 +153,20 @@ export function createVerletMopStrands({
   const outZ = new Float32Array(N);
   const segLen = new Float32Array(N);
   for (let i = 0; i < N; i += 1) {
-    const r = radius * Math.sqrt((i + 0.5) / N);
+    // D (Goal 23) — THE BANDS HANG FROM A COLLAR, NOT FROM A POINT.
+    //
+    // A plain sunflower fill (r = radius * sqrt(i/N)) is the right way to fill a
+    // DISC evenly, and it is the wrong way to hang a mop. With 16 bands it puts
+    // the first few almost on the axis, so the head reads as spikes radiating
+    // out of a centre — which is exactly what the owner is looking at.
+    //
+    // A real string mop is clamped in a band across the head's whole width. So
+    // the anchors start at COLLAR_INNER of the way out and fill the annulus
+    // from there: no strand originates on the axis, the outer edge is still
+    // reached, and the ring of anchors is wide enough that neighbouring bands
+    // touch and mat instead of fanning apart.
+    const t = Math.sqrt((i + 0.5) / N);
+    const r = radius * (COLLAR_INNER + (1 - COLLAR_INNER) * t);
     const theta = i * GOLDEN;
     anchorX[i] = Math.cos(theta) * r;
     anchorZ[i] = Math.sin(theta) * r;
