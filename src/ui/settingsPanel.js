@@ -454,7 +454,7 @@ export function makeSettingsPanel({
   // isDevSession in src/data/clubhouseVariant.js.
   const VARIANT_LABELS = {
     'pine-hills-v2': 'Pine Hills v2 - Phase 3 greybox',
-    'pine-hills': 'Pine Hills - v1 authored room',
+    'pine-hills': 'Pine Hills - the original room',
     'modern-public': 'Modern municipal (default)',
     'mountain-lodge': 'Mountain lodge',
     legacy: 'Legacy envelope',

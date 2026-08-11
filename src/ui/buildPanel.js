@@ -129,7 +129,7 @@ export function makeBuildPanel({ getApi }) {
   function safetyBody(model) {
     const required = model.placed.filter((object) => object.requiredObject);
     return el('div', {},
-      el('p', { class: 'build-note', text: 'Checkout equipment, the office laptop, and the exit sign retain protected authored relationships. Recovery returns them safely; they cannot be sold.' }),
+      el('p', { class: 'build-note', text: 'The checkout equipment, the office laptop and the exit sign are fixed where they are and cannot be sold. Recovery puts them back safely.' }),
       objectList(required, 'No required objects found.', 'placed'),
       el('h3', { text: 'Placement controls' }),
       el('dl', { class: 'build-controls' },

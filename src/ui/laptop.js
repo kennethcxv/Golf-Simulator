@@ -953,7 +953,7 @@ export function makeLaptop(app, opts) {
             text: 'Restore safe layout',
             onclick: () => {
               const result = recoverOpeningLayout(st);
-              toast(result.ok ? 'Required fixtures returned to the safe authored layout.' : result.reason, result.ok ? '' : 'warn');
+              toast(result.ok ? 'Required fixtures put back where they started.' : result.reason, result.ok ? '' : 'warn');
               opts.onCampaignChanged?.('recovery', result);
               closeModal();
               render();
@@ -2303,7 +2303,7 @@ export function makeLaptop(app, opts) {
               el('div', { class: 'lt-prodmeta', text: `${tier.capacity} seats | ${Math.round(cart.condition)}% condition | ${Math.round(cart.batteryPercent)}% battery | ${cart.trips} trips${assignedStaff ? ` | ${assignedStaff.name}` : ''}` })),
             chip(statusLabel(cart.status), statusTone(cart.status))),
           el('div', { class: 'lt-fleetactions' },
-            miniAction('Park', 'Return this unassigned cart to its authored fleet slot.', cart.status === 'assigned', () => {
+            miniAction('Park', 'Send this spare cart back to its parking space.', cart.status === 'assigned', () => {
               const result = parkGolfCart(st, cart.id);
               toast(result.ok ? `${cart.id.toUpperCase()} parked at the service bay.` : result.reason, result.ok ? '' : 'warn');
               render();

@@ -993,7 +993,7 @@ export function makeCourseEditor(app, hooks) {
     terrain: 'Use a smaller brush for precise shaping. Auto smooth softens the edge after every sculpt tick.',
     paint: 'Surface paint changes the lie and renovation cost. Right-drag restores rough without changing elevation.',
     tee: 'Choose the hole and tee set first; the preview aims the finished box toward the active pin.',
-    green: 'Edit mode retains the authored green. Bright square handles mark the exact draggable boundary points.',
+    green: 'Edit mode keeps the green as it was drawn. The bright square handles are the points you can drag.',
     bunker: 'Edit mode preserves the bunker identity, depth, lip, and billing while you reshape its boundary.',
     water: 'Ponds use shoreline handles; streams use centerline handles and a finished bank-to-bank width.',
     objects: 'Green previews are legal; red previews collide. Snap and size are applied before placement.',

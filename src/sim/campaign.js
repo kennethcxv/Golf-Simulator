@@ -1127,14 +1127,27 @@ function phaseFor(state) {
   return 'setup';
 }
 
+// K (Goal 23) — THE PHASE IS A CHAPTER, NOT THE TASK AGAIN.
+//
+// "The task card is double-printed." It is not, structurally: one card, one
+// title, printed once (tools/qa/electron-k-hud-card.js reads the DOM). What it
+// IS, is the same instruction twice in different words, stacked -- the very
+// first thing a new player reads was
+//
+//   Inspect the furnished but neglected property     <- phase
+//   Survey the neglected property                    <- task
+//
+// A phase is the chapter you are in; the task is what to do next. When the
+// chapter restates the task the card wastes its most valuable line and reads as
+// a stutter, which is exactly what it looked like to someone seeing it cold.
 const PHASE_TITLES = Object.freeze({
-  arrival: 'Inspect the furnished but neglected property',
-  'restore-office': 'Inspect the clubhouse workstations',
+  arrival: 'Arriving at Pine Hills',
+  'restore-office': 'Getting the office running',
   repairs: 'Clean and repair the clubhouse',
-  setup: 'Organize and restock the pro shop',
-  'ready-to-open': 'Open for business',
-  'opening-day': 'Serve the first business day',
-  complete: 'Build on opening day',
+  setup: 'Stocking the shop',
+  'ready-to-open': 'Ready to open',
+  'opening-day': 'Opening day',
+  complete: 'Running the club',
 });
 
 export function campaignView(state) {
