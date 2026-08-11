@@ -32,6 +32,18 @@ identified across Goals 18-20; the fourth and fifth were identified in Goal 21.
 | 4 | **Two selectors** — two different rules answer the same question, and the fix configured the one that does not run | *Which branch actually chose, and does it read what I set?* |
 | 5 | **Shipped disabled** — the fix is behind a guard that is almost never true in play | *Under what live conditions does this code execute at all?* |
 | 6 | **Visible but not painted** — every property the check reads is correct and the pixels belong to something else | *What does elementFromPoint say is actually there?* |
+| 7 | **Wrong runtime** — the check is sound and runs somewhere the player never is | *Is this the binary, the window and the input the player has?* |
+| 8 | **Counted the numerator** — the number moves in the right direction and is not the number that matters | *What is the DENOMINATOR, and did I ever read it?* |
+
+**A caveat on shape 6, learned the hard way in Goal 22.** `elementFromPoint`
+answers with the topmost element that ACCEPTS POINTER EVENTS. Any HUD layer
+carrying `pointer-events: none` therefore answers with the canvas underneath and
+reads as unpainted. It proved X3's objectives card was behind the canvas because
+that card is hit-testable; used on `.shop-prompt` it produced a **false
+negative** about a prompt the recorded frames show drawn and legible. The
+instrument that catches shape 6 can manufacture it. Ask what governs the element
+in question — for the prompt that is one opacity line in `main.js` — or look at
+the pixels.
 
 Shape 4 was found in Goal 21 (the ledger station selector). Shape 5 was HYPOTHESISED
 for the NPC look-ahead and then REFUTED by measurement — the guard it blamed runs
@@ -128,6 +140,27 @@ worth checking for, but it did not explain this one.
 |---|---|---|---|---|
 | 1 | Items no longer poke out of the mouth | The mouth clamp | True, and it pushed long items out through both *side walls* instead | 3 |
 | 2 | Every body is clamped inside the authored volume | The clamp expression | `clamp(v, -(h-b), h-b)` **inverts its own bounds** when the body is wider than the bag | 3 |
+| 3 | A long item stands up rather than lying through the wall, `insideFrac` 1 | The stand-up rule and a containment fraction | Owner: **big items still stick out.** Goal 22 has not re-measured this yet — the standing rule now is that a body too big for the bag is a DESIGN answer (it is not bagged) rather than a geometry one | — |
+
+### The main menu sound — 2 appearances
+
+| # | What was claimed | What the check measured | Why it passed | Shape |
+|---|---|---|---|---|
+| 1 | Every menu button clicks; one delegated listener covers the dialogs too | Four **regexes over the source text** of `menu.js` and `main.js` | Every asserted string is genuinely present. **No test executed anything**, so none could tell whether a sound was made. A test that reads the source cannot ask what the source does | 2 |
+| 2 | (same fix, Goal 22) | An audio-graph tap recording contexts, nodes, `start()` and gain, with a negative control | FIXED: the handler was attached only inside `setVisible(true)`, and the menu is born visible, so on the launch path the listener was never installed. 0/4 buttons → 4/4 | 2 |
+
+### Buy AND book in one visit — 2 appearances, never once seen
+
+| # | What was claimed | What the check measured | Why it passed | Shape |
+|---|---|---|---|---|
+| 1 | A combined visit exists (M1) | the sim path | — |
+| 2 | Done with a measured split (Goal 17 G13) | a proportion of customers on the combined path | Owner: **"I have never once seen it happen."** Not re-measured in Goal 22. The two candidate shapes are stated in the brief and both fit: a combined path that exists and is never taken (5), or a check reading one customer population while the shop runs the other (1) | 1 or 5 |
+
+### The front door — 1 appearance, and it cost two strangers 45 minutes
+
+| # | What was claimed | What the check measured | Why it passed | Shape |
+|---|---|---|---|---|
+| 1 | The warp trap and the dead trigger are fixed, so the entrance works | Those two specific faults, both genuinely fixed | **Nothing ever asked "can a new player get inside?"** The `entranceDoor` repair marker sits at x = −0.8, which is `DOOR_MAIN.x` exactly, with no focus bias, so it won the crosshair from every straight-on approach and showed *"blocked: Clear the entrance and wash the porch"* — an errand only possible on the far side of the door it was covering | **4**, in the world rather than in code |
 
 ---
 
