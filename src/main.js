@@ -771,6 +771,13 @@ function enterLedger() {
         const turned = held.turnPage(1);
         if (turned && audio.ready) audio.ledgerTurn();
       }
+    } else if (/^[1-9]$/.test(key)) {
+      // I3 (Goal 23): the contents list prints page numbers and now they work.
+      // Reaching The Deed on page 9 from the index was seven presses of E.
+      event.preventDefault();
+      event.stopPropagation();
+      const jumped = ledgerBookApi()?.goToPage(Number(key));
+      if (jumped) audio.ledgerTurn?.();
     } else if (key === 'arrowright') {
       // F4 (Goal 20): the moveRight binding (D by default) used to turn
       // forward here as well as E. Two keys for one verb, one of them never

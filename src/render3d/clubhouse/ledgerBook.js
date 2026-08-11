@@ -2139,6 +2139,32 @@ export function createLedgerBook({ THREE, state, anchor, counterTop, camera = nu
     return bookState;
   }
 
+  // I3 (Goal 23) — THE OTHER HALF OF F1: GET ANYWHERE ELSE.
+  //
+  // The contents list gives page numbers -- Guest Register 2, The Deed 9 -- and
+  // there was no way to use them. Reaching The Deed from the index was seven
+  // presses of E. A contents list you cannot navigate from is a table of
+  // contents in the decorative sense only.
+  //
+  // Jumping by FOLIO rather than by spread, because the folio is the number the
+  // player is reading off the page. Page 2 and page 3 are the same spread, so
+  // both land there and the reader sees the page they asked for.
+  //
+  // It refuses mid-turn and while shut for the same reason turnPage does: a
+  // jump that lands while a leaf is in flight paints into a canvas the flip is
+  // still reading.
+  function goToPage(folio) {
+    if (bookState !== 'open' || leaf || !model) return false;
+    const n = Math.floor(Number(folio));
+    if (!Number.isFinite(n) || n < 1) return false;
+    const total = spreadCount();
+    const target = Math.max(0, Math.min(total - 1, Math.floor((n - 1) / 2)));
+    if (target === spread) return false;
+    spread = target;
+    paintSpread();
+    return true;
+  }
+
   function turnPage(direction) {
     if (bookState !== 'open' || leaf || !model) return false;
     const total = spreadCount();
@@ -2485,6 +2511,7 @@ export function createLedgerBook({ THREE, state, anchor, counterTop, camera = nu
     placeAt,
     position: () => ({ x: root.position.x, y: root.position.y, z: root.position.z }),
     turnPage,
+    goToPage,
     goToSection,
     // the footer's key labels come from the LIVE binding table (N2), so a
     // rebound interact key cannot leave the book teaching the wrong key
