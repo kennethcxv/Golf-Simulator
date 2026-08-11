@@ -1,10 +1,21 @@
 # OVERNIGHT REPORT 23
 
-> **PERCEPTION RATIO — 1 of 1 so far.** The one thing settled tonight was settled
-> by looking at the pixels: two captures put side by side at the same scale, an
-> edge-position fit that produced a magnification of 1.125 about the exact image
-> centre, and a gate that went from twelve red rows to twelve green ones. No
-> property was read and trusted.
+> **PERCEPTION RATIO — 3 of 8.** Eight things were fixed and certified tonight.
+> Three were verified by a check that could actually perceive what it certified:
+> the golden lens (two captures at the same scale, an edge-position fit, twelve
+> red rows to twelve green), the queue drain (277 clip frames extracted and
+> looked at), and the broom roll (a contact sheet I read with my own eyes). The
+> other five rest on properties read: frame intervals, buffer sizes, customer
+> state, instance-matrix drift.
+>
+> **And the ratio understates the point.** Looking at pixels did not just verify
+> tonight's work — it CAUGHT THREE OF MY OWN PROBES LYING, in code I had just
+> written. A clip showed doors that my instrument swore were shut. Three
+> photographs of the mop came back black or empty. A number would have caught
+> none of it.
+>
+> The one thing I could not do is the one I most wanted: **I have never seen the
+> mop head.** It is measured, simulated and unphotographed, and it is not claimed.
 
 ---
 
@@ -489,3 +500,187 @@ its own sake.
 **What I did NOT do:** I did not spend the remaining session hand-rolling the
 navigation again. Four attempts are on record, one of them in a module the game
 does not import. The measurement above is worth more than a fifth.
+
+---
+
+# D — THE MOP
+
+## D1 The solver was never called. Zero call sites. DONE.
+
+**What the old check measured, and why its control was void.**
+`electron-b-mop-is-simulated.js` (Goal 22) read the drawn instance matrices,
+walked the player, and compared: `stillDrift 0, walkDrift 0, settleDrift 0`. It
+then **passed its own negative control** — *"a motionless head must produce a
+still mop"* — because an all-zeros rig satisfies that trivially. A frozen rig and
+a correctly resting rig are the same numbers.
+
+The solver was fine. **Nobody was turning the handle.**
+`createVerletMopStrands` builds the rig in `toolViewmodel.js` and stores it on
+the entry, and the only `strandRig.update(...)` in the repository is in
+`broomViewmodel.js`, which owns its own bespoke rig and knows nothing about this
+one. **Six passes** of tuning momentum, trailing, whip, floor spread and
+frame-rate independence — all against unit tests that step the rig by hand — and
+in the game it has never moved once.
+
+| | before | after |
+|---|---|---|
+| `walkDrift` | 0.00000 | **2.54322** |
+| hang below the collar | — | **0.2239 yd** |
+| `stillDrift` | 0.00000 | 0.00000 (still still) |
+| bands / draw calls | 16 / 4 | 22 / 4 |
+
+### The positive control took three goes and all three are on the record
+
+1. A **2.2-yard teleport** read exactly 0.00 — collision recovery undid it inside
+   the sample window.
+2. A **90° yaw swing** read 3.12 once and 0.00 the next run — it raced the frame.
+3. Translating the **rig's own parent** 2.0 yd in the scene graph, synchronously:
+   **2.18729**.
+
+The first two were testing the game's willingness to be pushed. The question is
+whether the sampler can see a displacement at all, and only the third asks it.
+
+## D The bands cover the head — geometry DONE, look UNVERIFIED
+
+16 was right in direction and read as spikes because a sunflower fill
+(`r = radius·√(i/N)`) puts the first strands almost on the axis. Three changes,
+none of which works alone: **22 bands** (inside the 16–24 asked for), a
+**collar** so they hang from the head's width rather than a point, and bands
+**26 mm across tapering to 20 mm** instead of 12 mm.
+
+**And I have not seen it.** Three photographs: black at 6:01 AM (the interior at
+the hour the game *starts* is unreadable — reaching the stranger's finding K4
+from a driver that could not photograph an object it had just measured), black
+again at 14:00 indoors (interior lights are on the restoration path, so a fresh
+save has none), and outdoors in daylight the head is not in frame at all —
+**the held viewmodel is not drawn outdoors**. The rig follows the player and the
+solver runs on it; whether it *looks* like a mop is unverified and is not
+claimed. The photograph beside a reference is **NOT DONE**.
+
+---
+
+# E — THE BROOM HEAD. One value, and a contact sheet. DONE.
+
+## Why five rounds found nothing to change
+
+The head's roll about the shaft **was never a parameter**. The shaft is aimed
+with `setFromUnitVectors(geom.axis, dir)` — the *minimal* rotation between two
+directions, which by construction says nothing about roll *about* that
+direction. The three terms that do touch roll (`rollLean`, `rollStroke`,
+`tiltAxis`) are all zero unless the player is mid-stroke or wedged against a
+wall. So at rest and while carrying, the head has sat at an angle that fell out
+of the authored mesh, that nobody chose, and that **nobody could reach**.
+
+`sweep.headRoll` in `src/data/broomFeel.js` is that angle, as one number,
+applied always. It is left at **0 — the unchosen value** — because the brief
+says: *do not report a number you chose.*
+
+## The old sweep ran in a program you do not use
+
+`tools/qa/broom-pitch-sweep.js` boots against `http://localhost:8457/` in a
+browser. Any candidate ever picked from it was picked somewhere the game is not.
+That is the **fourth instrument tonight** found running in the wrong place — the
+door timings, the golden lens, my own desk-list probe, and this.
+
+The new sweep runs in Electron and produced **thirteen photographs of empty
+grass** on its first run: outdoors the held viewmodel is not drawn, and
+`setTool` reported `equipped: true` and `vmActive: true` throughout. It now
+shoots from the **golden suite's own tool pose**, which has thirteen committed
+reference images proving the broom renders from it.
+
+## The deliverable
+
+**`Designs/ProShop/E_BROOM_ROLL_CONTACT_SHEET.png`** — thirteen candidates
+across a quarter-turn either way, cropped to the head, each captioned with its
+number, degrees and radians. **#7 is the current shipped 0.** Tell me the number
+and it goes in.
+
+`tools/qa/contact-sheet.mjs` is general — any sweep manifest, numbered grid. Its
+first output was thirteen pictures of grass cropped to the frame centre, so the
+region of interest is a parameter now: a held tool is not in the middle of the
+picture.
+
+---
+
+# THE FIVE LISTS
+
+## 1. DONE, and how it was verified
+
+| item | verified by |
+|---|---|
+| Golden gate: the lens was never pinned | **pixels measured and viewed** — a 1.125× magnification about the exact principal point, then 12/12 green |
+| A2: the resolution control was inert | buffer sizes and GPU ms, before/after |
+| A1: the cap counts vsyncs; default is your panel | frame-interval evenness, 0.2% → 98.7% at cap 120 |
+| B1: they stay at the desk to be answered | live customer state after a full visit |
+| B3: the line advances when the floor is clear | 20 Hz body sampling + **277 clip frames viewed** |
+| D1: the mop's solver is called | drift 0 → 2.54, with a positive control on the instrument |
+| D: 22 bands from a collar | unit tests with the old fill as control — **look unverified** |
+| E: the head's roll is one value | **contact sheet viewed** |
+
+## 2. NOT DONE, and why
+
+- **A1 (merge)** — 428 calls spread over 231 materials, no subtree worth more
+  than 91, and the biggest ones animate. Not draw-call bound on this machine.
+  Stopped at the rule with the census committed.
+- **A3 (the hitch)** — located, attributed, reproducible: 2–13 s **inside the
+  draw submit**, on the *approach*, not the door. Shadow map eliminated with a
+  control. Same family as the first-equip stall; I did not try a seventeenth
+  `renderer.compile()`.
+- **B2 (one payment)** — three walls of four removed. The fourth: the desk row
+  is on the list and **not on the screen**, so there is nothing to click.
+- **C (navigation)** — recast is the right library and **this build cannot load
+  WebAssembly**. One line of CSP, and it is the owner's line.
+- **D (the photograph)** — could not get the head into a lit frame.
+- **F, G, H, I, J, K** — not started.
+
+## 3. Found false, or found wrong, by me, tonight
+
+- My resolution ladder set a preference **nothing consumes** — four identical
+  rungs. Two selectors, aimed at myself.
+- My door probe read `ch.doorApi.doors` (not on the returned object), reported
+  `doorActuallyOpened: false`, and **the clip showed the doors plainly open**.
+- My desk-list probe read `ch.frontDeskReservations` instead of
+  `ch.frontDeskBridge()` — an empty list that looked like a missing row.
+- My queue check asked for **more clearance than the simulation guarantees**
+  (>0.6 against a 0.6 resolver floor) and would have reported a resting queue as
+  a collision.
+- My `openReservationCustomer` fix **fired the F8 invariant**. Reverted with
+  evidence, by file copy, revert asserted.
+- Two positive controls for the mop that the game quietly undid.
+- A tuner slider whose label the **player-strings ratchet** correctly refused.
+
+## 4. Owner decisions waiting
+
+1. **`'wasm-unsafe-eval'` in the CSP** — unblocks recast-navigation for section C.
+2. **A number from the broom contact sheet** (#1–#13).
+3. The 332-finding lint baseline still awaits the breakdown review.
+
+## 5. The found-false ledger — the permanent list
+
+Tonight adds one shape, and it is the one that cost a week:
+
+> **SHAPE 9 — THE PINNED WORLD IN AN UNPINNED MACHINE.** A determinism pin that
+> covers the simulation and not the *presentation*. The seed, the clock and the
+> spawn were pinned and byte-reproducible; the field of view was a saved
+> preference any other program on the machine could edit. **Ask of any golden or
+> budget: what, outside this repository, can change this number?**
+
+And a second, sharper statement of an old one:
+
+> **A PROBE THAT CANNOT SEE THE THING REPORTS THE SAME AS A THING THAT DID NOT
+> HAPPEN.** Three times tonight, in code I had just written. The door, the desk
+> list, the mop. Every one was caught by looking at pixels, and none of them
+> would have been caught by a number.
+
+---
+
+# CLOSING
+
+**Seven commits, all pushed. Suite 3064/3064 throughout. Lint ratchet at the
+frozen 332.** The golden gate has one honest red row — `bag-packed`, NOT
+CAPTURED, which is section F's subject.
+
+The single most useful sentence in this report is probably not a fix at all:
+**the complaint "it never feels smooth" was being made at 60 fps on a 181.8 Hz
+panel**, by a default this project chose and defended with a measurement that
+could not score the rung that won.

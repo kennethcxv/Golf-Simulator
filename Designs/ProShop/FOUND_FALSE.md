@@ -176,3 +176,52 @@ Before claiming any item above is DONE:
 
 If the new check is a number of the same kind that passed last time, it is not a
 new check.
+
+---
+
+## SHAPE 9 — THE PINNED WORLD IN AN UNPINNED MACHINE (Goal 23)
+
+A determinism pin that covers the SIMULATION and not the PRESENTATION.
+
+The golden gate failed twelve of thirteen poses for a week at 7.75-9.16%, edges
+only, deterministic. The seed, the clock, the interior origin and the customer
+spawn were all pinned and byte-reproducible - and the FIELD OF VIEW was a saved
+player preference sitting in the Electron profile's localStorage, editable by
+any driver or free-play session on the machine. Somebody moved the slider from
+the shipped 66 to 60. Every capture after that was the same room through a
+different lens: a clean 1.125x magnification about the exact principal point.
+
+A bisect of the whole range found nothing, because the cause was never in the
+repository. `c27d3a2` - the commit that COMMITTED the goldens - fails its own
+goldens, and HEAD draws a pixel-identical picture to it.
+
+> ASK OF ANY GOLDEN OR BUDGET: what, outside this repository, can change this
+> number?
+
+## AND A SHARPER STATEMENT OF AN OLD ONE
+
+> A PROBE THAT CANNOT SEE THE THING REPORTS THE SAME AS A THING THAT DID NOT
+> HAPPEN.
+
+Three times in one session, in code written that same hour:
+
+* the door probe read `ch.doorApi.doors`, which is passed INTO the sub-builders
+  and is not on the returned object. It reported `doorActuallyOpened: false`
+  about a clip that plainly shows both leaves swinging to 100 degrees.
+* the desk-list probe read `ch.frontDeskReservations` instead of
+  `ch.frontDeskBridge()`. An empty list is indistinguishable from a missing row.
+* the mop photograph came back black twice and empty once. The tool viewmodel is
+  not drawn outdoors, and `setTool` reported `equipped: true` and
+  `vmActive: true` the whole time.
+
+Every one was caught by LOOKING AT PIXELS. None would have been caught by a
+number, and two of them had already produced a written conclusion before the
+frames contradicted it.
+
+## A STALE ARTIFACT READS AS A PASS (Goal 23)
+
+The golden capture skipped `bag-packed` and said so honestly in its manifest.
+The differ then compared LAST RUN'S leftover file, scored 0.0000%, and printed
+the row green. The pose the gate was most confident about was the one that never
+ran. Fixed both ways: the capture clears its output directory first, and the
+differ walks the GOLDENS as the contract so a missing pose fails as NOT CAPTURED.
