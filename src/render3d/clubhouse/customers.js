@@ -8,6 +8,7 @@
 import * as THREE from 'three';
 import { characterYawToward, makeCharacter } from '../characterAsset.js';
 import { makeNav } from './nav.js';
+import { steerAround } from './steerAhead.js';
 import { skuById } from '../../data/shopItems.js';
 import { REGISTER } from '../../data/shopLayout.js';
 import { placedFixtures } from '../../sim/layout.js';
@@ -395,6 +396,35 @@ export function createCustomerView(B, options) {
     angleToward(actor.mesh, target, dt);
   }
 
+  // G (Goal 20): the SAME occupancy test resolveMotion enforces, asked as a
+  // question about a point rather than applied as a correction. The two must
+  // agree exactly — a look-ahead that avoids something the resolver would have
+  // allowed makes the actor jitter on the boundary between the two opinions.
+  //
+  // The actor is held in a module slot rather than closed over, because this is
+  // called several times per actor per frame and a fresh closure each time is
+  // garbage the frame does not need.
+  let _steerActor = null;
+  function _isBlockedAt(px, pz) {
+    const radius = 0.3;
+    for (const collider of custCols) {
+      if (collider.door) continue;
+      if (px + radius <= collider.minX || px - radius >= collider.maxX
+        || pz + radius <= collider.minZ || pz - radius >= collider.maxZ) continue;
+      return true;
+    }
+    if (walk.active && Math.hypot(px - walk.x, pz - walk.z) < 0.74) return true;
+    for (const other of actors) {
+      if (other === _steerActor || !other.mesh.visible) continue;
+      if (Math.hypot(px - other.mesh.position.x, pz - other.mesh.position.z) < 0.62) return true;
+    }
+    return false;
+  }
+  function isBlockedForActor(actor) {
+    _steerActor = actor;
+    return _isBlockedAt;
+  }
+
   function resolveMotion(actor, nx, nz) {
     const radius = 0.3;
     for (const collider of custCols) {
@@ -469,12 +499,30 @@ export function createCustomerView(B, options) {
     const distance = Math.hypot(dx, dz);
     if (distance < 0.001) return true;
     const step = Math.min(distance, entity.speed * dt);
-    const resolved = resolveMotion(actor, root.position.x + (dx / distance) * step, root.position.z + (dz / distance) * step);
+    // G (Goal 20): LOOK BEFORE STEPPING. resolveMotion below is penetration
+    // resolution — it can only push the actor back out of something it is
+    // already inside. This turns the heading first, by the smallest angle that
+    // clears, so a shopper walks AROUND the shelf end instead of grinding along
+    // it until the one-second timer notices.
+    const heading = steerAround(
+      root.position.x, root.position.z, dx, dz, distance, isBlockedForActor(actor),
+    );
+    const resolved = resolveMotion(
+      actor,
+      root.position.x + heading.x * step,
+      root.position.z + heading.z * step,
+    );
     const moved = Math.hypot(resolved.x - root.position.x, resolved.z - root.position.z);
     root.position.x = resolved.x;
     root.position.z = resolved.z;
     root.position.y = floorAt(resolved.x, resolved.z);
-    const want = characterYawToward(root.position.x, root.position.z, waypoint.x, waypoint.z);
+    // Face where you are GOING while steering around something, not where you
+    // were headed: an actor sidestepping a box while still staring at its
+    // waypoint reads as sliding rather than walking.
+    const facing = heading.steered
+      ? { x: root.position.x + heading.x, z: root.position.z + heading.z }
+      : waypoint;
+    const want = characterYawToward(root.position.x, root.position.z, facing.x, facing.z);
     let turn = want - root.rotation.y;
     while (turn > Math.PI) turn -= Math.PI * 2;
     while (turn < -Math.PI) turn += Math.PI * 2;

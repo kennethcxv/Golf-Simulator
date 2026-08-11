@@ -191,6 +191,57 @@ export function walkInShowsAsk(customer) {
     && Number.isFinite(customer?.requestedTeeMinute);
 }
 
+// E1 (Goal 20) — A LONG ITEM STICKS OUT OF THE MOUTH, NEVER THROUGH A SIDE.
+//
+// The packing rule clamped a body into the authored interior. That is fine for
+// anything that fits and wrong for anything that does not, in a way that got
+// worse rather than better: `clamp(v, -(halfX - bodyHalfX), halfX - bodyHalfX)`
+// INVERTS ITS OWN BOUNDS the moment bodyHalfX exceeds halfX, so a long item was
+// shoved sideways by its own overflow and cut through the paper on BOTH walls at
+// once. Goal 19 fixed the mouth and this replaced it.
+//
+// A club or an umbrella in a bag stands UP and leans out of the top. So: if a
+// body will not lie down inside the interior, its longest axis is rotated onto
+// the mouth axis and it is stood on the interior floor, where the only thing it
+// can overflow is the one opening the bag has.
+//
+// Pure and exported because it is geometry, and because the fault it replaces
+// was a clamp nothing headless could reach.
+export function bagFitPlan(body, interior) {
+  const hx = Math.max(0, body?.x || 0);
+  const hy = Math.max(0, body?.y || 0);
+  const hz = Math.max(0, body?.z || 0);
+  const fitsLying = hx <= interior.halfX && hy <= interior.halfMouth && hz <= interior.halfDepth;
+  if (fitsLying) return { standUp: false, axis: null, half: { x: hx, y: hy, z: hz } };
+  // longest axis goes up the mouth; the remaining two become width and depth
+  const ranked = [['x', hx], ['y', hy], ['z', hz]].sort((a, b) => b[1] - a[1]);
+  const axis = ranked[0][0];
+  const half = axis === 'x' ? { x: hy, y: hx, z: hz }
+    : axis === 'z' ? { x: hx, y: hz, z: hy }
+      : { x: hx, y: hy, z: hz };
+  return { standUp: true, axis, half };
+}
+
+// Where the body's centre goes, given the plan. Stood-up bodies sit on the
+// interior FLOOR and are centred across the width, so the overflow can only
+// leave through the mouth. Lying bodies keep the two-column stack.
+export function bagPlacementFor(plan, interior, { index = 0, centreY = 0, layerStep = 0.075 } = {}) {
+  const floorY = centreY - interior.halfMouth;
+  if (plan.standUp) {
+    return { x: 0, y: floorY + plan.half.y, z: 0 };
+  }
+  const column = index % 2;
+  const layer = Math.floor(index / 2);
+  // slack, never a reversed clamp: with no room the body simply centres
+  const slackX = Math.max(0, interior.halfX - plan.half.x);
+  const x = Math.min(slackX, Math.max(-slackX, (column ? 1 : -1) * 0.055));
+  const y = Math.min(
+    floorY + plan.half.y + layer * Math.min(layerStep, plan.half.y * 2 + 0.006),
+    centreY + interior.halfMouth - plan.half.y,
+  );
+  return { x, y, z: 0 };
+}
+
 export function terminalBusyDotPhase(elapsedSeconds) {
   const elapsed = Number(elapsedSeconds);
   if (!Number.isFinite(elapsed) || elapsed <= 0) return 0;
@@ -1410,6 +1461,9 @@ export function createRegisterMode(B) {
   const _packCentre = new THREE.Vector3();
   const _packCentre2 = new THREE.Vector3();
   const _packQuat = new THREE.Quaternion();
+  // E1: the two axes a long body can be rotated onto the mouth about
+  const _packAxisZ = new THREE.Vector3(0, 0, 1);
+  const _packAxisX = new THREE.Vector3(1, 0, 0);
   const _packOne = new THREE.Vector3(1, 1, 1);
   function bagLocalBoxOf(object) {
     _packBox.makeEmpty();
@@ -1460,26 +1514,8 @@ export function createRegisterMode(B) {
     const bodyHalfY = Math.max(0.005, (box.max.y - box.min.y) / 2);
     const bodyHalfX = Math.max(0.005, (box.max.x - box.min.x) / 2);
     const bodyHalfZ = Math.max(0.005, (box.max.z - box.min.z) / 2);
-    // two columns filling from the DEEP end toward the mouth; every body is
-    // clamped whole inside the authored extents (an item taller than the
-    // whole volume centres — those belong to the oversize handoff path)
-    const column = index % 2;
-    const layer = Math.floor(index / 2);
-    const targetX = THREE.MathUtils.clamp(
-      (column ? 1 : -1) * 0.055,
-      -(halfX - bodyHalfX),
-      halfX - bodyHalfX,
-    );
-    const targetY = Math.min(
-      (_packCentre.y - halfMouth) + bodyHalfY + layer * Math.min(0.075, bodyHalfY * 2 + 0.006),
-      _packCentre.y + halfMouth - bodyHalfY,
-    );
     // The DEPTH axis is flattened at runtime (model.scale.z = BAG_FLATTEN),
     // so a body deeper than the collapsed gusset would graze through a face.
-    // Whatever overflows is pushed toward the face the bag RESTS ON — the
-    // counter hides that side; the first live run photographed two ball
-    // domes peeking through the upper paper when this was left centred.
-    let targetZ = 0;
     const authoredHalfDepth = Number.isFinite(bagContentsNode?.userData?.interior_half_depth)
       ? bagContentsNode.userData.interior_half_depth : 0.07;
     const flatten = bagContentsNode
@@ -1487,16 +1523,42 @@ export function createRegisterMode(B) {
         / Math.max(1e-6, Math.abs(bagGroup.getWorldScale(_packCentre2).z))
       : 1;
     const effHalfDepth = Math.max(0.01, authoredHalfDepth * flatten);
-    const depthOverflow = bodyHalfZ - effHalfDepth;
-    if (depthOverflow > 0) {
-      // local +z toward world-up? push the other way (into the resting face)
-      _packPt.set(0, 0, 1).applyQuaternion(bagGroup.getWorldQuaternion(_packQuat));
-      targetZ = _packPt.y >= 0 ? -depthOverflow : depthOverflow;
+
+    // E1 (Goal 20): does it lie down, or does it have to stand up?
+    const interior = { halfX, halfMouth, halfDepth: effHalfDepth };
+    const plan = bagFitPlan({ x: bodyHalfX, y: bodyHalfY, z: bodyHalfZ }, interior);
+    if (plan.standUp && plan.axis !== 'y') {
+      // rotate the longest axis onto the bag's mouth axis (+Y). bagLocalBoxOf
+      // walks positions and scales only, so the box is in the body's own frame
+      // and the rotation has to be applied to it here rather than re-measured.
+      _packQuat.setFromAxisAngle(
+        plan.axis === 'x' ? _packAxisZ : _packAxisX,
+        plan.axis === 'x' ? Math.PI / 2 : -Math.PI / 2,
+      );
+      mesh.quaternion.copy(_packQuat);
     }
+    const target = bagPlacementFor(plan, interior, { index, centreY: _packCentre.y });
+    let targetZ = target.z;
+    if (!plan.standUp) {
+      // Whatever overflows in depth is pushed toward the face the bag RESTS ON —
+      // the counter hides that side; the first live run photographed two ball
+      // domes peeking through the upper paper when this was left centred.
+      const depthOverflow = bodyHalfZ - effHalfDepth;
+      if (depthOverflow > 0) {
+        _packPt.set(0, 0, 1).applyQuaternion(bagGroup.getWorldQuaternion(_packQuat));
+        targetZ = _packPt.y >= 0 ? -depthOverflow : depthOverflow;
+      }
+    }
+    // the body's own centre, carried through whatever rotation was applied
+    _packPt.set(
+      (box.min.x + box.max.x) / 2,
+      (box.min.y + box.max.y) / 2,
+      (box.min.z + box.max.z) / 2,
+    ).applyQuaternion(mesh.quaternion);
     mesh.position.set(
-      targetX - (box.min.x + box.max.x) / 2,
-      targetY - (box.min.y + box.max.y) / 2,
-      targetZ - (box.min.z + box.max.z) / 2,
+      target.x - _packPt.x,
+      target.y - _packPt.y,
+      targetZ - _packPt.z,
     );
     mesh.userData.checkoutVisualState = 'packed-in-bag';
     mesh.userData.checkoutOwner = 'bag';
