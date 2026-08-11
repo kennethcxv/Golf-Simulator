@@ -4027,7 +4027,23 @@ function boot() {
     el('div', { class: 'hint-bar', style: 'display:none', text: 'Course overview · drag to pan · right-drag to rotate · wheel to zoom · V data view · Tab returns on foot · P pause' }));
 
   uiRoot.append(menu.root, gameUi);
-  document.body.append(objectivesPanel.root);
+  // X3 (Goal 21) — THE LINE THAT MADE THE OBJECTIVES CARD INVISIBLE.
+  //
+  // `document.body.append(objectivesPanel.root)` used to sit here, one line
+  // after the card had already been appended to gameUi above. append() MOVES a
+  // node, so it tore the card out of #ui (position:absolute, z-index 3, layered
+  // over the canvas) and re-parented it to <body>, where it painted BEHIND the
+  // game. Every CSS check said it was fine: display, visibility and opacity were
+  // all correct, checkVisibility() returned true, and it had a real 300x104 rect
+  // at (16, 778). document.elementFromPoint at its own centre returned the
+  // canvas.
+  //
+  // A stranger played for 25 minutes and never found out what the game wanted.
+  // That is the whole cause.
+  //
+  // SHAPE 6 for the found-false ledger: VISIBLE BUT NOT PAINTED. Every property
+  // the check reads is correct and the pixels belong to something else. The
+  // question that catches it is "what does elementFromPoint say is there?"
   requestAnimationFrame(frame);
 
   if (sceneScope === 'shed') {

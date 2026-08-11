@@ -8,6 +8,7 @@ import {
   currentStep,
   dismissContextTutorial,
 } from '../sim/tutorial.js';
+import { campaignView, dismissCampaignGuide } from '../sim/campaign.js';
 
 export function makeObjectivesPanel(app, { getContext = () => 'walk' } = {}) {
   const eyebrow = el('span', { class: 'objective-eyebrow', text: 'Current objective' });
@@ -30,9 +31,13 @@ export function makeObjectivesPanel(app, { getContext = () => 'walk' } = {}) {
     refresh();
   });
   dismiss.addEventListener('click', () => {
-    if (!app.state?.tutorial) return;
-    if (contextualId) dismissContextTutorial(app.state, contextualId);
-    else app.state.tutorial.hidden = true;
+    if (!app.state) return;
+    if (contextualId) { dismissContextTutorial(app.state, contextualId); refresh(); return; }
+    // X3: the × wrote tutorial.hidden, which campaign mode never reads — so in
+    // a real game the dismiss button did nothing at all. Same fault as the
+    // render gate, on the way out instead of the way in.
+    if (app.state.campaign?.enabled) dismissCampaignGuide(app.state);
+    else if (app.state.tutorial) app.state.tutorial.hidden = true;
     refresh();
   });
 
@@ -40,7 +45,21 @@ export function makeObjectivesPanel(app, { getContext = () => 'walk' } = {}) {
     const state = app.state;
     const context = getContext();
     contextualId = null;
-    if (!state?.tutorial || ['pause', 'laptop', 'register', 'course-editor', 'overview'].includes(context)) {
+    // X3 (Goal 21) — THE CARD EXISTS AND NEVER RENDERS.
+    //
+    // A stranger played for 25 minutes and could not find out what the game
+    // wanted from them. The reason is here: every gate in this function reads
+    // `state.tutorial`, and in campaign mode — which is what a new game IS —
+    // the current task comes from campaignView(). Two consequences, both fatal:
+    // a save with no tutorial object hid the card outright, and tickTutorial
+    // sets tutorial.complete once the first day is done, which hid it FOREVER
+    // while the campaign still had tasks to give.
+    //
+    // The right object was gated on the wrong state. In campaign mode the card
+    // now follows the campaign, including its own hidden flag.
+    const campaign = campaignView(state);
+    if (!state || (!campaign && !state.tutorial)
+      || ['pause', 'laptop', 'register', 'course-editor', 'overview'].includes(context)) {
       root.style.display = 'none';
       return;
     }
@@ -57,7 +76,10 @@ export function makeObjectivesPanel(app, { getContext = () => 'walk' } = {}) {
       return;
     }
 
-    if (context !== 'walk' || state.tutorial.complete || state.tutorial.hidden) {
+    // The campaign has its own dismissal; the tutorial's completion flags must
+    // not speak for it.
+    const hidden = campaign ? campaign.hidden : (state.tutorial.complete || state.tutorial.hidden);
+    if (context !== 'walk' || hidden) {
       root.style.display = 'none';
       return;
     }
@@ -67,7 +89,9 @@ export function makeObjectivesPanel(app, { getContext = () => 'walk' } = {}) {
       return;
     }
     eyebrow.textContent = step.chapter || 'Getting started';
-    progress.textContent = `${state.tutorial.step + 1}/${TUTORIAL_STEPS.length}`;
+    progress.textContent = campaign
+      ? `${campaign.completedCount}/${campaign.totalCount}`
+      : `${state.tutorial.step + 1}/${TUTORIAL_STEPS.length}`;
     title.textContent = step.title;
     hint.textContent = step.hint;
     later.style.display = 'none';

@@ -31,6 +31,7 @@ identified across Goals 18-20; the fourth and fifth were identified in Goal 21.
 | 3 | **Right object, wrong variable** — the measurement watched a real thing that was not the thing | *Is the number I read the number the player sees?* |
 | 4 | **Two selectors** — two different rules answer the same question, and the fix configured the one that does not run | *Which branch actually chose, and does it read what I set?* |
 | 5 | **Shipped disabled** — the fix is behind a guard that is almost never true in play | *Under what live conditions does this code execute at all?* |
+| 6 | **Visible but not painted** — every property the check reads is correct and the pixels belong to something else | *What does elementFromPoint say is actually there?* |
 
 Shape 4 was found in Goal 21 (the ledger station selector). Shape 5 was HYPOTHESISED
 for the NPC look-ahead and then REFUTED by measurement — the guard it blamed runs
@@ -81,6 +82,12 @@ worth checking for, but it did not explain this one.
 | 1 | IN QUEUE means standing in the line | `atSlot` distance from body to slot | Correct, but the *list membership* was never filtered, so shoppers browsing sat on it | 1 |
 | 2 | The TOTAL no longer collides with UNIT | A rect-overlap sweep over every screen, with its own planted-overlap control | All three checkout fixtures omitted `items`, so the sweep only ever rendered "Waiting for products" | 2 |
 | 3 | A walk-in cannot ask hours ahead | The arrival planner, watched failing on the old constants | `clubhouse.js` has a *second* walk-in ask reaching ten slots — five hours | **1** |
+
+### The current task on screen — 1 appearance
+
+| # | What was claimed | What the check measured | Why it passed | Shape |
+|---|---|---|---|---|
+| 1 | The objectives card shows the current task | display, visibility, opacity, a 300x104 rect at (16,778), and `checkVisibility()` returning true | **All five were correct and the card was behind the canvas.** One line re-parented it from `#ui` (z-index 3) to `document.body`, and `append()` moves a node. `document.elementFromPoint` at the card's own centre returned the canvas | **6** |
 
 ### The loading screen — 2 appearances
 

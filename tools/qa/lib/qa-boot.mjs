@@ -69,7 +69,17 @@ export async function ownerResolution(page, electronApp) {
   }
 }
 
-export async function clickThroughMenu(page, { forceNew = false, pinSeed = null } = {}) {
+/**
+ * @param mode 'relaxed' | 'realistic'
+ *
+ * THE MODE WAS HARD-CODED (Goal 21). Every driver in this repository has only
+ * ever booted RELAXED, because this helper clicked that card and no caller
+ * could say otherwise. Realistic — tighter margins, full maintenance pressure,
+ * manual cash handling — has never been exercised by any check, and the
+ * stranger who could not find the current task was playing it. Two populations,
+ * at the harness level, for the whole life of the harness.
+ */
+export async function clickThroughMenu(page, { forceNew = false, pinSeed = null, mode = 'relaxed' } = {}) {
   // "Continue" renders on every menu — DISABLED on a clean profile. Resume
   // only when it is actually clickable; otherwise start fresh.
   //
@@ -115,7 +125,8 @@ export async function clickThroughMenu(page, { forceNew = false, pinSeed = null 
     return !!button && !button.disabled;
   }, null, { timeout: 90000 });
   await page.getByRole('button', { name: /New game/i }).click();
-  await page.locator('.difficulty-card').filter({ hasText: 'Relaxed' }).click();
+  const modeLabel = /^realistic$/i.test(String(mode)) ? 'Realistic' : 'Relaxed';
+  await page.locator('.difficulty-card').filter({ hasText: modeLabel }).click();
   const confirm = page.getByRole('button', { name: /^(Start|Confirm|Yes)/i }).first();
   if (await confirm.isVisible({ timeout: 1500 }).catch(() => false)) await confirm.click();
   // pinSeed note: the menu invokes onNewGame in an ASYNC continuation (a
