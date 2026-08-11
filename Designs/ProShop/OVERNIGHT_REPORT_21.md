@@ -356,6 +356,66 @@ a teaching tip, and "The approach, Pine Hills Municipal".
 **Still true and not fixed by this:** the wait is 24-25 s. Making it beautiful
 is not making it short; that is section H's problem.
 
+## X2 A tap is a short squeeze of the trigger
+
+The stranger tapped the pressure washer five times on the porch — the game's own
+critical path — and got nothing. Goal 20 added a hint, which fires and which they
+quoted back verbatim, **and a hint is still an apology for a dead control.**
+
+A tap now routes through the *same* spray path a hold uses, for 260 ms. The jet,
+the sound and the actual cleaning progress are the real ones rather than a
+cosmetic puff — a short burst that cleans a little is honest, because it is what
+the tool would do. It clears its own timer so five fast taps cannot stack into a
+stuck trigger, and it applies only in hold mode, since toggle mode already treats
+a click as start/stop.
+
+Watched failing on the hint-only behaviour, revert asserted: 2 of 5 fail.
+
+---
+
+# F — THE DOOR LAG
+
+## What the checks measured, and why they passed
+
+`tools/qa/doors-performance.js` runs against **`http://localhost:8457` in
+headless Chrome.** It never touched the shipped Electron build, never cold-booted,
+and never had a player walk up to a door. `run-electron.cjs`'s own header records
+three defects that already shipped with a green Chrome driver and no effect in
+the real build.
+
+**A new shape for the ledger: WRONG RUNTIME.** The check was correct, careful,
+and measuring a different program.
+
+## And my replacement measured nothing either
+
+I built the owner's version — cold boot, real input, default camera, rAF frame
+times across four phases, with a negative control that walks *away* from the door
+so movement-without-a-door is separated out. It reported:
+
+```
+still     median 4.2  p95  8.4  worst 20.7   over33 0
+control   median 4.2  p95 12.4  worst 20.9   over33 0
+approach  median 4.2  p95  8.4  worst 20.8   over33 0
+open      median 4.2  p95  8.4  worst 16.7   over33 0
+```
+
+**That measurement is void.** The screenshot shows the player *short* of the
+door, the door *closed*, and the toast reading "Weeds pulled - 4 patches left" —
+the E press pulled weeds. The approach never arrived and the open phase never
+opened anything. 4.2 ms median describes walking on a porch.
+
+I have recorded it in `FOUND_FALSE.md` as a third failed measurement rather than
+a third clean bill of health, which is the distinction that matters.
+
+**Two leads for the next attempt**, both already documented inside the harness:
+the QA window is 1600x900 while the owner plays maximised on a 4K panel (qa-boot
+calls that ~62% of his linear resolution), and a 4.2 ms median is ~240 fps with
+vsync off — headroom that hides a hitch which at a 60 cap under real GPU load
+would drop frames.
+
+**NOT DONE.** Stop rule fired. The driver is kept: its control and its phase
+split are right, only its arrival is wrong.
+
 ---
 
 # RUNNING LISTS
@@ -378,13 +438,17 @@ is not making it short; that is section H's problem.
   25 frames, and the pages are empty.
 - **Goal 20 E2** — the card in the fingers. A measuring probe was written rather
   than a fourth guess; it returned null and needs work before the fix does.
-- **X2** — the pressure washer still gives nothing on a tap but the hint.
 - **The harness cannot hold a mouse button**, so the porch wash gate is still
   untestable end to end by a stranger. Needs a mousehold command on the bridge.
 - **The bridge drops a BOM-prefixed first command line silently.**
 - **X4** — the Tab overview has no player marker and no legend.
-- **C, D, F, G, H** — the mop's density and weight, the phone's mouse and icons,
-  the door lag, the translations, the draw calls.
+- **C, D, H** — the mop's density and weight, the phone's mouse and icons, the
+  draw calls.
+- **F** — the door lag. Investigated, root cause of the OLD checks found, my own
+  replacement void. See the section above.
+- **X4** — the Tab overview still has no player marker and no legend. Located:
+  the overview is a 3D camera mode, so a marker is a scene-graph object with an
+  enter/exit lifecycle plus a DOM legend, not a one-liner. Not started.
 - **The bunker rake viewmodel** — deformed lumps filling the top third of the
   screen (Verifier 3, finding 3).
 - **Silent E/X on debris**, and **"clear the entrance" mapping to no findable
