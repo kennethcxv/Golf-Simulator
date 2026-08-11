@@ -66,6 +66,18 @@ async (page) => {
   await page.keyboard.press('Tab');
   await page.waitForTimeout(1600);
   out.overview = await read();
+  out.overviewLegend = await page.evaluate(() => {
+    const node = document.querySelector('.hint-bar');
+    if (!node) return { present: false };
+    const cs = getComputedStyle(node);
+    const rect = node.getBoundingClientRect();
+    return {
+      present: true,
+      shown: cs.display !== 'none' && cs.visibility !== 'hidden'
+        && Number(cs.opacity) > 0.05 && rect.width > 8 && rect.height > 4,
+      text: (node.textContent || '').trim().slice(0, 120),
+    };
+  });
   await page.screenshot({ path: path.join(OUT, 'overview.png') });
 
   // 3. BACK ON FOOT — the pointer is free now and the game must say so
@@ -81,10 +93,17 @@ async (page) => {
     // THE FINDING: coming back from the overview the pointer is free
     pointerFreeAfterOverview: out.back.pointerLocked === false,
     saysSoAfterOverview: out.back.shown === true,
+    // ...and INSIDE the overview, which is where I expected to find the
+    // silence and did not. The overview raises its OWN legend (.hint-bar); the
+    // walk overlay's hint is hidden there and always was. Reading the wrong
+    // element made "no hint" and "a hint I was not looking at" identical --
+    // the fifth time this session.
+    overviewHasItsOwnLegend: out.overviewLegend?.shown === true,
+    overviewLegendNamesTheVerbs: /pan|rotate|zoom|tab/i.test(out.overviewLegend?.text || ''),
     noPageErrors: out.errs.length === 0,
   };
   out.ok = Object.values(out.checks).every(Boolean);
   fs.writeFileSync(path.join(OUT, 'look-loss.json'), `${JSON.stringify(out, null, 2)}\n`);
-  console.log('K-LOOK', JSON.stringify({ locked: out.locked, overview: out.overview, back: out.back, checks: out.checks }, null, 2));
+  console.log('K-LOOK', JSON.stringify({ locked: out.locked, overview: out.overview, overviewLegend: out.overviewLegend, back: out.back, checks: out.checks }, null, 2));
   return out;
 }

@@ -3804,6 +3804,11 @@ function updateWalkOverlay(dtMs = 16.7) {
   // the pointer is free, as a click-to-play reminder
   const tut = app.state && app.state.tutorial;
   const learned = tut && (tut.complete || tut.hidden || tut.step >= 5);
+  // K (Goal 23): the overview is NOT silent -- it raises its own `.hint-bar`
+  // with a full legend ("drag to pan, right-drag to rotate, wheel to zoom, Tab
+  // returns on foot"). I extended this gate to cover it before checking, and
+  // the change was dead: the walk overlay is hidden in overview, so the hint it
+  // controls cannot be seen there anyway. Reverted rather than shipped.
   const showLockHint = ['walk', 'placement'].includes(mode) && !document.pointerLockElement;
   const lockDisp = showLockHint ? '' : 'none';
   if (lockDisp !== ovLast.lockDisp) {
