@@ -176,14 +176,21 @@ export function suppressLegacyCheckoutBrandNodes(root, surface) {
 //   2. IN QUEUE means standing in the line RIGHT NOW (`atSlot`, measured body
 //      to slot), and you only learn the time they want when they are AT DESK in
 //      front of you asking for it.
-export const WALK_IN_QUEUE_STATUS = Object.freeze({
-  atDesk: 'AT DESK', inQueue: 'IN QUEUE', walkingUp: 'WALKING UP',
-});
+// A1 (Goal 21) — "IN QUEUE" IS DELETED, NOT FIXED.
+//
+// Three sessions were spent making that badge tell the truth. The owner's answer
+// is that the badge should not exist: the check-in screen shows the person AT
+// THE DESK and nobody else, because everybody behind them has not asked for
+// anything yet. A row for someone who has not spoken is a row the player can
+// plan against before the conversation happens, which is the thing that kept
+// reading wrong however accurate the label became.
+//
+// So this returns exactly one status or nothing at all.
+export const WALK_IN_QUEUE_STATUS = Object.freeze({ atDesk: 'AT DESK' });
 
 export function walkInQueueStatus(customer) {
-  if (!customer || !(customer.queueIndex >= 0)) return null; // not in the line
-  if (customer.queueIndex === 0 && customer.atSlot) return WALK_IN_QUEUE_STATUS.atDesk;
-  return customer.atSlot ? WALK_IN_QUEUE_STATUS.inQueue : WALK_IN_QUEUE_STATUS.walkingUp;
+  if (!customer) return null;
+  return customer.queueIndex === 0 && customer.atSlot ? WALK_IN_QUEUE_STATUS.atDesk : null;
 }
 
 export function walkInShowsAsk(customer) {

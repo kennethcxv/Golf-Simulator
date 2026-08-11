@@ -58,6 +58,31 @@ export const CUSTOMER_STATE = Object.freeze({
 export const WALK_IN_ASK_MIN = 20;
 export const WALK_IN_ASK_MAX = 65;
 
+// A2 (Goal 21) — THE FRONT OF THE LINE NEVER LEAVES.
+//
+// The owner's worst bug of the night: a customer queues, waits while the player
+// serves the person ahead, reaches the front — and walks out before they can be
+// served. Whatever the simulation thought it was modelling, what the player
+// experiences is being punished for doing the job correctly.
+//
+// So the first two positions are unconditional. However long it takes, they
+// wait. From third place back, patience is real, and that is where the pressure
+// the game wants actually lives — it is felt by the people you have not started
+// on yet, not by the one you are halfway through serving.
+export const QUEUE_NEVER_ABANDON_DEPTH = 2;
+
+/** @param queueIndex 0-based position in the service line; negative = not in it */
+export function queuePositionMayAbandon(queueIndex) {
+  // Number(null) is 0, and 0 is finite and is the front of the line — so a
+  // customer whose position came back null would have been pinned in place for
+  // ever, unable to leave the shop. The raw value has to be tested before it is
+  // coerced. This is the second time this exact coercion has bitten.
+  if (queueIndex === null || queueIndex === undefined || queueIndex === '') return true;
+  const index = Number(queueIndex);
+  if (!Number.isFinite(index) || index < 0) return true; // not in the line at all
+  return index >= QUEUE_NEVER_ABANDON_DEPTH;
+}
+
 /**
  * The ask, chosen off a real slot grid. THE SECOND GENERATOR (Goal 20, found by
  * Verifier 1): the arrival planner below is not the only place a walk-in

@@ -48,6 +48,7 @@ import {
   resumeCustomerAfterRecovery,
   reviewVisitForCustomer,
   serviceQueuePosition,
+  queuePositionMayAbandon,
   tickCustomerQueueWait,
   transitionCustomer,
 } from '../../sim/customerSimulation.js';
@@ -831,6 +832,10 @@ export function createCustomerView(B, options) {
 
   function servicePatienceExpired(actor) {
     const entity = actor.entity;
+    // A2 (Goal 21): position 1 or 2 in the line NEVER abandons, however long it
+    // takes. Placed HERE rather than at the four call sites below, because four
+    // copies of a rule is how the last one drifted.
+    if (!queuePositionMayAbandon(serviceQueuePosition(state, entity))) return false;
     const waited = entity.experience.waitTimeSec || 0;
     if (entity.state === CUSTOMER_STATE.PAYING) return waited > entity.patienceSec + 210;
     return waited > entity.patienceSec;
