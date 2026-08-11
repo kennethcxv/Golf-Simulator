@@ -1252,13 +1252,44 @@ runtime that would have reached nine other languages in English.
 **enterable grey slab · grey placeholders · counter banding** — the greybox.
 `pine-hills-v2` suppresses assets 61/62/63 to grey volumes on purpose and
 CLAUDE.md says it stays. The variant working, not faults.
-**collision feel** and **I3's UI rebuild** — untouched.
+**collision feel** — attempted and **NOT MEASURED**, three ways. The instrument
+aims itself by sweeping yaws and using `isInside()` to find the longest clear
+run, and `isInside` answers about the **room envelope** — it is blind to
+furniture, so the "clearest" direction walks into a shelf:
+
+| leg | distance |
+|---|---|
+| open floor (the *reference*) | **1.15 yd** |
+| head on into a wall | 3.42 yd |
+| glancing | 5.67 yd |
+
+A leg that walked into a wall travelled three times further than the one with
+nothing in the way. The driver now carries `referenceIsActuallyClear` as a
+gating check that says in as many words that the other two verdicts must not be
+reported while it is false. **It is false. I am reporting nothing about
+collision.** What it needs is a clear-run probe that knows about props — the
+customer walkers already have one (`custCols`) and it is not exposed.
+
+**I3 — the ledger UI rebuild. NOT DONE, and I could not photograph the page.**
+The spec is Goal 20's F1: *"Rebuild the book's UI to be intuitive and legible…
+what a page shows, how sections are found, the type, the hierarchy."* Before
+rebuilding an interface, photograph it — and a 3D screenshot of a book on a desk
+cannot answer "is this type legible". The driver opens the book and pulls page
+canvases at native resolution; it found six canvases in the interior and **none
+of them is the ledger** (the largest, 1024×640, is the floor grime map). The
+page faces are real and are not reachable by traversing `ch.interior`.
+
+**I am not redesigning a page I have not seen.** Every version of that mistake
+is already on the found-false ledger — five rounds of the broom head went into a
+value nobody had photographed, and the fix took ten minutes once the frames were
+on the table. What I3 needs first is an accessor: the book handing over its own
+page canvas the way the register now hands over `cardBrandCanvas`.
 
 ---
 
 # FINAL
 
-**Thirty-four commits, all pushed. Suite 3081/3081. Lint ratchet frozen at 332.
+**Thirty-seven commits, all pushed. Suite 3081/3081. Lint ratchet frozen at 332.
 i18n ratchet 0 missing across ten locales. Golden gate 12 of 12 green with the
 lens pinned, one honest red row (`bag-packed`, NOT CAPTURED).**
 
