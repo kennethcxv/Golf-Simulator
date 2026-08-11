@@ -173,7 +173,7 @@ test('the customer taking the bag is followed by a fresh one', () => {
   assert.match(branch, /resetBagAtCounter\(\)/, 'and put at the bagging position');
 });
 
-test('EVERY path that packs a good into the bag goes through the one rule, and it leaves goods visible', () => {
+test('EVERY path that packs a good into the bag goes through the one rule, and it hides them inside', () => {
   // G4.2 was fixed in updateBagDropMotions - the DRAG path - and there are
   // THREE. The scan-motion path and the resume-restore path both still switched
   // the mesh off, and my original test only scanned the one function I had
@@ -203,10 +203,31 @@ test('EVERY path that packs a good into the bag goes through the one rule, and i
   assert.ok(helperAt > 0 && marks[0] > helperAt,
     'the one mark lives inside packMeshIntoBag');
   const helper = src2.slice(helperAt, marks[0]);
+  // F (Goal 23) — G4.2 IS DELIBERATELY REVERSED, AND THIS TEST SAYS SO.
+  //
+  // The old contract was "the packing rule must switch the good ON; the bag
+  // hides it, nothing else may". Four sessions of containment geometry later,
+  // the owner's instruction is the opposite: "Stop trying to physically contain
+  // items. Make it LOOK like the item goes in, and then it is gone."
+  //
+  // The objection G4.2 was written against still stands and is still enforced:
+  // items must not SHRINK, and must not blink out in full view above the rim.
+  // Both are answered by the two-leg motion, which is asserted above — travel to
+  // the mouth, then sink DOWN INSIDE at full size. Hiding happens only after
+  // that, when the good is already behind the paper.
+  //
+  // THIS TEST WOULD HAVE PASSED UNCHANGED. `visible = true` is still there, at
+  // the top of the helper, and the new `visible = false` is below the mark this
+  // slice ends at — so the suite went green on a build whose contract had been
+  // turned round. A green test asserting a contract nobody holds any more is
+  // worse than no test.
   assert.match(helper, /visible = true/,
-    'the packing rule must switch the good ON - the bag hides it, nothing else may');
-  assert.doesNotMatch(helper, /visible = false/,
-    'the packing rule must not switch the good off');
+    'the good is switched on when it is parented, so the sink leg is visible');
+  const wholeHelper = src2.slice(helperAt, src2.indexOf('function refreshBagFill'));
+  assert.match(wholeHelper, /mesh\.visible = false/,
+    'and switched OFF once it is inside: the bag is faked, not a container');
+  assert.match(wholeHelper, /refreshBagFill\(\)/,
+    'the carrier must show it is filling, or it swallows three items and looks empty');
   assert.match(helper, /scale\.copy\(scale \|\| mesh\.userData\.originalScale/,
     'the packing rule keeps goods at FULL SIZE (F3: no miniature stack)');
   const calls = src2.match(/packMeshIntoBag\(/g) || [];

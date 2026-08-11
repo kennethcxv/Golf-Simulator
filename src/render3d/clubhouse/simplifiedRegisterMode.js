@@ -1496,11 +1496,25 @@ export function createRegisterMode(B) {
     visit(object, 0, 0, 0, object.scale.x, object.scale.y, object.scale.z);
     return _packBox;
   }
+  // F (Goal 23) — THE BAG IS FAKED NOW, AND THAT IS THE INSTRUCTION.
+  //
+  // "Stop trying to physically contain items. Four sessions have gone into
+  // geometry that clamps, inverts, stands up and still pokes through. Make it
+  // LOOK like the item goes in, and then it is gone."
+  //
+  // This overturns G4.2 ("packed goods STAY VISIBLE at FULL SIZE — no path may
+  // switch a packed good off") on purpose. G4.2 was itself a correction of a
+  // worse fault: items used to SHRINK AND POP OUT in full view above the rim,
+  // which read as fake. That objection is about WHERE the item disappears, not
+  // whether it does — and it is fully answered by the two-leg motion the drop
+  // already runs: the good travels to the mouth, then sinks DOWN INSIDE at full
+  // size, and only then, already behind the paper, stops being drawn.
+  //
+  // Nothing pops, nothing shrinks, and no body has to fit. Any size, any shape,
+  // always clean. The bag reads as full through `bagFill`, below.
   function packMeshIntoBag(mesh, { scale = null } = {}) {
     if (!bagGroup || !mesh) return;
     bagGroup.add(mesh);
-    // G4.2: packed goods STAY VISIBLE at FULL SIZE — the bag's own walls are
-    // what hides them. No path may switch a packed good off or shrink it.
     mesh.visible = true;
     mesh.scale.copy(scale || mesh.userData.originalScale || _packOne);
     mesh.quaternion.identity();
@@ -1569,6 +1583,65 @@ export function createRegisterMode(B) {
     );
     mesh.userData.checkoutVisualState = 'packed-in-bag';
     mesh.userData.checkoutOwner = 'bag';
+    // It is inside and behind the paper. Stop drawing it — this is the line
+    // four sessions of containment geometry were standing in for.
+    mesh.visible = false;
+    refreshBagFill();
+  }
+
+  // WHAT MAKES THE BAG READ AS FULL, now that nothing inside it is drawn.
+  //
+  // A carrier that swallows three items and looks exactly as empty as it did at
+  // the start is a worse lie than a ball poking through the side. So the mouth
+  // grows a mass of packed goods: one soft block, kraft-coloured, rising a
+  // little for each item and never reaching the rim. It is not a container and
+  // makes no attempt to be — it is the part of the contents you would actually
+  // see, and it cannot clip through anything because it is authored to the
+  // bag's own interior rather than measured off a product.
+  let bagFill = null;
+  function refreshBagFill() {
+    if (!bagGroup) return;
+    const packed = bagGroup.children.filter(
+      (c) => c.userData?.checkoutVisualState === 'packed-in-bag',
+    ).length;
+    if (!bagFill) {
+      if (!packed) return;
+      const geo = new THREE.BoxGeometry(1, 1, 1);
+      const mat = new THREE.MeshStandardMaterial({
+        color: 0xb7a184, roughness: 0.92, metalness: 0,
+      });
+      bagFill = new THREE.Mesh(geo, mat);
+      bagFill.name = 'CheckoutBagFill';
+      bagFill.castShadow = false;
+      bagFill.receiveShadow = false;
+      bagFill.userData.checkoutOwnedFill = true;
+      bagGroup.add(bagFill);
+    }
+    bagFill.visible = packed > 0;
+    if (!packed) return;
+    // The authored interior if the model carries one, otherwise the same
+    // fallbacks packMeshIntoBag uses, so the two never disagree.
+    let halfX = 0.125; let halfMouth = 0.126; let halfDepth = 0.07;
+    _packCentre.set(0, 0.14, 0);
+    if (bagContentsNode) {
+      bagGroup.updateWorldMatrix(true, false);
+      _packCentre.copy(bagGroup.worldToLocal(bagContentsNode.getWorldPosition(_packPt)));
+      const authored = bagContentsNode.userData || {};
+      if (Number.isFinite(authored.interior_half_x)) halfX = authored.interior_half_x;
+      if (Number.isFinite(authored.interior_half_mouth)) halfMouth = authored.interior_half_mouth;
+      if (Number.isFinite(authored.interior_half_depth)) halfDepth = authored.interior_half_depth;
+    }
+    // Rises toward the rim and never arrives: three items look fuller than one,
+    // eight look full, and nothing ever stands proud of the paper.
+    const fullness = 1 - (1 / (1 + packed * 0.55));
+    const height = Math.max(0.02, halfMouth * 2 * (0.35 + 0.5 * fullness));
+    bagFill.scale.set(halfX * 1.72, height, halfDepth * 1.6);
+    bagFill.quaternion.identity();
+    bagFill.position.set(
+      _packCentre.x,
+      _packCentre.y - halfMouth + height / 2,
+      _packCentre.z,
+    );
   }
   let bagDeliverScaleFrom = BAG_COUNTER_SCALE;
   // The laid carrier's CLOSED BASE sits exactly on its authored layout point —
