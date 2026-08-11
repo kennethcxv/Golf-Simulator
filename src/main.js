@@ -31,6 +31,7 @@ import { makeGroundsPanel } from './ui/groundsPanel.js';
 import { makeClubPanel } from './ui/clubPanel.js';
 import { makeEmpirePanel } from './ui/empirePanel.js';
 import { openMarketplace } from './ui/marketplacePanel.js';
+import { STARTING_PROPERTY_NAME } from './sim/marketplace.js';
 import { makeObjectivesPanel } from './ui/objectivesPanel.js';
 import { makeShedChecklist } from './ui/shedChecklist.js';
 import { makeCourseMaintenancePanel } from './ui/courseMaintenancePanel.js';
@@ -1405,15 +1406,33 @@ function ensureLoadVeil() {
   el.setAttribute('role', 'status');
   el.setAttribute('aria-live', 'polite');
   el.setAttribute('aria-busy', 'false');
+  // I (Goal 20) — A PLACE, NOT A VEIL.
+  //
+  // It was a logo, a bar and four tips on flat colour: thirteen seconds with
+  // nothing to look at and no sense of where you were going. The backdrop below
+  // is the MENU's own clubhouse scene, reused class for class — sky, horizon,
+  // clubhouse, flag — so the loading screen shows the club rather than a
+  // rectangle, at the cost of no new asset, no image to decode and no bytes on
+  // a frame that is already busy compiling shaders.
+  //
+  // The club's own name goes under the logo, because "GOLF EMPIRE" is the game
+  // and the player is arriving somewhere specific.
   el.innerHTML = `
+    <div class="load-veil-scene menu-atmosphere" aria-hidden="true">
+      <div class="menu-sun"></div>
+      <div class="menu-horizon menu-horizon-far"></div>
+      <div class="menu-horizon menu-horizon-near"></div>
+    </div>
     <div class="load-veil-card">
       <div class="load-veil-logo">GOLF EMPIRE</div>
+      <div class="load-veil-club"></div>
       <div class="load-veil-title"></div>
       <div class="load-veil-bar" role="progressbar" aria-label="Loading game" aria-valuemin="0" aria-valuemax="100" aria-valuenow="8"><div class="load-veil-fill"></div></div>
       <div class="load-veil-step"></div>
       <div class="load-veil-tip" aria-live="off"></div>
     </div>`;
   document.body.appendChild(el);
+  const clubEl = el.querySelector('.load-veil-club');
   const title = el.querySelector('.load-veil-title');
   const stepEl = el.querySelector('.load-veil-step');
   const fill = el.querySelector('.load-veil-fill');
@@ -1422,11 +1441,23 @@ function ensureLoadVeil() {
   const STEPS = ['Compiling shaders', 'Uploading textures', 'Warming the view'];
   let revision = 0;
   let hideTimer = null;
+  // I (Goal 20): tips that TEACH. The four this replaces were true and thin —
+  // two were about menus. These are the things a player actually gets stuck on,
+  // in the order they meet them, and every one of them is a fact about how the
+  // game works rather than a slogan.
   const TIPS = [
-    'Tap F for the next available tool; hold F to open the full tool belt.',
-    'P pauses from walking, checkout, the laptop, placement, or overview.',
-    'A clean, stocked shop gives the register work worth doing.',
-    'Manual save slots are separate from the Continue autosave.',
+    'Tap F for the next tool on the belt. HOLD F to open the whole belt, where every tool shows its own key.',
+    'Your phone is in your pocket on T. The world keeps running while you read it, so you can take a booking on the way to the counter.',
+    'A caller who rings out leaves a voicemail. Open the phone, play the message, then ring them back and they will answer.',
+    'Tee times only come from the phone and the inbox. Ignore both and the sheet stays empty.',
+    'Walk-ins ask for the next hour, not next week. What they want is on the desk screen once they reach the front of the line.',
+    'The ledger opens with E and turns pages with E. Q puts it away.',
+    'Dirt has to be under the crosshair to clean it. Hold Q to see where it all is.',
+    'The mop works wet. When it runs dry, take it to the bucket in the cleaning bay.',
+    'P pauses from anywhere: walking, the checkout, the laptop, placement or overview.',
+    'Stock the shelves from the back room. An empty peg sells nothing, however good the shop looks.',
+    'The laptop in the office runs the business: orders, staff, the books, the tee sheet.',
+    'Manual save slots are separate from the Continue autosave, and the autosave keeps its previous generation as a spare.',
   ];
   let tipTimer = null;
   let tipIndex = 0;
@@ -1440,6 +1471,10 @@ function ensureLoadVeil() {
       if (hideTimer !== null) clearTimeout(hideTimer);
       hideTimer = null;
       title.textContent = t || 'Loading';
+      // the club you are arriving at, named. Falls back to the starting
+      // property so the very first load is not blank.
+      clubEl.textContent = activeState(app.empire)?.club?.name
+        || app.state?.club?.name || STARTING_PROPERTY_NAME;
       stepEl.textContent = 'Building the course';
       fill.style.width = '12%';
       progress.setAttribute('aria-valuenow', '12');

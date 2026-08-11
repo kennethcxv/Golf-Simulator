@@ -182,7 +182,35 @@ canvas#game {
   transition: opacity 0.4s ease;
 }
 
-.load-veil-card { text-align: center; width: min(420px, 80vw); }
+/* I (Goal 20): the menu's own clubhouse scene, behind the card. Reused class
+   for class from .menu-atmosphere, so it costs no new art and no image decode
+   on a frame that is already compiling shaders. Dimmed and pushed back so the
+   card stays the thing you read. */
+.load-veil-scene {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  opacity: 0.55;
+  filter: saturate(0.8) brightness(0.7);
+  pointer-events: none;
+}
+
+.load-veil-card {
+  position: relative;
+  z-index: 1;
+  text-align: center;
+  width: min(560px, 84vw);
+}
+
+/* the club you are arriving at, named under the game's own name */
+.load-veil-club {
+  font-family: var(--font-brand);
+  font-size: 13px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #9fb394;
+  margin-bottom: 10px;
+}
 
 .load-veil-logo {
   font-family: var(--font-brand);
@@ -218,7 +246,7 @@ canvas#game {
   color: #aab5aa;
   font-size: 12px;
   line-height: 1.5;
-  max-width: 360px;
+  max-width: 470px;  /* I (Goal 20): the tips teach now, so they are longer */
 }
 
 button {
