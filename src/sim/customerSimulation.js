@@ -71,6 +71,61 @@ export const WALK_IN_ASK_MAX = 65;
 // on yet, not by the one you are halfway through serving.
 export const QUEUE_NEVER_ABANDON_DEPTH = 2;
 
+// B3 (Goal 23) — NOBODY MOVES UNTIL THE PERSON AHEAD HAS CLEARED THE DESK.
+//
+// Reported fixed twice and still happening: "a customer finishes, pauses for a
+// second or two, and the next one starts moving and walks into their back."
+//
+// The mechanism was never in the walking. The queue target is recomputed every
+// frame as queueSlotW(counterQueue.indexOf(c)), so the instant the served
+// customer is SPLICED OUT OF THE ARRAY every index behind them drops by one and
+// the whole line starts walking — into a slot the served customer is still
+// physically standing on, because leaving the array and leaving the floor are
+// seconds apart. Both previous fixes tuned steering and avoidance, which is
+// downstream of a target that was already wrong.
+//
+// The owner's rule is about BODIES, not bookkeeping: "not started to move —
+// cleared." So the advance asks the floor, not the array.
+//
+// Clearance is deliberately larger than the 0.6 the steering code treats as a
+// collision: a follower who begins walking at 0.61 is still closing on someone
+// who has barely turned around, and "walked into their back" is exactly what
+// that looks like from behind the counter.
+export const QUEUE_ADVANCE_CLEARANCE = 0.95;
+
+/**
+ * May a customer move up into `slot` yet?
+ *
+ * @param slot     {x, z} of the slot they want to advance into
+ * @param bodies   every OTHER person on the floor, as {x, z}
+ * @param clearance how much empty room the slot needs
+ * @returns true only when nobody is standing in it
+ */
+export function queueSlotIsClear(slot, bodies = [], clearance = QUEUE_ADVANCE_CLEARANCE) {
+  if (!slot || !Number.isFinite(slot.x) || !Number.isFinite(slot.z)) return true;
+  for (const body of bodies) {
+    if (!body || !Number.isFinite(body.x) || !Number.isFinite(body.z)) continue;
+    if (Math.hypot(body.x - slot.x, body.z - slot.z) < clearance) return false;
+  }
+  return true;
+}
+
+/**
+ * Which slot a queuer should actually be walking to this frame.
+ *
+ * `held` is the slot they are already standing on or heading for. They may fall
+ * BACK freely — someone joining ahead of them is not a collision risk — but they
+ * may only move UP one step at a time, and only into room that is genuinely
+ * empty. Advancing one step per call rather than jumping to the array index is
+ * what keeps a three-person cascade from all lunging forward on the same frame.
+ */
+export function queueAdvanceSlot(held, wanted, isClear) {
+  if (!Number.isFinite(held)) return wanted;
+  if (wanted >= held) return wanted; // moving back, or staying put
+  const next = held - 1;
+  return isClear(next) ? next : held;
+}
+
 /** @param queueIndex 0-based position in the service line; negative = not in it */
 export function queuePositionMayAbandon(queueIndex) {
   // Number(null) is 0, and 0 is finite and is the front of the line — so a

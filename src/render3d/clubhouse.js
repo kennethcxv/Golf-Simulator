@@ -106,7 +106,9 @@ import {
   slotTimes, resolveTeeTimeRequest, reservationById,
   // (the walk-in ask rule lives in the sim; see the import below)
 } from '../sim/reservations.js';
-import { walkInAskFrom, queuePositionMayAbandon } from '../sim/customerSimulation.js';
+import {
+  walkInAskFrom, queuePositionMayAbandon, queueAdvanceSlot, queueSlotIsClear,
+} from '../sim/customerSimulation.js';
 import { steerAround, STEER_DEFAULTS } from './clubhouse/steerAhead.js';
 import {
   allocateCustomerIdentity, customerIdentityById, paymentChoiceDialogue,
@@ -10636,6 +10638,9 @@ export function makeClubhouse(ctx) {
       counterQueue.splice(qi, 1);
       c.queued = false;
     }
+    // B3: a rejoin starts from wherever the line actually puts them, not from
+    // the slot they were holding last time they stood here.
+    c.queueSlotHeld = null;
   }
 
   // B (Goal 21): the SAME occupancy test resolveCustomer enforces, asked as a
@@ -11066,7 +11071,21 @@ export function makeClubhouse(ctx) {
           c.queuedAt = now; // the clock a review will quote back at you
           c.queueLenOnArrival = counterQueue.length - 1;
         }
-        const slot = queueSlotW(counterQueue.indexOf(c));
+        // B3 (Goal 23) — THE LINE ADVANCES WHEN THE FLOOR IS CLEAR, NOT WHEN
+        // THE ARRAY IS. See queueAdvanceSlot in sim/customerSimulation.js for
+        // why: splicing the served customer out moved everyone's target
+        // instantly, while their body was still standing on it.
+        const wanted = counterQueue.indexOf(c);
+        const held = Number.isFinite(c.queueSlotHeld) ? c.queueSlotHeld : wanted;
+        const bodies = [];
+        for (const other of customers) {
+          if (other === c || !other.mesh) continue;
+          bodies.push({ x: other.mesh.position.x, z: other.mesh.position.z });
+        }
+        c.queueSlotHeld = queueAdvanceSlot(held, wanted, (idx) => (
+          queueSlotIsClear(queueSlotW(idx), bodies)
+        ));
+        const slot = queueSlotW(c.queueSlotHeld);
         tx = slot.x;
         tz = slot.z;
       }
