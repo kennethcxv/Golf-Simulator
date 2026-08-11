@@ -7647,18 +7647,75 @@ export function makeCourseScene(canvas, state) {
   // own radius. The cone is deliberately wide — anything not directly behind
   // you — because the player arrives at a counter looking DOWN at the floor
   // they were just mopping, and at point-blank range direction means nothing.
+  // ONE AIM SCORE, USED EVERYWHERE (Goal 20, found by Verifier 2).
+  //
+  // A verifier could not open the ledger in forty minutes of play: the crosshair
+  // was on the cover and the prompt said "Front desk". The cause was that
+  // STATIONS were selected by a different rule from every other prop — first
+  // match in registration order, gated only on facing > -0.2, which is a hundred
+  // degrees off axis. The desk is registered eight thousand lines before the
+  // book, so it always won, and the book's own focusBias and aimY — added in an
+  // earlier goal specifically to beat it, with a comment saying so — were dead
+  // code on that path.
+  //
+  // This is the general loop's scoring, lifted out and used by both, so the two
+  // cannot hold different opinions about what you are looking at again.
+  function walkPropAimScore(p) {
+    let focusPoint = null;
+    try {
+      focusPoint = typeof p.focusPoint === 'function' ? p.focusPoint() : p.focusPoint;
+    } catch {
+      focusPoint = null;
+    }
+    const focusX = Number.isFinite(focusPoint?.x) ? focusPoint.x : p.x;
+    const focusZ = Number.isFinite(focusPoint?.z) ? focusPoint.z : p.z;
+    const focusY = Number.isFinite(focusPoint?.y) ? focusPoint.y : p.aimY;
+    const dx = focusX - walk.x;
+    const dz = focusZ - walk.z;
+    const dist = Math.hypot(dx, dz);
+    const focusBias = Number(typeof p.focusBias === 'function' ? p.focusBias() : p.focusBias) || 0;
+    if (Number.isFinite(focusY)) {
+      // Props on different authored levels can share an x/z, so those score
+      // against the real first-person aim ray rather than a flat bearing.
+      const dy = focusY - camera.position.y;
+      const spatial = Math.max(0.001, Math.hypot(dx, dy, dz));
+      const cp = Math.cos(walk.pitch);
+      const facing = (dx / spatial) * -Math.sin(walk.yaw) * cp
+        + (dy / spatial) * Math.sin(walk.pitch)
+        + (dz / spatial) * -Math.cos(walk.yaw) * cp;
+      return { dist, facing, score: walkPropFocusScore3d(spatial, facing, focusBias) };
+    }
+    const safeDist = Math.max(0.001, dist);
+    const facing = ((dx / safeDist) * -Math.sin(walk.yaw))
+      + ((dz / safeDist) * -Math.cos(walk.yaw));
+    return { dist, facing, score: dist - focusBias };
+  }
+
   function walkStationPropInReach() {
+    let best = null;
+    let bestScore = Infinity;
     for (const p of walkProps) {
       if (!p.station) continue;
       const dx = p.x - walk.x;
       const dz = p.z - walk.z;
       const dist = Math.hypot(dx, dz);
       if (dist > (p.r || 0)) continue;
-      const facing = dist < 0.6 ? 1
+      // The forgiving gate STAYS. Standing at the counter and pressing E
+      // without looking squarely at it has to keep working — that is what
+      // `station` is for. It is an eligibility floor now rather than the whole
+      // decision.
+      const flat = dist < 0.6 ? 1
         : ((dx / dist) * -Math.sin(walk.yaw)) + ((dz / dist) * -Math.cos(walk.yaw));
-      if (facing > -0.2) return p;
+      if (flat <= -0.2) continue;
+      // ...and among the stations that qualify, the one you are LOOKING AT wins.
+      // A station you are not aimed at scores Infinity from the shared rule, so
+      // it falls back to a bearing-and-distance ranking that always loses to a
+      // station under the crosshair. That is the whole fix in one line.
+      const aimed = walkPropAimScore(p);
+      const score = Number.isFinite(aimed.score) ? aimed.score : (dist + 100 - flat);
+      if (score < bestScore) { bestScore = score; best = p; }
     }
-    return null;
+    return best;
   }
 
   function walkFindFocus() {
@@ -7766,40 +7823,11 @@ export function makeCourseScene(canvas, state) {
       const coarseDx = p.x - walk.x;
       const coarseDz = p.z - walk.z;
       if (Math.hypot(coarseDx, coarseDz) > p.r + 0.75) continue;
-      let focusPoint = null;
-      try {
-        focusPoint = typeof p.focusPoint === 'function' ? p.focusPoint() : p.focusPoint;
-      } catch {
-        focusPoint = null;
-      }
-      const focusX = Number.isFinite(focusPoint?.x) ? focusPoint.x : p.x;
-      const focusZ = Number.isFinite(focusPoint?.z) ? focusPoint.z : p.z;
-      const focusY = Number.isFinite(focusPoint?.y) ? focusPoint.y : p.aimY;
-      const dx = focusX - walk.x;
-      const dz = focusZ - walk.z;
-      const dist = Math.hypot(dx, dz);
+      // Shelf cartons can share the same x/z on different authored levels, so
+      // props carrying an aim height score against the real first-person ray.
+      // walkPropAimScore is that rule, shared with the station selector above.
+      const { dist, facing, score: focusDistance } = walkPropAimScore(p);
       if (dist > p.r) continue;
-      let facing;
-      let focusDistance = dist;
-      if (Number.isFinite(focusY)) {
-        // Shelf cartons can share the same x/z on different authored levels.
-        // Score those props against the real first-person aim ray so looking at
-        // the upper carton cannot silently select one through the board below.
-        const dy = focusY - camera.position.y;
-        const spatial = Math.max(0.001, Math.hypot(dx, dy, dz));
-        const cp = Math.cos(walk.pitch);
-        facing = (dx / spatial) * -Math.sin(walk.yaw) * cp
-          + (dy / spatial) * Math.sin(walk.pitch)
-          + (dz / spatial) * -Math.cos(walk.yaw) * cp;
-        const focusBias = Number(typeof p.focusBias === 'function' ? p.focusBias() : p.focusBias) || 0;
-        focusDistance = walkPropFocusScore3d(spatial, facing, focusBias);
-      } else {
-        const safeDist = Math.max(0.001, dist);
-        facing = ((dx / safeDist) * -Math.sin(walk.yaw))
-          + ((dz / safeDist) * -Math.cos(walk.yaw));
-        const focusBias = Number(typeof p.focusBias === 'function' ? p.focusBias() : p.focusBias) || 0;
-        focusDistance -= focusBias;
-      }
       if (focusDistance >= bestScore) continue;
       const candidateLabel = facing > 0.3 ? p.label() : '';
       if (candidateLabel) { // a falsy label = the prop is dormant right now
