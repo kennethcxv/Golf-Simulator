@@ -9777,6 +9777,11 @@ export function makeCourseScene(canvas, state) {
       verticalFov: camera.fov,
       maxFrameDist: Math.min(440, rig.maxDist),
       maxOverviewDist: rig.maxDist,
+      // J (Goal 23): the overview must FRAME THE PLAYER. The solver only ever
+      // looked at the property grid, and the clubhouse sits off the course
+      // footprint -- measured in Goal 21 at ndcX -1.282, which is not a marker
+      // that is hard to see, it is a marker that is not in the picture.
+      includePoints: walk.active ? [{ x: walk.x, z: walk.z }] : [],
     };
   }
 
