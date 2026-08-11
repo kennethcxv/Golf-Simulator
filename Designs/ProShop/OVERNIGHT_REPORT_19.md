@@ -406,9 +406,93 @@ book's own footer teach the new keys from the live bindings ("E next page ·
 A back · Esc put the book away"). E ignores key-repeat (a held key is one
 action, not a page-riffle).
 
-## G — PERFORMANCE
+## G — PERFORMANCE — measured; the named lever was WRONG, corrected with numbers
+
+**The freeze was never the 8 ms.** Measured live (300 frames indoors,
+`electron-g-matrix-share.js`): the ENTIRE scene matrix walk costs
+**1.3 ms/frame** across 4,852 scene objects (2,853 in the interior). The
+~8 ms CPU submit is dominated by the **2,413 draw calls** (projectObject +
+sort + WebGL submission), which no matrix freeze touches. Freezing the
+interior would buy ≤1.3 ms at real risk to every animated child (doors, the
+ledger, the drawer, restock previews) — declined at these numbers; the
+correct daylight project is DRAW-CALL REDUCTION (merge static meshes per
+material — the runtime batching pattern already proven on 10 props).
+
+The cap ladder, re-run tonight (two runs; the first run's 60-leg armed
+empty and was re-run — recorded):
+- **60 cap: HOLDS** — 62.5 achieved, median 16.0 ms, **85.2% on-cadence**.
+- **120 cap: does not pace** — 62.9–65.4 achieved, 2.5–5% on-cadence.
+- 144 cap: 64.9–66.7 achieved. Uncapped: ~65.
+- **The default STAYS 60** — preferences.js's flip-to-120 condition (120
+  pacing cleanly) is not met, and the blocker now has its true name.
+
+Action stalls (not reopened, per instruction; whether they still fire):
+**the ledger first-open stall FIRED in tonight's own D3 trace** — the frame
+sampler gapped 914→5067 ms on the first E press (~4.1 s, the known
+compile/visibility stall); first-equip (9.6 s, 16 refuted fixes) untouched.
+GPU stands at 5.14 ms (the Goal 18 GTAO re-grade; nothing tonight moved it).
+Worst frame in an indoor minute: the ~4.1 s first-ledger-open stall when the
+minute contains one; otherwise frames sit at the ~15–16 ms cadence above.
 
 ## E — THE MOP AND THE BROOM
+
+### E0 The missing strand handle — RESOLVED: two instrument faults, zero game faults
+1. Tonight's probe found the rig LIVE within seconds of equip
+   (`MopStrandRig` + three instanced layers in the scene, skirt hidden).
+   Last night's 60-second null was the **driver's own path typo**:
+   `scene3d.strandRigFor` — the accessor lives on `scene3d.walk`.
+   `undefined?.('mop')` is null forever, and "the handle never appears in QA
+   boots" went into the record as a game finding. Fixed in the driver with
+   the finding named at the wait site.
+2. The E4 sampler then measured ZERO motion on flying yarn: the strands are
+   INSTANCED — a layer node's matrixWorld never moves; the motion lives in
+   `instanceMatrix`. The sampler now reads five instances per layer.
+   (Last night's null-handle window was also real for part of the night —
+   the KTX2-poisoned mop GLB between the bad pack and the repack could not
+   adopt — but the accessor typo would have hidden the recovery regardless.)
+
+### E1 The mop the player actually sees — THE SIXTH FOUND-FALSE, then fixed
+Goal 18's "mop head rebuild" (96 fine damp-grey strands, A9A294) edited
+`MESH_MopSkirt` in Blender — **a mesh the runtime HIDES**: on adoption the
+viewmodel conceals the authored skirt and shows the 480-strand PROCEDURAL
+rig, whose yarn stayed pale cream `0xe4dcc6`. "The mop is completely
+unchanged" was literally correct — the rebuild changed an invisible mesh,
+and the checks graded Blender previews and a golden whose subject was the
+unchanged procedural rig. Fifth entry on the found-false list (the fifth and
+sixth arrived together tonight: the skirt swap and the driver typo above).
+Fix at the VISIBLE layer: the rig's yarn is now waterlogged-cotton grey
+`0x8f8a80`, roughness 0.97 — confirmed by eye on the re-captured golden
+(`tool-mop` re-baselined as the intended change; the small 0.53% diff is
+the head's screen share, not the change's size). Density (480 fine strands)
+and pressed-floor SPLAY (splayBase/Grow × contact) already live in the rig.
+
+### E4 Strands move whenever the mop moves — DONE (measured 27×)
+The carry channel listened only to the head's swing FAN — a yaw turn slides
+the head across the room without fanning it, so the yarn hung dead through
+every turn (measured 0.8× idle). The head's world motion, expressed in the
+rig's frame and signed along the fan axis, now joins the drive. Re-measured
+on the instanced sampler: idle 0.037 (baseline unchanged — the negative
+control), walk 1.009 (**27× idle**, was 2.3×), turn 0.099 (3.2× idle, was
+0.8×). `strandsLiveWhileCarried: true`.
+
+### E3 The stroke follows the mouse — NOT DONE (scoped, stop rule)
+The stroke input is a single scalar (`strokeX`) synthesized by the rig's own
+oscillator while the button is held; making it FOLLOW the hand means
+routing live pointer deltas through the walk controller into the viewmodel's
+stroke state — an input-pipeline feature, not a tuning number. Scoped
+tonight, not attempted at the session's edge; the seam is
+`broomViewmodel.update`'s strokeX and the walk controller's pointer path.
+
+### E2 The broom's hands and head — NOT DONE (honest scope)
+The found-false statement stands (presence was measured, form was not).
+The two hand faults are ANATOMY: the support hand is the procedural mitt
+mesh (no fingers to read) and the upper hand's thumb side comes from the
+grip pose family — both are viewmodel hand-mesh work, not a slider. The
+head slant needs a roll/pitch sweep with the E1-Goal-18 method but judged
+at the DEFAULT camera against the slant the user photographs (yaw was the
+wrong axis — measured last night). Left NOT DONE with this scope rather
+than half-tuned at 7 AM; the shader banding on the shaft belongs to the
+same asset pass as the ledger cover thickness.
 
 ## F — SETTINGS UI
 

@@ -756,7 +756,36 @@ export function createBroomViewmodel({
     // headLag.angle is that fan, and it is the signal the yarn should trail.
     const strandRig = broomGroup?.userData?.strandRig;
     if (strandRig) {
-      strandRig.update(dt, strokeX, state.lagV || 0, state.workBlend ?? 0, headLag.angle || 0);
+      // E4 (Goal 19): the carry drive listens to the WHOLE head's world
+      // motion, not only the swing fan. A yaw turn slides the head across
+      // the room without fanning it, and the yarn hung dead through every
+      // turn (measured 0.8x idle on the instanced sampler). The head's world
+      // delta, expressed in the rig's own frame and signed along the fan
+      // axis, joins the fan angle — so walking, strafing and turning all
+      // stir the strands the way carrying a real mop does.
+      const ud = broomGroup.userData;
+      if (!ud._carryPrev) {
+        ud._carryPrev = new THREE.Vector3();
+        ud._carryDelta = new THREE.Vector3();
+        ud._carryQuat = new THREE.Quaternion();
+        ud._carryInit = false;
+      }
+      broomGroup.getWorldPosition(ud._carryDelta); // reuse as "now" first
+      let carryDrive = headLag.angle || 0;
+      if (ud._carryInit && dt > 0) {
+        const nowX = ud._carryDelta.x;
+        const nowY = ud._carryDelta.y;
+        const nowZ = ud._carryDelta.z;
+        ud._carryDelta.sub(ud._carryPrev);
+        ud._carryDelta.applyQuaternion(broomGroup.getWorldQuaternion(ud._carryQuat).invert());
+        const lateral = (ud._carryDelta.x + ud._carryDelta.z * 0.4) / dt;
+        carryDrive += Math.max(-0.6, Math.min(0.6, lateral * 0.22));
+        ud._carryPrev.set(nowX, nowY, nowZ);
+      } else {
+        ud._carryPrev.copy(ud._carryDelta);
+        ud._carryInit = true;
+      }
+      strandRig.update(dt, strokeX, state.lagV || 0, state.workBlend ?? 0, carryDrive);
     }
     const cosPhase = Math.cos(phase);
     const inContact = using && Math.abs(cosPhase) >= s.contactCos;

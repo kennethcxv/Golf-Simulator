@@ -2189,7 +2189,11 @@ function openPauseMenu() {
             ['Interact · pick up · place', cap('interact', 'E')],
             ['Secondary action · reposition carton', cap('carry', 'X')],
             ['Tool belt: tap / hold', cap('toolBelt', 'F')],
-            ['Previous tool', cap('dirtSense', 'Q')], ['Use selected tool', 'LMB'],
+            // V3 (Goal 19): this row said "Previous tool" against the DIRT
+            // SENSE key — the stranger verifier caught the reference page
+            // contradicting the HUD pill ("Q reveal dirt"). The label now
+            // states the verb the binding actually performs.
+            ['Dirt sense: hold to reveal', cap('dirtSense', 'Q')], ['Use selected tool', 'LMB'],
             ['Placement mode', cap('buildMode', 'B')], ['Rotate placement', cap('mowerBlades', 'R')],
             ['Cancel preview', 'Esc'],
           ]),

@@ -3059,3 +3059,25 @@ body.register-mode .view-toggle { display: none !important; }
 .lt-mailquote { font-style: italic; color: #4a5157; border-left: 3px solid #d8d5ca; padding-left: 10px; }
 .lt-mailstatus { margin-top: 6px; }
 .lt-mailalts { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 8px; }
+
+/* --- F1 (Goal 19): every scrolling surface wears the game's own scrollbar --
+   The native OS bar (Image 8) read as a foreign object flush against the
+   pane's top edge. One global treatment in the game palette: slim rounded
+   thumb, transparent track with breathing room at both ends so the bar never
+   touches an edge. The laptop's light surfaces get their own quiet variant. */
+*::-webkit-scrollbar { width: 10px; height: 10px; }
+*::-webkit-scrollbar-track { background: transparent; margin: 10px 4px; }
+*::-webkit-scrollbar-thumb {
+  background: #5c6c61;
+  border-radius: 8px;
+  border: 2px solid rgba(14, 20, 16, 0.55);
+  background-clip: padding-box;
+}
+*::-webkit-scrollbar-thumb:hover { background: #97ae99; }
+*::-webkit-scrollbar-corner { background: transparent; }
+.lt-frame *::-webkit-scrollbar-thumb {
+  background: #c8cbc2;
+  border: 2px solid rgba(255, 255, 255, 0.7);
+  background-clip: padding-box;
+}
+.lt-frame *::-webkit-scrollbar-thumb:hover { background: #9aa79b; }

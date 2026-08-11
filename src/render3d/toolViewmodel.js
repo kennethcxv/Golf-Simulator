@@ -383,8 +383,15 @@ export function buildToolViewmodels() {
               const collar = root.getObjectByName('MESH_MopCollar') || skirt;
               if (collar) {
                 if (skirt) skirt.visible = false;
+                // E1 (Goal 19, the fifth found-false): Goal 18 "rebuilt the
+                // mop head" in Blender — many fine damp-grey strands — but
+                // the mesh it rebuilt is THIS hidden skirt; the player sees
+                // the procedural rig, which kept its old pale-cream yarn.
+                // The damp grey lives HERE now (the authored skirt's own
+                // A9A294 family, darkened wet), matte like waterlogged
+                // cotton.
                 const yarn = new THREE.MeshStandardMaterial({
-                  color: 0xe4dcc6, roughness: 0.95, metalness: 0,
+                  color: 0x8f8a80, roughness: 0.97, metalness: 0,
                 });
                 // B1 (Goal 17) — MEASURED, NOT GUESSED.
                 //

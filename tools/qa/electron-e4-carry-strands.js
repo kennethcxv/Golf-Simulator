@@ -30,13 +30,20 @@ async (page) => {
   });
   // HARD GATE: without the rig handle the sampler measures nothing — a
   // caught timeout here voided the first run.
-  await page.waitForFunction(() => !!window.__fw.scene3d.strandRigFor?.('mop'), null, { timeout: 60000 });
+  // E0 (Goal 19): the accessor lives on WALK — this driver read
+  // scene3d.strandRigFor (undefined, forever) and reported "the handle never
+  // appears in QA boots" all last night. The handle was there; the
+  // instrument's path was wrong.
+  await page.waitForFunction(() => !!window.__fw.scene3d.walk.strandRigFor?.('mop'), null, { timeout: 60000 });
   await page.waitForTimeout(2200);
   await page.mouse.click(800, 450);
   await page.waitForTimeout(300);
 
+  // The strands are INSTANCED (three layer meshes, one matrix per strand):
+  // a node's matrixWorld never moves however hard the yarn flies — the
+  // motion lives in instanceMatrix. Sample five instances per layer.
   const sampler = (ms) => page.evaluate((dur) => new Promise((res) => {
-    const rig = window.__fw.scene3d.strandRigFor?.('mop');
+    const rig = window.__fw.scene3d.walk.strandRigFor?.('mop');
     const tips = [];
     const grab = [];
     const src = document.getElementById('game');
@@ -44,29 +51,38 @@ async (page) => {
     c.width = 640; c.height = Math.round(src.height / src.width * 640);
     const ctx = c.getContext('2d');
     const t0 = performance.now();
-    let probe = null;
-    if (rig && rig.group) {
-      rig.group.traverse((n) => { if (!probe && n.isMesh) probe = n; });
-    }
+    const layers = [];
+    const rigRoot = rig && (rig.root || rig.group);
+    if (rigRoot) rigRoot.traverse((n) => { if (n.isInstancedMesh) layers.push(n); });
     const tick = () => {
-      if (probe) {
-        probe.updateWorldMatrix(true, false);
-        const e = probe.matrixWorld.elements;
-        tips.push([e[12], e[13], e[14]]);
+      if (layers.length) {
+        const sample = [];
+        for (const layer of layers) {
+          const a = layer.instanceMatrix.array;
+          for (let i = 0; i < Math.min(5, layer.count); i += 1) {
+            const o = i * 16;
+            sample.push(a[o + 12], a[o + 13], a[o + 14]);
+          }
+        }
+        tips.push(sample);
       }
       if (grab.length < 26 && (performance.now() - t0) > grab.length * (dur / 26)) {
         ctx.drawImage(src, 0, 0, c.width, c.height);
         grab.push(c.toDataURL('image/png'));
       }
       if (performance.now() - t0 < dur) requestAnimationFrame(tick);
-      else res({ tips, grab, hadRig: !!rig, hadProbe: !!probe });
+      else res({ tips, grab, hadRig: !!rig, hadProbe: layers.length > 0 });
     };
     requestAnimationFrame(tick);
   }), ms);
   const motion = (tips) => {
     let sum = 0;
     for (let i = 1; i < tips.length; i += 1) {
-      sum += Math.hypot(tips[i][0] - tips[i - 1][0], tips[i][1] - tips[i - 1][1], tips[i][2] - tips[i - 1][2]);
+      const a = tips[i - 1];
+      const b = tips[i];
+      for (let k = 0; k + 2 < Math.min(a.length, b.length); k += 3) {
+        sum += Math.hypot(b[k] - a[k], b[k + 1] - a[k + 1], b[k + 2] - a[k + 2]);
+      }
     }
     return +(sum).toFixed(4);
   };
