@@ -657,6 +657,39 @@ judgement I could not take without hearing it, and I cannot hear it.
 
 ---
 
+# THE GATE, AND ONE THING IT TOLD ME ABOUT ITSELF
+
+`npm run gate`, every piece, at the end of the session:
+
+| piece | result |
+|---|---|
+| lint ratchet | 332 findings, at the frozen baseline (rebased down from 333 once) |
+| vendor models | 126 generated files up to date, 0 problems |
+| test suite | **3,025 / 3,025** |
+| golden images | 13 / 13 within budget |
+| golden one-pixel control | correctly FAILED, as it must |
+
+Two things in that golden table are worth saying out loud rather than filing as
+a pass.
+
+**The mop pose moved 0.4264% against a 0.75% budget.** I replaced the entire
+yarn solver — a different algorithm, 820 strands instead of 480, four segments
+instead of three, different thickness and different lengths — and the golden
+gate would have accepted it silently. The tool budgets were widened to 0.75 in
+Goal 19 to absorb idle sway on wall-clock phase, and that width is now larger
+than a total rewrite of what the pose contains. **The golden suite cannot see a
+change to a tool's fibres.** That is not an argument for tightening it tonight —
+the sway is real and would false-positive — but it means the tool poses are
+currently regression cover for the tool's POSE and nothing else, and nobody
+should read a green tool row as covering its appearance.
+
+**`bag-packed` moved 0.0000%**, which is exactly right and exactly the problem:
+that pose stages three short items, none of which reach the stand-up path E1
+rewrote. The brief asked for one long item plus two short ones in the golden bag
+pose for precisely this reason, and it is on NOT DONE.
+
+---
+
 # RUNNING LISTS
 
 ## UNCONFIRMED
