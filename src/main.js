@@ -2493,6 +2493,9 @@ function walkToolEntries() {
   ]);
 }
 
+// Tools whose one-line lesson has already been given this session.
+const toolLessonsShown = new Set();
+
 function selectWalkTool(tool) {
   const walk = app.scene3d?.walk;
   if (!walk) return;
@@ -2503,6 +2506,29 @@ function selectWalkTool(tool) {
   audio.setToolLoop(null);
   walk.setTool(tool);
   if (audio.ready) audio.equipTick();
+  // K (Goal 23) — TOOL USE WAS TAUGHT ONLY BY FAILING.
+  //
+  // Every cleaning tool carries an `equipToast` in src/data/cleaningTools.js
+  // saying exactly how to work it -- "sweep dirt and leaves into a pile, then
+  // collect it with the dustpan". That text was referenced in ONE place in the
+  // whole repository: as the `detail` line of a tool-wheel row. So the game had
+  // written the lesson for every tool and only ever showed it inside a menu the
+  // player may never open, never at the moment they actually pick the thing up.
+  //
+  // Said once per tool per session: a player cycling the belt with F should not
+  // be lectured on every pass, and someone reaching for the mop for the first
+  // time should not have to fail at it to find out what it does.
+  if (tool && tool !== current) {
+    const def = CLEANING_TOOLS[tool];
+    if (def?.equipToast && !toolLessonsShown.has(tool)) {
+      toolLessonsShown.add(tool);
+      // The lesson text itself, not a new sentence built around it: a template
+      // literal here is a NEW player-facing string, and the strings ratchet
+      // caught it and was right to. The tool has just been equipped, so the
+      // player knows which one it is.
+      toast(def.equipToast);
+    }
+  }
   if (app.state) {
     tutorialFlag(app.state, 'toolSelected');
     if (tool === 'vacuum') triggerContextTutorial(app.state, 'cleaning-tools');
