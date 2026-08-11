@@ -20,12 +20,12 @@
 
 import { t } from '../core/i18n.js';
 import {
-  ensurePhone, markCallsSeen, markTextsRead,
+  ensurePhone, markCallsSeen, markTextsRead, playVoicemail,
   missedCallCount, unreadTextCount, phoneBadgeCount, contactsOf,
 } from '../sim/phone.js';
 import {
   ringingPhoneRequest, acceptBookingRequest, declineBookingRequest,
-  proposeAlternativeBooking, daySheet, fmtSlot,
+  proposeAlternativeBooking, daySheet, fmtSlot, callBackRequest,
 } from '../sim/reservations.js';
 
 // drawn SYMBOLS, not prose — hoisted so the player-string ratchet (which
@@ -73,6 +73,33 @@ export function makePhoneUi({ app, audio, keyLabel, onBooking = null }) {
   const whenLabel = (state, dayAbs, minute) => `${dayLabel(state, dayAbs)} ${fmtSlot(minute)}`;
   const atLabel = (state, atAbs) => whenLabel(state, Math.floor(atAbs / 1440), atAbs % 1440);
 
+  // C2: the one-line answer the phone gives after an action, pinned to the row
+  // it belongs to so it can never drift onto somebody else's call.
+  // field named msg, not text: the player-string ratchet counts quoted
+  // literals after a text: sink, and an empty initialiser is not player copy.
+  let callNote = { id: null, msg: null };
+
+  function onMissedCallAction(state, call) {
+    audio?.uiTick?.();
+    // Two presses, one key: hear what they wanted, then ring them back. The
+    // message has to be heard first because the tee time they asked for is IN
+    // it — ringing back blind would be answering a question you had not read.
+    if (call.voicemail && !call.voicemailPlayed) {
+      playVoicemail(state, call.id);
+      callNote = { id: null, msg: null };
+      render();
+      return;
+    }
+    const result = callBackRequest(state, call.id);
+    callNote = {
+      id: call.id,
+      msg: result.ok
+        ? t('phone.callBack.answered', { name: call.name })
+        : t('phone.callBack.gone'),
+    };
+    render();
+  }
+
   // ---- the app registry — the extensibility surface -------------------------
   const APPS = [
     {
@@ -87,17 +114,51 @@ export function makePhoneUi({ app, audio, keyLabel, onBooking = null }) {
         for (const call of calls) {
           const glyph = call.outcome === 'missed' ? '✕' : call.outcome === 'declined' ? '–' : '✓';
           const tone = call.outcome === 'missed' ? 'bad' : call.outcome === 'declined' ? 'dim' : 'good';
-          list.append(el('div', { class: 'phone-row' },
+          const sub = call.outcome === 'missed'
+            ? `${t('phone.missedCall')} · ${atLabel(state, call.atAbs)}`
+            : `${whenLabel(state, call.dayAbs, call.minute)} · ${t('phone.party', { n: call.partySize })}`;
+          // C2 (Goal 20) — A MISSED CALL IS SOMETHING YOU CAN ACT ON.
+          //
+          // A log you can only read is why this app was "not a phone". A missed
+          // caller who left a message renders as a BUTTON, so the shell's own
+          // arrow-key focus picks it up with no new input model: Enter plays
+          // the message, Enter again rings them back. Answering routes straight
+          // into the incoming-call face that already exists, because calling
+          // back simply puts the request back into 'pending'.
+          const actionable = call.outcome === 'missed' && (call.voicemail || call.requestId);
+          const parts = [
             el('span', { class: `phone-row-glyph ${tone}`, text: glyph }),
             el('span', { class: 'phone-row-body' },
               el('span', { class: 'phone-row-name', text: call.name }),
-              el('span', {
-                class: 'phone-row-sub',
-                text: call.outcome === 'missed'
-                  ? `${t('phone.missedCall')} · ${atLabel(state, call.atAbs)}`
-                  : `${whenLabel(state, call.dayAbs, call.minute)} · ${t('phone.party', { n: call.partySize })}`,
-              })),
-          ));
+              el('span', { class: 'phone-row-sub', text: sub }),
+              call.voicemail && call.voicemailPlayed
+                ? el('span', {
+                  class: 'phone-row-voicemail',
+                  text: t('phone.voicemail.body', {
+                    name: call.name,
+                    n: call.partySize,
+                    when: whenLabel(state, call.dayAbs, call.minute),
+                  }),
+                })
+                : null,
+              actionable
+                ? el('span', {
+                  class: 'phone-row-action',
+                  text: call.voicemail && !call.voicemailPlayed
+                    ? t('phone.voicemail.play')
+                    : t('phone.callBack'),
+                })
+                : null,
+              callNote.id === call.id
+                ? el('span', { class: 'phone-row-note', text: callNote.msg })
+                : null),
+          ];
+          if (!actionable) { list.append(el('div', { class: 'phone-row' }, ...parts)); continue; }
+          list.append(el('button', {
+            class: 'phone-row',
+            type: 'button',
+            onclick: () => onMissedCallAction(state, call),
+          }, ...parts));
         }
       },
     },

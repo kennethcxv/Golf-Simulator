@@ -2943,6 +2943,35 @@ body.register-mode .view-toggle { display: none !important; }
 .phone-row-name { color: #f3edda; font: 600 0.76rem/1.3 system-ui, sans-serif; }
 .phone-row-sub { color: #a9b4a6; font-size: 0.66rem; line-height: 1.35; }
 .phone-row-when { color: #77857a; font-size: 0.6rem; }
+/* C2 (Goal 20): a missed call you can act on is a BUTTON, so the shell's own
+   arrow-key focus finds it. It must be indistinguishable from the plain rows
+   around it until it is focused — a phone log is not a form. */
+button.phone-row {
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+button.phone-row.focus {
+  border-color: rgba(191, 214, 176, 0.55);
+  background: rgba(38, 50, 40, 0.95);
+}
+.phone-row-action {
+  color: #bfd6b0;
+  font: 600 0.62rem/1.4 system-ui, sans-serif;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  margin-top: 2px;
+}
+.phone-row-voicemail {
+  color: #ded7c0;
+  font: italic 0.66rem/1.4 Georgia, 'Times New Roman', serif;
+  margin-top: 3px;
+  padding-left: 7px;
+  border-left: 2px solid rgba(191, 214, 176, 0.35);
+}
+.phone-row-note { color: #e6c98a; font-size: 0.63rem; line-height: 1.4; margin-top: 3px; }
 .phone-empty { color: #8b9a8d; text-align: center; font-size: 0.72rem; padding: 26px 8px; }
 .phone-incoming-label {
   text-align: center;

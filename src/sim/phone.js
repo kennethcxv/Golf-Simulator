@@ -50,6 +50,13 @@ export function ensurePhone(state) {
       outcome: CALL_OUTCOMES.includes(c.outcome) ? c.outcome : 'missed',
       atAbs: Number.isFinite(Number(c.atAbs)) ? Number(c.atAbs) : 0,
       seen: !!c.seen,
+      // C2: the healer REBUILDS each row, so a field it does not name is a
+      // field that is silently dropped on the first load after a save. These
+      // four are what make a missed call answerable.
+      requestId: typeof c.requestId === 'string' ? c.requestId : null,
+      voicemail: !!c.voicemail,
+      voicemailPlayed: !!c.voicemailPlayed,
+      calledBack: !!c.calledBack,
     }));
   p.texts = (Array.isArray(p.texts) ? p.texts : [])
     .filter((m) => m && typeof m.kind === 'string' && Number.isFinite(Number(m.id)))
@@ -69,8 +76,19 @@ export function ensurePhone(state) {
   return markHealed(p);
 }
 
-/** One line per resolved call. `outcome` is one of CALL_OUTCOMES. */
-export function logCall(state, { name, partySize = 1, dayAbs = 0, minute = 0, outcome, atAbs = null }) {
+/**
+ * One line per resolved call. `outcome` is one of CALL_OUTCOMES.
+ *
+ * C2 (Goal 20): a missed call carries the id of the request that rang out and a
+ * VOICEMAIL flag, which is what turns the log into a phone. The message itself
+ * is not stored — it is rendered from the request's own facts at display time,
+ * so it translates with the rest of the UI instead of freezing one language
+ * into the save file.
+ */
+export function logCall(state, {
+  name, partySize = 1, dayAbs = 0, minute = 0, outcome, atAbs = null,
+  requestId = null, voicemail = false,
+}) {
   if (!name || !CALL_OUTCOMES.includes(outcome)) return null;
   const p = ensurePhone(state);
   const entry = {
@@ -80,6 +98,10 @@ export function logCall(state, { name, partySize = 1, dayAbs = 0, minute = 0, ou
     dayAbs,
     minute,
     outcome,
+    requestId: requestId == null ? null : String(requestId),
+    voicemail: !!voicemail,
+    voicemailPlayed: false,
+    calledBack: false,
     // Number(null) is 0, and 0 is finite — the first draft of this line
     // stamped every call "today 12:00 AM". Verifier A read it off the screen.
     atAbs: Number.isFinite(atAbs) ? Number(atAbs) : Math.floor(state.clock?.minutes || 0),
@@ -119,6 +141,28 @@ export const phoneBadgeCount = (state) => missedCallCount(state) + unreadTextCou
 export function markCallsSeen(state) {
   for (const c of ensurePhone(state).calls) c.seen = true;
 }
+
+/** C2: find a logged call by its id. */
+export function callById(state, callId) {
+  const id = Number(callId);
+  return ensurePhone(state).calls.find((c) => c.id === id) || null;
+}
+
+/**
+ * C2: playing a voicemail is a real act — it is how the message stops being
+ * unheard. Returns the call so the caller can render the message, or null if
+ * there is nothing to play.
+ */
+export function playVoicemail(state, callId) {
+  const call = callById(state, callId);
+  if (!call || !call.voicemail) return null;
+  call.voicemailPlayed = true;
+  call.seen = true;
+  return call;
+}
+
+export const unheardVoicemailCount = (state) => ensurePhone(state).calls
+  .filter((c) => c.voicemail && !c.voicemailPlayed).length;
 
 export function markTextsRead(state) {
   for (const m of ensurePhone(state).texts) m.read = true;
