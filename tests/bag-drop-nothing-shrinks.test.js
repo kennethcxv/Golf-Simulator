@@ -223,11 +223,20 @@ test('EVERY path that packs a good into the bag goes through the one rule, and i
   // worse than no test.
   assert.match(helper, /visible = true/,
     'the good is switched on when it is parented, so the sink leg is visible');
-  const wholeHelper = src2.slice(helperAt, src2.indexOf('function refreshBagFill'));
+  // A (Goal 24) — THE FILL IS GONE AND MAY NOT COME BACK.
+  //
+  // This slice used to end at `function refreshBagFill` and assert that the
+  // packing rule CALLED it: "the carrier must show it is filling, or it
+  // swallows three items and looks empty". That was my reasoning and the owner
+  // identified the result on sight as the flat layer at the mouth he had been
+  // reporting for two goals. The thing I added as the fix was the thing being
+  // complained about, so the assertion is inverted rather than deleted — the
+  // history is the point.
+  const wholeHelper = src2.slice(helperAt, src2.indexOf('let bagDeliverScaleFrom'));
   assert.match(wholeHelper, /mesh\.visible = false/,
     'and switched OFF once it is inside: the bag is faked, not a container');
-  assert.match(wholeHelper, /refreshBagFill\(\)/,
-    'the carrier must show it is filling, or it swallows three items and looks empty');
+  assert.ok(!/refreshBagFill|bagFill|CheckoutBagFill/.test(src2),
+    'no fill authority may exist: nothing appears at the mouth when an item goes in');
   assert.match(helper, /scale\.copy\(scale \|\| mesh\.userData\.originalScale/,
     'the packing rule keeps goods at FULL SIZE (F3: no miniature stack)');
   const calls = src2.match(/packMeshIntoBag\(/g) || [];

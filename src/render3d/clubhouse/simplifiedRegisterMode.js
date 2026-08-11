@@ -1691,63 +1691,26 @@ export function createRegisterMode(B) {
     // It is inside and behind the paper. Stop drawing it — this is the line
     // four sessions of containment geometry were standing in for.
     mesh.visible = false;
-    refreshBagFill();
   }
 
-  // WHAT MAKES THE BAG READ AS FULL, now that nothing inside it is drawn.
+  // A (Goal 24) — THERE IS NO FILL. THE BAG LOOKS THE SAME EMPTY OR FULL.
   //
-  // A carrier that swallows three items and looks exactly as empty as it did at
-  // the start is a worse lie than a ball poking through the side. So the mouth
-  // grows a mass of packed goods: one soft block, kraft-coloured, rising a
-  // little for each item and never reaching the rim. It is not a container and
-  // makes no attempt to be — it is the part of the contents you would actually
-  // see, and it cannot clip through anything because it is authored to the
-  // bag's own interior rather than measured off a product.
-  let bagFill = null;
-  function refreshBagFill() {
-    if (!bagGroup) return;
-    const packed = bagGroup.children.filter(
-      (c) => c.userData?.checkoutVisualState === 'packed-in-bag',
-    ).length;
-    if (!bagFill) {
-      if (!packed) return;
-      const geo = new THREE.BoxGeometry(1, 1, 1);
-      const mat = new THREE.MeshStandardMaterial({
-        color: 0xb7a184, roughness: 0.92, metalness: 0,
-      });
-      bagFill = new THREE.Mesh(geo, mat);
-      bagFill.name = 'CheckoutBagFill';
-      bagFill.castShadow = false;
-      bagFill.receiveShadow = false;
-      bagFill.userData.checkoutOwnedFill = true;
-      bagGroup.add(bagFill);
-    }
-    bagFill.visible = packed > 0;
-    if (!packed) return;
-    // The authored interior if the model carries one, otherwise the same
-    // fallbacks packMeshIntoBag uses, so the two never disagree.
-    let halfX = 0.125; let halfMouth = 0.126; let halfDepth = 0.07;
-    _packCentre.set(0, 0.14, 0);
-    if (bagContentsNode) {
-      bagGroup.updateWorldMatrix(true, false);
-      _packCentre.copy(bagGroup.worldToLocal(bagContentsNode.getWorldPosition(_packPt)));
-      const authored = bagContentsNode.userData || {};
-      if (Number.isFinite(authored.interior_half_x)) halfX = authored.interior_half_x;
-      if (Number.isFinite(authored.interior_half_mouth)) halfMouth = authored.interior_half_mouth;
-      if (Number.isFinite(authored.interior_half_depth)) halfDepth = authored.interior_half_depth;
-    }
-    // Rises toward the rim and never arrives: three items look fuller than one,
-    // eight look full, and nothing ever stands proud of the paper.
-    const fullness = 1 - (1 / (1 + packed * 0.55));
-    const height = Math.max(0.02, halfMouth * 2 * (0.35 + 0.5 * fullness));
-    bagFill.scale.set(halfX * 1.72, height, halfDepth * 1.6);
-    bagFill.quaternion.identity();
-    bagFill.position.set(
-      _packCentre.x,
-      _packCentre.y - halfMouth + height / 2,
-      _packCentre.z,
-    );
-  }
+  // `bagFill` used to live here: one kraft-coloured block at the mouth that grew
+  // with each item, added in Goal 23 on the reasoning that "a carrier that
+  // swallows three items and looks exactly as empty as it did at the start is a
+  // worse lie than a ball poking through the side". That reasoning was mine and
+  // it was wrong. The owner identified the block on sight as the flat layer he
+  // had been complaining about for two goals — the thing being reported as a
+  // symptom WAS the thing I had added as a fix.
+  //
+  // So the instruction is now literal and there is no case that escapes it: an
+  // item travels to the mouth, sinks in, stops being drawn, and NOTHING appears
+  // in its place. No block, no mass, no contents. Anything reintroduced here to
+  // make the bag "read as full" is the same mistake with a different shape.
+  //
+  // Enforced by tests/bag-drop-nothing-shrinks.test.js (no fill authority may
+  // exist in this file) and by the Electron check, which photographs the bag
+  // empty and again with items in it and requires the two frames to match.
   let bagDeliverScaleFrom = BAG_COUNTER_SCALE;
   // The laid carrier's CLOSED BASE sits exactly on its authored layout point —
   // the counter's LEFT end, on the staff half, left of every staged item — and
