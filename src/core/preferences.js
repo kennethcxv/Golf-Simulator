@@ -31,14 +31,24 @@ export const DEFAULT_PREFERENCES = Object.freeze({
     postProcessing: true,
     resolution: 'native',
     uiScale: 1,
-    // A1 (Goal 18): 0 = uncapped. 60 is the measured default and the only rung
-    // that HOLDS: cap 60 paced 60.6 fps with 90-94% of intervals on cadence;
-    // cap 120 averaged ~92 fps with 0% of intervals on the 8.33 ms target
-    // (tools/qa/electron-a1-fps-cap.js, 2026-08-10). The blocker is not the
-    // GPU (5.14 ms after the GTAO re-grade) but 8.0 ms median of CPU-side
-    // render submit (electron-a1-cpu-split.js) — the un-frozen clubhouse
-    // subtree. When that lever lands and 120 paces cleanly, flip this to 120.
-    fpsCap: 60,
+    // A1 (Goal 23): 0 = MATCH THE DISPLAY, and that is now the default.
+    //
+    // It shipped at 60 because 60 was "the only rung that HOLDS" — cap 120
+    // averaged 97 fps with 0.2% of intervals on cadence. That was true, and the
+    // conclusion drawn from it was wrong: the rung that holds best is the one
+    // that was never tested against the panel. Measured on a 181.8 Hz display,
+    // standing inside the shop (tools/qa/electron-a1-cap-cadence.js):
+    //
+    //   cap 60   60.6 fps   94.4% on cadence   1% low 22.0 ms
+    //   cap 0   181.8 fps   99.2% on cadence   1% low  6.5 ms
+    //
+    // A default of 60 hands a player with a high-refresh panel a third of the
+    // frames their hardware can present, and a 1% low three times worse. The
+    // GPU cost of the extra frames is 5 ms of a 5.5 ms budget — they are
+    // affordable. Vsync still bounds the rate, so "uncapped" is the panel, not
+    // a thermal event. Players who want less can still pick a rung, and since
+    // Goal 23 every rung paces exactly (src/core/frameCap.js).
+    fpsCap: 0,
   }),
   accessibility: Object.freeze({
     reducedMotion: false,
