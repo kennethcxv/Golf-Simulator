@@ -6,6 +6,19 @@ was changed. Every section closes on its own Phase 4.
 
 Branch `feature/pro-shop-vertical-slice`, from `35f1dc4`.
 
+## THE REFERENCE IMAGES
+
+`Designs/ProShop/Images/Goal_20/` — the owner's own photographs of the build,
+read at the start of the session before any code changed, and now committed
+alongside this report the way every previous goal's are. They were the only
+three supplied, and each one names a section.
+
+| file | what it shows | where it went |
+|---|---|---|
+| `Image1.png` | the front-desk CHECKOUT screen printing `Laser rangefinder $279.00 1$279.00` — the unit column's `1` welded to the total's `$` | **D3, fixed.** The columns are measured now; Verifier 1 read 13-14 native pixels of clearance at 4-5x zoom |
+| `Image2.png` | the mop head at the player camera: pale, thin, sparse strands against dark boards | **B, half done.** The yarn is simulated and the motion is confirmed; the *appearance* in this photograph is still wrong and is on NOT DONE |
+| `Image3.png` | the customer's hand with the card lying flat and angled — correct — and the fingers passing straight through the plastic | **E2, NOT DONE.** A measuring probe was written instead of a fourth guess at the offset; the probe returned null and needs work before the fix does |
+
 ---
 
 ## AT THE TOP, BECAUSE A VERIFIER REOPENED ONE OF MY OWN CLAIMS
