@@ -278,27 +278,100 @@ async (page) => {
       tickets: (s.shop.transactionHistory || []).length,
     };
   });
-  out.payment = await page.evaluate(async () => {
-    const ch = window.__fw.scene3d.clubhouse();
-    const reg = await import(new URL('src/sim/register.js', document.baseURI).href);
-    const tx = ch.register.getTx();
-    if (!tx) return { ok: false, why: 'no ticket' };
-    const trail = [];
-    const go = (label, r) => { trail.push(`${label}:${r && r.ok !== false ? 'ok' : `FAIL ${r && r.reason}`}`); return r; };
-    go('requestPayment', reg.requestPayment(tx));
-    go('presentCard', reg.presentCard(tx));
-    go('insertCard', reg.insertCard(tx));
-    for (const d of String(Math.round(reg.totalOf(tx) * 100))) reg.enterCardDigit(tx, Number(d));
-    go('submitCardAmount', reg.submitCardAmount(tx));
-    const ran = reg.runCard(tx);
-    trail.push(`runCard:${ran.result}`);
-    go('printReceipt', reg.printReceipt(tx));
-    go('takeReceipt', reg.takeReceipt(tx));
-    go('packReceipt', reg.packReceipt(tx));
-    for (const item of tx.items) if (!item.bagged) reg.bagItem(tx, item.uid);
-    go('handOverGoods', reg.handOverGoods(tx));
-    return { ok: true, trail, cardRuns: tx.cardRuns ?? null, method: tx.method ?? null };
+  // LET THE REGISTER BANK ITS OWN SALE.
+  //
+  // The first version drove requestPayment/presentCard/runCard on the ticket
+  // from the sim modules and then reported ticketsAdded 0 and both ledger
+  // deltas 0 -- because the REGISTER banks sales, and a ticket walked through
+  // the sim by hand never reaches the code that posts it. Four checks were red
+  // and every one of them was measuring my driver.
+  //
+  // The register begins payment automatically once the goods are bagged and
+  // banks the sale once the receipt and bag reach the customer. Since B2 that
+  // automatic advance is HELD while a desk errand is unanswered -- and the
+  // check-in click just answered it -- so the correct instrument is to wait.
+  out.payment = { mode: 'register-drives-itself', flowTrail: [] };
+
+  // ...AND FINISH THE CARD GESTURE, because "automatically" stops at the reader.
+  // The register begins payment on its own and then waits for the player to put
+  // the card in and confirm; the first version of this leg waited two minutes
+  // for a machine that was waiting for a hand. Whatever screen point the
+  // register offers for the state it is in, click it.
+  const cardPoint = () => page.evaluate(async () => {
+    const THREE = await import(new URL('vendor/three.module.js', document.baseURI).href);
+    const r = window.__fw.scene3d.clubhouse().register;
+    const flow = r.getFlow?.()?.state ?? null;
+    const pick = (fn) => { try { return fn ? fn() : null; } catch { return null; } };
+    const terminal = pick(r.cardTerminalScreenPoint);
+    const confirm = pick(r.cardXScreenPoint);
+    // The CARD itself, projected. At CardInsertReady the gesture is on the card
+    // in the hand, not on the reader: twenty-six clicks on the terminal left
+    // the flow exactly where it started.
+    let card = null;
+    const node = pick(r.cardNode);
+    if (node) {
+      const app = window.__fw;
+      const v = node.getWorldPosition(new THREE.Vector3());
+      v.project(app.scene3d.camera);
+      const rect = document.querySelector('canvas').getBoundingClientRect();
+      card = {
+        x: rect.left + ((v.x + 1) / 2) * rect.width,
+        y: rect.top + ((-v.y + 1) / 2) * rect.height,
+        onScreen: Math.abs(v.x) <= 1 && Math.abs(v.y) <= 1,
+      };
+    }
+    return { flow, terminal, confirm, card, locked: pick(r.cardTerminalLocked) };
   });
+  for (let i = 0; i < 26; i += 1) {
+    const st = await cardPoint();
+    out.payment.flowTrail.push(st.flow);
+    if (!st.flow || st.flow === 'Done' || st.flow === 'Complete') break;
+    const target = (st.card && st.card.onScreen ? st.card : null) || st.terminal || st.confirm;
+    if (st.flow === 'CardAmountEntry') {
+      // THE KEYPAD. The terminal asks the player to type the total and press OK,
+      // and cardKeyScreenPoint projects the PHYSICAL key caps. Twenty-six clicks
+      // on the card got the flow this far and then sat here, because nothing was
+      // typing.
+      const keys = await page.evaluate(async () => {
+        const r = window.__fw.scene3d.clubhouse().register;
+        const reg = await import(new URL('src/sim/register.js', document.baseURI).href);
+        const tx = r.getTx();
+        if (!tx) return null;
+        const cents = String(Math.round(reg.totalOf(tx) * 100));
+        const pt = (id) => { try { const p = r.cardKeyScreenPoint(id); return p ? { id, x: p.x, y: p.y } : null; } catch { return null; } };
+        return { cents, digits: cents.split('').map(pt), ok: pt('OK') };
+      });
+      if (keys) {
+        out.payment.typed = keys.cents;
+        for (const k of keys.digits) if (k) { await page.mouse.click(k.x, k.y); await page.waitForTimeout(160); }
+        if (keys.ok) { await page.mouse.click(keys.ok.x, keys.ok.y); await page.waitForTimeout(900); }
+      }
+    } else if (target && Number.isFinite(target.x)) {
+      await page.mouse.click(target.x, target.y);
+    }
+    await page.waitForTimeout(900);
+    const done = await page.evaluate(() => (window.__fw.state.shop.transactionHistory || []).length > 0);
+    if (done) break;
+  }
+
+  const banked = await page.waitForFunction(() => {
+    const s2 = window.__fw.state;
+    return (s2.shop.transactionHistory || []).length > 0;
+  }, null, { timeout: 30000 }).then(() => true).catch(() => false);
+  out.payment.banked = banked;
+  if (!banked) {
+    out.payment.stalledAt = await page.evaluate(() => {
+      const r = window.__fw.scene3d.clubhouse().register;
+      const tx = r.getTx();
+      return {
+        hasTx: !!tx,
+        stage: tx?.stage ?? null,
+        flow: r.getFlow?.()?.state ?? null,
+        bagged: tx ? tx.items.filter((i) => i.bagged).length : null,
+        items: tx ? tx.items.length : null,
+      };
+    });
+  }
   step('payment', out.payment);
   await page.waitForTimeout(3500);
 
