@@ -8,6 +8,59 @@ Branch `feature/pro-shop-vertical-slice`, from `35f1dc4`.
 
 ---
 
+## AT THE TOP, BECAUSE A VERIFIER REOPENED ONE OF MY OWN CLAIMS
+
+**D2 was reported done, committed and written up while half the walk-ins were
+still using a different rule.** Verifier 1 confirmed the claim at n=1 and then
+said the thing that mattered: the ask it read was **12:30 from a golfer standing
+at the desk at 10:58**, and my 20-to-65 minute window cannot produce that.
+
+It cannot, and it did not. `src/render3d/clubhouse.js` has its **own** walk-in
+ask — the nearest ten slots ahead, biased toward soon, which on a thirty-minute
+grid is five hours. I fixed the arrival planner in `customerSimulation.js`,
+measured the arrival planner, watched the arrival-planner test fail on the old
+constants, and published. **The check that passed only ever measured one of two
+populations.** That is the named instrument fault from the standing rules,
+walked into with the rule in front of me.
+
+Both sites now call one exported `walkInAskFrom`. Writing its test then caught a
+second-order version of the same thing: my own grid slack put 12:30 back within
+reach of 10:58 — 92 minutes, the exact number the verifier had questioned. The
+slack is gone.
+
+## VERIFIER 1 — THE FIVE VERDICTS
+
+Real input, real pointer lock, default camera, 134 commands, concessions
+recorded (`qa inside`, `qa sale`). Full write-up in
+`Designs/ProShop/verifier1_goal20.md`.
+
+1. **The QA window never captures the cursor — CONFIRMED.** 813/813 watcher
+   samples during a driven minute were `showing:1, clipFree:1`, clip = the full
+   desktop, and the negative control (79/79 free) proves the instrument can say
+   "free". It also checked the trap I would have fallen into: the freedom was
+   not bought by breaking the camera — one 20-step sweep turned the view about
+   60 degrees.
+2. **The mop's yarn is simulated — CONFIRMED**, and more warmly than my own
+   verdict: trail, whip and floor-spread all photographed, and it "reads as a
+   real string mop". Its caveat is fair and I had not thought of it: the held
+   viewmodel idle-sways constantly, so a *truly* still head never exists in
+   game, and my "perfectly still" test is a property of the solver rather than
+   of the screen. It found no yarn-only shimmer on a frozen mop.
+3. **IN QUEUE and the time-ask — CONFIRMED, with a gap.** Every disproof
+   condition failed to fire. But a literal `IN QUEUE` badge never appeared in
+   the session, because two tee-guests never waited at once, so that specific
+   state went unexercised.
+4. **Walk-ins do not ask hours ahead — CONFIRMED at n=1, and its caveat was
+   right.** See the top of this report.
+5. **TOTAL no longer collides with UNIT — CONFIRMED.** At 4-5x zoom every row is
+   clean, with 13-14 native pixels between the unit digit and the total's `$`,
+   including a `$128.00` row and the summary block.
+
+**Incidental defect it found, outside the five, now on NOT DONE:** a toast said
+"Yolanda Ostrowski: I'll pay with card" and her check-in button read
+`CHECK IN · CARD` while the register ran the **cash** flow ($80 received, $16
+change). The tender narration contradicts the tender used.
+
 ## CARRIED IN FROM GOAL 19 — TWO VERDICTS THAT NEVER LANDED
 
 Report 19 closed with Verifier 1 and Verifier 2 launched and their verdicts
@@ -457,6 +510,89 @@ quantity.
 
 ---
 
+# E1 — A LONG ITEM STANDS UP IN THE BAG
+
+The cause is one line, and it is arithmetic rather than judgement:
+
+```js
+clamp(v, -(halfX - bodyHalfX), halfX - bodyHalfX)
+```
+
+The moment `bodyHalfX` exceeds `halfX` those bounds **invert** — the low bound
+becomes larger than the high one. A long item was therefore shoved sideways by
+its own overflow and cut through the paper on both walls at once, which is
+exactly why the owner said the replacement read worse than the mouth fault it
+replaced.
+
+A body that will not lie down inside the interior now has its **longest axis
+rotated onto the mouth axis** and stands on the interior floor, so the only
+thing it can overflow is the one opening the bag has — a club, an umbrella, a
+long boxed rangefinder. The lying path uses a slack that cannot reverse.
+
+Pulled into two pure exported functions (`bagFitPlan`, `bagPlacementFor`). One
+test reproduces the old clamp's arithmetic exactly and shows the body straddling
+both walls, so the defect is on the record rather than in a memory.
+
+**NOT DONE within E1:** the golden bag pose was not extended to "one long item
+plus two short ones". The packing rule is fixed and tested headlessly; the
+golden capture still stages the old three-short-item sale.
+
+**E2 (the card in the fingers) was not reached.**
+
+# G — CUSTOMERS CHANGE COURSE BEFORE CONTACT
+
+`resolveMotion` is penetration resolution: the actor takes its step, and if the
+new position is inside a collider it is pushed back out through the nearest
+face. It cannot avoid anything, because by the time it runs the actor is already
+in the box — a shopper walking at a shelf end ground along it for as long as its
+waypoint stayed on the far side, and underneath that sat the one-second blocked
+timer, which reacts later still.
+
+`src/render3d/clubhouse/steerAhead.js` probes the line the actor **intends** to
+walk and turns by the smallest angle that clears, nearest-first and alternating
+sides, which is what reads as walking around something rather than deciding to
+go elsewhere. Three details that matter:
+
+- it uses **the same occupancy test the resolver enforces**. A look-ahead that
+  avoids something the resolver would have allowed makes the actor jitter on the
+  boundary between the two opinions.
+- it never probes **past its own destination**. The counter you are walking to
+  is not an obstacle, and probing through it is how a shopper circles the
+  fixture it came to browse.
+- a dead end **holds the intended line** and leaves it to the one-second rule,
+  which stays exactly where it was. Inventing a heading there would walk the
+  actor somewhere it has no reason to be.
+
+Eight tests against a hand-drawn room, including the person-shaped obstacle the
+brief names and the close-approach case that must NOT steer.
+
+# I — THE LOADING SCREEN IS A PLACE
+
+It named the game, drew a bar, and rotated four tips — two of which were about
+menus — on flat colour. It now names **the club you are arriving at**, sits on
+the menu's own landscape, and carries twelve tips that teach what players
+actually get stuck on: the tool belt's hold gesture, the phone in your pocket,
+where tee times come from, that the mop works wet, that dirt must be under the
+crosshair.
+
+The menu's clubhouse and flag were tried and **removed after photographing the
+result**: they are composed for the menu, whose card sits left, and against a
+centred card the flagpole cut straight through the title while the clubhouse
+block read as a grey slab — the same missing-asset impression Verifier 3
+reported about the shop interior. Sun and two horizon bands give depth without
+that.
+
+**`tools/qa/electron-i-loading-screen.js` is the first driver in this repository
+to photograph the loading screen at all.** Every other one awaits the boot helper
+and then waits for the veil to reach opacity zero, which is precisely why the
+screen the player stares at had never been looked at. It does not await the
+boot; it shoots alongside it. Measured: veil visible **6.4 s**, club named,
+backdrop present, tips rotating, progress advancing.
+
+**Partially done, stated plainly:** the brief asked for "real images of the club
+and the course". What landed is a stylised landscape plus club identity and
+teaching tips. Photographic or rendered plates were not authored.
+
 # F3, F4 — THE LEDGER'S KEYS
 
 **F3.** Q closes the book. It was Esc, which is the menu key everywhere else in
@@ -492,7 +628,32 @@ the first sound is the only one that cannot. Detached when the menu hides, so
 nothing in the game world ticks because a menu handler was left attached to the
 document.
 
-**H2 (the money sounds) is NOT DONE.**
+# H2 — NOTES ARE NOT COINS
+
+`cashPresent` played for every tender whatever it was made of, so a handful of
+quarters landed with the same soft paper brush as a twenty. Three voices now:
+
+- **`notesDown`** — a broadband brush over a wooden thud. The thud is the half
+  that says *on the desk*.
+- **`coinsDown`** — three to five bright impacts arriving slightly apart, drawn
+  fresh every time, because real change never lands all at once and a fixed
+  pattern grates on the second sale.
+- **`cardOut`** — the plastic leaving the wallet. Deliberately **not** the
+  terminal chirp (`cardTap`), which would tell the player the payment had
+  already cleared.
+
+Both cash voices fire on a mixed tender, because that is what you hear.
+
+**The failure mode this guards is not "the sound is wrong", it is "the sound
+does not exist".** Three lists have to agree for a register noise to happen at
+all — the sfx allowlist, the module's exports, and the call site — and a name in
+one but not another is a silent no-op with no error anywhere. The paired
+expectation list in `tests/audio-receipt.test.js` caught exactly that drift on
+the first run.
+
+The drawer's own take (`billHandle` / `coinHandle`) was left alone: it already
+distinguishes notes from coins at the drag sites. "Make it better" is a
+judgement I could not take without hearing it, and I cannot hear it.
 
 ---
 
@@ -521,19 +682,34 @@ document.
   went to the solver, and the run that would have diagnosed it produced only the
   uninformative symmetric-bar statistic described in B5.
 - **C3 — more phone apps.** Not started.
-- **E1, E2 — the bag's side walls and the card in the fingers.** Not reached.
+- **E1's golden pose** — the packing rule is fixed and tested, but the golden
+  bag capture was not extended to "one long item plus two short ones".
+- **E2 — the card in the fingers.** Not reached.
 - **F1, F2, F5 — the ledger's UI rebuild, its sounds, its gesture.** Not
   reached.
-- **G — NPC path look-ahead.** Not reached.
-- **H2 — the money sounds.** Not reached.
-- **I — the loading screen.** Not reached. Verifier 3 independently confirmed
-  the brief's description of it.
+- **H2's drawer take** — "the current one is poor, make it better" is a
+  judgement about a sound, and I cannot hear it. The notes/coins split and the
+  card-out voice landed; the drawer's own take was left alone rather than
+  changed blind.
+- **Verifier 1's incidental finding:** the tender narration contradicts the
+  tender used — a customer announces "I'll pay with card" and the register runs
+  the cash flow.
+- **Verifier 1's coverage gap:** the literal `IN QUEUE` badge was never
+  exercised, because two tee-guests never waited at once during its session.
+  The state is unit-tested; it has not been photographed.
+- **I — "real images of the club and the course."** A stylised landscape, the
+  club's name and teaching tips landed; photographic or rendered plates were
+  not authored.
 - **J — draw-call batching and the cap ladder.** Not reached. The first-equip
   and first-ledger stalls are therefore **unchanged and still fire**; nothing
-  this session touched either.
+  this session touched either, and no perf number in this report is a claim
+  about them.
 - **K — the translations.** Not finished. Coverage is 59.4% (167/281 per
   locale) — the five new C2 keys were written in all ten locales, so the
   fraction held rather than dropping.
+- **Verifier 3's twelve findings** are open except where a section happened to
+  touch one. In particular finding 1 — a new player cannot get past the porch —
+  is untouched and is the most serious thing in this report.
 
 ## VERIFIER FINDINGS STILL OPEN
 
@@ -623,3 +799,19 @@ the session. That is itself the finding.
 4. **"The mop reads as damp when it holds water."** `setMopDamp` has been tinting
    `MESH_MopSkirt`, hidden since Goal 19 E1, for as long as the skirt has been
    hidden. The player-visible yarn was never touched. Same shape as E1 itself.
+
+5. **"D2 is done: a walk-in cannot ask hours ahead" — MY OWN CLAIM, FOUND FALSE
+   THE SAME NIGHT.** The check that passed measured `planCustomerArrivals` and
+   nothing else, and I watched it fail on the old constants, which is exactly
+   what made it convincing. `src/render3d/clubhouse.js` carried a second,
+   independent walk-in ask reaching the nearest ten slots — five hours on a
+   thirty-minute grid — so every golfer who spawned on the shop floor rather
+   than through the arrival planner was unaffected by the fix. Reopened by
+   Verifier 1's caveat; both sites now share one exported rule, and the test
+   covers the grid path as well as the planner.
+
+6. **"The bag clamps every body inside its authored volume" (Goal 19, C).** The
+   clamp inverts its own bounds as soon as the body is wider than the bag, so
+   the rule that was reported as containing items was, for exactly the items it
+   was written for, pushing them out through both side walls. Arithmetic on the
+   record in `tests/bag-long-item-stands-up.test.js`.
