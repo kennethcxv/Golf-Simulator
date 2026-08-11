@@ -43,9 +43,16 @@ const requestedClubhouse = (() => {
   }
   return value;
 })();
+// A (Goal 20): a QA launch tells the renderer to use a virtual pointer lock, so
+// an automated run never seizes the machine owner's real cursor. FW_QA=1 comes
+// from tools/qa/run-electron.cjs and from nothing else, so the shipped game
+// cannot receive these. See src/core/qaLookCapture.js for the trade.
+const QA_LAUNCH = process.env.FW_QA === '1';
 const rendererArguments = [
   ...(DEV ? ['--fw-dev'] : []),
   ...(requestedClubhouse ? [`--fw-clubhouse=${requestedClubhouse}`] : []),
+  ...(QA_LAUNCH ? ['--fw-qa'] : []),
+  ...(QA_LAUNCH && process.env.FW_QA_POINTERLOCK === '1' ? ['--fw-qa-pointerlock'] : []),
 ];
 
 let win = null;
@@ -127,7 +134,14 @@ function createWindow() {
     // monitor would erase the simulation and hand the negative control a result
     // it could not fail.
     if (!usingFakeDisplay) win.maximize();
-    win.show();
+    // A (Goal 20): a QA window must not steal the operator's keyboard focus
+    // either. It can afford not to, because the virtual pointer lock reports the
+    // page as focused (src/core/qaLookCapture.js) and injected input needs no OS
+    // focus — so the window comes up visible but inactive and the owner keeps
+    // typing in whatever they were already using. A visible-but-unfocused window
+    // is not occluded, so the render loop runs at full rate; minimising it would
+    // throttle the renderer and is deliberately NOT done.
+    if (QA_LAUNCH) win.showInactive(); else win.show();
   });
   if (DEV) {
     win.webContents.openDevTools({ mode: 'detach' });

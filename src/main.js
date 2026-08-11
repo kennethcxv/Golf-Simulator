@@ -5,6 +5,7 @@
 
 import { BALANCE, simSpeedMultipliers } from './sim/balance.js';
 import { installFaultGuard } from './core/faultGuard.js';
+import { installQaLookCapture } from './core/qaLookCapture.js';
 import { ringingPhoneRequest, acceptBookingRequest, declineBookingRequest, fmtSlot } from './sim/reservations.js';
 import { devSessionActive } from './data/clubhouseVariant.js';
 import { HOLE_STATUS, TURF_ZONES, ZONE } from './sim/constants.js';
@@ -88,6 +89,11 @@ import {
   toggleCourseInspection,
   levelDivot,
 } from './sim/courseMaintenance.js';
+
+// A (Goal 20): before ANY listener is registered, a QA launch swaps the DOM's
+// pointer-lock primitive for one that does not seize the operator's real
+// cursor. Inert in the shipped game — see src/core/qaLookCapture.js.
+installQaLookCapture();
 
 const canvas = document.getElementById('game');
 const uiRoot = document.getElementById('ui');

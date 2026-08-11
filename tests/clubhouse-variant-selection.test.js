@@ -199,7 +199,13 @@ test('preload exposes launchArgs synchronously, filtered to the planted flags', 
   // It has to be a preload global rather than an IPC call: shopLayout freezes its datums
   // at module-eval time and cannot await anything.
   const preload = read('../preload.cjs');
-  assert.match(preload, /FORWARDED_FLAG_PREFIXES = \['--fw-dev', '--fw-clubhouse='\]/);
+  assert.match(preload, /FORWARDED_FLAG_PREFIXES = \['--fw-dev', '--fw-clubhouse=', '--fw-qa'\]/);
+  // A (Goal 20): --fw-qa arms the virtual pointer lock, so the ONE thing that
+  // must never drift is where it can come from. main.cjs may plant it only
+  // behind FW_QA=1, which only tools/qa/run-electron.cjs sets.
+  const mainSrc = read('../main.cjs');
+  assert.match(mainSrc, /const QA_LAUNCH = process\.env\.FW_QA === '1'/);
+  assert.match(mainSrc, /\.\.\.\(QA_LAUNCH \? \['--fw-qa'\] : \[\]\)/);
   assert.match(preload, /process\.argv/);
   // Frozen copy — the live process object must not reach the page.
   assert.match(preload, /Object\.freeze\(/);

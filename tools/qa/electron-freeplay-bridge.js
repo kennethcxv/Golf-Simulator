@@ -57,13 +57,33 @@ async (page) => {
   };
   await shot('boot');
 
-  // pointer-lock relative look: keep the cursor mid-window and nudge it; the
-  // lock consumes movement deltas, absolute position is irrelevant while locked
+  // LOOK. This used to nudge out to 800+dx and come straight back to 800 every
+  // step, on the belief that "the lock consumes deltas, absolute position is
+  // irrelevant". It is not irrelevant: the delta of the return move is the exact
+  // negative of the delta of the nudge, so every sweep this bridge has ever run
+  // netted to ZERO turn. Measured in A (Goal 20). Verifier sessions that
+  // reported "I looked around" were standing still.
+  //
+  // A sweep now TRAVELS, the way a hand does. When it runs out of window it
+  // wraps to the far side in one move, which costs the 140 px that
+  // applyMouseLook clamps a single event to — under 10% of a full pass, and the
+  // pass is ~170 degrees, so most sweeps never wrap at all.
+  let sx = 800;
+  let sy = 450;
   const sweep = async (c) => {
-    const n = Math.max(1, Math.min(60, c.n || 10));
+    const n = Math.max(1, Math.min(120, c.n || 10));
+    const dx = c.dx || 0;
+    const dy = c.dy || 0;
     for (let i = 0; i < n; i += 1) {
-      await page.mouse.move(800 + (c.dx || 0), 450 + (c.dy || 0), { steps: 2 });
-      await page.mouse.move(800, 450, { steps: 1 });
+      if (sx + dx < 60 || sx + dx > 1540 || sy + dy < 60 || sy + dy > 840) {
+        if (dx) sx = dx > 0 ? 100 : 1500;
+        if (dy) sy = dy > 0 ? 100 : 800;
+        await page.mouse.move(sx, sy, { steps: 1 });
+        await page.waitForTimeout(16);
+      }
+      sx += dx;
+      sy += dy;
+      await page.mouse.move(sx, sy, { steps: 1 });
       await page.waitForTimeout(16);
     }
   };
