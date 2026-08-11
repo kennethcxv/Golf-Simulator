@@ -702,7 +702,21 @@ export function createLedgerBook({ THREE, state, anchor, counterTop, camera = nu
   // band is laid out by measurement too: left cell, right cell, and the folio
   // in whatever centre gap survives — if it does not survive, the folio is
   // dropped rather than printed over a control.
-  let footerHint = { prev: 'A', next: 'D', close: 'E' };
+  // I3 (Goal 23) — THE FALLBACKS TAUGHT KEYS THAT DO NOTHING.
+  //
+  // These were { prev: 'A', next: 'D', close: 'E' }, and two of the three are
+  // wrong against the handler in main.js: `interact` (E) turns the page
+  // FORWARD, `dirtSense` (Q) closes the book, and D is not handled at all.
+  //
+  // main.js pushes the LIVE bindings through setControlLabels every time the
+  // player opens the book, so a player never saw these -- I saw them, because a
+  // driver that opens the book directly bypasses that push, and I nearly
+  // reported the stale defaults as the game teaching the wrong keys.
+  //
+  // A fallback that contradicts the code is a trap either way: it is what shows
+  // if the push is ever missed, and it is what anyone reading this file will
+  // believe. It matches the handler now.
+  let footerHint = { prev: 'A', next: 'E', close: 'Q' };
   const FOOT_PAD = 14;              // breathing room above the band
   const FOOT_MARGIN = 40;           // side margin the foot row keeps
   const CONTROL_FONT = () => `400 ${T(17)}px Georgia, serif`;
@@ -2437,6 +2451,19 @@ export function createLedgerBook({ THREE, state, anchor, counterTop, camera = nu
     // I1 (Goal 23): drive the cover swing to an exact fraction. A clip samples
     // wherever the frames happen to land, so two recordings of the same gesture
     // do not line up for comparison; the sweep needs the SAME moment twice.
+    // I3 (Goal 23) — THE PAGE, HANDED OVER RATHER THAN HUNTED FOR.
+    //
+    // The book's UI rebuild could not begin because I could not photograph the
+    // page: a driver traversing ch.interior for canvas textures found six of
+    // them and none was the ledger (the largest was the floor grime map). The
+    // faces are right here. Same reasoning as the register's bagNode and
+    // cardBrandCanvas -- a probe that hunts the scene graph finds the wrong
+    // thing and reports on it, and this repository has paid for that six times
+    // this session alone.
+    pageCanvas: (side) => {
+      const face = String(side) === 'right' ? rightFace : leftFace;
+      return face && face.canvas ? face.canvas : null;
+    },
     debugSetCoverSwing: (fraction) => {
       openShell.visible = fraction > SWAP_POINT;
       closedShell.visible = fraction <= SWAP_POINT;

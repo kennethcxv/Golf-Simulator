@@ -36,30 +36,19 @@ async (page) => {
   });
   await page.waitForTimeout(1200);
 
-  // Every canvas texture in the interior big enough to be a page, named or not.
-  // Filtering by name first was how an earlier probe found nothing: the mesh
-  // that carries the spread is not necessarily called 'page'.
+  // ASK THE BOOK. The first version traversed ch.interior for canvas textures
+  // and found six, none of them the ledger -- the largest was the floor grime
+  // map. A probe that hunts the scene graph finds the wrong thing and reports
+  // on it. ledgerBook.pageCanvas hands over the actual face.
   const shots = await page.evaluate(() => {
-    const ch = window.__fw.scene3d.clubhouse();
-    const seen = new Set();
+    const book = window.__fw.scene3d.clubhouse().ledgerBook;
+    if (!book || typeof book.pageCanvas !== 'function') return [];
     const found = [];
-    ch.interior.traverse((o) => {
-      if (!o.isMesh) return;
-      const mats = Array.isArray(o.material) ? o.material : [o.material];
-      for (const m of mats) {
-        const img = m && ((m.map && m.map.image) || (m.emissiveMap && m.emissiveMap.image));
-        if (!img || img.tagName !== 'CANVAS') continue;
-        if (img.width < 400 || seen.has(img)) continue;
-        seen.add(img);
-        found.push({
-          mesh: o.name || '(unnamed)',
-          material: m.name || '(unnamed)',
-          w: img.width,
-          h: img.height,
-          url: img.toDataURL('image/png'),
-        });
-      }
-    });
+    for (const side of ['left', 'right']) {
+      const c = book.pageCanvas(side);
+      if (!c || !c.toDataURL) continue;
+      found.push({ mesh: 'ledger:' + side, material: 'pageCanvas', w: c.width, h: c.height, url: c.toDataURL('image/png') });
+    }
     return found;
   });
 
