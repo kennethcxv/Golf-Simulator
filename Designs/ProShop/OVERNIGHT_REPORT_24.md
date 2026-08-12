@@ -1,5 +1,81 @@
 # Overnight Report 24
 
+## 2026-08-12 live continuation status
+
+**CURRENT COMPLETION: EXECUTION IN PROGRESS.** Six performance/evidence
+evidence increments have been completed, committed, pushed, and exact-SHA
+verified since the recovery section below. No new player-facing door, ledger,
+tool, checkout, navigation, visual, or audio fix is claimed by those
+infrastructure commits.
+
+**PERFORMANCE HEADLINE (CURRENT UNIFIED BASELINE; AFTER VALUES PENDING):** a
+fresh full interaction/stress leg at `dc8663b` recorded 20,297 ms from the
+trusted New Game input to confirmed controllability. Warm render cadence was
+ledger open p95 16.6 ms / worst 38.0 ms, page-turn p95 12.5 ms / worst 125.8
+ms, ledger close p95 15.7 ms / worst 22.7 ms, and warmed tool switching p95
+17.0 ms / worst 21.8 ms. Cold first tool use still reached 157.2 ms. The
+60-second indoor walk still contained two frames over 50 ms and reached 100.0
+ms worst. Door after-values do not yet exist. A strict seven-process cold-door
+attempt completed all seven door legs and the full stress leg, but correctly
+failed before sealing when the 1080p matrix leg returned an empty GPU-timing
+channel. Each of those seven cold inbound crossings compiled a QA-corrupted
+collision-authoring material and carried one non-shadow submit over 50 ms
+(58.6-105.4 ms). After `458de6b` removed that corruption, a clean-RNG cold
+smoke found no UUID alias and no collision-authoring owner, but exposed five
+legitimate live-light-state program arrivals and a 13,638 ms first-inbound
+submit. That is a real open door failure, not an accepted after-value.
+
+**PERCEPTION RATIO UPDATE:** unchanged for completed player-visible fixes. The
+new performance instrument is itself perceptive: its 80 ms negative control is
+observed by one exact display interval and one exact shipping-render interval;
+disabling the stall fails closed. It does not increase the completed-fix
+numerator because it is evidence infrastructure rather than a visible fix.
+
+**PROBE-LIE COUNT UPDATE: 16.** Three additional instrument faults were found.
+The first NPC activation proof polled a later global navigation snapshot rather
+than owning the exact route. The first perceptive-control implementation let a
+Chromium rAF callback observed after the stall carry a nominal timestamp from
+inside it, splitting the hitch across samples. Both are now fail-closed
+regression cases. The deterministic-world helper also held `Math.random` at one
+constant throughout asynchronous scene construction. Three.js therefore issued
+duplicate UUIDs, GLTFLoader reused Asset 65's first collision-authoring derived
+material for visible worktable meshes, and the door probe attributed a QA-only
+shader. `458de6b` now gates only the exact `onNewGame` seed draw and restores the
+native RNG inside that call, before any scene object is constructed.
+
+### Unified performance evidence increments
+
+| Commit | Result | Push status |
+|---|---|---|
+| `9ea1596` | Locked one unified Electron interaction/stress protocol, raw cadence endpoints, resource controls, process isolation, overlay/video/trace evidence, and comparison gates. | pushed; remote ancestor |
+| `326fd57` | Bound NPC activation to the synchronous organic-customer lifecycle boundary. | pushed; remote ancestor |
+| `4a9440e` | Allowed real ledger regressions to reach the locked evaluator instead of timing out in the observer first. | pushed; remote ancestor |
+| `9e716ac` | Bound NPC navigation evidence to the exact lifecycle-owned route and a later monotonic production poll. | pushed; remote ancestor |
+| `dc8663b` | Phase-aligned the perceptive control, quarantined at most one causally bound stale Chromium rAF timestamp, retained its raw evidence, and preserved the exact-straddle matcher. | pushed; remote ancestor |
+| `458de6b` | Scoped deterministic world seeding to the exact production seed draw, fail-closed on a missed callsite, and prevented constant-RNG Three.js UUID/material-cache corruption. | pushed; live remote HEAD verified |
+
+The current hardened control passed five fresh Electron processes in a row
+after the phase fix (runs 03 through 08, with run 08 on the final commit
+candidate) and failed closed with `GOAL24_PERF_DISABLE_STALL_CONTROL=1`. Final
+run 08 recorded request 28,508.5 ms -> nominal boundary 28,511.7 ms -> observed
+callback 28,521.1 ms, display worst 89.7 ms, render worst 89.8 ms, zero page
+errors, and zero console errors. The exact full interaction/stress leg at the
+prior bounded-callback implementation completed every required scenario with
+all 19 driver controls true; a final full leg will be rerun after the door
+harness/fix. Focused Goal 24 tests are 182/182 green. The repository-wide suite
+is 3,275/3,276: the sole deterministic failure is quarantined G1 WIP adding raw
+`label: 'Ledger book'`, which raises the localization ratchet 2,108 -> 2,109 and
+must be repaired with G1 rather than absorbed into performance work.
+
+Important evidence:
+
+- `qa/goal24/performance/interaction/phase-alignment-preflight/2026-08-12-negative-control-phase-aligned-08/raw.json`
+- `qa/goal24/performance/interaction/phase-alignment-preflight/2026-08-12-negative-control-disabled-01/raw.json`
+- `qa/goal24/performance/interaction/orchestrated/2026-08-12-full-leg-preflight-03/`
+- `qa/goal24/performance/interaction/orchestrated/2026-08-12-door-causal-baseline-02/`
+- `qa/goal24/performance/interaction/orchestrated/2026-08-12-seed-gate-smoke-02/`
+- `qa/goal24/full-suite-dc8663b-rerun.log`
+
 **PERCEPTION RATIO: 5 of 6 fixes tonight were verified by a check that could
 actually perceive the thing it certified.** Four by pixels viewed (broom
 squareness A/B at five poses, the bag empty-vs-full at 0.000%, the rebuilt
