@@ -4,9 +4,10 @@
 // EMPIRE: one wallet, a property market, and whichever owned club is active.
 
 import { BALANCE, simSpeedMultipliers } from './sim/balance.js';
-import { installFaultGuard } from './core/faultGuard.js';
+import { installFaultGuard, reportFault, showFatalPanel } from './core/faultGuard.js';
 import { installQaLookCapture } from './core/qaLookCapture.js';
 import { createFrameCap } from './core/frameCap.js';
+import { createStartupHold, installStartupInputHold } from './core/startupHold.js';
 import { ringingPhoneRequest, acceptBookingRequest, declineBookingRequest, fmtSlot } from './sim/reservations.js';
 import { devSessionActive } from './data/clubhouseVariant.js';
 import { HOLE_STATUS, TURF_ZONES, ZONE } from './sim/constants.js';
@@ -155,6 +156,19 @@ const app = {
   sectionsRef: null,
   preferences,
 };
+
+const NORMAL_PLAY_SPEED_IDX = Math.max(0, BALANCE.speeds.indexOf(1));
+const startupHold = createStartupHold();
+// This capture barrier is installed once, before UI and scene components add
+// their own capture handlers. The opaque veil catches hit-testing, but document
+// and window listeners would otherwise still receive its hidden input.
+installStartupInputHold({ scope: window, hold: startupHold });
+Object.defineProperty(app, 'startupHoldDiagnostics', {
+  value: startupHold.diagnostics,
+  enumerable: true,
+  configurable: false,
+  writable: false,
+});
 
 // Successful loads can surface migration/recovery details only after their new
 // scene's opaque prewarm veil has cleared. Keying by the deserialized empire
@@ -888,7 +902,7 @@ function handleGuideTick(result) {
   if (result.phaseChanged) toast(t('hud.milestone', { title: result.phaseChanged.title }), 'good');
   if (result.firstDayCompleted) showFirstDaySummary();
   if (advanced.length || result.phaseChanged || result.firstDayCompleted) {
-    if (objectivesPanel) objectivesPanel.refresh();
+    if (objectivesPanel) objectivesPanel.refresh(result.view);
     if (laptopUi?.isOpen()) laptopUi.render();
   }
 }
@@ -1067,10 +1081,11 @@ function destroyCurrentScene({ hideVeil = false } = {}) {
   audio.setToolLoop(null);
   audio.setPaused(false);
   const scene = app.scene3d;
+  startupHold.cancelForScene(scene);
   const barrier = scene?.assetBarrier ? scene.assetBarrier(12000) : null;
   if (scene) scene.dispose();
   if (app.scene3d === scene) app.scene3d = null;
-  app.prewarming = false;
+  app.prewarming = startupHold.isPending();
   if (hideVeil && loadVeil) loadVeil.hide();
   if (barrier && !barrier.idle) {
     const pending = Promise.resolve(barrier.promise).catch(() => {});
@@ -1085,11 +1100,16 @@ function destroyCurrentScene({ hideVeil = false } = {}) {
 function startGame(state, loadNotice = null) {
   closePauseMenu({ resume: false }); // any pause overlay dies with the old world
   const generation = ++sceneStartGeneration;
+  const startupToken = startupHold.begin({
+    generation,
+    intendedSpeedIdx: NORMAL_PLAY_SPEED_IDX,
+  });
   const veil = ensureLoadVeil();
   veil.show('Preparing the course');
   app.prewarming = true;
   app.speedIdx = 0;
   resetCameraInput();
+  resetStartupInputLatches();
 
   // A single animation-frame callback runs before paint. Yield through two so
   // the opaque veil reaches the screen before teardown and course construction
@@ -1103,16 +1123,21 @@ function startGame(state, loadNotice = null) {
         veil.set('Finishing the previous course load');
         barrier.finally(() => {
           if (generation !== sceneStartGeneration) return;
-          startGameNow(state, loadNotice, generation);
+          startGameNow(state, loadNotice, generation, startupToken);
         });
         return;
       }
-      startGameNow(state, loadNotice, generation);
+      startGameNow(state, loadNotice, generation, startupToken);
     });
   });
 }
 
-function startGameNow(state, loadNotice = null, generation = sceneStartGeneration) {
+function startGameNow(
+  state,
+  loadNotice = null,
+  generation = sceneStartGeneration,
+  startupToken = null,
+) {
   app.state = state;
   // The veil is already opaque here. Paint the real campaign-derived chip now,
   // before scene construction and long before the first doorway threshold, so
@@ -1123,6 +1148,9 @@ function startGameNow(state, loadNotice = null, generation = sceneStartGeneratio
   // the opaque loading veil is still up and make Continue change saved cash.
   app.screen = 'game';
   app.scene3d = makeCourseScene(canvas, state);
+  if (!startupHold.attachScene(startupToken, app.scene3d)) {
+    throw new Error('Course startup hold ownership changed before scene attachment.');
+  }
   // walk-up inspection: the walking controller asks, the app answers with the
   // same sections and status words the top-down click-to-inspect always used
   app.scene3d.walk.hooks.toast = (msg, kind) => {
@@ -1362,7 +1390,6 @@ function startGameNow(state, loadNotice = null, generation = sceneStartGeneratio
       : `🧹 Bunker - footprints ${w} - hold the mouse button to rake`;
   };
   if (editorUi && editorUi.isActive()) editorUi.hide();
-  app.speedIdx = 1;
   app.viewMode = 'normal';
   app.courseMode = 'walk'; // the course is experienced on foot; Tab for the overview
   if (walkOverlay) walkOverlay.style.display = 'none';
@@ -1398,17 +1425,58 @@ function startGameNow(state, loadNotice = null, generation = sceneStartGeneratio
   veil.show(`Arriving at ${state.clubName}`);
   app.prewarming = true;
   const sceneRef = app.scene3d;
+  let prewarmSucceeded = false;
+  let degradedPrewarmNotice = null;
   sceneRef
     .prewarm((label) => { if (app.scene3d === sceneRef) veil.set(label); })
-    .catch(() => {})
+    .then((completed) => {
+      if (app.scene3d !== sceneRef || generation !== sceneStartGeneration) return;
+      if (completed !== true) throw new Error('Course prewarm ended before completion.');
+      const report = sceneRef.firstDoorVisibilityReport?.();
+      if (report?.status === 'degraded') {
+        const sources = report.degradedSources?.length
+          ? report.degradedSources.join(', ')
+          : 'clubhouse assets';
+        degradedPrewarmNotice = `Some ${sources} used safe fallback visuals.`;
+      }
+      prewarmSucceeded = true;
+    })
+    .catch((error) => {
+      const report = error?.firstDoorVisibilityReport
+        || sceneRef.firstDoorVisibilityReport?.()
+        || null;
+      reportFault('scene.prewarm', error, {
+        generation,
+        currentGeneration: sceneStartGeneration,
+        firstDoorVisibility: report,
+      });
+      // An old scene finishing late cannot dispose, veil, or otherwise affect
+      // the scene that replaced it.
+      if (app.scene3d !== sceneRef || generation !== sceneStartGeneration) return;
+      sceneStartGeneration += 1;
+      veil.set('Course loading could not finish safely');
+      destroyCurrentScene({ hideVeil: false });
+      showFatalPanel({
+        message: report?.status === 'timed-out'
+          ? 'Clubhouse assets did not finish loading safely. Reload to try again.'
+          : `Course loading failed: ${String(error?.message || error)}`,
+      });
+    })
     .finally(() => {
-      if (app.scene3d !== sceneRef) return;
+      if (!prewarmSucceeded
+        || app.scene3d !== sceneRef
+        || generation !== sceneStartGeneration) return;
+      const startupCompletion = startupHold.complete(startupToken, sceneRef);
+      if (!startupCompletion) return;
+      app.speedIdx = startupCompletion.intendedSpeedIdx;
+      lastTs = performance.now();
       app.prewarming = false;
       veil.hide();
-      if (loadNotice) {
+      const notices = [degradedPrewarmNotice, loadNotice].filter(Boolean);
+      if (notices.length) {
         setTimeout(() => {
           if (generation === sceneStartGeneration && app.scene3d === sceneRef) {
-            toast(loadNotice, 'warn');
+            for (const notice of notices) toast(notice, 'warn');
           }
         }, 460);
       }
@@ -1636,6 +1704,7 @@ function exitToMenu() {
   clearNotifications();
   audio.setToolLoop(null);
   audio.setPaused(false);
+  startupHold.cancel();
   destroyCurrentScene({ hideVeil: true });
   app.screen = 'menu';
   app.state = null;
@@ -3391,6 +3460,19 @@ function resetCameraInput() {
   if (w && w.clearKeys) w.clearKeys(); // ...and the feet, so a paused stride doesn't resume
 }
 
+function resetStartupInputLatches() {
+  qPressedAt = null;
+  toolPressStartedAt = 0;
+  handledPlacementPointer = false;
+  walkToolWheelRemainder = 0;
+  if (toolKeyTimer) clearTimeout(toolKeyTimer);
+  toolKeyTimer = null;
+  toolHoldOpened = false;
+  if (tapBurstTimer) clearTimeout(tapBurstTimer);
+  tapBurstTimer = null;
+  stopToolUse();
+}
+
 function keyboardCamera(dtMs) {
   if (app.screen !== 'game' || app.view !== 'course' || !app.scene3d) return;
   if (app.courseMode !== 'overview' && !(editorActive() && !editorUi.isPlaytesting())) return;
@@ -3558,6 +3640,15 @@ function frame(ts) {
   }
   const dtMs = Math.min(250, ts - lastTs || 16);
   lastTs = ts;
+
+  // Prewarm owns the renderer while the opaque veil is up. More importantly,
+  // the startup capability owns every state boundary: no clock, deliveries,
+  // tutorial, walk input, audio cadence, or autosave clock may advance until the
+  // still-current scene has completed prewarm successfully.
+  if (startupHold.isPending()) {
+    scheduleProductionFrame();
+    return;
+  }
 
   if (app.screen === 'game' && app.state && app.scene3d) {
     keyboardCamera(dtMs);
@@ -3776,7 +3867,7 @@ function frame(ts) {
           if (app.state.tutorial.complete && !app.state.tutorial.hidden) {
             toast(t('hud.theGuideRetiresThe'), '');
           }
-          objectivesPanel.refresh();
+          objectivesPanel.refresh(tut.view);
         }
       }
       const cal2 = calendarOf(app.state.clock.minutes);

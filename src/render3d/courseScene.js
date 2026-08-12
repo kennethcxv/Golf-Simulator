@@ -10,6 +10,7 @@ import { t } from '../core/i18n.js';
 import { Sky } from 'three/addons/objects/Sky.js';
 import { BINDABLE_ACTIONS, DEFAULT_BINDINGS, keyForAction } from '../core/keyBindings.js';
 import { CachedGLTFLoader as GLTFLoader, clearGltfCache } from './gltfCache.js';
+import { createAssetIdleBarrier } from './assetIdleBarrier.js';
 import { initKTX2, ktx2Diagnostics } from './ktx2Support.js';
 import { sharedTextureDiagnostics } from './sharedTexturePool.js';
 import * as BufferGeometryUtils from 'three/addons/utils/BufferGeometryUtils.js';
@@ -325,20 +326,16 @@ THREE.DefaultLoadingManager.onLoad = () => {
   while (assetIdleResolvers.length) assetIdleResolvers.shift()();
 };
 function whenAssetsIdle(timeoutMs) {
-  if (!assetsInFlight) return Promise.resolve();
-  return new Promise((res) => {
-    let settled = false;
-    let timer = null;
-    const finish = () => {
-      if (settled) return;
-      settled = true;
-      if (timer !== null) clearTimeout(timer);
-      const index = assetIdleResolvers.indexOf(finish);
-      if (index >= 0) assetIdleResolvers.splice(index, 1);
-      res();
-    };
-    assetIdleResolvers.push(finish);
-    timer = setTimeout(finish, timeoutMs); // never hold the veil hostage to a missing file
+  return createAssetIdleBarrier({
+    isIdle: () => !assetsInFlight,
+    subscribe(onIdle) {
+      assetIdleResolvers.push(onIdle);
+      return () => {
+        const index = assetIdleResolvers.indexOf(onIdle);
+        if (index >= 0) assetIdleResolvers.splice(index, 1);
+      };
+    },
+    timeoutMs,
   });
 }
 
@@ -11838,6 +11835,8 @@ export function makeCourseScene(canvas, state) {
   // minute" — used only to report the near/far split of the warm set
   const PREWARM_NEAR_RADIUS_YD = 60;
   let programKeyBreakdown = null;
+  let assetIdleReport = null;
+  let firstDoorVisibilityReport = null;
   const prewarmTimings = [];
   function markPrewarm(label, sinceMs) {
     prewarmTimings.push({ label, ms: +(performance.now() - sinceMs).toFixed(1) });
@@ -11853,9 +11852,51 @@ export function makeCourseScene(canvas, state) {
     const prewarmStartedAt = performance.now();
     let phaseAt = prewarmStartedAt;
     step('Loading models');
-    await whenAssetsIdle(8000);
-    phaseAt = markPrewarm('assets-idle', phaseAt);
+    const prewarmClubhouse = clubhouseApi;
+    const [nextAssetIdleReport, doorVisibilityReport] = await Promise.all([
+      whenAssetsIdle(8000),
+      prewarmClubhouse?.firstDoorVisibilityReady || Promise.resolve(null),
+    ]);
+    assetIdleReport = nextAssetIdleReport;
+    firstDoorVisibilityReport = doorVisibilityReport;
+    phaseAt = markPrewarm('assets-and-door-visibility-runtimes-ready', phaseAt);
     if (!alive()) return false;
+    // A timed-out source can still mount geometry after the forced draws. Do
+    // not certify that scene as warm or unveil it. Fully settled fallbacks are
+    // safe to compile and are reported as `degraded` instead.
+    if (assetIdleReport?.safeToPrewarm !== true
+      || (prewarmClubhouse && doorVisibilityReport?.safeToPrewarm !== true)) {
+      const error = new Error(assetIdleReport?.safeToPrewarm !== true
+        ? 'Global asset loading did not settle safely.'
+        : 'First-door visibility loaders did not settle safely.');
+      error.name = 'FirstDoorVisibilityPrewarmError';
+      error.code = assetIdleReport?.safeToPrewarm !== true
+        ? 'GLOBAL_ASSET_IDLE_UNSAFE'
+        : 'FIRST_DOOR_VISIBILITY_UNSAFE';
+      error.assetIdleReport = assetIdleReport;
+      error.firstDoorVisibilityReport = doorVisibilityReport;
+      throw error;
+    }
+    // Construction seeds the clubhouse at a neutral 10:00 lighting preset, but
+    // the first live frame immediately applies the serialized clock. At a fresh
+    // 06:00 campaign that transition enables the porch PointLight: prewarm used
+    // to realize the hidden/detail set with three point lights, then the first
+    // doorway reveal requested the four-light variants and compiled six programs
+    // in a 424.6 ms render frame. Apply the exact persisted render state before
+    // ANY compile or forced draw. This changes lights only; it does not advance
+    // the clock, weather, customers, deliveries, or transactions.
+    const prewarmClockMinutes = Number(state.clock?.minutes);
+    const prewarmMinuteOfDay = Number.isFinite(prewarmClockMinutes)
+      ? ((Math.floor(prewarmClockMinutes) % 1440) + 1440) % 1440
+      : 720;
+    applyTimeWeather(prewarmMinuteOfDay, state.weather);
+    phaseAt = markPrewarm('authoritative-time-weather', phaseAt);
+    // The normal clubhouse update loop is suspended behind the loading veil.
+    // Apply its simulation-owned ceiling-circuit gate before ANY compile or
+    // forced draw, so the representative/detail materials are realized under
+    // the same light signature as the first shipping frame.
+    clubhouseApi?.syncCeilingCircuitPower?.();
+    phaseAt = markPrewarm('authoritative-ceiling-circuit', phaseAt);
     // DefaultLoadingManager deliberately fails open after eight seconds. Give
     // checkout's exact cash prototypes their own bounded readiness handshake so
     // a slow local GLB decode cannot turn an empty representative root into a
@@ -12262,6 +12303,10 @@ export function makeCourseScene(canvas, state) {
     if (clubhouseApi?.interior && typeof savedView.clubhouseInteriorVisible === 'boolean') {
       clubhouseApi.interior.visible = savedView.clubhouseInteriorVisible;
     }
+    // The editor warm leaves render-only visibility at its distant camera.
+    // Reapply the restored shipping camera before the settling frames so no
+    // detail or light state leaks past the loading veil.
+    clubhouseApi?.syncCameraVisibility?.();
     floraLodUpdate?.(true);
     fitSunShadow();
     renderer.shadowMap.needsUpdate = true;
@@ -12311,6 +12356,8 @@ export function makeCourseScene(canvas, state) {
     // existed while the game was demonstrably in overview mode.
     setOverviewPin: (on) => { overviewPinWanted = !!on; },
     prewarm,
+    assetIdleReport: () => assetIdleReport,
+    firstDoorVisibilityReport: () => firstDoorVisibilityReport,
     // Ranked, measured load cost. Empty until prewarm has run once.
     prewarmTimings: () => prewarmTimings.map((entry) => ({ ...entry })),
     // A1: which axis of the program key is generating the permutations that

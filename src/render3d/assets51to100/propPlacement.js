@@ -12,6 +12,12 @@ import { INTERIOR } from '../../data/shopLayout.js';
 import { facilityInstalled } from '../../sim/campaign.js';
 import { fixtureIsInstalled } from '../../sim/shopProgression.js';
 import {
+  collectMaterialResources,
+  collectRenderableResources,
+  disposeRenderableResources,
+  mergeRenderableResources,
+} from '../clubhouse/resourceLifecycle.js';
+import {
   PLACED_ASSET_NUMBERS, PROP_PLACEMENTS, RUNTIME_ASSET_MANIFEST_BY_NUMBER,
 } from './runtimeManifest.js';
 
@@ -107,6 +113,36 @@ export function runtimeAssetNeedsLiveVisualHierarchy(placement = null) {
     || placement.mutableVisual
     || placement.runtimeVisualState
   );
+}
+
+/**
+ * Whether one placement can share the deep-interior static batch.
+ *
+ * Dynamic presentation callbacks always require an independent root: their
+ * answer can change after this one-time geometry snapshot has been created.
+ * Callers with an immutable construction policy may opt into the separate
+ * fixed callback; its allowed assets can safely share the global batch.
+ */
+export function runtimeAssetEligibleForPlacedStaticBatch(
+  placement,
+  {
+    visibilityForAsset = null,
+    fixedVisibilityForAsset = null,
+    hasStaticVisual = true,
+  } = {},
+) {
+  const number = Number(placement?.n);
+  if (!Number.isInteger(number) || !hasStaticVisual) return false;
+  if (typeof visibilityForAsset === 'function') return false;
+  if (typeof fixedVisibilityForAsset === 'function'
+    && fixedVisibilityForAsset(number) === false) return false;
+  if (placement.fixtureId || (Array.isArray(placement.fixtureIds) && placement.fixtureIds.length)) {
+    return false;
+  }
+  return !Object.hasOwn(FACILITY_GATED_PROP_ASSETS, number)
+    && !Object.hasOwn(FIXTURE_GATED_PROP_ASSETS, number)
+    && !propSurvivesDetailCull(number)
+    && !runtimeAssetNeedsLiveVisualHierarchy(placement);
 }
 
 export function detailedPropsVisibleAt(
@@ -714,8 +750,10 @@ export function buildProps({
   getFixtureAnchor = null,
   legacyReady = Promise.resolve(),
   merch = null,
+  protectedRenderableResources = null,
   hooks = {},
   visibilityForAsset = null,
+  fixedVisibilityForAsset = null,
 } = {}) {
   const group = new THREE.Group();
   group.name = 'Assets61to100Runtime';
@@ -732,12 +770,40 @@ export function buildProps({
   let materialCanonicalizations = 0;
   let placedStaticBatch = null;
   let disposed = false;
+  let disposalSummary = null;
+  let lateLoaderSuccesses = 0;
+  let lateLoaderErrors = 0;
+  const lateLoaderResourcesDisposed = { geometries: 0, materials: 0, textures: 0 };
+  const lateLoaderBorrowedResourcesRetained = { geometries: 0, materials: 0, textures: 0 };
+  const borrowedRenderableResources = {
+    geometries: new Set(),
+    materials: new Set(),
+    textures: new Set(),
+  };
   let detailedVisible = true;
+  const runtimeCreatedAtMs = globalThis.performance?.now?.() ?? Date.now();
+  let runtimeReadyAtMs = null;
+  let staticBatchStartedAtMs = null;
+  let staticBatchReadyAtMs = null;
+  let staticBatchOutcome = null;
+  let detailVisibilitySequence = 0;
+  let lastDetailVisibilityTransition = null;
+
+  const runtimeNowMs = () => globalThis.performance?.now?.() ?? Date.now();
+  // Evaluate immutable presentation policy exactly once, before any asynchronous
+  // loader can settle. This prevents later mutations in a caller-owned Set from
+  // disagreeing with geometry already copied into the global static batch.
+  const fixedVisibilitySnapshot = new Map(PROP_PLACEMENTS.map(({ n }) => [
+    n,
+    typeof fixedVisibilityForAsset !== 'function' || fixedVisibilityForAsset(n) !== false,
+  ]));
+  const fixedVisibilityAtConstruction = (number) => fixedVisibilitySnapshot.get(number) !== false;
 
   const passesVisibilityGate = (number) => {
-    // The callback is a VETO layered over the built-in facility/fixture gates, not a
-    // replacement: a presentation that suppresses furniture (the pine-hills-v2
-    // greybox) must not accidentally un-gate the campaign-installed assets.
+    // Presentation callbacks are vetoes layered over the built-in facility/fixture
+    // gates, not replacements: a presentation must not accidentally un-gate the
+    // campaign-installed assets.
+    if (!fixedVisibilityAtConstruction(number)) return false;
     if (typeof visibilityForAsset === 'function' && visibilityForAsset(number) === false) return false;
     const facilityId = FACILITY_GATED_PROP_ASSETS[number];
     if (facilityId && !facilityInstalled(state, facilityId)) return false;
@@ -747,6 +813,7 @@ export function buildProps({
 
   const entryUsesIndependentVisibility = (number) => (
     typeof visibilityForAsset === 'function'
+    || !fixedVisibilityAtConstruction(number)
     || Object.hasOwn(FACILITY_GATED_PROP_ASSETS, number)
     || Object.hasOwn(FIXTURE_GATED_PROP_ASSETS, number)
     || propSurvivesDetailCull(number)
@@ -1005,6 +1072,30 @@ export function buildProps({
   const jobs = PROP_PLACEMENTS.map((placement) => new Promise((resolve) => {
     const manifest = RUNTIME_ASSET_MANIFEST_BY_NUMBER[placement.n];
     loader.load(manifest.glbPath, (gltf) => {
+      // CachedGLTFLoader clones the Object3D hierarchy but deliberately shares
+      // the parsed prototype's geometry, material, and texture identities.
+      // Capture those borrowed identities before prepareEntry canonicalises
+      // materials or creates state-controlled emissive clones. They remain
+      // owned by the loader cache across in-page clubhouse rebuilds.
+      const loadedBorrowedResources = collectRenderableResources(gltf?.scene);
+      for (const key of Object.keys(borrowedRenderableResources)) {
+        for (const resource of loadedBorrowedResources[key]) {
+          borrowedRenderableResources[key].add(resource);
+        }
+      }
+      // A first-door readiness timeout forces a reload-only recovery. A loader
+      // that completes after scene disposal must not resurrect roots, props, or
+      // colliders into the dead scene while that recovery panel is visible. Its
+      // render resources are still cache-owned, so dropping this unattached
+      // hierarchy must not dispose them.
+      if (disposed) {
+        lateLoaderSuccesses += 1;
+        for (const key of Object.keys(lateLoaderBorrowedResourcesRetained)) {
+          lateLoaderBorrowedResourcesRetained[key] += loadedBorrowedResources[key].size;
+        }
+        resolve(false);
+        return;
+      }
       try {
         const fixtureIds = placement.fixtureIds?.length ? placement.fixtureIds : [null];
         // Clone every instance before prepareEntry mutates the first root with its static batch.
@@ -1021,6 +1112,11 @@ export function buildProps({
         resolve(false);
       }
     }, undefined, (error) => {
+      if (disposed) {
+        lateLoaderErrors += 1;
+        resolve(false);
+        return;
+      }
       failed.push({ n: placement.n, reason: error?.message || 'load failed' });
       resolve(false);
     });
@@ -1064,6 +1160,10 @@ export function buildProps({
   }
 
   const ready = Promise.all(jobs).then(async () => {
+    // Merchandise disposal intentionally drops its pending onReady callbacks.
+    // Once this runtime is disposed there is no legacy work left to join, and
+    // waiting here would leave the production readiness promise unresolved.
+    if (disposed) return { placed: 0, instances: 0, superseded: [] };
     await legacyReady.catch?.(() => {});
     if (disposed) return { placed: 0, instances: 0, superseded: [] };
     for (const entries of placedByNumber.values()) {
@@ -1073,19 +1173,34 @@ export function buildProps({
     for (const entries of placedByNumber.values()) {
       for (const entry of entries) hideFixtureFallbacks(entry);
     }
+    staticBatchStartedAtMs = runtimeNowMs();
     placedStaticBatch = batchPlacedStaticVisuals(
       group,
-      [...placedByNumber.values()].flat().filter((entry) => !entry.visibilityGated),
+      [...placedByNumber.values()].flat().filter((entry) => (
+        runtimeAssetEligibleForPlacedStaticBatch(entry.placement, {
+          visibilityForAsset,
+          fixedVisibilityForAsset: fixedVisibilityAtConstruction,
+          hasStaticVisual: !!entry.staticBatch?.visual,
+        })
+      )),
       merch,
     );
+    staticBatchReadyAtMs = runtimeNowMs();
+    staticBatchOutcome = Object.freeze({
+      sourceDrawCalls: placedStaticBatch?.sourceDrawCalls || 0,
+      batchedDrawCalls: placedStaticBatch?.batchedDrawCalls || 0,
+      savedDrawCalls: placedStaticBatch?.savedDrawCalls || 0,
+    });
     if (placedStaticBatch?.visual) placedStaticBatch.visual.visible = detailedVisible;
     const trophySockets = populateTrophyCabinet();
-    return {
+    const outcome = {
       placed: placedByNumber.size,
       instances: [...placedByNumber.values()].reduce((sum, entries) => sum + entries.length, 0),
       superseded: [...superseded],
       trophySockets,
     };
+    runtimeReadyAtMs = runtimeNowMs();
+    return outcome;
   });
 
   function updateInteractionOrigins() {
@@ -1147,7 +1262,23 @@ export function buildProps({
     },
     roots: () => [...placedByNumber.values()].flat().map((entry) => entry.root),
     setCameraVisibility(cameraLocalX, cameraLocalZ) {
-      detailedVisible = detailedPropsVisibleAt(cameraLocalX, cameraLocalZ);
+      const nextDetailedVisible = detailedPropsVisibleAt(cameraLocalX, cameraLocalZ);
+      if (nextDetailedVisible !== detailedVisible) {
+        const dx = Math.max(Math.abs(cameraLocalX) - INTERIOR.w / 2, 0);
+        const dz = Math.max(Math.abs(cameraLocalZ) - INTERIOR.d / 2, 0);
+        detailVisibilitySequence += 1;
+        lastDetailVisibilityTransition = Object.freeze({
+          atMs: runtimeNowMs(),
+          sequence: detailVisibilitySequence,
+          from: detailedVisible,
+          to: nextDetailedVisible,
+          cameraLocalX,
+          cameraLocalZ,
+          exteriorDistanceYards: Math.hypot(dx, dz),
+          detailClearanceYards: PROP_DETAIL_EXTERIOR_CLEARANCE_YD,
+        });
+      }
+      detailedVisible = nextDetailedVisible;
       return refreshVisibility();
     },
     refreshVisibility,
@@ -1231,18 +1362,39 @@ export function buildProps({
       placedStaticBatchSourceDrawCalls: placedStaticBatch?.sourceDrawCalls || 0,
       placedStaticBatchDrawCalls: placedStaticBatch?.batchedDrawCalls || 0,
       placedStaticBatchSavedDrawCalls: placedStaticBatch?.savedDrawCalls || 0,
-      placedStaticBatchAssetNumbers: [...placedByNumber.values()].flat()
-        .filter((entry) => !entry.fixtureId
-          && !entry.visibilityGated
-          && !entry.needsLiveVisualHierarchy
-          && entry.staticBatch?.visual)
-        .map((entry) => entry.n)
-        .sort((a, b) => a - b),
+      placedStaticBatchAssetNumbers: placedStaticBatch?.visual
+        ? [...placedByNumber.values()].flat()
+          .filter((entry) => !entry.fixtureId
+            && !entry.visibilityGated
+            && !entry.needsLiveVisualHierarchy
+            && entry.staticBatch?.visual)
+          .map((entry) => entry.n)
+          .sort((a, b) => a - b)
+        : [],
       detailedVisible,
+      runtimeCreatedAtMs,
+      runtimeReadyAtMs,
+      staticBatchStartedAtMs,
+      staticBatchReadyAtMs,
+      staticBatchOutcome: staticBatchOutcome ? { ...staticBatchOutcome } : null,
+      detailVisibilitySequence,
+      lastDetailVisibilityTransition: lastDetailVisibilityTransition
+        ? { ...lastDetailVisibilityTransition }
+        : null,
       visible: [...placedByNumber.values()].flat().filter((entry) => entry.root.visible).length,
+      disposed,
+      lateLoaderSuccesses,
+      lateLoaderErrors,
+      lateLoaderResourcesDisposed: { ...lateLoaderResourcesDisposed },
+      lateLoaderBorrowedResourcesRetained: { ...lateLoaderBorrowedResourcesRetained },
+      borrowedRenderableResources: {
+        geometries: borrowedRenderableResources.geometries.size,
+        materials: borrowedRenderableResources.materials.size,
+        textures: borrowedRenderableResources.textures.size,
+      },
     }),
     dispose() {
-      if (disposed) return;
+      if (disposed) return disposalSummary;
       disposed = true;
       for (const prop of interactionProps) removeProp?.(prop);
       // Colliders outlive the geometry unless they are taken out here, and an
@@ -1251,29 +1403,36 @@ export function buildProps({
         if (entry.collider) removeCol?.(entry.collider);
       }
       for (const controller of mixers) controller.dispose();
-      const resources = { geometries: new Set(), materials: new Set(), textures: new Set() };
       const roots = [...placedByNumber.values()].flat().map((entry) => entry.root);
       const resourceRoots = placedStaticBatch?.visual ? [...roots, placedStaticBatch.visual] : roots;
-      for (const root of resourceRoots) {
-        root.traverse((object) => {
-          if (!object.isMesh) return;
-          if (object.geometry) resources.geometries.add(object.geometry);
-          for (const material of Array.isArray(object.material) ? object.material : [object.material]) {
-            if (!material) continue;
-            resources.materials.add(material);
-            for (const value of Object.values(material)) if (value?.isTexture) resources.textures.add(value);
-          }
-        });
-      }
+      const resources = mergeRenderableResources(
+        collectRenderableResources(resourceRoots),
+        collectMaterialResources([...orphanedMaterials]),
+      );
+      // Cached GLTF clones borrow their render resources from the loader cache,
+      // while per-asset bake() resources remain under the merchandise cache's
+      // single-release boundary. Runtime-minted resources, including emissive
+      // material clones and the global placed-static batch, are released here.
+      const protectedResources = mergeRenderableResources(
+        typeof protectedRenderableResources === 'function'
+          ? protectedRenderableResources()
+          : protectedRenderableResources,
+        merch?.ownedResources?.() || null,
+        borrowedRenderableResources,
+      );
+      const released = disposeRenderableResources(resources, protectedResources);
       for (const root of roots) root.removeFromParent();
-      for (const texture of resources.textures) texture.dispose();
-      for (const material of resources.materials) material.dispose();
-      for (const material of orphanedMaterials) material.dispose();
-      for (const geometry of resources.geometries) geometry.dispose();
       group.removeFromParent();
       placedByNumber.clear();
       canonicalMaterials.clear();
       orphanedMaterials.clear();
+      disposalSummary = Object.freeze({
+        ...released,
+        protectedGeometries: protectedResources?.geometries?.size || 0,
+        protectedMaterials: protectedResources?.materials?.size || 0,
+        protectedTextures: protectedResources?.textures?.size || 0,
+      });
+      return disposalSummary;
     },
   };
 }

@@ -12,6 +12,7 @@ import {
   PLACED_ASSET_NUMBERS,
   EXTERIOR_VISIBLE_PROP_NUMBERS,
   detailedPropsVisibleAt,
+  runtimeAssetEligibleForPlacedStaticBatch,
 } from '../src/render3d/assets51to100/propPlacement.js';
 import { RUNTIME_ASSET_MANIFEST_BY_NUMBER } from '../src/render3d/assets51to100/runtimeManifest.js';
 import {
@@ -30,6 +31,38 @@ test('deep prop dressing retires only beyond the porch while entrance props rema
   assert.deepEqual(EXTERIOR_VISIBLE_PROP_NUMBERS, [93, 94, 98, 99, 100]);
   assert.ok(!EXTERIOR_VISIBLE_PROP_NUMBERS.includes(71),
     'stockroom cleaning props are covered from the distant exterior camera');
+});
+
+test('only fixed presentation policy can opt inert assets into the placed static batch', () => {
+  const suppressed = new Set([
+    61, 62, 63, 67, 68, 69, 70, 85, 88, 89, 90, 91, 93, 96, 98, 99,
+  ]);
+  const fixedVisibilityForAsset = (number) => !suppressed.has(number);
+  const eligible = PROP_PLACEMENTS.filter((placement) => (
+    runtimeAssetEligibleForPlacedStaticBatch(placement, { fixedVisibilityForAsset })
+  )).map(({ n }) => n);
+  assert.deepEqual(eligible, [65, 86, 87]);
+  assert.equal(runtimeAssetEligibleForPlacedStaticBatch(byNumber(62), { fixedVisibilityForAsset }), false,
+    'a presentation-suppressed static asset must not leak into the shared visible batch');
+  assert.equal(runtimeAssetEligibleForPlacedStaticBatch(byNumber(65), {
+    visibilityForAsset: () => true,
+  }), false, 'a mutable visibility callback keeps even a currently visible asset independent');
+  assert.equal(runtimeAssetEligibleForPlacedStaticBatch(byNumber(61), {
+    fixedVisibilityForAsset: () => true,
+  }), false,
+    'facility-gated counter visuals retain their independent state-owned root');
+  assert.equal(runtimeAssetEligibleForPlacedStaticBatch(byNumber(64), {
+    fixedVisibilityForAsset: () => true,
+  }), false,
+    'persisted movable fixture visuals must follow their independent anchors');
+  assert.equal(runtimeAssetEligibleForPlacedStaticBatch(byNumber(93), {
+    fixedVisibilityForAsset: () => true,
+  }), false,
+    'entrance-visible detail survivors cannot be tied to the deep-interior batch');
+  assert.equal(runtimeAssetEligibleForPlacedStaticBatch(byNumber(65), {
+    fixedVisibilityForAsset,
+    hasStaticVisual: false,
+  }), false, 'an absent static visual never becomes an empty batch candidate');
 });
 
 test('every interior asset from 61 to 100 has exactly one placement definition', () => {

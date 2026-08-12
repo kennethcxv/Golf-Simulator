@@ -1180,6 +1180,15 @@ export function tickCampaign(state) {
   const result = { advanced: [], phaseChanged: null, firstDayCompleted: false };
   if (!campaign || !campaign.enabled) return result;
   const view = campaignView(state);
+  // A campaign tick and its immediate presentation consumers all describe the
+  // same state boundary. Preserve that derived snapshot as a non-enumerable
+  // hand-off so the HUD does not rebuild the full objective/readiness graph
+  // several more times in the same production frame. Keeping it non-enumerable
+  // preserves the long-standing serializable result shape.
+  Object.defineProperty(result, 'view', {
+    value: view,
+    enumerable: false,
+  });
   const known = new Set(campaign.completedObjectiveIds);
   for (const task of view.tasks) {
     if (!task.complete || known.has(task.id)) continue;

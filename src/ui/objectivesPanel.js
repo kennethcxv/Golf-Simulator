@@ -41,7 +41,7 @@ export function makeObjectivesPanel(app, { getContext = () => 'walk' } = {}) {
     refresh();
   });
 
-  function refresh() {
+  function refresh(campaignSnapshot = undefined) {
     const state = app.state;
     const context = getContext();
     contextualId = null;
@@ -57,7 +57,9 @@ export function makeObjectivesPanel(app, { getContext = () => 'walk' } = {}) {
     //
     // The right object was gated on the wrong state. In campaign mode the card
     // now follows the campaign, including its own hidden flag.
-    const campaign = campaignView(state);
+    const campaign = campaignSnapshot === undefined
+      ? campaignView(state)
+      : campaignSnapshot;
     if (!state || (!campaign && !state.tutorial)
       || ['pause', 'laptop', 'register', 'course-editor', 'overview'].includes(context)) {
       root.style.display = 'none';
@@ -83,7 +85,7 @@ export function makeObjectivesPanel(app, { getContext = () => 'walk' } = {}) {
       root.style.display = 'none';
       return;
     }
-    const step = currentStep(state);
+    const step = currentStep(state, campaign);
     if (!step) {
       root.style.display = 'none';
       return;

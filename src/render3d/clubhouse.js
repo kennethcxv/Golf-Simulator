@@ -145,6 +145,8 @@ import { SHED_ROOM } from '../data/shedLayout.js';
 import { buildShopProgressionVisuals } from './clubhouse/shopProgressionVisuals.js';
 import { buildDoors } from './clubhouse/doors.js';
 import { createClubhouseArchitecturalDoorInstallation } from './clubhouse/architecturalDoorInstallation.js';
+import { createFirstDoorVisibilityReady } from './clubhouse/firstDoorVisibilityReady.js';
+import { createCeilingCircuitRenderSync } from './clubhouse/ceilingCircuitRenderSync.js';
 import { createSheet06ProductionRuntime } from './assets51to100/sheet06ProductionRuntime.js';
 import { createSheet06NavigationContract } from './assets51to100/sheet06Navigation.js';
 import {
@@ -1164,6 +1166,7 @@ export function makeClubhouse(ctx) {
     })
     : dormantPresentation('modern-public');
   let props61to100 = null;
+  let props61to100ProtectedAtDisposal = null;
   let deliveryEquipment = null;
   const resortClubhouse = createResortClubhouse({
     group,
@@ -1240,16 +1243,17 @@ export function makeClubhouse(ctx) {
     shell.lighting.refreshCondition(conditionNow);
     refreshEntranceMatAppearance();
   }
-  let ceilingCircuitPowered = null;
+  const ceilingCircuitRenderSync = createCeilingCircuitRenderSync({
+    state,
+    readPowered: ceilingCircuitPoweredSim,
+    applyPowered: (powered) => shell.lighting.setCeilingCircuitPowered(powered),
+  });
+  const syncCeilingCircuitPower = () => ceilingCircuitRenderSync.sync();
   const updateFlicker = (dt) => {
     // Shared with the sim's repair-light gate — see clubhouseRestoration.js.
     // When the renderer owned its own copy of this rule, the sim could report a
     // panel repaired while this side kept the ring dark.
-    const powered = ceilingCircuitPoweredSim(state);
-    if (powered !== ceilingCircuitPowered) {
-      ceilingCircuitPowered = powered;
-      shell.lighting.setCeilingCircuitPowered(powered);
-    }
+    syncCeilingCircuitPower();
     shell.lighting.updateFlicker(dt);
   };
 
@@ -1381,7 +1385,19 @@ export function makeClubhouse(ctx) {
     getFixtureAnchor: (fixtureId) => fixtureAnchors.get(fixtureId) || null,
     legacyReady: merchReady,
     merch,
-    visibilityForAsset: greyboxPresentation
+    // Sheet-6 and other loader runtimes can share GLTF resource identities in
+    // tests and through future cache unification. The course/scene resources
+    // that predate this runtime remain borrowed, never runtime-owned.
+    protectedRenderableResources: () => props61to100ProtectedAtDisposal
+      || mergeRenderableResources(
+        protectedRenderableResources,
+        sheet06Production.borrowedResources?.(),
+        architecturalDoorInstallation.ownedResources?.(),
+      ),
+    // This suppression set is a construction-time presentation choice. Declaring
+    // it fixed lets the three allowed inert props share the global static batch;
+    // genuinely mutable visibility callbacks remain conservatively unbatched.
+    fixedVisibilityForAsset: greyboxPresentation
       ? (assetNumber) => !GREYBOX_SUPPRESSED_PROP_ASSETS.has(assetNumber)
       : null,
     hooks: {
@@ -1486,6 +1502,38 @@ export function makeClubhouse(ctx) {
     }
   }
   const detailInterior = shedPresentation ? shedInterior : pineHillsInterior;
+  // The loading-manager counter reaches zero before every loader callback has
+  // necessarily finished mounting, canonicalizing, and batching its scene
+  // nodes. Doorway prewarm must not certify those late nodes as resident before
+  // every runtime capable of changing the first shop view has settled.
+  // All loaders are already in flight, so this is one concurrent barrier rather
+  // than a serial load chain.
+  const firstDoorVisibilityReady = createFirstDoorVisibilityReady({
+    sheet06: sheet06Production.ready,
+    architecturalDoors: architecturalDoorInstallation.ready,
+    props: props61to100.ready,
+    pineHillsInterior: pineHillsInterior.ready,
+    shedInterior: shedInterior?.ready ?? Promise.resolve(Object.freeze({
+      lifecycle: 'dormant', kind: 'shed-interior',
+    })),
+    modernPublic: modernClubhouse.ready,
+    mountainLodge: mountainLodge.ready,
+    resortClubhouse: resortClubhouse.ready,
+    premiumCountryClub: premiumCountryClub.ready,
+    diagnostics: {
+      sheet06: () => sheet06Production.diagnostics(),
+      architecturalDoors: () => architecturalDoorInstallation.diagnostics(),
+      props: () => props61to100.diagnostics(),
+      pineHillsInterior: () => pineHillsInterior.diagnostics(),
+      shedInterior: () => shedInterior?.diagnostics?.() ?? Object.freeze({
+        lifecycle: 'dormant', status: 'dormant', kind: 'shed-interior',
+      }),
+      modernPublic: () => modernClubhouse.diagnostics(),
+      mountainLodge: () => mountainLodge.diagnostics(),
+      resortClubhouse: () => resortClubhouse.diagnostics(),
+      premiumCountryClub: () => premiumCountryClub.diagnostics(),
+    },
+  });
 
   function fixtureBrowsePose(fixture, localX = 0, localZ = null) {
     const local = fixtureBrowsePoint(fixture, localX, localZ);
@@ -11888,6 +11936,12 @@ export function makeClubhouse(ctx) {
   // camera so the shader draw sees the same PointLight set as the first live
   // editor frame, without advancing customers, deliveries, or checkout state.
   function syncCameraVisibility() {
+    // Prewarm intentionally does not call update(), so this render-only path
+    // must still apply the simulation-owned circuit gate before it certifies a
+    // light-count shader signature. Otherwise fresh campaign boot draws the
+    // hidden/detail set as powered (6 point / 2 area) and the first live door
+    // frame requests the real unpowered signature.
+    syncCeilingCircuitPower();
     // Resort hero views sit farther from the larger 4,000 sq ft shell. Past
     // this distance its saved furniture is no longer legible through the
     // glazing, so avoid submitting the complete checkout/retail fit-out and
@@ -12118,20 +12172,30 @@ export function makeClubhouse(ctx) {
   function dispose() {
     if (disposing) return disposalSummary;
     disposing = true;
+    // Cancel the presentation barrier before any constituent runtime releases
+    // its roots. This clears the deadline and diagnostic closures, and resolves
+    // an unsafe disposed report for an in-flight prewarm instead of retaining
+    // this clubhouse until timeout.
+    const firstDoorVisibilityReadyDisposal = firstDoorVisibilityReady.dispose?.() ?? false;
     register.leave({ restorePointer: false });
     disposeFixtures();
     props61to100.stopAnimations();
+    // Snapshot borrowed identities before their owning runtimes clear their
+    // caches. The prop runtime may reference the same GLTF resources but must
+    // never release another runtime's ownership.
+    props61to100ProtectedAtDisposal = mergeRenderableResources(
+      protectedRenderableResources,
+      sheet06Production.borrowedResources?.(),
+      architecturalDoorInstallation.ownedResources?.(),
+    );
     const premiumCountryClubDisposal = premiumCountryClub.dispose();
     const resortClubhouseDisposal = resortClubhouse.dispose();
     const mountainLodgeDisposal = mountainLodge.dispose();
     const modernClubhouseDisposal = modernClubhouse.dispose();
     const sheet06ProductionDisposal = sheet06Production.dispose();
     const architecturalDoorsDisposal = architecturalDoorInstallation.dispose();
-    // The 71-100 dressing is NOT released here. Its meshes are GLB clones, and this teardown's
-    // rule for loader clones is that the cache which produced them owns freeing them — the same
-    // boundary createMerch and the Sheet-6 isolated cache sit behind. Freeing them from this side
-    // as well is a double release, which tests/clubhouse-resource-lifecycle.test.js counts.
-    // `props61to100.dispose()` exists for rebuilding the dressing on its own, not for teardown.
+    // Runtime roots are protected from the outer procedural walk below, then
+    // released through their own ownership boundary after that walk completes.
     const boxPlacementDisposal = boxPlacementMode?.dispose?.() || null;
     deliveryBoxTransfers.clear();
     deliveryBoxTransferHistory.length = 0;
@@ -12189,14 +12253,20 @@ export function makeClubhouse(ctx) {
       protectedRenderableResources,
       equipmentBorrowedResources,
       merch.ownedResources ? merch.ownedResources() : null,
-      // Assets 71-100 are GLB clones. Like every other loader clone in this teardown, the cache
-      // that produced them owns releasing them — the procedural walk must not free them a second
-      // time. `interior` is a staticRoot, so without this the walk reaches straight into them.
-      collectRenderableResources(props61to100.roots()),
+      // Protect the complete runtime group, including its sibling global
+      // static batch. Its dispose() releases runtime-owned GLTF/batch resources
+      // while leaving merch-baked geometry to the merchandise cache.
+      collectRenderableResources(props61to100.group),
       // The Pine Hills dressing uses CachedGLTFLoader clones.  The cache owns
       // their shared GLB resources; this outer procedural walk owns only the
       // boards, signs, and other geometry created in this clubhouse instance.
       collectRenderableResources(pineHillsInterior.roots()),
+      // Shed presentation has two explicit raw-resource owners nested beneath
+      // the broad shell/interior roots. Protect exactly their owned ledgers
+      // here; each runtime releases its resources once below. ShedInterior's
+      // ledger deliberately excludes borrowed clubhouse materials.
+      shedInterior?.ownedResources?.(),
+      dirt.ownedResources?.(),
     );
 
     camera.remove(carriedBoxHands);
@@ -12208,16 +12278,23 @@ export function makeClubhouse(ctx) {
     // Release procedural/static resources once, while loader-owned clone data
     // remains exclusively under createMerch's ownership boundary.
     const procedural = disposeRenderableResources(ownedResources, protectedResources);
+    // Flip the runtime's disposed guard before any late GLTF callback can
+    // mount a root or register a collider during reload-only recovery. The
+    // whole runtime group was protected above, while merch-owned baked
+    // geometry stays protected inside this disposal until merch.dispose().
+    const props61to100Disposal = props61to100.dispose();
     const pineHillsInteriorDisposal = pineHillsInterior.dispose();
     // Under shed, release the shed's own minted content (interior nodes + grime
     // plane / window films). Under every other variant these are no-ops.
-    if (shedPresentation) { detailInterior?.dispose?.(); dirt.dispose?.(); }
+    const shedInteriorDisposal = shedPresentation ? detailInterior?.dispose?.() : null;
+    const shedDirtDisposal = shedPresentation ? dirt.dispose?.() : null;
     const merchandise = merch.dispose ? merch.dispose() : null;
     deliveryEquipment = null;
     boxPlacementMode = null;
     disposalSummary = Object.freeze({
       procedural,
       merchandise,
+      firstDoorVisibilityReady: firstDoorVisibilityReadyDisposal,
       deliveryEquipment: deliveryEquipmentDisposal,
       boxPlacement: boxPlacementDisposal,
       premiumCountryClub: premiumCountryClubDisposal,
@@ -12226,7 +12303,10 @@ export function makeClubhouse(ctx) {
       modernClubhouse: modernClubhouseDisposal,
       sheet06Production: sheet06ProductionDisposal,
       architecturalDoors: architecturalDoorsDisposal,
+      props61to100: props61to100Disposal,
       pineHillsInterior: pineHillsInteriorDisposal,
+      shedInterior: shedInteriorDisposal,
+      shedDirt: shedDirtDisposal,
     });
     return disposalSummary;
   }
@@ -12241,11 +12321,13 @@ export function makeClubhouse(ctx) {
     center: Object.freeze({ x: center.x, z: center.z }),
     localToWorld: (lx, lz) => L2W(lx, lz),
     worldToLocal: (wx, wz) => W2L(wx, wz),
-    update, syncCameraVisibility, rebuildStock, rebuildReno, refreshCondition, repaintGrime,
+    update, syncCameraVisibility, syncCeilingCircuitPower,
+    rebuildStock, rebuildReno, refreshCondition, repaintGrime,
     repaintWash: () => washing.repaintAll(),
     rebuildBoxes, presentDeliveryArrival, renderDeliveryCarryOverlay,
     sheet06Production: sheet06ProductionPublic,
     sheet06ProductionReady: () => sheet06Production.ready,
+    firstDoorVisibilityReady,
     architecturalDoors: Object.freeze({
       ready: architecturalDoorInstallation.ready,
       diagnostics: () => architecturalDoorInstallation.diagnostics(),

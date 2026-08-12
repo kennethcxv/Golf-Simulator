@@ -325,10 +325,11 @@ export function currentContextTutorial(state, context) {
   return lesson;
 }
 
-export function currentStep(state) {
+export function currentStep(state, campaignSnapshot = undefined) {
   if (state.campaign?.enabled) {
-    const task = campaignView(state)?.currentTask;
-    return task ? { ...task, chapter: campaignView(state).mainObjective } : null;
+    const view = campaignSnapshot === undefined ? campaignView(state) : campaignSnapshot;
+    const task = view?.currentTask;
+    return task ? { ...task, chapter: view.mainObjective } : null;
   }
   if (!state.tutorial || state.tutorial.complete) return null;
   return TUTORIAL_STEPS[state.tutorial.step] || null;
@@ -338,7 +339,7 @@ export function currentStep(state) {
 export function tickTutorial(state) {
   if (state.campaign?.enabled) {
     const result = tickCampaign(state);
-    const view = campaignView(state);
+    const view = result.view ?? campaignView(state);
     if (state.tutorial && view) {
       state.tutorial.step = view.completedCount;
       state.tutorial.complete = !!state.campaign.firstDayComplete;
