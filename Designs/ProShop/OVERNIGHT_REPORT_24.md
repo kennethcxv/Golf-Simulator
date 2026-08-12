@@ -2,34 +2,29 @@
 
 ## 2026-08-12 live continuation status
 
-**CURRENT COMPLETION: EXECUTION IN PROGRESS.** Six performance/evidence
-evidence increments have been completed, committed, pushed, and exact-SHA
-verified since the recovery section below. No new player-facing door, ledger,
-tool, checkout, navigation, visual, or audio fix is claimed by those
-infrastructure commits.
+**CURRENT COMPLETION: EXECUTION IN PROGRESS.** The scoped first-door
+performance/lifecycle increment is complete at `73db290`, committed, pushed,
+and exact-SHA verified on the live branch. Fourteen recovery,
+performance-evidence, and door increments are now committed and pushed in this
+continuation. Checkout return and
+Escape behavior, navigation, ledger, tool, visual, and audio work remain open;
+the complete locked interaction/matrix/stress protocol is not claimed here.
 
-**PERFORMANCE HEADLINE (CURRENT UNIFIED BASELINE; AFTER VALUES PENDING):** a
-fresh full interaction/stress leg at `dc8663b` recorded 20,297 ms from the
-trusted New Game input to confirmed controllability. Warm render cadence was
-ledger open p95 16.6 ms / worst 38.0 ms, page-turn p95 12.5 ms / worst 125.8
-ms, ledger close p95 15.7 ms / worst 22.7 ms, and warmed tool switching p95
-17.0 ms / worst 21.8 ms. Cold first tool use still reached 157.2 ms. The
-60-second indoor walk still contained two frames over 50 ms and reached 100.0
-ms worst. Door after-values do not yet exist. A strict seven-process cold-door
-attempt completed all seven door legs and the full stress leg, but correctly
-failed before sealing when the 1080p matrix leg returned an empty GPU-timing
-channel. Each of those seven cold inbound crossings compiled a QA-corrupted
-collision-authoring material and carried one non-shadow submit over 50 ms
-(58.6-105.4 ms). After `458de6b` removed that corruption, a clean-RNG cold
-smoke found no UUID alias and no collision-authoring owner, but exposed five
-legitimate live-light-state program arrivals and a 13,638 ms first-inbound
-submit. That is a real open door failure, not an accepted after-value.
+**PERFORMANCE HEADLINE (FIRST-DOOR AFTER VALUES):** the final door-only cohort
+at `qa/goal24/performance/door-objective-snapshot-seven-cold-12/` ran seven
+fresh isolated Electron processes with zero page or console errors. Every
+measured door sample was below 33 ms and none exceeded 50 ms. Maximum
+per-process p95 / worst samples were: cold approach **21.9 / 27.4 ms**, warm
+approach **22.6 / 29.0 ms**, cold open **17.5 / 21.8 ms**, cold outside-in
+**22.2 / 29.0 ms**, warm outside-in **22.2 / 28.1 ms**, and warm inside-out
+**12.1 / 17.4 ms**. All seven first cold outside-in crossings used persisted
+06:00 state and produced zero program arrivals. This is execution-clean scoped
+door evidence, not a relabelled complete-protocol pass.
 
-**PERCEPTION RATIO UPDATE:** unchanged for completed player-visible fixes. The
-new performance instrument is itself perceptive: its 80 ms negative control is
-observed by one exact display interval and one exact shipping-render interval;
-disabling the stall fails closed. It does not increase the completed-fix
-numerator because it is evidence infrastructure rather than a visible fix.
+**PERCEPTION RATIO UPDATE: 6 of 7 completed player-visible fixes.** The door
+increment adds a real Electron frame recorder that directly perceives the
+reported hitch and fails on the original threshold. The crosshair rule remains
+the one unverified player-visible fix.
 
 **PROBE-LIE COUNT UPDATE: 16.** Three additional instrument faults were found.
 The first NPC activation proof polled a later global navigation snapshot rather
@@ -52,7 +47,15 @@ native RNG inside that call, before any scene object is constructed.
 | `4a9440e` | Allowed real ledger regressions to reach the locked evaluator instead of timing out in the observer first. | pushed; remote ancestor |
 | `9e716ac` | Bound NPC navigation evidence to the exact lifecycle-owned route and a later monotonic production poll. | pushed; remote ancestor |
 | `dc8663b` | Phase-aligned the perceptive control, quarantined at most one causally bound stale Chromium rAF timestamp, retained its raw evidence, and preserved the exact-straddle matcher. | pushed; remote ancestor |
-| `458de6b` | Scoped deterministic world seeding to the exact production seed draw, fail-closed on a missed callsite, and prevented constant-RNG Three.js UUID/material-cache corruption. | pushed; live remote HEAD verified |
+| `458de6b` | Scoped deterministic world seeding to the exact production seed draw, fail-closed on a missed callsite, and prevented constant-RNG Three.js UUID/material-cache corruption. | pushed; remote ancestor |
+| `404581f` | Recorded the corrected failed door baseline without relabelling it as acceptance. | pushed; remote ancestor |
+| `290f59e` | Locked causal door route, render, program-arrival, and retained-sample evidence. | pushed; remote ancestor |
+| `341141d` | Retained smooth door render samples so low-overhead evidence could not silently omit them. | pushed; remote ancestor |
+| `6bc35f0` | Reset warm door repetitions through normal focus and trusted interaction outside recorder-owned windows. | pushed; remote ancestor |
+| `058d6e9` | Removed animation-frame polling from already-settled warm resets and retained the immediate shipping diagnostic. | pushed; remote ancestor |
+| `74b64c2` | Removed the cold doorway compositor fence by prepainting the real prompt/condition surfaces on one stable blend path. | pushed; remote ancestor |
+| `ca49a43` | Primed the exact state-derived condition text before play and preserved the opaque startup veil. | pushed; remote ancestor |
+| `73db290` | Added nine-source first-door readiness, asset-idle/circuit synchronization, safe resource ownership, and the campaign snapshot handoff that removed the residual 1 Hz frame tail. | pushed; live remote HEAD verified |
 
 The current hardened control passed five fresh Electron processes in a row
 after the phase fix (runs 03 through 08, with run 08 on the final commit
@@ -61,11 +64,12 @@ run 08 recorded request 28,508.5 ms -> nominal boundary 28,511.7 ms -> observed
 callback 28,521.1 ms, display worst 89.7 ms, render worst 89.8 ms, zero page
 errors, and zero console errors. The exact full interaction/stress leg at the
 prior bounded-callback implementation completed every required scenario with
-all 19 driver controls true; a final full leg will be rerun after the door
-harness/fix. Focused Goal 24 tests are 182/182 green. The repository-wide suite
-is 3,275/3,276: the sole deterministic failure is quarantined G1 WIP adding raw
-`label: 'Ledger book'`, which raises the localization ratchet 2,108 -> 2,109 and
-must be repaired with G1 rather than absorbed into performance work.
+all 19 driver controls true. For the door candidate, the focused lifecycle
+suite passed **48/48**, the tutorial snapshot suite passed **8/8**, and the
+primary dirty-worktree repository suite passed **3,332/3,332**. The detached
+exact-source candidate ran **3,328 tests: 3,327 passed, 0 failed, 1 intentional
+skip**, using the same project-generated local asset evidence as the primary
+workspace.
 
 Important evidence:
 
@@ -75,19 +79,24 @@ Important evidence:
 - `qa/goal24/performance/interaction/orchestrated/2026-08-12-door-causal-baseline-02/`
 - `qa/goal24/performance/interaction/orchestrated/2026-08-12-seed-gate-smoke-02/`
 - `qa/goal24/full-suite-dc8663b-rerun.log`
+- `qa/goal24/performance/door-objective-snapshot-smoke-11/`
+- `qa/goal24/performance/door-objective-snapshot-seven-cold-12/`
 
-**PERCEPTION RATIO: 5 of 6 fixes tonight were verified by a check that could
+**PERCEPTION RATIO: 6 of 7 fixes tonight were verified by a check that could
 actually perceive the thing it certified.** Four by pixels viewed (broom
 squareness A/B at five poses, the bag empty-vs-full at 0.000%, the rebuilt
 `bagFill` control, the crosshair frame), one by real mouse clicks on drawn
-hotspots through a full customer visit that banked money. The sixth — the
-crosshair rule — is a property read and is reported as NOT VERIFIED, because
-its own driver scores identically with the fix reverted.
+hotspots through a full customer visit that banked money, and one by real
+Electron display/render cadence through normal door controls. The seventh —
+the crosshair rule — is a property read and is reported as NOT VERIFIED,
+because its own driver scores identically with the fix reverted.
 
-**MY OWN PROBES LIED 13 TIMES TONIGHT.** Every one is now a control in the file
-that carries it. The count by section: broom 2, crosshair 3, bag 4, checkout 5
-(one of which, `...out.outcomes` spread before it existed, silently deleted four
-checks and printed the rest green).
+**MY OWN PROBES LIED 16 TIMES TONIGHT.** Every one is now a control in the file
+that carries it. The pre-performance unique-fault total was 13; its overlapping
+section labels were broom 2, crosshair 3, bag 4, and checkout 5 (one checkout
+fault, `...out.outcomes` spread before it existed, silently deleted four checks
+and printed the rest green). The three later performance faults are itemized in
+the current status above.
 
 ---
 
@@ -392,8 +401,8 @@ standing inside the shipping focus radius, sending the real trusted interaction
 key, observing `main-entrance-close-applied`, stepping back to the exact 6.5 yd
 start, and retaining the complete reset record in raw evidence. It contains no
 door-state mutation or render warm-up. The orchestrator contract is **42/42**
-and targeted ESLint is clean; the production candidate remains unpublished
-until the real-Electron rerun passes.
+and targeted ESLint is clean; at that stage the production candidate remained
+unpublished until the real-Electron rerun passed.
 
 The first causal trace then exposed a second harness-only failure mode: the door
 was already closed, but the final settle predicate used Playwright's default
@@ -432,16 +441,66 @@ The non-tracing confirmation is
 `qa/goal24/performance/door-stable-blend-low-overhead-01/`. It independently
 passes every control and the complete cold-plus-warm sequence. Cold worst render
 / render-submit times are **27.7 / 13.6 ms** for approach, **27.9 / 14.9 ms**
-for open, and **27.1 / 15.4 ms** for outside-in crossing. This is a stable door
-increment, not yet the required seven-process post-fix cohort; that cohort waits
-for the bounded loader barrier and immutable-batch visibility repairs to join the
+for open, and **27.1 / 15.4 ms** for outside-in crossing. This established a
+stable door increment before the required seven-process post-fix cohort; the
+bounded loader barrier and immutable-batch visibility repairs then joined the
 same production candidate.
+
+### D first-door production increment accepted (scoped)
+
+All nine runtimes capable of changing the first doorway view now join one
+deeply frozen readiness report with an eight-second deadline: Sheet 06,
+architectural doors, props 61-100, Pine Hills interior, shed interior, modern
+public, mountain lodge, resort, and premium country club. `ready` and fully
+settled `degraded` fallbacks are safe to prewarm; `timed-out` is not. The report
+retains per-source settlement, pending names, normalized errors, timestamps,
+values, and diagnostics without freezing any Three.js scene object.
+
+The startup hold blocks input and simulation until the readiness report and the
+global asset-manager idle barrier settle. The authoritative serialized
+time/weather and ceiling-circuit state are applied before shader compilation,
+texture upload, or the forced doorway draw. An unsafe report is logged,
+generation-gated, and disposes only the still-current scene; the opaque veil
+stays up and the existing fatal panel offers a full reload. Settled fallbacks
+continue with a warning after the veil.
+
+Resource ownership is explicit across cached GLTF clones and both raw shed
+loaders. Static prop batching removes five submissions without transferring
+borrowed geometry/material ownership. Late loader callbacks are inert after
+disposal, and deduplicated shed disposal releases each owned resource exactly
+once while preserving shared outer clubhouse resources.
+
+The remaining warm-exit tails were not door submissions. A causal trace found a
+roughly 1 Hz campaign/tutorial projection rebuilding objective state in the
+production frame. `tickCampaign` now returns one in-memory, non-enumerable view
+snapshot; tutorial and objectives reuse it without changing save JSON. The
+clean smoke at
+`qa/goal24/performance/door-objective-snapshot-smoke-11/` kept every door event
+under 24 ms, including a 16.6 ms worst first warm exit.
+
+The final seven-process cohort is
+`qa/goal24/performance/door-objective-snapshot-seven-cold-12/`. It is
+execution-clean, with all measured samples below 33 ms and no sample above 50
+ms. Eight later program creations in four processes are exactly the two
+front/back transparent, double-sided porch-cobweb material variants after the
+harness deliberately changes 06:00 to 14:00; the other three processes compile
+the same variants between recorder windows. The worst affected sample is 16.9
+ms, so this is diagnosed evidence, not a suppressed hitch. The cohort is
+door-only and therefore intentionally incomplete against the full locked
+interaction/matrix/stress protocol.
+
+Focused lifecycle tests pass **48/48**, tutorial snapshot tests pass **8/8**,
+the primary repository suite passes **3,332/3,332**, and the detached exact
+candidate has zero failures. The committed tree is
+`d7bc5269709ab55bcef3be92aece87dae6d295ae`; implementation commit `73db290`
+is pushed and the live remote SHA was independently verified.
 
 ## Still to come
 
-C (recast + navmesh, now unblocked by the CSP), D (the seven-process door
-acceptance cohort and bounded loader integration; compositor fence removed), E (the mop),
-F2 (the hands), G (the ledger), H (audio), I (the Goal 23 debt).
+B checkout return/Escape completion remains the production priority. After the
+register is accepted: C (recast + navmesh, now unblocked by the CSP), E (the
+mop), F2 (the hands), G (the ledger), H (audio), I (the Goal 23 debt), and the
+complete locked cross-feature interaction/matrix/stress rerun.
 
 ## Harness debt added
 
