@@ -555,13 +555,16 @@ select:focus-visible,
   border: 1px solid rgba(151, 174, 153, 0.42);
   border-radius: 10px;
   padding: 8px 13px;
-  transition: opacity 0.15s;
   max-width: min(680px, 78vw);
   text-align: center;
   color: var(--cream);
   font-size: 0.86rem;
   line-height: 1.4;
   box-shadow: 0 10px 28px rgba(0, 0, 0, 0.25);
+  opacity: 0.004;
+  contain: layout paint style;
+  isolation: isolate;
+  will-change: opacity;
 }
 
 .setting-keycap { min-width: 5.5em; font-variant-numeric: tabular-nums; }
@@ -627,6 +630,22 @@ select:focus-visible,
   border-radius: 8px;
   border: 1px solid var(--line);
   font-size: 0.86rem;
+  /* Keep this imperceptibly paintable so Chromium pre-rasters the layer before
+     the first doorway reveal instead of fencing the cold GPU queue there. */
+  opacity: 0.004;
+  pointer-events: none;
+  contain: layout paint style;
+  isolation: isolate;
+  transform: translateZ(0);
+  will-change: opacity;
+}
+
+.shop-cond.is-visible {
+  /* Stay on the translucent compositor path used by the prepainted state.
+     Exact 1 lets Chromium switch the layer to its opaque pipeline on the first
+     doorway reveal; 0.996 is visually indistinguishable but preserves the
+     already-warmed blend program. */
+  opacity: 0.996;
 }
 
 /* --- renovation / furniture placement -------------------------------------- */

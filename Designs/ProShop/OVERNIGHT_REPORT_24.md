@@ -406,6 +406,36 @@ completed every cold and warm door repetition, proving this no longer aborts
 the sequence. That diagnostic run still fails closed on an unrelated 2-physical-
 pixel high-DPI window readback mismatch and is not acceptance evidence.
 
+### D compositor cause isolated and removed
+
+Seven controlled traces separated the first-door world render from Chromium's
+UI compositor. Removing the prompt fade made the cold approach clean, then
+exposed the same deferred Skia path on the condition chip at the threshold.
+Merely prepainting at low alpha was insufficient: changing the chip from a
+translucent layer to exact opacity `1` still caused a full-screen GPU shader-cache
+fence. The shipping overlay now builds the real prompt and condition nodes before
+play, keeps both paintable, removes their first-use opacity animations, and keeps
+the condition chip on one translucent blend path (`0.004` hidden / `0.996`
+visible). Hidden nodes are also `aria-hidden`, and the expensive shop-condition
+scan remains gated to in-shop walking.
+
+The causal trace is
+`qa/goal24/performance/door-stable-blend-trace-08/`. All recorder controls pass
+at 1920x1080, DPR 1, High, seed 424242, hardware RTX 5080. Cold worst render /
+render-submit times are **26.7 / 15.6 ms** for approach, **22.0 / 11.2 ms** for
+open, and **27.4 / 16.8 ms** for outside-in crossing. The largest causally
+overlapping task in those three windows is **25.1 ms**; there is no shader-cache
+fence and no over-33 ms cold doorway frame.
+
+The non-tracing confirmation is
+`qa/goal24/performance/door-stable-blend-low-overhead-01/`. It independently
+passes every control and the complete cold-plus-warm sequence. Cold worst render
+/ render-submit times are **27.7 / 13.6 ms** for approach, **27.9 / 14.9 ms**
+for open, and **27.1 / 15.4 ms** for outside-in crossing. This is a stable door
+increment, not yet the required seven-process post-fix cohort; that cohort waits
+for the bounded loader barrier and immutable-batch visibility repairs to join the
+same production candidate.
+
 ## Still to come
 
 C (recast + navmesh, now unblocked by the CSP), D (the door stall), E (the mop),

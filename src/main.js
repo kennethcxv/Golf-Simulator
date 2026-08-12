@@ -3857,9 +3857,16 @@ function syncPresentationMode(mode) {
 const ovEl = { prompt: null, lockHint: null, cond: null, propertyInventory: null };
 const ovLast = {
   prompt: null, opacity: null, lockDisp: null, lockText: null,
-  condText: null, condDisp: null, propertyInventoryText: null, propertyInventoryDisplay: null,
+  condText: null, condVisible: null, propertyInventoryText: null, propertyInventoryDisplay: null,
 };
 let condClock = 0;
+
+function shopConditionLabel(state, score = null) {
+  if (!state?.shop) return '🧹 Shop condition -';
+  const condition = Number.isFinite(score) ? score : shopCondition(state);
+  return `🧹 Shop condition ${condition} - ${CONDITION_WORD(condition)}`;
+}
+
 function updateWalkOverlay(dtMs = 16.7) {
   const mode = presentationMode();
   syncPresentationMode(mode);
@@ -3968,10 +3975,12 @@ function updateWalkOverlay(dtMs = 16.7) {
   // A focus prompt only has meaning while mouse-look owns the pointer. When
   // the pointer is free, "Click to play" is the single actionable instruction;
   // stacking both bars made the queue/customer name unreadable.
-  const opacity = label && document.pointerLockElement ? '1' : '0';
+  const promptVisible = !!(label && document.pointerLockElement);
+  const opacity = promptVisible ? '1' : '0.004';
   if (opacity !== ovLast.opacity) {
     ovLast.opacity = opacity;
     ovEl.prompt.style.opacity = opacity;
+    ovEl.prompt.setAttribute('aria-hidden', promptVisible ? 'false' : 'true');
   }
   if (label?.includes('check in')) {
     frontDeskLessonSeen = true;
@@ -4016,29 +4025,35 @@ function updateWalkOverlay(dtMs = 16.7) {
     ovLast.lockText = lockText;
     setPromptText(ovEl.lockHint, lockText);
   }
-  // inside the shop: the condition chip rides along (and tier-ups chime) — 4Hz is plenty
+  // Inside the shop the condition chip rides along (and tier-ups chime). Keep
+  // its text painted while outside and reveal only its precomposited opacity
+  // layer at the threshold. A first text/layout paint here used to make
+  // Chromium flush the backed-up WebGL queue about 200 ms after door entry.
+  // Condition itself still changes at only 4 Hz.
   condClock += dtMs;
   if (condClock >= 250) {
     condClock = 0;
     const ch = app.scene3d.clubhouse && app.scene3d.clubhouse();
     const inside = ch && ch.isInside(app.scene3d.walk.state.x, app.scene3d.walk.state.z);
-    let condText = null;
-    if (inside && mode === 'walk' && app.state && app.state.shop) {
+    const conditionVisible = !!(inside && mode === 'walk' && app.state?.shop);
+    const conditionScore = conditionVisible ? shopCondition(app.state) : null;
+    const conditionText = conditionVisible
+      ? shopConditionLabel(app.state, conditionScore)
+      : ovLast.condText;
+    if (conditionVisible) {
       if (app.state.tutorial) tutorialFlag(app.state, 'shopWalked');
-      const c = shopCondition(app.state);
-      const word = CONDITION_WORD(c);
-      condText = `🧹 Shop condition ${c} - ${word}`;
-      if (lastCondWord && word !== lastCondWord && c >= 25 && audio.ready) audio.chime();
+      const word = CONDITION_WORD(conditionScore);
+      if (lastCondWord && word !== lastCondWord && conditionScore >= 25 && audio.ready) audio.chime();
       lastCondWord = word;
     }
-    if (condText !== ovLast.condText) {
-      ovLast.condText = condText;
-      if (condText) ovEl.cond.textContent = condText;
+    if (conditionText !== ovLast.condText) {
+      ovLast.condText = conditionText;
+      setPromptText(ovEl.cond, conditionText);
     }
-    const condDisp = condText ? '' : 'none';
-    if (condDisp !== ovLast.condDisp) {
-      ovLast.condDisp = condDisp;
-      ovEl.cond.style.display = condDisp;
+    if (conditionVisible !== ovLast.condVisible) {
+      ovLast.condVisible = conditionVisible;
+      ovEl.cond.classList.toggle('is-visible', conditionVisible);
+      ovEl.cond.setAttribute('aria-hidden', conditionVisible ? 'false' : 'true');
     }
   }
 }
@@ -4241,8 +4256,14 @@ function boot() {
     app.phone = phoneUi; // reachable from QA via window.__fw
   }
 
-  walkPrompt = el('div', { class: 'shop-prompt', text: '' });
-  walkCondition = el('div', { class: 'shop-cond', text: '', style: 'display:none' });
+  walkPrompt = el('div', { class: 'shop-prompt', 'aria-hidden': 'true' });
+  // Build the same keycap/text/background compositor path while the loading
+  // phase still owns first paint. Exact-zero opacity made Chromium defer that
+  // Skia pipeline until the first world-space focus prompt during movement.
+  setPromptText(walkPrompt, '[E] interact');
+  walkCondition = el('div', {
+    class: 'shop-cond', text: shopConditionLabel(app.state), 'aria-hidden': 'true',
+  });
   walkLockHint = el('div', { class: 'shop-lockhint', text: walkControlHintText() });
   walkOverlay = el('div', { class: 'shop-overlay', style: 'display:none' },
     el('div', { class: 'shop-crosshair' }),
@@ -4252,7 +4273,7 @@ function boot() {
     // routing it through the single prompt meant a desk or a window outranked
     // the dirt at every pile in the shop.
     el('div', { class: 'dirt-reticle', text: '', style: 'display:none' }),
-    el('div', { class: 'shop-prompt', text: '' }),
+    walkPrompt,
     // Flipper-Sense-style affordance: the reveal is worthless if nobody knows
     // the key exists, so the eye and its binding sit in the lower left whenever
     // there is actually dirt to find.
@@ -4261,8 +4282,8 @@ function boot() {
       el('span', { class: 'dirt-sense-key', text: 'Q' }),
       el('span', { class: 'dirt-sense-text', text: 'reveal dirt' })),
     el('div', { class: 'property-inventory', text: '', style: 'display:none' }),
-    el('div', { class: 'shop-cond', text: '', style: 'display:none' }),
-    el('div', { class: 'shop-lockhint', text: walkControlHintText() }),
+    walkCondition,
+    walkLockHint,
   );
 
   // BEHIND THE TILL the walk overlay is hidden — no crosshair, no prompt — so the
