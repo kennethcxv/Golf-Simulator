@@ -2183,12 +2183,13 @@ async (page) => {
       const clubhouse = window.__fw.scene3d.clubhouse();
       const customer = (clubhouse.customers?.() || [])
         .find((candidate) => candidate.customerId === customerId);
+      const navPerformance = clubhouse.navPerformanceDiagnostics?.() ?? null;
       return {
         atMs: performance.now(),
         customerId,
         route: customer?.routeDiagnostics ? { ...customer.routeDiagnostics } : null,
         pathNodes: customer?.path?.length ?? 0,
-        navPerformance: clubhouse.navPerformanceDiagnostics?.() ?? null,
+        navPerformance,
         signal: 'same-organic-customer-route-observed-active',
       };
     }, lifecycleObserved?.customerId)).catch(() => null);
@@ -2226,7 +2227,8 @@ async (page) => {
         npcLifecycleBoundary, lifecycleObserved, routeObserved,
       })}`);
     }
-    const navAfter = routeObserved?.navPerformance ?? null;
+    const navAfter = routeObserved?.route?.navPerformanceAtResolution ?? null;
+    const navAtObservation = routeObserved?.navPerformance ?? null;
     const navPerformanceDelta = {
       navFreshCallCount: Number(navAfter?.navFreshCallCount) - Number(navBefore.navFreshCallCount),
       navRebuildCount: Number(navAfter?.navRebuildCount) - Number(navBefore.navRebuildCount),
@@ -2245,6 +2247,10 @@ async (page) => {
       || navAfter.navCreateStartedAtMs !== navBefore.navCreateStartedAtMs
       || navAfter.navCreatedAtMs !== navBefore.navCreatedAtMs
       || navAfter.navCreateDurationMs !== navBefore.navCreateDurationMs
+      || navAfter.routeRequestId !== routeObserved.route.requestId
+      || navAfter.customerId !== routeObserved.customerId
+      || navAfter.lifecycleBoundaryId !== routeObserved.route.lifecycleBoundaryId
+      || navAfter.capturedAtMs !== routeObserved.route.resolvedAtMs
       || !Number.isFinite(navAfter.navRebuildTotalDurationMs)
       || !Number.isFinite(navAfter.navRebuildMaximumDurationMs)
       || !Number.isFinite(navAfter.navLastRebuildDurationMs)
@@ -2253,9 +2259,16 @@ async (page) => {
       || navAfter.navLastRebuildAtMs > routeObserved.route.resolvedAtMs
       || navPerformanceDelta.navFreshCallCount !== 1
       || navPerformanceDelta.navRebuildCount !== 1
-      || !Number.isFinite(navPerformanceDelta.navRebuildTotalDurationMs)) {
+      || !Number.isFinite(navPerformanceDelta.navRebuildTotalDurationMs)
+      || navAtObservation?.schemaVersion !== 1
+      || navAtObservation?.source !== navPerformanceSource
+      || !Number.isFinite(navAtObservation.capturedAtMs)
+      || navAtObservation.capturedAtMs < navAfter.capturedAtMs
+      || navAtObservation.capturedAtMs > routeObserved.atMs
+      || navAtObservation.navFreshCallCount < navAfter.navFreshCallCount
+      || navAtObservation.navRebuildCount < navAfter.navRebuildCount) {
       throw new Error(`Organic NPC did not pay exactly one first shipping nav rebuild: ${JSON.stringify({
-        navBefore, navAfter, navPerformanceDelta, routeObserved,
+        navBefore, navAfter, navAtObservation, navPerformanceDelta, routeObserved,
       })}`);
     }
     const lifecycleEvent = await end('npcNavActivation', {
@@ -2267,6 +2280,7 @@ async (page) => {
       navCreateDurationMs: navBefore.navCreateDurationMs,
       navPerformanceBefore: navBefore,
       navPerformanceAfter: navAfter,
+      navPerformanceAtObservation: navAtObservation,
       navPerformanceDelta,
       customerActivated: lifecycleObserved?.spawnSource === 'organic-footfall',
       customerId: lifecycleObserved?.customerId ?? null,

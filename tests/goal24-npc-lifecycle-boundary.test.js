@@ -55,8 +55,8 @@ test('the organic footfall edge emits immediately before creation and binds the 
   );
   assert.match(
     clubhouseSource,
-    /c\.routeDiagnostics = \{[\s\S]*?spawnSource: c\.spawnSource,\s*lifecycleBoundaryId: c\.lifecycleBoundaryId,\s*lifecycleBoundaryAtMs: c\.lifecycleBoundaryAtMs,/,
-    'the production nav result must remain bound to the same lifecycle boundary',
+    /const navPerformanceAtResolution = Object\.freeze\(\{\s*\.\.\.navPerformanceDiagnostics\(\),\s*routeRequestId: requestId,\s*customerId: c\.customerId,\s*lifecycleBoundaryId: c\.lifecycleBoundaryId,\s*\}\);\s*const resolvedAtMs = navPerformanceAtResolution\.capturedAtMs;\s*c\.routeDiagnostics = \{\s*requestId,\s*customerId: c\.customerId,[\s\S]*?navPerformanceAtResolution,/,
+    'the production nav result must bind the lifecycle and exact route-owned performance snapshot',
   );
 });
 

@@ -348,7 +348,16 @@ test('raw validation pins route, camera, physical 1080p DPR1, quality, and teard
 const NAV_PERFORMANCE_SOURCE =
   'shipping-clubhouse-makeNav-and-navFresh-monotonic-counters';
 
-function npcNavigationEvidence(lifecycleAtMs, routeRequestedAtMs, routeResolvedAtMs) {
+function npcNavigationEvidence(
+  lifecycleAtMs,
+  routeRequestedAtMs,
+  routeResolvedAtMs,
+  {
+    routeRequestId = 'route-1',
+    customerId = 'customer-1',
+    lifecycleBoundaryId = 'organic-footfall-1',
+  } = {},
+) {
   const navCreatedAtMs = Math.max(0, lifecycleAtMs - 50);
   const navCreateDurationMs = 4.25;
   const colliderVersion = 11;
@@ -356,6 +365,7 @@ function npcNavigationEvidence(lifecycleAtMs, routeRequestedAtMs, routeResolvedA
   const navPerformanceBefore = {
     schemaVersion: 1,
     source: NAV_PERFORMANCE_SOURCE,
+    capturedAtMs: Math.max(navCreatedAtMs, lifecycleAtMs - 0.5),
     navCreateStartedAtMs: navCreatedAtMs - navCreateDurationMs,
     navCreatedAtMs,
     navCreateDurationMs,
@@ -377,13 +387,25 @@ function npcNavigationEvidence(lifecycleAtMs, routeRequestedAtMs, routeResolvedA
     navLastRebuildDurationMs: rebuildDurationMs,
     navLastRebuildAtMs: routeRequestedAtMs + 1,
     builtColliderVersion: colliderVersion,
+    capturedAtMs: routeResolvedAtMs,
+    routeRequestId,
+    customerId,
+    lifecycleBoundaryId,
   };
+  const navPerformanceAtObservation = {
+    ...navPerformanceAfter,
+    capturedAtMs: routeResolvedAtMs + 0.5,
+  };
+  delete navPerformanceAtObservation.routeRequestId;
+  delete navPerformanceAtObservation.customerId;
+  delete navPerformanceAtObservation.lifecycleBoundaryId;
   return {
     sceneLoaded: true,
     sceneLoadedAtMs: navCreatedAtMs,
     navCreateDurationMs,
     navPerformanceBefore,
     navPerformanceAfter,
+    navPerformanceAtObservation,
     navPerformanceDelta: {
       navFreshCallCount: 1,
       navRebuildCount: 1,
@@ -583,14 +605,23 @@ function lockedDiscriminator(id, index, temperature, runId, startAt = index * 10
         contractOutcomeMarkerAtMs: startAt + 24,
       };
     }
-    case 'npcNavActivation': return {
+    case 'npcNavActivation': {
+      const routeRequestId = `route-${runId}-${index}`;
+      const customerId = `customer-${runId}-${index}`;
+      const lifecycleBoundaryId = `organic-footfall-${runId}-${index}`;
+      const navEvidence = npcNavigationEvidence(startAt, startAt + 2, startAt + 20, {
+        routeRequestId,
+        customerId,
+        lifecycleBoundaryId,
+      });
+      return {
       customerActivated: true,
       customerCreated: true,
       routeRequested: true,
       routeResolved: true,
-      routeRequestId: `route-${runId}-${index}`,
-      ...npcNavigationEvidence(startAt, startAt + 2, startAt + 20),
-      lifecycleBoundaryId: `organic-footfall-${runId}-${index}`,
+      routeRequestId,
+      ...navEvidence,
+      lifecycleBoundaryId,
       lifecycleBoundaryAtMs: startAt - 0.1,
       lifecycleMeasurementBoundary: {
         label: 'organic-footfall-window-start',
@@ -598,17 +629,17 @@ function lockedDiscriminator(id, index, temperature, runId, startAt = index * 10
         priorDisplayBoundaryMs: startAt - 3,
         priorRenderBoundaryMs: startAt - 3,
       },
-      customerId: `customer-${runId}-${index}`,
+      customerId,
       lifecycleObserved: {
-        customerId: `customer-${runId}-${index}`,
+        customerId,
         spawnSource: 'organic-footfall',
-        lifecycleBoundaryId: `organic-footfall-${runId}-${index}`,
+        lifecycleBoundaryId,
         lifecycleBoundaryAtMs: startAt - 0.1,
         boundaryObservation: {
           boundary: {
             schemaVersion: 1,
             eventType: 'organic-customer-lifecycle-window-start',
-            lifecycleId: `organic-footfall-${runId}-${index}`,
+            lifecycleId: lifecycleBoundaryId,
             atMs: startAt - 0.1,
             source: 'shipping-organic-footfall-loop',
             spawnSource: 'organic-footfall',
@@ -624,26 +655,30 @@ function lockedDiscriminator(id, index, temperature, runId, startAt = index * 10
         signal: 'shipping-organic-footfall-customer-created',
       },
       routeObserved: {
-        atMs: startAt + 20,
-        customerId: `customer-${runId}-${index}`,
+        atMs: startAt + 21,
+        customerId,
+        navPerformance: structuredClone(navEvidence.navPerformanceAtObservation),
         route: {
-          requestId: `route-${runId}-${index}`,
+          requestId: routeRequestId,
+          customerId,
           requestedAtMs: startAt + 2,
           resolvedAtMs: startAt + 20,
           pathNodes: 1,
           spawnSource: 'organic-footfall',
-          lifecycleBoundaryId: `organic-footfall-${runId}-${index}`,
+          lifecycleBoundaryId,
           lifecycleBoundaryAtMs: startAt - 0.1,
+          navPerformanceAtResolution: structuredClone(navEvidence.navPerformanceAfter),
         },
       },
       productionHandlerConsumed: {
         signal: 'shipping-navFresh-path-request-for-same-organic-customer', atMs: startAt + 2,
       },
-      outcomeObservedAtMs: startAt + 20,
-      productionOutcomeMarkerAtMs: startAt + 21,
+      outcomeObservedAtMs: startAt + 21,
+      productionOutcomeMarkerAtMs: startAt + 22,
       contractOutcomeMarkerAtMs: startAt + 24,
       directSpawnUsed: false,
-    };
+      };
+    }
     default: throw new Error(`Missing locked discriminator for ${id}`);
   }
 }
@@ -1753,6 +1788,101 @@ test('raw-bound NPC contribution cannot coordinate away prewarm or the first nav
   assert.throws(
     () => validateContributionRawBindings(noRebuild, noRebuild.contractContribution, run),
     /exactly one shipping navFresh call and one collider-grid rebuild/,
+  );
+
+  const polledLater = structuredClone(raw);
+  const polledLaterRawEvent = polledLater.scenarios.npcNavActivation.events[0];
+  polledLaterRawEvent.discriminator.navPerformanceAfter.navFreshCallCount += 1;
+  polledLater.contractContribution.scenarios[0].events[0].discriminator =
+    structuredClone(polledLaterRawEvent.discriminator);
+  assert.throws(
+    () => validateContributionRawBindings(
+      polledLater,
+      polledLater.contractContribution,
+      run,
+    ),
+    /snapshot owned by the exact resolved production route/,
+  );
+
+  const missingPoll = structuredClone(raw);
+  const missingPollRawEvent = missingPoll.scenarios.npcNavActivation.events[0];
+  delete missingPollRawEvent.discriminator.navPerformanceAtObservation;
+  missingPoll.contractContribution.scenarios[0].events[0].discriminator =
+    structuredClone(missingPollRawEvent.discriminator);
+  assert.throws(
+    () => validateContributionRawBindings(missingPoll, missingPoll.contractContribution, run),
+    /later production diagnostic poll/,
+  );
+
+  const relabeled = structuredClone(raw);
+  const relabeledRawEvent = relabeled.scenarios.npcNavActivation.events[0];
+  relabeledRawEvent.discriminator.routeRequestId = 'reused-other-route';
+  relabeledRawEvent.discriminator.routeObserved.route.requestId = 'reused-other-route';
+  relabeled.contractContribution.scenarios[0].events[0].discriminator =
+    structuredClone(relabeledRawEvent.discriminator);
+  assert.throws(
+    () => validateContributionRawBindings(relabeled, relabeled.contractContribution, run),
+    /snapshot must own matching request/,
+  );
+
+  const impossibleTiming = structuredClone(raw);
+  const impossibleRawEvent = impossibleTiming.scenarios.npcNavActivation.events[0];
+  for (const snapshot of [
+    impossibleRawEvent.discriminator.navPerformanceAfter,
+    impossibleRawEvent.discriminator.routeObserved.route.navPerformanceAtResolution,
+    impossibleRawEvent.discriminator.navPerformanceAtObservation,
+    impossibleRawEvent.discriminator.routeObserved.navPerformance,
+  ]) {
+    snapshot.navRebuildTotalDurationMs = 9;
+    snapshot.navRebuildMaximumDurationMs = 7;
+    snapshot.navLastRebuildDurationMs = 2.5;
+  }
+  impossibleRawEvent.discriminator.navPerformanceDelta.navRebuildTotalDurationMs = 9;
+  impossibleTiming.contractContribution.scenarios[0].events[0].discriminator =
+    structuredClone(impossibleRawEvent.discriminator);
+  assert.throws(
+    () => validateContributionRawBindings(
+      impossibleTiming,
+      impossibleTiming.contractContribution,
+      run,
+    ),
+    /equal total, maximum, and last durations/,
+  );
+
+  const malformedLaterTiming = structuredClone(raw);
+  const malformedLaterRawEvent = malformedLaterTiming.scenarios.npcNavActivation.events[0];
+  for (const snapshot of [
+    malformedLaterRawEvent.discriminator.navPerformanceAtObservation,
+    malformedLaterRawEvent.discriminator.routeObserved.navPerformance,
+  ]) {
+    snapshot.navRebuildTotalDurationMs = 9;
+    snapshot.navRebuildMaximumDurationMs = 7;
+    snapshot.navLastRebuildDurationMs = 2.5;
+  }
+  malformedLaterTiming.contractContribution.scenarios[0].events[0].discriminator =
+    structuredClone(malformedLaterRawEvent.discriminator);
+  assert.throws(
+    () => validateContributionRawBindings(
+      malformedLaterTiming,
+      malformedLaterTiming.contractContribution,
+      run,
+    ),
+    /equal total, maximum, and last durations/,
+  );
+
+  const lateBeforeCapture = structuredClone(raw);
+  const lateBeforeRawEvent = lateBeforeCapture.scenarios.npcNavActivation.events[0];
+  lateBeforeRawEvent.discriminator.navPerformanceBefore.capturedAtMs =
+    lateBeforeRawEvent.discriminator.routeResolvedAtMs + 100;
+  lateBeforeCapture.contractContribution.scenarios[0].events[0].discriminator =
+    structuredClone(lateBeforeRawEvent.discriminator);
+  assert.throws(
+    () => validateContributionRawBindings(
+      lateBeforeCapture,
+      lateBeforeCapture.contractContribution,
+      run,
+    ),
+    /captured before the organic lifecycle and exact route/,
   );
 });
 

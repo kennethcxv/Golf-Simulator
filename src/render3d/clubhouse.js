@@ -11002,6 +11002,7 @@ export function makeClubhouse(ctx) {
     return Object.freeze({
       schemaVersion: 1,
       source: 'shipping-clubhouse-makeNav-and-navFresh-monotonic-counters',
+      capturedAtMs: performance.now(),
       navCreateStartedAtMs,
       navCreatedAtMs,
       navCreateDurationMs,
@@ -11608,9 +11609,21 @@ export function makeClubhouse(ctx) {
           const requestedAtMs = performance.now();
           const requestId = `${c.customerId}:${++customerRouteSequence}`;
           c.path = navFresh().path(c.mesh.position.x, c.mesh.position.z, tx, tz) || [{ x: tx, z: tz }];
-          const resolvedAtMs = performance.now();
+          // Goal 24 evidence must describe THIS request, not whatever the
+          // process-wide counter says when an asynchronous observer happens to
+          // poll later. A second customer can legitimately request a route in
+          // that gap. Snapshot immediately after the shipping navFresh().path
+          // call and bind it to immutable route/customer/lifecycle identities.
+          const navPerformanceAtResolution = Object.freeze({
+            ...navPerformanceDiagnostics(),
+            routeRequestId: requestId,
+            customerId: c.customerId,
+            lifecycleBoundaryId: c.lifecycleBoundaryId,
+          });
+          const resolvedAtMs = navPerformanceAtResolution.capturedAtMs;
           c.routeDiagnostics = {
             requestId,
+            customerId: c.customerId,
             requestedAtMs,
             resolvedAtMs,
             pathNodes: c.path.length,
@@ -11618,6 +11631,7 @@ export function makeClubhouse(ctx) {
             spawnSource: c.spawnSource,
             lifecycleBoundaryId: c.lifecycleBoundaryId,
             lifecycleBoundaryAtMs: c.lifecycleBoundaryAtMs,
+            navPerformanceAtResolution,
           };
           c.pathGoal = { x: tx, z: tz };
           c.stuckT = 0;

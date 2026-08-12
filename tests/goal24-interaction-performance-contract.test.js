@@ -37,7 +37,16 @@ const SCENARIO_TIME_OFFSET_MS = {
 const NAV_PERFORMANCE_SOURCE =
   'shipping-clubhouse-makeNav-and-navFresh-monotonic-counters';
 
-function npcNavigationEvidence(lifecycleAtMs, routeRequestedAtMs, routeResolvedAtMs) {
+function npcNavigationEvidence(
+  lifecycleAtMs,
+  routeRequestedAtMs,
+  routeResolvedAtMs,
+  {
+    routeRequestId = 'route-1',
+    customerId = 'customer-1',
+    lifecycleBoundaryId = 'organic-footfall-1',
+  } = {},
+) {
   const navCreatedAtMs = Math.max(0, lifecycleAtMs - 500);
   const navCreateDurationMs = 4.25;
   const colliderVersion = 7;
@@ -45,6 +54,7 @@ function npcNavigationEvidence(lifecycleAtMs, routeRequestedAtMs, routeResolvedA
   const before = {
     schemaVersion: 1,
     source: NAV_PERFORMANCE_SOURCE,
+    capturedAtMs: Math.max(navCreatedAtMs, lifecycleAtMs - 0.5),
     navCreateStartedAtMs: navCreatedAtMs - navCreateDurationMs,
     navCreatedAtMs,
     navCreateDurationMs,
@@ -66,13 +76,25 @@ function npcNavigationEvidence(lifecycleAtMs, routeRequestedAtMs, routeResolvedA
     navLastRebuildDurationMs: rebuildDurationMs,
     navLastRebuildAtMs: routeRequestedAtMs + 1,
     builtColliderVersion: colliderVersion,
+    capturedAtMs: routeResolvedAtMs,
+    routeRequestId,
+    customerId,
+    lifecycleBoundaryId,
   };
+  const atObservation = {
+    ...after,
+    capturedAtMs: routeResolvedAtMs + 1,
+  };
+  delete atObservation.routeRequestId;
+  delete atObservation.customerId;
+  delete atObservation.lifecycleBoundaryId;
   return {
     sceneLoaded: true,
     sceneLoadedAtMs: navCreatedAtMs,
     navCreateDurationMs,
     navPerformanceBefore: before,
     navPerformanceAfter: after,
+    navPerformanceAtObservation: structuredClone(atObservation),
     navPerformanceDelta: {
       navFreshCallCount: 1,
       navRebuildCount: 1,
@@ -81,6 +103,18 @@ function npcNavigationEvidence(lifecycleAtMs, routeRequestedAtMs, routeResolvedA
     lifecycleWindowStartedAtMs: lifecycleAtMs,
     routeRequestedAtMs,
     routeResolvedAtMs,
+    routeObserved: {
+      atMs: routeResolvedAtMs + 2,
+      customerId,
+      navPerformance: structuredClone(atObservation),
+      route: {
+        requestId: routeRequestId,
+        customerId,
+        resolvedAtMs: routeResolvedAtMs,
+        lifecycleBoundaryId,
+        navPerformanceAtResolution: structuredClone(after),
+      },
+    },
   };
 }
 
@@ -244,7 +278,13 @@ function discriminatorFor(id, index, temperature) {
         routeRequested: true,
         routeResolved: true,
         routeRequestId: `route-${index + 1}`,
-        ...npcNavigationEvidence(10, 20, 30),
+        customerId: `customer-${index + 1}`,
+        lifecycleBoundaryId: `organic-footfall-${index + 1}`,
+        ...npcNavigationEvidence(10, 20, 30, {
+          routeRequestId: `route-${index + 1}`,
+          customerId: `customer-${index + 1}`,
+          lifecycleBoundaryId: `organic-footfall-${index + 1}`,
+        }),
       };
     default:
       throw new Error(`Unhandled scenario ${id}`);
@@ -331,6 +371,11 @@ function setMeasuredCadence(event, displayIntervals, renderIntervals = displayIn
       startAtMs + 1,
       startAtMs + 8,
       Math.min(startAtMs + 18, endAtMs),
+      {
+        routeRequestId: event.discriminator.routeRequestId,
+        customerId: event.discriminator.customerId,
+        lifecycleBoundaryId: event.discriminator.lifecycleBoundaryId,
+      },
     ));
   }
   if (GOAL24_DOOR_SCENARIOS.includes(event.scenarioId)) attachDoorEvidence(event);
@@ -1652,6 +1697,82 @@ test('NPC first-route evidence rejects nav prewarm and a missing shipping rebuil
   result = evaluateLockedInteractionPerformanceReport(forgedCreateDuration);
   assert.equal(result.ok, false);
   assert.match(result.failures.join('\n'), /invalid shipping navigation counters or timings/);
+
+  const lateGlobalCounter = validReport();
+  const lateNpc = lateGlobalCounter.scenarios
+    .find(({ id }) => id === 'npcNavActivation').events[0];
+  lateNpc.discriminator.navPerformanceAfter.navFreshCallCount += 1;
+  result = evaluateLockedInteractionPerformanceReport(lateGlobalCounter);
+  assert.equal(result.ok, false);
+  assert.match(result.failures.join('\n'), /snapshot owned by the exact resolved production route/);
+
+  const missingPoll = validReport();
+  const missingPollNpc = missingPoll.scenarios
+    .find(({ id }) => id === 'npcNavActivation').events[0];
+  delete missingPollNpc.discriminator.navPerformanceAtObservation;
+  result = evaluateLockedInteractionPerformanceReport(missingPoll);
+  assert.equal(result.ok, false);
+  assert.match(result.failures.join('\n'), /later production diagnostic poll/);
+
+  const malformedPoll = validReport();
+  const malformedPollNpc = malformedPoll.scenarios
+    .find(({ id }) => id === 'npcNavActivation').events[0];
+  malformedPollNpc.discriminator.navPerformanceAtObservation.capturedAtMs = Number.NaN;
+  malformedPollNpc.discriminator.routeObserved.navPerformance.capturedAtMs = Number.NaN;
+  result = evaluateLockedInteractionPerformanceReport(malformedPoll);
+  assert.equal(result.ok, false);
+  assert.match(result.failures.join('\n'), /navPerformanceAtObservation contains invalid/);
+
+  const relabeledRoute = validReport();
+  const relabeledNpc = relabeledRoute.scenarios
+    .find(({ id }) => id === 'npcNavActivation').events[0];
+  relabeledNpc.discriminator.routeRequestId = 'relabeled-route';
+  relabeledNpc.discriminator.routeObserved.route.requestId = 'relabeled-route';
+  result = evaluateLockedInteractionPerformanceReport(relabeledRoute);
+  assert.equal(result.ok, false);
+  assert.match(result.failures.join('\n'), /snapshot must own matching request/);
+
+  const impossibleOneRebuild = validReport();
+  const impossibleNpc = impossibleOneRebuild.scenarios
+    .find(({ id }) => id === 'npcNavActivation').events[0];
+  for (const snapshot of [
+    impossibleNpc.discriminator.navPerformanceAfter,
+    impossibleNpc.discriminator.routeObserved.route.navPerformanceAtResolution,
+    impossibleNpc.discriminator.navPerformanceAtObservation,
+    impossibleNpc.discriminator.routeObserved.navPerformance,
+  ]) {
+    snapshot.navRebuildTotalDurationMs = 9;
+    snapshot.navRebuildMaximumDurationMs = 7;
+    snapshot.navLastRebuildDurationMs = 2.5;
+  }
+  impossibleNpc.discriminator.navPerformanceDelta.navRebuildTotalDurationMs = 9;
+  result = evaluateLockedInteractionPerformanceReport(impossibleOneRebuild);
+  assert.equal(result.ok, false);
+  assert.match(result.failures.join('\n'), /equal total, maximum, and last durations/);
+
+  const malformedLaterTiming = validReport();
+  const malformedLaterNpc = malformedLaterTiming.scenarios
+    .find(({ id }) => id === 'npcNavActivation').events[0];
+  for (const snapshot of [
+    malformedLaterNpc.discriminator.navPerformanceAtObservation,
+    malformedLaterNpc.discriminator.routeObserved.navPerformance,
+  ]) {
+    snapshot.navRebuildTotalDurationMs = 9;
+    snapshot.navRebuildMaximumDurationMs = 7;
+    snapshot.navLastRebuildDurationMs = 2.5;
+  }
+  result = evaluateLockedInteractionPerformanceReport(malformedLaterTiming);
+  assert.equal(result.ok, false);
+  assert.match(result.failures.join('\n'), /equal total, maximum, and last durations/);
+
+  const lateBeforeCapture = validReport();
+  const lateBeforeNpc = lateBeforeCapture.scenarios
+    .find(({ id }) => id === 'npcNavActivation').events[0];
+  lateBeforeNpc.discriminator.navPerformanceBefore.capturedAtMs =
+    lateBeforeNpc.discriminator.routeResolvedAtMs + 100;
+  result = evaluateLockedInteractionPerformanceReport(lateBeforeCapture);
+  assert.equal(result.ok, false);
+  assert.match(result.failures.join('\n'), /captured before the organic lifecycle and exact route/);
 });
 
 test('a first-approach cold hitch fails absolute acceptance even when every process repeats it', () => {

@@ -429,7 +429,8 @@ const INTERACTION_SCENARIOS = [
       'customerActivated', 'routeRequested', 'routeResolved', 'routeRequestId',
       'lifecycleWindowStartedAtMs', 'routeRequestedAtMs', 'routeResolvedAtMs',
       'sceneLoaded', 'sceneLoadedAtMs', 'navCreateDurationMs',
-      'navPerformanceBefore', 'navPerformanceAfter', 'navPerformanceDelta',
+      'navPerformanceBefore', 'navPerformanceAfter', 'navPerformanceAtObservation',
+      'navPerformanceDelta',
     ],
   },
   {
@@ -1240,7 +1241,11 @@ export function goal24NpcNavEvidenceFailures(event) {
   const discriminator = event?.discriminator || {};
   const before = discriminator.navPerformanceBefore;
   const after = discriminator.navPerformanceAfter;
+  const atObservation = discriminator.navPerformanceAtObservation;
   const delta = discriminator.navPerformanceDelta;
+  const routeObserved = discriminator.routeObserved;
+  const route = routeObserved?.route;
+  const routeAfter = route?.navPerformanceAtResolution;
   const failures = [];
   const fail = (message) => failures.push(message);
   const validSnapshotBase = (snapshot, label) => {
@@ -1250,6 +1255,7 @@ export function goal24NpcNavEvidenceFailures(event) {
       return false;
     }
     if (!nonNegativeFinite(snapshot.navCreateStartedAtMs)
+      || !nonNegativeFinite(snapshot.capturedAtMs)
       || !nonNegativeFinite(snapshot.navCreatedAtMs)
       || !nonNegativeFinite(snapshot.navCreateDurationMs)
       || snapshot.navCreatedAtMs < snapshot.navCreateStartedAtMs
@@ -1266,15 +1272,72 @@ export function goal24NpcNavEvidenceFailures(event) {
       fail(`${label} contains invalid shipping navigation counters or timings`);
       return false;
     }
+    if (snapshot.capturedAtMs < snapshot.navCreatedAtMs
+      || snapshot.navFreshCallCount < snapshot.navRebuildCount
+      || snapshot.navRebuildTotalDurationMs < snapshot.navRebuildMaximumDurationMs
+      || (snapshot.navRebuildCount === 0 && (
+        snapshot.navRebuildTotalDurationMs !== 0
+        || snapshot.navRebuildMaximumDurationMs !== 0
+        || snapshot.navLastRebuildDurationMs !== null
+        || snapshot.navLastRebuildAtMs !== null
+      ))
+      || (snapshot.navRebuildCount > 0 && (
+        !nonNegativeFinite(snapshot.navLastRebuildDurationMs)
+        || !nonNegativeFinite(snapshot.navLastRebuildAtMs)
+        || snapshot.navRebuildMaximumDurationMs < snapshot.navLastRebuildDurationMs
+        || snapshot.navLastRebuildAtMs > snapshot.capturedAtMs
+      ))) {
+      fail(`${label} contains internally inconsistent shipping navigation evidence`);
+      return false;
+    }
+    if (snapshot.navRebuildCount === 1 && (
+      Math.abs(snapshot.navRebuildTotalDurationMs - snapshot.navLastRebuildDurationMs) > 0.001
+      || Math.abs(
+        snapshot.navRebuildMaximumDurationMs - snapshot.navLastRebuildDurationMs
+      ) > 0.001
+    )) {
+      fail(`${label}: one shipping rebuild must have equal total, maximum, and last durations`);
+      return false;
+    }
     return true;
   };
   const beforeBaseValid = validSnapshotBase(before, 'navPerformanceBefore');
   const afterBaseValid = validSnapshotBase(after, 'navPerformanceAfter');
+  const observationBaseValid = validSnapshotBase(
+    atObservation,
+    'navPerformanceAtObservation',
+  );
+  if (!isDeepStrictEqual(routeAfter, after)) {
+    fail('navPerformanceAfter must be the snapshot owned by the exact resolved production route');
+  }
+  if (!isDeepStrictEqual(routeObserved?.navPerformance, atObservation)) {
+    fail('navPerformanceAtObservation must exactly retain the later production diagnostic poll');
+  }
+  if (afterBaseValid && (
+    after.routeRequestId !== discriminator.routeRequestId
+    || after.routeRequestId !== route?.requestId
+    || after.customerId !== discriminator.customerId
+    || after.customerId !== route?.customerId
+    || after.customerId !== routeObserved?.customerId
+    || after.lifecycleBoundaryId !== discriminator.lifecycleBoundaryId
+    || after.lifecycleBoundaryId !== route?.lifecycleBoundaryId
+    || after.capturedAtMs !== discriminator.routeResolvedAtMs
+    || after.capturedAtMs !== route?.resolvedAtMs
+  )) {
+    fail('exact route snapshot must own matching request, customer, lifecycle, and resolution identities');
+  }
   if (beforeBaseValid && (before.navFreshCallCount !== 0 || before.navRebuildCount !== 0
     || before.builtColliderVersion === before.colliderVersion
     || before.navRebuildTotalDurationMs !== 0 || before.navRebuildMaximumDurationMs !== 0
     || before.navLastRebuildDurationMs !== null || before.navLastRebuildAtMs !== null)) {
     fail('first organic route must begin before any navFresh call or collider-grid prewarm');
+  }
+  if (beforeBaseValid && (
+    before.capturedAtMs > discriminator.lifecycleWindowStartedAtMs
+    || before.capturedAtMs > discriminator.routeRequestedAtMs
+    || before.capturedAtMs > after?.capturedAtMs
+  )) {
+    fail('navPerformanceBefore must be captured before the organic lifecycle and exact route');
   }
   if (afterBaseValid && (!nonNegativeFinite(after.navLastRebuildDurationMs)
     || !nonNegativeFinite(after.navLastRebuildAtMs))) {
@@ -1292,6 +1355,33 @@ export function goal24NpcNavEvidenceFailures(event) {
       || Math.abs(after.navCreateDurationMs - before.navCreateDurationMs) > 0.001) {
       fail('before/after snapshots must identify the same shipping navigation grid creation');
     }
+  }
+  if (afterBaseValid && observationBaseValid && (
+    atObservation.capturedAtMs < after.capturedAtMs
+    || atObservation.capturedAtMs > routeObserved?.atMs
+    || atObservation.navCreateStartedAtMs !== after.navCreateStartedAtMs
+    || atObservation.navCreatedAtMs !== after.navCreatedAtMs
+    || Math.abs(atObservation.navCreateDurationMs - after.navCreateDurationMs) > 0.001
+    || atObservation.navFreshCallCount < after.navFreshCallCount
+    || atObservation.navRebuildCount < after.navRebuildCount
+    || atObservation.navRebuildTotalDurationMs < after.navRebuildTotalDurationMs
+    || atObservation.navRebuildMaximumDurationMs < after.navRebuildMaximumDurationMs
+    || atObservation.navLastRebuildAtMs < after.navLastRebuildAtMs
+  )) {
+    fail('later production navigation poll must monotonically follow the exact route snapshot');
+  }
+  if (afterBaseValid && observationBaseValid
+    && atObservation.navRebuildCount === after.navRebuildCount
+    && (Math.abs(
+      atObservation.navRebuildTotalDurationMs - after.navRebuildTotalDurationMs
+    ) > 0.001
+      || Math.abs(
+        atObservation.navRebuildMaximumDurationMs - after.navRebuildMaximumDurationMs
+      ) > 0.001
+      || atObservation.navLastRebuildDurationMs !== after.navLastRebuildDurationMs
+      || atObservation.navLastRebuildAtMs !== after.navLastRebuildAtMs
+      || atObservation.builtColliderVersion !== after.builtColliderVersion)) {
+    fail('later poll without another rebuild must retain exact rebuild timing and version evidence');
   }
   if (discriminator.sceneLoaded !== true
     || !nonNegativeFinite(discriminator.sceneLoadedAtMs)
