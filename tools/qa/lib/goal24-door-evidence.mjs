@@ -1,14 +1,22 @@
 import { isDeepStrictEqual } from 'node:util';
 
-export const GOAL24_DOOR_ROUTE_SCHEMA = 'goal24-door-route-camera-v2';
-export const GOAL24_DOOR_RENDER_SCHEMA = 'goal24-doorway-render-evidence-v2';
-export const GOAL24_DOOR_AGGREGATE_SCHEMA = 'goal24-door-evidence-aggregate-v1';
+export const GOAL24_DOOR_ROUTE_SCHEMA = 'goal24-door-route-camera-v3';
+export const GOAL24_DOOR_RENDER_SCHEMA = 'goal24-doorway-render-evidence-v3';
+export const GOAL24_DOOR_AGGREGATE_SCHEMA = 'goal24-door-evidence-aggregate-v2';
+export const GOAL24_DOOR_DETAIL_CLEARANCE_YARDS = 1.5;
 
 export const GOAL24_DOOR_SCENARIOS = Object.freeze([
   'doorApproach',
   'doorCrossingOutsideToInside',
   'doorCrossingInsideToOutside',
 ]);
+
+const ROUTE_KIND_BY_SCENARIO = Object.freeze({
+  doorApproach: 'approach',
+  doorCrossingOutsideToInside: 'outside-in',
+  doorCrossingInsideToOutside: 'inside-out',
+});
+const ROUTE_KINDS = Object.freeze(Object.values(ROUTE_KIND_BY_SCENARIO));
 
 // Movement is sampled every 100 ms and the shipping walk speed is 3.4 yd/s.
 // The finish/path allowance is therefore one polling step (0.34 yd) plus 0.06 yd
@@ -30,6 +38,7 @@ export const GOAL24_DOOR_DRAW_TOLERANCES = Object.freeze({
   relative: 0.02,
   drawCallsAbsolute: 2,
   renderedTrianglesAbsolute: 1000,
+  submissionWallMsAbsolute: 1,
 });
 
 const FRAME_BOUNDARY_SOURCE = 'shipping-scene3d.render-wrapper';
@@ -37,6 +46,10 @@ const COUNTER_SOURCE = 'THREE.WebGLRenderer.info.render-after-shipping-composed-
 const SHADOW_SOURCE = 'scene3d.post.stats().shadowBakes';
 const COMPOSED_RENDER_SOURCE = 'scene3d.post.stats().composedRenders';
 const EPSILON_MS = 0.05;
+// readDoor uses the shipping clubhouse's axial inside probe with this margin.
+// Positions farther from the doorway plane are therefore unambiguous and can
+// be independently checked against the recorded `inside` boolean.
+const DOOR_INSIDE_CLASSIFICATION_MARGIN_YARDS = 0.35;
 const RENDER_PROVENANCE = Object.freeze({
   boundarySource: FRAME_BOUNDARY_SOURCE,
   counterSource: COUNTER_SOURCE,
@@ -44,7 +57,8 @@ const RENDER_PROVENANCE = Object.freeze({
   composedRenderSource: COMPOSED_RENDER_SOURCE,
   counterReadPhase: 'after-complete-shipping-scene3d-render-return',
   firstFramePolicy: 'retained-raw-excluded-from-matched-statistic',
-  shadowBakePolicy: 'classified-retained-raw-excluded-from-matched-and-peak-statistics',
+  shadowBakePolicy:
+    'classified-retained-raw-excluded-from-draw-and-non-shadow-submit-statistics-but-retained-in-all-frame-submit-statistics',
 });
 
 function invariant(value, message) {
@@ -65,6 +79,11 @@ function distance2d(left, right) {
 
 function distance3d(left, right) {
   return Math.hypot(left.x - right.x, left.y - right.y, left.z - right.z);
+}
+
+function signedDoorDistance(sample, signature) {
+  return (sample.x - signature.target.x) * signature.normal.x
+    + (sample.z - signature.target.z) * signature.normal.z;
 }
 
 function quaternionAngle(left, right) {
@@ -112,23 +131,85 @@ function validateCamera(camera, label) {
   invariant(Math.abs(norm - 1) <= 0.002, `${label} camera quaternion is not normalized.`);
 }
 
+function validateDetailVisibilityTransition(transition, label) {
+  invariant(transition && typeof transition === 'object' && !Array.isArray(transition),
+    `${label} detail-visibility transition is invalid.`);
+  invariant(Number.isInteger(transition.sequence) && transition.sequence > 0,
+    `${label} detail-visibility transition sequence is invalid.`);
+  invariant(finiteFields(transition, [
+    'atMs', 'cameraLocalX', 'cameraLocalZ', 'exteriorDistanceYards',
+  ]), `${label} detail-visibility transition position/timing is incomplete.`);
+  invariant(transition.exteriorDistanceYards >= 0,
+    `${label} detail-visibility transition exterior distance is invalid.`);
+  invariant(transition.detailClearanceYards === GOAL24_DOOR_DETAIL_CLEARANCE_YARDS,
+    `${label} detail-visibility transition clearance is not pinned to the production gate.`);
+  invariant(typeof transition.from === 'boolean' && typeof transition.to === 'boolean'
+    && transition.from !== transition.to,
+  `${label} detail-visibility transition states are invalid.`);
+}
+
+function validateRuntimeSnapshot(snapshot, label) {
+  invariant(snapshot && typeof snapshot === 'object' && !Array.isArray(snapshot),
+    `${label} runtime snapshot is missing.`);
+  invariant(finite(snapshot.capturedAtMs) && snapshot.capturedAtMs >= 0,
+    `${label} runtime snapshot timestamp is invalid.`);
+  for (const field of [
+    'runtimeReadyAtMs', 'staticBatchStartedAtMs', 'staticBatchReadyAtMs',
+  ]) {
+    invariant(Object.hasOwn(snapshot, field)
+      && (snapshot[field] == null || (finite(snapshot[field]) && snapshot[field] >= 0)),
+    `${label} ${field} must be a nonnegative timestamp or explicit null.`);
+  }
+  if (Object.hasOwn(snapshot, 'runtimeCreatedAtMs')) {
+    invariant(snapshot.runtimeCreatedAtMs == null
+      || (finite(snapshot.runtimeCreatedAtMs) && snapshot.runtimeCreatedAtMs >= 0),
+    `${label} runtimeCreatedAtMs must be a nonnegative timestamp or explicit null.`);
+  }
+  invariant(typeof snapshot.detailedVisible === 'boolean',
+    `${label} detailedVisible is missing.`);
+  invariant(Number.isInteger(snapshot.detailVisibilitySequence)
+    && snapshot.detailVisibilitySequence >= 0,
+  `${label} detailVisibilitySequence is invalid.`);
+  invariant(Object.hasOwn(snapshot, 'lastDetailVisibilityTransition'),
+    `${label} lastDetailVisibilityTransition must be present (explicit null is allowed).`);
+  if (snapshot.lastDetailVisibilityTransition != null) {
+    validateDetailVisibilityTransition(
+      snapshot.lastDetailVisibilityTransition,
+      `${label} last`,
+    );
+    invariant(snapshot.lastDetailVisibilityTransition.sequence
+      <= snapshot.detailVisibilitySequence,
+    `${label} last detail transition is ahead of its sequence snapshot.`);
+  }
+}
+
 export function validateGoal24DoorRouteSignature(signature, label = 'door route') {
   invariant(signature?.schema === GOAL24_DOOR_ROUTE_SCHEMA,
     `${label} has no ${GOAL24_DOOR_ROUTE_SCHEMA} route evidence.`);
+  invariant(ROUTE_KINDS.includes(signature.routeKind),
+    `${label} routeKind must be approach, outside-in, or inside-out.`);
+  invariant(signature.detailClearanceYards === GOAL24_DOOR_DETAIL_CLEARANCE_YARDS,
+    `${label} detail clearance is not pinned to ${GOAL24_DOOR_DETAIL_CLEARANCE_YARDS} yards.`);
   invariant(finiteFields(signature.startPose, ['x', 'z', 'yaw', 'pitch']),
     `${label} start walk pose is incomplete.`);
   invariant(finiteFields(signature.target, ['x', 'z'])
     && finiteFields(signature.normal, ['x', 'z']), `${label} target/normal is incomplete.`);
+  invariant(Math.abs(Math.hypot(signature.normal.x, signature.normal.z) - 1) <= 0.002,
+    `${label} door normal is not normalized.`);
   invariant(finiteFields(signature.finishPosition, ['x', 'z']),
     `${label} finish position is incomplete.`);
   validateCamera(signature.startCameraPose, `${label} start`);
   validateCamera(signature.finishCameraPose, `${label} finish`);
+  validateRuntimeSnapshot(signature.runtimeStart, `${label} start`);
+  validateRuntimeSnapshot(signature.runtimeEnd, `${label} end`);
   invariant(Array.isArray(signature.pathSamples) && signature.pathSamples.length >= 2,
     `${label} requires at least two ordered spatial path samples.`);
   signature.pathSamples.forEach((sample, index) => {
     invariant(sample?.ordinal === index + 1
       && finiteFields(sample, ['atMs', 'x', 'z', 'distanceToDoor'])
       && typeof sample.inside === 'boolean', `${label} path sample ${index + 1} is incomplete.`);
+    invariant(sample.atMs >= 0 && sample.distanceToDoor >= 0,
+      `${label} path sample ${index + 1} has an invalid timestamp or door distance.`);
     if (index > 0) {
       invariant(sample.atMs >= signature.pathSamples[index - 1].atMs,
         `${label} path sample timestamps are not ordered.`);
@@ -143,6 +224,251 @@ export function validateGoal24DoorRouteSignature(signature, label = 'door route'
   invariant(pathLength(signature.pathSamples) > 0.25,
     `${label} spatial path does not prove movement.`);
   return signature;
+}
+
+function transitionGateFailure(transition, routeKind, clearance) {
+  if (!transition) return 'production detail-visibility transition is missing';
+  const distance = transition.exteriorDistanceYards;
+  if (routeKind === 'outside-in' && !(distance < clearance)) {
+    return 'outside-in detail-visibility transition did not occur on the interior side of the gate';
+  }
+  if (routeKind === 'inside-out' && !(distance >= clearance)) {
+    return 'inside-out detail-visibility transition did not occur on the exterior side of the gate';
+  }
+  return null;
+}
+
+/**
+ * Return causal route/readiness failures without invalidating the raw baseline structure.
+ * A pre-fix baseline may therefore be sealed with failures, while comparison explicitly
+ * requires every candidate route to pass this projection.
+ */
+export function goal24DoorRouteSemanticFailures(signature, options = {}) {
+  try {
+    validateGoal24DoorRouteSignature(signature, options.label || 'door route');
+  } catch (error) {
+    return [`structure: ${error?.message || error}`];
+  }
+  const failures = [];
+  const expectedRouteKind = options.expectedRouteKind || null;
+  if (expectedRouteKind && signature.routeKind !== expectedRouteKind) {
+    failures.push(`routeKind ${signature.routeKind} does not match expected ${expectedRouteKind}`);
+  }
+  const samples = signature.pathSamples;
+  const first = samples[0];
+  const last = samples.at(-1);
+  const clearance = signature.detailClearanceYards;
+  const runtimeStart = signature.runtimeStart;
+  const runtimeEnd = signature.runtimeEnd;
+  const derivedDoorDistance = (sample) => distance2d(sample, signature.target);
+
+  if (Math.abs(runtimeStart.capturedAtMs - first.atMs) > EPSILON_MS
+    || Math.abs(runtimeEnd.capturedAtMs - last.atMs) > EPSILON_MS) {
+    failures.push('runtime start/end snapshots are not bound to the first/last path samples');
+  }
+  const readiness = [
+    ['runtimeCreatedAtMs', runtimeStart.runtimeCreatedAtMs],
+    ['runtimeReadyAtMs', runtimeStart.runtimeReadyAtMs],
+    ['staticBatchStartedAtMs', runtimeStart.staticBatchStartedAtMs],
+    ['staticBatchReadyAtMs', runtimeStart.staticBatchReadyAtMs],
+  ];
+  for (const [field, value] of readiness) {
+    if (!finite(value) || value > first.atMs) {
+      failures.push(`${field} must be finite and no later than the measured route start`);
+    }
+    if (runtimeEnd[field] !== value) {
+      failures.push(`${field} changed between the route start/end snapshots`);
+    }
+  }
+  if (finite(runtimeStart.staticBatchStartedAtMs)
+    && finite(runtimeStart.staticBatchReadyAtMs)
+    && runtimeStart.staticBatchStartedAtMs > runtimeStart.staticBatchReadyAtMs) {
+    failures.push('static batch ready timestamp precedes its start timestamp');
+  }
+  if (finite(runtimeStart.runtimeCreatedAtMs)
+    && finite(runtimeStart.staticBatchStartedAtMs)
+    && runtimeStart.runtimeCreatedAtMs > runtimeStart.staticBatchStartedAtMs) {
+    failures.push('static batch start timestamp precedes runtime creation');
+  }
+  if (finite(runtimeStart.staticBatchReadyAtMs)
+    && finite(runtimeStart.runtimeReadyAtMs)
+    && runtimeStart.staticBatchReadyAtMs > runtimeStart.runtimeReadyAtMs) {
+    failures.push('runtime ready timestamp precedes static batch readiness');
+  }
+
+  for (const [index, sample] of samples.entries()) {
+    const measuredDoorDistance = derivedDoorDistance(sample);
+    if (Math.abs(sample.distanceToDoor - measuredDoorDistance) > 0.001) {
+      failures.push(`path sample ${index + 1} door distance is not derived from its position`);
+    }
+    const signedDistance = signedDoorDistance(sample, signature);
+    if ((signedDistance > DOOR_INSIDE_CLASSIFICATION_MARGIN_YARDS && sample.inside)
+      || (signedDistance < -DOOR_INSIDE_CLASSIFICATION_MARGIN_YARDS && !sample.inside)) {
+      failures.push(`path sample ${index + 1} inside state contradicts its recorded position`);
+    }
+    if (!finite(sample.detailExteriorDistanceYards)
+      || sample.detailExteriorDistanceYards < 0
+      || typeof sample.detailWithinClearance !== 'boolean'
+      || typeof sample.detailedVisible !== 'boolean'
+      || !Number.isInteger(sample.detailVisibilitySequence)
+      || sample.detailVisibilitySequence < 0) {
+      failures.push(`path sample ${index + 1} production detail-gate evidence is missing`);
+      continue;
+    }
+    const derivedWithinClearance = sample.detailExteriorDistanceYards < clearance;
+    if (sample.detailWithinClearance !== derivedWithinClearance) {
+      failures.push(`path sample ${index + 1} detail-gate classification is inconsistent`);
+    }
+    if (index > 0
+      && sample.detailVisibilitySequence < samples[index - 1].detailVisibilitySequence) {
+      failures.push('path detail-visibility sequence moved backwards');
+      break;
+    }
+  }
+  if (first.detailedVisible !== runtimeStart.detailedVisible
+    || first.detailVisibilitySequence !== runtimeStart.detailVisibilitySequence
+    || last.detailedVisible !== runtimeEnd.detailedVisible
+    || last.detailVisibilitySequence !== runtimeEnd.detailVisibilitySequence) {
+    failures.push('runtime detail snapshots do not match the first/last path samples');
+  }
+  for (const [label, snapshot] of [
+    ['start', runtimeStart], ['end', runtimeEnd],
+  ]) {
+    const transition = snapshot.lastDetailVisibilityTransition;
+    if (snapshot.detailVisibilitySequence > 0
+      && (!transition
+        || transition.sequence !== snapshot.detailVisibilitySequence
+        || transition.atMs > snapshot.capturedAtMs + EPSILON_MS
+        || transition.atMs < runtimeStart.runtimeCreatedAtMs - EPSILON_MS
+        || transition.to !== snapshot.detailedVisible)) {
+      failures.push(`runtime ${label} snapshot does not retain its exact last transition`);
+    }
+  }
+
+  const visibilityDelta = runtimeEnd.detailVisibilitySequence
+    - runtimeStart.detailVisibilitySequence;
+  const lastTransition = runtimeEnd.lastDetailVisibilityTransition;
+  const zoneTransitions = samples.slice(1).reduce((count, sample, index) => (
+    count + (sample.inside !== samples[index].inside ? 1 : 0)
+  ), 0);
+  const spatialSideTransitions = samples.slice(1).reduce((count, sample, index) => (
+    count + ((signedDoorDistance(sample, signature) < 0)
+      !== (signedDoorDistance(samples[index], signature) < 0) ? 1 : 0)
+  ), 0);
+  const detailGateTransitions = samples.slice(1).reduce((count, sample, index) => (
+    count + (sample.detailWithinClearance
+      !== samples[index].detailWithinClearance ? 1 : 0)
+  ), 0);
+  const detailedVisibilityTransitions = samples.slice(1).reduce((count, sample, index) => (
+    count + (sample.detailedVisible !== samples[index].detailedVisible ? 1 : 0)
+  ), 0);
+  const detailSequenceEdges = [];
+  for (let index = 1; index < samples.length; index += 1) {
+    const previous = samples[index - 1];
+    const current = samples[index];
+    if (current.detailVisibilitySequence === previous.detailVisibilitySequence
+      && current.detailedVisible === previous.detailedVisible) continue;
+    detailSequenceEdges.push({ previous, current });
+    if (current.detailVisibilitySequence !== previous.detailVisibilitySequence + 1
+      || current.detailedVisible === previous.detailedVisible) {
+      failures.push('path detail-visibility state and sequence did not advance together once');
+    }
+  }
+  const transitionInsideRoute = lastTransition
+    && lastTransition.atMs >= first.atMs - EPSILON_MS
+    && lastTransition.atMs <= last.atMs + EPSILON_MS;
+
+  if (signature.routeKind === 'approach') {
+    if (samples.some((sample) => sample.inside
+      || derivedDoorDistance(sample) < clearance
+      || signedDoorDistance(sample, signature) < clearance
+      || sample.detailWithinClearance
+      || sample.detailExteriorDistanceYards < clearance)) {
+      failures.push(`approach must remain outside the ${clearance}-yard detail gate`);
+    }
+    if (samples.some(({ detailedVisible }) => detailedVisible)
+      || runtimeStart.detailedVisible || runtimeEnd.detailedVisible
+      || visibilityDelta !== 0
+      || samples.some(({ detailVisibilitySequence }) => (
+        detailVisibilitySequence !== runtimeStart.detailVisibilitySequence
+      ))
+      || !isDeepStrictEqual(
+        runtimeStart.lastDetailVisibilityTransition,
+        runtimeEnd.lastDetailVisibilityTransition,
+      )) {
+      failures.push('approach must remain detail-hidden without a production visibility flip');
+    }
+  } else {
+    const inbound = signature.routeKind === 'outside-in';
+    const expectedStartInside = !inbound;
+    const expectedEndInside = inbound;
+    const startSignedDistance = signedDoorDistance(first, signature);
+    const endSignedDistance = signedDoorDistance(last, signature);
+    const startBeyondExpectedSide = inbound
+      ? startSignedDistance > clearance : startSignedDistance < -clearance;
+    const endBeyondExpectedSide = inbound
+      ? endSignedDistance < -clearance : endSignedDistance > clearance;
+    if (first.inside !== expectedStartInside
+      || !(derivedDoorDistance(first) > clearance)
+      || !startBeyondExpectedSide) {
+      failures.push(`${signature.routeKind} must begin beyond the ${clearance}-yard gate on the expected side`);
+    }
+    if (last.inside !== expectedEndInside
+      || !(derivedDoorDistance(last) > clearance)
+      || !endBeyondExpectedSide) {
+      failures.push(`${signature.routeKind} must end beyond the ${clearance}-yard gate on the expected side`);
+    }
+    if (first.detailWithinClearance !== !inbound
+      || last.detailWithinClearance !== inbound) {
+      failures.push(`${signature.routeKind} detail-gate endpoints are incorrect`);
+    }
+    if (zoneTransitions !== 1 || spatialSideTransitions !== 1) {
+      failures.push(`${signature.routeKind} must cross the doorway exactly once`);
+    }
+    if (detailGateTransitions !== 1) {
+      failures.push(`${signature.routeKind} must cross the detail gate exactly once`);
+    }
+    if (runtimeStart.detailedVisible !== !inbound
+      || runtimeEnd.detailedVisible !== inbound) {
+      failures.push(`${signature.routeKind} runtime visibility endpoints are incorrect`);
+    }
+    if (visibilityDelta !== 1
+      || detailedVisibilityTransitions !== 1
+      || !lastTransition
+      || lastTransition.sequence !== runtimeEnd.detailVisibilitySequence
+      || !transitionInsideRoute) {
+      failures.push(`${signature.routeKind} requires exactly one production visibility transition inside the measured path time`);
+    } else {
+      const expectedFrom = !inbound;
+      const expectedTo = inbound;
+      if (lastTransition.from !== expectedFrom || lastTransition.to !== expectedTo) {
+        failures.push(`${signature.routeKind} production visibility transition direction is incorrect`);
+      }
+      const gateFailure = transitionGateFailure(lastTransition, signature.routeKind, clearance);
+      if (gateFailure) failures.push(gateFailure);
+      const edge = detailSequenceEdges[0];
+      if (detailSequenceEdges.length !== 1
+        || !edge
+        || lastTransition.atMs < edge.previous.atMs - EPSILON_MS
+        || lastTransition.atMs > edge.current.atMs + EPSILON_MS
+        || edge.previous.detailedVisible !== lastTransition.from
+        || edge.current.detailedVisible !== lastTransition.to
+        || edge.current.detailVisibilitySequence !== lastTransition.sequence
+        || lastTransition.exteriorDistanceYards
+          < Math.min(
+            edge.previous.detailExteriorDistanceYards,
+            edge.current.detailExteriorDistanceYards,
+          ) - 0.1
+        || lastTransition.exteriorDistanceYards
+          > Math.max(
+            edge.previous.detailExteriorDistanceYards,
+            edge.current.detailExteriorDistanceYards,
+          ) + 0.1) {
+        failures.push(`${signature.routeKind} production transition is not correlated to its exact path edge`);
+      }
+    }
+  }
+  return failures;
 }
 
 export function compareGoal24DoorRoutes(reference, candidate, options = {}) {
@@ -257,6 +583,25 @@ function renderStatistics(frameSamples) {
     || left.triangles - right.triangles
     || left.ordinal - right.ordinal
   ))[Math.floor((eligible.length - 1) / 2)];
+  const submissionWallMs = (sample) => (
+    sample.productionRenderEndedAtMs - sample.productionRenderStartedAtMs
+  );
+  const peakSubmission = (samples) => [...samples].sort((left, right) => (
+    submissionWallMs(right) - submissionWallMs(left) || left.ordinal - right.ordinal
+  ))[0];
+  const peakAllSubmission = peakSubmission(frameSamples);
+  const peakNonShadowSubmission = peakSubmission(nonShadow);
+  const over = (samples, thresholdMs) => samples.filter(
+    (sample) => submissionWallMs(sample) > thresholdMs,
+  ).length;
+  const framesOver33Ms = {
+    allFrames: over(frameSamples, 33),
+    nonShadowFrames: over(nonShadow, 33),
+  };
+  const framesOver50Ms = {
+    allFrames: over(frameSamples, 50),
+    nonShadowFrames: over(nonShadow, 50),
+  };
   return {
     observedFrameCount: frameSamples.length,
     nonShadowFrameCount: nonShadow.length,
@@ -267,12 +612,35 @@ function renderStatistics(frameSamples) {
       statistic: 'lower-median-post-first-non-shadow-frame',
       calls: matchedSample.calls,
       triangles: matchedSample.triangles,
+      submissionWallMs: submissionWallMs(matchedSample),
       sampleOrdinal: matchedSample.ordinal,
     },
     peak: {
       scope: 'all-non-shadow-frames-including-first',
       calls: Math.max(...nonShadow.map(({ calls }) => calls)),
       triangles: Math.max(...nonShadow.map(({ triangles }) => triangles)),
+    },
+    submissionWall: {
+      source: 'productionRenderEndedAtMs-minus-productionRenderStartedAtMs',
+      matched: {
+        statistic: 'same-post-first-non-shadow-frame-as-matched-draw-workload',
+        durationMs: submissionWallMs(matchedSample),
+        sampleOrdinal: matchedSample.ordinal,
+      },
+      peakAllFrames: {
+        scope: 'all-production-render-frames-including-shadow-bakes-and-first-frame',
+        durationMs: submissionWallMs(peakAllSubmission),
+        sampleOrdinal: peakAllSubmission.ordinal,
+        frameClass: peakAllSubmission.frameClass,
+      },
+      peakNonShadowFrames: {
+        scope: 'all-non-shadow-production-render-frames-including-first',
+        durationMs: submissionWallMs(peakNonShadowSubmission),
+        sampleOrdinal: peakNonShadowSubmission.ordinal,
+      },
+      framesOver33Ms,
+      framesOver50Ms,
+      expensiveDrawSubmitStillFires: framesOver50Ms.allFrames > 0,
     },
   };
 }
@@ -307,7 +675,7 @@ export function validateGoal24DoorwayRenderEvidenceStructure(
     `${label} doorway renderer raw frame samples are missing.`);
   classifyFrameSequence(evidence.frameSamples, label);
   invariant(isDeepStrictEqual(evidence.statistics, renderStatistics(evidence.frameSamples)),
-    `${label} doorway renderer peak/matched statistics are not derived from raw frames.`);
+    `${label} doorway renderer draw/submit peak and matched statistics are not derived from raw frames.`);
   return evidence;
 }
 
@@ -372,6 +740,15 @@ function summarizedRenderValues(events) {
   const matchedTriangles = events.map(({ renderEvidence }) => renderEvidence.statistics.matched.triangles);
   const peakCalls = events.map(({ renderEvidence }) => renderEvidence.statistics.peak.calls);
   const peakTriangles = events.map(({ renderEvidence }) => renderEvidence.statistics.peak.triangles);
+  const matchedSubmission = events.map(({ renderEvidence }) => (
+    renderEvidence.statistics.submissionWall.matched.durationMs
+  ));
+  const peakAllSubmission = events.map(({ renderEvidence }) => (
+    renderEvidence.statistics.submissionWall.peakAllFrames.durationMs
+  ));
+  const peakNonShadowSubmission = events.map(({ renderEvidence }) => (
+    renderEvidence.statistics.submissionWall.peakNonShadowFrames.durationMs
+  ));
   return {
     eventCount: events.length,
     rawFrameCount: events.reduce((sum, event) => (
@@ -381,6 +758,28 @@ function summarizedRenderValues(events) {
     matchedRenderedTriangles: lowerMedian(matchedTriangles),
     peakDrawCalls: Math.max(...peakCalls),
     peakRenderedTriangles: Math.max(...peakTriangles),
+    matchedSubmissionWallMs: lowerMedian(matchedSubmission),
+    peakAllSubmissionWallMs: Math.max(...peakAllSubmission),
+    peakNonShadowSubmissionWallMs: Math.max(...peakNonShadowSubmission),
+    submissionFramesOver33Ms: events.reduce((sum, event) => (
+      sum + event.renderEvidence.statistics.submissionWall.framesOver33Ms.allFrames
+    ), 0),
+    nonShadowSubmissionFramesOver33Ms: events.reduce((sum, event) => (
+      sum + event.renderEvidence.statistics.submissionWall.framesOver33Ms.nonShadowFrames
+    ), 0),
+    submissionFramesOver50Ms: events.reduce((sum, event) => (
+      sum + event.renderEvidence.statistics.submissionWall.framesOver50Ms.allFrames
+    ), 0),
+    nonShadowSubmissionFramesOver50Ms: events.reduce((sum, event) => (
+      sum + event.renderEvidence.statistics.submissionWall.framesOver50Ms.nonShadowFrames
+    ), 0),
+    expensiveDrawSubmitStillFires: events.some((event) => (
+      event.renderEvidence.statistics.submissionWall.expensiveDrawSubmitStillFires
+    )),
+    semanticPass: events.every((event) => event.semantics?.pass === true),
+    semanticFailureCount: events.reduce((sum, event) => (
+      sum + (event.semantics?.failures?.length || 0)
+    ), 0),
   };
 }
 
@@ -417,6 +816,13 @@ export function aggregateGoal24DoorEvidence(sources, { requiredProcessCount = 7 
           temperature: event.temperature,
           rawSource: structuredClone(event.rawSource),
           routeSignature: structuredClone(event.discriminator.routeSignature),
+          semantics: (() => {
+            const failures = goal24DoorRouteSemanticFailures(
+              event.discriminator.routeSignature,
+              { expectedRouteKind: ROUTE_KIND_BY_SCENARIO[scenarioId] },
+            );
+            return { pass: failures.length === 0, failures };
+          })(),
           renderEvidence: structuredClone(event.doorwayRenderEvidence),
         });
       }
@@ -454,6 +860,13 @@ export function validateGoal24DoorEvidenceAggregate(aggregate) {
     const reference = entries[0]?.routeSignature;
     for (const [index, entry] of entries.entries()) {
       validateGoal24DoorRouteSignature(entry.routeSignature, `${scenarioId} aggregate event ${index + 1}`);
+      const semanticFailures = goal24DoorRouteSemanticFailures(entry.routeSignature, {
+        expectedRouteKind: ROUTE_KIND_BY_SCENARIO[scenarioId],
+      });
+      invariant(isDeepStrictEqual(entry.semantics, {
+        pass: semanticFailures.length === 0,
+        failures: semanticFailures,
+      }), `${scenarioId} aggregate event ${index + 1} semantic result is not recomputed from its route.`);
       invariant(entry.renderEvidence?.schema === GOAL24_DOOR_RENDER_SCHEMA,
         `${scenarioId} aggregate event ${index + 1} renderer evidence is missing.`);
       validateGoal24DoorwayRenderEvidenceStructure(
@@ -475,11 +888,18 @@ function drawTolerance(metric, reference, tolerances) {
   return Math.max(absolute, Math.ceil(reference * tolerances.relative));
 }
 
+function submissionTolerance(metric, reference, tolerances) {
+  if (metric.toLowerCase().includes('framesover')) return 0;
+  return Math.max(tolerances.submissionWallMsAbsolute, reference * tolerances.relative);
+}
+
 export function compareGoal24DoorEvidenceAggregates(reference, candidate) {
   validateGoal24DoorEvidenceAggregate(reference);
   validateGoal24DoorEvidenceAggregate(candidate);
   const routeRows = [];
   const drawRows = [];
+  const submissionRows = [];
+  const semanticRows = [];
   for (const scenarioId of GOAL24_DOOR_SCENARIOS) {
     const beforeEntries = reference.entries.filter((entry) => entry.scenarioId === scenarioId);
     const afterEntries = candidate.entries.filter((entry) => entry.scenarioId === scenarioId);
@@ -498,6 +918,17 @@ export function compareGoal24DoorEvidenceAggregates(reference, candidate) {
         temperature: afterEntries[index].temperature,
         ...routeComparison,
         ok: routeComparison.ok,
+      });
+      const failures = goal24DoorRouteSemanticFailures(afterEntries[index].routeSignature, {
+        expectedRouteKind: ROUTE_KIND_BY_SCENARIO[scenarioId],
+      });
+      semanticRows.push({
+        scenarioId,
+        eventOrdinal: index + 1,
+        candidateRunOrdinal: afterEntries[index].runOrdinal,
+        temperature: afterEntries[index].temperature,
+        pass: failures.length === 0,
+        failures,
       });
     }
     const addDrawRows = (scope, before, after) => {
@@ -519,22 +950,71 @@ export function compareGoal24DoorEvidenceAggregates(reference, candidate) {
         });
       }
     };
+    const addSubmissionRows = (scope, before, after) => {
+      for (const metric of [
+        'matchedSubmissionWallMs',
+        'peakAllSubmissionWallMs',
+        'peakNonShadowSubmissionWallMs',
+        'submissionFramesOver33Ms',
+        'nonShadowSubmissionFramesOver33Ms',
+        'submissionFramesOver50Ms',
+        'nonShadowSubmissionFramesOver50Ms',
+      ]) {
+        const tolerance = submissionTolerance(
+          metric,
+          before[metric],
+          reference.drawRegressionTolerances,
+        );
+        const delta = after[metric] - before[metric];
+        submissionRows.push({
+          scenarioId,
+          scope,
+          metric,
+          before: before[metric],
+          after: after[metric],
+          absoluteDelta: delta,
+          tolerance,
+          pass: delta <= tolerance,
+        });
+      }
+    };
     addDrawRows('aggregate', reference.byScenario[scenarioId], candidate.byScenario[scenarioId]);
+    addSubmissionRows('aggregate', reference.byScenario[scenarioId], candidate.byScenario[scenarioId]);
     const beforeProcesses = reference.byScenario[scenarioId].perProcess;
     const afterProcesses = candidate.byScenario[scenarioId].perProcess;
     invariant(beforeProcesses.length === 7 && afterProcesses.length === 7,
       `${scenarioId} baseline/candidate per-process renderer coverage is incomplete.`);
     for (let index = 0; index < 7; index += 1) {
       addDrawRows(`cold-process-${index + 1}`, beforeProcesses[index], afterProcesses[index]);
+      addSubmissionRows(
+        `cold-process-${index + 1}`,
+        beforeProcesses[index],
+        afterProcesses[index],
+      );
     }
   }
+  const candidateSemanticPass = semanticRows.every(({ pass }) => pass);
+  const expensiveDrawSubmitScenarios = GOAL24_DOOR_SCENARIOS.filter((scenarioId) => (
+    candidate.byScenario[scenarioId].expensiveDrawSubmitStillFires
+  ));
+  const expensiveDrawSubmitStillFires = expensiveDrawSubmitScenarios.length > 0;
   return {
     routeTolerances: { ...GOAL24_DOOR_ROUTE_TOLERANCES },
     drawRegressionTolerances: { ...GOAL24_DOOR_DRAW_TOLERANCES },
     routeRows,
     drawRows,
+    submissionRows,
+    semanticRows,
     routeParityPass: routeRows.every(({ ok }) => ok),
     doorwayDrawRegressionPass: drawRows.every(({ pass }) => pass),
-    ok: routeRows.every(({ ok }) => ok) && drawRows.every(({ pass }) => pass),
+    doorwaySubmissionRegressionPass: submissionRows.every(({ pass }) => pass),
+    candidateSemanticPass,
+    expensiveDrawSubmitStillFires,
+    expensiveDrawSubmitScenarios,
+    ok: routeRows.every(({ ok }) => ok)
+      && drawRows.every(({ pass }) => pass)
+      && submissionRows.every(({ pass }) => pass)
+      && candidateSemanticPass
+      && !expensiveDrawSubmitStillFires,
   };
 }

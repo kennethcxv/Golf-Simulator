@@ -12,6 +12,7 @@ import {
   GOAL24_SUPPORTED_TOOL_MANIFEST,
 } from '../tools/qa/lib/goal24-tool-manifest.mjs';
 import {
+  GOAL24_DOOR_DETAIL_CLEARANCE_YARDS,
   GOAL24_DOOR_ROUTE_SCHEMA,
   GOAL24_DOOR_SCENARIOS,
   aggregateGoal24DoorEvidence,
@@ -194,8 +195,10 @@ function discriminatorFor(id, index, temperature) {
         normalMovement: true,
         noPriorInteriorThresholdCrossing: temperature === 'cold',
         interiorVisibilityObserved: true,
-        productionVisibilityMarker: 'inside-crossing-complete',
-        productionVisibilityAtMs: 0,
+        productionVisibilityMarker: 'assets51to100-detail-visibility-false-to-true',
+        productionVisibilityAtMs: null,
+        detailVisibilityTransition: null,
+        detailVisibilitySequenceDelta: null,
       };
     case 'doorCrossingInsideToOutside':
       return {
@@ -359,9 +362,6 @@ function setMeasuredCadence(event, displayIntervals, renderIntervals = displayIn
   if (event.scenarioId === 'doorFirstOpen') {
     event.discriminator.productionDoorSignalAtMs = startAtMs + 1;
   }
-  if (event.scenarioId === 'doorCrossingOutsideToInside') {
-    event.discriminator.productionVisibilityAtMs = endAtMs;
-  }
   if (['toolFirstUseByTool', 'toolChanges20', 'toolSwitches100Stress']
     .includes(event.scenarioId)) {
     event.discriminator.productionEquipAtMs = startAtMs + 1;
@@ -385,28 +385,83 @@ function setMeasuredCadence(event, displayIntervals, renderIntervals = displayIn
 function attachDoorEvidence(event) {
   const inbound = event.scenarioId === 'doorCrossingOutsideToInside';
   const outbound = event.scenarioId === 'doorCrossingInsideToOutside';
-  const startZ = outbound ? 18.65 : inbound ? 21.35 : 26.5;
-  const finishZ = inbound ? 18.3 : 21.7;
+  const routeKind = inbound ? 'outside-in' : outbound ? 'inside-out' : 'approach';
+  const startZ = outbound ? 18 : inbound ? 22 : 26.5;
+  const finishZ = inbound ? 18 : outbound ? 22 : 21.7;
   const pose = (z) => ({
     x: 40, y: 1.7, z, qx: 0, qy: 1, qz: 0, qw: 0, fov: 60, aspect: 16 / 9,
   });
-  event.discriminator.routeSignature = {
+  const pathSamples = Array.from({ length: 5 }, (_, index) => {
+    const alpha = index / 4;
+    const z = startZ + (finishZ - startZ) * alpha;
+    return {
+      ordinal: index + 1, atMs: event.markers.start.atMs + index * 5,
+      x: 40, z, distanceToDoor: Math.abs(z - 20), inside: z < 20,
+    };
+  });
+  const startedDetailed = routeKind === 'inside-out';
+  const endedDetailed = routeKind === 'outside-in';
+  const startSequence = routeKind === 'inside-out' ? 1 : 0;
+  const endSequence = routeKind === 'approach' ? startSequence : startSequence + 1;
+  const detailVisibilityTransition = routeKind === 'approach' ? null : {
+    sequence: endSequence,
+    atMs: event.markers.start.atMs + (inbound ? 3 : 18),
+    from: startedDetailed,
+    to: endedDetailed,
+    cameraLocalX: 0,
+    cameraLocalZ: inbound ? 5.6 : 7.1,
+    exteriorDistanceYards: inbound ? 1.45 : 1.55,
+    detailClearanceYards: GOAL24_DOOR_DETAIL_CLEARANCE_YARDS,
+  };
+  const runtimeReadyAtMs = Math.max(0, pathSamples[0].atMs - 50);
+  const staticBatchStartedAtMs = Math.max(0, pathSamples[0].atMs - 40);
+  const staticBatchReadyAtMs = Math.max(0, pathSamples[0].atMs - 20);
+  const runtimeSnapshot = (
+    capturedAtMs,
+    detailedVisible,
+    detailVisibilitySequence,
+    lastDetailVisibilityTransition,
+  ) => ({
+    capturedAtMs,
+    runtimeReadyAtMs,
+    staticBatchStartedAtMs,
+    staticBatchReadyAtMs,
+    detailedVisible,
+    detailVisibilitySequence,
+    lastDetailVisibilityTransition,
+  });
+  const routeSignature = {
     schema: GOAL24_DOOR_ROUTE_SCHEMA,
+    routeKind,
+    detailClearanceYards: GOAL24_DOOR_DETAIL_CLEARANCE_YARDS,
     startPose: { x: 40, z: startZ, yaw: outbound ? 0 : Math.PI, pitch: -0.05 },
     target: { x: 40, z: 20 },
     normal: { x: 0, z: 1 },
     startCameraPose: pose(startZ),
     finishPosition: { x: 40, z: finishZ },
     finishCameraPose: pose(finishZ),
-    pathSamples: Array.from({ length: 5 }, (_, index) => {
-      const alpha = index / 4;
-      const z = startZ + (finishZ - startZ) * alpha;
-      return {
-        ordinal: index + 1, atMs: event.markers.start.atMs + index * 4,
-        x: 40, z, distanceToDoor: Math.abs(z - 20), inside: z < 20,
-      };
-    }),
+    pathSamples,
+    runtimeStart: runtimeSnapshot(
+      pathSamples[0].atMs,
+      startedDetailed,
+      startSequence,
+      null,
+    ),
+    runtimeEnd: runtimeSnapshot(
+      pathSamples.at(-1).atMs,
+      endedDetailed,
+      endSequence,
+      detailVisibilityTransition,
+    ),
   };
+  event.discriminator.routeSignature = routeSignature;
+  if (inbound) {
+    event.discriminator.productionVisibilityMarker =
+      'assets51to100-detail-visibility-false-to-true';
+    event.discriminator.productionVisibilityAtMs = detailVisibilityTransition.atMs;
+    event.discriminator.detailVisibilityTransition = clone(detailVisibilityTransition);
+    event.discriminator.detailVisibilitySequenceDelta = endSequence - startSequence;
+  }
   const renderFrameEvidence = event.renderCadenceIntervals.map((interval, index) => ({
     ordinal: index + 1,
     productionRenderStartedAtMs: interval.endAtMs,

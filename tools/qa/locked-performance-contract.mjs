@@ -330,9 +330,10 @@ const INTERACTION_SCENARIOS = [
     gradeCold: true,
     discriminatorKeys: [
       'doorId', 'processInstanceId', 'freshProcess', 'fromZone', 'toZone',
-      'boundaryCrossed', 'normalMovement', 'noPriorInteriorThresholdCrossing',
-      'interiorVisibilityObserved', 'productionVisibilityMarker',
-      'productionVisibilityAtMs',
+       'boundaryCrossed', 'normalMovement', 'noPriorInteriorThresholdCrossing',
+       'interiorVisibilityObserved', 'productionVisibilityMarker',
+       'productionVisibilityAtMs', 'detailVisibilityTransition',
+       'detailVisibilitySequenceDelta',
     ],
   },
   {
@@ -1496,9 +1497,17 @@ function validateScenarioDiscriminator(scenarioId, event, index, failures) {
         || discriminator.noPriorInteriorThresholdCrossing !== cold) {
         fail('freshProcess and noPriorInteriorThresholdCrossing must identify only cold first crossings');
       }
-      if (discriminator.productionVisibilityMarker !== event.markers.end.name
-        || discriminator.productionVisibilityAtMs !== event.markers.end.atMs) {
-        fail('production visibility evidence must link exactly to the crossing end marker');
+      const detailTransition = discriminator.detailVisibilityTransition;
+      if (discriminator.productionVisibilityMarker
+          !== 'assets51to100-detail-visibility-false-to-true'
+        || !nonNegativeFinite(discriminator.productionVisibilityAtMs)
+        || discriminator.productionVisibilityAtMs < event.markers.start.atMs
+        || discriminator.productionVisibilityAtMs > event.markers.end.atMs
+        || detailTransition?.from !== false
+        || detailTransition?.to !== true
+        || detailTransition?.atMs !== discriminator.productionVisibilityAtMs
+        || discriminator.detailVisibilitySequenceDelta !== 1) {
+        fail('production visibility evidence must prove the exact false-to-true detail transition inside the crossing markers');
       }
       break;
     }

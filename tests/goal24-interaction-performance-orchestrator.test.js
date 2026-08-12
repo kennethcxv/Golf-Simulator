@@ -42,6 +42,7 @@ import {
   GOAL24_SUPPORTED_TOOL_MANIFEST,
 } from '../tools/qa/lib/goal24-tool-manifest.mjs';
 import {
+  GOAL24_DOOR_DETAIL_CLEARANCE_YARDS,
   GOAL24_DOOR_ROUTE_SCHEMA,
   GOAL24_DOOR_SCENARIOS,
   summarizeGoal24DoorwayRenderEvidence,
@@ -418,34 +419,82 @@ function npcNavigationEvidence(
 }
 
 function lockedDiscriminator(id, index, temperature, runId, startAt = index * 100) {
-  const doorRoute = (side, distance, finishSide = side) => {
+  const doorRoute = (routeKind, side, distance, finishSide = side) => {
     const startZ = side === 'outside' ? 20 + distance : 20 - distance;
-    const finishZ = finishSide === 'outside' ? 21.7 : 18.3;
+    const finishZ = routeKind === 'approach'
+      ? 21.7
+      : finishSide === 'outside' ? 22 : 18;
     const camera = (z) => ({
       x: 40, y: 1.7, z, qx: 0, qy: 1, qz: 0, qw: 0, fov: 60, aspect: 16 / 9,
     });
-    return {
-    schema: GOAL24_DOOR_ROUTE_SCHEMA,
-    startPose: {
-      x: 40,
-      z: startZ,
-      yaw: side === 'outside' ? Math.PI : 0,
-      pitch: -0.05,
-    },
-    target: { x: 40, z: 20 },
-    normal: { x: 0, z: 1 },
-    startCameraPose: camera(startZ),
-    finishPosition: { x: 40, z: finishZ },
-    finishCameraPose: camera(finishZ),
-    pathSamples: Array.from({ length: 5 }, (_, pathIndex) => {
+    const pathSamples = Array.from({ length: 5 }, (_, pathIndex) => {
       const alpha = pathIndex / 4;
       const z = startZ + (finishZ - startZ) * alpha;
       return {
         ordinal: pathIndex + 1, atMs: startAt + pathIndex * 5,
         x: 40, z, distanceToDoor: Math.abs(z - 20), inside: z < 20,
       };
-    }),
-  };
+    });
+    const startedDetailed = routeKind === 'inside-out';
+    const endedDetailed = routeKind === 'outside-in';
+    const startSequence = routeKind === 'inside-out' ? 1 : 0;
+    const endSequence = routeKind === 'approach' ? startSequence : startSequence + 1;
+    const detailVisibilityTransition = routeKind === 'approach' ? null : {
+      sequence: endSequence,
+      atMs: startAt + (routeKind === 'outside-in' ? 3 : 18),
+      from: startedDetailed,
+      to: endedDetailed,
+      cameraLocalX: 0,
+      cameraLocalZ: routeKind === 'outside-in' ? 5.6 : 7.1,
+      exteriorDistanceYards: routeKind === 'outside-in' ? 1.45 : 1.55,
+      detailClearanceYards: GOAL24_DOOR_DETAIL_CLEARANCE_YARDS,
+    };
+    const runtimeReadyAtMs = Math.max(0, pathSamples[0].atMs - 50);
+    const staticBatchStartedAtMs = Math.max(0, pathSamples[0].atMs - 40);
+    const staticBatchReadyAtMs = Math.max(0, pathSamples[0].atMs - 20);
+    const runtimeSnapshot = (
+      capturedAtMs,
+      detailedVisible,
+      detailVisibilitySequence,
+      lastDetailVisibilityTransition,
+    ) => ({
+      capturedAtMs,
+      runtimeReadyAtMs,
+      staticBatchStartedAtMs,
+      staticBatchReadyAtMs,
+      detailedVisible,
+      detailVisibilitySequence,
+      lastDetailVisibilityTransition,
+    });
+    return {
+      schema: GOAL24_DOOR_ROUTE_SCHEMA,
+      routeKind,
+      detailClearanceYards: GOAL24_DOOR_DETAIL_CLEARANCE_YARDS,
+      startPose: {
+        x: 40,
+        z: startZ,
+        yaw: side === 'outside' ? Math.PI : 0,
+        pitch: -0.05,
+      },
+      target: { x: 40, z: 20 },
+      normal: { x: 0, z: 1 },
+      startCameraPose: camera(startZ),
+      finishPosition: { x: 40, z: finishZ },
+      finishCameraPose: camera(finishZ),
+      pathSamples,
+      runtimeStart: runtimeSnapshot(
+        pathSamples[0].atMs,
+        startedDetailed,
+        startSequence,
+        null,
+      ),
+      runtimeEnd: runtimeSnapshot(
+        pathSamples.at(-1).atMs,
+        endedDetailed,
+        endSequence,
+        detailVisibilityTransition,
+      ),
+    };
   };
   switch (id) {
     case 'coldLaunch': return {
@@ -504,7 +553,7 @@ function lockedDiscriminator(id, index, temperature, runId, startAt = index * 10
       startDistanceYards: 6.5,
       thresholdCrossed: true,
       endedOutside: true,
-      routeSignature: doorRoute('outside', 6.5),
+      routeSignature: doorRoute('approach', 'outside', 6.5),
     };
     case 'doorFirstOpen': return {
       doorId: 'clubhouse-main-door',
@@ -526,19 +575,27 @@ function lockedDiscriminator(id, index, temperature, runId, startAt = index * 10
       productionOutcomeMarkerAtMs: startAt + 21,
       contractOutcomeMarkerAtMs: startAt + 24,
     };
-    case 'doorCrossingOutsideToInside': return {
-      doorId: 'clubhouse-main-door', processInstanceId: runId,
-      freshProcess: temperature === 'cold',
-      fromZone: 'outside', toZone: 'inside', boundaryCrossed: true, normalMovement: true,
-      noPriorInteriorThresholdCrossing: temperature === 'cold',
-      interiorVisibilityObserved: true,
-      productionVisibilityMarker: 'inside-crossing-complete',
-      productionVisibilityAtMs: startAt + 24,
-      routeSignature: doorRoute('outside', 1.35, 'inside'),
-    };
+    case 'doorCrossingOutsideToInside': {
+      const routeSignature = doorRoute('outside-in', 'outside', 2, 'inside');
+      const detailVisibilityTransition = routeSignature.runtimeEnd
+        .lastDetailVisibilityTransition;
+      return {
+        doorId: 'clubhouse-main-door', processInstanceId: runId,
+        freshProcess: temperature === 'cold',
+        fromZone: 'outside', toZone: 'inside', boundaryCrossed: true, normalMovement: true,
+        noPriorInteriorThresholdCrossing: temperature === 'cold',
+        interiorVisibilityObserved: true,
+        productionVisibilityMarker: 'assets51to100-detail-visibility-false-to-true',
+        productionVisibilityAtMs: detailVisibilityTransition.atMs,
+        detailVisibilityTransition: structuredClone(detailVisibilityTransition),
+        detailVisibilitySequenceDelta: routeSignature.runtimeEnd.detailVisibilitySequence
+          - routeSignature.runtimeStart.detailVisibilitySequence,
+        routeSignature,
+      };
+    }
     case 'doorCrossingInsideToOutside': return {
       doorId: 'clubhouse-main-door', fromZone: 'inside', toZone: 'outside', boundaryCrossed: true, normalMovement: true,
-      routeSignature: doorRoute('inside', 1.35, 'outside'),
+      routeSignature: doorRoute('inside-out', 'inside', 2, 'outside'),
     };
     case 'ledgerOpen': return {
       fromState: 'closed', toState: 'open', readable: true, ledgerOwnsInput: true, firstOpen: temperature === 'cold',

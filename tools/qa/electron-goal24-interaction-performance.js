@@ -32,6 +32,17 @@ async (page) => {
   const doorEvidenceModule = await import(pathToFileURL(path.join(
     repo, 'tools', 'qa', 'lib', 'goal24-door-evidence.mjs',
   )).href);
+  const programOwnershipModule = await import(pathToFileURL(path.join(
+    repo, 'tools', 'qa', 'lib', 'goal24-program-ownership.mjs',
+  )).href);
+  const programOwnershipProbeSource =
+    programOwnershipModule.goal24ProgramOwnershipProbeFactorySource();
+  const doorDetailClearanceYards = Number(
+    doorEvidenceModule.GOAL24_DOOR_DETAIL_CLEARANCE_YARDS ?? 1.5,
+  );
+  if (!Number.isFinite(doorDetailClearanceYards) || doorDetailClearanceYards <= 0) {
+    throw new Error('Goal 24 door detail-clearance contract is unavailable.');
+  }
   const visualEvidenceModule = await import(pathToFileURL(path.join(
     repo, 'tools', 'qa', 'lib', 'goal24-visual-evidence.mjs',
   )).href);
@@ -641,6 +652,8 @@ async (page) => {
       `Start recorder returned the wrong trace identity: ${JSON.stringify(startSample.traceIdentity)}`,
     );
   }
+  // Compatibility no-op: qa-boot restores inside the exact seed draw, before
+  // Three.js allocates runtime UUIDs.
   await page.evaluate(() => window.__qaRestoreRandom?.());
   const startControlInput = startSample.inputEvents.find((event) => (
     event.type === 'click'
@@ -784,8 +797,12 @@ async (page) => {
   report.rendererGate = rendererGate;
 
   // Deterministic fixture only. It normalizes non-spatial state, but deliberately
-  // leaves the freshly spawned player and camera where shipping boot put them.
-  // The first door route below stays outdoors until its measured crossing.
+  // leaves the freshly spawned player, camera, AND clock where shipping boot put
+  // them. The clubhouse light list is a shader-program input. Moving the clock
+  // from the seeded 06:00 boot to 14:00 before the cold door leg changed the
+  // porch/daylight light signature after prewarm and manufactured a QA-only
+  // first-door compile. Later scenarios still receive their canonical 14:00
+  // fixture, but only after the one cold route has closed.
   report.fixture = await page.evaluate(() => {
     const fw = window.__fw;
     const ch = fw.scene3d.clubhouse();
@@ -796,8 +813,6 @@ async (page) => {
     fw.scene3d.walk.clearKeys?.();
     st.vx = 0;
     st.vz = 0;
-    const day = Math.floor(fw.state.clock.minutes / 1440) * 1440;
-    fw.state.clock.minutes = day + 14 * 60;
     fw.preferences.update({
       display: {
         quality: 'high',
@@ -818,6 +833,7 @@ async (page) => {
       yaw: st.yaw,
       pitch: st.pitch,
       clockMinute: fw.state.clock.minutes,
+      clockMutationDeferredUntilAfterColdDoor: true,
       fpsCap: fw.preferences.values.display.fpsCap,
       cleaningKitOwned: (fw.state.shop?.inventory?.vac1?.back || 0) > 0,
     };
@@ -842,7 +858,7 @@ async (page) => {
     try { await sleep(ms); } finally { await page.keyboard.up(key); }
   };
   const stageDoor = (side, distance, mutate = true) => page.evaluate(async ({
-    wantedSide, wantedDistance, shouldMutate,
+    wantedSide, wantedDistance, shouldMutate, detailClearanceYards,
   }) => {
     const fw = window.__fw;
     const ch = fw.scene3d.clubhouse();
@@ -851,7 +867,18 @@ async (page) => {
     const halfD = layout.SHELL.d / 2 - layout.SHELL.wallT / 2;
     const ip = ch.interior.position;
     const converted = ch.L2W?.(layout.DOOR_MAIN.x, halfD);
-    const target = converted || { x: ip.x + layout.DOOR_MAIN.x, z: ip.z + halfD };
+    const doorPoint = converted || { x: ip.x + layout.DOOR_MAIN.x, z: ip.z + halfD };
+    const target = {
+      x: doorPoint.x,
+      z: doorPoint.z,
+      detailInterior: {
+        centerX: ch.center?.x ?? ip.x,
+        centerZ: ch.center?.z ?? ip.z,
+        halfWidth: layout.INTERIOR.w / 2,
+        halfDepth: layout.INTERIOR.d / 2,
+        clearanceYards: detailClearanceYards,
+      },
+    };
     let nx = target.x - ip.x;
     let nz = target.z - ip.z;
     const length = Math.hypot(nx, nz) || 1;
@@ -875,7 +902,12 @@ async (page) => {
       inside: !!ch.isInside(st.x, st.z, 0.35),
       harnessPoseMutation: shouldMutate,
     };
-  }, { wantedSide: side, wantedDistance: distance, shouldMutate: mutate });
+  }, {
+    wantedSide: side,
+    wantedDistance: distance,
+    shouldMutate: mutate,
+    detailClearanceYards: doorDetailClearanceYards,
+  });
   const readDoor = (target) => page.evaluate((doorTarget) => {
     const fw = window.__fw;
     const ch = fw.scene3d.clubhouse();
@@ -884,8 +916,16 @@ async (page) => {
     const mainDoors = doors.filter((door) => door.interactionId === 'clubhouse-main-door');
     const focus = fw.scene3d.walk.getFocus?.() || null;
     const camera = fw.scene3d.camera;
+    const runtime = ch.assets51to100Runtime?.diagnostics?.() || null;
+    const cameraX = camera?.position?.x ?? st.x;
+    const cameraZ = camera?.position?.z ?? st.z;
+    const detailInterior = doorTarget.detailInterior;
+    const detailDx = Math.max(Math.abs(cameraX - detailInterior.centerX) - detailInterior.halfWidth, 0);
+    const detailDz = Math.max(Math.abs(cameraZ - detailInterior.centerZ) - detailInterior.halfDepth, 0);
+    const rendererInfo = fw.scene3d.renderer?.info || null;
+    const capturedAtMs = performance.now();
     return {
-      atMs: performance.now(),
+      atMs: capturedAtMs,
       position: { x: st.x, z: st.z },
       cameraPose: camera ? {
         x: camera.position.x, y: camera.position.y, z: camera.position.z,
@@ -896,6 +936,24 @@ async (page) => {
       inside: !!ch.isInside(st.x, st.z, 0.35),
       interiorVisible: ch.interior?.visible === true,
       distance: Math.hypot(st.x - doorTarget.x, st.z - doorTarget.z),
+      detailExteriorDistanceYards: Math.hypot(detailDx, detailDz),
+      detailWithinClearance: Math.hypot(detailDx, detailDz) < detailInterior.clearanceYards,
+      detailRuntime: runtime ? {
+        capturedAtMs,
+        runtimeCreatedAtMs: runtime.runtimeCreatedAtMs ?? null,
+        runtimeReadyAtMs: runtime.runtimeReadyAtMs ?? null,
+        staticBatchStartedAtMs: runtime.staticBatchStartedAtMs ?? null,
+        staticBatchReadyAtMs: runtime.staticBatchReadyAtMs ?? null,
+        staticBatchOutcome: runtime.staticBatchOutcome ?? null,
+        detailedVisible: runtime.detailedVisible === true,
+        detailVisibilitySequence: runtime.detailVisibilitySequence ?? null,
+        lastDetailVisibilityTransition: runtime.lastDetailVisibilityTransition ?? null,
+      } : null,
+      rendererResources: rendererInfo ? {
+        programs: Array.isArray(rendererInfo.programs) ? rendererInfo.programs.length : null,
+        geometries: rendererInfo.memory?.geometries ?? null,
+        textures: rendererInfo.memory?.textures ?? null,
+      } : null,
       focus: String(fw.scene3d.walk.getFocusLabel?.() || ''),
       focusKind: focus?.kind ?? null,
       focusTargetId: focus?.kind === 'prop' ? focus.prop?.id ?? null : null,
@@ -906,14 +964,21 @@ async (page) => {
       heldKeys: fw.scene3d.walk.heldKeys?.() || [],
     };
   }, target);
-  const driveUntil = async (key, target, predicate, maxMs, contractScenarioId) => {
+  const driveUntil = async (
+    key,
+    target,
+    predicate,
+    maxMs,
+    contractScenarioId,
+    pollMs = 25,
+  ) => {
     const samples = [];
     const started = Date.now();
     await requestInput('keyboard', key, { action: 'down', scenario: contractScenarioId });
     await page.keyboard.down(key);
     try {
       while (Date.now() - started < maxMs) {
-        await sleep(100);
+        await sleep(pollMs);
         const sample = await readDoor(target);
         samples.push(sample);
         if (predicate(sample)) break;
@@ -923,28 +988,80 @@ async (page) => {
     }
     return samples;
   };
+  const waitForDoorDetailState = async (expectedVisible, timeoutMs = 2500) => {
+    const handle = await page.waitForFunction((expected) => {
+      const runtime = window.__fw?.scene3d?.clubhouse?.()?.assets51to100Runtime;
+      const diagnostic = runtime?.diagnostics?.();
+      return diagnostic?.detailedVisible === expected ? diagnostic : false;
+    }, expectedVisible, { timeout: timeoutMs });
+    return handle.jsonValue();
+  };
+  const rendererProgramCacheKeys = () => page.evaluate(() => (
+    (window.__fw?.scene3d?.renderer?.info?.programs || [])
+      .map((program) => String(program.cacheKey || ''))
+      .filter(Boolean)
+  ));
+  const captureProgramOwnership = (arrivalKeys, referenceKeys) => page.evaluate(({
+    factorySource, arrivals, references,
+  }) => {
+    const scene3d = window.__fw?.scene3d;
+    if (!scene3d?.renderer || !scene3d?.scene) {
+      throw new Error('Shipping Three renderer/scene unavailable for program ownership capture.');
+    }
+    const createProbe = (0, eval)(factorySource);
+    return createProbe().capture({
+      renderer: scene3d.renderer,
+      scene: scene3d.scene,
+      arrivalKeys: arrivals,
+      referenceKeys: references,
+    });
+  }, {
+    factorySource: programOwnershipProbeSource,
+    arrivals: arrivalKeys,
+    references: referenceKeys,
+  });
 
   const doorState = {
     target: null,
     coldSequenceComplete: false,
     noInteriorBeforeColdCrossing: startSample.playerInteriorHistory?.playerInteriorObserved === false,
   };
-  const doorRouteSignature = (start, startObservation, finish, samples) => ({
+  const detailTransitionDuring = (startObservation, finish) => {
+    const startSequence = Number(startObservation.detailRuntime?.detailVisibilitySequence);
+    const finishSequence = Number(finish.detailRuntime?.detailVisibilitySequence);
+    const transition = finish.detailRuntime?.lastDetailVisibilityTransition || null;
+    if (!Number.isInteger(startSequence) || !Number.isInteger(finishSequence)
+      || finishSequence !== startSequence + 1
+      || transition?.sequence !== finishSequence
+      || !Number.isFinite(transition?.atMs)
+      || transition.atMs < startObservation.atMs
+      || transition.atMs > finish.atMs) return null;
+    return { ...transition };
+  };
+  const doorRouteSignature = (routeKind, start, startObservation, finish, samples) => ({
     schema: doorEvidenceModule.GOAL24_DOOR_ROUTE_SCHEMA,
+    routeKind,
+    detailClearanceYards: doorDetailClearanceYards,
     startPose: start.pose || {
       x: start.position?.x, z: start.position?.z, yaw: null, pitch: null,
     },
-    target: start.target,
+    target: { x: start.target.x, z: start.target.z },
     normal: start.normal,
     startCameraPose: startObservation.cameraPose,
     finishPosition: finish.position,
     finishCameraPose: finish.cameraPose,
+    runtimeStart: startObservation.detailRuntime,
+    runtimeEnd: finish.detailRuntime,
     pathSamples: samples.map((sample, index) => ({
       ordinal: index + 1,
       atMs: sample.atMs,
       x: sample.position.x,
       z: sample.position.z,
       distanceToDoor: sample.distance,
+      detailExteriorDistanceYards: sample.detailExteriorDistanceYards,
+      detailWithinClearance: sample.detailWithinClearance,
+      detailedVisible: sample.detailRuntime?.detailedVisible ?? null,
+      detailVisibilitySequence: sample.detailRuntime?.detailVisibilitySequence ?? null,
       inside: sample.inside,
     })),
   });
@@ -968,7 +1085,7 @@ async (page) => {
     await mark('approach-start', { ...start, cameraPose: startObservation.cameraPose });
     const drivenSamples = await driveUntil(
       forward, start.target,
-      (sample) => sample.distance <= 1.8 || sample.inside,
+      (sample) => sample.distance <= 1.9 || sample.inside,
       5000,
       'doorApproach',
     );
@@ -983,14 +1100,19 @@ async (page) => {
       electronMainProcessCreationTimeEpochMs,
       freshProcess: thermalState === 'cold',
       startZone: start.inside ? 'inside' : 'outside',
-      endZone: finish.inside ? 'inside' : 'outside-threshold',
+      endZone: finish.inside ? 'inside' : 'outside-approach-marker',
       startDistanceYards: start.distance,
-      thresholdCrossed: finish.distance <= 1.8,
+      thresholdCrossed: finish.distance <= 1.9,
+      detailClearanceYards: doorDetailClearanceYards,
+      detailThresholdStayedOutside: samples.every((sample) => (
+        sample.detailExteriorDistanceYards >= doorDetailClearanceYards
+        && sample.detailWithinClearance === false
+      )),
       startedOutside: start.inside === false,
       endDistance: finish.distance,
       endedOutside: finish.inside === false,
       movedTowardDoor: finish.distance < start.distance - 2,
-      routeSignature: doorRouteSignature(start, startObservation, finish, samples),
+      routeSignature: doorRouteSignature('approach', start, startObservation, finish, samples),
       productionHandlerConsumed: (() => {
         const sample = samples.find((value) => (
           value.heldKeys?.includes(String(forward).toLowerCase())
@@ -1007,7 +1129,8 @@ async (page) => {
     return { start, finish, event };
   };
   const ensureMainDoorOpenOutsideMeasurement = async (interact) => {
-    const staged = await stageDoor('outside', 1.35);
+    const staged = await stageDoor('outside', 1.9);
+    await waitForDoorDetailState(false);
     await page.waitForFunction(() => (
       window.__fw.scene3d.walk.getFocus?.()?.prop?.id === 'clubhouse-main-door'
     ), null, { timeout: 3000 });
@@ -1111,21 +1234,33 @@ async (page) => {
   const crossDoor = async (direction, repetition, thermalState) => {
     const from = direction === 'outside-in' ? 'outside' : 'inside';
     const expectedInside = direction === 'outside-in';
+    const expectedDetailedVisible = direction === 'outside-in';
     const forward = await binding('moveForward', 'w');
-    const start = await stageDoor(from, 1.35);
-    await sleep(180);
+    const start = await stageDoor(from, 1.9);
+    await waitForDoorDetailState(!expectedDetailedVisible);
+    const programCacheKeysBefore = await rendererProgramCacheKeys();
     await begin(`door-cross-${direction}-${repetition}`, `doorCrossing:${direction}`, repetition, thermalState);
     const startObservation = await readDoor(start.target);
     await mark('crossing-start', { ...start, cameraPose: startObservation.cameraPose });
     const drivenSamples = await driveUntil(
       forward, start.target,
-      (sample) => sample.inside === expectedInside && sample.distance >= 0.65,
+      (sample) => sample.inside === expectedInside
+        && sample.distance >= 1.8,
       3500,
       direction === 'outside-in'
         ? 'doorCrossingOutsideToInside' : 'doorCrossingInsideToOutside',
     );
-    const samples = [startObservation, ...drivenSamples];
-    const finish = samples.at(-1) || await readDoor(start.target);
+    // Stop the trusted continuous movement at the same spatial endpoint on
+    // every run, then observe (never force) the production 0.5 s visibility
+    // poll. Coupling the stop position to that poll made route parity depend on
+    // scheduler phase by as much as 1.7 yards.
+    await waitForDoorDetailState(expectedDetailedVisible);
+    const finish = await readDoor(start.target);
+    const samples = [startObservation, ...drivenSamples, finish];
+    const detailTransition = detailTransitionDuring(startObservation, finish);
+    if (detailTransition) {
+      await mark('production-detail-visibility-transition', detailTransition);
+    }
     await mark('crossing-complete', finish);
     const coldInbound = direction === 'outside-in' && thermalState === 'cold';
     const event = await end(`doorCrossing:${direction}`, {
@@ -1141,6 +1276,10 @@ async (page) => {
       endInside: finish.inside,
       expectedInside,
       crossed: start.inside !== finish.inside && finish.inside === expectedInside,
+      detailClearanceYards: doorDetailClearanceYards,
+      detailVisibilityTransition: detailTransition,
+      detailVisibilitySequenceDelta: Number(finish.detailRuntime?.detailVisibilitySequence)
+        - Number(startObservation.detailRuntime?.detailVisibilitySequence),
       normalMovement: Math.hypot(
         finish.position.x - start.position.x,
         finish.position.z - start.position.z,
@@ -1148,8 +1287,16 @@ async (page) => {
       noPriorInteriorThresholdCrossing: coldInbound
         ? doorState.noInteriorBeforeColdCrossing : false,
       interiorVisibilityObserved: direction === 'outside-in'
-        ? finish.inside === true && finish.interiorVisible === true : undefined,
-      routeSignature: doorRouteSignature(start, startObservation, finish, samples),
+        ? finish.inside === true
+          && finish.detailRuntime?.detailedVisible === true
+          && detailTransition?.from === false
+          && detailTransition?.to === true
+        : undefined,
+      productionVisibilityMarker: detailTransition
+        ? `assets51to100-detail-visibility-${detailTransition.from}-to-${detailTransition.to}`
+        : null,
+      productionVisibilityAtMs: detailTransition?.atMs ?? null,
+      routeSignature: doorRouteSignature(direction, start, startObservation, finish, samples),
       productionHandlerConsumed: (() => {
         const sample = samples.find((value) => value.heldKeys?.includes(String(forward).toLowerCase()));
         return sample ? { atMs: sample.atMs, signal: 'shipping-walk-held-key-set' } : null;
@@ -1157,14 +1304,34 @@ async (page) => {
       outcomeObservedAtMs: finish.atMs,
       startPosition: start.position,
       endPosition: finish.position,
+      startRuntime: startObservation.detailRuntime,
+      endRuntime: finish.detailRuntime,
+      rendererResourceDelta: {
+        programs: Number(finish.rendererResources?.programs) - Number(startObservation.rendererResources?.programs),
+        geometries: Number(finish.rendererResources?.geometries) - Number(startObservation.rendererResources?.geometries),
+        textures: Number(finish.rendererResources?.textures) - Number(startObservation.rendererResources?.textures),
+      },
       samples,
     });
+    const programCacheKeysAfter = await rendererProgramCacheKeys();
+    const beforeProgramSet = new Set(programCacheKeysBefore);
+    const afterProgramSet = new Set(programCacheKeysAfter);
+    const programArrivals = programCacheKeysAfter.filter((key) => !beforeProgramSet.has(key));
+    event.discriminator.programCacheEvidence = {
+      source: 'THREE.WebGLRenderer.info.programs-cacheKey-before-and-after-closed-route',
+      beforeCount: programCacheKeysBefore.length,
+      afterCount: programCacheKeysAfter.length,
+      arrivals: programArrivals,
+      departures: programCacheKeysBefore.filter((key) => !afterProgramSet.has(key)),
+      // Post-window, read-only attribution. The probe joins Three's public
+      // per-material program Maps back to scene objects and performs no draw,
+      // compile, visibility mutation, or measured-window work.
+      ownership: programArrivals.length
+        ? await captureProgramOwnership(programArrivals, programCacheKeysBefore)
+        : null,
+    };
     event.doorwayRenderEvidence = doorEvidenceModule
       .summarizeGoal24DoorwayRenderEvidence(event, `doorCrossing:${direction}/${event.id}`);
-    if (direction === 'outside-in') {
-      event.discriminator.productionVisibilityMarker = 'inside-crossing-complete';
-      event.discriminator.productionVisibilityAtMs = event.discriminator.contractOutcomeMarkerAtMs;
-    }
     event.discriminator.forwardKeyTrustedCount = trustedKeyCount(event, forward);
     return event;
   };
@@ -1187,9 +1354,13 @@ async (page) => {
     const firstApproach = await approachDoor(1, 'cold', stagedBefore);
     const approachStayedOutside = firstApproach.event.discriminator.everySampleOutside === true
       && firstApproach.finish.inside === false;
-    if (!approachStayedOutside || !firstApproach.event.discriminator.thresholdCrossed) {
-      throw new Error(`Cold door approach crossed indoors or missed its outside threshold: ${JSON.stringify({
+    const approachStayedOutsideDetailGate = firstApproach.event.discriminator
+      .detailThresholdStayedOutside === true;
+    if (!approachStayedOutside || !approachStayedOutsideDetailGate
+      || !firstApproach.event.discriminator.thresholdCrossed) {
+      throw new Error(`Cold door approach crossed a production visibility boundary or missed its marker: ${JSON.stringify({
         approachStayedOutside,
+        approachStayedOutsideDetailGate,
         discriminator: firstApproach.event.discriminator,
         start: firstApproach.start,
         finish: firstApproach.finish,
@@ -1218,6 +1389,7 @@ async (page) => {
       startRecorderInteriorHistory: startSample.playerInteriorHistory,
       stagedBefore,
       approachStayedOutside,
+      approachStayedOutsideDetailGate,
       openStayedOutside,
       noInteriorBeforeColdCrossing: doorState.noInteriorBeforeColdCrossing,
       processInstanceId,
@@ -1249,8 +1421,18 @@ async (page) => {
     const ch = fw.scene3d.clubhouse();
     const st = fw.scene3d.walk.state;
     const ip = ch.interior.position;
+    const beforeClockMinute = fw.state.clock.minutes;
+    const day = Math.floor(beforeClockMinute / 1440) * 1440;
+    fw.state.clock.minutes = day + 14 * 60;
     st.x = ip.x; st.z = ip.z; st.yaw = 0; st.pitch = -0.05; st.vx = 0; st.vz = 0;
-    return { inside: !!ch.isInside(st.x, st.z, 0.35), x: st.x, z: st.z };
+    return {
+      inside: !!ch.isInside(st.x, st.z, 0.35),
+      x: st.x,
+      z: st.z,
+      beforeClockMinute,
+      clockMinute: fw.state.clock.minutes,
+      clockNormalizedAfterColdDoor: true,
+    };
   });
   await sleep(Number(process.env.GOAL24_PERF_SETTLE_MS || 2500));
 
