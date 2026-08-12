@@ -80,6 +80,22 @@ async (page) => {
     12_000,
     coldToolFirstUseBudgetMs * 2,
   );
+  const warmLedgerPageTurnBudgetMs = Number(
+    lockedProtocol.thresholds?.maximumWarmInteractionDurationMs?.ledgerPageTurns10,
+  );
+  if (!Number.isFinite(warmLedgerPageTurnBudgetMs) || warmLedgerPageTurnBudgetMs <= 0) {
+    throw new Error('Locked warm ledger-page-turn duration budget is unavailable.');
+  }
+  // The page-turn handler synchronously paints and uploads the next spread
+  // before exposing its production turn state. A regression can therefore
+  // block the renderer beyond the response budget before the observer gets a
+  // polling opportunity. Keep the observer horizon well outside the locked
+  // 1.5-second acceptance gate so the raw cadence records and rejects the
+  // regression instead of the harness timing out first.
+  const ledgerPageTurnObservationTimeoutMs = Math.max(
+    12_000,
+    warmLedgerPageTurnBudgetMs * 8,
+  );
 
   const safe = (value) => String(value || '').replace(/[^a-z0-9._-]+/gi, '-').replace(/^-|-$/g, '');
   const runId = safe(process.env.GOAL24_PERF_RUN_ID
@@ -1763,14 +1779,15 @@ async (page) => {
     const turnStarted = await page.waitForFunction((previousSpread) => {
       const diagnostics = window.__fw.scene3d.clubhouse().ledgerBook.diagnostics();
       return diagnostics.turning || diagnostics.spread !== previousSpread;
-    }, before.spread, { timeout: 2500 }).then(async () => ({
+    }, before.spread, { timeout: ledgerPageTurnObservationTimeoutMs }).then(async () => ({
       observed: true,
       atMs: await page.evaluate(() => performance.now()),
     })).catch(() => ({ observed: false, atMs: null }));
     const turnFinished = await page.waitForFunction((previousSpread) => {
       const diagnostics = window.__fw.scene3d.clubhouse().ledgerBook.diagnostics();
       return !diagnostics.turning && diagnostics.spread !== previousSpread;
-    }, before.spread, { timeout: 7000 }).then(() => true).catch(() => false);
+    }, before.spread, { timeout: ledgerPageTurnObservationTimeoutMs })
+      .then(() => true).catch(() => false);
     const after = await ledgerDiagnostics();
     const event = await end(scenario, {
       key,

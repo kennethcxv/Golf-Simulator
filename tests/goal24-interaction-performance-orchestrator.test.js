@@ -3180,6 +3180,30 @@ test('tool first-use staging is cold, settled, and observable beyond the locked 
     'staging cannot pre-equip or prewarm a measured tool');
 });
 
+test('ledger turn observer outlives the locked response gate without changing it', () => {
+  const source = fs.readFileSync(
+    new URL('../tools/qa/electron-goal24-interaction-performance.js', import.meta.url),
+    'utf8',
+  );
+  const budget = LOCKED_INTERACTION_PERFORMANCE_PROTOCOL.thresholds
+    .maximumWarmInteractionDurationMs.ledgerPageTurns10;
+  assert.equal(budget, 1500);
+  assert.match(source,
+    /ledgerPageTurnObservationTimeoutMs = Math\.max\(\s*12_000,\s*warmLedgerPageTurnBudgetMs \* 8/,
+    'observer timeout must exceed the contract threshold so the contract judges slow turns');
+  const turnBlock = source.slice(
+    source.indexOf('const turnLedger ='),
+    source.indexOf("if (wants('ledger', 'ledger-stress'))"),
+  );
+  assert.equal(
+    turnBlock.match(/timeout: ledgerPageTurnObservationTimeoutMs/g)?.length,
+    2,
+    'both production-start and settled-turn observers must use the extended horizon',
+  );
+  assert.doesNotMatch(turnBlock, /timeout:\s*(?:2500|7000)/,
+    'short observer timeouts must not preempt the locked evaluator');
+});
+
 test('video-leg overlay observes each recorder-owned scenario before measurement begins', () => {
   const source = fs.readFileSync(
     new URL('../tools/qa/electron-goal24-interaction-performance.js', import.meta.url),
