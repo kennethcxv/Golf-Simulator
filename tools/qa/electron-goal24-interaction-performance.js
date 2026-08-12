@@ -1133,19 +1133,22 @@ async (page) => {
     }
 
     reset.clearStage = await stageDoor('outside', 6.5);
-    try {
-      await page.waitForFunction(() => {
-        const diagnostic = window.__fw.scene3d.clubhouse().mainEntranceDiagnostics?.();
-        return diagnostic?.leftState === 'closed'
-          && diagnostic?.rightState === 'closed'
-          && Math.abs(diagnostic?.leftAngle || 0) < 0.03
-          && Math.abs(diagnostic?.rightAngle || 0) < 0.03;
-      }, null, { timeout: 7000 });
-    } catch (error) {
-      reset.after = await readDoor(reset.clearStage.target);
-      throw new Error(`Warm main-entrance reset failed outside measurement: ${JSON.stringify(reset)}`, {
-        cause: error,
-      });
+    reset.clearObservation = await readDoor(reset.clearStage.target);
+    if (!isSettledClosed(reset.clearObservation)) {
+      try {
+        await page.waitForFunction(() => {
+          const diagnostic = window.__fw.scene3d.clubhouse().mainEntranceDiagnostics?.();
+          return diagnostic?.leftState === 'closed'
+            && diagnostic?.rightState === 'closed'
+            && Math.abs(diagnostic?.leftAngle || 0) < 0.03
+            && Math.abs(diagnostic?.rightAngle || 0) < 0.03;
+        }, null, { polling: 25, timeout: 7000 });
+      } catch (error) {
+        reset.after = await readDoor(reset.clearStage.target);
+        throw new Error(`Warm main-entrance reset failed outside measurement: ${JSON.stringify(reset)}`, {
+          cause: error,
+        });
+      }
     }
     reset.after = await readDoor(reset.clearStage.target);
     if (!isSettledClosed(reset.after)) {

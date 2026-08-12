@@ -3444,6 +3444,13 @@ test('warm door repetitions reset through the shipping interaction outside measu
     'the reset must use the shipping trusted-key interaction path');
   assert.match(resetBlock, /main-entrance-close-applied/,
     'the reset must observe the production close signal');
+  assert.match(resetBlock,
+    /reset\.clearObservation\s*=\s*await readDoor\(reset\.clearStage\.target\)/,
+    'an already-closed door must be accepted without relying on animation-frame polling');
+  assert.match(resetBlock, /if \(!isSettledClosed\(reset\.clearObservation\)\)/,
+    'the asynchronous settle wait must only run when the immediate observation needs it');
+  assert.match(resetBlock, /\{ polling: 25, timeout: 7000 \}/,
+    'an unsettled door must use timer polling so a starved rAF cannot create a false timeout');
   assert.doesNotMatch(resetBlock, /setMainAssemblyOpen|setMainLeafOpen|desiredOpen\s*=/,
     'the reset cannot mutate door state directly');
 

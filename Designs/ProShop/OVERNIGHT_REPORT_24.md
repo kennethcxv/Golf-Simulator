@@ -395,6 +395,17 @@ door-state mutation or render warm-up. The orchestrator contract is **42/42**
 and targeted ESLint is clean; the production candidate remains unpublished
 until the real-Electron rerun passes.
 
+The first causal trace then exposed a second harness-only failure mode: the door
+was already closed, but the final settle predicate used Playwright's default
+animation-frame polling. A compositor/GPU fence could starve rAF long enough for
+that true predicate to time out. The reset now records an immediate shipping
+diagnostic after stepping back and bypasses polling when it is already settled;
+an actually moving door uses a 25 ms timer poll. The complete **42/42**
+orchestrator suite and targeted ESLint pass. A subsequent instrumented run
+completed every cold and warm door repetition, proving this no longer aborts
+the sequence. That diagnostic run still fails closed on an unrelated 2-physical-
+pixel high-DPI window readback mismatch and is not acceptance evidence.
+
 ## Still to come
 
 C (recast + navmesh, now unblocked by the CSP), D (the door stall), E (the mop),
