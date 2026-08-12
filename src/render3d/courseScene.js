@@ -7055,6 +7055,11 @@ export function makeCourseScene(canvas, state) {
   // tool FEEL: equip/stow easing + a carried bob synced to the gait, so tools
   // read as held in hands rather than glued to the camera
   const heldAnim = { t: 1, show: false, pendingHide: false, settle: 0 };
+  // Constant-size evidence at the exact shipping tool-change edge. This does
+  // not alter selection; it lets QA observe consumption without replacing the
+  // production hook or inferring it from a delay.
+  let toolChangeSequence = 0;
+  let lastToolChange = null;
   // Contact-phase stroke gating: a mop/broom/cloth/sponge cleans only while the stroke drags across
   // the surface, not at the lifted turnarounds. Skipped dt is banked here and released on the next
   // contact frame so the NET cleaning over a stroke is unchanged (the sim is linear in dt).
@@ -7461,6 +7466,12 @@ export function makeCourseScene(canvas, state) {
       sprayCadenceT = 0;
       spraySqueezeActive = false;
       washerJetRamp = 0;
+      lastToolChange = {
+        sequence: ++toolChangeSequence,
+        atMs: performance.now(),
+        next: tool || null,
+        previous: previousTool || null,
+      };
       walkHooks.toolChanged?.(tool || null, previousTool || null);
     }
     if (HELD_TOOL_ASSET_MANIFEST[tool]) {
@@ -10518,6 +10529,13 @@ export function makeCourseScene(canvas, state) {
   let shadowBakeMs = 100;
   let shadowClock = Infinity; // Infinity → the very first frame always bakes
   let shadowBakes = 0; // perf probes read this to attribute frame spikes to bakes
+  // Goal 24 performance proof: count entry into the shipping composed render,
+  // independently of THREE's internal pass counter.  A composer legitimately
+  // calls renderer.render() several times per frame, so renderer.info alone
+  // cannot distinguish that from accidentally invoking this whole function
+  // twice inside one production callback.  This monotonic, snapshot-only count
+  // gives the QA resource probe that missing absolute denominator.
+  let composedRenders = 0;
 
   // SHADOW FITTING. On foot, only the ±120 yards around the player can ever be read — so
   // that is all the shadow map covers: a 2048 map over 240yd is 2.5× the texel density the
@@ -10766,6 +10784,7 @@ export function makeCourseScene(canvas, state) {
 
   function render(dtMs, st) {
     if (sceneDisposed) return;
+    composedRenders += 1;
     guardCourseWaterReflection.beginFrame();
     updatePlayerPin();
     time += dtMs / 1000;
@@ -12275,6 +12294,14 @@ export function makeCourseScene(canvas, state) {
     return true;
   }
 
+  const postApi = { composer, gtao, bloom, sun };
+  Object.defineProperty(postApi, 'stats', {
+    enumerable: true,
+    configurable: false,
+    writable: false,
+    value: () => Object.freeze({ shadowBakes, composedRenders }),
+  });
+
   return {
     renderer,
     scene,
@@ -12293,7 +12320,7 @@ export function makeCourseScene(canvas, state) {
     whenAssetsIdle: () => whenAssetsIdle(10000),
     camera,
     rig,
-    post: { composer, gtao, bloom, sun, stats: () => ({ shadowBakes }) },
+    post: postApi,
     // Texture-memory infrastructure, exposed so the QA harness can assert that
     // sharing and compression are actually happening rather than assume it.
     textureMemory: () => ({ ktx2: ktx2Diagnostics(), shared: sharedTextureDiagnostics() }),
@@ -12565,7 +12592,16 @@ export function makeCourseScene(canvas, state) {
         broomPassActive: Object.values(toolRigs).some((rig) => rig.isActive()),
         visibleHeldGroups: Object.entries(heldGroups)
           .filter(([, g]) => g.visible).map(([name]) => name),
+        animation: {
+          show: heldAnim.show,
+          progress: heldAnim.t,
+          settleProgress: heldAnim.settle,
+          settled: heldAnim.show
+            ? heldAnim.t >= 1 && (walk.reducedMotion || heldAnim.settle >= 1)
+            : heldAnim.t >= 1 && !heldRoot.visible,
+        },
       }),
+      toolChangeDiagnostics: () => (lastToolChange ? { ...lastToolChange } : null),
       heldAssetDiagnostics: heldAssetRegistry.diagnostics,
       toolViewmodelDiagnostics: () => ({
         loadResults: toolViewmodelsAuthored,

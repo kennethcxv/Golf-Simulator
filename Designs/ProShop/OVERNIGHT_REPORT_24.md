@@ -15,6 +15,79 @@ checks and printed the rest green).
 
 ---
 
+## Recovery — 2026-08-11 continuation
+
+**RECOVERED WITHOUT DISCARDING OR BROAD-STAGING ANY PRE-EXISTING WORK.** The
+required branch, local `HEAD`, local tracking ref, and live remote branch were
+all exactly `b91415116f592306d2015267a538b3503793522c`; the index was and remains
+empty. At intake the worktree contained 46 tracked paths (39 modified, seven
+deleted) and nine untracked paths. The final post-audit state before performance
+work is 59 paths: 47 tracked (40 modified, seven deleted), 12 untracked, zero
+staged. The three added untracked paths are the recovery tool, its focused test,
+and the durable audit; this report is the one additional tracked modification.
+
+The ownership/quarantine map is now explicit:
+
+- G1/G2 ledger WIP is the four-source-file chain in `keyBindings.js`, `main.js`,
+  `clubhouse.js`, and `courseScene.js`, plus the untracked G12 driver. It is
+  preserved but not commit-ready: the inherited probe wrongly expects mouse
+  look to remain live, does not prove full world/tool lock, and may press K six
+  times instead of proving one deterministic hotkey press.
+- Mop WIP is `toolViewmodel.js`, the untracked sweep driver, and its contact
+  sheet. It is preserved but no candidate is accepted: the viewed sheet still
+  shows disconnected rods/clumps rather than convincing yarn.
+- Thirty-four LFS-attributed tracked paths were separated into 23 genuinely
+  changed full binaries and 11 checkout textures whose raw bytes exactly match
+  their `HEAD` blobs despite the current LFS clean filter reporting them dirty.
+  None is adopted or staged by inference.
+- Seven deleted Goal 18 reference images, the two intake documents, and four
+  `dev/null` hook copies remain unknown/pre-existing work and are protected.
+  `core.hooksPath` is unset; each `dev/null` copy hash-matches its active Git LFS
+  counterpart under `.git/hooks`, so those copies are inactive debris.
+
+The ten continuity commits `8616f79`, `76044b3`, `46e62d8`, `57f1092`,
+`41a56b3`, `663a049`, `9002163`, `88046fe`, `8d55cb5`, and `b914151` are exact
+ancestors of the live remote branch. The earlier golden/render-loop repair
+`f65f32d` is also a remote ancestor and is not an open recovery item. There is
+no remote divergence, but merge risk remains high where the ledger WIP overlaps
+`clubhouse.js` and `courseScene.js`.
+
+The immutable intake capture remains at
+`qa/goal24/recovery/2026-08-11T17-03-31-pre-implementation-b914151/`. The hardened
+v3 capture is at `qa/goal24/recovery/2026-08-11-final-v3-b914151/`, and the
+corrected final-state capture is at
+`qa/goal24/recovery/2026-08-11-recovery-final-post-report-v3-b914151/`. The durable, versionable
+audit is `Designs/ProShop/Goal24_Evidence/recovery-audit-2026-08-11-b914151-v3.json`.
+Its stable pre-audit state fingerprint is
+`903960459b09ad5a9d574f8f3fb71360ac8afb78b42bec5bed8fba1f1d863dd7`.
+
+The non-Temp byte backup is
+`C:/Users/Kenneth/Documents/Golf-Flipper-Goal24-Recovery/2026-08-11-b914151-recovery-closed-v3`.
+The verifier created it only after refusing a pre-existing/nonempty target, used
+exclusive copies, and rehashed both source and destination: 52 present paths and
+seven absent deletions verified with no drift. The durable audit retains those
+per-file outcomes, live-remote result, hook hashes, exact ancestry commands, and
+Blender stdout/stderr/exit codes. Blender 5.1.2 opened, read, and left unchanged
+`Assets/checkout/source/shopping_bag.blend`,
+`asset_sources/blender/clubhouse/ledger_book.blend`, and
+`asset_sources/blender/assets_51_100/sheet_07/asset_061_front_desk_counter_shell.blend`
+under `--factory-startup --disable-autoexec`.
+
+Recovery guardrail: never use `git add .`, `git add -A`, `git add -u`,
+`git commit -am`, reset, stash, clean, or discard operations in this continuation.
+An explicit whole-path allowlist is not sufficient for the three overlap files:
+`clubhouse.js`, `courseScene.js`, and `toolViewmodel.js`. Until their owning WIP
+is completed and verified, edits there must preserve the intake hash, stage only
+the intended hunks, and prove the cached patch contains none of the quarantined
+intake hunks. The index is serialized. Every candidate is materialized as
+`HEAD + cached patch` in an external detached worktree, verified there, and its
+tree hash must equal the eventual commit and pushed remote. Every push uses an
+explicit refspec and a live `ls-remote` hash proof.
+
+The recovery brief explicitly forbids a blanket recovery commit. These recovery
+QA artifacts will therefore travel with the separately verified unified
+performance-infrastructure item, not with any inherited gameplay or binary WIP.
+
 ## The three decisions
 
 ### 1. CSP — TAKEN. `76044b3`

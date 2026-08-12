@@ -198,9 +198,10 @@ export function buildToolViewmodels() {
     // A clamped equip/unequip pose must not blend with the next belt cycle.
     entry.mixer?.stopAllAction();
     entry.activeAction = null;
-    return playClip(toolId, on
+    entry.equipAction = playClip(toolId, on
       ? [`${toolId}_equip`, `${toolId}wand_equip`, 'equip']
       : [`${toolId}_unequip`, `${toolId}wand_unequip`, 'unequip', 'putaway']);
+    return entry.equipAction;
   }
 
   function setUsing(toolId, on) {
@@ -758,6 +759,20 @@ export function buildToolViewmodels() {
         clips: entry.clips.map((clip) => clip.name),
         played: [...entry.played],
         active: entry.active,
+        equipped: entry.equipped,
+        equipAction: entry.equipAction ? (() => {
+          const clip = entry.equipAction.getClip?.();
+          const duration = Number(clip?.duration) || 0;
+          const time = Number(entry.equipAction.time) || 0;
+          return {
+            clip: clip?.name || null,
+            time,
+            duration,
+            running: entry.equipAction.isRunning?.() === true,
+            settled: duration <= 0 || time >= duration - 0.001
+              || entry.equipAction.isRunning?.() === false,
+          };
+        })() : { clip: null, time: 0, duration: 0, running: false, settled: true },
       }])),
     }),
     releaseForSceneDispose() {

@@ -48,6 +48,65 @@ const requestedClubhouse = (() => {
 // from tools/qa/run-electron.cjs and from nothing else, so the shipped game
 // cannot receive these. See src/core/qaLookCapture.js for the trade.
 const QA_LAUNCH = process.env.FW_QA === '1';
+// The Playwright Electron handle is returned only after the main process has
+// already created its first webContents. Attach this QA-only bridge at module
+// load so renderer/preload/startup failures cannot occur before the runner's
+// listeners and then disappear from a claimed clean lifecycle. The bounded
+// in-memory journal is read back by run-electron.cjs; no production logging or
+// player data is changed.
+const qaEarlyDiagnostics = [];
+const recordQaEarlyDiagnostic = (kind, detail = {}) => {
+  if (!QA_LAUNCH || qaEarlyDiagnostics.length >= 256) return;
+  qaEarlyDiagnostics.push({
+    kind,
+    atEpochMs: Date.now(),
+    ...detail,
+  });
+};
+if (QA_LAUNCH) {
+  app.on('web-contents-created', (_event, contents) => {
+    const webContentsId = contents.id;
+    recordQaEarlyDiagnostic('web-contents-created', { webContentsId });
+    contents.on('console-message', (_consoleEvent, level, message, line, sourceId) => {
+      recordQaEarlyDiagnostic('console-message', {
+        webContentsId,
+        level,
+        message: String(message || '').slice(0, 4000),
+        line,
+        sourceId: String(sourceId || '').slice(0, 1000),
+      });
+    });
+    contents.on('preload-error', (_preloadEvent, preloadPath, error) => {
+      recordQaEarlyDiagnostic('preload-error', {
+        webContentsId,
+        preloadPath: String(preloadPath || ''),
+        error: String(error?.stack || error?.message || error || '').slice(0, 8000),
+      });
+    });
+    contents.on('did-fail-load', (_loadEvent, errorCode, errorDescription, validatedURL, isMainFrame) => {
+      recordQaEarlyDiagnostic('did-fail-load', {
+        webContentsId,
+        errorCode,
+        errorDescription: String(errorDescription || ''),
+        validatedURL: String(validatedURL || ''),
+        isMainFrame: !!isMainFrame,
+      });
+    });
+    contents.on('render-process-gone', (_goneEvent, details) => {
+      recordQaEarlyDiagnostic('render-process-gone', {
+        webContentsId,
+        reason: details?.reason || null,
+        exitCode: details?.exitCode ?? null,
+      });
+    });
+  });
+  Object.defineProperty(globalThis, '__fwQaEarlyDiagnosticsSnapshot', {
+    value: () => qaEarlyDiagnostics.map((entry) => ({ ...entry })),
+    configurable: false,
+    enumerable: false,
+    writable: false,
+  });
+}
 const rendererArguments = [
   ...(DEV ? ['--fw-dev'] : []),
   ...(requestedClubhouse ? [`--fw-clubhouse=${requestedClubhouse}`] : []),
@@ -226,7 +285,7 @@ const activeDisplay = () => {
   // it); the env form never arrived through the QA launcher (measured:
   // qaFakeEnv null while the parent shell held the var), so both are read.
   const argvFake = process.argv.find((a) => a.startsWith('--fw-fake-display='));
-  let fileFake = null;
+  let fileFake;
   try {
     // the one delivery channel that cannot be stripped by any launcher: a
     // marker file beside main.cjs. QA writes it, runs, deletes it.

@@ -1,0 +1,1695 @@
+{
+  "schema": "golf-flipper-goal24-recovery-audit-v1",
+  "capturedAtUtc": "2026-08-12T00:40:58.855Z",
+  "generatedAfterStableCapture": true,
+  "branch": "feature/pro-shop-vertical-slice",
+  "head": "b91415116f592306d2015267a538b3503793522c",
+  "trackingHead": "b91415116f592306d2015267a538b3503793522c",
+  "remoteHead": "b91415116f592306d2015267a538b3503793522c",
+  "objectFormat": "sha1",
+  "stateFingerprint": "903960459b09ad5a9d574f8f3fb71360ac8afb78b42bec5bed8fba1f1d863dd7",
+  "evidenceDirectory": "qa/goal24/recovery/2026-08-11-final-v3-b914151",
+  "externalBackupDirectory": "C:\\Users\\Kenneth\\Documents\\Golf-Flipper-Goal24-Recovery\\2026-08-11-b914151-recovery-closed-v3",
+  "counts": {
+    "dirtyPaths": 59,
+    "tracked": 47,
+    "untracked": 12,
+    "modified": 40,
+    "deleted": 7,
+    "lfsAttributed": 34,
+    "lfsLogicalEqualsHead": 11,
+    "lfsLogicalChanged": 23
+  },
+  "files": [
+    {
+      "path": "asset_sources/blender/assets_51_100/sheet_07/asset_061_front_desk_counter_shell.blend",
+      "statusCode": ".M",
+      "worktreeState": "modified",
+      "exists": true,
+      "sizeBytes": 14930646,
+      "sha256": "c6ed0fb92d8051f59fe12f81988aa2d3207160112bcd0fd504174fbc87862109",
+      "headBlob": "01510e47b6897509257aadf0c85b59e089536ac8",
+      "headStorage": "git-blob",
+      "isLfsAttributed": true,
+      "logicalEqualsHead": false
+    },
+    {
+      "path": "asset_sources/blender/assets_51_100/sheet_07/asset_062_back_counter_storage_cabinets.blend",
+      "statusCode": ".M",
+      "worktreeState": "modified",
+      "exists": true,
+      "sizeBytes": 14934056,
+      "sha256": "42e85e18689b4da39ee6f01ea3266db39ddfec0501964826fe1b507977e70b59",
+      "headBlob": "41b71cf16216f7904adb74b265c39f828ea9b364",
+      "headStorage": "git-blob",
+      "isLfsAttributed": true,
+      "logicalEqualsHead": false
+    },
+    {
+      "path": "asset_sources/blender/assets_51_100/sheet_07/asset_063_pro_shop_fitting_room.blend",
+      "statusCode": ".M",
+      "worktreeState": "modified",
+      "exists": true,
+      "sizeBytes": 14935703,
+      "sha256": "058f1d4e423552111c501617b96f40573537c573e8ae04b1e434145d44ef0729",
+      "headBlob": "d60e6662ee248f1d4d83315d67fc5e76b7f51ff0",
+      "headStorage": "git-blob",
+      "isLfsAttributed": true,
+      "logicalEqualsHead": false
+    },
+    {
+      "path": "asset_sources/blender/assets_51_100/sheet_07/asset_064_stockroom_shelving_system.blend",
+      "statusCode": ".M",
+      "worktreeState": "modified",
+      "exists": true,
+      "sizeBytes": 9729440,
+      "sha256": "00e209ce1ff5cb4865948ccdbf65cbeb737ac710effcb90873e7b34c06df9e11",
+      "headBlob": "b9879e4aadc028e535bff7a290185a0f8abe37bc",
+      "headStorage": "git-blob",
+      "isLfsAttributed": true,
+      "logicalEqualsHead": false
+    },
+    {
+      "path": "asset_sources/blender/assets_51_100/sheet_07/asset_066_office_laptop_desk.blend",
+      "statusCode": ".M",
+      "worktreeState": "modified",
+      "exists": true,
+      "sizeBytes": 14920476,
+      "sha256": "9aa4e15430301d517ec4bc8ca46a30bdd14295664db1123c605a033554257242",
+      "headBlob": "8cf0946dee162b4ad3a38e64946c535409f6ed6b",
+      "headStorage": "git-blob",
+      "isLfsAttributed": true,
+      "logicalEqualsHead": false
+    },
+    {
+      "path": "asset_sources/blender/assets_51_100/sheet_07/asset_067_clubhouse_lounge_sofa.blend",
+      "statusCode": ".M",
+      "worktreeState": "modified",
+      "exists": true,
+      "sizeBytes": 14935097,
+      "sha256": "3d43816f2bcc2dcb4edb6924ad28d828c9dedfe3856b24bd438ce9c08e315491",
+      "headBlob": "0289f9dda6d538b31ed770dbefd126dc083acdac",
+      "headStorage": "git-blob",
+      "isLfsAttributed": true,
+      "logicalEqualsHead": false
+    },
+    {
+      "path": "asset_sources/blender/assets_51_100/sheet_07/asset_068_lounge_armchair_sheet07.blend",
+      "statusCode": ".M",
+      "worktreeState": "modified",
+      "exists": true,
+      "sizeBytes": 14920285,
+      "sha256": "e637391744fb0005c0479720d83f039035e30afcc34dd9c3c56c771929ac12af",
+      "headBlob": "08eb5a66091cc16905fa66fbdd266d92dac78a2a",
+      "headStorage": "git-blob",
+      "isLfsAttributed": true,
+      "logicalEqualsHead": false
+    },
+    {
+      "path": "asset_sources/blender/assets_51_100/sheet_07/asset_069_lounge_coffee_table_sheet07.blend",
+      "statusCode": ".M",
+      "worktreeState": "modified",
+      "exists": true,
+      "sizeBytes": 14888325,
+      "sha256": "626e958076550184e5ce6819470750d1720939f654ea742fc8ebcbe584ac1f54",
+      "headBlob": "150d1fe9c9c3568e80cd2bfd1f762734d464a8de",
+      "headStorage": "git-blob",
+      "isLfsAttributed": true,
+      "logicalEqualsHead": false
+    },
+    {
+      "path": "asset_sources/blender/assets_51_100/sheet_07/asset_070_trophy_display_cabinet.blend",
+      "statusCode": ".M",
+      "worktreeState": "modified",
+      "exists": true,
+      "sizeBytes": 14922552,
+      "sha256": "04328810803698598aff74e6cbcf38937100d04a162154bacf692f7d95ed329d",
+      "headBlob": "0d92d30e959e071f6e1ce06a812e91e026af9b15",
+      "headStorage": "git-blob",
+      "isLfsAttributed": true,
+      "logicalEqualsHead": false
+    },
+    {
+      "path": "asset_sources/blender/cash_register/checkout_product_folded_bottom.blend",
+      "statusCode": ".M",
+      "worktreeState": "modified",
+      "exists": true,
+      "sizeBytes": 100624,
+      "sha256": "8c2b9bdccc9b75bbdcb8b617cac1089d124506aadc4c234cb03145c4e7731bcc",
+      "headBlob": "8c5f7fc76faf8dcd22cde7bdbb946eccfcef1700",
+      "headStorage": "git-blob",
+      "isLfsAttributed": true,
+      "logicalEqualsHead": false
+    },
+    {
+      "path": "asset_sources/blender/cash_register/checkout_product_shoe_box.blend",
+      "statusCode": ".M",
+      "worktreeState": "modified",
+      "exists": true,
+      "sizeBytes": 148004,
+      "sha256": "afb8996776396438aacefa881ff86088543a8cb9a8a8b46abb2e481ad5365f62",
+      "headBlob": "61ac679b24d7488e616219de05a23db2b4a34b5a",
+      "headStorage": "git-blob",
+      "isLfsAttributed": true,
+      "logicalEqualsHead": false
+    },
+    {
+      "path": "asset_sources/blender/clubhouse/ledger_book.blend",
+      "statusCode": ".M",
+      "worktreeState": "modified",
+      "exists": true,
+      "sizeBytes": 789488,
+      "sha256": "bf1156d78d64afd90db084ddccec1c2c03a121ef8b052bd57fa6fcce5cb72bfd",
+      "headBlob": "1f537982fa59868b5d6353e85f32a9e124af1cb2",
+      "headStorage": "git-blob",
+      "isLfsAttributed": true,
+      "logicalEqualsHead": false
+    },
+    {
+      "path": "asset_sources/blender/nonretail_fixture_products/delivery_fixture_product_events_board.blend",
+      "statusCode": ".M",
+      "worktreeState": "modified",
+      "exists": true,
+      "sizeBytes": 138845,
+      "sha256": "067ca8c93facc873a9841d194dc1b1817958ef891ad54587e7452264830866b7",
+      "headBlob": "bd36756f1b6711105fa7e1ed31cdfaae8a414bc3",
+      "headStorage": "git-blob",
+      "isLfsAttributed": true,
+      "logicalEqualsHead": false
+    },
+    {
+      "path": "asset_sources/blender/nonretail_fixture_products/delivery_fixture_product_pendant.blend",
+      "statusCode": ".M",
+      "worktreeState": "modified",
+      "exists": true,
+      "sizeBytes": 148499,
+      "sha256": "e5bd7f39669c729cbd43b48b1a8035bc0e7a3299542508baa4c7a6cdec89ecb4",
+      "headBlob": "75d40b5e1885ce5d90b1595be482c58e0822dc75",
+      "headStorage": "git-blob",
+      "isLfsAttributed": true,
+      "logicalEqualsHead": false
+    },
+    {
+      "path": "asset_sources/blender/nonretail_fixture_products/delivery_fixture_product_plant.blend",
+      "statusCode": ".M",
+      "worktreeState": "modified",
+      "exists": true,
+      "sizeBytes": 175000,
+      "sha256": "9f65311fffba2c76bee6e231a803ac0ca2f702bc1cb44dbd0a8975e1898bbcd5",
+      "headBlob": "e139daad9c5f4d1016d84c42c507f6cd2e6e3d61",
+      "headStorage": "git-blob",
+      "isLfsAttributed": true,
+      "logicalEqualsHead": false
+    },
+    {
+      "path": "asset_sources/blender/nonretail_fixture_products/delivery_fixture_product_poster.blend",
+      "statusCode": ".M",
+      "worktreeState": "modified",
+      "exists": true,
+      "sizeBytes": 136430,
+      "sha256": "aa6fd8188673e2ff19a6a559909c680d24809befa119361ac79956f350b30259",
+      "headBlob": "4378366399a0ea57707eec1b8d08543c47b2337f",
+      "headStorage": "git-blob",
+      "isLfsAttributed": true,
+      "logicalEqualsHead": false
+    },
+    {
+      "path": "asset_sources/blender/nonretail_fixture_products/delivery_fixture_product_vacuum.blend",
+      "statusCode": ".M",
+      "worktreeState": "modified",
+      "exists": true,
+      "sizeBytes": 156393,
+      "sha256": "a4c7048f1910b9caa809751196b07df67c3eb7d1c3fe8ac58d442d0f14896330",
+      "headBlob": "6a31df5630c76f4dbd1204075cc07fa81f0f18a3",
+      "headStorage": "git-blob",
+      "isLfsAttributed": true,
+      "logicalEqualsHead": false
+    },
+    {
+      "path": "asset_sources/blender/provisions/provisions_bunker_bites_chips.blend",
+      "statusCode": ".M",
+      "worktreeState": "modified",
+      "exists": true,
+      "sizeBytes": 371867,
+      "sha256": "171705ca485aa7934b8f5a6cbe69e4ff5a5285d693e92f0c14f0f1672c736884",
+      "headBlob": "f8e362d5883c6829bab46665fc602b287f83aee8",
+      "headStorage": "git-blob",
+      "isLfsAttributed": true,
+      "logicalEqualsHead": false
+    },
+    {
+      "path": "asset_sources/blender/provisions/provisions_fairway_spring_water.blend",
+      "statusCode": ".M",
+      "worktreeState": "modified",
+      "exists": true,
+      "sizeBytes": 174956,
+      "sha256": "05fb27c0e07ea9c00055f4d40cbfd27dd14885781ea8a23ce8a136223b67f40a",
+      "headBlob": "bf55f07bf92f7225d103772c474c6472b821e303",
+      "headStorage": "git-blob",
+      "isLfsAttributed": true,
+      "logicalEqualsHead": false
+    },
+    {
+      "path": "Assets/checkout/glb/shopping_bag.glb",
+      "statusCode": ".M",
+      "worktreeState": "modified",
+      "exists": true,
+      "sizeBytes": 312920,
+      "sha256": "db9fe5888fd73def6b01ee52c542e418a367d536eb7e11c56b1efd89bb71aa3f",
+      "headBlob": "b759e5064546eb25d316f20230b7472432e93263",
+      "headStorage": "git-blob",
+      "isLfsAttributed": true,
+      "logicalEqualsHead": false
+    },
+    {
+      "path": "Assets/checkout/previews/shopping_bag_top.png",
+      "statusCode": ".M",
+      "worktreeState": "modified",
+      "exists": true,
+      "sizeBytes": 1238377,
+      "sha256": "c35c9037ed0f89f41a44b9d89d175209703845b4bf0b5bcefd7a3a8b4001936a",
+      "headBlob": "0437d9b429af692be2698d43930c20e700d3abb4",
+      "headStorage": "git-blob",
+      "isLfsAttributed": true,
+      "logicalEqualsHead": false
+    },
+    {
+      "path": "Assets/checkout/previews/shopping_bag.png",
+      "statusCode": ".M",
+      "worktreeState": "modified",
+      "exists": true,
+      "sizeBytes": 1263651,
+      "sha256": "336fafd0ac73dd93de39ddbdbf233fc79553e860170530dafebd890d43a277fa",
+      "headBlob": "90f0f910d6fd6bf2074fa601b760b338757b3167",
+      "headStorage": "git-blob",
+      "isLfsAttributed": true,
+      "logicalEqualsHead": false
+    },
+    {
+      "path": "Assets/checkout/source/shopping_bag.blend",
+      "statusCode": ".M",
+      "worktreeState": "modified",
+      "exists": true,
+      "sizeBytes": 1937240,
+      "sha256": "81b31efb84b81d09c636079a8ecad3a54868f452a92897525660311b7e7b479f",
+      "headBlob": "999f9ce253d857b6fccbdc9a8e8c083492d6a9ec",
+      "headStorage": "git-blob",
+      "isLfsAttributed": true,
+      "logicalEqualsHead": false
+    },
+    {
+      "path": "Assets/checkout/textures/BagArtwork.png",
+      "statusCode": ".M",
+      "worktreeState": "modified",
+      "exists": true,
+      "sizeBytes": 137622,
+      "sha256": "f6619c650b5b2ea7ee783b57563e12d401702609b9a1c47fc7c3d2528897083a",
+      "headBlob": "1b29fc737b4d4e5a126a751b70d069105a36fedc",
+      "headStorage": "git-blob",
+      "isLfsAttributed": true,
+      "logicalEqualsHead": true
+    },
+    {
+      "path": "Assets/checkout/textures/BrushedAlu.png",
+      "statusCode": ".M",
+      "worktreeState": "modified",
+      "exists": true,
+      "sizeBytes": 78683,
+      "sha256": "bfd52128bba6329d200200b3965b96446ecef5e144799ae157eafbdfcb2605e0",
+      "headBlob": "a58d1014c5fb5976d3c190c8b87bf75b45258cfc",
+      "headStorage": "git-blob",
+      "isLfsAttributed": true,
+      "logicalEqualsHead": true
+    },
+    {
+      "path": "Assets/checkout/textures/CharcoalPlastic.png",
+      "statusCode": ".M",
+      "worktreeState": "modified",
+      "exists": true,
+      "sizeBytes": 163555,
+      "sha256": "c30037fa860f2de1a5b1172269c363de6b9d77094e32490593e28d24b38b8782",
+      "headBlob": "546e0ea8077b7296ff7777a1b644290dc0af6315",
+      "headStorage": "git-blob",
+      "isLfsAttributed": true,
+      "logicalEqualsHead": true
+    },
+    {
+      "path": "Assets/checkout/textures/CounterBlack.png",
+      "statusCode": ".M",
+      "worktreeState": "modified",
+      "exists": true,
+      "sizeBytes": 150223,
+      "sha256": "d7f1d178d83e2a479634048260abab0bca09ed23c776ec8d70710cdc9a2fd7bc",
+      "headBlob": "9f2bcd3968d86bb54fee91eb21af8a809e928f0c",
+      "headStorage": "git-blob",
+      "isLfsAttributed": true,
+      "logicalEqualsHead": true
+    },
+    {
+      "path": "Assets/checkout/textures/CreamPanel.png",
+      "statusCode": ".M",
+      "worktreeState": "modified",
+      "exists": true,
+      "sizeBytes": 229899,
+      "sha256": "3e4b7e27bf05674408f6b409088d0483e1e1877d6610dfa8c7154de8baedb852",
+      "headBlob": "2f794c008281712a71ee4b0b572efde10c46d0d1",
+      "headStorage": "git-blob",
+      "isLfsAttributed": true,
+      "logicalEqualsHead": true
+    },
+    {
+      "path": "Assets/checkout/textures/KraftPaper.png",
+      "statusCode": ".M",
+      "worktreeState": "modified",
+      "exists": true,
+      "sizeBytes": 88422,
+      "sha256": "f0254199849f09d88c4aa96a78bbf3a465cd74b7fa3ea1eefb8c91a46d8a8faf",
+      "headBlob": "ee5b66e747a9f9f288485773d921573bf5767486",
+      "headStorage": "git-blob",
+      "isLfsAttributed": true,
+      "logicalEqualsHead": true
+    },
+    {
+      "path": "Assets/checkout/textures/MatteBlackMetal.png",
+      "statusCode": ".M",
+      "worktreeState": "modified",
+      "exists": true,
+      "sizeBytes": 129683,
+      "sha256": "cb6445e880db0d261c81bc5d21d5d99bd10e9b04fbb97be435f975adf74a042b",
+      "headBlob": "c474dd3cda24db553108eed59f1fb9dbad6d8c16",
+      "headStorage": "git-blob",
+      "isLfsAttributed": true,
+      "logicalEqualsHead": true
+    },
+    {
+      "path": "Assets/checkout/textures/MidPlastic.png",
+      "statusCode": ".M",
+      "worktreeState": "modified",
+      "exists": true,
+      "sizeBytes": 171834,
+      "sha256": "b07d7947d786618a35e19f8e0d86f750c8c67b8d8227de05b03fb287a1e6479a",
+      "headBlob": "b426da2e5cfd978ab8d4647c11f736dac98f20a5",
+      "headStorage": "git-blob",
+      "isLfsAttributed": true,
+      "logicalEqualsHead": true
+    },
+    {
+      "path": "Assets/checkout/textures/OakSlat.png",
+      "statusCode": ".M",
+      "worktreeState": "modified",
+      "exists": true,
+      "sizeBytes": 228268,
+      "sha256": "93f513df22c92c8150acb9810ad6969e1793eff6b9bc11fd6f63ef202f6cb1fe",
+      "headBlob": "9ffb367f5eca6f6603011ae4e5e09c608232bbd0",
+      "headStorage": "git-blob",
+      "isLfsAttributed": true,
+      "logicalEqualsHead": true
+    },
+    {
+      "path": "Assets/checkout/textures/OlivePaper.png",
+      "statusCode": ".M",
+      "worktreeState": "modified",
+      "exists": true,
+      "sizeBytes": 64828,
+      "sha256": "f9474d55d8e0743947293a07c296f415ca2b73f3dd038353ef7032c32aa76096",
+      "headBlob": "d3d907524c10d49084283af373f677fab21dd9ff",
+      "headStorage": "git-blob",
+      "isLfsAttributed": true,
+      "logicalEqualsHead": true
+    },
+    {
+      "path": "Assets/checkout/textures/TrayGray.png",
+      "statusCode": ".M",
+      "worktreeState": "modified",
+      "exists": true,
+      "sizeBytes": 239306,
+      "sha256": "de4e3be85659027ab3cdc2c9068a593531c6559f2250fc0f5f838a112aff813e",
+      "headBlob": "7d05464289dec62bab7ddff1178fbf6a23fcc5a0",
+      "headStorage": "git-blob",
+      "isLfsAttributed": true,
+      "logicalEqualsHead": true
+    },
+    {
+      "path": "Designs/ProShop/D_MOP_YARN_SWEEP.png",
+      "statusCode": "??",
+      "worktreeState": "untracked",
+      "exists": true,
+      "sizeBytes": 489012,
+      "sha256": "b8bc66b726149c768bebe38357fcb1f35c03003f9d3fc8872171408ee711d09d",
+      "headBlob": null,
+      "headStorage": null,
+      "isLfsAttributed": false,
+      "logicalEqualsHead": false
+    },
+    {
+      "path": "Designs/ProShop/FULL_GOAL_24_CONTINUATION_GPT_5_6_SOL.md",
+      "statusCode": "??",
+      "worktreeState": "untracked",
+      "exists": true,
+      "sizeBytes": 46598,
+      "sha256": "dc40149f6f3558cd50d9e53fcbe4b549ff03ff54b5abb6b4a797a09a68bfbb8a",
+      "headBlob": null,
+      "headStorage": null,
+      "isLfsAttributed": false,
+      "logicalEqualsHead": false
+    },
+    {
+      "path": "Designs/ProShop/Full_Goal_24.md",
+      "statusCode": "??",
+      "worktreeState": "untracked",
+      "exists": true,
+      "sizeBytes": 9252,
+      "sha256": "7ad5fae2484130010974e7fd5cdb8df124dfb7313835b2cddf58a2897bffe5c2",
+      "headBlob": null,
+      "headStorage": null,
+      "isLfsAttributed": false,
+      "logicalEqualsHead": false
+    },
+    {
+      "path": "Designs/ProShop/Goal18_Refs/image1-ledger.png",
+      "statusCode": ".D",
+      "worktreeState": "deleted",
+      "exists": false,
+      "sizeBytes": null,
+      "sha256": null,
+      "headBlob": "f1dde373406cb4489bdfeefd69f66ca2c087a431",
+      "headStorage": "git-blob",
+      "isLfsAttributed": false,
+      "logicalEqualsHead": false
+    },
+    {
+      "path": "Designs/ProShop/Goal18_Refs/image2-bag.png",
+      "statusCode": ".D",
+      "worktreeState": "deleted",
+      "exists": false,
+      "sizeBytes": null,
+      "sha256": null,
+      "headBlob": "747fd93d98985f723594bd44eb4712e0190ed0ad",
+      "headStorage": "git-blob",
+      "isLfsAttributed": false,
+      "logicalEqualsHead": false
+    },
+    {
+      "path": "Designs/ProShop/Goal18_Refs/image3-card.png",
+      "statusCode": ".D",
+      "worktreeState": "deleted",
+      "exists": false,
+      "sizeBytes": null,
+      "sha256": null,
+      "headBlob": "ed15a11b4a133b0ccfca8e65c683c96c20bf3474",
+      "headStorage": "git-blob",
+      "isLfsAttributed": false,
+      "logicalEqualsHead": false
+    },
+    {
+      "path": "Designs/ProShop/Goal18_Refs/image4-broom.png",
+      "statusCode": ".D",
+      "worktreeState": "deleted",
+      "exists": false,
+      "sizeBytes": null,
+      "sha256": null,
+      "headBlob": "5af4c7b73392d857b3c10f384a09acb9c0cf17bc",
+      "headStorage": "git-blob",
+      "isLfsAttributed": false,
+      "logicalEqualsHead": false
+    },
+    {
+      "path": "Designs/ProShop/Goal18_Refs/image5-mop.png",
+      "statusCode": ".D",
+      "worktreeState": "deleted",
+      "exists": false,
+      "sizeBytes": null,
+      "sha256": null,
+      "headBlob": "083f7eaf0ac9d59b75dbf1e206f43330cb14a54d",
+      "headStorage": "git-blob",
+      "isLfsAttributed": false,
+      "logicalEqualsHead": false
+    },
+    {
+      "path": "Designs/ProShop/Goal18_Refs/image6-till-markers.png",
+      "statusCode": ".D",
+      "worktreeState": "deleted",
+      "exists": false,
+      "sizeBytes": null,
+      "sha256": null,
+      "headBlob": "4f9708734bd10c065c65b9a162e6df2cd8584cc5",
+      "headStorage": "git-blob",
+      "isLfsAttributed": false,
+      "logicalEqualsHead": false
+    },
+    {
+      "path": "Designs/ProShop/Goal18_Refs/image7-shoes.png",
+      "statusCode": ".D",
+      "worktreeState": "deleted",
+      "exists": false,
+      "sizeBytes": null,
+      "sha256": null,
+      "headBlob": "29fd4088fd2308664fb6356b83b480c04e5fa8e5",
+      "headStorage": "git-blob",
+      "isLfsAttributed": false,
+      "logicalEqualsHead": false
+    },
+    {
+      "path": "Designs/ProShop/Goal24_Evidence/recovery-audit-2026-08-11-b914151.json",
+      "statusCode": "??",
+      "worktreeState": "untracked",
+      "exists": true,
+      "sizeBytes": 84663,
+      "sha256": "5016bce8b1a9eed6dcce7b791267d52d6ae9f2153c6c92ff1d0b530506ce8ad7",
+      "headBlob": null,
+      "headStorage": null,
+      "isLfsAttributed": false,
+      "logicalEqualsHead": false
+    },
+    {
+      "path": "Designs/ProShop/OVERNIGHT_REPORT_24.md",
+      "statusCode": ".M",
+      "worktreeState": "modified",
+      "exists": true,
+      "sizeBytes": 17252,
+      "sha256": "d32a689454f83bbf9ecdf33032b969af9b44be592bbea287fd3b07faa9444d73",
+      "headBlob": "334abb45985f1331cead8d817a7ab45b86768226",
+      "headStorage": "git-blob",
+      "isLfsAttributed": false,
+      "logicalEqualsHead": false
+    },
+    {
+      "path": "dev/null/post-checkout",
+      "statusCode": "??",
+      "worktreeState": "untracked",
+      "exists": true,
+      "sizeBytes": 360,
+      "sha256": "8d606e58cce98604696a4abcf3ae1ebde6f9f31ac72bb0d44e2444cc39f26030",
+      "headBlob": null,
+      "headStorage": null,
+      "isLfsAttributed": false,
+      "logicalEqualsHead": false
+    },
+    {
+      "path": "dev/null/post-commit",
+      "statusCode": "??",
+      "worktreeState": "untracked",
+      "exists": true,
+      "sizeBytes": 356,
+      "sha256": "f3eb4d1f62924c09d481a0563a84b158c66eb2feb3431cfdb3e6760aab4d661d",
+      "headBlob": null,
+      "headStorage": null,
+      "isLfsAttributed": false,
+      "logicalEqualsHead": false
+    },
+    {
+      "path": "dev/null/post-merge",
+      "statusCode": "??",
+      "worktreeState": "untracked",
+      "exists": true,
+      "sizeBytes": 354,
+      "sha256": "cecb594e8fa65831654fc95e96db9f1249e09c52810c6fbb2b428280aac22158",
+      "headBlob": null,
+      "headStorage": null,
+      "isLfsAttributed": false,
+      "logicalEqualsHead": false
+    },
+    {
+      "path": "dev/null/pre-push",
+      "statusCode": "??",
+      "worktreeState": "untracked",
+      "exists": true,
+      "sizeBytes": 350,
+      "sha256": "a52d0510d0f8c75e27852156ec6f7791f0d8ed65fc58fcc368dd1de0a60a1d74",
+      "headBlob": null,
+      "headStorage": null,
+      "isLfsAttributed": false,
+      "logicalEqualsHead": false
+    },
+    {
+      "path": "src/core/keyBindings.js",
+      "statusCode": ".M",
+      "worktreeState": "modified",
+      "exists": true,
+      "sizeBytes": 8828,
+      "sha256": "2c300ebe66959699902ddfd2eed41bd74964dc51bfe81117d7e8ecd867aaf18b",
+      "headBlob": "8b63c0cfd759be2d9b415cd87293b8407fc6e5e1",
+      "headStorage": "git-blob",
+      "isLfsAttributed": false,
+      "logicalEqualsHead": false
+    },
+    {
+      "path": "src/main.js",
+      "statusCode": ".M",
+      "worktreeState": "modified",
+      "exists": true,
+      "sizeBytes": 192095,
+      "sha256": "d84591115c801e9ea5539972aeafc6b0daf2942f371f29265793daaad45a1953",
+      "headBlob": "7eaa9fc06a845fbf398b1aa4aaa1f69d7bc7d1b8",
+      "headStorage": "git-blob",
+      "isLfsAttributed": false,
+      "logicalEqualsHead": false
+    },
+    {
+      "path": "src/render3d/clubhouse.js",
+      "statusCode": ".M",
+      "worktreeState": "modified",
+      "exists": true,
+      "sizeBytes": 582921,
+      "sha256": "216b2e7c8e77a6b576ef52b18c07edf91b73ab93e9213574deab25e1fa7fa5e6",
+      "headBlob": "452230116d0788f5246772419888c8836e3c7a8a",
+      "headStorage": "git-blob",
+      "isLfsAttributed": false,
+      "logicalEqualsHead": false
+    },
+    {
+      "path": "src/render3d/courseScene.js",
+      "statusCode": ".M",
+      "worktreeState": "modified",
+      "exists": true,
+      "sizeBytes": 580194,
+      "sha256": "7d021b116aa98cda5f3281021c3eedb298000f91784edf95dfa3190a9585c48f",
+      "headBlob": "e52fe870fa8d7bb382e5e5da5cc703e878b168cf",
+      "headStorage": "git-blob",
+      "isLfsAttributed": false,
+      "logicalEqualsHead": false
+    },
+    {
+      "path": "src/render3d/toolViewmodel.js",
+      "statusCode": ".M",
+      "worktreeState": "modified",
+      "exists": true,
+      "sizeBytes": 41094,
+      "sha256": "146639389ec20566b30f1f5909ebbaf1d74fb39384df83f0962cb2143259655d",
+      "headBlob": "cdb1c60fcaf63dc2c3e3489e06d509eea3a8bd95",
+      "headStorage": "git-blob",
+      "isLfsAttributed": false,
+      "logicalEqualsHead": false
+    },
+    {
+      "path": "tests/goal24-recovery-snapshot.test.js",
+      "statusCode": "??",
+      "worktreeState": "untracked",
+      "exists": true,
+      "sizeBytes": 4572,
+      "sha256": "1992b09f883579c4660c7451bf925c13ff9c9b456932caf7b19a99203cf868f6",
+      "headBlob": null,
+      "headStorage": null,
+      "isLfsAttributed": false,
+      "logicalEqualsHead": false
+    },
+    {
+      "path": "tools/qa/electron-d-mop-yarn-sweep.js",
+      "statusCode": "??",
+      "worktreeState": "untracked",
+      "exists": true,
+      "sizeBytes": 11722,
+      "sha256": "01358705c5563fc65e518eccc5c06bb9df963e1dfd11c4b207f2b111c72c5282",
+      "headBlob": null,
+      "headStorage": null,
+      "isLfsAttributed": false,
+      "logicalEqualsHead": false
+    },
+    {
+      "path": "tools/qa/electron-g12-ledger-hotkey-and-lock.js",
+      "statusCode": "??",
+      "worktreeState": "untracked",
+      "exists": true,
+      "sizeBytes": 8273,
+      "sha256": "94712d93afd044d3f52b33bc49e9bf84e9a7264de3175db6a464e437abf1c39c",
+      "headBlob": null,
+      "headStorage": null,
+      "isLfsAttributed": false,
+      "logicalEqualsHead": false
+    },
+    {
+      "path": "tools/qa/goal24-recovery-snapshot.mjs",
+      "statusCode": "??",
+      "worktreeState": "untracked",
+      "exists": true,
+      "sizeBytes": 25923,
+      "sha256": "801795c409d4500d1257e8247f533c11997de03c57c8a1f1a1763b46e0b715b0",
+      "headBlob": null,
+      "headStorage": null,
+      "isLfsAttributed": false,
+      "logicalEqualsHead": false
+    }
+  ],
+  "checks": {
+    "stateStable": {
+      "ok": true,
+      "startFingerprint": "903960459b09ad5a9d574f8f3fb71360ac8afb78b42bec5bed8fba1f1d863dd7",
+      "endFingerprint": "903960459b09ad5a9d574f8f3fb71360ac8afb78b42bec5bed8fba1f1d863dd7"
+    },
+    "remote": {
+      "head": "b91415116f592306d2015267a538b3503793522c",
+      "trackingHead": "b91415116f592306d2015267a538b3503793522c",
+      "remoteHead": "b91415116f592306d2015267a538b3503793522c",
+      "headMatchesTracking": true,
+      "headMatchesRemote": true,
+      "trackingMatchesRemote": true,
+      "ok": true
+    },
+    "backup": {
+      "requested": true,
+      "directory": "C:\\Users\\Kenneth\\Documents\\Golf-Flipper-Goal24-Recovery\\2026-08-11-b914151-recovery-closed-v3",
+      "files": [
+        {
+          "path": "asset_sources/blender/assets_51_100/sheet_07/asset_061_front_desk_counter_shell.blend",
+          "destination": "C:\\Users\\Kenneth\\Documents\\Golf-Flipper-Goal24-Recovery\\2026-08-11-b914151-recovery-closed-v3\\asset_sources\\blender\\assets_51_100\\sheet_07\\asset_061_front_desk_counter_shell.blend",
+          "expectedSha256": "c6ed0fb92d8051f59fe12f81988aa2d3207160112bcd0fd504174fbc87862109",
+          "expectedSizeBytes": 14930646,
+          "sourceAfterSha256": "c6ed0fb92d8051f59fe12f81988aa2d3207160112bcd0fd504174fbc87862109",
+          "destinationSha256": "c6ed0fb92d8051f59fe12f81988aa2d3207160112bcd0fd504174fbc87862109",
+          "destinationSizeBytes": 14930646,
+          "verified": true
+        },
+        {
+          "path": "asset_sources/blender/assets_51_100/sheet_07/asset_062_back_counter_storage_cabinets.blend",
+          "destination": "C:\\Users\\Kenneth\\Documents\\Golf-Flipper-Goal24-Recovery\\2026-08-11-b914151-recovery-closed-v3\\asset_sources\\blender\\assets_51_100\\sheet_07\\asset_062_back_counter_storage_cabinets.blend",
+          "expectedSha256": "42e85e18689b4da39ee6f01ea3266db39ddfec0501964826fe1b507977e70b59",
+          "expectedSizeBytes": 14934056,
+          "sourceAfterSha256": "42e85e18689b4da39ee6f01ea3266db39ddfec0501964826fe1b507977e70b59",
+          "destinationSha256": "42e85e18689b4da39ee6f01ea3266db39ddfec0501964826fe1b507977e70b59",
+          "destinationSizeBytes": 14934056,
+          "verified": true
+        },
+        {
+          "path": "asset_sources/blender/assets_51_100/sheet_07/asset_063_pro_shop_fitting_room.blend",
+          "destination": "C:\\Users\\Kenneth\\Documents\\Golf-Flipper-Goal24-Recovery\\2026-08-11-b914151-recovery-closed-v3\\asset_sources\\blender\\assets_51_100\\sheet_07\\asset_063_pro_shop_fitting_room.blend",
+          "expectedSha256": "058f1d4e423552111c501617b96f40573537c573e8ae04b1e434145d44ef0729",
+          "expectedSizeBytes": 14935703,
+          "sourceAfterSha256": "058f1d4e423552111c501617b96f40573537c573e8ae04b1e434145d44ef0729",
+          "destinationSha256": "058f1d4e423552111c501617b96f40573537c573e8ae04b1e434145d44ef0729",
+          "destinationSizeBytes": 14935703,
+          "verified": true
+        },
+        {
+          "path": "asset_sources/blender/assets_51_100/sheet_07/asset_064_stockroom_shelving_system.blend",
+          "destination": "C:\\Users\\Kenneth\\Documents\\Golf-Flipper-Goal24-Recovery\\2026-08-11-b914151-recovery-closed-v3\\asset_sources\\blender\\assets_51_100\\sheet_07\\asset_064_stockroom_shelving_system.blend",
+          "expectedSha256": "00e209ce1ff5cb4865948ccdbf65cbeb737ac710effcb90873e7b34c06df9e11",
+          "expectedSizeBytes": 9729440,
+          "sourceAfterSha256": "00e209ce1ff5cb4865948ccdbf65cbeb737ac710effcb90873e7b34c06df9e11",
+          "destinationSha256": "00e209ce1ff5cb4865948ccdbf65cbeb737ac710effcb90873e7b34c06df9e11",
+          "destinationSizeBytes": 9729440,
+          "verified": true
+        },
+        {
+          "path": "asset_sources/blender/assets_51_100/sheet_07/asset_066_office_laptop_desk.blend",
+          "destination": "C:\\Users\\Kenneth\\Documents\\Golf-Flipper-Goal24-Recovery\\2026-08-11-b914151-recovery-closed-v3\\asset_sources\\blender\\assets_51_100\\sheet_07\\asset_066_office_laptop_desk.blend",
+          "expectedSha256": "9aa4e15430301d517ec4bc8ca46a30bdd14295664db1123c605a033554257242",
+          "expectedSizeBytes": 14920476,
+          "sourceAfterSha256": "9aa4e15430301d517ec4bc8ca46a30bdd14295664db1123c605a033554257242",
+          "destinationSha256": "9aa4e15430301d517ec4bc8ca46a30bdd14295664db1123c605a033554257242",
+          "destinationSizeBytes": 14920476,
+          "verified": true
+        },
+        {
+          "path": "asset_sources/blender/assets_51_100/sheet_07/asset_067_clubhouse_lounge_sofa.blend",
+          "destination": "C:\\Users\\Kenneth\\Documents\\Golf-Flipper-Goal24-Recovery\\2026-08-11-b914151-recovery-closed-v3\\asset_sources\\blender\\assets_51_100\\sheet_07\\asset_067_clubhouse_lounge_sofa.blend",
+          "expectedSha256": "3d43816f2bcc2dcb4edb6924ad28d828c9dedfe3856b24bd438ce9c08e315491",
+          "expectedSizeBytes": 14935097,
+          "sourceAfterSha256": "3d43816f2bcc2dcb4edb6924ad28d828c9dedfe3856b24bd438ce9c08e315491",
+          "destinationSha256": "3d43816f2bcc2dcb4edb6924ad28d828c9dedfe3856b24bd438ce9c08e315491",
+          "destinationSizeBytes": 14935097,
+          "verified": true
+        },
+        {
+          "path": "asset_sources/blender/assets_51_100/sheet_07/asset_068_lounge_armchair_sheet07.blend",
+          "destination": "C:\\Users\\Kenneth\\Documents\\Golf-Flipper-Goal24-Recovery\\2026-08-11-b914151-recovery-closed-v3\\asset_sources\\blender\\assets_51_100\\sheet_07\\asset_068_lounge_armchair_sheet07.blend",
+          "expectedSha256": "e637391744fb0005c0479720d83f039035e30afcc34dd9c3c56c771929ac12af",
+          "expectedSizeBytes": 14920285,
+          "sourceAfterSha256": "e637391744fb0005c0479720d83f039035e30afcc34dd9c3c56c771929ac12af",
+          "destinationSha256": "e637391744fb0005c0479720d83f039035e30afcc34dd9c3c56c771929ac12af",
+          "destinationSizeBytes": 14920285,
+          "verified": true
+        },
+        {
+          "path": "asset_sources/blender/assets_51_100/sheet_07/asset_069_lounge_coffee_table_sheet07.blend",
+          "destination": "C:\\Users\\Kenneth\\Documents\\Golf-Flipper-Goal24-Recovery\\2026-08-11-b914151-recovery-closed-v3\\asset_sources\\blender\\assets_51_100\\sheet_07\\asset_069_lounge_coffee_table_sheet07.blend",
+          "expectedSha256": "626e958076550184e5ce6819470750d1720939f654ea742fc8ebcbe584ac1f54",
+          "expectedSizeBytes": 14888325,
+          "sourceAfterSha256": "626e958076550184e5ce6819470750d1720939f654ea742fc8ebcbe584ac1f54",
+          "destinationSha256": "626e958076550184e5ce6819470750d1720939f654ea742fc8ebcbe584ac1f54",
+          "destinationSizeBytes": 14888325,
+          "verified": true
+        },
+        {
+          "path": "asset_sources/blender/assets_51_100/sheet_07/asset_070_trophy_display_cabinet.blend",
+          "destination": "C:\\Users\\Kenneth\\Documents\\Golf-Flipper-Goal24-Recovery\\2026-08-11-b914151-recovery-closed-v3\\asset_sources\\blender\\assets_51_100\\sheet_07\\asset_070_trophy_display_cabinet.blend",
+          "expectedSha256": "04328810803698598aff74e6cbcf38937100d04a162154bacf692f7d95ed329d",
+          "expectedSizeBytes": 14922552,
+          "sourceAfterSha256": "04328810803698598aff74e6cbcf38937100d04a162154bacf692f7d95ed329d",
+          "destinationSha256": "04328810803698598aff74e6cbcf38937100d04a162154bacf692f7d95ed329d",
+          "destinationSizeBytes": 14922552,
+          "verified": true
+        },
+        {
+          "path": "asset_sources/blender/cash_register/checkout_product_folded_bottom.blend",
+          "destination": "C:\\Users\\Kenneth\\Documents\\Golf-Flipper-Goal24-Recovery\\2026-08-11-b914151-recovery-closed-v3\\asset_sources\\blender\\cash_register\\checkout_product_folded_bottom.blend",
+          "expectedSha256": "8c2b9bdccc9b75bbdcb8b617cac1089d124506aadc4c234cb03145c4e7731bcc",
+          "expectedSizeBytes": 100624,
+          "sourceAfterSha256": "8c2b9bdccc9b75bbdcb8b617cac1089d124506aadc4c234cb03145c4e7731bcc",
+          "destinationSha256": "8c2b9bdccc9b75bbdcb8b617cac1089d124506aadc4c234cb03145c4e7731bcc",
+          "destinationSizeBytes": 100624,
+          "verified": true
+        },
+        {
+          "path": "asset_sources/blender/cash_register/checkout_product_shoe_box.blend",
+          "destination": "C:\\Users\\Kenneth\\Documents\\Golf-Flipper-Goal24-Recovery\\2026-08-11-b914151-recovery-closed-v3\\asset_sources\\blender\\cash_register\\checkout_product_shoe_box.blend",
+          "expectedSha256": "afb8996776396438aacefa881ff86088543a8cb9a8a8b46abb2e481ad5365f62",
+          "expectedSizeBytes": 148004,
+          "sourceAfterSha256": "afb8996776396438aacefa881ff86088543a8cb9a8a8b46abb2e481ad5365f62",
+          "destinationSha256": "afb8996776396438aacefa881ff86088543a8cb9a8a8b46abb2e481ad5365f62",
+          "destinationSizeBytes": 148004,
+          "verified": true
+        },
+        {
+          "path": "asset_sources/blender/clubhouse/ledger_book.blend",
+          "destination": "C:\\Users\\Kenneth\\Documents\\Golf-Flipper-Goal24-Recovery\\2026-08-11-b914151-recovery-closed-v3\\asset_sources\\blender\\clubhouse\\ledger_book.blend",
+          "expectedSha256": "bf1156d78d64afd90db084ddccec1c2c03a121ef8b052bd57fa6fcce5cb72bfd",
+          "expectedSizeBytes": 789488,
+          "sourceAfterSha256": "bf1156d78d64afd90db084ddccec1c2c03a121ef8b052bd57fa6fcce5cb72bfd",
+          "destinationSha256": "bf1156d78d64afd90db084ddccec1c2c03a121ef8b052bd57fa6fcce5cb72bfd",
+          "destinationSizeBytes": 789488,
+          "verified": true
+        },
+        {
+          "path": "asset_sources/blender/nonretail_fixture_products/delivery_fixture_product_events_board.blend",
+          "destination": "C:\\Users\\Kenneth\\Documents\\Golf-Flipper-Goal24-Recovery\\2026-08-11-b914151-recovery-closed-v3\\asset_sources\\blender\\nonretail_fixture_products\\delivery_fixture_product_events_board.blend",
+          "expectedSha256": "067ca8c93facc873a9841d194dc1b1817958ef891ad54587e7452264830866b7",
+          "expectedSizeBytes": 138845,
+          "sourceAfterSha256": "067ca8c93facc873a9841d194dc1b1817958ef891ad54587e7452264830866b7",
+          "destinationSha256": "067ca8c93facc873a9841d194dc1b1817958ef891ad54587e7452264830866b7",
+          "destinationSizeBytes": 138845,
+          "verified": true
+        },
+        {
+          "path": "asset_sources/blender/nonretail_fixture_products/delivery_fixture_product_pendant.blend",
+          "destination": "C:\\Users\\Kenneth\\Documents\\Golf-Flipper-Goal24-Recovery\\2026-08-11-b914151-recovery-closed-v3\\asset_sources\\blender\\nonretail_fixture_products\\delivery_fixture_product_pendant.blend",
+          "expectedSha256": "e5bd7f39669c729cbd43b48b1a8035bc0e7a3299542508baa4c7a6cdec89ecb4",
+          "expectedSizeBytes": 148499,
+          "sourceAfterSha256": "e5bd7f39669c729cbd43b48b1a8035bc0e7a3299542508baa4c7a6cdec89ecb4",
+          "destinationSha256": "e5bd7f39669c729cbd43b48b1a8035bc0e7a3299542508baa4c7a6cdec89ecb4",
+          "destinationSizeBytes": 148499,
+          "verified": true
+        },
+        {
+          "path": "asset_sources/blender/nonretail_fixture_products/delivery_fixture_product_plant.blend",
+          "destination": "C:\\Users\\Kenneth\\Documents\\Golf-Flipper-Goal24-Recovery\\2026-08-11-b914151-recovery-closed-v3\\asset_sources\\blender\\nonretail_fixture_products\\delivery_fixture_product_plant.blend",
+          "expectedSha256": "9f65311fffba2c76bee6e231a803ac0ca2f702bc1cb44dbd0a8975e1898bbcd5",
+          "expectedSizeBytes": 175000,
+          "sourceAfterSha256": "9f65311fffba2c76bee6e231a803ac0ca2f702bc1cb44dbd0a8975e1898bbcd5",
+          "destinationSha256": "9f65311fffba2c76bee6e231a803ac0ca2f702bc1cb44dbd0a8975e1898bbcd5",
+          "destinationSizeBytes": 175000,
+          "verified": true
+        },
+        {
+          "path": "asset_sources/blender/nonretail_fixture_products/delivery_fixture_product_poster.blend",
+          "destination": "C:\\Users\\Kenneth\\Documents\\Golf-Flipper-Goal24-Recovery\\2026-08-11-b914151-recovery-closed-v3\\asset_sources\\blender\\nonretail_fixture_products\\delivery_fixture_product_poster.blend",
+          "expectedSha256": "aa6fd8188673e2ff19a6a559909c680d24809befa119361ac79956f350b30259",
+          "expectedSizeBytes": 136430,
+          "sourceAfterSha256": "aa6fd8188673e2ff19a6a559909c680d24809befa119361ac79956f350b30259",
+          "destinationSha256": "aa6fd8188673e2ff19a6a559909c680d24809befa119361ac79956f350b30259",
+          "destinationSizeBytes": 136430,
+          "verified": true
+        },
+        {
+          "path": "asset_sources/blender/nonretail_fixture_products/delivery_fixture_product_vacuum.blend",
+          "destination": "C:\\Users\\Kenneth\\Documents\\Golf-Flipper-Goal24-Recovery\\2026-08-11-b914151-recovery-closed-v3\\asset_sources\\blender\\nonretail_fixture_products\\delivery_fixture_product_vacuum.blend",
+          "expectedSha256": "a4c7048f1910b9caa809751196b07df67c3eb7d1c3fe8ac58d442d0f14896330",
+          "expectedSizeBytes": 156393,
+          "sourceAfterSha256": "a4c7048f1910b9caa809751196b07df67c3eb7d1c3fe8ac58d442d0f14896330",
+          "destinationSha256": "a4c7048f1910b9caa809751196b07df67c3eb7d1c3fe8ac58d442d0f14896330",
+          "destinationSizeBytes": 156393,
+          "verified": true
+        },
+        {
+          "path": "asset_sources/blender/provisions/provisions_bunker_bites_chips.blend",
+          "destination": "C:\\Users\\Kenneth\\Documents\\Golf-Flipper-Goal24-Recovery\\2026-08-11-b914151-recovery-closed-v3\\asset_sources\\blender\\provisions\\provisions_bunker_bites_chips.blend",
+          "expectedSha256": "171705ca485aa7934b8f5a6cbe69e4ff5a5285d693e92f0c14f0f1672c736884",
+          "expectedSizeBytes": 371867,
+          "sourceAfterSha256": "171705ca485aa7934b8f5a6cbe69e4ff5a5285d693e92f0c14f0f1672c736884",
+          "destinationSha256": "171705ca485aa7934b8f5a6cbe69e4ff5a5285d693e92f0c14f0f1672c736884",
+          "destinationSizeBytes": 371867,
+          "verified": true
+        },
+        {
+          "path": "asset_sources/blender/provisions/provisions_fairway_spring_water.blend",
+          "destination": "C:\\Users\\Kenneth\\Documents\\Golf-Flipper-Goal24-Recovery\\2026-08-11-b914151-recovery-closed-v3\\asset_sources\\blender\\provisions\\provisions_fairway_spring_water.blend",
+          "expectedSha256": "05fb27c0e07ea9c00055f4d40cbfd27dd14885781ea8a23ce8a136223b67f40a",
+          "expectedSizeBytes": 174956,
+          "sourceAfterSha256": "05fb27c0e07ea9c00055f4d40cbfd27dd14885781ea8a23ce8a136223b67f40a",
+          "destinationSha256": "05fb27c0e07ea9c00055f4d40cbfd27dd14885781ea8a23ce8a136223b67f40a",
+          "destinationSizeBytes": 174956,
+          "verified": true
+        },
+        {
+          "path": "Assets/checkout/glb/shopping_bag.glb",
+          "destination": "C:\\Users\\Kenneth\\Documents\\Golf-Flipper-Goal24-Recovery\\2026-08-11-b914151-recovery-closed-v3\\Assets\\checkout\\glb\\shopping_bag.glb",
+          "expectedSha256": "db9fe5888fd73def6b01ee52c542e418a367d536eb7e11c56b1efd89bb71aa3f",
+          "expectedSizeBytes": 312920,
+          "sourceAfterSha256": "db9fe5888fd73def6b01ee52c542e418a367d536eb7e11c56b1efd89bb71aa3f",
+          "destinationSha256": "db9fe5888fd73def6b01ee52c542e418a367d536eb7e11c56b1efd89bb71aa3f",
+          "destinationSizeBytes": 312920,
+          "verified": true
+        },
+        {
+          "path": "Assets/checkout/previews/shopping_bag_top.png",
+          "destination": "C:\\Users\\Kenneth\\Documents\\Golf-Flipper-Goal24-Recovery\\2026-08-11-b914151-recovery-closed-v3\\Assets\\checkout\\previews\\shopping_bag_top.png",
+          "expectedSha256": "c35c9037ed0f89f41a44b9d89d175209703845b4bf0b5bcefd7a3a8b4001936a",
+          "expectedSizeBytes": 1238377,
+          "sourceAfterSha256": "c35c9037ed0f89f41a44b9d89d175209703845b4bf0b5bcefd7a3a8b4001936a",
+          "destinationSha256": "c35c9037ed0f89f41a44b9d89d175209703845b4bf0b5bcefd7a3a8b4001936a",
+          "destinationSizeBytes": 1238377,
+          "verified": true
+        },
+        {
+          "path": "Assets/checkout/previews/shopping_bag.png",
+          "destination": "C:\\Users\\Kenneth\\Documents\\Golf-Flipper-Goal24-Recovery\\2026-08-11-b914151-recovery-closed-v3\\Assets\\checkout\\previews\\shopping_bag.png",
+          "expectedSha256": "336fafd0ac73dd93de39ddbdbf233fc79553e860170530dafebd890d43a277fa",
+          "expectedSizeBytes": 1263651,
+          "sourceAfterSha256": "336fafd0ac73dd93de39ddbdbf233fc79553e860170530dafebd890d43a277fa",
+          "destinationSha256": "336fafd0ac73dd93de39ddbdbf233fc79553e860170530dafebd890d43a277fa",
+          "destinationSizeBytes": 1263651,
+          "verified": true
+        },
+        {
+          "path": "Assets/checkout/source/shopping_bag.blend",
+          "destination": "C:\\Users\\Kenneth\\Documents\\Golf-Flipper-Goal24-Recovery\\2026-08-11-b914151-recovery-closed-v3\\Assets\\checkout\\source\\shopping_bag.blend",
+          "expectedSha256": "81b31efb84b81d09c636079a8ecad3a54868f452a92897525660311b7e7b479f",
+          "expectedSizeBytes": 1937240,
+          "sourceAfterSha256": "81b31efb84b81d09c636079a8ecad3a54868f452a92897525660311b7e7b479f",
+          "destinationSha256": "81b31efb84b81d09c636079a8ecad3a54868f452a92897525660311b7e7b479f",
+          "destinationSizeBytes": 1937240,
+          "verified": true
+        },
+        {
+          "path": "Assets/checkout/textures/BagArtwork.png",
+          "destination": "C:\\Users\\Kenneth\\Documents\\Golf-Flipper-Goal24-Recovery\\2026-08-11-b914151-recovery-closed-v3\\Assets\\checkout\\textures\\BagArtwork.png",
+          "expectedSha256": "f6619c650b5b2ea7ee783b57563e12d401702609b9a1c47fc7c3d2528897083a",
+          "expectedSizeBytes": 137622,
+          "sourceAfterSha256": "f6619c650b5b2ea7ee783b57563e12d401702609b9a1c47fc7c3d2528897083a",
+          "destinationSha256": "f6619c650b5b2ea7ee783b57563e12d401702609b9a1c47fc7c3d2528897083a",
+          "destinationSizeBytes": 137622,
+          "verified": true
+        },
+        {
+          "path": "Assets/checkout/textures/BrushedAlu.png",
+          "destination": "C:\\Users\\Kenneth\\Documents\\Golf-Flipper-Goal24-Recovery\\2026-08-11-b914151-recovery-closed-v3\\Assets\\checkout\\textures\\BrushedAlu.png",
+          "expectedSha256": "bfd52128bba6329d200200b3965b96446ecef5e144799ae157eafbdfcb2605e0",
+          "expectedSizeBytes": 78683,
+          "sourceAfterSha256": "bfd52128bba6329d200200b3965b96446ecef5e144799ae157eafbdfcb2605e0",
+          "destinationSha256": "bfd52128bba6329d200200b3965b96446ecef5e144799ae157eafbdfcb2605e0",
+          "destinationSizeBytes": 78683,
+          "verified": true
+        },
+        {
+          "path": "Assets/checkout/textures/CharcoalPlastic.png",
+          "destination": "C:\\Users\\Kenneth\\Documents\\Golf-Flipper-Goal24-Recovery\\2026-08-11-b914151-recovery-closed-v3\\Assets\\checkout\\textures\\CharcoalPlastic.png",
+          "expectedSha256": "c30037fa860f2de1a5b1172269c363de6b9d77094e32490593e28d24b38b8782",
+          "expectedSizeBytes": 163555,
+          "sourceAfterSha256": "c30037fa860f2de1a5b1172269c363de6b9d77094e32490593e28d24b38b8782",
+          "destinationSha256": "c30037fa860f2de1a5b1172269c363de6b9d77094e32490593e28d24b38b8782",
+          "destinationSizeBytes": 163555,
+          "verified": true
+        },
+        {
+          "path": "Assets/checkout/textures/CounterBlack.png",
+          "destination": "C:\\Users\\Kenneth\\Documents\\Golf-Flipper-Goal24-Recovery\\2026-08-11-b914151-recovery-closed-v3\\Assets\\checkout\\textures\\CounterBlack.png",
+          "expectedSha256": "d7f1d178d83e2a479634048260abab0bca09ed23c776ec8d70710cdc9a2fd7bc",
+          "expectedSizeBytes": 150223,
+          "sourceAfterSha256": "d7f1d178d83e2a479634048260abab0bca09ed23c776ec8d70710cdc9a2fd7bc",
+          "destinationSha256": "d7f1d178d83e2a479634048260abab0bca09ed23c776ec8d70710cdc9a2fd7bc",
+          "destinationSizeBytes": 150223,
+          "verified": true
+        },
+        {
+          "path": "Assets/checkout/textures/CreamPanel.png",
+          "destination": "C:\\Users\\Kenneth\\Documents\\Golf-Flipper-Goal24-Recovery\\2026-08-11-b914151-recovery-closed-v3\\Assets\\checkout\\textures\\CreamPanel.png",
+          "expectedSha256": "3e4b7e27bf05674408f6b409088d0483e1e1877d6610dfa8c7154de8baedb852",
+          "expectedSizeBytes": 229899,
+          "sourceAfterSha256": "3e4b7e27bf05674408f6b409088d0483e1e1877d6610dfa8c7154de8baedb852",
+          "destinationSha256": "3e4b7e27bf05674408f6b409088d0483e1e1877d6610dfa8c7154de8baedb852",
+          "destinationSizeBytes": 229899,
+          "verified": true
+        },
+        {
+          "path": "Assets/checkout/textures/KraftPaper.png",
+          "destination": "C:\\Users\\Kenneth\\Documents\\Golf-Flipper-Goal24-Recovery\\2026-08-11-b914151-recovery-closed-v3\\Assets\\checkout\\textures\\KraftPaper.png",
+          "expectedSha256": "f0254199849f09d88c4aa96a78bbf3a465cd74b7fa3ea1eefb8c91a46d8a8faf",
+          "expectedSizeBytes": 88422,
+          "sourceAfterSha256": "f0254199849f09d88c4aa96a78bbf3a465cd74b7fa3ea1eefb8c91a46d8a8faf",
+          "destinationSha256": "f0254199849f09d88c4aa96a78bbf3a465cd74b7fa3ea1eefb8c91a46d8a8faf",
+          "destinationSizeBytes": 88422,
+          "verified": true
+        },
+        {
+          "path": "Assets/checkout/textures/MatteBlackMetal.png",
+          "destination": "C:\\Users\\Kenneth\\Documents\\Golf-Flipper-Goal24-Recovery\\2026-08-11-b914151-recovery-closed-v3\\Assets\\checkout\\textures\\MatteBlackMetal.png",
+          "expectedSha256": "cb6445e880db0d261c81bc5d21d5d99bd10e9b04fbb97be435f975adf74a042b",
+          "expectedSizeBytes": 129683,
+          "sourceAfterSha256": "cb6445e880db0d261c81bc5d21d5d99bd10e9b04fbb97be435f975adf74a042b",
+          "destinationSha256": "cb6445e880db0d261c81bc5d21d5d99bd10e9b04fbb97be435f975adf74a042b",
+          "destinationSizeBytes": 129683,
+          "verified": true
+        },
+        {
+          "path": "Assets/checkout/textures/MidPlastic.png",
+          "destination": "C:\\Users\\Kenneth\\Documents\\Golf-Flipper-Goal24-Recovery\\2026-08-11-b914151-recovery-closed-v3\\Assets\\checkout\\textures\\MidPlastic.png",
+          "expectedSha256": "b07d7947d786618a35e19f8e0d86f750c8c67b8d8227de05b03fb287a1e6479a",
+          "expectedSizeBytes": 171834,
+          "sourceAfterSha256": "b07d7947d786618a35e19f8e0d86f750c8c67b8d8227de05b03fb287a1e6479a",
+          "destinationSha256": "b07d7947d786618a35e19f8e0d86f750c8c67b8d8227de05b03fb287a1e6479a",
+          "destinationSizeBytes": 171834,
+          "verified": true
+        },
+        {
+          "path": "Assets/checkout/textures/OakSlat.png",
+          "destination": "C:\\Users\\Kenneth\\Documents\\Golf-Flipper-Goal24-Recovery\\2026-08-11-b914151-recovery-closed-v3\\Assets\\checkout\\textures\\OakSlat.png",
+          "expectedSha256": "93f513df22c92c8150acb9810ad6969e1793eff6b9bc11fd6f63ef202f6cb1fe",
+          "expectedSizeBytes": 228268,
+          "sourceAfterSha256": "93f513df22c92c8150acb9810ad6969e1793eff6b9bc11fd6f63ef202f6cb1fe",
+          "destinationSha256": "93f513df22c92c8150acb9810ad6969e1793eff6b9bc11fd6f63ef202f6cb1fe",
+          "destinationSizeBytes": 228268,
+          "verified": true
+        },
+        {
+          "path": "Assets/checkout/textures/OlivePaper.png",
+          "destination": "C:\\Users\\Kenneth\\Documents\\Golf-Flipper-Goal24-Recovery\\2026-08-11-b914151-recovery-closed-v3\\Assets\\checkout\\textures\\OlivePaper.png",
+          "expectedSha256": "f9474d55d8e0743947293a07c296f415ca2b73f3dd038353ef7032c32aa76096",
+          "expectedSizeBytes": 64828,
+          "sourceAfterSha256": "f9474d55d8e0743947293a07c296f415ca2b73f3dd038353ef7032c32aa76096",
+          "destinationSha256": "f9474d55d8e0743947293a07c296f415ca2b73f3dd038353ef7032c32aa76096",
+          "destinationSizeBytes": 64828,
+          "verified": true
+        },
+        {
+          "path": "Assets/checkout/textures/TrayGray.png",
+          "destination": "C:\\Users\\Kenneth\\Documents\\Golf-Flipper-Goal24-Recovery\\2026-08-11-b914151-recovery-closed-v3\\Assets\\checkout\\textures\\TrayGray.png",
+          "expectedSha256": "de4e3be85659027ab3cdc2c9068a593531c6559f2250fc0f5f838a112aff813e",
+          "expectedSizeBytes": 239306,
+          "sourceAfterSha256": "de4e3be85659027ab3cdc2c9068a593531c6559f2250fc0f5f838a112aff813e",
+          "destinationSha256": "de4e3be85659027ab3cdc2c9068a593531c6559f2250fc0f5f838a112aff813e",
+          "destinationSizeBytes": 239306,
+          "verified": true
+        },
+        {
+          "path": "Designs/ProShop/D_MOP_YARN_SWEEP.png",
+          "destination": "C:\\Users\\Kenneth\\Documents\\Golf-Flipper-Goal24-Recovery\\2026-08-11-b914151-recovery-closed-v3\\Designs\\ProShop\\D_MOP_YARN_SWEEP.png",
+          "expectedSha256": "b8bc66b726149c768bebe38357fcb1f35c03003f9d3fc8872171408ee711d09d",
+          "expectedSizeBytes": 489012,
+          "sourceAfterSha256": "b8bc66b726149c768bebe38357fcb1f35c03003f9d3fc8872171408ee711d09d",
+          "destinationSha256": "b8bc66b726149c768bebe38357fcb1f35c03003f9d3fc8872171408ee711d09d",
+          "destinationSizeBytes": 489012,
+          "verified": true
+        },
+        {
+          "path": "Designs/ProShop/FULL_GOAL_24_CONTINUATION_GPT_5_6_SOL.md",
+          "destination": "C:\\Users\\Kenneth\\Documents\\Golf-Flipper-Goal24-Recovery\\2026-08-11-b914151-recovery-closed-v3\\Designs\\ProShop\\FULL_GOAL_24_CONTINUATION_GPT_5_6_SOL.md",
+          "expectedSha256": "dc40149f6f3558cd50d9e53fcbe4b549ff03ff54b5abb6b4a797a09a68bfbb8a",
+          "expectedSizeBytes": 46598,
+          "sourceAfterSha256": "dc40149f6f3558cd50d9e53fcbe4b549ff03ff54b5abb6b4a797a09a68bfbb8a",
+          "destinationSha256": "dc40149f6f3558cd50d9e53fcbe4b549ff03ff54b5abb6b4a797a09a68bfbb8a",
+          "destinationSizeBytes": 46598,
+          "verified": true
+        },
+        {
+          "path": "Designs/ProShop/Full_Goal_24.md",
+          "destination": "C:\\Users\\Kenneth\\Documents\\Golf-Flipper-Goal24-Recovery\\2026-08-11-b914151-recovery-closed-v3\\Designs\\ProShop\\Full_Goal_24.md",
+          "expectedSha256": "7ad5fae2484130010974e7fd5cdb8df124dfb7313835b2cddf58a2897bffe5c2",
+          "expectedSizeBytes": 9252,
+          "sourceAfterSha256": "7ad5fae2484130010974e7fd5cdb8df124dfb7313835b2cddf58a2897bffe5c2",
+          "destinationSha256": "7ad5fae2484130010974e7fd5cdb8df124dfb7313835b2cddf58a2897bffe5c2",
+          "destinationSizeBytes": 9252,
+          "verified": true
+        },
+        {
+          "path": "Designs/ProShop/Goal18_Refs/image1-ledger.png",
+          "expectedAbsent": true,
+          "verified": true
+        },
+        {
+          "path": "Designs/ProShop/Goal18_Refs/image2-bag.png",
+          "expectedAbsent": true,
+          "verified": true
+        },
+        {
+          "path": "Designs/ProShop/Goal18_Refs/image3-card.png",
+          "expectedAbsent": true,
+          "verified": true
+        },
+        {
+          "path": "Designs/ProShop/Goal18_Refs/image4-broom.png",
+          "expectedAbsent": true,
+          "verified": true
+        },
+        {
+          "path": "Designs/ProShop/Goal18_Refs/image5-mop.png",
+          "expectedAbsent": true,
+          "verified": true
+        },
+        {
+          "path": "Designs/ProShop/Goal18_Refs/image6-till-markers.png",
+          "expectedAbsent": true,
+          "verified": true
+        },
+        {
+          "path": "Designs/ProShop/Goal18_Refs/image7-shoes.png",
+          "expectedAbsent": true,
+          "verified": true
+        },
+        {
+          "path": "Designs/ProShop/Goal24_Evidence/recovery-audit-2026-08-11-b914151.json",
+          "destination": "C:\\Users\\Kenneth\\Documents\\Golf-Flipper-Goal24-Recovery\\2026-08-11-b914151-recovery-closed-v3\\Designs\\ProShop\\Goal24_Evidence\\recovery-audit-2026-08-11-b914151.json",
+          "expectedSha256": "5016bce8b1a9eed6dcce7b791267d52d6ae9f2153c6c92ff1d0b530506ce8ad7",
+          "expectedSizeBytes": 84663,
+          "sourceAfterSha256": "5016bce8b1a9eed6dcce7b791267d52d6ae9f2153c6c92ff1d0b530506ce8ad7",
+          "destinationSha256": "5016bce8b1a9eed6dcce7b791267d52d6ae9f2153c6c92ff1d0b530506ce8ad7",
+          "destinationSizeBytes": 84663,
+          "verified": true
+        },
+        {
+          "path": "Designs/ProShop/OVERNIGHT_REPORT_24.md",
+          "destination": "C:\\Users\\Kenneth\\Documents\\Golf-Flipper-Goal24-Recovery\\2026-08-11-b914151-recovery-closed-v3\\Designs\\ProShop\\OVERNIGHT_REPORT_24.md",
+          "expectedSha256": "d32a689454f83bbf9ecdf33032b969af9b44be592bbea287fd3b07faa9444d73",
+          "expectedSizeBytes": 17252,
+          "sourceAfterSha256": "d32a689454f83bbf9ecdf33032b969af9b44be592bbea287fd3b07faa9444d73",
+          "destinationSha256": "d32a689454f83bbf9ecdf33032b969af9b44be592bbea287fd3b07faa9444d73",
+          "destinationSizeBytes": 17252,
+          "verified": true
+        },
+        {
+          "path": "dev/null/post-checkout",
+          "destination": "C:\\Users\\Kenneth\\Documents\\Golf-Flipper-Goal24-Recovery\\2026-08-11-b914151-recovery-closed-v3\\dev\\null\\post-checkout",
+          "expectedSha256": "8d606e58cce98604696a4abcf3ae1ebde6f9f31ac72bb0d44e2444cc39f26030",
+          "expectedSizeBytes": 360,
+          "sourceAfterSha256": "8d606e58cce98604696a4abcf3ae1ebde6f9f31ac72bb0d44e2444cc39f26030",
+          "destinationSha256": "8d606e58cce98604696a4abcf3ae1ebde6f9f31ac72bb0d44e2444cc39f26030",
+          "destinationSizeBytes": 360,
+          "verified": true
+        },
+        {
+          "path": "dev/null/post-commit",
+          "destination": "C:\\Users\\Kenneth\\Documents\\Golf-Flipper-Goal24-Recovery\\2026-08-11-b914151-recovery-closed-v3\\dev\\null\\post-commit",
+          "expectedSha256": "f3eb4d1f62924c09d481a0563a84b158c66eb2feb3431cfdb3e6760aab4d661d",
+          "expectedSizeBytes": 356,
+          "sourceAfterSha256": "f3eb4d1f62924c09d481a0563a84b158c66eb2feb3431cfdb3e6760aab4d661d",
+          "destinationSha256": "f3eb4d1f62924c09d481a0563a84b158c66eb2feb3431cfdb3e6760aab4d661d",
+          "destinationSizeBytes": 356,
+          "verified": true
+        },
+        {
+          "path": "dev/null/post-merge",
+          "destination": "C:\\Users\\Kenneth\\Documents\\Golf-Flipper-Goal24-Recovery\\2026-08-11-b914151-recovery-closed-v3\\dev\\null\\post-merge",
+          "expectedSha256": "cecb594e8fa65831654fc95e96db9f1249e09c52810c6fbb2b428280aac22158",
+          "expectedSizeBytes": 354,
+          "sourceAfterSha256": "cecb594e8fa65831654fc95e96db9f1249e09c52810c6fbb2b428280aac22158",
+          "destinationSha256": "cecb594e8fa65831654fc95e96db9f1249e09c52810c6fbb2b428280aac22158",
+          "destinationSizeBytes": 354,
+          "verified": true
+        },
+        {
+          "path": "dev/null/pre-push",
+          "destination": "C:\\Users\\Kenneth\\Documents\\Golf-Flipper-Goal24-Recovery\\2026-08-11-b914151-recovery-closed-v3\\dev\\null\\pre-push",
+          "expectedSha256": "a52d0510d0f8c75e27852156ec6f7791f0d8ed65fc58fcc368dd1de0a60a1d74",
+          "expectedSizeBytes": 350,
+          "sourceAfterSha256": "a52d0510d0f8c75e27852156ec6f7791f0d8ed65fc58fcc368dd1de0a60a1d74",
+          "destinationSha256": "a52d0510d0f8c75e27852156ec6f7791f0d8ed65fc58fcc368dd1de0a60a1d74",
+          "destinationSizeBytes": 350,
+          "verified": true
+        },
+        {
+          "path": "src/core/keyBindings.js",
+          "destination": "C:\\Users\\Kenneth\\Documents\\Golf-Flipper-Goal24-Recovery\\2026-08-11-b914151-recovery-closed-v3\\src\\core\\keyBindings.js",
+          "expectedSha256": "2c300ebe66959699902ddfd2eed41bd74964dc51bfe81117d7e8ecd867aaf18b",
+          "expectedSizeBytes": 8828,
+          "sourceAfterSha256": "2c300ebe66959699902ddfd2eed41bd74964dc51bfe81117d7e8ecd867aaf18b",
+          "destinationSha256": "2c300ebe66959699902ddfd2eed41bd74964dc51bfe81117d7e8ecd867aaf18b",
+          "destinationSizeBytes": 8828,
+          "verified": true
+        },
+        {
+          "path": "src/main.js",
+          "destination": "C:\\Users\\Kenneth\\Documents\\Golf-Flipper-Goal24-Recovery\\2026-08-11-b914151-recovery-closed-v3\\src\\main.js",
+          "expectedSha256": "d84591115c801e9ea5539972aeafc6b0daf2942f371f29265793daaad45a1953",
+          "expectedSizeBytes": 192095,
+          "sourceAfterSha256": "d84591115c801e9ea5539972aeafc6b0daf2942f371f29265793daaad45a1953",
+          "destinationSha256": "d84591115c801e9ea5539972aeafc6b0daf2942f371f29265793daaad45a1953",
+          "destinationSizeBytes": 192095,
+          "verified": true
+        },
+        {
+          "path": "src/render3d/clubhouse.js",
+          "destination": "C:\\Users\\Kenneth\\Documents\\Golf-Flipper-Goal24-Recovery\\2026-08-11-b914151-recovery-closed-v3\\src\\render3d\\clubhouse.js",
+          "expectedSha256": "216b2e7c8e77a6b576ef52b18c07edf91b73ab93e9213574deab25e1fa7fa5e6",
+          "expectedSizeBytes": 582921,
+          "sourceAfterSha256": "216b2e7c8e77a6b576ef52b18c07edf91b73ab93e9213574deab25e1fa7fa5e6",
+          "destinationSha256": "216b2e7c8e77a6b576ef52b18c07edf91b73ab93e9213574deab25e1fa7fa5e6",
+          "destinationSizeBytes": 582921,
+          "verified": true
+        },
+        {
+          "path": "src/render3d/courseScene.js",
+          "destination": "C:\\Users\\Kenneth\\Documents\\Golf-Flipper-Goal24-Recovery\\2026-08-11-b914151-recovery-closed-v3\\src\\render3d\\courseScene.js",
+          "expectedSha256": "7d021b116aa98cda5f3281021c3eedb298000f91784edf95dfa3190a9585c48f",
+          "expectedSizeBytes": 580194,
+          "sourceAfterSha256": "7d021b116aa98cda5f3281021c3eedb298000f91784edf95dfa3190a9585c48f",
+          "destinationSha256": "7d021b116aa98cda5f3281021c3eedb298000f91784edf95dfa3190a9585c48f",
+          "destinationSizeBytes": 580194,
+          "verified": true
+        },
+        {
+          "path": "src/render3d/toolViewmodel.js",
+          "destination": "C:\\Users\\Kenneth\\Documents\\Golf-Flipper-Goal24-Recovery\\2026-08-11-b914151-recovery-closed-v3\\src\\render3d\\toolViewmodel.js",
+          "expectedSha256": "146639389ec20566b30f1f5909ebbaf1d74fb39384df83f0962cb2143259655d",
+          "expectedSizeBytes": 41094,
+          "sourceAfterSha256": "146639389ec20566b30f1f5909ebbaf1d74fb39384df83f0962cb2143259655d",
+          "destinationSha256": "146639389ec20566b30f1f5909ebbaf1d74fb39384df83f0962cb2143259655d",
+          "destinationSizeBytes": 41094,
+          "verified": true
+        },
+        {
+          "path": "tests/goal24-recovery-snapshot.test.js",
+          "destination": "C:\\Users\\Kenneth\\Documents\\Golf-Flipper-Goal24-Recovery\\2026-08-11-b914151-recovery-closed-v3\\tests\\goal24-recovery-snapshot.test.js",
+          "expectedSha256": "1992b09f883579c4660c7451bf925c13ff9c9b456932caf7b19a99203cf868f6",
+          "expectedSizeBytes": 4572,
+          "sourceAfterSha256": "1992b09f883579c4660c7451bf925c13ff9c9b456932caf7b19a99203cf868f6",
+          "destinationSha256": "1992b09f883579c4660c7451bf925c13ff9c9b456932caf7b19a99203cf868f6",
+          "destinationSizeBytes": 4572,
+          "verified": true
+        },
+        {
+          "path": "tools/qa/electron-d-mop-yarn-sweep.js",
+          "destination": "C:\\Users\\Kenneth\\Documents\\Golf-Flipper-Goal24-Recovery\\2026-08-11-b914151-recovery-closed-v3\\tools\\qa\\electron-d-mop-yarn-sweep.js",
+          "expectedSha256": "01358705c5563fc65e518eccc5c06bb9df963e1dfd11c4b207f2b111c72c5282",
+          "expectedSizeBytes": 11722,
+          "sourceAfterSha256": "01358705c5563fc65e518eccc5c06bb9df963e1dfd11c4b207f2b111c72c5282",
+          "destinationSha256": "01358705c5563fc65e518eccc5c06bb9df963e1dfd11c4b207f2b111c72c5282",
+          "destinationSizeBytes": 11722,
+          "verified": true
+        },
+        {
+          "path": "tools/qa/electron-g12-ledger-hotkey-and-lock.js",
+          "destination": "C:\\Users\\Kenneth\\Documents\\Golf-Flipper-Goal24-Recovery\\2026-08-11-b914151-recovery-closed-v3\\tools\\qa\\electron-g12-ledger-hotkey-and-lock.js",
+          "expectedSha256": "94712d93afd044d3f52b33bc49e9bf84e9a7264de3175db6a464e437abf1c39c",
+          "expectedSizeBytes": 8273,
+          "sourceAfterSha256": "94712d93afd044d3f52b33bc49e9bf84e9a7264de3175db6a464e437abf1c39c",
+          "destinationSha256": "94712d93afd044d3f52b33bc49e9bf84e9a7264de3175db6a464e437abf1c39c",
+          "destinationSizeBytes": 8273,
+          "verified": true
+        },
+        {
+          "path": "tools/qa/goal24-recovery-snapshot.mjs",
+          "destination": "C:\\Users\\Kenneth\\Documents\\Golf-Flipper-Goal24-Recovery\\2026-08-11-b914151-recovery-closed-v3\\tools\\qa\\goal24-recovery-snapshot.mjs",
+          "expectedSha256": "801795c409d4500d1257e8247f533c11997de03c57c8a1f1a1763b46e0b715b0",
+          "expectedSizeBytes": 25923,
+          "sourceAfterSha256": "801795c409d4500d1257e8247f533c11997de03c57c8a1f1a1763b46e0b715b0",
+          "destinationSha256": "801795c409d4500d1257e8247f533c11997de03c57c8a1f1a1763b46e0b715b0",
+          "destinationSizeBytes": 25923,
+          "verified": true
+        }
+      ],
+      "copiedCount": 52,
+      "absentCount": 7,
+      "ok": true
+    },
+    "hooks": {
+      "configuredCoreHooksPath": null,
+      "activeHooksDir": "C:\\Users\\Kenneth\\Documents\\GitHub\\Golf-Flipper\\.git\\hooks",
+      "hooks": [
+        {
+          "name": "post-checkout",
+          "activePath": "C:\\Users\\Kenneth\\Documents\\GitHub\\Golf-Flipper\\.git\\hooks\\post-checkout",
+          "strayPath": "C:\\Users\\Kenneth\\Documents\\GitHub\\Golf-Flipper\\dev\\null\\post-checkout",
+          "activeExists": true,
+          "strayExists": true,
+          "activeSha256": "8d606e58cce98604696a4abcf3ae1ebde6f9f31ac72bb0d44e2444cc39f26030",
+          "straySha256": "8d606e58cce98604696a4abcf3ae1ebde6f9f31ac72bb0d44e2444cc39f26030",
+          "byteIdentical": true
+        },
+        {
+          "name": "post-commit",
+          "activePath": "C:\\Users\\Kenneth\\Documents\\GitHub\\Golf-Flipper\\.git\\hooks\\post-commit",
+          "strayPath": "C:\\Users\\Kenneth\\Documents\\GitHub\\Golf-Flipper\\dev\\null\\post-commit",
+          "activeExists": true,
+          "strayExists": true,
+          "activeSha256": "f3eb4d1f62924c09d481a0563a84b158c66eb2feb3431cfdb3e6760aab4d661d",
+          "straySha256": "f3eb4d1f62924c09d481a0563a84b158c66eb2feb3431cfdb3e6760aab4d661d",
+          "byteIdentical": true
+        },
+        {
+          "name": "post-merge",
+          "activePath": "C:\\Users\\Kenneth\\Documents\\GitHub\\Golf-Flipper\\.git\\hooks\\post-merge",
+          "strayPath": "C:\\Users\\Kenneth\\Documents\\GitHub\\Golf-Flipper\\dev\\null\\post-merge",
+          "activeExists": true,
+          "strayExists": true,
+          "activeSha256": "cecb594e8fa65831654fc95e96db9f1249e09c52810c6fbb2b428280aac22158",
+          "straySha256": "cecb594e8fa65831654fc95e96db9f1249e09c52810c6fbb2b428280aac22158",
+          "byteIdentical": true
+        },
+        {
+          "name": "pre-push",
+          "activePath": "C:\\Users\\Kenneth\\Documents\\GitHub\\Golf-Flipper\\.git\\hooks\\pre-push",
+          "strayPath": "C:\\Users\\Kenneth\\Documents\\GitHub\\Golf-Flipper\\dev\\null\\pre-push",
+          "activeExists": true,
+          "strayExists": true,
+          "activeSha256": "a52d0510d0f8c75e27852156ec6f7791f0d8ed65fc58fcc368dd1de0a60a1d74",
+          "straySha256": "a52d0510d0f8c75e27852156ec6f7791f0d8ed65fc58fcc368dd1de0a60a1d74",
+          "byteIdentical": true
+        }
+      ],
+      "ok": true
+    },
+    "commits": {
+      "commits": [
+        {
+          "commit": "8616f79",
+          "remoteAncestor": true,
+          "command": {
+            "argv": [
+              "git",
+              "merge-base",
+              "--is-ancestor",
+              "8616f79",
+              "b91415116f592306d2015267a538b3503793522c"
+            ],
+            "cwd": "C:\\Users\\Kenneth\\Documents\\GitHub\\Golf-Flipper",
+            "exitCode": 0,
+            "signal": null,
+            "ok": true,
+            "timedOut": false,
+            "stdout": "",
+            "stderr": "",
+            "error": null
+          }
+        },
+        {
+          "commit": "76044b3",
+          "remoteAncestor": true,
+          "command": {
+            "argv": [
+              "git",
+              "merge-base",
+              "--is-ancestor",
+              "76044b3",
+              "b91415116f592306d2015267a538b3503793522c"
+            ],
+            "cwd": "C:\\Users\\Kenneth\\Documents\\GitHub\\Golf-Flipper",
+            "exitCode": 0,
+            "signal": null,
+            "ok": true,
+            "timedOut": false,
+            "stdout": "",
+            "stderr": "",
+            "error": null
+          }
+        },
+        {
+          "commit": "46e62d8",
+          "remoteAncestor": true,
+          "command": {
+            "argv": [
+              "git",
+              "merge-base",
+              "--is-ancestor",
+              "46e62d8",
+              "b91415116f592306d2015267a538b3503793522c"
+            ],
+            "cwd": "C:\\Users\\Kenneth\\Documents\\GitHub\\Golf-Flipper",
+            "exitCode": 0,
+            "signal": null,
+            "ok": true,
+            "timedOut": false,
+            "stdout": "",
+            "stderr": "",
+            "error": null
+          }
+        },
+        {
+          "commit": "57f1092",
+          "remoteAncestor": true,
+          "command": {
+            "argv": [
+              "git",
+              "merge-base",
+              "--is-ancestor",
+              "57f1092",
+              "b91415116f592306d2015267a538b3503793522c"
+            ],
+            "cwd": "C:\\Users\\Kenneth\\Documents\\GitHub\\Golf-Flipper",
+            "exitCode": 0,
+            "signal": null,
+            "ok": true,
+            "timedOut": false,
+            "stdout": "",
+            "stderr": "",
+            "error": null
+          }
+        },
+        {
+          "commit": "41a56b3",
+          "remoteAncestor": true,
+          "command": {
+            "argv": [
+              "git",
+              "merge-base",
+              "--is-ancestor",
+              "41a56b3",
+              "b91415116f592306d2015267a538b3503793522c"
+            ],
+            "cwd": "C:\\Users\\Kenneth\\Documents\\GitHub\\Golf-Flipper",
+            "exitCode": 0,
+            "signal": null,
+            "ok": true,
+            "timedOut": false,
+            "stdout": "",
+            "stderr": "",
+            "error": null
+          }
+        },
+        {
+          "commit": "663a049",
+          "remoteAncestor": true,
+          "command": {
+            "argv": [
+              "git",
+              "merge-base",
+              "--is-ancestor",
+              "663a049",
+              "b91415116f592306d2015267a538b3503793522c"
+            ],
+            "cwd": "C:\\Users\\Kenneth\\Documents\\GitHub\\Golf-Flipper",
+            "exitCode": 0,
+            "signal": null,
+            "ok": true,
+            "timedOut": false,
+            "stdout": "",
+            "stderr": "",
+            "error": null
+          }
+        },
+        {
+          "commit": "9002163",
+          "remoteAncestor": true,
+          "command": {
+            "argv": [
+              "git",
+              "merge-base",
+              "--is-ancestor",
+              "9002163",
+              "b91415116f592306d2015267a538b3503793522c"
+            ],
+            "cwd": "C:\\Users\\Kenneth\\Documents\\GitHub\\Golf-Flipper",
+            "exitCode": 0,
+            "signal": null,
+            "ok": true,
+            "timedOut": false,
+            "stdout": "",
+            "stderr": "",
+            "error": null
+          }
+        },
+        {
+          "commit": "88046fe",
+          "remoteAncestor": true,
+          "command": {
+            "argv": [
+              "git",
+              "merge-base",
+              "--is-ancestor",
+              "88046fe",
+              "b91415116f592306d2015267a538b3503793522c"
+            ],
+            "cwd": "C:\\Users\\Kenneth\\Documents\\GitHub\\Golf-Flipper",
+            "exitCode": 0,
+            "signal": null,
+            "ok": true,
+            "timedOut": false,
+            "stdout": "",
+            "stderr": "",
+            "error": null
+          }
+        },
+        {
+          "commit": "8d55cb5",
+          "remoteAncestor": true,
+          "command": {
+            "argv": [
+              "git",
+              "merge-base",
+              "--is-ancestor",
+              "8d55cb5",
+              "b91415116f592306d2015267a538b3503793522c"
+            ],
+            "cwd": "C:\\Users\\Kenneth\\Documents\\GitHub\\Golf-Flipper",
+            "exitCode": 0,
+            "signal": null,
+            "ok": true,
+            "timedOut": false,
+            "stdout": "",
+            "stderr": "",
+            "error": null
+          }
+        },
+        {
+          "commit": "b914151",
+          "remoteAncestor": true,
+          "command": {
+            "argv": [
+              "git",
+              "merge-base",
+              "--is-ancestor",
+              "b914151",
+              "b91415116f592306d2015267a538b3503793522c"
+            ],
+            "cwd": "C:\\Users\\Kenneth\\Documents\\GitHub\\Golf-Flipper",
+            "exitCode": 0,
+            "signal": null,
+            "ok": true,
+            "timedOut": false,
+            "stdout": "",
+            "stderr": "",
+            "error": null
+          }
+        },
+        {
+          "commit": "f65f32d",
+          "remoteAncestor": true,
+          "command": {
+            "argv": [
+              "git",
+              "merge-base",
+              "--is-ancestor",
+              "f65f32d",
+              "b91415116f592306d2015267a538b3503793522c"
+            ],
+            "cwd": "C:\\Users\\Kenneth\\Documents\\GitHub\\Golf-Flipper",
+            "exitCode": 0,
+            "signal": null,
+            "ok": true,
+            "timedOut": false,
+            "stdout": "",
+            "stderr": "",
+            "error": null
+          }
+        }
+      ],
+      "ok": true
+    },
+    "blender": {
+      "requested": true,
+      "executable": "C:\\Program Files\\Blender Foundation\\Blender 5.1\\blender.exe",
+      "version": {
+        "argv": [
+          "C:\\Program Files\\Blender Foundation\\Blender 5.1\\blender.exe",
+          "--version"
+        ],
+        "cwd": "C:\\Users\\Kenneth\\Documents\\GitHub\\Golf-Flipper",
+        "exitCode": 0,
+        "signal": null,
+        "ok": true,
+        "timedOut": false,
+        "stdout": "Blender 5.1.2\r\n\tbuild date: 2026-05-19\r\n\tbuild time: 01:37:34\r\n\tbuild commit date: 2026-05-18\r\n\tbuild commit time: 13:43\r\n\tbuild hash: ec6e62d40fa9\r\n\tbuild branch: blender-v5.1-release\r\n\tbuild platform: Windows\r\n\tbuild type: Release\r\n\tbuild c flags:  -Wall -Werror=implicit-function-declaration -Werror=return-type -Wno-tautological-compare -Wno-unknown-pragmas -Wno-char-subscripts -Wstrict-prototypes -Wmissing-prototypes -Wunused-parameter -Wundef -Wundef-prefix -Werror=unguarded-availability-new /W3 -Wno-c++98-compat -Wno-old-style-cast -Wno-unsafe-buffer-usage -Wno-missing-prototypes -Wno-sign-conversion -Wno-missing-field-initializers -Wno-extra-semi -Wno-language-extension-token -Wno-implicit-float-conversion -Wno-c++98-compat-pedantic -Wno-implicit-int-float-conversion -Wno-double-promotion -Wno-pre-c++17-compat -Wno-shorten-64-to-32 -Wno-c++98-compat-local-type-template-args -Wno-reserved-identifier -Wno-cast-align -Wno-documentation -Wno-disabled-macro-expansion -Wno-extra-semi-stmt -Wno-zero-as-null-pointer-constant -Wno-float-conversion -Wno-reserved-macro-identifier -Wno-cast-function-type-strict -Wno-float-equal -Wno-implicit-int-conversion -Wno-shadow -Wno-shadow-field-in-constructor -Wno-cast-qual -Wno-pre-c++14-compat -Wno-global-constructors -Wno-switch-enum -Wno-exit-time-destructors -Wno-ctad-maybe-unsupported -Wno-undefined-func-template -Wno-c++98-compat-extra-semi -Wno-cast-function-type -Wno-nullability-extension -Wno-shadow-field -Wno-conditional-uninitialized -Wno-unused-parameter -Wno-suggest-destructor-override -Wno-shadow-uncaptured-local -Wno-unused-macros -Wno-covered-switch-default -Wno-signed-enum-bitfield -Wno-declaration-after-statement -Wno-implicit-fallthrough -Wno-non-virtual-dtor -Wno-nested-anon-types -Wno-gnu-zero-variadic-macro-arguments -Wno-unreachable-code-break -Wno-inconsistent-missing-destructor-override -Wno-format-pedantic -Wno-nonportable-system-include-path -Wno-undef -Wno-ignored-qualifiers -Wno-used-but-marked-unused -Wno-header-hygiene -Wno-char-subscripts -Wno-unreachable-code-return -Wno-unused-template -Wno-gnu-anonymous-struct -Wno-deprecated-copy-with-user-provided-dtor -Wno-inconsistent-missing-override -Wno-unreachable-code -Wno-deprecated-dynamic-exception-spec -Wno-bad-function-cast -Wno-microsoft-enum-value -Wno-deprecated-copy-with-user-provided-copy -Wno-zero-length-array -Wno-unused-function -Wno-pedantic -Wno-deprecated-copy-with-dtor -Wno-documentation-unknown-command -Wno-undefined-reinterpret-cast -Wno-format-nonliteral -Wno-comma -Wno-documentation-deprecated-sync -Wno-shift-sign-overflow -Wno-pre-c++17-compat-pedantic -Wno-c++98-compat-unnamed-type-template-args -Wno-sign-compare -Wno-format -Wno-c++98-compat-bind-to-temporary-copy -Wno-enum-enum-conversion -Wno-anon-enum-enum-conversion -Wno-range-loop-bind-reference -Wno-enum-float-conversion -Wno-keyword-macro -Wno-deprecated-copy -Wno-unused-member-function -Wno-missing-noreturn -Wno-missing-variable-declarations -Wno-documentation-html -Wno-gnu-redeclared-enum -Wno-deprecated-declarations -Wno-overloaded-virtual -Wno-c++98-c++11-compat-binary-literal -Wno-deprecated-redundant-constexpr-static-def -Wno-missing-braces -Wno-c99-extensions -Wno-strict-prototypes -Wno-unreachable-code-loop-increment -Wno-gnu-case-range -Wno-duplicate-enum -Wno-null-pointer-subtraction -Wno-deprecated-literal-operator -Wno-newline-eof -Wno-microsoft-cast -Wno-date-time -Wno-delete-non-abstract-non-virtual-dtor -Wno-unused-private-field -Wno-flexible-array-extensions -Wno-string-conversion -Wno-final-dtor-non-final-class -Wno-microsoft-unqualified-friend -Wno-invalid-noreturn -Wno-invalid-utf8 -Wno-four-char-constants -Wno-parentheses -Wno-pessimizing-move -Wno-deprecated-non-prototype -Wno-bitfield-enum-conversion -Wno-unused-lambda-capture -Wno-shadow-field-in-constructor-modified -Wno-switch-default -Wno-nan-infinity-disabled -Wno-pre-c11-compat /DWIN32 /D_WINDOWS  /MP /nologo /J /Gy /Gd /showFilenames -Wno-unused-command-line-argument -Wno-microsoft-enum-forward-reference /clang:-funsigned-char /clang:-fno-strict-aliasing /clang:-ffp-contract=off -march=x86-64-v2 \r\n\tbuild c++ flags:  -Wall -Wno-tautological-compare -Wno-unknown-pragmas -Wno-char-subscripts -Wno-overloaded-virtual -Wno-sign-compare -Wno-invalid-offsetof -Wno-suggest-override -Wundef -Wundef-prefix -Wunused-parameter -Wmismatched-tags -Werror=unguarded-availability-new /W3 -Wno-c++98-compat -Wno-old-style-cast -Wno-unsafe-buffer-usage -Wno-missing-prototypes -Wno-sign-conversion -Wno-missing-field-initializers -Wno-extra-semi -Wno-language-extension-token -Wno-implicit-float-conversion -Wno-c++98-compat-pedantic -Wno-implicit-int-float-conversion -Wno-double-promotion -Wno-pre-c++17-compat -Wno-shorten-64-to-32 -Wno-c++98-compat-local-type-template-args -Wno-reserved-identifier -Wno-cast-align -Wno-documentation -Wno-disabled-macro-expansion -Wno-extra-semi-stmt -Wno-zero-as-null-pointer-constant -Wno-float-conversion -Wno-reserved-macro-identifier -Wno-cast-function-type-strict -Wno-float-equal -Wno-implicit-int-conversion -Wno-shadow -Wno-shadow-field-in-constructor -Wno-cast-qual -Wno-pre-c++14-compat -Wno-global-constructors -Wno-switch-enum -Wno-exit-time-destructors -Wno-ctad-maybe-unsupported -Wno-undefined-func-template -Wno-c++98-compat-extra-semi -Wno-cast-function-type -Wno-nullability-extension -Wno-shadow-field -Wno-conditional-uninitialized -Wno-unused-parameter -Wno-suggest-destructor-override -Wno-shadow-uncaptured-local -Wno-unused-macros -Wno-covered-switch-default -Wno-signed-enum-bitfield -Wno-declaration-after-statement -Wno-implicit-fallthrough -Wno-non-virtual-dtor -Wno-nested-anon-types -Wno-gnu-zero-variadic-macro-arguments -Wno-unreachable-code-break -Wno-inconsistent-missing-destructor-override -Wno-format-pedantic -Wno-nonportable-system-include-path -Wno-undef -Wno-ignored-qualifiers -Wno-used-but-marked-unused -Wno-header-hygiene -Wno-char-subscripts -Wno-unreachable-code-return -Wno-unused-template -Wno-gnu-anonymous-struct -Wno-deprecated-copy-with-user-provided-dtor -Wno-inconsistent-missing-override -Wno-unreachable-code -Wno-deprecated-dynamic-exception-spec -Wno-bad-function-cast -Wno-microsoft-enum-value -Wno-deprecated-copy-with-user-provided-copy -Wno-zero-length-array -Wno-unused-function -Wno-pedantic -Wno-deprecated-copy-with-dtor -Wno-documentation-unknown-command -Wno-undefined-reinterpret-cast -Wno-format-nonliteral -Wno-comma -Wno-documentation-deprecated-sync -Wno-shift-sign-overflow -Wno-pre-c++17-compat-pedantic -Wno-c++98-compat-unnamed-type-template-args -Wno-sign-compare -Wno-format -Wno-c++98-compat-bind-to-temporary-copy -Wno-enum-enum-conversion -Wno-anon-enum-enum-conversion -Wno-range-loop-bind-reference -Wno-enum-float-conversion -Wno-keyword-macro -Wno-deprecated-copy -Wno-unused-member-function -Wno-missing-noreturn -Wno-missing-variable-declarations -Wno-documentation-html -Wno-gnu-redeclared-enum -Wno-deprecated-declarations -Wno-overloaded-virtual -Wno-c++98-c++11-compat-binary-literal -Wno-deprecated-redundant-constexpr-static-def -Wno-missing-braces -Wno-c99-extensions -Wno-strict-prototypes -Wno-unreachable-code-loop-increment -Wno-gnu-case-range -Wno-duplicate-enum -Wno-null-pointer-subtraction -Wno-deprecated-literal-operator -Wno-newline-eof -Wno-microsoft-cast -Wno-date-time -Wno-delete-non-abstract-non-virtual-dtor -Wno-unused-private-field -Wno-flexible-array-extensions -Wno-string-conversion -Wno-final-dtor-non-final-class -Wno-microsoft-unqualified-friend -Wno-invalid-noreturn -Wno-invalid-utf8 -Wno-four-char-constants -Wno-parentheses -Wno-pessimizing-move -Wno-deprecated-non-prototype -Wno-bitfield-enum-conversion -Wno-unused-lambda-capture -Wno-shadow-field-in-constructor-modified -Wno-switch-default -Wno-nan-infinity-disabled -Wno-pre-c11-compat /DWIN32 /D_WINDOWS   /EHsc  /Gy /MP /nologo /J /Gd /showFilenames /EHsc -Wno-unused-command-line-argument -Wno-microsoft-enum-forward-reference /clang:-funsigned-char /clang:-fno-strict-aliasing /clang:-ffp-contract=off -march=x86-64-v2 \r\n\tbuild link flags: /MACHINE:X64  /SUBSYSTEM:CONSOLE /STACK:2097152 /ignore:4049 /ignore:4217 /ignore:4221\r\n\tbuild system: CMake\r\n",
+        "stderr": "",
+        "error": null
+      },
+      "validations": [
+        {
+          "path": "Assets/checkout/source/shopping_bag.blend",
+          "beforeSha256": "81b31efb84b81d09c636079a8ecad3a54868f452a92897525660311b7e7b479f",
+          "afterSha256": "81b31efb84b81d09c636079a8ecad3a54868f452a92897525660311b7e7b479f",
+          "unchanged": true,
+          "readMarkerSeen": true,
+          "command": {
+            "argv": [
+              "C:\\Program Files\\Blender Foundation\\Blender 5.1\\blender.exe",
+              "--background",
+              "--factory-startup",
+              "--disable-autoexec",
+              "C:\\Users\\Kenneth\\Documents\\GitHub\\Golf-Flipper\\Assets\\checkout\\source\\shopping_bag.blend",
+              "--python-expr",
+              "import bpy, json; print('GOAL24_BLEND_READ_OK=' + json.dumps({'file': bpy.data.filepath, 'objects': len(bpy.data.objects), 'meshes': len(bpy.data.meshes), 'materials': len(bpy.data.materials), 'scenes': len(bpy.data.scenes)}))"
+            ],
+            "cwd": "C:\\Users\\Kenneth\\Documents\\GitHub\\Golf-Flipper",
+            "exitCode": 0,
+            "signal": null,
+            "ok": true,
+            "timedOut": false,
+            "stdout": "00:00.938  blend            | Read blend: \"C:\\Users\\Kenneth\\Documents\\GitHub\\Golf-Flipper\\Assets\\checkout\\source\\shopping_bag.blend\"\nGOAL24_BLEND_READ_OK={\"file\": \"C:\\\\Users\\\\Kenneth\\\\Documents\\\\GitHub\\\\Golf-Flipper\\\\Assets\\\\checkout\\\\source\\\\shopping_bag.blend\", \"objects\": 57, \"meshes\": 42, \"materials\": 5, \"scenes\": 1}\r\nBlender 5.1.2 (hash ec6e62d40fa9 built 2026-05-19 01:37:34)\n\nBlender quit\n",
+            "stderr": "",
+            "error": null
+          }
+        },
+        {
+          "path": "asset_sources/blender/clubhouse/ledger_book.blend",
+          "beforeSha256": "bf1156d78d64afd90db084ddccec1c2c03a121ef8b052bd57fa6fcce5cb72bfd",
+          "afterSha256": "bf1156d78d64afd90db084ddccec1c2c03a121ef8b052bd57fa6fcce5cb72bfd",
+          "unchanged": true,
+          "readMarkerSeen": true,
+          "command": {
+            "argv": [
+              "C:\\Program Files\\Blender Foundation\\Blender 5.1\\blender.exe",
+              "--background",
+              "--factory-startup",
+              "--disable-autoexec",
+              "C:\\Users\\Kenneth\\Documents\\GitHub\\Golf-Flipper\\asset_sources\\blender\\clubhouse\\ledger_book.blend",
+              "--python-expr",
+              "import bpy, json; print('GOAL24_BLEND_READ_OK=' + json.dumps({'file': bpy.data.filepath, 'objects': len(bpy.data.objects), 'meshes': len(bpy.data.meshes), 'materials': len(bpy.data.materials), 'scenes': len(bpy.data.scenes)}))"
+            ],
+            "cwd": "C:\\Users\\Kenneth\\Documents\\GitHub\\Golf-Flipper",
+            "exitCode": 0,
+            "signal": null,
+            "ok": true,
+            "timedOut": false,
+            "stdout": "00:00.890  blend            | Read blend: \"C:\\Users\\Kenneth\\Documents\\GitHub\\Golf-Flipper\\asset_sources\\blender\\clubhouse\\ledger_book.blend\"\nGOAL24_BLEND_READ_OK={\"file\": \"C:\\\\Users\\\\Kenneth\\\\Documents\\\\GitHub\\\\Golf-Flipper\\\\asset_sources\\\\blender\\\\clubhouse\\\\ledger_book.blend\", \"objects\": 60, \"meshes\": 54, \"materials\": 8, \"scenes\": 1}\r\nBlender 5.1.2 (hash ec6e62d40fa9 built 2026-05-19 01:37:34)\n\nBlender quit\n",
+            "stderr": "",
+            "error": null
+          }
+        },
+        {
+          "path": "asset_sources/blender/assets_51_100/sheet_07/asset_061_front_desk_counter_shell.blend",
+          "beforeSha256": "c6ed0fb92d8051f59fe12f81988aa2d3207160112bcd0fd504174fbc87862109",
+          "afterSha256": "c6ed0fb92d8051f59fe12f81988aa2d3207160112bcd0fd504174fbc87862109",
+          "unchanged": true,
+          "readMarkerSeen": true,
+          "command": {
+            "argv": [
+              "C:\\Program Files\\Blender Foundation\\Blender 5.1\\blender.exe",
+              "--background",
+              "--factory-startup",
+              "--disable-autoexec",
+              "C:\\Users\\Kenneth\\Documents\\GitHub\\Golf-Flipper\\asset_sources\\blender\\assets_51_100\\sheet_07\\asset_061_front_desk_counter_shell.blend",
+              "--python-expr",
+              "import bpy, json; print('GOAL24_BLEND_READ_OK=' + json.dumps({'file': bpy.data.filepath, 'objects': len(bpy.data.objects), 'meshes': len(bpy.data.meshes), 'materials': len(bpy.data.materials), 'scenes': len(bpy.data.scenes)}))"
+            ],
+            "cwd": "C:\\Users\\Kenneth\\Documents\\GitHub\\Golf-Flipper",
+            "exitCode": 0,
+            "signal": null,
+            "ok": true,
+            "timedOut": false,
+            "stdout": "00:00.891  blend            | Read blend: \"C:\\Users\\Kenneth\\Documents\\GitHub\\Golf-Flipper\\asset_sources\\blender\\assets_51_100\\sheet_07\\asset_061_front_desk_counter_shell.blend\"\nGOAL24_BLEND_READ_OK={\"file\": \"C:\\\\Users\\\\Kenneth\\\\Documents\\\\GitHub\\\\Golf-Flipper\\\\asset_sources\\\\blender\\\\assets_51_100\\\\sheet_07\\\\asset_061_front_desk_counter_shell.blend\", \"objects\": 28, \"meshes\": 16, \"materials\": 6, \"scenes\": 1}\r\nBlender 5.1.2 (hash ec6e62d40fa9 built 2026-05-19 01:37:34)\n\nBlender quit\n",
+            "stderr": "",
+            "error": null
+          }
+        }
+      ],
+      "ok": true
+    }
+  }
+}

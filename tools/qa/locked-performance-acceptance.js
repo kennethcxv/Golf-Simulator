@@ -133,7 +133,29 @@ async (page) => {
     width: protocol.viewport.width,
     height: protocol.viewport.height,
   });
-  await page.goto(baseUrl, { waitUntil: 'domcontentloaded' });
+  const electronRun = !!(page.qaRunner || page.electronApp);
+  if (electronRun) {
+    // run-electron attaches this function after the shipping page has already
+    // loaded, so addInitScript and a browser-runner --bootstrap fixture would
+    // otherwise both be too late. Seed the same canonical save through the
+    // game's production snapshot API, then reload once so the init script and
+    // listener census cover the measured document from its first script.
+    await page.evaluate(async () => {
+      const E = await import(new URL('src/sim/empire.js', document.baseURI).href);
+      const empire = E.newEmpire('relaxed', 424242);
+      empire.cash = 10_000_000;
+      const first = empire.market.find((listing) => listing.id === 'willow-creek')
+        || empire.market[0];
+      const bought = E.buyProperty(empire, first.id);
+      if (!bought.ok) throw new Error(`QA property bootstrap failed: ${bought.reason}`);
+      bought.state.tutorial.complete = true;
+      bought.state.tutorial.hidden = true;
+      localStorage.setItem('golfempire:autosave', JSON.stringify(E.empireSnapshot(empire)));
+    });
+    await page.reload({ waitUntil: 'domcontentloaded' });
+  } else {
+    await page.goto(baseUrl, { waitUntil: 'domcontentloaded' });
+  }
   const continueButton = page.locator('button.menu-action-primary').filter({
     has: page.locator('.menu-action-label', { hasText: /^Continue$/ }),
   });
@@ -155,7 +177,12 @@ async (page) => {
   const { gateRenderer } = await import(
     `file:///${process.cwd().replace(/\\/g, '/')}/tools/qa/perf-renderer-gate.mjs`
   );
-  const rendererGate = await gateRenderer(page);
+  const rendererGate = await gateRenderer(page, {
+    electronGpuFeatureStatus: page.qaRunner?.metadata?.readbacks?.beforeDriver?.main?.gpu?.featureStatus
+      || page.qaRunner?.readbacks?.beforeDriver?.main?.gpu?.featureStatus
+      || null,
+    requireElectronStatus: electronRun,
+  });
 
   await page.evaluate(async () => {
     const app = window.__fw;
@@ -301,7 +328,6 @@ async (page) => {
       const app = window.__fw;
       const renderer = app.scene3d.renderer;
       const info = renderer.info;
-      const previousAutoReset = info.autoReset;
       const materials = new Set();
       const textures = new Map();
       const mapKeys = [
@@ -337,14 +363,17 @@ async (page) => {
       };
       const uiBefore = { ...globalThis.__lockedPerfUi };
       const frames = [];
+      const renderInfoSamples = [];
       let previous = null;
       let firstFrame = null;
-      info.autoReset = false;
-      info.reset();
       globalThis.__lockedPerfCaptureActive = true;
       const tick = (now) => {
         if (firstFrame == null) firstFrame = now;
         if (previous != null) frames.push(now - previous);
+        renderInfoSamples.push({
+          calls: Number(info.render.calls) || 0,
+          triangles: Number(info.render.triangles) || 0,
+        });
         previous = now;
         if (now - firstFrame < durationMs || frames.length < 10) {
           requestAnimationFrame(tick);
@@ -352,16 +381,17 @@ async (page) => {
         }
         globalThis.__lockedPerfCaptureActive = false;
         const retained = frames.slice(5);
+        const retainedRenderInfo = renderInfoSamples.slice(-retained.length);
         const sorted = [...retained].sort((a, b) => b - a);
         const slowCount = Math.max(1, Math.ceil(sorted.length * 0.01));
         const slowMean = sorted.slice(0, slowCount)
           .reduce((sum, value) => sum + value, 0) / slowCount;
         const meanFrameMs = retained.reduce((sum, value) => sum + value, 0)
           / Math.max(1, retained.length);
-        const totalDrawCalls = info.render.calls;
-        const totalTriangles = info.render.triangles;
-        info.reset();
-        info.autoReset = previousAutoReset;
+        const averageRenderMetric = (key) => retainedRenderInfo.reduce(
+          (sum, sample) => sum + sample[key],
+          0,
+        ) / Math.max(1, retainedRenderInfo.length);
         const duration = retained.reduce((sum, value) => sum + value, 0);
         const uiAfter = globalThis.__lockedPerfUi;
         resolve({
@@ -373,8 +403,8 @@ async (page) => {
           worstFrameMs: sorted[0] || 0,
           framesOver33Ms: retained.filter((value) => value > 33).length,
           framesOver50Ms: retained.filter((value) => value > 50).length,
-          drawCalls: totalDrawCalls / Math.max(1, frames.length),
-          renderedTriangles: totalTriangles / Math.max(1, frames.length),
+          drawCalls: averageRenderMetric('calls'),
+          renderedTriangles: averageRenderMetric('triangles'),
           materialCount: materials.size,
           rendererGeometryCount: info.memory.geometries,
           rendererTextureCount: info.memory.textures,

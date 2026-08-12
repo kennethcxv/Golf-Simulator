@@ -79,7 +79,12 @@ export async function ownerResolution(page, electronApp) {
  * stranger who could not find the current task was playing it. Two populations,
  * at the harness level, for the whole life of the harness.
  */
-export async function clickThroughMenu(page, { forceNew = false, pinSeed = null, mode = 'relaxed' } = {}) {
+export async function clickThroughMenu(page, {
+  forceNew = false,
+  pinSeed = null,
+  mode = 'relaxed',
+  onPrimaryControlRequest = null,
+} = {}) {
   // "Continue" renders on every menu — DISABLED on a clean profile. Resume
   // only when it is actually clickable; otherwise start fresh.
   //
@@ -107,6 +112,7 @@ export async function clickThroughMenu(page, { forceNew = false, pinSeed = null,
     return true;
   }).catch(() => false);
   if (canResume) {
+    if (onPrimaryControlRequest) await onPrimaryControlRequest('Continue');
     await page.click('button[data-qa-resume="true"]');
     return 'continue';
   }
@@ -124,6 +130,7 @@ export async function clickThroughMenu(page, { forceNew = false, pinSeed = null,
       .find((candidate) => /new game/i.test(candidate.textContent || ''));
     return !!button && !button.disabled;
   }, null, { timeout: 90000 });
+  if (onPrimaryControlRequest) await onPrimaryControlRequest('New Game');
   await page.getByRole('button', { name: /New game/i }).click();
   const modeLabel = /^realistic$/i.test(String(mode)) ? 'Realistic' : 'Relaxed';
   await page.locator('.difficulty-card').filter({ hasText: modeLabel }).click();

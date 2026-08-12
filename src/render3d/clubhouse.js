@@ -243,6 +243,22 @@ import {
   recoverTimedOutCheckout, resumeCheckout,
 } from '../sim/registerFlow.js';
 
+// Goal 24 performance QA observes this edge without owning it. The callback is
+// intentionally optional and synchronous: a recorder can move its measurement
+// boundary onto the exact production frame that accepted an organic arrival,
+// before customer construction and navigation begin. Observer failures are
+// isolated so installing diagnostics can never change whether a shopper spawns.
+export function emitGoal24NpcLifecycleBoundary(boundary) {
+  const observer = globalThis.__goal24NpcLifecycleBoundary;
+  if (typeof observer !== 'function') return false;
+  try {
+    observer(boundary);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 // The overlay layer the carried-delivery preview renders on. Exported so a
 // check that something is DISTINCT from it can read it instead of retyping 30.
 export const CARRY_RENDER_LAYER = 30;
@@ -8718,6 +8734,8 @@ export function makeClubhouse(ctx) {
 
   // --- customers: they walk in from the course, through the real door -------------------
   const customers = [];
+  let customerLifecycleSequence = 0;
+  let customerRouteSequence = 0;
   // buildDoors is constructed before the customer simulation and receives a
   // lazy view. Publish the live array as soon as it exists; otherwise automatic
   // doorway checks keep seeing an empty list while real shoppers are on screen.
@@ -9591,6 +9609,16 @@ export function makeClubhouse(ctx) {
       mesh: g,
       identity,
       customerId: identity.customerId,
+      visitorId,
+      spawnSource: options.spawnSource || 'scripted-or-reservation',
+      lifecycleBoundaryId: options.lifecycleBoundary?.lifecycleId ?? null,
+      lifecycleBoundaryAtMs: Number.isFinite(options.lifecycleBoundary?.atMs)
+        ? options.lifecycleBoundary.atMs : null,
+      // Constant-size QA/profiling evidence. This is the production creation
+      // edge used to order the first organic route request without polling-time
+      // inference; it does not participate in customer behavior.
+      createdAtMs: performance.now(),
+      routeDiagnostics: null,
       fullName: identity.fullName,
       name: identity.fullName,
       presentationPolo,
@@ -10931,18 +10959,61 @@ export function makeClubhouse(ctx) {
   }
 
   // walkable grid around the building; doors are excluded (they open for walkers)
+  const navCreateStartedAtMs = performance.now();
   const nav = makeNav({
     minX: center.x - 16, maxX: center.x + 16,
     minZ: center.z - 13, maxZ: center.z + 15,
     cell: 0.3, radius: 0.32,
   });
+  const navCreatedAtMs = performance.now();
+  const navCreateDurationMs = navCreatedAtMs - navCreateStartedAtMs;
   let navVersion = -1;
+  // Goal 24 performance attribution. These monotonic counters are owned by the
+  // shipping navigation path and have no reset or drive surface. They let an
+  // Electron run prove that the route it calls "first" really paid (or avoided)
+  // the first static-collider rebuild, while startup tracing retains the base
+  // grid-construction cost separately.
+  let navFreshCallCount = 0;
+  let navRebuildCount = 0;
+  let navRebuildTotalDurationMs = 0;
+  let navRebuildMaximumDurationMs = 0;
+  let navLastRebuildDurationMs = null;
+  let navLastRebuildAtMs = null;
   function navFresh() {
+    navFreshCallCount += 1;
     if (navVersion !== colVersion) {
+      const rebuildStartedAtMs = performance.now();
       nav.rebuild(custCols.filter((c) => !c.door));
+      const rebuildDurationMs = performance.now() - rebuildStartedAtMs;
+      navRebuildCount += 1;
+      navRebuildTotalDurationMs += rebuildDurationMs;
+      navRebuildMaximumDurationMs = Math.max(
+        navRebuildMaximumDurationMs,
+        rebuildDurationMs,
+      );
+      navLastRebuildDurationMs = rebuildDurationMs;
+      navLastRebuildAtMs = performance.now();
       navVersion = colVersion;
     }
     return nav;
+  }
+
+  function navPerformanceDiagnostics() {
+    return Object.freeze({
+      schemaVersion: 1,
+      source: 'shipping-clubhouse-makeNav-and-navFresh-monotonic-counters',
+      navCreateStartedAtMs,
+      navCreatedAtMs,
+      navCreateDurationMs,
+      navFreshCallCount,
+      navRebuildCount,
+      navRebuildTotalDurationMs,
+      navRebuildMaximumDurationMs,
+      navLastRebuildDurationMs,
+      navLastRebuildAtMs,
+      colliderVersion: colVersion,
+      builtColliderVersion: navVersion,
+    });
   }
 
   // QA determinism: organic walk-ins spawn on a wall-clock probability that is independent
@@ -11065,7 +11136,22 @@ export function makeClubhouse(ctx) {
     const organicCount = customers.filter((c) => c.reservationId == null).length;
     if (organicWalkins && open && organicCount < targetCount
         && Math.random() < Math.min(0.9, decisionDt * 0.15)) {
-      spawnCustomer(false, null, { allowWalkInRequest: true });
+      const lifecycleBoundary = Object.freeze({
+        schemaVersion: 1,
+        eventType: 'organic-customer-lifecycle-window-start',
+        lifecycleId: `organic-footfall:${++customerLifecycleSequence}`,
+        atMs: performance.now(),
+        source: 'shipping-organic-footfall-loop',
+        spawnSource: 'organic-footfall',
+        customerCountBefore: customers.length,
+        organicCustomerCountBefore: organicCount,
+      });
+      emitGoal24NpcLifecycleBoundary(lifecycleBoundary);
+      spawnCustomer(false, null, {
+        allowWalkInRequest: true,
+        spawnSource: 'organic-footfall',
+        lifecycleBoundary,
+      });
     }
     if (!open) {
       for (const c of customers) {
@@ -11519,7 +11605,20 @@ export function makeClubhouse(ctx) {
         if (char) char.setMode(c.bagMesh ? 'WalkBag' : 'Walk');
         // path on destination change only; string-pulled waypoints thereafter
         if (!c.pathGoal || Math.hypot(c.pathGoal.x - tx, c.pathGoal.z - tz) > 0.22) {
+          const requestedAtMs = performance.now();
+          const requestId = `${c.customerId}:${++customerRouteSequence}`;
           c.path = navFresh().path(c.mesh.position.x, c.mesh.position.z, tx, tz) || [{ x: tx, z: tz }];
+          const resolvedAtMs = performance.now();
+          c.routeDiagnostics = {
+            requestId,
+            requestedAtMs,
+            resolvedAtMs,
+            pathNodes: c.path.length,
+            goal: { x: tx, z: tz },
+            spawnSource: c.spawnSource,
+            lifecycleBoundaryId: c.lifecycleBoundaryId,
+            lifecycleBoundaryAtMs: c.lifecycleBoundaryAtMs,
+          };
           c.pathGoal = { x: tx, z: tz };
           c.stuckT = 0;
           // a new destination means the old best distance means nothing
@@ -12317,6 +12416,7 @@ export function makeClubhouse(ctx) {
     },
     isInside, groundYAt, suppressesGroundCoverAt, vacuumAt, vacuumLabelAt,
     doorWorld: doorW,
+    mainEntranceDiagnostics: () => doorsApi.mainEntranceDiagnostics?.() ?? null,
     laptopPose: (fovDeg, aspect) => (office.seatPose ? office.seatPose(fovDeg, aspect) : null),
     laptopLid: (open) => office.setLid && office.setLid(open),
     laptopBoot: () => office.startBoot && office.startBoot(),
@@ -12900,6 +13000,7 @@ export function makeClubhouse(ctx) {
       capacity: shopCustomerCapacity(state),
       onFloor: customers.length,
     }),
+    navPerformanceDiagnostics,
     debugSpawn: spawnCustomer, // QA: force a walk-in
     setOrganicWalkins: (on) => { organicWalkins = !!on; }, // QA: silence random walk-ins for a scripted run
     // SIM-TIME-001: the game-speed multiplier, pushed in from the frame loop.

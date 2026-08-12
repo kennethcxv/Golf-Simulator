@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 
-import { DOOR_MAIN, SHELL } from '../src/data/shopLayout.js';
+import { DOOR_MAIN } from '../src/data/shopLayout.js';
 import { sweptBy, SWING } from '../src/data/doorMath.js';
 import { buildDoors } from '../src/render3d/clubhouse/doors.js';
 
@@ -79,6 +79,9 @@ test('the live entrance uses two mirrored leaf colliders at the exact authored o
   assert.equal(right.closedSign, -1);
   assert.equal(left.mainLeaf, 'left');
   assert.equal(right.mainLeaf, 'right');
+  assert.equal(left.interactionId, 'clubhouse-main-door');
+  assert.equal(right.interactionId, 'clubhouse-main-door');
+  assert.equal(mainProp.id, 'clubhouse-main-door');
   assert.equal(left.collisionPad, 0.12);
   assert.ok(serviceDoors.every((door) => door.collisionPad === 0.055),
     'service leaf collision follows the authored six-centimetre slab');
@@ -98,7 +101,20 @@ test('normal controls animate both leaves inward, update both colliders, persist
   const leftClosed = { ...left.collider };
   const rightClosed = { ...right.collider };
 
+  assert.deepEqual({
+    id: api.mainEntranceDiagnostics().interactionId,
+    sequence: api.mainEntranceDiagnostics().interactionSequence,
+    atMs: api.mainEntranceDiagnostics().interactionAtMs,
+    signal: api.mainEntranceDiagnostics().interactionSignal,
+  }, {
+    id: 'clubhouse-main-door', sequence: 0, atMs: null, signal: null,
+  });
+
   mainProp.action();
+  const openedDiagnostic = api.mainEntranceDiagnostics();
+  assert.equal(openedDiagnostic.interactionSequence, 1);
+  assert.equal(openedDiagnostic.interactionSignal, 'main-entrance-open-applied');
+  assert.ok(Number.isFinite(openedDiagnostic.interactionAtMs));
   assert.deepEqual(state.shop.reno.architecture.doors.main, { left: 'open', right: 'open' });
   assert.deepEqual(sounds, ['doorbell', 'doorSwing']);
   api.updateDoors(1, 1);
@@ -113,6 +129,10 @@ test('normal controls animate both leaves inward, update both colliders, persist
     'mirrored high-hinge leaf uses the same occupancy rule');
 
   mainProp.action();
+  const closedDiagnostic = api.mainEntranceDiagnostics();
+  assert.equal(closedDiagnostic.interactionSequence, 2);
+  assert.equal(closedDiagnostic.interactionSignal, 'main-entrance-close-applied');
+  assert.ok(closedDiagnostic.interactionAtMs >= openedDiagnostic.interactionAtMs);
   assert.deepEqual(state.shop.reno.architecture.doors.main, { left: 'closed', right: 'closed' });
   assert.equal(sounds.at(-1), 'doorShut');
   api.updateDoors(1, 2);

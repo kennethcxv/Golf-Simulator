@@ -3449,6 +3449,98 @@ function walkControlHintText() {
   ].join(' · ');
 }
 
+// Goal 24: own every production-frame request in one lexical scheduler. These
+// counters begin before the first request and have no reset/mutation hook, so a
+// checkpoint can prove the loop had exactly one root start and never had more
+// than one production callback queued. The getter returns a fresh snapshot;
+// tooling cannot start, stop, or otherwise drive the loop through it.
+const PRODUCTION_FRAME_LOOP_OWNER = 'golf-flipper/src/main.js:production-frame-loop:v1';
+const productionFrameLoopState = {
+  rootStartCount: 0,
+  scheduleCount: 0,
+  callbackCount: 0,
+  pendingCallbackCount: 0,
+  maximumPendingCallbackCount: 0,
+  schedulingFailureCount: 0,
+  pendingUnderflowCount: 0,
+  firstRootStartAtMs: null,
+  lastCallbackAtMs: null,
+};
+
+function productionFrameLoopDiagnostics() {
+  const state = productionFrameLoopState;
+  const accountingConsistent = state.scheduleCount - state.callbackCount
+    === state.pendingCallbackCount;
+  const singleRootStart = state.rootStartCount === 1;
+  const atMostOnePendingCallback = state.maximumPendingCallbackCount === 1
+    && state.pendingCallbackCount <= 1;
+  const oneCallbackCurrentlyPending = state.pendingCallbackCount === 1;
+  const noSchedulerFaults = state.schedulingFailureCount === 0
+    && state.pendingUnderflowCount === 0;
+  return {
+    schemaVersion: 1,
+    ownerToken: PRODUCTION_FRAME_LOOP_OWNER,
+    rootStartCount: state.rootStartCount,
+    scheduleCount: state.scheduleCount,
+    callbackCount: state.callbackCount,
+    pendingCallbackCount: state.pendingCallbackCount,
+    maximumPendingCallbackCount: state.maximumPendingCallbackCount,
+    schedulingFailureCount: state.schedulingFailureCount,
+    pendingUnderflowCount: state.pendingUnderflowCount,
+    firstRootStartAtMs: state.firstRootStartAtMs,
+    lastCallbackAtMs: state.lastCallbackAtMs,
+    accountingConsistent,
+    singleRootStart,
+    atMostOnePendingCallback,
+    oneCallbackCurrentlyPending,
+    invariantHolds: singleRootStart
+      && atMostOnePendingCallback
+      && oneCallbackCurrentlyPending
+      && accountingConsistent
+      && noSchedulerFaults,
+  };
+}
+
+function runProductionFrame(timestamp) {
+  const state = productionFrameLoopState;
+  if (state.pendingCallbackCount === 0) state.pendingUnderflowCount += 1;
+  else state.pendingCallbackCount -= 1;
+  state.callbackCount += 1;
+  state.lastCallbackAtMs = timestamp;
+  frame(timestamp);
+}
+
+function scheduleProductionFrame() {
+  const state = productionFrameLoopState;
+  try {
+    const callbackId = requestAnimationFrame(runProductionFrame);
+    state.scheduleCount += 1;
+    state.pendingCallbackCount += 1;
+    state.maximumPendingCallbackCount = Math.max(
+      state.maximumPendingCallbackCount,
+      state.pendingCallbackCount,
+    );
+    return callbackId;
+  } catch (error) {
+    state.schedulingFailureCount += 1;
+    throw error;
+  }
+}
+
+function startProductionFrameLoop() {
+  const state = productionFrameLoopState;
+  state.rootStartCount += 1;
+  if (state.firstRootStartAtMs == null) state.firstRootStartAtMs = performance.now();
+  return scheduleProductionFrame();
+}
+
+Object.defineProperty(app, 'frameLoopDiagnostics', {
+  value: productionFrameLoopDiagnostics,
+  enumerable: true,
+  configurable: false,
+  writable: false,
+});
+
 function frame(ts) {
   // A1 (Goal 18/23) — the framerate cap. A skipped tick returns before any sim
   // or render work, so the whole frame's CPU is saved and not just the draw.
@@ -3457,7 +3549,7 @@ function frame(ts) {
   // at a cap of 120 with 0.2% of intervals on cadence — a 5.5/11 ms sawtooth
   // that averages right and feels wrong.
   if (!frameCap.shouldRender(ts)) {
-    requestAnimationFrame(frame);
+    scheduleProductionFrame();
     return;
   }
   const dtMs = Math.min(250, ts - lastTs || 16);
@@ -3705,7 +3797,7 @@ function frame(ts) {
   // open — through the camera's ease into the seat, through the lid's swing, through a window
   // resize. A transform that is never cached is a transform that can never go stale.
   if (app.laptopOpen) alignLaptopUi();
-  requestAnimationFrame(frame);
+  scheduleProductionFrame();
 }
 
 const CONDITION_WORD = (c) =>
@@ -4218,7 +4310,7 @@ function boot() {
   // SHAPE 6 for the found-false ledger: VISIBLE BUT NOT PAINTED. Every property
   // the check reads is correct and the pixels belong to something else. The
   // question that catches it is "what does elementFromPoint say is there?"
-  requestAnimationFrame(frame);
+  startProductionFrameLoop();
 
   if (sceneScope === 'shed') {
     // The persistent shed readout: created ONLY here (never in normal play), before bootShedScene
