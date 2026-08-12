@@ -409,7 +409,21 @@ async (page) => {
       sourceObservedAtMs: discriminator?.outcomeObservedAtMs ?? null,
       productionConsumptionAtMs: discriminator?.productionHandlerConsumed?.atMs ?? null,
     });
-    const postOutcomeRenders = await recorder.awaitInteractionRenders(page, 2, 3000);
+    // A healthy doorway route can now finish in only a handful of frames. The
+    // door evidence statistic intentionally excludes its first sample and all
+    // shadow-bake frames, so two generic tail renders can leave fewer than two
+    // eligible samples and reject the *fast* path for being fast. Retain eight
+    // exact shipping frames after a door outcome; this does not alter the
+    // already-captured route signature, and it leaves enough non-shadow work
+    // for the lower-median draw/submit comparison at the 10 Hz shadow cadence.
+    const doorwayRenderEvidenceRequired = scenario === 'doorApproach'
+      || scenario.startsWith('doorCrossing:');
+    const postOutcomeRenderCount = doorwayRenderEvidenceRequired ? 8 : 2;
+    const postOutcomeRenders = await recorder.awaitInteractionRenders(
+      page,
+      postOutcomeRenderCount,
+      3000,
+    );
     if (!postOutcomeRenders.ok) {
       throw new Error(`Recorder did not observe post-outcome renders for ${scenario}.`);
     }
@@ -423,6 +437,7 @@ async (page) => {
       productionOutcomeMarkerAtMs: outcomeMarker.atMs,
       contractOutcomeMarkerAtMs: endBoundaryMarker.atMs,
       postOutcomeRenders,
+      postOutcomeRenderCount,
     });
     if (activeGpuFrameTiming) {
       await page.evaluate(() => { globalThis.__goal24GpuFrameTimingMetadata = null; });

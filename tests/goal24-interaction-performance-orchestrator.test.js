@@ -3409,3 +3409,22 @@ test('video-leg overlay observes each recorder-owned scenario before measurement
     'the overlay must exist before the one-time cold door/open/crossing sequence',
   );
 });
+
+test('door windows retain enough post-outcome production renders for non-shadow statistics', () => {
+  const source = fs.readFileSync(
+    new URL('../tools/qa/electron-goal24-interaction-performance.js', import.meta.url),
+    'utf8',
+  );
+  const endBlock = source.slice(
+    source.indexOf('const end = async ('),
+    source.indexOf('const mark =', source.indexOf('const end = async (')),
+  );
+  assert.match(endBlock,
+    /scenario === 'doorApproach'[\s\S]*?scenario\.startsWith\('doorCrossing:'\)/);
+  assert.match(endBlock,
+    /const postOutcomeRenderCount = doorwayRenderEvidenceRequired \? 8 : 2;/);
+  assert.match(endBlock,
+    /awaitInteractionRenders\(\s*page,\s*postOutcomeRenderCount,\s*3000,/);
+  assert.match(endBlock, /postOutcomeRenderCount,/,
+    'the raw discriminator records which tail requirement closed the window');
+});
