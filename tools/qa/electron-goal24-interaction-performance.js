@@ -1444,6 +1444,7 @@ async (page) => {
       && value.renderPatched === false
       && value.displayRafScheduled === false
       && value.inputListenersAttached === false
+      && value.busyStallAlignmentPending === false
       && value.retainedCompletedWindows === 0
     )),
     activeP95OverheadWithinTolerance: Number.isFinite(calibrationStats.installedActiveExternal.p95Ms)
@@ -1484,20 +1485,23 @@ async (page) => {
   // fail instead of letting a non-perceptive sampler grade the product.
   if (wants('negative-control', 'control')) {
     await begin('negative-control-1', 'negativeControl', 1, 'warm');
-    // Restart and block in one renderer task. This proves a synchronous hitch
-    // immediately after the measurement marker is represented by both cadence
-    // streams rather than disappearing before their first samples.
+    // Queue the restart and block for the recorder's next display tick. The
+    // recorder consumes that tick, stalls, and only then requests another rAF,
+    // forcing one real display interval to straddle the entire synchronous hitch.
     const immediateControl = await recorder.restartInteractionMeasurementWithBusyStall(
       page,
       'negative-control-armed-immediately-before-stall',
       negativeControlStallMs,
     );
+    const busyStall = immediateControl.busyStall;
+    const phaseAlignment = immediateControl.alignment;
+    const phaseAlignmentOk = recorder.validateGoal24BusyStallPhaseAlignment(immediateControl);
     const preStallBoundary = {
       ok: Number.isFinite(immediateControl?.boundary?.priorDisplayBoundaryMs)
-        && Number.isFinite(immediateControl?.boundary?.priorRenderBoundaryMs),
+        && Number.isFinite(immediateControl?.boundary?.priorRenderBoundaryMs)
+        && phaseAlignmentOk,
       ...immediateControl.boundary,
     };
-    const busyStall = immediateControl.busyStall;
     const actualBusyMs = busyStall.elapsedMs;
     const postStallBoundary = await recorder.awaitInteractionRenders(page, 3, 3000);
     const window = await end('negativeControl', { requestedMs: negativeControlStallMs, actualBusyMs });
@@ -1512,6 +1516,8 @@ async (page) => {
       requestedMs: negativeControlStallMs,
       actualBusyMs,
       busyStall,
+      phaseAlignment,
+      phaseAlignmentOk,
       preStallBoundary,
       postStallBoundary,
       observedDisplayWorstMs: displayWorst,

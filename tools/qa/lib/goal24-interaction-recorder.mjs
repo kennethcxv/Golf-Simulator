@@ -631,18 +631,20 @@ export function stopGoal24StartTransitionRecorder(page) {
 
 export async function installGoal24InteractionRecorder(page) {
   return page.evaluate(() => {
-    if (globalThis.__goal24InteractionRecorder?.schemaVersion === 3) {
+    if (globalThis.__goal24InteractionRecorder?.schemaVersion === 4) {
       return { installed: true, reused: true };
     }
+    globalThis.__goal24InteractionRecorder?.uninstall?.();
 
     const state = {
-      schemaVersion: 3,
+      schemaVersion: 4,
       active: null,
       renderTarget: null,
       originalRender: null,
       patchedRender: null,
       rafId: 0,
       inputListenersAttached: false,
+      busyStallAlignment: null,
     };
 
     const cloneJson = (value) => {
@@ -916,11 +918,66 @@ export async function installGoal24InteractionRecorder(page) {
       state.originalRender = null;
       state.patchedRender = null;
     };
+    const rejectBusyStallRequest = (pending, error) => {
+      if (!pending) return false;
+      if (state.busyStallAlignment === pending) state.busyStallAlignment = null;
+      clearTimeout(pending.timer);
+      if (pending.nextRafTimer) clearTimeout(pending.nextRafTimer);
+      pending.reject(error instanceof Error ? error : new Error(String(error)));
+      return true;
+    };
+    const rejectBusyStallAlignment = (active, reason) => {
+      const pending = state.busyStallAlignment;
+      if (!pending || (active && pending.active !== active)) return false;
+      return rejectBusyStallRequest(
+        pending,
+        new Error(`Busy-stall display alignment aborted: ${reason}.`),
+      );
+    };
     const scheduleDisplayClock = () => {
       const tick = (timestamp) => {
+        const tickObservedAtMs = performance.now();
         const active = state.active;
         if (!active || active.endedAtMs != null) {
           state.rafId = 0;
+          rejectBusyStallAlignment(null, 'display-clock-inactive');
+          return;
+        }
+        const pending = state.busyStallAlignment;
+        if (pending?.active === active
+          && pending.stage === 'awaiting-post-stall-display'
+          && timestamp < pending.busyStall.endedAtMs) {
+          const requestedAtMs = pending.acceptedPostStallRafRequestedAtMs;
+          const priorDisplayBoundaryMs = pending.boundary.priorDisplayBoundaryMs;
+          const validStaleProbe = pending.stalePostStallRafCallbacks.length === 0
+            && Number.isFinite(timestamp)
+            && Number.isFinite(requestedAtMs)
+            && priorDisplayBoundaryMs < timestamp
+            && pending.busyStall.startedAtMs < timestamp
+            && timestamp < pending.busyStall.endedAtMs
+            && requestedAtMs <= tickObservedAtMs
+            && pending.busyStall.endedAtMs <= tickObservedAtMs;
+          if (!validStaleProbe) {
+            state.rafId = 0;
+            rejectBusyStallRequest(
+              pending,
+              new Error('Busy-stall display alignment received an invalid or repeated stale rAF timestamp.'),
+            );
+            return;
+          }
+          pending.stalePostStallRafCallbacks.push({
+            requestedAtMs,
+            timestampMs: timestamp,
+            observedAtMs: tickObservedAtMs,
+          });
+          try {
+            state.rafId = requestAnimationFrame(tick);
+            pending.postStallRafRequestCount += 1;
+            pending.acceptedPostStallRafRequestedAtMs = performance.now();
+          } catch (error) {
+            state.rafId = 0;
+            rejectBusyStallRequest(pending, error);
+          }
           return;
         }
         if (active.lastDisplayRafMs != null) {
@@ -929,13 +986,168 @@ export async function installGoal24InteractionRecorder(page) {
         if (active.firstDisplayBoundaryMs == null) active.firstDisplayBoundaryMs = timestamp;
         active.lastDisplayBoundaryMs = timestamp;
         active.lastDisplayRafMs = timestamp;
-        state.rafId = requestAnimationFrame(tick);
+
+        // Consume the perceptive control from inside this recorder-owned rAF.
+        // The next rAF is requested from a new task after the synchronous
+        // stall. Chromium may still deliver one rendering opportunity whose
+        // nominal timestamp falls inside the blocked interval; that callback
+        // is retained as a bounded stale probe above, and only the first real
+        // post-stall boundary resumes the measured cadence.
+        let startedAlignment = null;
+        let completedAlignment = null;
+        if (pending && pending.active === active) {
+          if (pending.stage === 'queued') {
+            try {
+              pending.boundary = restartAtBoundary(active, pending.label);
+              pending.busyStall = runBusyStall(active, pending.durationMs);
+              pending.displayTickTimestampMs = timestamp;
+              pending.displayTickObservedAtMs = tickObservedAtMs;
+              pending.stage = 'awaiting-post-stall-raf-request';
+              startedAlignment = pending;
+            } catch (error) {
+              rejectBusyStallRequest(pending, error);
+            }
+          } else if (pending.stage === 'awaiting-post-stall-display') {
+            const intervalIndex = active.displayFrameIntervalsMsCount - 1;
+            const postStallDisplayInterval = intervalIndex >= 0 ? {
+              startAtMs: active.displayFrameIntervalsMsStartAtMs[intervalIndex],
+              endAtMs: active.displayFrameIntervalsMsEndAtMs[intervalIndex],
+              durationMs: active.displayFrameIntervalsMs[intervalIndex],
+            } : null;
+            completedAlignment = {
+              pending,
+              postStallDisplayTickTimestampMs: timestamp,
+              postStallDisplayTickObservedAtMs: tickObservedAtMs,
+              postStallDisplayInterval,
+            };
+          } else {
+            rejectBusyStallRequest(
+              pending,
+              new Error(`Unknown busy-stall display alignment stage: ${pending.stage}.`),
+            );
+          }
+        }
+
+        if (startedAlignment) {
+          state.rafId = 0;
+          try {
+            startedAlignment.nextRafTimer = setTimeout(() => {
+              startedAlignment.nextRafTimer = 0;
+              if (state.busyStallAlignment !== startedAlignment
+                || state.active !== active || active.endedAtMs != null) {
+                rejectBusyStallRequest(
+                  startedAlignment,
+                  new Error('Busy-stall display alignment lost its active window before the post-stall rAF request.'),
+                );
+                return;
+              }
+              startedAlignment.postStallRequestTaskObservedAtMs = performance.now();
+              startedAlignment.stage = 'awaiting-post-stall-display';
+              try {
+                state.rafId = requestAnimationFrame(tick);
+                startedAlignment.nextDisplayRafRequestedAtMs = performance.now();
+                startedAlignment.acceptedPostStallRafRequestedAtMs
+                  = startedAlignment.nextDisplayRafRequestedAtMs;
+                startedAlignment.postStallRafRequestCount = 1;
+              } catch (error) {
+                state.rafId = 0;
+                rejectBusyStallRequest(startedAlignment, error);
+              }
+            }, 0);
+          } catch (error) {
+            rejectBusyStallRequest(startedAlignment, error);
+          }
+          return;
+        }
+
+        try {
+          state.rafId = requestAnimationFrame(tick);
+        } catch (error) {
+          state.rafId = 0;
+          if (state.busyStallAlignment?.active === active) {
+            rejectBusyStallRequest(state.busyStallAlignment, error);
+            return;
+          }
+          throw error;
+        }
+
+        if (completedAlignment) {
+          const {
+            pending: request,
+            postStallDisplayTickTimestampMs,
+            postStallDisplayTickObservedAtMs,
+            postStallDisplayInterval,
+          } = completedAlignment;
+          const { boundary, busyStall } = request;
+          const staleProbe = request.stalePostStallRafCallbacks[0] ?? null;
+          const phaseAligned = boundary.priorDisplayBoundaryMs
+              === request.displayTickTimestampMs
+            && request.requestQueuedAtMs <= request.displayTickObservedAtMs
+            && request.displayTickObservedAtMs <= boundary.atMs
+            && boundary.atMs <= busyStall.startedAtMs
+            && busyStall.endedAtMs <= request.postStallRequestTaskObservedAtMs
+            && request.postStallRequestTaskObservedAtMs
+              <= request.nextDisplayRafRequestedAtMs
+            && request.nextDisplayRafRequestedAtMs
+              <= request.acceptedPostStallRafRequestedAtMs
+            && request.acceptedPostStallRafRequestedAtMs
+              <= postStallDisplayTickObservedAtMs
+            && request.acceptedPostStallRafRequestedAtMs
+              <= postStallDisplayTickTimestampMs
+            && postStallDisplayTickTimestampMs
+              <= postStallDisplayTickObservedAtMs
+            && request.stalePostStallRafCallbacks.length <= 1
+            && request.postStallRafRequestCount
+              === request.stalePostStallRafCallbacks.length + 1
+            && request.stalePostStallRafCallbacks.every((entry) => (
+              request.nextDisplayRafRequestedAtMs === entry.requestedAtMs
+              && boundary.priorDisplayBoundaryMs < entry.timestampMs
+              && busyStall.startedAtMs < entry.timestampMs
+              && entry.timestampMs < busyStall.endedAtMs
+              && entry.requestedAtMs <= entry.observedAtMs
+              && busyStall.endedAtMs <= entry.observedAtMs
+            ))
+            && (staleProbe
+              ? (staleProbe.observedAtMs
+                <= request.acceptedPostStallRafRequestedAtMs
+                && staleProbe.timestampMs < postStallDisplayTickTimestampMs)
+              : request.nextDisplayRafRequestedAtMs
+                === request.acceptedPostStallRafRequestedAtMs)
+            && busyStall.endedAtMs <= postStallDisplayTickTimestampMs
+            && postStallDisplayInterval?.startAtMs === boundary.priorDisplayBoundaryMs
+            && postStallDisplayInterval?.endAtMs === postStallDisplayTickTimestampMs
+            && postStallDisplayInterval.startAtMs <= busyStall.startedAtMs
+            && postStallDisplayInterval.endAtMs >= busyStall.endedAtMs;
+          if (state.busyStallAlignment === request) state.busyStallAlignment = null;
+          clearTimeout(request.timer);
+          request.resolve({
+            boundary,
+            busyStall,
+            alignment: {
+              source: 'recorder-display-raf-task-hop-two-boundary-phase-alignment',
+              requestQueuedAtMs: request.requestQueuedAtMs,
+              displayTickTimestampMs: request.displayTickTimestampMs,
+              displayTickObservedAtMs: request.displayTickObservedAtMs,
+              postStallRequestTaskObservedAtMs: request.postStallRequestTaskObservedAtMs,
+              nextDisplayRafRequestedAtMs: request.nextDisplayRafRequestedAtMs,
+              acceptedPostStallRafRequestedAtMs:
+                request.acceptedPostStallRafRequestedAtMs,
+              postStallRafRequestCount: request.postStallRafRequestCount,
+              stalePostStallRafCallbacks: cloneJson(request.stalePostStallRafCallbacks),
+              postStallDisplayTickTimestampMs,
+              postStallDisplayTickObservedAtMs,
+              postStallDisplayInterval,
+              phaseAligned,
+            },
+          });
+        }
       };
       state.rafId = requestAnimationFrame(tick);
     };
     const stopActiveInstrumentation = (active, waiterReason = 'window-ended') => {
       if (state.rafId) cancelAnimationFrame(state.rafId);
       state.rafId = 0;
+      rejectBusyStallAlignment(active, waiterReason);
       detachInputListeners();
       detachRenderPatch();
       for (const waiter of active.renderWaiters.splice(0)) {
@@ -990,7 +1202,7 @@ export async function installGoal24InteractionRecorder(page) {
     };
 
     const api = {
-      schemaVersion: 3,
+      schemaVersion: 4,
       begin(descriptor) {
         if (state.active) throw new Error(`Interaction window already active: ${state.active.id}`);
         const id = String(descriptor?.id || '').trim();
@@ -1048,14 +1260,46 @@ export async function installGoal24InteractionRecorder(page) {
       restartAtMeasurementBoundary(label = 'measurement-armed') {
         const active = state.active;
         if (!active) throw new Error('No active interaction window.');
+        if (state.busyStallAlignment) {
+          throw new Error('Cannot restart while busy-stall display alignment is pending.');
+        }
         return restartAtBoundary(active, label);
       },
-      restartWithBusyStall(label = 'measurement-armed-before-immediate-stall', durationMs = 80) {
+      restartWithBusyStall(
+        label = 'measurement-armed-before-immediate-stall',
+        durationMs = 80,
+        alignmentTimeoutMs = 5000,
+      ) {
         const active = state.active;
         if (!active) throw new Error('No active interaction window.');
-        const boundary = restartAtBoundary(active, label);
-        const busyStall = runBusyStall(active, durationMs);
-        return { boundary, busyStall };
+        if (state.busyStallAlignment) {
+          throw new Error('Busy-stall display alignment is already pending.');
+        }
+        return new Promise((resolve, reject) => {
+          const request = {
+            active,
+            label: String(label),
+            durationMs,
+            alignmentTimeoutMs: Math.max(
+              25,
+              Math.min(10_000, Number(alignmentTimeoutMs) || 5000),
+            ),
+            requestQueuedAtMs: performance.now(),
+            stage: 'queued',
+            nextRafTimer: 0,
+            postStallRafRequestCount: 0,
+            stalePostStallRafCallbacks: [],
+            resolve,
+            reject,
+            timer: 0,
+          };
+          state.busyStallAlignment = request;
+          request.timer = setTimeout(() => {
+            if (state.busyStallAlignment !== request) return;
+            state.busyStallAlignment = null;
+            reject(new Error('Busy-stall display alignment timed out before alignment completed.'));
+          }, request.alignmentTimeoutMs);
+        });
       },
       mark(label, detail = null) {
         const active = state.active;
@@ -1209,6 +1453,9 @@ export async function installGoal24InteractionRecorder(page) {
       },
       busyStall(durationMs) {
         if (!state.active) throw new Error('Busy-stall control requires an active interaction window.');
+        if (state.busyStallAlignment) {
+          throw new Error('Cannot run an unaligned busy stall while display alignment is pending.');
+        }
         return runBusyStall(state.active, durationMs);
       },
       environment: basicEnvironment,
@@ -1221,6 +1468,7 @@ export async function installGoal24InteractionRecorder(page) {
           renderPatched: !!state.patchedRender,
           displayRafScheduled: !!state.rafId,
           inputListenersAttached: state.inputListenersAttached,
+          busyStallAlignmentPending: !!state.busyStallAlignment,
           retainedCompletedWindows: 0,
         };
       },
@@ -1233,6 +1481,7 @@ export async function installGoal24InteractionRecorder(page) {
         } else {
           if (state.rafId) cancelAnimationFrame(state.rafId);
           state.rafId = 0;
+          rejectBusyStallAlignment(null, 'recorder-uninstalled');
           detachInputListeners();
           detachRenderPatch();
         }
@@ -1243,6 +1492,77 @@ export async function installGoal24InteractionRecorder(page) {
     globalThis.__goal24InteractionRecorder = api;
     return { installed: true, reused: false };
   });
+}
+
+export function validateGoal24BusyStallPhaseAlignment(immediateControl) {
+  const finite = (value) => Number.isFinite(value);
+  const boundary = immediateControl?.boundary;
+  const busyStall = immediateControl?.busyStall;
+  const alignment = immediateControl?.alignment;
+  const interval = alignment?.postStallDisplayInterval;
+  const stale = alignment?.stalePostStallRafCallbacks;
+  if (alignment?.phaseAligned !== true
+    || alignment.source
+      !== 'recorder-display-raf-task-hop-two-boundary-phase-alignment'
+    || !finite(boundary?.priorDisplayBoundaryMs)
+    || !finite(boundary?.priorRenderBoundaryMs)
+    || !finite(boundary?.atMs)
+    || !finite(busyStall?.startedAtMs)
+    || !finite(busyStall?.endedAtMs)
+    || busyStall.endedAtMs < busyStall.startedAtMs
+    || !finite(alignment.requestQueuedAtMs)
+    || !finite(alignment.displayTickTimestampMs)
+    || !finite(alignment.displayTickObservedAtMs)
+    || !finite(alignment.postStallRequestTaskObservedAtMs)
+    || !finite(alignment.nextDisplayRafRequestedAtMs)
+    || !finite(alignment.acceptedPostStallRafRequestedAtMs)
+    || !finite(alignment.postStallDisplayTickTimestampMs)
+    || !finite(alignment.postStallDisplayTickObservedAtMs)
+    || !Number.isInteger(alignment.postStallRafRequestCount)
+    || !Array.isArray(stale)
+    || stale.length > 1
+    || alignment.postStallRafRequestCount !== stale.length + 1
+    || alignment.displayTickTimestampMs !== boundary.priorDisplayBoundaryMs
+    || alignment.requestQueuedAtMs > alignment.displayTickObservedAtMs
+    || alignment.displayTickObservedAtMs > boundary.atMs
+    || boundary.atMs > busyStall.startedAtMs
+    || busyStall.endedAtMs > alignment.postStallRequestTaskObservedAtMs
+    || alignment.postStallRequestTaskObservedAtMs > alignment.nextDisplayRafRequestedAtMs
+    || alignment.nextDisplayRafRequestedAtMs
+      > alignment.acceptedPostStallRafRequestedAtMs
+    || alignment.acceptedPostStallRafRequestedAtMs
+      > alignment.postStallDisplayTickObservedAtMs
+    || alignment.acceptedPostStallRafRequestedAtMs
+      > alignment.postStallDisplayTickTimestampMs
+    || alignment.postStallDisplayTickTimestampMs
+      > alignment.postStallDisplayTickObservedAtMs
+    || busyStall.endedAtMs > alignment.postStallDisplayTickTimestampMs
+    || !finite(interval?.startAtMs)
+    || !finite(interval?.endAtMs)
+    || !finite(interval?.durationMs)
+    || interval.startAtMs !== boundary.priorDisplayBoundaryMs
+    || interval.endAtMs !== alignment.postStallDisplayTickTimestampMs
+    || Math.abs((interval.endAtMs - interval.startAtMs) - interval.durationMs) > 0.5
+    || interval.startAtMs > busyStall.startedAtMs
+    || interval.endAtMs < busyStall.endedAtMs) {
+    return false;
+  }
+  if (stale.length === 0) {
+    return alignment.nextDisplayRafRequestedAtMs
+      === alignment.acceptedPostStallRafRequestedAtMs;
+  }
+  const probe = stale[0];
+  return finite(probe?.requestedAtMs)
+    && finite(probe?.timestampMs)
+    && finite(probe?.observedAtMs)
+    && probe.requestedAtMs === alignment.nextDisplayRafRequestedAtMs
+    && boundary.priorDisplayBoundaryMs < probe.timestampMs
+    && busyStall.startedAtMs < probe.timestampMs
+    && probe.timestampMs < busyStall.endedAtMs
+    && probe.requestedAtMs <= probe.observedAtMs
+    && busyStall.endedAtMs <= probe.observedAtMs
+    && probe.observedAtMs <= alignment.acceptedPostStallRafRequestedAtMs
+    && probe.timestampMs < alignment.postStallDisplayTickTimestampMs;
 }
 
 export function beginInteractionWindow(page, descriptor) {
