@@ -1114,6 +1114,10 @@ function startGame(state, loadNotice = null) {
 
 function startGameNow(state, loadNotice = null, generation = sceneStartGeneration) {
   app.state = state;
+  // The veil is already opaque here. Paint the real campaign-derived chip now,
+  // before scene construction and long before the first doorway threshold, so
+  // entry changes only the opacity of an already-sized layer.
+  primeWalkConditionForState(app.state);
   // Loading a club is a pure restore boundary. The rolling tee-sheet horizon
   // advances in dailyTick; generating it here would post online deposits while
   // the opaque loading veil is still up and make Continue change saved cash.
@@ -3867,6 +3871,14 @@ function shopConditionLabel(state, score = null) {
   return `🧹 Shop condition ${condition} - ${CONDITION_WORD(condition)}`;
 }
 
+function primeWalkConditionForState(state) {
+  if (!walkCondition) return;
+  const conditionText = shopConditionLabel(state);
+  if (conditionText === ovLast.condText) return;
+  ovLast.condText = conditionText;
+  setPromptText(walkCondition, conditionText);
+}
+
 function updateWalkOverlay(dtMs = 16.7) {
   const mode = presentationMode();
   syncPresentationMode(mode);
@@ -4262,7 +4274,8 @@ function boot() {
   // Skia pipeline until the first world-space focus prompt during movement.
   setPromptText(walkPrompt, '[E] interact');
   walkCondition = el('div', {
-    class: 'shop-cond', text: shopConditionLabel(app.state), 'aria-hidden': 'true',
+    class: 'shop-cond', text: shopConditionLabel(app.state), role: 'status',
+    'aria-live': 'polite', 'aria-hidden': 'true',
   });
   walkLockHint = el('div', { class: 'shop-lockhint', text: walkControlHintText() });
   walkOverlay = el('div', { class: 'shop-overlay', style: 'display:none' },

@@ -20,13 +20,24 @@ test('door entry reveals a prepainted shop-condition chip without display churn'
   assert.doesNotMatch(conditionBlock, /style\.display|textContent = condText/,
     'crossing the threshold must not trigger layout or first-paint text creation');
 
+  const startGameBlock = mainSource.slice(
+    mainSource.indexOf('function startGameNow('),
+    mainSource.indexOf('app.scene3d = makeCourseScene('),
+  );
+  assert.match(startGameBlock,
+    /app\.state = state;[\s\S]*?primeWalkConditionForState\(app\.state\);/,
+    'the real state-derived label must be sized and painted behind the loading veil');
+  assert.match(mainSource,
+    /function primeWalkConditionForState\(state\)[\s\S]*?ovLast\.condText = conditionText;[\s\S]*?setPromptText\(walkCondition, conditionText\);/,
+    'priming must update the cache so first entry cannot rebuild the label');
+
   const overlayBootBlock = mainSource.slice(
     mainSource.indexOf("walkPrompt = el('div', { class: 'shop-prompt'"),
     mainSource.indexOf('// BEHIND THE TILL'),
   );
   assert.ok(overlayBootBlock, 'the shipping walk overlay construction must remain discoverable');
   assert.match(overlayBootBlock,
-    /walkCondition = el\('div', \{[\s\S]*?class: 'shop-cond', text: shopConditionLabel\(app\.state\), 'aria-hidden': 'true'/,
+    /walkCondition = el\('div', \{[\s\S]*?class: 'shop-cond', text: shopConditionLabel\(app\.state\), role: 'status',[\s\S]*?'aria-live': 'polite', 'aria-hidden': 'true'/,
     'the condition node must have paintable content before the first crossing');
   assert.match(overlayBootBlock, /walkCondition,\r?\n\s*walkLockHint,/,
     'that prepainted condition node must be the one appended to the shipping overlay');

@@ -414,7 +414,8 @@ exposed the same deferred Skia path on the condition chip at the threshold.
 Merely prepainting at low alpha was insufficient: changing the chip from a
 translucent layer to exact opacity `1` still caused a full-screen GPU shader-cache
 fence. The shipping overlay now builds the real prompt and condition nodes before
-play, keeps both paintable, removes their first-use opacity animations, and keeps
+play, primes the real state-derived condition text behind the opaque loading veil,
+keeps both paintable, removes their first-use opacity animations, and keeps
 the condition chip on one translucent blend path (`0.004` hidden / `0.996`
 visible). Hidden nodes are also `aria-hidden`, and the expensive shop-condition
 scan remains gated to in-shop walking.
@@ -438,7 +439,8 @@ same production candidate.
 
 ## Still to come
 
-C (recast + navmesh, now unblocked by the CSP), D (the door stall), E (the mop),
+C (recast + navmesh, now unblocked by the CSP), D (the seven-process door
+acceptance cohort and bounded loader integration; compositor fence removed), E (the mop),
 F2 (the hands), G (the ledger), H (audio), I (the Goal 23 debt).
 
 ## Harness debt added
