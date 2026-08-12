@@ -3428,3 +3428,34 @@ test('door windows retain enough post-outcome production renders for non-shadow 
   assert.match(endBlock, /postOutcomeRenderCount,/,
     'the raw discriminator records which tail requirement closed the window');
 });
+
+test('warm door repetitions reset through the shipping interaction outside measurement', () => {
+  const source = fs.readFileSync(
+    new URL('../tools/qa/electron-goal24-interaction-performance.js', import.meta.url),
+    'utf8',
+  );
+  const resetBlock = source.slice(
+    source.indexOf('const ensureMainDoorClosedOutsideMeasurement ='),
+    source.indexOf('const approachDoor ='),
+  );
+  assert.match(resetBlock, /stageDoor\('outside', 2\.05\)/,
+    'the reset must enter the real main-door focus radius');
+  assert.match(resetBlock, /page\.keyboard\.press\(interact\)/,
+    'the reset must use the shipping trusted-key interaction path');
+  assert.match(resetBlock, /main-entrance-close-applied/,
+    'the reset must observe the production close signal');
+  assert.doesNotMatch(resetBlock, /setMainAssemblyOpen|setMainLeafOpen|desiredOpen\s*=/,
+    'the reset cannot mutate door state directly');
+
+  const approachBlock = source.slice(
+    source.indexOf('const approachDoor ='),
+    source.indexOf('const ensureMainDoorOpenOutsideMeasurement ='),
+  );
+  assert.ok(
+    approachBlock.indexOf('ensureMainDoorClosedOutsideMeasurement()')
+      < approachBlock.indexOf('await begin(`door-approach-${repetition}`'),
+    'the warm reset must complete before the recorder-owned measurement starts',
+  );
+  assert.match(approachBlock, /preMeasurementDoorReset,/,
+    'raw evidence must retain the exact out-of-window reset result');
+});

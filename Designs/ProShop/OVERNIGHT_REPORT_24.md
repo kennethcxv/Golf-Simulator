@@ -368,6 +368,33 @@ the identical mistake the comment directly above it records for
 
 ---
 
+## D recovery â€” causal door evidence and the warm reset
+
+The strict seven-process baseline is preserved at
+`qa/goal24/performance/interaction/orchestrated/2026-08-12-door-causal-baseline-02`.
+It failed closed, including the matrix GPU channel, and recorded cold doorway
+peaks of **105.4, 102.8, 100.9, 101.7, 103.2, 102.0, and 58.6 ms**. No result
+from that cohort has been relabelled as passing.
+
+The corrected deterministic boot then exposed a separate QA-manufactured shader
+miss: prewarm compiled the constructor's powered 06:00 light list (6 point / 2
+rect), while the first live frame applied the fresh campaign's circuit-off
+state, and the harness had also changed the clock to 14:00 (3 point / 0 rect).
+That exact mismatch produced five program arrivals and a 13,638 ms render-submit
+stall with no geometry or texture arrival. The seed gate, light-state probe,
+route parity, program ownership, and retained doorway render tail are now source
+contracts rather than assumptions.
+
+The first production-fix smoke reached the cold route, then stopped before a
+later warm approach because its setup waited for the entrance to auto-close.
+Warm repetitions now reset the door **outside the recorder-owned window** by
+standing inside the shipping focus radius, sending the real trusted interaction
+key, observing `main-entrance-close-applied`, stepping back to the exact 6.5 yd
+start, and retaining the complete reset record in raw evidence. It contains no
+door-state mutation or render warm-up. The orchestrator contract is **42/42**
+and targeted ESLint is clean; the production candidate remains unpublished
+until the real-Electron rerun passes.
+
 ## Still to come
 
 C (recast + navmesh, now unblocked by the CSP), D (the door stall), E (the mop),

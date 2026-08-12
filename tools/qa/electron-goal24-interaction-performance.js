@@ -1080,11 +1080,60 @@ async (page) => {
       inside: sample.inside,
     })),
   });
-  const approachDoor = async (repetition, thermalState, stagedStart = null) => {
-    const forward = await binding('moveForward', 'w');
-    const start = stagedStart || await stageDoor('outside', 6.5);
-    doorState.target = start.target;
-    if (!stagedStart && thermalState === 'warm') {
+  const ensureMainDoorClosedOutsideMeasurement = async () => {
+    const interact = await binding('interact', 'e');
+    const isSettledClosed = (sample) => (
+      sample?.mainEntrance?.leftState === 'closed'
+      && sample?.mainEntrance?.rightState === 'closed'
+      && Math.abs(sample?.mainEntrance?.leftAngle || 0) < 0.03
+      && Math.abs(sample?.mainEntrance?.rightAngle || 0) < 0.03
+    );
+    const reset = {
+      schema: 'golf-flipper/goal24-door-warm-reset/v1',
+      measuredWindowActive: false,
+      method: 'shipping-main-entrance-focus-and-trusted-interact-key',
+      interactKey: interact,
+      interactionAttempts: [],
+    };
+
+    const farStage = await stageDoor('outside', 6.5);
+    reset.before = await readDoor(farStage.target);
+    if (!isSettledClosed(reset.before)
+      && (reset.before.mainEntrance?.leftState !== 'closed'
+        || reset.before.mainEntrance?.rightState !== 'closed')) {
+      // Stand just inside the shipping focus radius but outside the 2 yd
+      // proximity hold. This keeps setup on the real E-key path without
+      // polluting the later recorder-owned approach window.
+      const interactionStage = await stageDoor('outside', 2.05);
+      await waitForDoorDetailState(false);
+      await page.waitForFunction(() => (
+        window.__fw.scene3d.walk.getFocus?.()?.prop?.id === 'clubhouse-main-door'
+      ), null, { timeout: 3000 });
+      reset.interactionStage = interactionStage;
+
+      for (let attempt = 1; attempt <= 2; attempt += 1) {
+        const beforeInteraction = await readDoor(interactionStage.target);
+        if (beforeInteraction.mainEntrance?.leftState === 'closed'
+          && beforeInteraction.mainEntrance?.rightState === 'closed') break;
+        const beforeSequence = beforeInteraction.mainEntrance?.interactionSequence;
+        await page.keyboard.press(interact);
+        const outcome = await page.waitForFunction((sequence) => {
+          const diagnostic = window.__fw.scene3d.clubhouse().mainEntranceDiagnostics?.();
+          return diagnostic?.interactionSequence > sequence ? diagnostic : false;
+        }, beforeSequence, { timeout: 2500 }).then((handle) => handle.jsonValue())
+          .catch(() => null);
+        reset.interactionAttempts.push({
+          attempt,
+          before: beforeInteraction.mainEntrance,
+          outcome,
+        });
+        if (outcome?.leftState === 'closed' && outcome?.rightState === 'closed'
+          && outcome?.interactionSignal === 'main-entrance-close-applied') break;
+      }
+    }
+
+    reset.clearStage = await stageDoor('outside', 6.5);
+    try {
       await page.waitForFunction(() => {
         const diagnostic = window.__fw.scene3d.clubhouse().mainEntranceDiagnostics?.();
         return diagnostic?.leftState === 'closed'
@@ -1092,7 +1141,26 @@ async (page) => {
           && Math.abs(diagnostic?.leftAngle || 0) < 0.03
           && Math.abs(diagnostic?.rightAngle || 0) < 0.03;
       }, null, { timeout: 7000 });
-    } else if (!stagedStart) {
+    } catch (error) {
+      reset.after = await readDoor(reset.clearStage.target);
+      throw new Error(`Warm main-entrance reset failed outside measurement: ${JSON.stringify(reset)}`, {
+        cause: error,
+      });
+    }
+    reset.after = await readDoor(reset.clearStage.target);
+    if (!isSettledClosed(reset.after)) {
+      throw new Error(`Warm main-entrance reset did not settle closed: ${JSON.stringify(reset)}`);
+    }
+    return reset;
+  };
+  const approachDoor = async (repetition, thermalState, stagedStart = null) => {
+    const forward = await binding('moveForward', 'w');
+    const preMeasurementDoorReset = !stagedStart && thermalState === 'warm'
+      ? await ensureMainDoorClosedOutsideMeasurement()
+      : null;
+    const start = stagedStart || await stageDoor('outside', 6.5);
+    doorState.target = start.target;
+    if (!stagedStart && thermalState !== 'warm') {
       await sleep(350);
     }
     await begin(`door-approach-${repetition}`, 'doorApproach', repetition, thermalState);
@@ -1114,6 +1182,7 @@ async (page) => {
       runnerLaunchId,
       electronMainProcessCreationTimeEpochMs,
       freshProcess: thermalState === 'cold',
+      preMeasurementDoorReset,
       startZone: start.inside ? 'inside' : 'outside',
       endZone: finish.inside ? 'inside' : 'outside-approach-marker',
       startDistanceYards: start.distance,
