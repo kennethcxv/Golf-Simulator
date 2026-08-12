@@ -1022,13 +1022,19 @@ function validateCadenceEndpointProjection(event, rawEvent, run, scenarioId, {
   }
 }
 
-function validateNormalRecorderBoundaries(rawEvent, event, run, scenarioId) {
+function validateNormalRecorderBoundaries(
+  rawEvent,
+  event,
+  run,
+  scenarioId,
+  { startLabel = 'measurement-armed-after-three-production-renders' } = {},
+) {
   const markers = rawEvent?.markers;
   required(Array.isArray(markers) && markers.length >= 3,
     `${run.id}: raw ${scenarioId} recorder markers are missing.`);
   const startMarkers = markers.filter((marker) => marker?.atMs === rawEvent.startedAtMs);
   required(startMarkers.length === 1
-    && startMarkers[0].label === 'measurement-armed-after-three-production-renders',
+    && startMarkers[0].label === startLabel,
   `${run.id}: raw ${scenarioId} start is not the exact recorder-owned measurement boundary.`);
   const outcomeMarkers = markers.filter((marker) => marker?.label === 'production-outcome-observed');
   required(outcomeMarkers.length === 1
@@ -1076,6 +1082,95 @@ function validateNormalRecorderBoundaries(rawEvent, event, run, scenarioId) {
       === (snapshot.lastRenderBoundaryMs == null
         ? null : rawEvent.endedAtMs - snapshot.lastRenderBoundaryMs),
   `${run.id}: raw ${scenarioId} sample coverage is not derived from its recorder snapshot.`);
+}
+
+function validateNpcLifecycleRecorderBoundary(rawEvent, event, run) {
+  const scenarioId = 'npcNavActivation';
+  validateNormalRecorderBoundaries(rawEvent, event, run, scenarioId, {
+    startLabel: 'organic-footfall-window-start',
+  });
+  const startMarker = rawEvent.markers[0];
+  required(startMarker?.label === 'organic-footfall-window-start'
+    && startMarker.atMs === rawEvent.startedAtMs,
+  `${run.id}: npcNavActivation lifecycle boundary is not the first recorder marker.`);
+  const lifecycleBoundary = rawEvent.discriminator?.lifecycleMeasurementBoundary;
+  requireExact(lifecycleBoundary, {
+    label: 'organic-footfall-window-start',
+    atMs: rawEvent.startedAtMs,
+    priorDisplayBoundaryMs: rawEvent.sampleCoverage?.measurementPriorDisplayBoundaryMs,
+    priorRenderBoundaryMs: rawEvent.sampleCoverage?.measurementPriorRenderBoundaryMs,
+  }, `${run.id}: npcNavActivation is not bound to the exact organic lifecycle measurement boundary.`);
+  requireExact(startMarker.detail, {
+    priorDisplayBoundaryMs: lifecycleBoundary.priorDisplayBoundaryMs,
+    priorRenderBoundaryMs: lifecycleBoundary.priorRenderBoundaryMs,
+  }, `${run.id}: npcNavActivation lifecycle marker does not preserve its prior cadence boundaries.`);
+  requireExact(startMarker.cadenceSnapshot, {
+    atMs: rawEvent.startedAtMs,
+    displayCount: 0,
+    renderCount: 0,
+    submissionCount: 0,
+    displayDropped: 0,
+    renderDropped: 0,
+    submissionDropped: 0,
+    renderStarts: 0,
+    renderFrameEvidenceCount: 0,
+    firstDisplayBoundaryMs: null,
+    lastDisplayBoundaryMs: null,
+    firstRenderBoundaryMs: null,
+    lastRenderBoundaryMs: null,
+  }, `${run.id}: npcNavActivation lifecycle restart was not an empty recorder boundary.`);
+  const discriminator = rawEvent.discriminator;
+  const lifecycleObserved = discriminator?.lifecycleObserved;
+  const boundaryObservation = lifecycleObserved?.boundaryObservation;
+  const productionBoundary = boundaryObservation?.boundary;
+  const routeObserved = discriminator?.routeObserved;
+  const route = routeObserved?.route;
+  required(discriminator?.lifecycleWindowStartedAtMs === rawEvent.startedAtMs
+    && discriminator?.directSpawnUsed === false
+    && discriminator?.customerCreated === true
+    && discriminator?.customerActivated === true
+    && lifecycleObserved?.spawnSource === 'organic-footfall'
+    && lifecycleObserved?.signal === 'shipping-organic-footfall-customer-created'
+    && productionBoundary?.schemaVersion === 1
+    && productionBoundary?.eventType === 'organic-customer-lifecycle-window-start'
+    && productionBoundary?.source === 'shipping-organic-footfall-loop'
+    && productionBoundary?.spawnSource === 'organic-footfall'
+    && boundaryObservation?.measurementBoundary
+      && isDeepStrictEqual(boundaryObservation.measurementBoundary, lifecycleBoundary)
+    && Number.isFinite(boundaryObservation.observedAtMs)
+    && boundaryObservation.observedAtMs >= rawEvent.startedAtMs
+    && boundaryObservation.observedAtMs <= rawEvent.endedAtMs
+    && Number.isFinite(discriminator?.lifecycleBoundaryAtMs)
+    && discriminator.lifecycleBoundaryAtMs >= lifecycleBoundary.priorDisplayBoundaryMs
+    && discriminator.lifecycleBoundaryAtMs >= lifecycleBoundary.priorRenderBoundaryMs
+    && discriminator.lifecycleBoundaryAtMs <= rawEvent.startedAtMs
+    && typeof discriminator?.lifecycleBoundaryId === 'string'
+    && discriminator.lifecycleBoundaryId.length > 0
+    && typeof discriminator.customerId === 'string'
+    && discriminator.customerId.length > 0
+    && discriminator.lifecycleBoundaryId === productionBoundary.lifecycleId
+    && discriminator.lifecycleBoundaryAtMs === productionBoundary.atMs
+    && discriminator.lifecycleBoundaryId === lifecycleObserved.lifecycleBoundaryId
+    && discriminator.lifecycleBoundaryAtMs === lifecycleObserved.lifecycleBoundaryAtMs
+    && discriminator.lifecycleBoundaryId === route?.lifecycleBoundaryId
+    && discriminator.lifecycleBoundaryAtMs === route?.lifecycleBoundaryAtMs
+    && discriminator.customerId === lifecycleObserved.customerId
+    && discriminator.customerId === routeObserved?.customerId
+    && typeof discriminator.routeRequestId === 'string'
+    && discriminator.routeRequestId.length > 0
+    && discriminator.routeRequestId === route?.requestId
+    && discriminator.routeRequestedAtMs === route?.requestedAtMs
+    && discriminator.routeResolvedAtMs === route?.resolvedAtMs
+    && route?.spawnSource === 'organic-footfall'
+    && Number.isInteger(route?.pathNodes)
+    && route.pathNodes > 0
+    && Number.isFinite(routeObserved?.atMs)
+    && routeObserved.atMs === discriminator.outcomeObservedAtMs
+    && routeObserved.atMs <= rawEvent.endedAtMs
+    && discriminator.productionHandlerConsumed?.signal
+      === 'shipping-navFresh-path-request-for-same-organic-customer'
+    && discriminator.productionHandlerConsumed.atMs === discriminator.routeRequestedAtMs,
+  `${run.id}: npcNavActivation production customer/lifecycle/route chain is not exact.`);
 }
 
 function expectedRegularDiscriminator(contractId, rawEvent) {
@@ -1351,7 +1446,7 @@ function validateContributionEventProjection(raw, scenario, event, record, rawEv
     `${run.id}: startToControllable endpoints are not bound to the confirmed movement/render/display boundary.`);
     validateStartInputProjection(record, event, rawEvent, run);
   } else if (id === 'npcNavActivation') {
-    validateNormalRecorderBoundaries(rawEvent, event, run, id);
+    validateNpcLifecycleRecorderBoundary(rawEvent, event, run);
     const navFailures = goal24NpcNavEvidenceFailures(rawEvent);
     required(navFailures.length === 0,
       `${run.id}: npcNavActivation raw navigation evidence failed: ${navFailures.join('; ')}`);

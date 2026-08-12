@@ -585,17 +585,64 @@ function lockedDiscriminator(id, index, temperature, runId, startAt = index * 10
     }
     case 'npcNavActivation': return {
       customerActivated: true,
+      customerCreated: true,
       routeRequested: true,
       routeResolved: true,
       routeRequestId: `route-${runId}-${index}`,
       ...npcNavigationEvidence(startAt, startAt + 2, startAt + 20),
-      routeObserved: { atMs: startAt + 20 },
+      lifecycleBoundaryId: `organic-footfall-${runId}-${index}`,
+      lifecycleBoundaryAtMs: startAt - 0.1,
+      lifecycleMeasurementBoundary: {
+        label: 'organic-footfall-window-start',
+        atMs: startAt,
+        priorDisplayBoundaryMs: startAt - 3,
+        priorRenderBoundaryMs: startAt - 3,
+      },
+      customerId: `customer-${runId}-${index}`,
+      lifecycleObserved: {
+        customerId: `customer-${runId}-${index}`,
+        spawnSource: 'organic-footfall',
+        lifecycleBoundaryId: `organic-footfall-${runId}-${index}`,
+        lifecycleBoundaryAtMs: startAt - 0.1,
+        boundaryObservation: {
+          boundary: {
+            schemaVersion: 1,
+            eventType: 'organic-customer-lifecycle-window-start',
+            lifecycleId: `organic-footfall-${runId}-${index}`,
+            atMs: startAt - 0.1,
+            source: 'shipping-organic-footfall-loop',
+            spawnSource: 'organic-footfall',
+          },
+          measurementBoundary: {
+            label: 'organic-footfall-window-start',
+            atMs: startAt,
+            priorDisplayBoundaryMs: startAt - 3,
+            priorRenderBoundaryMs: startAt - 3,
+          },
+          observedAtMs: startAt + 0.1,
+        },
+        signal: 'shipping-organic-footfall-customer-created',
+      },
+      routeObserved: {
+        atMs: startAt + 20,
+        customerId: `customer-${runId}-${index}`,
+        route: {
+          requestId: `route-${runId}-${index}`,
+          requestedAtMs: startAt + 2,
+          resolvedAtMs: startAt + 20,
+          pathNodes: 1,
+          spawnSource: 'organic-footfall',
+          lifecycleBoundaryId: `organic-footfall-${runId}-${index}`,
+          lifecycleBoundaryAtMs: startAt - 0.1,
+        },
+      },
       productionHandlerConsumed: {
-        signal: 'shipping-nav-route-requested', atMs: startAt + 2,
+        signal: 'shipping-navFresh-path-request-for-same-organic-customer', atMs: startAt + 2,
       },
       outcomeObservedAtMs: startAt + 20,
       productionOutcomeMarkerAtMs: startAt + 21,
       contractOutcomeMarkerAtMs: startAt + 24,
+      directSpawnUsed: false,
     };
     default: throw new Error(`Missing locked discriminator for ${id}`);
   }
@@ -1022,14 +1069,33 @@ function exactRawRun(runId, ids, options = {}) {
       firstRenderBoundaryMs: render[0]?.endAtMs ?? null,
       lastRenderBoundaryMs: render.at(-1)?.endAtMs ?? null,
     };
+    const lifecycleBoundary = discriminator.lifecycleMeasurementBoundary;
     return [
       {
-        label: 'measurement-armed-after-three-production-renders',
+        label: lifecycleBoundary?.label
+          || 'measurement-armed-after-three-production-renders',
         atMs: event.markers.start.atMs,
         detail: {
           priorDisplayBoundaryMs: event.sampleCoverage.measurementPriorDisplayBoundaryMs,
           priorRenderBoundaryMs: event.sampleCoverage.measurementPriorRenderBoundaryMs,
         },
+        ...(lifecycleBoundary ? {
+          cadenceSnapshot: {
+            atMs: event.markers.start.atMs,
+            displayCount: 0,
+            renderCount: 0,
+            submissionCount: 0,
+            displayDropped: 0,
+            renderDropped: 0,
+            submissionDropped: 0,
+            renderStarts: 0,
+            renderFrameEvidenceCount: 0,
+            firstDisplayBoundaryMs: null,
+            lastDisplayBoundaryMs: null,
+            firstRenderBoundaryMs: null,
+            lastRenderBoundaryMs: null,
+          },
+        } : {}),
       },
       {
         label: 'production-outcome-observed',
@@ -1688,6 +1754,105 @@ test('raw-bound NPC contribution cannot coordinate away prewarm or the first nav
     () => validateContributionRawBindings(noRebuild, noRebuild.contractContribution, run),
     /exactly one shipping navFresh call and one collider-grid rebuild/,
   );
+});
+
+test('raw-bound NPC contribution accepts only the exact organic lifecycle recorder restart', () => {
+  const run = { id: 'raw-bound-npc-lifecycle', role: 'unit-test' };
+  const raw = exactRawRun(run.id, ['npcNavActivation']);
+  assert.equal(validateContributionRawBindings(raw, raw.contractContribution, run), true);
+
+  const genericRestart = structuredClone(raw);
+  genericRestart.scenarios.npcNavActivation.events[0].markers[0].label =
+    'measurement-armed-after-three-production-renders';
+  assert.throws(
+    () => validateContributionRawBindings(
+      genericRestart,
+      genericRestart.contractContribution,
+      run,
+    ),
+    /exact recorder-owned measurement boundary/,
+  );
+
+  const nonEmptyRestart = structuredClone(raw);
+  nonEmptyRestart.scenarios.npcNavActivation.events[0]
+    .markers[0].cadenceSnapshot.renderStarts = 1;
+  assert.throws(
+    () => validateContributionRawBindings(
+      nonEmptyRestart,
+      nonEmptyRestart.contractContribution,
+      run,
+    ),
+    /not an empty recorder boundary/,
+  );
+
+  for (const [label, mutate] of [
+    ['prepended marker', (event) => event.markers.unshift({
+      ...structuredClone(event.markers[0]), atMs: event.startedAtMs - 100,
+    })],
+    ['unrelated lifecycle id', (event) => {
+      event.discriminator.lifecycleBoundaryId = 'unrelated-lifecycle';
+    }],
+    ['mismatched top lifecycle edge', (event) => {
+      event.discriminator.lifecycleBoundaryAtMs = 0;
+    }],
+    ['direct spawn', (event) => {
+      event.discriminator.directSpawnUsed = true;
+    }],
+    ['test-hook boundary', (event) => {
+      event.discriminator.lifecycleObserved.spawnSource = 'manual';
+      event.discriminator.lifecycleObserved.boundaryObservation.boundary.source = 'test-hook';
+    }],
+    ['different route customer', (event) => {
+      event.discriminator.routeObserved.customerId = 'other-customer';
+    }],
+    ['different route request', (event) => {
+      event.discriminator.routeObserved.route.requestId = 'other-route';
+    }],
+    ['shifted nested measurement', (event) => {
+      event.discriminator.lifecycleObserved
+        .boundaryObservation.measurementBoundary.atMs += 100;
+    }],
+    ['fake route handler', (event) => {
+      event.discriminator.productionHandlerConsumed.signal = 'fake-route-handler';
+    }],
+    ['missing customer identity', (event) => {
+      delete event.discriminator.customerId;
+      delete event.discriminator.lifecycleObserved.customerId;
+      delete event.discriminator.routeObserved.customerId;
+    }],
+    ['nonfinite boundary observation', (event) => {
+      event.discriminator.lifecycleObserved.boundaryObservation.observedAtMs = Infinity;
+    }],
+    ['nonfinite route observation', (event) => {
+      event.discriminator.routeObserved.atMs = Infinity;
+    }],
+    ['non-organic unresolved route', (event) => {
+      event.discriminator.routeObserved.route.pathNodes = 0;
+      event.discriminator.routeObserved.route.spawnSource = 'manual';
+    }],
+    ['outcome differs from route observation', (event) => {
+      event.discriminator.routeObserved.atMs -= 1;
+    }],
+    ['all-linked ancient lifecycle edge', (event) => {
+      event.discriminator.lifecycleBoundaryAtMs = 0;
+      event.discriminator.lifecycleObserved.lifecycleBoundaryAtMs = 0;
+      event.discriminator.lifecycleObserved.boundaryObservation.boundary.atMs = 0;
+      event.discriminator.routeObserved.route.lifecycleBoundaryAtMs = 0;
+    }],
+  ]) {
+    const forged = structuredClone(raw);
+    const rawEvent = forged.scenarios.npcNavActivation.events[0];
+    mutate(rawEvent);
+    forged.contractContribution.scenarios[0].events[0].discriminator =
+      structuredClone(rawEvent.discriminator);
+    const record = forged.contractContribution.inputRecords[0];
+    record.consumed.signal = rawEvent.discriminator.productionHandlerConsumed.signal;
+    assert.throws(
+      () => validateContributionRawBindings(forged, forged.contractContribution, run),
+      undefined,
+      label,
+    );
+  }
 });
 
 test('acceptance contribution rejects reused raw coordinates and stress checkpoint drift', () => {
