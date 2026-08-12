@@ -69,6 +69,77 @@ export async function ownerResolution(page, electronApp) {
   }
 }
 
+// Pin only the production new-game seed draw. A broad Math.random stub poisons
+// Three.js UUID generation while the asynchronous scene is loading; duplicate
+// material UUIDs can then make GLTFLoader reuse an unrelated derived material.
+//
+// Keep this function self-contained. Playwright serializes it into the page
+// when clickThroughMenu passes it to page.evaluate.
+export function installPinnedNewGameSeed({
+  seed,
+  target = globalThis,
+  captureStack = null,
+} = {}) {
+  const pinned = Number(seed);
+  if (!Number.isFinite(pinned) || pinned < 0 || pinned >= 1) {
+    throw new RangeError('Pinned new-game seed must be a finite number in [0, 1).');
+  }
+  if (!target?.Math || typeof target.Math.random !== 'function') {
+    throw new TypeError('Pinned new-game seed target must expose Math.random.');
+  }
+  const prior = target.__qaPinnedRandomEvidence;
+  if (prior?.armed && !prior?.restored) {
+    throw new Error('A pinned new-game seed gate is already armed.');
+  }
+
+  const original = target.Math.random;
+  const evidence = {
+    schema: 'golf-flipper/qa-pinned-new-game-seed/v1',
+    pinned,
+    armed: true,
+    consumed: false,
+    restored: false,
+    delegatedCalls: 0,
+    matchedFrame: null,
+    restoreReason: null,
+  };
+  target.__qaPinnedRandomEvidence = evidence;
+
+  let wrapped = null;
+  const restore = (reason) => {
+    if (target.Math.random === wrapped) target.Math.random = original;
+    evidence.armed = false;
+    evidence.restored = target.Math.random === original;
+    evidence.restoreReason = reason;
+    delete target.__qaRestoreRandom;
+    return evidence.restored;
+  };
+
+  wrapped = function pinnedNewGameRandom(...args) {
+    const stack = String(
+      typeof captureStack === 'function' ? captureStack() : new Error().stack || '',
+    );
+    const matchedFrame = stack.split(/\r?\n/).find((line) => (
+      /\bat (?:Object\.)?onNewGame\b/.test(line)
+      && /[\\/]src[\\/]main\.js:\d+:\d+/.test(line)
+    ));
+    if (matchedFrame) {
+      evidence.consumed = true;
+      evidence.matchedFrame = matchedFrame.trim();
+      // Restore before returning. Everything after the seed expression,
+      // including Three.js and GLTFLoader construction, receives real UUIDs.
+      restore('seed-consumed');
+      return pinned;
+    }
+    evidence.delegatedCalls += 1;
+    return Reflect.apply(original, this, args);
+  };
+
+  target.__qaRestoreRandom = () => restore('manual-cleanup');
+  target.Math.random = wrapped;
+  return evidence;
+}
+
 /**
  * @param mode 'relaxed' | 'realistic'
  *
@@ -98,10 +169,10 @@ export async function clickThroughMenu(page, {
   // 2026-08-11: two boots, seeds 97236116 vs 2066143097, interior world-Y
   // -2.23 vs -0.67. The golden suite was comparing screenshots of different
   // worlds, which is the entire "boot-varying world-Y" degradation.
-  // `pinSeed` stubs Math.random for exactly the New Game click (main.js
-  // draws the seed as (Math.random()*2^31)|0 inside the click handler, which
-  // runs synchronously) and restores it immediately after — the world is
-  // then identical every run while runtime randomness stays live. `forceNew`
+  // `pinSeed` gates only the onNewGame callsite in main.js. It self-restores
+  // inside that Math.random call, before scene construction can allocate any
+  // Three.js UUIDs. The world is then identical every run while runtime
+  // randomness stays live. `forceNew`
   // keeps an instrument honest even on a profile that could resume: a
   // resumed save is an ARBITRARY world, not the canonical one.
   const canResume = forceNew ? false : await page.evaluate(() => {
@@ -116,13 +187,6 @@ export async function clickThroughMenu(page, {
     await page.click('button[data-qa-resume="true"]');
     return 'continue';
   }
-  if (pinSeed != null) {
-    await page.evaluate((s) => {
-      const original = Math.random;
-      window.__qaRestoreRandom = () => { Math.random = original; delete window.__qaRestoreRandom; };
-      Math.random = () => s;
-    }, pinSeed);
-  }
   // The menu renders its buttons disabled until the boot manifest is ready;
   // drivers that navigated and clicked immediately used to race it.
   await page.waitForFunction(() => {
@@ -133,14 +197,34 @@ export async function clickThroughMenu(page, {
   if (onPrimaryControlRequest) await onPrimaryControlRequest('New Game');
   await page.getByRole('button', { name: /New game/i }).click();
   const modeLabel = /^realistic$/i.test(String(mode)) ? 'Realistic' : 'Relaxed';
-  await page.locator('.difficulty-card').filter({ hasText: modeLabel }).click();
-  const confirm = page.getByRole('button', { name: /^(Start|Confirm|Yes)/i }).first();
-  if (await confirm.isVisible({ timeout: 1500 }).catch(() => false)) await confirm.click();
-  // pinSeed note: the menu invokes onNewGame in an ASYNC continuation (a
-  // 150 ms post-click restore measured seed 1035912314 — NOT the pinned
-  // draw), so the stub must stay installed until the game is actually
-  // running. The CALLER restores after its walk-active wait:
-  //   await page.evaluate(() => window.__qaRestoreRandom?.());
+  let pinInstalled = false;
+  try {
+    // Install at the last safe point. Opening the New Game/difficulty UI can
+    // itself consume randomness (for example modal decoration), and those
+    // calls must continue to use the production RNG.
+    if (pinSeed != null) {
+      await page.evaluate(installPinnedNewGameSeed, { seed: pinSeed });
+      pinInstalled = true;
+    }
+    await page.locator('.difficulty-card').filter({ hasText: modeLabel }).click();
+    const confirm = page.getByRole('button', { name: /^(Start|Confirm|Yes)/i }).first();
+    if (await confirm.isVisible({ timeout: 1500 }).catch(() => false)) await confirm.click();
+    if (pinInstalled) {
+      const handle = await page.waitForFunction(() => {
+        const result = window.__qaPinnedRandomEvidence;
+        return result?.consumed && result?.restored ? result : false;
+      }, null, { timeout: 5000 });
+      const result = await handle.jsonValue();
+      if (!result?.consumed || !result?.restored) {
+        throw new Error(`Pinned new-game seed was not consumed safely: ${JSON.stringify(result)}`);
+      }
+    }
+  } catch (error) {
+    if (pinInstalled) {
+      await page.evaluate(() => window.__qaRestoreRandom?.()).catch(() => {});
+    }
+    throw error;
+  }
   return 'new-game';
 }
 

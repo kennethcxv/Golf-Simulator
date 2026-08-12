@@ -28,6 +28,7 @@ async (page) => {
     const v = document.querySelector('.load-veil');
     return !v || getComputedStyle(v).opacity === '0';
   }, null, { timeout: 300000 });
+  // Compatibility no-op: qa-boot restores inside the exact seed draw.
   await page.evaluate(() => window.__qaRestoreRandom?.());
   await page.waitForTimeout(2500);
 

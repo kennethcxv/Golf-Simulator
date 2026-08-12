@@ -44,7 +44,8 @@ async (page) => {
   const boot = await (await import(`file:///${process.cwd().replace(/\\/g, '/')}/tools/qa/lib/qa-boot.mjs`))
     .clickThroughMenu(page, { forceNew: true, pinSeed: 0.4242 });
   await page.waitForFunction(() => window.__fw?.scene3d?.walk?.isActive?.(), null, { timeout: 300000 });
-  // the world is built; hand real randomness back to the runtime
+  // Compatibility no-op: qa-boot now restores real randomness inside the
+  // exact onNewGame seed draw, before any scene/runtime construction begins.
   await page.evaluate(() => window.__qaRestoreRandom?.());
   try {
     const win = (await page.electronApp.browserWindow(page)) || null;
