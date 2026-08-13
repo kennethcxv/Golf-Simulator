@@ -1087,3 +1087,45 @@ evidence, not re-measured tonight**, which is the honest weight.
 Three of tonight's four findings came from greps that contradicted something
 already reported DONE. That is the cheapest instrument in the box and I used it
 too late.
+---
+
+## 3.3 hover outline — NOT DONE, but I was wrong about why, and it is nearly all built
+
+I said 3.3 was pixel-gated and therefore out of reach tonight. Reading the clause
+list, that is wrong. Six requirements, and only **one** needs an eye:
+
+| clause | testable how |
+|---|---|
+| "clear, tasteful… comparable to the money highlight" | **needs pixels** |
+| "plus the prompt" | prompt string, structural |
+| "clears the moment aim is lost" | outline null after aiming away |
+| "never highlights the whole desk" | **footprint span** — exactly what `debugCardGrabOutline`'s `shellOwnerSpans` was built to prove |
+| "never goes stale after open or close" | sample across an open/close cycle |
+| "does not clone a material per frame" | material count over N frames |
+
+Five of six are numeric. `shellOwnerSpans` already exists for precisely the
+"is it framing the right object" question, on the chip-suppression proof.
+
+### The hard half is already solved
+
+"When the crosshair **genuinely aims at the cover**" is the difficult part of
+3.3, and it is finished: Goal 24's Decision 3 in `courseScene.js:7731` computes
+exactly that, with a deliberately strict gate — the focus point must land within
+`WALK_CROSSHAIR_YD` **cross-track** of the aim ray, stricter than the general prop
+scan's `facing > 0.3`, precisely to distinguish *looking at the book* from
+*standing near it holding a mop*.
+
+So 3.3 is: take the boolean that decision already produces, drive
+`setGrabOutline`-style shells from it, add the prompt, expose a
+`debugLedgerOutline` accessor returning `shellCount` + `shellOwnerSpans`. Three
+known pieces, all with precedent in this repo, none of them research.
+
+**It is still NOT DONE** — I did not write it and will not report it as written.
+But the next session should not repeat my mistake of costing it as a pixel job:
+it is a small structural one with a single aesthetic judgement at the end.
+
+## 3.4 and 3.5 — genuinely not reachable tonight
+
+3.4 says it in words: *"Film it, extract the frames, look at them."* That is not a
+clause I can satisfy without viewing frames. 3.5 requires recovering the Goal 23
+I3 requirements from the repo before anything can be verified against them.
