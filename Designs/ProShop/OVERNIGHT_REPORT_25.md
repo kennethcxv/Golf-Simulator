@@ -1060,3 +1060,30 @@ because the goods are IN it, which is what the two-leg drop motion is for.
 
 Grep is not a defect detector, but a grep that contradicts a shipped item is
 worth two minutes, and this one paid.
+
+## 8.1 regression sweep — **DONE for eight of nine claims**
+
+The brief says *"without reimplementing unless broken, confirm"* — a sweep, not a
+rebuild. Swept:
+
+| claim | verdict | evidence |
+|---|---|---|
+| the bag shows nothing | **holds** | code gone, two comments only, guard test 8/8 |
+| the specific tee-time wording | **holds** | `"have you got a time free today?"` survives only as a comment at `clubhouse.js:9480`; `combinedVisitDeskLine` names the time from `requestedTeeMinute` |
+| the correct status text | **holds** | `"all items are being bagged…"` has no match anywhere in `i18n.js` |
+| laptop clear-counter voids safely | **holds** | `laptop.clearCounter*` — voids the ticket, returns stock to the shelf, and asks first (`clearCounterAsk`) |
+| CSP refuses broad `unsafe-eval` | **holds** | narrow `'wasm-unsafe-eval'` only |
+| broom head still square | **holds** | solved per frame, not a constant |
+| recast initializes once | **zero sites** | correct for a build where 2.1 was declined |
+| green fee on the accepted path | **single add site** | one `till.greenFeeAdded` at `simplifiedRegisterMode.js:6598` |
+| goods retained on the refused path | **rests on Goal 24 B-series** | not re-run tonight |
+
+The last two are *count* claims — "exactly once", "retained" — and a single call
+site is structural evidence, not proof of a count at runtime. Both were exercised
+by the Goal 24 B-series and by the Phase 1 stranger, which completed an accepted
+path end to end and banked once. I am recording them as **holding on inherited
+evidence, not re-measured tonight**, which is the honest weight.
+
+Three of tonight's four findings came from greps that contradicted something
+already reported DONE. That is the cheapest instrument in the box and I used it
+too late.
