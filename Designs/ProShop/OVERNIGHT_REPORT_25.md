@@ -895,3 +895,46 @@ place.
 legitimate, the merge has a safety net and is worth doing — 863 meshes on 317
 materials is a lot of headroom.
 
+---
+
+## 2.3 Through-body handoff — **THE INSTRUMENT MIXES TWO COORDINATE FRAMES**
+
+I flagged this verdict untrustworthy without knowing why. Now I know why, from
+the driver's own source (`tools/qa/electron-c3-nothing-through-a-body.js`):
+
+| quantity | line | frame |
+|---|---|---|
+| `item` (the flying product) | 137 — `mesh.matrixWorld.elements` | **world** |
+| `ax`, `az` (the giver) | 168 — `owner.mesh.position` | **parent-local** |
+| `other.mesh.position` | 172, 181, 184 | **parent-local** |
+
+The driver proves the offset between those frames is non-zero and material at its
+own line 90-92, where it must add `ch.interior.position` to convert a layout
+coordinate into the player's frame.
+
+Everything downstream is therefore built on a vector drawn between two different
+spaces: `vx/vz` (item minus owner), the projection `t`, the corridor point
+`cx/cz`, the separation `d`, and the height gate that compares a world `item.y`
+against a local `baseY`.
+
+**This is FOUND_FALSE shape 9 again** — a pinned world measured by an unpinned
+instrument — and it is the second time this session that a frame assumption went
+unstated and produced a confident number.
+
+### What this does and does not prove
+
+It does **not** prove the handoff passes through bodies, and it does not prove it
+doesn't. It proves **the measurement cannot answer the question**, which is why
+the earlier "EARLY THROUGH-BODY FLIGHT at itemY 1.45" verdict should never have
+been reported as a finding about the game.
+
+### The one check left to close it
+
+Whether `c.mesh` is parented to `ch.interior` or to the scene root. If the scene
+root, `.position` is already world and the driver is accidentally correct; if
+`interior`, every corridor number it has ever printed is meaningless. I could not
+resolve it by grep and ran out of session before running it live. **One line in a
+driver settles it:** `c.mesh.parent === ch.interior`. Until that is answered, 2.3
+is NOT DONE and its previous verdict should be treated as withdrawn, not as a
+passing check.
+
