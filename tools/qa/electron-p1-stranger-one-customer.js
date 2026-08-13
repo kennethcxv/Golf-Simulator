@@ -523,15 +523,34 @@ async (page) => {
     const st = await probe();
     if (st.txItems > 0) break;
   }
-  await beat('served whoever was at the desk', { deskTrail: out.deskTrail });
-
-  // Now that the player is at the desk, the queue can move. Give it time.
-  const goodsArrived = await page.waitForFunction(() => {
-    const tx = window.__fw?.scene3d?.clubhouse?.()?.register?.getTx?.();
-    return !!tx && tx.items.length > 0;
-  }, null, { timeout: 240000 }).then(() => true).catch(() => false);
-  await beat('goods on the counter', { goodsArrived });
-  if (!goodsArrived) wall('no goods', 'the player took the desk and no customer ever placed goods');
+  // KEEP SERVING UNTIL A SHOPPER'S GOODS LAND.
+  //
+  // One pass at the desk is not enough and the runs prove it: whoever is at the
+  // head may be a reservation with no goods at all, and the next arrival is
+  // chance. A player stands there and keeps serving. So does this -- alternating
+  // "clear whatever the desk offers" with "has anybody put goods down yet" for
+  // six minutes, which is long enough for two or three organic visits at the
+  // measured rate of 8 game-minutes per real minute.
+  let goodsArrived = false;
+  for (let sweep = 0; sweep < 36 && !goodsArrived; sweep += 1) {
+    const ids = await page.evaluate(() => {
+      const r = window.__fw.scene3d.clubhouse().register;
+      return r.deskHitTargets ? r.deskHitTargets().filter((h) => !h.disabled).map((h) => h.id) : [];
+    }).catch(() => []);
+    const fresh = ids.filter((i) => !clickedDeskActions.has(i));
+    const pick = fresh.find((i) => /^(reservation-check-in|select-walkin-slot:)/.test(i))
+      || fresh.find((i) => /^select-(reservation|walkin):/.test(i))
+      || fresh.find((i) => /^tab-check-in$/.test(i))
+      || null;
+    if (pick) { clickedDeskActions.add(pick); out.deskTrail.push(await clickDesk(pick)); }
+    await page.waitForTimeout(pick ? 600 : 9000);
+    const st = await probe();
+    goodsArrived = st.txItems > 0;
+    // a new person at the head means new actions worth trying
+    if (!pick && sweep % 4 === 3) clickedDeskActions.clear();
+  }
+  await beat('waited at the desk for goods', { goodsArrived, deskClicks: out.deskTrail.length });
+  if (!goodsArrived) wall('no goods', 'six minutes at the desk and no customer placed goods');
 
   // ---- 7. ring up every product with real clicks --------------------------
   // The stranger clicks what it can see. It does NOT project world positions;
@@ -565,15 +584,127 @@ async (page) => {
   // screen repeatedly (card/terminal/keypad all live there) for up to 40 beats,
   // stopping as soon as a ticket banks.
   const bankedBefore = (await probe()).banked;
+  // PAY THE WAY THE REGISTER ASKS. Blind clicking at the middle of the screen
+  // got a ticket to 'cash-drawer / SelectingChange' and left it there, because
+  // counting change is a specific gesture on specific drawer money and no
+  // amount of random clicking performs it. This drives the actual states:
+  // insert/tap the card, type the total on the keypad, or click drawer
+  // denominations until the change is right.
   let banked = false;
-  for (let i = 0; i < 40 && !banked; i += 1) {
-    await page.mouse.click(
-      (canvasBox ? canvasBox.x : 0) + (canvasBox ? canvasBox.width : 1400) * (0.42 + (i % 5) * 0.06),
-      (canvasBox ? canvasBox.y : 0) + (canvasBox ? canvasBox.height : 800) * (0.42 + (i % 4) * 0.07),
-    );
-    await page.waitForTimeout(700);
+  for (let i = 0; i < 45 && !banked; i += 1) {
+    const st = await page.evaluate(async () => {
+      const THREE = await import(new URL('vendor/three.module.js', document.baseURI).href);
+      const r = window.__fw.scene3d.clubhouse().register;
+      const pick = (fn) => { try { return fn ? fn() : null; } catch { return null; } };
+      let card = null;
+      const node = pick(r.cardNode);
+      if (node) {
+        const v = node.getWorldPosition(new THREE.Vector3());
+        v.project(window.__fw.scene3d.camera);
+        const rect = document.querySelector('canvas').getBoundingClientRect();
+        card = {
+          x: rect.left + ((v.x + 1) / 2) * rect.width,
+          y: rect.top + ((-v.y + 1) / 2) * rect.height,
+          onScreen: Math.abs(v.x) <= 1 && Math.abs(v.y) <= 1,
+        };
+      }
+      return {
+        flow: r.getFlow?.()?.state ?? null,
+        stage: r.getTx?.()?.stage ?? null,
+        card,
+        terminal: pick(r.cardTerminalScreenPoint),
+        confirm: pick(r.cardXScreenPoint),
+      };
+    }).catch(() => ({}));
+    if (!st.flow) break;
+    if (st.flow === 'CardAmountEntry') {
+      const keys = await page.evaluate(async () => {
+        const r = window.__fw.scene3d.clubhouse().register;
+        const reg = await import(new URL('src/sim/register.js', document.baseURI).href);
+        const tx = r.getTx();
+        if (!tx) return null;
+        const cents = String(Math.round(reg.totalOf(tx) * 100));
+        const pt = (id) => { try { const p2 = r.cardKeyScreenPoint(id); return p2 ? { x: p2.x, y: p2.y } : null; } catch { return null; } };
+        return { digits: cents.split('').map(pt), ok: pt('OK') };
+      }).catch(() => null);
+      if (keys) {
+        for (const k of keys.digits) if (k) { await page.mouse.click(k.x, k.y); await page.waitForTimeout(140); }
+        if (keys.ok) { await page.mouse.click(keys.ok.x, keys.ok.y); await page.waitForTimeout(800); }
+      }
+    } else if (st.stage === 'cash-drawer' || st.flow === 'SelectingChange') {
+      // click the drawer money the register itself exposes
+      const spot = await page.evaluate(() => {
+        const r = window.__fw.scene3d.clubhouse().register;
+        try {
+          const p2 = r.changeScreenPoint ? r.changeScreenPoint() : null;
+          if (p2) return { x: p2.x, y: p2.y };
+        } catch { /* fall through */ }
+        try {
+          const p3 = r.monitorScreenPoint ? r.monitorScreenPoint('confirm-change') : null;
+          if (p3) return { x: p3.x, y: p3.y };
+        } catch { /* fall through */ }
+        return null;
+      }).catch(() => null);
+      if (spot) { await page.mouse.click(spot.x, spot.y); await page.waitForTimeout(700); }
+      else {
+        const t2 = (st.card && st.card.onScreen ? st.card : null) || st.terminal || st.confirm;
+        if (t2) { await page.mouse.click(t2.x, t2.y); await page.waitForTimeout(600); }
+      }
+    } else {
+      const t2 = (st.card && st.card.onScreen ? st.card : null) || st.terminal || st.confirm;
+      if (t2 && Number.isFinite(t2.x)) { await page.mouse.click(t2.x, t2.y); }
+    }
+    await page.waitForTimeout(650);
     banked = (await probe()).banked > bankedBefore;
   }
+  // THE BAG HANDOFF IS THE LAST GATE, and it is a DRAG, not a click.
+  //
+  // The ticket reaches stage 'done' and the flow reaches Bagging, and banking is
+  // gated on deliveryPhase 'released' AND flow CustomerLeaving. The register's
+  // own instruction says it in words: "Grip the bag handles and drag them to the
+  // customer's open palm." Forty clicks cannot perform a drag, which is why the
+  // sale sat at 'done' for a minute looking like a bug.
+  if (!banked) {
+    for (let attempt = 0; attempt < 6 && !banked; attempt += 1) {
+      const grab = await page.evaluate(async () => {
+        const THREE = await import(new URL('vendor/three.module.js', document.baseURI).href);
+        const app = window.__fw;
+        const ch = app.scene3d.clubhouse();
+        const bag = ch.register?.bagNode?.();
+        const cust = ch.register?.getCustomer?.();
+        if (!bag) return null;
+        const rect = document.querySelector('canvas').getBoundingClientRect();
+        const toScreen = (v) => {
+          v.project(app.scene3d.camera);
+          return {
+            x: rect.left + ((v.x + 1) / 2) * rect.width,
+            y: rect.top + ((-v.y + 1) / 2) * rect.height,
+            on: Math.abs(v.x) <= 1 && Math.abs(v.y) <= 1,
+          };
+        };
+        bag.updateWorldMatrix(true, true);
+        const from = toScreen(new THREE.Box3().setFromObject(bag).getCenter(new THREE.Vector3()));
+        let to = null;
+        if (cust?.mesh) {
+          const c = cust.mesh.position.clone();
+          c.y += 1.1; // chest height, where an open palm is
+          to = toScreen(c);
+        }
+        return { from, to };
+      }).catch(() => null);
+      if (!grab?.from?.on) break;
+      const target = grab.to && grab.to.on ? grab.to : { x: grab.from.x + 260, y: grab.from.y - 40 };
+      await page.mouse.move(grab.from.x, grab.from.y, { steps: 3 });
+      await page.mouse.down();
+      await page.mouse.move(target.x, target.y, { steps: 22 });
+      await page.waitForTimeout(220);
+      await page.mouse.up();
+      await page.waitForTimeout(1400);
+      banked = (await probe()).banked > bankedBefore;
+    }
+    await beat('dragged the bag to the customer', { banked });
+  }
+
   await beat('tried to complete the payment', { wantsTee, banked });
   if (!banked) wall('payment', 'clicked forty times on the register and no ticket ever banked');
 
