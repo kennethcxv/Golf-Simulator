@@ -8249,6 +8249,20 @@ export function makeCourseScene(canvas, state) {
     walkReconcileModifiers(e, 'mousemove');
     if (document.pointerLockElement !== canvas) return;
     if (walkLockGuard > 0) { walkLockGuard -= 1; return; }
+    // 3.2 (Goal 25) — THE BOOK OWNS LOOK AS WELL AS MOVEMENT.
+    //
+    // Goal 24 stopped WASD while the ledger is open and deliberately left the
+    // mouse alive, on the reasoning that "turning your head over a page you are
+    // holding is not walking". Goal 25 overrules that in as many words: while
+    // the book is open, opening, closing or turning a page, "mouse movement does
+    // not change player yaw or pitch" and "the camera remains composed on the
+    // ledger".
+    //
+    // The delta is DROPPED HERE, before it reaches walk.yaw/pitch, rather than
+    // being corrected afterwards -- the brief is explicit that the deltas must
+    // not enter the world-camera update, and zeroing after the fact leaves one
+    // frame of drift and fights whatever else reads the camera that frame.
+    if (clubhouseApi?.ledgerHasThePlayer?.()) return;
     const sens = walk.sens || 1; // pause-menu mouse sensitivity
     // applyMouseLook clamps the per-event delta (no 180 whip on a reacquisition
     // jump), applies sensitivity, wraps yaw and clamps pitch — see mouseLook.js.

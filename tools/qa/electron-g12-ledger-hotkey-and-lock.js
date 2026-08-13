@@ -143,8 +143,21 @@ async (page) => {
     await page.waitForTimeout(1400);
   }
   out.afterClose = await bookState();
+  // MOVEMENT RESUMES MEANS *SOME* DIRECTION MOVES, not that forward does.
+  //
+  // With look now locked while reading, the driver can no longer turn during
+  // the locked legs, so it finishes facing whatever it faced going in -- and if
+  // that is a wall, forward travels 0 and the control fails for a reason that
+  // has nothing to do with the ledger. It reported exactly that: forward 0,
+  // strafe 0.09, with hasThePlayer already false. A control that depends on
+  // which way the player happens to be pointing is testing the room.
   out.releasedForward = await travelled(['w'], 1100);
+  out.releasedBack = await travelled(['s'], 1100);
   out.releasedStrafe = await travelled(['a'], 900);
+  out.releasedStrafeRight = await travelled(['d'], 900);
+  out.releasedBest = Math.max(
+    out.releasedForward, out.releasedBack, out.releasedStrafe, out.releasedStrafeRight,
+  );
   await page.screenshot({ path: path.join(OUT, '02-closed-and-walking.png') });
 
   out.checks = {
@@ -161,9 +174,13 @@ async (page) => {
     openCountsAsHoldingIt: out.afterHotkey.hasThePlayer === true
       && out.afterHotkey.carried === false,
     // CONTROL 1 — the same keys move once the book is shut
-    walkingWorksAgainAfterClosing: out.releasedForward > 0.3 && out.releasedStrafe > 0.3,
-    // CONTROL 3
-    lookStillWorksWhileReading: out.yawMovedWhileReading === true,
+    walkingWorksAgainAfterClosing: out.releasedBest > 0.3,
+    // 3.2 (Goal 25): LOOK IS LOCKED TOO. Goal 24 deliberately left the mouse
+    // alive while the book was open; Goal 25 overrules that in as many words --
+    // 'mouse movement does not change player yaw or pitch' and 'the camera
+    // remains composed on the ledger'. This check is inverted, not deleted,
+    // because the reversal is the point.
+    lookIsLockedWhileReading: out.yawMovedWhileReading === false,
     noPageErrors: out.errs.length === 0,
   };
   out.ok = Object.values(out.checks).every(Boolean);
@@ -173,7 +190,10 @@ async (page) => {
     pressesToOpen: out.pressesToOpen, pressesToClose: out.pressesToClose,
     before: out.before, afterHotkey: out.afterHotkey, afterClose: out.afterClose,
     locked: { forward: out.lockedForward, strafe: out.lockedStrafe, all: out.lockedAll },
-    released: { forward: out.releasedForward, strafe: out.releasedStrafe },
+    released: {
+      forward: out.releasedForward, back: out.releasedBack,
+      left: out.releasedStrafe, right: out.releasedStrafeRight, best: out.releasedBest,
+    },
     checks: out.checks,
   }, null, 2));
   return out;

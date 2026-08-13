@@ -652,3 +652,61 @@ gameplay defect. **Phase 2.3 is NOT DONE**, the remaining work is to establish
 what frame the flying product's transform is actually in, and the honest status
 is: *not frozen, crossing unproven.*
 
+---
+
+# PHASE 3 — THE LEDGER
+
+## 3.1 A hotkey — **DONE** · 3.2 The book owns all input — **DONE**
+
+`qa/electron/g12-ledger/ledger.json` → **10 / 10**.
+
+### What the previous check measured, as the brief requires me to say first
+
+`tools/qa/electron-i2-book-locks-walking.js` recorded **0.0000 forward and
+0.0000 strafe** and every number in it is honest. Its one line that matters:
+
+```js
+ch.ledgerBook?.setCarried?.(v)
+```
+
+It measured the book being **CARRIED** — the `[X]` verb, picked up and walked
+around with. A player presses `E` or `K` to **READ**, which is `isOpen()`, a
+different state the movement gate never looked at. The lock was real, the check
+was real, and neither was ever in the situation the owner was in.
+
+### What is in now
+
+- `ledger` is a **bound action** in the central table, default **K**, remappable
+  and visible in Controls. `enterLedger()` had existed since Goal 22 with no key
+  pointing at it — the only way in was to walk to the desk and aim at the cover.
+  `L` and `B`, the mnemonic keys, are cart lights and build mode.
+- `ledgerHasThePlayer()` is one accessor for "the book has the player" —
+  **open OR carried** — so the lock and any future check cannot disagree about
+  which state that is again.
+- **Mouse-look is locked too**, which Goal 24 deliberately did not do. Goal 25
+  overrules it in as many words, so the delta is **dropped in
+  `walkMouseMove` before it reaches `walk.yaw/pitch`** rather than corrected
+  afterwards — the brief is explicit that deltas must not enter the
+  world-camera update, and zeroing after the fact leaves a frame of drift.
+
+| check | |
+|---|---|
+| the action is bound | PASS |
+| hotkey opened the book | PASS |
+| hotkey closed it again | PASS |
+| forward locked while reading | PASS (0.0000) |
+| strafe locked while reading | PASS (0.0000) |
+| all four keys locked | PASS (0.0000) |
+| **open counts as holding it** | PASS — the found-false state is now the gate |
+| walking works again after closing | PASS |
+| **look is locked while reading** | PASS |
+| no page errors | PASS |
+
+**Probe lie #10, mine, and it nearly read as a stranding bug.** With look locked,
+the driver can no longer turn during the locked legs, so it finishes facing
+whatever it faced going in. It reported `walkingWorksAgainAfterClosing: false`
+with forward travelling **0** — which reads as *a lock that never lifts*, the
+worst outcome there is. It was a wall: `hasThePlayer` was already `false`, and
+back travelled **2.69** and left **3.13**. A control that depends on which way
+the player happens to be pointing is testing the room, not the ledger.
+
