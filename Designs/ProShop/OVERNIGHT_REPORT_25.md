@@ -837,6 +837,24 @@ the pair can stack, and Escape then has to unwind two layers that should never
 have coexisted. That is the concrete thing a Phase 7 router should fix first, and
 it is cheaper than the router: make the guard symmetric.
 
+### Fixed: the guard is symmetric now
+
+`enterLaptop()` refused while the front desk was open but **not** while the
+ledger was. One condition — `|| app.ledgerOpen` — and the modes can no longer
+stack. Re-measured:
+
+```
+exclusiveModesSeenTogether: []      everyStateRecovered: true
+statesThatDidNotRecover: []         laptop row: move 2.252, look 0.462
+```
+
+All three states tested now recover. Suite 3606/3606.
+
+**The router itself is NOT written**, and on this evidence it may not be needed
+for these states — Escape already unwinds correctly and hands input back. The
+states still unmeasured are the register mid-transaction, cash entry, card
+presentation, placement mode and the menu dialogs.
+
 **Probe lie #11, mine.** The first verdict scored the walking row as *"did not
 recover"* because the player could not move — while a **pause menu** was on
 screen, which is exactly what the brief says Escape should do with nothing open.

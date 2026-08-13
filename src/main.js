@@ -512,7 +512,15 @@ function setCameraLens(fov, near) {
 
 function enterLaptop(startPage = null) {
   putDownCarried(); // D1: a station takes the camera; nothing is left floating
-  if (!walkActive() || app.laptopOpen || app.frontDeskOpen) return;
+  // 7 (Goal 25) — THE EXCLUSION HAS TO GO BOTH WAYS.
+  //
+  // `enterLedger()` already refuses while the laptop is open. Nothing refused
+  // the LAPTOP while the ledger owned input, so the guard was one-way and the
+  // two could stack: the Phase 7 matrix caught `ledgerOpen: true` and
+  // `laptopOpen: true` in the same sample. Escape then has to unwind two layers
+  // that should never have coexisted, and the book keeps suppressing movement
+  // underneath a screen that has its own idea of the camera.
+  if (!walkActive() || app.laptopOpen || app.frontDeskOpen || app.ledgerOpen) return;
   const ch = app.scene3d.clubhouse && app.scene3d.clubhouse();
   if (!ch) return;
   cancelToolKey();
