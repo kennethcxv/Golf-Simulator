@@ -861,3 +861,37 @@ screen, which is exactly what the brief says Escape should do with nothing open.
 It would have reported the pause menu as an Escape bug. Recovery now means
 walking again **or** a menu the player can resume from.
 
+---
+
+# PHASE 6 — PERFORMANCE
+
+## 6.1 Merge static meshes per material — **BASELINE MEASURED, WORK BLOCKED**
+
+The brief says measure again first, so:
+
+| | brief's last-known | **measured now** |
+|---|---|---|
+| static / mergeable meshes | 838 | **863** |
+| materials | 290 | **317** |
+| drawable objects | — | **890** |
+
+It has grown, not shrunk.
+
+### Why I did not start the merge
+
+The brief's own acceptance for 6.1 is *"No visual or interaction regression in
+golden/player checks."* **The golden gate is currently unusable** — its
+references are a photograph of the constant-RNG world (bisected to `458de6b`,
+documented above), so it cannot tell a merge regression from the gap that is
+already there.
+
+Merging 863 meshes across 317 materials is the largest visual refactor in this
+brief, and doing it **without a working pixel gate** means the one check that
+would catch a merge putting a wall through a window is blind. That is the wrong
+order, and it is how a 23% whole-scene change shipped unnoticed in the first
+place.
+
+**6.1 is blocked on the golden decision**, which is yours. Once the baseline is
+legitimate, the merge has a safety net and is worth doing — 863 meshes on 317
+materials is a lot of headroom.
+
