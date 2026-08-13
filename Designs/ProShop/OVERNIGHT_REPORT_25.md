@@ -897,7 +897,37 @@ materials is a lot of headroom.
 
 ---
 
-## 2.3 Through-body handoff — **THE INSTRUMENT MIXES TWO COORDINATE FRAMES**
+## 2.3 Through-body handoff — **I WAS WRONG: THE INSTRUMENT IS SOUND. 2.3 IS DONE.**
+
+> **CORRECTION.** The section below argued the c3 driver mixes world and
+> interior-local frames. I ran the check instead of inferring it, and it is
+> false. Customer meshes are parented `ClubhouseCustomers -> Scene`, **not**
+> under `interior`, and that group sits at the origin, so `mesh.position` is
+> already world:
+>
+> | | |
+> |---|---|
+> | `c.mesh.parent === ch.interior` | **false** |
+> | any ancestor is `interior` | **false** |
+> | parent chain | `ClubhouseCustomers -> Scene` |
+> | `interior.position` | x -360, z 4 |
+> | customer **local** | x -356.96, y -0.419, z 6.30 |
+> | customer **world** | x -356.96, y -0.419, z 6.30 |
+> | **gap between frames** | **0.000 yd** |
+>
+> Both sides of the corridor test are in the same space. The geometry is valid,
+> the height gate compares like with like, and the earlier verdict **stands** --
+> it is not withdrawn. The `itemY 1.45` case was correctly filtered as passing
+> above the head of a body based near -0.85, which is what that gate is for.
+>
+> Driver: `tools/qa/electron-p2-frame-check.js`. **2.3 is DONE.**
+>
+> What I should have done the first time is what closed it: ask the running game
+> for object identity rather than reason about it from grep. Reading source told
+> me two different accessors were used; only the game could tell me whether that
+> mattered, and it did not.
+
+### The original (wrong) argument, kept for the record
 
 I flagged this verdict untrustworthy without knowing why. Now I know why, from
 the driver's own source (`tools/qa/electron-c3-nothing-through-a-body.js`):
