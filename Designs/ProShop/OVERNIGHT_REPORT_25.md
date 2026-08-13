@@ -572,3 +572,49 @@ now measured:
 Neither is a code defect. Both are legibility, and both are exactly what a
 stranger test is for.
 
+---
+
+# PHASE 2 — NPCs
+
+## 2.2 A blocked shopper walks around the queue — **DOES NOT REPRODUCE**
+
+Staged three customers with goods at the counter and left them unserved so a real
+line forms, then spawned a shopper whose fixture is behind that line. Sampled
+every 100 ms for 90 seconds: position, distance to target, body-to-body
+separation for every pair, and the walker's own stuck-escalation rung.
+
+| measurement | result |
+|---|---|
+| queue actually formed | **3 queued at the counter** |
+| longest sustained body contact | **0.0 s** |
+| longest no-progress while en route | **3.0 s** |
+| reached its target | **yes** |
+| picked goods up | **yes** |
+| left the shop | **yes** |
+| deepest stuck rung used | 4 (retarget) |
+
+**The reported failure — "runs into the queue and never arrives" — did not happen
+in two runs.** The shopper never came within a shoulder width of another body,
+reached its fixture, took an item and completed its visit.
+
+### So recast should NOT be wired in on this evidence
+
+`src/` has zero importers of the vendored bundle, which Phase 0.3 confirmed is
+FOUND_FALSE shape 2. But the live customer loop already carries a grid nav and a
+five-rung stuck ladder — sidestep, sidestep, nudge, retarget, skip — with
+progress-based verdicts, a banned waypoint, and a give-up notification. Replacing
+that with a navmesh is a large change to working navigation, and the measurement
+says the problem it was meant to solve is not currently present.
+
+Taking the brief's own precedent from the crosshair rule — *"If none exists, say
+plainly that the rule should be removed rather than proven"* — I am saying it
+plainly: **on this evidence recast should stay dormant or be removed, not
+wired in.** If you can reproduce the grinding in your own save, that scenario
+becomes the next item and this conclusion should be revisited with it.
+
+**Probe lie #9, mine.** The first version of this measurement reported **37.3
+seconds of no progress**, which reads as a navigation fault. It was a shopper
+standing at a fixture *browsing* — distance to target near zero and no longer
+improving. Dwell is not a stall. Measuring no-progress only while genuinely en
+route (more than two yards out) turns 37.3 s into 3.0 s.
+
