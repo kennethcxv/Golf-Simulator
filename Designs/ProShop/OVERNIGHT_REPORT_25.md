@@ -1004,3 +1004,41 @@ the false DONE costs a session to discover.
 unattributed third-party audio in a repository headed for a Steam page. It is
 start-to-finish work or it is not started, and I am leaving it not started.
 
+---
+
+# PHASE 8 — PARTLY DONE, AND I HAD MISFILED IT
+
+I listed Phase 8 as "not started". That was wrong on two counts.
+
+## 8.2 Verifier 3 — THE STRANGER — is BUILT AND PASSING
+
+The brief's Verifier 3 asks one question: can a stranger complete one full
+customer *"with real input and no developer shortcuts"*. That is exactly
+`tools/qa/electron-p1-stranger-one-customer.js`, written and passed in Phase 1 —
+real menu clicks, real pointer lock, real WASD and E, **no `sendToCounter`**,
+**ok: true, 9/9**, ending `19 tx=0/null bank=1`.
+
+It is the same artefact under a different heading. Verifier 3 is **DONE**; I had
+it filed under Phase 1 and then reported Phase 8 as untouched.
+
+## 8.1 Regression sweep — the static half, confirmed
+
+| claim | result |
+|---|---|
+| CSP still refuses broad `unsafe-eval` | **CONFIRMED** — `script-src 'self' 'wasm-unsafe-eval' 'sha256-…'`. The only eval token is the narrow wasm one; there is no broad `'unsafe-eval'` anywhere in the policy. |
+| broom head still square | **CONFIRMED** — `squareRoll` is *solved* each frame (`Math.atan2(_perpB.dot(_perpA), _bristleNow.dot(_perpA))`, broomViewmodel.js:1266), not a baked constant, so it cannot silently drift to a stale number. |
+| recast initializing once | **ZERO init sites in `src/`** — recast never initializes in production. |
+
+That last row is not a failure, it is the brief meeting my 2.1 finding: "init
+once" presupposes 2.1 wired recast in, and I recommended against that because the
+failure it would fix does not reproduce. **Zero is the correct count for the
+build as it stands** — and if the owner overturns 2.1, this row becomes the check
+that the wiring happened exactly once.
+
+## What is left in Phase 8
+
+8.1's runtime half (bag empty, tee-time wording, status text, green fee once,
+goods retained on refusal, laptop clear-counter voiding) — several already
+evidenced under Phase 1 and Goal 24, but not re-swept together. Verifiers 1 and 2
+are clip work and remain undone.
+
