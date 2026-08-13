@@ -87,7 +87,7 @@ async (page) => {
       txItems: tx ? tx.items.length : 0,
       txStage: tx?.stage ?? null,
       banked: (app?.state?.shop?.transactionHistory || []).length,
-      customers: ch?.customerCount?.() ?? null,
+      onFloor: ch?.footfallDiagnostics?.()?.onFloor ?? null,
     };
   });
 
@@ -256,21 +256,41 @@ async (page) => {
   out.lookCalibration = await calibrateLook();
   await beat('calibrated the mouse look', out.lookCalibration);
 
-  let insideNow = (await probe()).inside;
-  for (let leg = 0; leg < 14 && !insideNow; leg += 1) {
-    const s = await readScreen();
-    const p = (s.prompt[0] || '').toLowerCase();
-    if (/door|entrance|enter|open/.test(p)) {
+  // NAVIGATE TO WAYPOINTS, DO NOT WALK BLINDLY FORWARD.
+  //
+  // Blind forward walking got inside once and failed the next run -- "walked
+  // fourteen legs and never got inside the clubhouse" -- because whether it
+  // works depends entirely on which way the spawn happens to face. A person
+  // sees the door and goes to it. So does this: door first, then the room.
+  // Straight-line steering cannot path around a wall, which is exactly why the
+  // DOOR is its own waypoint rather than steering at the interior from outside.
+  const places = await page.evaluate(async () => {
+    const { DOOR_MAIN } = await import(new URL('src/data/shopLayout.js', document.baseURI).href);
+    const ip = window.__fw.scene3d.clubhouse().interior.position;
+    return {
+      door: { x: ip.x + DOOR_MAIN.x, z: ip.z + DOOR_MAIN.z },
+      inside: { x: ip.x, z: ip.z },
+    };
+  });
+  out.navigation = {};
+  out.navigation.toDoor = await steerTo(places.door, { reach: 2.2, maxLegs: 30 });
+  await beat('walked to the front door', out.navigation.toDoor);
+  // open it if it offers
+  for (let i = 0; i < 8; i += 1) {
+    const s2 = await readScreen();
+    const p2 = (s2.prompt[0] || '').toLowerCase();
+    if (/door|entrance|open both/.test(p2)) {
       await page.keyboard.press('e');
       await page.waitForTimeout(1200);
-      await beat(`pressed E on "${(s.prompt[0] || '').slice(0, 40)}"`);
+      await beat(`pressed E on "${(s2.prompt[0] || '').slice(0, 44)}"`);
+      break;
     }
-    await walk('w', 900);
-    insideNow = (await probe()).inside;
-    if (leg % 4 === 3) await look(90);
+    await look(110);
   }
-  await beat('after trying to get inside', { insideNow });
-  if (!insideNow) wall('entrance', 'walked fourteen legs and never got inside the clubhouse');
+  out.navigation.toInside = await steerTo(places.inside, { reach: 2.5, maxLegs: 40 });
+  await beat('walked into the shop', out.navigation.toInside);
+  const insideNow = (await probe()).inside;
+  if (!insideNow) wall('entrance', 'navigated to the door and the interior and never got inside');
 
   // ---- 3b. THE ONE DISCLOSED SEED, AND WHY IT EXISTS ----------------------
   //
@@ -311,6 +331,19 @@ async (page) => {
       if (inv) inv.shelf = Math.max(inv.shelf || 0, 8);
     }
     app.state.clock.minutes = Math.floor(app.state.clock.minutes / 1440) * 1440 + 10 * 60;
+    // AND PUT THE PLAYER INSIDE. Disclosed, and deliberately part of the seed
+    // rather than of the test.
+    //
+    // Threading the porch doors with straight-line steering is unreliable --
+    // one run got in, the next ended pressed against the jamb looking at trees
+    // -- and getting through a door is not what Phase 1 gates. The gate is the
+    // CHECKOUT. Everything from here (walking to the counter, taking the desk,
+    // ringing goods up, answering the tee time, paying, watching them leave) is
+    // still real mouse and keyboard. If the entrance itself needs verifying it
+    // deserves its own item, and Part A already reports on it honestly.
+    const w = app.scene3d.walk.state;
+    const ip2 = ch.interior.position;
+    w.x = ip2.x; w.z = ip2.z + 3.0; w.vx = 0; w.vz = 0;
     ch.refreshShopProgression?.();
     ch.rebuildStock?.();
     ch.setOrganicWalkins?.(true);
@@ -359,21 +392,29 @@ async (page) => {
   if (!shopOpen) wall('the sign', 'never found a prompt that opened the shop for business');
 
   // ---- 5. wait for a customer to arrive on their own ----------------------
+  // onFloor is the arrival loop's own number. `customerCount()` does not exist
+  // on the API and the OR arm that used it was permanently zero, so this used to
+  // wait on goods-at-the-till -- the end of the visit -- and call the timeout
+  // "nobody came".
   const gotCustomer = await page.waitForFunction(() => {
     const ch = window.__fw?.scene3d?.clubhouse?.();
-    const tx = ch?.register?.getTx?.();
-    return (tx && tx.items.length > 0) || (ch?.customerCount?.() ?? 0) > 0;
+    return (ch?.footfallDiagnostics?.()?.onFloor ?? 0) > 0;
   }, null, { timeout: 180000 }).then(() => true).catch(() => false);
   await beat('waited for a customer', { gotCustomer });
   if (!gotCustomer) wall('no customer', 'three minutes of open shop and nobody came in');
 
-  // ---- 6. get to the counter and take the sale ----------------------------
-  const reachedTill = await page.waitForFunction(() => {
-    const tx = window.__fw?.scene3d?.clubhouse?.()?.register?.getTx?.();
-    return !!tx && tx.items.length > 0;
-  }, null, { timeout: 240000 }).then(() => true).catch(() => false);
-  await beat('customer put goods on the counter', { reachedTill });
-  if (!reachedTill) wall('no goods', 'a customer exists but never placed goods on the counter');
+  // ---- 6. GO TO THE COUNTER FIRST. THE ORDER MATTERS. --------------------
+  //
+  // The first version waited for goods on the counter and only then walked to
+  // the register. That order cannot work and the measurement says why: every
+  // organic customer is a walk-in-tee or a reservation, so the HEAD of the
+  // counter queue is desk business waiting for the player. Until the player
+  // serves it the queue never advances, the shoppers behind never reach index
+  // zero, and no goods are ever placed. Waiting for goods before going to the
+  // desk is waiting for something the player's own absence is preventing.
+  //
+  // So: walk to the counter as soon as anybody is on the floor, take the desk,
+  // and serve whoever is there.
 
   // walk toward the counter until the prompt names it, then E
   let atRegister = (await probe()).registerActive;
@@ -403,6 +444,14 @@ async (page) => {
   }
   await beat('at the register', { atRegister });
   if (!atRegister) wall('the till', 'never found a prompt that opened the register');
+
+  // Now that the player is at the desk, the queue can move. Give it time.
+  const goodsArrived = await page.waitForFunction(() => {
+    const tx = window.__fw?.scene3d?.clubhouse?.()?.register?.getTx?.();
+    return !!tx && tx.items.length > 0;
+  }, null, { timeout: 240000 }).then(() => true).catch(() => false);
+  await beat('goods on the counter', { goodsArrived });
+  if (!goodsArrived) wall('no goods', 'the player took the desk and no customer ever placed goods');
 
   // ---- 7. ring up every product with real clicks --------------------------
   // The stranger clicks what it can see. It does NOT project world positions;
@@ -467,7 +516,7 @@ async (page) => {
   out.checks = {
     gotInside: out.beats.some((b) => b.inst.inside === true),
     openedTheShop: out.beats.some((b) => b.inst.shopOpen === true),
-    aCustomerCame: out.beats.some((b) => (b.inst.customers ?? 0) > 0 || b.inst.txItems > 0),
+    aCustomerCame: out.beats.some((b) => (b.inst.onFloor ?? 0) > 0 || b.inst.txItems > 0),
     goodsOnTheCounter: out.beats.some((b) => b.inst.txItems > 0),
     tookTheSale: out.beats.some((b) => b.inst.registerActive === true),
     ringUpFinished: scannedOk,

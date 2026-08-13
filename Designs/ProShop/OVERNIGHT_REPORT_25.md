@@ -246,3 +246,32 @@ the accessor that relays them, retargets the customer fixture stops and rebuilds
 stock so the **scene** agrees. Only the pair is honest — state-restored and
 scene-empty is the same class of fault as everything else in `FOUND_FALSE`.
 
+## The Phase 1 review, part B: the checkout gate
+
+Part A established that a fresh game gates customers behind nineteen restoration
+tasks. Part B therefore seeds the **world** and tests the **checkout**. What is
+seeded, in full, and nothing else:
+
+- `shop.open`, `shop.signOpen`, `campaign.businessOpen`
+- `disableCampaign()` **plus** `refreshShopProgression()` — state and scene
+- three SKUs stocked to 8 on the shelf, organic walk-ins on, clock at 10:00
+- the player placed inside the shop
+
+**What is NOT seeded, and never is:** the customer, their cart, their arrival,
+the queue, the checkout phase, or any part of the transaction. Walking to the
+counter, taking the desk, ringing goods up, answering the tee time, paying and
+watching them leave are all real mouse and keyboard.
+
+Player entry was folded into the seed after two runs disagreed about it — one
+threaded the porch doors, the next ended pressed against the jamb looking at
+trees. Straight-line steering cannot reliably path through a doorway, and
+getting through a door is not what Phase 1 gates. Part A reports on the entrance
+honestly and it deserves its own item if it needs one.
+
+**The stranger gained navigation and mouse calibration**, because it could shop,
+queue and read prompts but could not cross a room. It looks at a waypoint and
+walks to it with mouse and W. The pixels-per-radian factor is **calibrated
+against the running build** — measured at −952 px/rad on this profile — because
+mouse sensitivity is a saved player preference and a hard-coded constant would
+mis-steer on every profile but this one.
+
