@@ -14,6 +14,8 @@
 // ACTION, not the key — rebinding the tool belt or the dirt sense moves the
 // key and keeps the tap/hold behaviour.
 
+import { t } from './i18n.js';
+
 export const BINDABLE_ACTIONS = Object.freeze([
   Object.freeze({ id: 'moveForward', label: 'Move forward', group: 'Movement', defaultKey: 'w' }),
   Object.freeze({ id: 'moveBack', label: 'Move back', group: 'Movement', defaultKey: 's' }),
@@ -48,6 +50,11 @@ export const BINDABLE_ACTIONS = Object.freeze([
   Object.freeze({ id: 'groundsPanel', label: 'Grounds panel', group: 'Interface', defaultKey: 'g' }),
   Object.freeze({ id: 'clubPanel', label: 'Club panel', group: 'Interface', defaultKey: 'c' }),
   Object.freeze({ id: 'empirePanel', label: 'Empire panel', group: 'Interface', defaultKey: 'm' }),
+  // G1 (Goal 24): the ledger, asked for in Goal 22 and Goal 23 and never bound.
+  // `enterLedger()` has existed the whole time with no key pointing at it — the
+  // only way in was to walk to the desk and aim at the cover. K because the two
+  // mnemonic keys are gone: L is the cart lights, B is build mode.
+  Object.freeze({ id: 'ledger', label: t('controls.ledgerBook'), group: 'Interface', defaultKey: 'k' }),
   // A3: the three speed rows are gone with the ladder — Space is the one
   // time control (pause/resume) and it is deliberately not rebindable.
 ]);

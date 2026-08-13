@@ -12622,6 +12622,20 @@ export function makeClubhouse(ctx) {
     // to refuse WASD -- "while I am holding the book, WASD must not move me.
     // I am reading."
     ledgerCarried: () => !!(ledgerBook && ledgerBook.isCarried && ledgerBook.isCarried()),
+    // G2 (Goal 24) — CARRYING IS NOT THE ONLY WAY TO BE HOLDING IT.
+    //
+    // The movement lock was gated on `ledgerCarried()` alone, and so was the
+    // check that certified it: the Goal 23 driver called
+    // `ledgerBook.setCarried(true)` and measured 0.0000 forward and 0.0000
+    // strafe. Both numbers were honest. They were about the wrong state. A
+    // player who presses E to READ the book is OPEN, not carried, and walked
+    // away from the desk with the pages in front of them.
+    //
+    // One accessor for "the book has the player", so the lock and any future
+    // check cannot disagree about which state that is again.
+    ledgerHasThePlayer: () => !!(ledgerBook
+      && ((ledgerBook.isCarried && ledgerBook.isCarried())
+        || (ledgerBook.isOpen && ledgerBook.isOpen()))),
     carryCollisionRadius: () => {
       const box = carriedBox(state);
       if (!box || box.flat) return 0;

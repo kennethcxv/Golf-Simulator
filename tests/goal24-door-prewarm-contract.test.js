@@ -165,6 +165,36 @@ test('settled loader failures and fallback diagnostics resolve as safe degraded 
   assertDeepFrozen(result);
 });
 
+test('healthy production integration is not degraded by its intentionally template-only adapter', async () => {
+  const healthySheet06 = {
+    lifecycle: 'active',
+    activationStatus: 'active',
+    actualSharedGameIntegrated: true,
+    activationError: null,
+    adapter: {
+      lifecycle: 'active',
+      actualSharedGameIntegrated: false,
+    },
+  };
+  const result = await createFirstDoorVisibilityReady({
+    ...resolvedSourceInputs(),
+    sheet06: Promise.resolve(healthySheet06),
+    diagnostics: { sheet06: () => healthySheet06 },
+  });
+
+  assert.equal(result.status, 'ready');
+  assert.equal(result.safeToPrewarm, true);
+  assert.deepEqual(result.degradedSources, []);
+
+  const genuinelyDetached = await createFirstDoorVisibilityReady({
+    ...resolvedSourceInputs(),
+    sheet06: Promise.resolve({ ...healthySheet06, actualSharedGameIntegrated: false }),
+  });
+  assert.equal(genuinelyDetached.status, 'degraded',
+    'the top-level production integration flag remains a hard degradation signal');
+  assert.deepEqual(genuinelyDetached.degradedSources, ['sheet06']);
+});
+
 test('deadline resolves once with pending names, normalized errors, and immutable snapshots', async () => {
   const sources = Array.from({ length: FIRST_DOOR_SOURCE_NAMES.length }, deferred);
   const deadline = manualDeadline();

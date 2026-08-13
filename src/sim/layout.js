@@ -1014,6 +1014,20 @@ export function restoreFixture(state, id) {
   return result.ok ? fixtureById(state, id) : null;
 }
 
+// Campaign construction installs the known-safe furnished plan; it is not a
+// player-authored move. Keep its grid-normalized placement in the v2 object
+// record, but do not manufacture a legacy `layout.moved` override merely
+// because an authored coordinate (for example z=-1.55) lands on the physical
+// placement grid. A real player override already has a sparse moved record and
+// is deliberately retained so normal load validation continues to audit it.
+export function restoreAuthoredFixture(state, id) {
+  const layout = ensureLayout(state);
+  const hadPlayerOverride = Object.prototype.hasOwnProperty.call(layout.moved, id);
+  const result = restoreObject(state, id, null, { skipValidation: true });
+  if (result.ok && !hadPlayerOverride) delete ensureLayout(state).moved[id];
+  return result.ok ? fixtureById(state, id) : null;
+}
+
 // Construction can reveal several authored fixtures at once. Validate the
 // complete future floor as one candidate before activation, including whatever
 // the player moved while the contractors were working. This is the same rule

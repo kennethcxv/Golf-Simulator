@@ -3255,6 +3255,16 @@ window.addEventListener('keydown', (e) => {
         e.preventDefault();
         phoneUi?.toggle();
         return;
+      // G1 (Goal 24): the ledger opens from anywhere in the clubhouse. Asked for
+      // in Goal 22 and in Goal 23; `enterLedger()` existed both times and no key
+      // pointed at it, so the only way in was to walk to the desk and aim at the
+      // cover. Same key closes it, like the phone.
+      case 'ledger':
+        if (e.repeat) return;
+        e.preventDefault();
+        if (app.ledgerOpen) exitLedger();
+        else enterLedger();
+        return;
       case 'mowerBlades': {
         const bladeResult = app.scene3d.walk.toggleBlades?.();
         if (bladeResult?.handled) {

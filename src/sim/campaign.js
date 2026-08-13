@@ -31,7 +31,7 @@ import {
 import {
   ensureLayout,
   fixtureById,
-  restoreFixture,
+  restoreAuthoredFixture,
   routesIntact,
 } from './layout.js';
 import {
@@ -339,7 +339,7 @@ function migrateFurnishedStart(state, campaign) {
   const facilities = ensureCampaignFacilities(state, { installed: true });
   for (const id of Object.keys(CAMPAIGN_FACILITIES)) facilities[id] = true;
   ensureLayout(state);
-  for (const id of FURNISHED_START_FIXTURES) restoreFixture(state, id);
+  for (const id of FURNISHED_START_FIXTURES) restoreAuthoredFixture(state, id);
   ensureCampaignRepairs(state, { restored: true });
   const architecture = ensureClubhouseArchitecture(state);
   for (const id of ARCHITECTURE_COMPONENTS) architecture.components[id].restored = true;
@@ -365,7 +365,7 @@ function seedFreshCampaignWorld(state) {
     finite(state.shop.inventory[CAMPAIGN_SKUS.repair].back),
   );
   ensureLayout(state);
-  for (const id of FURNISHED_START_FIXTURES) restoreFixture(state, id);
+  for (const id of FURNISHED_START_FIXTURES) restoreAuthoredFixture(state, id);
 
   ensureDebris(state);
   if (state.shop.reno.debris.length === 0 && !state.shop.reno.debrisSeeded) {
@@ -463,7 +463,7 @@ export function disableCampaign(state) {
   const facilities = ensureCampaignFacilities(state, { installed: true });
   for (const id of Object.keys(facilities)) facilities[id] = true;
   ensureCampaignRepairs(state, { restored: true });
-  for (const id of FURNISHED_START_FIXTURES) restoreFixture(state, id);
+  for (const id of FURNISHED_START_FIXTURES) restoreAuthoredFixture(state, id);
   return campaign;
 }
 
@@ -637,11 +637,11 @@ export function installCampaignFacility(state, id) {
   }
   facilities[id] = true;
   if (id === 'displayShelves') {
-    for (const fixtureId of ['shelf_balls', 'shelf_acc', 'shelf_small']) restoreFixture(state, fixtureId);
+    for (const fixtureId of ['shelf_balls', 'shelf_acc', 'shelf_small']) restoreAuthoredFixture(state, fixtureId);
   } else if (id === 'stockroomShelves') {
-    for (const fixtureId of ['backshelf_n', 'backshelf_e', 'backshelf_e2']) restoreFixture(state, fixtureId);
+    for (const fixtureId of ['backshelf_n', 'backshelf_e', 'backshelf_e2']) restoreAuthoredFixture(state, fixtureId);
   } else if (id === 'frontCounter') {
-    restoreFixture(state, 'backcounter');
+    restoreAuthoredFixture(state, 'backcounter');
   }
   return { ok: true, id, label: spec.label, consumedFrom: consumed.from };
 }
@@ -1310,12 +1310,12 @@ export function recoverAllCampaignItems(state) {
 export function recoverOpeningLayout(state) {
   const facilities = ensureCampaignFacilities(state);
   if (facilities.displayShelves) {
-    for (const id of ['shelf_balls', 'shelf_acc', 'shelf_small']) restoreFixture(state, id);
+    for (const id of ['shelf_balls', 'shelf_acc', 'shelf_small']) restoreAuthoredFixture(state, id);
   }
   if (facilities.stockroomShelves) {
-    for (const id of ['backshelf_n', 'backshelf_e', 'backshelf_e2']) restoreFixture(state, id);
+    for (const id of ['backshelf_n', 'backshelf_e', 'backshelf_e2']) restoreAuthoredFixture(state, id);
   }
-  if (facilities.frontCounter) restoreFixture(state, 'backcounter');
+  if (facilities.frontCounter) restoreAuthoredFixture(state, 'backcounter');
   if (routesIntact(state)) return { ok: true, reset: [] };
   const layout = ensureLayout(state);
   const reset = Object.keys(layout.moved);

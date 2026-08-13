@@ -8585,8 +8585,14 @@ export function makeCourseScene(canvas, state) {
       // Look is deliberately untouched: turning your head over a page you are
       // holding is not walking, and taking the mouse away as well would make it
       // feel broken rather than deliberate.
-      const readingTheBook = !!(clubhouseApi && clubhouseApi.ledgerCarried
-        && clubhouseApi.ledgerCarried());
+      // G2 (Goal 24): OPEN counts, not just CARRIED. This read `ledgerCarried()`
+      // alone, so pressing E to read the book left every movement key live and
+      // the player walked off with the pages up. The Goal 23 driver that
+      // certified this measured 0.0000 forward and 0.0000 strafe honestly — of
+      // the carried state, which is not the state a reader is in.
+      const readingTheBook = !!(clubhouseApi && clubhouseApi.ledgerHasThePlayer
+        ? clubhouseApi.ledgerHasThePlayer()
+        : (clubhouseApi && clubhouseApi.ledgerCarried && clubhouseApi.ledgerCarried()));
       if (!readingTheBook) {
         if (heldAction('moveForward')) mz -= 1;
         if (heldAction('moveBack')) mz += 1;

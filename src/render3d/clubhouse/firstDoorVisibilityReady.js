@@ -121,10 +121,12 @@ function deepFreeze(value, seen = new WeakSet()) {
   return Object.freeze(value);
 }
 
-function indicatesDegradation(value, seen = new WeakSet()) {
+function indicatesDegradation(value, seen = new WeakSet(), depth = 0) {
   if (value == null || typeof value !== 'object' || seen.has(value)) return false;
   seen.add(value);
-  if (Array.isArray(value)) return value.some((entry) => indicatesDegradation(entry, seen));
+  if (Array.isArray(value)) {
+    return value.some((entry) => indicatesDegradation(entry, seen, depth + 1));
+  }
 
   for (const [key, entry] of Object.entries(value)) {
     const normalizedKey = key.toLowerCase();
@@ -139,8 +141,15 @@ function indicatesDegradation(value, seen = new WeakSet()) {
       && Number(entry) > 0) return true;
     if (normalizedKey === 'failures' && Array.isArray(entry) && entry.length > 0) return true;
     if ((normalizedKey === 'error' || normalizedKey.endsWith('error')) && entry != null) return true;
-    if (normalizedKey === 'actualsharedgameintegrated' && entry === false) return true;
-    if (indicatesDegradation(entry, seen)) return true;
+    // This is a source-level contract. Sheet-6 deliberately embeds an adapter
+    // diagnostic with `actualSharedGameIntegrated:false`: the adapter is only a
+    // template/cache layer and the enclosing production runtime is the object
+    // that owns live integration. Recursing this heuristic made a healthy,
+    // active top-level runtime report itself as degraded on every scene start.
+    if (depth === 0 && normalizedKey === 'actualsharedgameintegrated' && entry === false) {
+      return true;
+    }
+    if (indicatesDegradation(entry, seen, depth + 1)) return true;
   }
   return false;
 }

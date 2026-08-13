@@ -440,7 +440,7 @@ export function buildToolViewmodels() {
                 // instead of machined. Four segments instead of three, so the
                 // drape can curve rather than kink. Still one draw call per
                 // segment index, because they are instanced: 4 calls total.
-                const rig = createVerletMopStrands({
+                let rig = createVerletMopStrands({
                   THREE,
                   material: yarn,
                   // B (Goal 22) — SIXTH ATTEMPT, AND THE COUNT WAS THE FAULT.
@@ -476,6 +476,25 @@ export function buildToolViewmodels() {
                 entry.strandRig = rig;
                 entry.strandMaterial = yarn;
                 group.userData.strandRig = rig;
+                // D (Goal 23) — REBUILD THE YARN WITH DIFFERENT NUMBERS.
+                //
+                // The band count and thickness are baked at load, so choosing
+                // between 22 thick bands and 30 thicker ones meant a rebuild
+                // and a fresh boot per candidate. That is how five rounds of
+                // the broom head were spent arguing from numbers instead of
+                // photographs. One run, one contact sheet, and the owner picks.
+                entry.rebuildYarn = (overrides = {}) => {
+                  const next = createVerletMopStrands({
+                    THREE, material: yarn, ...SHIPPED_MOP_YARN, ...overrides,
+                  });
+                  rig.root.removeFromParent();
+                  rig.dispose?.();
+                  collar.add(next.root);
+                  entry.strandRig = next;
+                  group.userData.strandRig = next;
+                  rig = next;
+                  return { count: next.strandCount, drawCalls: next.drawCalls };
+                };
               }
             }
             if (def.id === 'broom' && !entry.strandRig) {
@@ -746,6 +765,12 @@ export function buildToolViewmodels() {
           entry.strandRig.update(dt, floorWorldY);
         }
       }
+    },
+    // D (Goal 23): rebuild a tool's yarn with different parameters, for the
+    // sweep that chooses the look. Returns null for a tool that has none.
+    rebuildYarn: (id, overrides) => {
+      const entry = loaded.get(id);
+      return entry && entry.rebuildYarn ? entry.rebuildYarn(overrides) : null;
     },
     diagnostics: () => ({
       authoredCount: loaded.size,
