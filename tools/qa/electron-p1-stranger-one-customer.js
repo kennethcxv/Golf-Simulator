@@ -87,6 +87,13 @@ async (page) => {
       txItems: tx ? tx.items.length : 0,
       txStage: tx?.stage ?? null,
       banked: (app?.state?.shop?.transactionHistory || []).length,
+      // THE THREE VALUES THAT GATE BANKING. A ticket sitting at stage 'done'
+      // banks only when deliveryPhase is 'released' AND the flow is
+      // CustomerLeaving; without these three side by side, "the sale will not
+      // complete" is a symptom with no address.
+      flow: (() => { try { return ch?.register?.getFlow?.()?.state ?? null; } catch { return null; } })(),
+      delivery: (() => { try { return ch?.register?.deliveryPresentation?.()?.phase ?? null; } catch { return null; } })(),
+      banked2: !!ch?.register?.getTx?.()?.banked,
       onFloor: ch?.footfallDiagnostics?.()?.onFloor ?? null,
     };
   });
@@ -503,7 +510,7 @@ async (page) => {
       || fresh.find((i) => /^select-(reservation|walkin):/.test(i))
       || fresh.find((i) => /^tab-check-in$/.test(i))
       || null;
-    if (!pick) break;
+    if (!pick) { await page.waitForTimeout(1200); continue; }
     clickedDeskActions.add(pick);
     out.deskTrail.push(await clickDesk(pick));
     const st = await probe();

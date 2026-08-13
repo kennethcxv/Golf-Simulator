@@ -300,3 +300,33 @@ floor, `tookTheSale` PASS.
 What remains is completing that check-in through the monitor so the queue can
 advance to the shoppers behind it.
 
+### Run 6 — the stranger reproduced the owner's complaint
+
+The gate driver now reliably: boots through the real menu, picks a difficulty
+card, calibrates its own mouse sensitivity, navigates to the porch, **opens the
+doors with E**, walks inside, walks to the counter (15 legs, arrives at 1.83 yd),
+and takes the desk on a real prompt naming a real guest —
+`Tee desk - E serve Ray Blackwood (4 players · 10:00 AM)`. It then clicks real
+drawn hotspots: `tab-check-in`, `select-reservation:1`.
+
+| check | |
+|---|---|
+| got inside | PASS |
+| opened the shop | PASS |
+| a customer came | PASS (5 on the floor) |
+| goods on the counter | PASS |
+| took the sale | PASS |
+| **one ticket banked** | **FAIL** |
+| **customer left** | **FAIL** |
+
+**A transaction reached stage `done` and sat there, unbanked, for a full minute
+across four beats.** That is the owner's sentence — *"I bag every item and the
+sale will not complete"* — reproduced through real input, with no
+`sendToCounter` anywhere near it.
+
+This is the Phase 1.1 item, and it is now addressed rather than described: a
+ticket at `done` banks only when `deliveryPhase === 'released'` **and** the
+checkout flow is `CustomerLeaving`. The driver now records all three side by
+side, because "the sale will not complete" is a symptom with no address until
+those three are visible together.
+
