@@ -372,3 +372,49 @@ running to turn "something in this range" into "this range".
 **Not rebaselined.** The brief forbids making a red row green without diagnosing
 it, and a 23% whole-scene change is precisely what this gate exists to catch.
 
+### BISECTED: the regression is in Codex's fifteen-commit range
+
+Same machine, same `node_modules`, same pinned seed, same goldens, one commit
+apart:
+
+| tree | shop-floor | verdict |
+|---|---|---|
+| `b914151` — last commit before the continuation | **0.0000%** | **12 / 12 ok** |
+| `5883666` — HEAD, after the fifteen | **23.4525%** | **12 / 12 FAIL** |
+
+So this is not drift, not the profile, not the machine, and not shape 9. **The
+range `9ea1596..5883666` introduced a whole-scene visual regression**, and it
+shipped because the gate was never run — Codex's own report states plainly:
+*"`npm run gate`, `npm run golden`, and `npm run golden:control` were not run."*
+
+**Leading mechanism, not yet proven to the line:** `73db290` added a **global
+placed-static batch** to `propPlacement.js` (+189 lines — `placedStaticBatch`,
+`batchedDrawCalls`, "geometry already copied into the global static batch") and
+its own message says it "removes five submissions". Props are exactly what stands
+in front of the `shop-floor` lens, and this repository already carries a note
+that batched props draw via `layers.mask = 0` rather than `visible = false`, so
+any scene-graph probe measures geometry that never draws. A batch that drops or
+relocates five submissions is a whole-scene change that no test in the suite
+looks at — which is precisely why the pixel gate exists.
+
+**Not rebaselined, and it must not be** until someone decides whether those five
+submissions were meant to disappear.
+
+## PHASE 0 GATE — CLOSED
+
+| requirement | state |
+|---|---|
+| tree committed and pushed | ✅ `4b4f361` + six items on `goal25/phase0-inherited-tree` |
+| suite state known and every red named | ✅ 3606 shared / 3555 clean / 3592 after rebuild, 8 reds named |
+| golden gate green or redness diagnosed | ✅ **diagnosed and bisected to a commit range** |
+| six claims have verdicts | ✅ below |
+
+| claim | verdict |
+|---|---|
+| B4b — refused ticket banks goods only | **CLOSED.** 36.38 with `serviceTotal: 0` |
+| the bag is faked | **VERIFIED BY PIXELS.** empty-vs-full **0.000%**, rebuilt-`bagFill` control seen at 4.07% |
+| return to card | wired, two real call sites, not a zero-call-site shape |
+| recast in production | **QA-ONLY — zero importers in `src/`.** FOUND_FALSE shape 2, as the brief predicted |
+| C3 corridor gate | **not bypassed.** One call site; both early returns deny rather than permit. Also proven *not* to be the cause of the empty till |
+| the door stall | not re-run — superseded by the golden regression in the same commit range, which is the more urgent fact about that work |
+
