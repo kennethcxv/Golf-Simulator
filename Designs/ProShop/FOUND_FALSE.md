@@ -249,3 +249,66 @@ room, which a fresh save does not have.
 
 > BEFORE PHOTOGRAPHING A HELD TOOL, PUT THE PLAYER WHERE THE TOOL BELONGS.
 > `equipped: true` and `vmActive: true` do not mean it is on screen.
+
+---
+
+## SHAPE 10 — THE MISSING ACCESSOR RETURNS THE ANSWER YOU WERE TESTING FOR (Goal 25)
+
+Twice in one probe, in the same hour, and both would have produced a written
+finding about the game.
+
+* The probe asked whether the shop's customer capacity was zero — the exact
+  hypothesis under test — by calling `shop.shopCustomerCapacity(state)`. That
+  function lives in `shopProgression.js`, not `shop.js`. The import returned
+  `undefined`, the probe reported `capacity: null`, and **null is
+  indistinguishable from the zero it was built to detect.**
+* The same probe counted people with `ch.customerCount()`, which does not exist
+  on the clubhouse API at all. It returned `undefined`, the `?? 0` beside it
+  turned that into a confident **0**, and the driver reported an empty shop that
+  had four people standing in it.
+
+> ASK OF ANY ACCESSOR IN A PROBE: does this function exist on this object? An
+> optional-chained call to a name that was never there returns `undefined`, and
+> `undefined ?? 0` is a measurement of nothing wearing the costume of a zero.
+
+The tell is that the null and the finding agree. When a probe's failure mode
+produces the same value as the defect it hunts, it cannot distinguish them, and
+a passing OR failing run means the same thing. `footfallDiagnostics().onFloor` —
+the number the arrival loop itself owns — is what it should have read.
+
+## SHAPE 11 — MEASURING THE END OF A PROCESS TO DETECT ITS BEGINNING (Goal 25)
+
+"Did a customer arrive?" was implemented as "are there goods on the counter?"
+
+Goods on the counter is the LAST beat of a twenty-game-minute visit: walk in,
+cross the floor, browse a fixture, choose, queue, reach the head, place. At the
+measured clock rate — 1.34 game-minutes per ten wall seconds — that is minutes
+of real time after the arrival it was standing in for. The driver waited three
+minutes, saw no goods, and reported *"three minutes of open shop and nobody came
+in"* while three to four customers were on the floor the entire time.
+
+> ASK OF ANY PROXY: is the thing I am measuring the thing I am claiming, or is
+> it several steps downstream of it? If the chain between them can stall for a
+> reason unrelated to my hypothesis, the proxy is not evidence.
+
+Here the chain stalled for a reason that was itself the real finding — the queue
+head was desk business waiting for a player who never came — and the proxy hid
+it behind a wrong answer to an easier question.
+
+## SHAPE 12 — THE PROBE THAT COULD NOT CLICK (Goal 25)
+
+The stranger driver reported *"clicked forty times on the register and no ticket
+ever banked"* after fourteen beats. Every screenshot was the same NEW GAME
+difficulty dialog. `.difficulty-card` is a `<div>`; the helper only queried
+`<button>`; no card was ever picked and the game never started.
+
+This is the old "a probe that cannot see the thing reports the same as a thing
+that did not happen" with the verb changed from SEE to CLICK, and it is worth its
+own line because the failure surfaced fourteen steps away from its cause and
+named an innocent subsystem.
+
+> A DRIVER THAT CANNOT PERFORM AN ACTION REPORTS THE SAME AS A GAME THAT REFUSED
+> IT. Fail closed at the step: if the dialog is still on screen after you claim
+> to have dismissed it, stop there.
+
+Every one of these three was caught by looking at the screenshots.
