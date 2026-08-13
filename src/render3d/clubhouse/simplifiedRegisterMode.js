@@ -3557,7 +3557,15 @@ export function createRegisterMode(B) {
     if (tx.stage === 'card-busy') return 'PROCESSING';
     if (tx.stage === 'card-declined') return tx.cardResult === 'timeout' ? 'CARD TIMEOUT' : 'CARD DECLINED';
     if (tx.stage === 'receipt' || tx.stage === 'bagging') return 'PAYMENT ACCEPTED';
-    if (tx.stage === 'done') return autoFulfilled ? 'HANDOFF IN PROGRESS' : 'HANDOFF PAUSED';
+    // GOAL 25 legibility — "HANDOFF PAUSED" named the animation, not the money.
+    //
+    // The owner's second reason the sale looked broken: the ticket sits at `done`
+    // and the takings do not move, because `finalizeTransaction()` — the thing
+    // that actually banks it — only runs once `deliveryPhase === 'released'`,
+    // which only happens when the bag reaches the customer's palm. A player
+    // watching an accepted payment fail to appear in the day's money is reading a
+    // status line that talks about a handoff and says nothing about the money.
+    if (tx.stage === 'done') return autoFulfilled ? 'HANDOFF IN PROGRESS' : 'SALE NOT BANKED YET';
     if (tx.stage === 'cash-drawer' && tx.deposited) {
       if (cashMotions.some((motion) => motion.kind === 'cash-deposit')) return 'STOWING CASH';
       const delta = Math.round((handTotal(tx) - changeDue(tx)) * 100);
@@ -3622,7 +3630,10 @@ export function createRegisterMode(B) {
         ? 'Drag full-size purchases to the customer\'s free hand; put compact goods in the shopping bag.'
         : 'Drag every paid product into the shopping bag.';
     }
-    if (tx.stage === 'done') return 'Grip the bag handles and drag them to the customer’s open palm.';
+    // The instruction said what to do and never said what it was FOR. Both halves
+    // now, cause first: the drag is not a flourish after the sale, it IS the last
+    // step of the sale.
+    if (tx.stage === 'done') return 'The sale banks when the customer has the bag. Grip the handles and drag them to their open palm.';
     return 'Follow the front-desk prompts.';
   }
 

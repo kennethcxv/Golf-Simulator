@@ -12897,6 +12897,35 @@ export function makeClubhouse(ctx) {
       awaitingCheckout: !!customer.awaitingCheckout,
       phase: customer.checkoutPhase,
     })),
+    // GOAL 25 LEGIBILITY — WHY THE TILL LOOKS EMPTY WHILE THE SHOP IS FULL.
+    //
+    // The Phase 1 stranger found this and the owner named it as one of the two
+    // reasons the sale looked broken to him: the head of the line is DESK
+    // business — a walk-in asking for a tee time, or a booking checking in.
+    // Nobody behind them advances until the player serves them at the desk, so a
+    // shop with four people in it shows an untouched counter and a queue that
+    // never moves. The game knew; nothing on screen said so.
+    //
+    // The predicate lives HERE, next to the router that owns it, rather than
+    // being re-derived from `customerType` in main.js. A HUD line that guessed
+    // the rule would go wrong in exactly the case the rule was written for —
+    // that is FOUND_FALSE's "right object, wrong variable" with a longer fuse.
+    //
+    // Returns null when there is nothing to say, so the caller has no rule of
+    // its own to get wrong.
+    deskHoldup: () => {
+      const head = counterQueue[0];
+      if (!head) return null;
+      // already at the till: the player is serving them, the line is moving
+      if (register.getCustomer && register.getCustomer() === head) return null;
+      if (!openDeskCustomer(head) && !deskActionableWalkIn(head)) return null;
+      return {
+        name: head.fullName || head.name || 'The customer',
+        // everyone else in the line, whatever they came for
+        behind: Math.max(0, counterQueue.length - 1),
+        kind: head.reservationId != null ? 'check-in' : 'tee time',
+      };
+    },
     reservationCustomer: (id) => {
       const customer = customers.find((c) => sameReservationId(c.reservationId, id));
       return reservationCustomerSnapshot(customer);

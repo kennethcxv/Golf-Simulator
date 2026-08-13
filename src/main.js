@@ -189,6 +189,7 @@ let clubPanel = null;
 let empirePanel = null;
 let walkOverlay = null;
 let walkPrompt = null;
+let walkQueueNote = null;
 let walkLockHint = null;
 let walkCondition = null;
 let regHint = null;
@@ -3946,7 +3947,10 @@ function registerPrompt() {
     }
     case 'receipt': return `Take the printed receipt${exit}`;
     case 'bagging': return `Place every item in the bag, then take the receipt${exit}`;
-    case 'done': return 'Hand the completed order to the customer';
+    // GOAL 25 legibility — the behind-the-till hint carried the same silence as
+    // the register screen: it named the gesture and not the reason. Nothing is
+    // banked until the bag is in their hand.
+    case 'done': return 'Drag the bag to the customer’s palm - the sale banks when they take it';
     default: return `Follow the register screen${exit}`;
   }
 }
@@ -3967,10 +3971,11 @@ function syncPresentationMode(mode) {
 // lookups are cached once, every DOM write is guarded by a last-value check (an identical
 // textContent assignment still rebuilds the text node and dirties layout), and the shop
 // condition — a whole grime-grid scan — is polled at 4Hz instead of 90.
-const ovEl = { prompt: null, lockHint: null, cond: null, propertyInventory: null };
+const ovEl = { prompt: null, lockHint: null, cond: null, propertyInventory: null, queueNote: null };
 const ovLast = {
   prompt: null, opacity: null, lockDisp: null, lockText: null,
   condText: null, condVisible: null, propertyInventoryText: null, propertyInventoryDisplay: null,
+  queueNoteText: null, queueNoteVisible: null,
 };
 let condClock = 0;
 
@@ -4013,6 +4018,7 @@ function updateWalkOverlay(dtMs = 16.7) {
     ovEl.propertyInventory = walkOverlay.querySelector('.property-inventory');
     ovEl.dirtSense = walkOverlay.querySelector('.dirt-sense-hint');
     ovEl.dirtReticle = walkOverlay.querySelector('.dirt-reticle');
+    ovEl.queueNote = walkOverlay.querySelector('.shop-queue-note');
   }
   if (ovEl.dirtReticle) {
     const aimed = app.scene3d.walk.dirtSense ? app.scene3d.walk.dirtSense().aimed : null;
@@ -4175,6 +4181,39 @@ function updateWalkOverlay(dtMs = 16.7) {
       ovLast.condVisible = conditionVisible;
       ovEl.cond.classList.toggle('is-visible', conditionVisible);
       ovEl.cond.setAttribute('aria-hidden', conditionVisible ? 'false' : 'true');
+    }
+    // GOAL 25 legibility — SAY WHY THE LINE IS NOT MOVING.
+    //
+    // Only while the player is inside and on foot: outside the shop it is not
+    // actionable, and in register mode the whole walk overlay is hidden anyway.
+    // The rule itself is `ch.deskHoldup()`, which lives beside the router; this
+    // only renders what it returns, so there is no second copy of the rule to
+    // drift.
+    const holdup = (inside && mode === 'walk' && ch?.deskHoldup) ? ch.deskHoldup() : null;
+    // Through t(), and the count is a COLON-SEPARATED NUMBER rather than
+    // "3 shoppers": English plural agreement baked into a template is not
+    // translatable, and all ten locale tables are currently at zero missing
+    // keys. A line that only reads correctly in English would be the first
+    // crack in that.
+    const kindText = holdup
+      ? t(holdup.kind === 'check-in' ? 'hud.deskKindCheckIn' : 'hud.deskKindTeeTime')
+      : '';
+    const noteText = holdup
+      ? (holdup.behind > 0
+        ? t('hud.deskHoldup', { name: holdup.name, kind: kindText, behind: holdup.behind })
+        : t('hud.deskHoldupAlone', { name: holdup.name, kind: kindText }))
+      : '';
+    // Text only when the sentence actually changed, and NEVER a display write —
+    // opacity class only, so the threshold crossing stays free of layout.
+    if (noteText && noteText !== ovLast.queueNoteText && ovEl.queueNote) {
+      ovLast.queueNoteText = noteText;
+      setPromptText(ovEl.queueNote, noteText);
+    }
+    const noteVisible = !!noteText;
+    if (noteVisible !== ovLast.queueNoteVisible && ovEl.queueNote) {
+      ovLast.queueNoteVisible = noteVisible;
+      ovEl.queueNote.classList.toggle('is-visible', noteVisible);
+      ovEl.queueNote.setAttribute('aria-hidden', noteVisible ? 'false' : 'true');
     }
   }
 }
@@ -4387,6 +4426,28 @@ function boot() {
     'aria-live': 'polite', 'aria-hidden': 'true',
   });
   walkLockHint = el('div', { class: 'shop-lockhint', text: walkControlHintText() });
+  // GOAL 25 legibility — the line is stopped and here is who stopped it. Its own
+  // element rather than the condition chip: the chip is ambient decor the eye
+  // learns to skip, and this is the sentence that unsticks a player who thinks
+  // the game is broken.
+  //
+  // Built the CONDITION CHIP's way, not the obvious way. A `display:none` node
+  // that appears when the queue blocks would flip display for the first time
+  // just after door entry — the exact layout-and-first-paint flush that cost
+  // this project 200 ms of stalled WebGL queue at every threshold, and which
+  // `goal24-door-condition-chip-compositor.test.js` exists to prevent. So it
+  // carries representative text from boot, stays on the translucent compositor
+  // path at 0.004, and only its opacity class changes at runtime.
+  walkQueueNote = el('div', {
+    class: 'shop-queue-note', role: 'status', 'aria-live': 'polite',
+    'aria-hidden': 'true',
+    // Deliberately the real key with NO placeholder values: i18n leaves an
+    // unfilled placeholder visible, so this paints glyphs of the right shape and
+    // length in the player's own language without inventing a second sentence to
+    // translate ten times. It is never read — the note only becomes visible
+    // after real text has replaced it in the same tick.
+    text: t('hud.deskHoldupAlone'),
+  });
   walkOverlay = el('div', { class: 'shop-overlay', style: 'display:none' },
     el('div', { class: 'shop-crosshair' }),
     // House Flipper 1's reticle behaviour: point at dirt and a small label
@@ -4406,6 +4467,7 @@ function boot() {
     el('div', { class: 'property-inventory', text: '', style: 'display:none' }),
     walkCondition,
     walkLockHint,
+    walkQueueNote,
   );
 
   // BEHIND THE TILL the walk overlay is hidden — no crosshair, no prompt — so the
