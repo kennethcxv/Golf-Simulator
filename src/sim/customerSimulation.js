@@ -1116,6 +1116,12 @@ export function recoverCustomerSimulation(state) {
     heldByUid.set(entry.uid, entry);
   }
   const claimed = new Set();
+  const pendingCheckoutUids = new Set(
+    Object.values(state?.shop?.pendingCheckouts || {})
+      .flatMap((plan) => (Array.isArray(plan?.inventory?.entries) ? plan.inventory.entries : []))
+      .map((entry) => entry?.uid)
+      .filter((uid) => typeof uid === 'string' && uid),
+  );
 
   for (const customer of sim.active) {
     customer.cart = customer.cart.filter((item) => {
@@ -1127,7 +1133,9 @@ export function recoverCustomerSimulation(state) {
     });
   }
   for (const entry of [...held]) {
-    if (!claimed.has(entry.uid)) returnToShelf(state, entry.skuId, entry.uid);
+    if (!claimed.has(entry.uid) && !pendingCheckoutUids.has(entry.uid)) {
+      returnToShelf(state, entry.skuId, entry.uid);
+    }
   }
 
   const previousQueue = [...sim.serviceQueue];

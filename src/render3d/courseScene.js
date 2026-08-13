@@ -11901,7 +11901,23 @@ export function makeCourseScene(canvas, state) {
     // checkout's exact cash prototypes their own bounded readiness handshake so
     // a slow local GLB decode cannot turn an empty representative root into a
     // false-success warm-up and permanently defer the cost to first tender.
-    await clubhouseApi?.register?.waitForCashGpuPrewarmRepresentatives?.(12000);
+    const paymentPrewarmReady = await clubhouseApi?.register
+      ?.waitForCashGpuPrewarmRepresentatives?.(12000);
+    if (clubhouseApi?.register?.waitForCashGpuPrewarmRepresentatives
+        && !(paymentPrewarmReady?.ready === true
+          && Number(paymentPrewarmReady.built) === Number(paymentPrewarmReady.expected)
+          && Number(paymentPrewarmReady.expected) > 0
+          && Number(paymentPrewarmReady.expectedDrawUnits) > 0)) {
+      const aborted = clubhouseApi.register.releaseCashGpuPrewarmRepresentatives?.({
+        abort: true,
+        cause: 'representatives-not-ready',
+      });
+      const error = new Error('Checkout payment representatives were not ready for the opaque warm-up.');
+      error.name = 'CheckoutPaymentPrewarmError';
+      error.code = 'PAYMENT_GPU_PREWARM_NOT_READY';
+      error.paymentGpuPrewarm = aborted || paymentPrewarmReady || null;
+      throw error;
+    }
     phaseAt = markPrewarm('cash-kit-handshake', phaseAt);
     if (!alive()) return false;
     await tick();
@@ -12066,10 +12082,11 @@ export function makeCourseScene(canvas, state) {
     const eyeNow = camera.getWorldPosition(new THREE.Vector3());
     let nearWarmed = 0;
     scene.traverse((o) => {
-      if (!o.frustumCulled) return;
+      const forceExactPaymentRepresentative = typeof o.userData?.gpuPrewarmDrawUnit === 'string';
+      if (!forceExactPaymentRepresentative && !o.frustumCulled) return;
       if (!o.material) return;
       const mats = Array.isArray(o.material) ? o.material : [o.material];
-      let needed = false;
+      let needed = forceExactPaymentRepresentative;
       for (const m of mats) {
         if (!m) continue;
         const key = programKey(o, m);
@@ -12080,8 +12097,10 @@ export function makeCourseScene(canvas, state) {
       if (!needed) return;
       o.getWorldPosition(_warmPos);
       if (_warmPos.distanceTo(eyeNow) <= PREWARM_NEAR_RADIUS_YD) nearWarmed += 1;
-      culled.push(o);
-      o.frustumCulled = false;
+      if (o.frustumCulled) {
+        culled.push(o);
+        o.frustumCulled = false;
+      }
     });
     prewarmTimings.push({ label: 'near-warm-objects', ms: nearWarmed });
     phaseAt = markPrewarm('warm-traverse', phaseAt);
@@ -12335,7 +12354,22 @@ export function makeCourseScene(canvas, state) {
     // existed only so the forced warm-up draw above could realize them behind
     // the opaque veil. Keep the GPU residency, but remove their scene nodes
     // before the first player frame and before lifecycle baselines are sampled.
-    clubhouseApi?.register?.releaseCashGpuPrewarmRepresentatives?.({ drawn: true });
+    const paymentPrewarmReleased = clubhouseApi?.register
+      ?.releaseCashGpuPrewarmRepresentatives?.();
+    if (clubhouseApi?.register?.releaseCashGpuPrewarmRepresentatives
+        && !(paymentPrewarmReleased?.released === true
+          && paymentPrewarmReleased?.complete === true
+          && paymentPrewarmReleased?.aborted === false)) {
+      const aborted = clubhouseApi.register.releaseCashGpuPrewarmRepresentatives({
+        abort: true,
+        cause: 'representatives-not-observed',
+      });
+      const error = new Error('Checkout payment representatives did not all draw behind the loading veil.');
+      error.name = 'CheckoutPaymentPrewarmError';
+      error.code = 'PAYMENT_GPU_PREWARM_NOT_OBSERVED';
+      error.paymentGpuPrewarm = aborted || paymentPrewarmReleased || null;
+      throw error;
+    }
     return true;
   }
 

@@ -23,6 +23,7 @@ import {
   parseFinalJson,
   repositoryMetadata,
   publishAggregate,
+  readGoal24ChromiumTraceArtifact,
   runOrchestrator,
   validateVideoContainer,
   validateColdDoorRouteParity,
@@ -37,6 +38,9 @@ import {
   validateRunnerEnvelope,
 } from '../tools/qa/goal24-interaction-performance.mjs';
 import { LOCKED_INTERACTION_PERFORMANCE_PROTOCOL } from '../tools/qa/locked-performance-contract.mjs';
+import {
+  goal24TraceMarkName,
+} from '../tools/qa/lib/goal24-trace-attribution.mjs';
 import {
   GOAL24_SUPPORTED_TOOL_IDS,
   GOAL24_SUPPORTED_TOOL_MANIFEST,
@@ -3296,6 +3300,77 @@ test('executeRun fails closed when stdout and the runner result artifact disagre
   assert.equal(calls, 1);
 });
 
+test('bounded Chromium trace reader validates the whole artifact and retains only required windows', (t) => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'goal24-trace-stream-'));
+  t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
+  const file = path.join(directory, 'chromium-trace.json');
+  const startName = goal24TraceMarkName('interaction-1', 'ledgerOpen', 'start');
+  const boundaryName = goal24TraceMarkName(
+    'interaction-1',
+    'ledgerOpen',
+    'marker',
+    'post-outcome-render-boundary',
+  );
+  const events = [
+    { args: { name: 'CrRendererMain' }, cat: '__metadata', name: 'thread_name', ph: 'M', pid: 7, tid: 8, ts: 0 },
+    { args: {}, cat: 'loading', name: 'outside-before', ph: 'X', pid: 7, tid: 8, ts: 10, dur: 2 },
+    { args: {}, cat: 'blink.user_timing', name: startName, ph: 'R', pid: 7, tid: 8, ts: 100 },
+    { args: {}, cat: 'devtools.timeline', name: 'RunTask', ph: 'X', pid: 7, tid: 8, ts: 110, dur: 70 },
+    { args: {}, cat: 'blink.user_timing', name: boundaryName, ph: 'R', pid: 7, tid: 8, ts: 200 },
+    ...Array.from({ length: 20_000 }, (_, index) => ({
+      args: {}, cat: 'loading', name: `outside-after-${index}`, ph: 'X',
+      pid: 7, tid: 8, ts: 1_000 + index * 10, dur: 1,
+    })),
+  ];
+  const source = `{"traceEvents":[\n${events.map(JSON.stringify).join(',\n')}],"metadata":\n`
+    + `${JSON.stringify({ 'clock-domain': 'WIN_QPC', source: 'unit-test' })}}\n`;
+  fs.writeFileSync(file, source, 'utf8');
+
+  const streamed = readGoal24ChromiumTraceArtifact(file, {
+    label: 'unit trace',
+    interactionIds: ['interaction-1'],
+  });
+  assert.equal(streamed.source.bytes, Buffer.byteLength(source));
+  assert.equal(
+    streamed.source.sha256,
+    createHash('sha256').update(source).digest('hex'),
+  );
+  assert.equal(streamed.source.traceEventCount, events.length);
+  assert.equal(streamed.source.retainedTraceEventCount, 4);
+  assert.deepEqual(streamed.sourceOrdinals, [0, 2, 3, 4]);
+  assert.deepEqual(
+    streamed.traceDocument.traceEvents.map(({ name }) => name),
+    ['thread_name', startName, 'RunTask', boundaryName],
+  );
+  assert.equal(streamed.source.parser, 'bounded-two-pass-chromium-json-lines-v1');
+});
+
+test('bounded Chromium trace reader fails closed on malformed event or envelope JSON', (t) => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'goal24-trace-invalid-'));
+  t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
+  const malformedEvent = path.join(directory, 'malformed-event.json');
+  fs.writeFileSync(
+    malformedEvent,
+    '{"traceEvents":[\n{"cat":"gpu",}],"metadata":\n{}}\n',
+    'utf8',
+  );
+  assert.throws(
+    () => readGoal24ChromiumTraceArtifact(malformedEvent, { label: 'malformed event' }),
+    /malformed event is not valid JSON: trace event 1/u,
+  );
+
+  const malformedEnvelope = path.join(directory, 'malformed-envelope.json');
+  fs.writeFileSync(
+    malformedEnvelope,
+    '{"traceEvents":[\n{"cat":"gpu","name":"GpuTask"}],"metadata":\n{"broken":true}\n',
+    'utf8',
+  );
+  assert.throws(
+    () => readGoal24ChromiumTraceArtifact(malformedEnvelope, { label: 'malformed envelope' }),
+    /Chromium metadata envelope is malformed/u,
+  );
+});
+
 test('orchestrator never starts a second Electron child after the first child exits nonzero', (t) => {
   const out = fs.mkdtempSync(path.join(os.tmpdir(), 'goal24-serialized-stop-'));
   t.after(() => fs.rmSync(out, { recursive: true, force: true }));
@@ -3325,6 +3400,25 @@ test('source contract uses synchronous no-shell children and calls the locked ev
   assert.doesNotMatch(source, /Promise\.all\([^)]*executeRun/);
   assert.match(source, /evaluateLockedInteractionPerformanceReport/);
   assert.match(source, /Trace and overlay\/video legs are diagnostic only/);
+});
+
+test('GPU matrix cleanup detaches the render producer before flushing its final query', () => {
+  const source = fs.readFileSync(
+    new URL('../tools/qa/electron-goal24-interaction-performance.js', import.meta.url),
+    'utf8',
+  );
+  const cleanup = source.slice(
+    source.indexOf('const gpuFrameTimingCleanup ='),
+    source.indexOf('const resourceDispose ='),
+  );
+  const detachAt = cleanup.indexOf('owner.detach?.() === true');
+  const flushAt = cleanup.indexOf('owner.probe.flush');
+  assert.ok(detachAt >= 0 && flushAt > detachAt,
+    'the wrapper must stop enqueuing queries before the bounded flush starts');
+  assert.match(cleanup, /if \(!detached\) throw new Error/,
+    'failure to detach must fail closed instead of disposing an incomplete stream');
+  assert.match(source, /gpuFrameTimingCleanup\.flushGpuValidity\?\.valid === true/,
+    'acceptance requires the detached flush itself to report a valid GPU stream');
 });
 
 test('warmed tool driver never stages a cycle edge with direct setTool mutation', () => {

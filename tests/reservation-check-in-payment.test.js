@@ -33,6 +33,7 @@ import {
   RESERVATION_CHECK_IN_TYPE,
   createReservationCheckInTx,
   finalizeReservationCheckIn,
+  reconcileReservationCheckInTickets,
   reservationPaymentReference,
 } from '../src/sim/reservationCheckIn.js';
 
@@ -390,4 +391,159 @@ test('completed reservation payment provenance survives save/load', () => {
   assert.equal(loaded.shop.transactionHistory.length, 1);
   assert.equal(loaded.shop.transactionHistory[0].type, RESERVATION_CHECK_IN_TYPE);
   assert.equal(loaded.shop.transactionHistory[0].referenceId, saved.checkInReferenceId);
+});
+
+test('a fully prepaid cash reservation completes its zero-dollar check-in without fake tender', () => {
+  const state = newGame('relaxed', 724);
+  const reservation = reserve(state, 'Prepaid Cash Golfer');
+  reservation.payment.amountPaid = reservation.fee;
+  reservation.payment.amountDue = 0;
+  reservation.payment.status = 'paid';
+  reservation.payment.method = 'cash';
+  reservation.paymentPreference = 'cash';
+  reservation.depositPaid = reservation.fee;
+  reservation.depositStatus = 'legacy-untracked';
+  reservation.balanceDue = 0;
+  reservation.remainingBalance = 0;
+  const cashBefore = state.cash;
+
+  const made = createReservationCheckInTx(state, reservation.id, { method: 'cash' });
+  assert.equal(made.ok, true, made.reason);
+  assert.equal(made.tx.items[0].price, 0);
+  assert.equal(requestPayment(made.tx).ok, true);
+  assert.equal(made.tx.stage, 'receipt');
+  assert.deepEqual(made.tx.tendered, {});
+
+  const result = finalizeReservationCheckIn(state, made.tx);
+  assert.equal(result.ok, true, result.reason);
+  assert.equal(state.cash, cashBefore);
+  assert.equal(result.ticket.total, 0);
+  assert.equal(reservation.status, 'played');
+  assert.equal(reservation.payment.method, 'cash');
+  assert.equal(reservation.payment.amountDue, 0);
+});
+
+test('a forged zero-dollar typed ticket cannot check in a prepaid reservation on save/load', () => {
+  const state = newGame('relaxed', 725);
+  const dayAbs = calendarOf(state.clock.minutes).dayAbs + 1;
+  const made = bookSlot(state, dayAbs, 480, {
+    holder: 'Forged Prepaid Golfer',
+    partySize: 1,
+    paymentPlan: 'prepaid',
+    paymentMethod: 'card',
+    cardOnFile: true,
+  });
+  assert.equal(made.ok, true, made.reason);
+  const reservation = made.res;
+  const referenceId = reservationPaymentReference(reservation.id);
+
+  // A type/reference pair alone is not a durable settlement authority. This
+  // deliberately omits the WAL-backed details, customer event, item line,
+  // timestamp, and ledger provenance owned by a genuine checkout ticket.
+  state.shop.transactionHistory.unshift({
+    type: RESERVATION_CHECK_IN_TYPE,
+    referenceId,
+    number: 999,
+    method: 'cash',
+    total: 0,
+    serviceTotal: 0,
+  });
+
+  const direct = reconcileReservationCheckInTickets(state);
+  assert.equal(direct.ok, false);
+  assert.equal(direct.pending, 1);
+  assert.equal(reservation.status, 'booked');
+  assert.equal(reservation.courseAccess.status, 'none');
+  assert.equal(reservation.checkInTransactionNumber, undefined);
+
+  const loaded = deserialize(serialize(state));
+  const restored = loaded.reservations.booked.find((entry) => entry.id === reservation.id);
+  assert.equal(restored.status, 'booked');
+  assert.equal(restored.courseAccess.status, 'none');
+  assert.equal(restored.checkInTransactionNumber, undefined);
+  assert.equal(restored.payment.method, 'card', 'forged cash tender cannot replace prepaid provenance');
+});
+
+test('a completed legacy-deposit check-in remains an idempotent durable outbox', () => {
+  const state = newGame('relaxed', 726);
+  const reservation = reserve(state, 'Legacy Deposit Outbox');
+  reservation.depositPaid = 10;
+  reservation.balanceDue = round2(reservation.fee - reservation.depositPaid);
+
+  const tx = approvedCard(state, reservation);
+  const completed = finalizeReservationCheckIn(state, tx, reservation.id);
+  assert.equal(completed.ok, true, completed.reason);
+  assert.equal(reservation.status, 'played');
+  assert.equal(completed.ticket.details.priorPaid, 10);
+  assert.equal(reservation.payment.amountPaid, reservation.fee);
+
+  const before = serialize(state);
+  const reconciled = reconcileReservationCheckInTickets(state);
+  assert.equal(reconciled.ok, true);
+  assert.equal(reconciled.pending, 0);
+  assert.equal(reconciled.already, 1);
+  assert.equal(serialize(state), before, 'replaying the valid ticket changes no durable authority');
+});
+
+test('a frozen reservation payment authority refuses before any settlement authority mutates', () => {
+  const state = newGame('relaxed', 727);
+  const reservation = reserve(state, 'Frozen Payment Golfer');
+  const tx = approvedCard(state, reservation);
+  reservation.payment = Object.freeze({ ...reservation.payment });
+  const before = structuredClone({
+    cash: state.cash,
+    ledger: state.ledger,
+    transactionHistory: state.shop.transactionHistory,
+    pendingCheckouts: state.shop.pendingCheckouts,
+    reservation,
+  });
+
+  let refused;
+  assert.doesNotThrow(() => {
+    refused = finalizeReservationCheckIn(state, tx);
+  });
+  assert.equal(refused.ok, false);
+  assert.match(refused.diagnostic || refused.reason, /reservation.+not writable/i);
+  assert.notEqual(tx.commitPrepared, true);
+  assert.deepEqual(structuredClone({
+    cash: state.cash,
+    ledger: state.ledger,
+    transactionHistory: state.shop.transactionHistory,
+    pendingCheckouts: state.shop.pendingCheckouts,
+    reservation,
+  }), before, 'cash, books, ticket history, WAL, and reservation remain unchanged');
+});
+
+test('duplicate reservation settlement references fail closed before either ticket mutates the booking', () => {
+  const state = newGame('relaxed', 728);
+  state.shop.nextTransactionNo = 10;
+  const reservation = reserve(state, 'Duplicate Reference Golfer');
+  const tx = approvedCard(state, reservation);
+  const booked = structuredClone(reservation);
+  const completed = finalizeReservationCheckIn(state, tx);
+  assert.equal(completed.ok, true, completed.reason);
+  assert.equal(completed.ticket.number, 10);
+
+  const duplicate = structuredClone(completed.ticket);
+  duplicate.number = 1;
+  const reservationIndex = state.reservations.booked.findIndex(
+    (entry) => entry.id === reservation.id,
+  );
+  state.reservations.booked[reservationIndex] = booked;
+  state.shop.transactionHistory.unshift(duplicate);
+  const before = structuredClone(state.reservations.booked[reservationIndex]);
+
+  const report = reconcileReservationCheckInTickets(state);
+  assert.equal(report.ok, false);
+  assert.equal(report.applied, 0);
+  assert.ok(report.pending > 0);
+  assert.match(
+    report.failures[0]?.diagnostic || report.failures[0]?.reason || '',
+    /duplicate|conflict/i,
+  );
+  assert.deepEqual(
+    state.reservations.booked[reservationIndex],
+    before,
+    'ambiguous ticket provenance cannot choose a transaction number or check the party in',
+  );
 });

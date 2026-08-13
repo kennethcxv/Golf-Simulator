@@ -116,7 +116,12 @@ const WRAPPED = /\b(toast|announce|setPrompt|setHint)\s*\(\s*t\(/g;
 // measurement had ever looked at.
 // Worst offenders now: ui/laptop.js 254, ui/courseEditor.js 159,
 // sim/register.js 103, sim/courseEditor.js 87, sim/reservations.js 72.
-const BASELINE = 2108;
+// 2108 -> 2091 after Goal 24 checkout integrity failures split localized
+// player-facing reasons from exact diagnostics.
+// 2091 -> 2085 after save migration's checkout-coherence codes moved from the
+// player-facing `reason` channel to the internal `diagnostic` channel. Those
+// exact machine codes are retained in repair reports; they are not UI prose.
+const BASELINE = 2085;
 
 function jsFiles(dir) {
   const out = [];

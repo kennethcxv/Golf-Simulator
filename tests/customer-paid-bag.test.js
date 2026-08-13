@@ -5,7 +5,10 @@ import * as THREE from 'three';
 
 import { makeCharacter } from '../src/render3d/characterAsset.js';
 import {
-  PAID_BAG_ACCEPTANCE_HOLD_SEC, attachPaidBagToCustomer, syncPaidBagCarry,
+  PAID_BAG_ACCEPTANCE_HOLD_SEC, attachPaidBagToCustomer,
+  createPaidBagResourceLedger, disposePaidBagFromCustomer,
+  paidBagAttachedToCustomer, retainedPaidBagDisposalStatus,
+  retryRetainedPaidBagDisposals, salvagePaidBagToCustomer, syncPaidBagCarry,
 } from '../src/render3d/clubhouse/customerPaidBag.js';
 
 const close = (a, b, epsilon = 1e-8) => a.distanceTo(b) <= epsilon;
@@ -131,6 +134,189 @@ test('the acceptance beat keeps the authored bag handle in the receiving palm', 
   ), 'the bag remains exactly attached to the animated walking palm');
 });
 
+test('paid carrier departure disposes only its owned resources beneath the upright carry root', () => {
+  const customer = { mesh: new THREE.Group() };
+  const grip = new THREE.Group();
+  customer.mesh.add(grip);
+  const bag = new THREE.Group();
+  const resources = createPaidBagResourceLedger();
+  const ownedGeometry = resources.ownGeometry(new THREE.BoxGeometry(1, 1, 1));
+  const ownedMaterial = resources.ownMaterial(new THREE.MeshStandardMaterial());
+  const sharedGeometry = new THREE.SphereGeometry(1);
+  const sharedMaterial = new THREE.MeshStandardMaterial();
+  const ownedCounts = { geometry: 0, material: 0 };
+  const sharedCounts = { geometry: 0, material: 0 };
+  ownedGeometry.addEventListener('dispose', () => { ownedCounts.geometry += 1; });
+  ownedMaterial.addEventListener('dispose', () => { ownedCounts.material += 1; });
+  sharedGeometry.addEventListener('dispose', () => { sharedCounts.geometry += 1; });
+  sharedMaterial.addEventListener('dispose', () => { sharedCounts.material += 1; });
+  bag.add(
+    new THREE.Mesh(ownedGeometry, ownedMaterial),
+    new THREE.Mesh(sharedGeometry, sharedMaterial),
+  );
+  bag.userData.disposeCheckoutPaidBagResources = () => resources.dispose();
+
+  attachPaidBagToCustomer(customer, bag, { productionBag: false, carryTarget: grip });
+  assert.equal(paidBagAttachedToCustomer(customer), true);
+  const first = disposePaidBagFromCustomer(customer);
+  const second = disposePaidBagFromCustomer(customer);
+
+  assert.deepEqual(ownedCounts, { geometry: 1, material: 1 });
+  assert.deepEqual(sharedCounts, { geometry: 0, material: 0 });
+  assert.deepEqual(
+    { geometries: first.resources.geometries, materials: first.resources.materials },
+    { geometries: 1, materials: 1 },
+  );
+  assert.equal(second.hadBag, false, 'the departure funnel is exact-once');
+  assert.equal(bag.parent, null);
+  assert.equal(customer.bagCarryRoot, null);
+  assert.equal(customer.bagCarryTarget, null);
+  assert.equal(customer.bagMesh, null);
+
+  sharedGeometry.dispose();
+  sharedMaterial.dispose();
+});
+
+test('a throwing paid-bag disposer detaches the actor but retains an explicit retry owner', () => {
+  const customer = { mesh: new THREE.Group(), checkoutHandoffBag: null };
+  const bag = new THREE.Group();
+  let disposeCalls = 0;
+  bag.userData.disposeCheckoutPaidBagResources = () => {
+    disposeCalls += 1;
+    if (disposeCalls === 1) throw new Error('synthetic paid-bag disposal failure');
+    return { liveGeometries: 0, liveMaterials: 0, errors: [] };
+  };
+  attachPaidBagToCustomer(customer, bag);
+  customer.checkoutHandoffBag = bag;
+  assert.equal(paidBagAttachedToCustomer(customer), true);
+
+  const result = disposePaidBagFromCustomer(customer);
+  assert.equal(result.errors.some((entry) => entry.stage === 'owned-resources'), true);
+  assert.equal(result.retained, true,
+    'clearing the actor pointer cannot make the failed disposer unreachable');
+  assert.equal(result.retainedStatus.retained, 1);
+  assert.equal(bag.parent, null);
+  assert.equal(customer.bagMesh, null);
+  assert.equal(customer.bagCarryRoot, null);
+  assert.equal(customer.bagCarryTarget, null);
+  assert.equal(customer.checkoutHandoffBag, null);
+
+  const retried = retryRetainedPaidBagDisposals();
+  assert.equal(retried.released, 1);
+  assert.equal(retried.retained, 0);
+  assert.equal(disposeCalls, 2);
+  assert.equal(retainedPaidBagDisposalStatus().retained, 0);
+});
+
+test('paid-bag ledger failure exhausts siblings and retains only the failed resource for retry', () => {
+  const customer = { mesh: new THREE.Group(), checkoutHandoffBag: null };
+  const bag = new THREE.Group();
+  const resources = createPaidBagResourceLedger();
+  const brokenMaterial = resources.ownMaterial(new THREE.MeshStandardMaterial());
+  const goodMaterial = resources.ownMaterial(new THREE.MeshStandardMaterial());
+  const goodGeometry = resources.ownGeometry(new THREE.BoxGeometry(1, 1, 1));
+  const calls = { broken: 0, material: 0, geometry: 0 };
+  const originalBrokenDispose = brokenMaterial.dispose.bind(brokenMaterial);
+  brokenMaterial.dispose = () => {
+    calls.broken += 1;
+    if (calls.broken === 1) throw new Error('synthetic paid-bag material failure');
+    originalBrokenDispose();
+  };
+  goodMaterial.addEventListener('dispose', () => { calls.material += 1; });
+  goodGeometry.addEventListener('dispose', () => { calls.geometry += 1; });
+  bag.add(new THREE.Mesh(goodGeometry, [brokenMaterial, goodMaterial]));
+  bag.userData.disposeCheckoutPaidBagResources = () => resources.dispose();
+  attachPaidBagToCustomer(customer, bag);
+
+  const first = disposePaidBagFromCustomer(customer);
+  assert.equal(first.retained, true);
+  assert.equal(first.resources.liveMaterials, 1);
+  assert.equal(first.resources.liveGeometries, 0);
+  assert.deepEqual(calls, { broken: 1, material: 1, geometry: 1 },
+    'the throwing material cannot abort its owned siblings');
+  assert.equal(customer.bagMesh, null, 'customer removal remains independent of GPU failure');
+  assert.equal(retainedPaidBagDisposalStatus().retained, 1);
+
+  const retry = retryRetainedPaidBagDisposals();
+  assert.equal(retry.retained, 0);
+  assert.equal(retry.released, 1);
+  assert.deepEqual(calls, { broken: 2, material: 1, geometry: 1 },
+    'retry touches only the resource that remained live');
+  assert.deepEqual(resources.status(), {
+    geometriesCreated: 1,
+    materialsCreated: 2,
+    geometriesDisposed: 1,
+    materialsDisposed: 2,
+    liveGeometries: 0,
+    liveMaterials: 0,
+    disposalErrors: 1,
+    disposed: true,
+  });
+});
+
+test('register teardown drains retained paid-bag ownership after customer removal', () => {
+  const disposeRegister = registerFunction('disposeRegisterModeResources');
+  assert.match(disposeRegister, /let retainedPaidBags = retryRetainedPaidBagDisposals\(\)/);
+  assert.match(disposeRegister, /retainedPaidBags\.retained === 0/,
+    'teardown cannot report complete while a detached paid bag remains retained');
+  assert.match(disposeRegister, /retainedPaidBags,/,
+    'the disposal summary preserves failure/retry diagnostics');
+});
+
+test('an exception after the upright carrier mounts remains discoverable and disposable', () => {
+  const customer = { mesh: new THREE.Group(), checkoutHandoffBag: null };
+  const grip = new THREE.Group();
+  customer.mesh.add(grip);
+  const bag = new THREE.Group();
+  const resources = createPaidBagResourceLedger();
+  const geometry = resources.ownGeometry(new THREE.BoxGeometry(1, 1, 1));
+  const material = resources.ownMaterial(new THREE.MeshStandardMaterial());
+  const disposals = { geometry: 0, material: 0 };
+  geometry.addEventListener('dispose', () => { disposals.geometry += 1; });
+  material.addEventListener('dispose', () => { disposals.material += 1; });
+  bag.add(new THREE.Mesh(geometry, material));
+  bag.userData.disposeCheckoutPaidBagResources = () => resources.dispose();
+  bag.getObjectByName = () => { throw new Error('synthetic authored-anchor failure'); };
+  customer.checkoutHandoffBag = bag;
+
+  assert.throws(
+    () => attachPaidBagToCustomer(customer, bag, { productionBag: true, carryTarget: grip }),
+    /synthetic authored-anchor failure/,
+  );
+  assert.equal(customer.bagMesh, bag,
+    'departure ownership is established before authored anchor lookup can throw');
+  assert.equal(paidBagAttachedToCustomer(customer), true,
+    'the partially mounted carrier is already beneath the customer root');
+  assert.equal(salvagePaidBagToCustomer(customer, bag), true,
+    'salvage reports success only after verifying the ownership postcondition');
+  assert.equal(customer.checkoutHandoffBag, null);
+
+  const result = disposePaidBagFromCustomer(customer);
+  assert.deepEqual(disposals, { geometry: 1, material: 1 });
+  assert.deepEqual(
+    { liveGeometries: result.resources.liveGeometries, liveMaterials: result.resources.liveMaterials },
+    { liveGeometries: 0, liveMaterials: 0 },
+  );
+  assert.equal(bag.parent, null);
+});
+
+test('paid-bag salvage refuses false greens for wrong ownership and conflicting bags', () => {
+  const customer = { mesh: new THREE.Group() };
+  const bag = new THREE.Group();
+  const otherBag = new THREE.Group();
+  customer.mesh.add(bag);
+
+  bag.userData.checkoutOwner = 'register';
+  assert.equal(salvagePaidBagToCustomer(customer, bag), false,
+    'ancestry alone is not paid ownership');
+
+  bag.userData.checkoutOwner = 'customer';
+  customer.bagMesh = otherBag;
+  assert.equal(salvagePaidBagToCustomer(customer, bag), false,
+    'salvage cannot replace a different departure owner and claim success');
+  assert.equal(customer.bagMesh, otherBag);
+});
+
 test('handed-off bag cleanup preserves the customer copy and retry resets safely', () => {
   const clearPhysicalTransaction = registerFunction('clearPhysicalTransaction');
   assert.match(
@@ -173,10 +359,38 @@ test('late bag asset readiness cannot mutate a newer transaction carrier', () =>
   const buildBag = registerFunction('buildBag');
   assert.match(buildBag, /const builtBag = new THREE\.Group\(\)/,
     'each async asset request captures its own carrier wrapper');
-  assert.match(buildBag, /if \(bagGroup !== builtBag\) return/,
-    'a superseded wrapper rejects late merchandise callbacks');
+  assert.match(
+    buildBag,
+    /if \(bagGroup !== builtBag \|\| builtBag\.userData\.checkoutOwner !== 'register'\) return/,
+    'a superseded or already-transferred wrapper rejects late merchandise callbacks',
+  );
   assert.match(buildBag, /builtBag\.add\(model\)/,
     'the production model attaches only to its captured wrapper');
+});
+
+test('post-transfer readiness cannot change the resource totals departure must reconcile', () => {
+  const buildBag = registerFunction('buildBag');
+  const callbackAt = buildBag.indexOf('merch.onReady(() => {');
+  const ownershipGuardAt = buildBag.indexOf("builtBag.userData.checkoutOwner !== 'register'", callbackAt);
+  const releaseFallbackAt = buildBag.indexOf('ownedResources.releaseGeometry(fallback.geometry)', callbackAt);
+  const cloneMaterialAt = buildBag.indexOf('applyKraftBagStyle(model, ownedResources)', callbackAt);
+  assert.ok(
+    callbackAt >= 0
+      && ownershipGuardAt > callbackAt
+      && releaseFallbackAt > ownershipGuardAt
+      && cloneMaterialAt > ownershipGuardAt,
+    'the ownership guard runs before any late release or per-bag material allocation',
+  );
+
+  const resources = createPaidBagResourceLedger();
+  resources.ownGeometry(new THREE.BoxGeometry(1, 1, 1));
+  resources.ownMaterial(new THREE.MeshStandardMaterial());
+  const transferred = resources.status();
+  const departed = resources.dispose();
+  assert.equal(departed.geometries, transferred.liveGeometries);
+  assert.equal(departed.materials, transferred.liveMaterials);
+  assert.equal(departed.liveGeometries, 0);
+  assert.equal(departed.liveMaterials, 0);
 });
 
 test('each persisted customer owns a distinct review id across repeated checkouts', () => {

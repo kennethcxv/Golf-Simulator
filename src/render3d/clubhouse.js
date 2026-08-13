@@ -85,7 +85,6 @@ import {
   abandonUnit, stageUnit, visibleBasketSlots,
 } from '../sim/customerBasket.js';
 import { drawPaymentMethod, paymentDistributionReport } from '../sim/paymentBag.js';
-import { totalOf } from '../sim/register.js';
 import { addRevenue } from '../sim/economy.js';
 import { triggerContextTutorial, tutorialFlag } from '../sim/tutorial.js';
 import {
@@ -112,7 +111,6 @@ import {
 import { steerAround, STEER_DEFAULTS } from './clubhouse/steerAhead.js';
 import {
   allocateCustomerIdentity, customerIdentityById, paymentChoiceDialogue,
-  recordCustomerVisit,
 } from '../sim/customerIdentity.js';
 import { makeClubhouseMaterials, roundedBox, makeSignTexture, makeProductLabel } from './clubhouse/materials.js';
 import { createMerch } from './clubhouse/merch.js';
@@ -219,7 +217,8 @@ import {
   createCustomerImpatientBeat, stepCustomerImpatientBeat,
 } from './clubhouse/customerFlow.js';
 import {
-  PAID_BAG_ACCEPTANCE_HOLD_SEC, attachPaidBagToCustomer, syncPaidBagCarry,
+  PAID_BAG_ACCEPTANCE_HOLD_SEC, attachPaidBagToCustomer,
+  createPaidBagResourceLedger, disposePaidBagFromCustomer, syncPaidBagCarry,
 } from './clubhouse/customerPaidBag.js';
 import { activeFixtures, placedFixtures, ensureLayout, roomStyle } from '../sim/layout.js';
 import { ROOM_STYLE_OPTIONS } from '../data/placeableCatalog.js';
@@ -1686,7 +1685,19 @@ export function makeClubhouse(ctx) {
   // What is left here is the join: a customer reaching the head of the queue starts a
   // transaction, standing at the counter offers [E] to step into it, and a customer who
   // walks out takes their goods back to the shelf.
+  // The register's irreversible finalizer receives one authoritative route
+  // bridge owned by the customer runtime. Unlike presentation callbacks stored
+  // on an actor, this remains available if an actor callback is absent or was
+  // replaced by a failing test/extension hook.
+  B.releasePaidCustomerFromCheckoutAuthoritative = (customer) => (
+    releasePaidCustomerFromCheckoutAuthoritative(customer)
+  );
   const register = createRegisterMode(B);
+  // QA-only, identity-bound and one-shot. The runtime checkout verifier uses
+  // this to prove a presentation exception after durable banking cannot strand
+  // the customer, duplicate the ticket, or return paid stock to inventory.
+  let qaPaidPresentationFault = null;
+  let qaPaidReleaseFault = null;
   B.register = register;
 
   const flowNow = () => performance.now();
@@ -1887,28 +1898,88 @@ export function makeClubhouse(ctx) {
     return true;
   }
 
-  // The sale banked. registerMode calls this through cust.onPaid, because IT owns the
-  // money and the goods, and clubhouse.js owns the person.
-  function onCustomerPaid(c, transaction = null) {
-    const acceptanceYaw = c.mesh.rotation.y;
+  function transferCustomerPaidOwnership(c) {
+    if (!c) return false;
+    const firstTransfer = !c.bought;
     c.bought = true;
     c.paymentStatus = 'paid';
-    visitTally.purchasesCompleted += 1;
-    if (c.combinedVisit) visitTally.combinedCompleted += 1;
-    if (!c.visitRecorded && c.customerId) {
-      recordCustomerVisit(state, c.customerId, {
-        dayAbs: Math.floor(state.clock.minutes / 1440),
-        // C6: one person, one visit, two errands. The check-in already counted
-        // the visit itself, so this call records the purchase without counting
-        // the same person through the door twice.
-        purpose: c.combinedVisit ? 'tee-time+retail' : 'retail',
-        countsAsVisit: !c.combinedVisit,
-        outcome: 'purchase',
-        paymentMethod: transaction && transaction.method,
-        amount: transaction ? totalOf(transaction) : 0,
-      });
-      c.visitRecorded = true;
+    // The ticket is already durable when this callback runs. Transfer the
+    // merchandise ownership before review, meshes, audio, or handoff visuals:
+    // none of those presentation steps may leave a paid cart eligible for the
+    // unpaid-exit restock net if one of them fails.
+    c.cart = [];
+    c.awaitingCheckout = false;
+    c.checkoutPhase = 'complete';
+    // Operational tallies belong beside authoritative paid ownership, not in
+    // fallible review/mesh/bag presentation. Customer history itself is banked
+    // synchronously by completeSale so both survive an onPaid exception.
+    if (firstTransfer) {
+      visitTally.purchasesCompleted += 1;
+      if (c.combinedVisit) visitTally.combinedCompleted += 1;
     }
+    // Do not let actor presentation claim an accounting result the durable
+    // ticket did not achieve. The register sets this only after its persisted
+    // customer-visit event applied (or reconciled as an idempotent no-op).
+    c.visitRecorded = c.tx?.customerVisitRecorded === true;
+    return true;
+  }
+
+  function releasePaidCustomerFromCheckoutAuthoritative(c) {
+    if (!c) return false;
+    // This is the non-visual, idempotent last-resort boundary used from the
+    // register finalizer's `finally`. Keep it independent of shelf rebuilds,
+    // reviews, meshes, audio, and every other operation that can throw after a
+    // ticket has banked. Even if leaveQueue itself is later decorated with a
+    // fallible side effect, exact-identity removal below still frees the till.
+    try {
+      leaveQueue(c);
+    } catch {
+      const queueIndex = counterQueue.indexOf(c);
+      if (queueIndex >= 0) counterQueue.splice(queueIndex, 1);
+      c.queued = false;
+      c.queueSlotHeld = null;
+    }
+    const exitIdx = c.stops?.findIndex((stop) => stop.kind === 'exit') ?? -1;
+    if (exitIdx >= 0) c.stopIdx = exitIdx;
+    c.linger = 0;
+    c.currentDestination = 'exit';
+    c.path = null;
+    c.pathGoal = null;
+    c.checkoutPaidReleased = true;
+    return counterQueue.indexOf(c) < 0;
+  }
+
+  function releasePaidCustomerFromCheckout(c, transaction = null) {
+    const injectedFault = qaPaidReleaseFault;
+    qaPaidReleaseFault = null;
+    if (injectedFault
+        && Number(injectedFault.transactionNumber) === Number(transaction?.number)
+        && String(injectedFault.customerId) === String(c?.customerId)) {
+      throw new Error('QA injected paid-customer route-release failure.');
+    }
+    const released = releasePaidCustomerFromCheckoutAuthoritative(c);
+    if (!released) return false;
+    // Reconcile the shelf even if the decorative paid-customer presentation
+    // failed before it reached its old rebuild call. The ownership and route
+    // fields above remain authoritative if this visual refresh itself throws.
+    rebuildStock();
+    return true;
+  }
+
+  // The sale banked. registerMode calls this through cust.onPaid, because IT owns the
+  // money and the goods, and clubhouse.js owns the person. Authoritative ownership
+  // and route release are separate callbacks so a broken review/mesh/bag flourish
+  // cannot strand an already-durable ticket at the register.
+  function onCustomerPaid(c, transaction = null) {
+    transferCustomerPaidOwnership(c);
+    const injectedFault = qaPaidPresentationFault;
+    qaPaidPresentationFault = null;
+    if (injectedFault
+        && Number(injectedFault.transactionNumber) === Number(transaction?.number)
+        && String(injectedFault.customerId) === String(c?.customerId)) {
+      throw new Error('QA injected paid-customer presentation failure.');
+    }
+    const acceptanceYaw = c.mesh.rotation.y;
     leaveReview(c, true);
     clearCustomerItemMeshes(c);
     // the goods are paid for; if they also came for the course, THIS is where
@@ -1928,12 +1999,17 @@ export function makeClubhouse(ctx) {
     const bag = handedBag || kitBag || legacyBag || new THREE.Group();
     const productionBag = !!(handedBag || kitBag || legacyBag);
     if (!productionBag) {
+      const ownedBagResources = createPaidBagResourceLedger();
       const body = new THREE.Mesh(
-        new THREE.BoxGeometry(0.2, 0.26, 0.13),
-        new THREE.MeshStandardMaterial({ color: 0x2e5a3a, roughness: 0.85 }),
+        ownedBagResources.ownGeometry(new THREE.BoxGeometry(0.2, 0.26, 0.13)),
+        ownedBagResources.ownMaterial(new THREE.MeshStandardMaterial({
+          color: 0x2e5a3a, roughness: 0.85,
+        })),
       );
       body.position.y = 0.13;
       bag.add(body);
+      bag.userData.disposeCheckoutPaidBagResources = () => ownedBagResources.dispose();
+      bag.userData.checkoutPaidBagResourceStatus = () => ownedBagResources.status();
     } else if (legacyBag) {
       // A believable 26 cm retail carrier: large enough for the three-item sale
       // and readable as the object the customer owns in the departure shot.
@@ -1961,13 +2037,6 @@ export function makeClubhouse(ctx) {
     // route locomotion takes over as soon as the acceptance hold expires.
     c.bagAcceptanceFace = null;
     if (char) char.setMode('ReceiveBag');
-    c.cart = [];
-    c.awaitingCheckout = false;
-    c.checkoutPhase = 'complete';
-    leaveQueue(c);
-    c.stopIdx += 1;
-    c.linger = 0;
-    rebuildStock(); // the shelf gap where their pick came from stays real
   }
 
   addProp({
@@ -9962,13 +10031,24 @@ export function makeClubhouse(ctx) {
 
   const _placeScaleScratch = new THREE.Vector3();
   function clearCustomerItemMeshes(c) {
+    const failures = [];
     if (c.itemMeshes) {
-      for (const mesh of c.itemMeshes.values()) disposeCustomerProductMesh(c, mesh);
+      for (const mesh of c.itemMeshes.values()) {
+        try {
+          disposeCustomerProductMesh(c, mesh);
+        } catch (error) {
+          failures.push(error);
+          try { mesh?.removeFromParent?.(); } catch { /* keep releasing siblings */ }
+        }
+      }
       c.itemMeshes.clear();
     }
     c.checkoutPlacement = null;
     c.placeMotion = null;
-    if (register && typeof register.setPlacementPreview === 'function') register.setPlacementPreview(null);
+    if (register && typeof register.setPlacementPreview === 'function') {
+      try { register.setPlacementPreview(null); } catch (error) { failures.push(error); }
+    }
+    return { ok: failures.length === 0, failures };
   }
 
   function updateCustomerPlacement(c, dt) {
@@ -10383,21 +10463,29 @@ export function makeClubhouse(ctx) {
     c.awaitingCheckout = false;
     c.checkoutPhase = 'leaving';
     leaveQueue(c);
+    // The paid carrier owns per-sale GPU resources that are intentionally not
+    // part of the character's original resource snapshot. Release it before
+    // any optional product/receipt presentation cleanup can fail.
+    disposePaidBagFromCustomer(c);
     clearCustomerItemMeshes(c);
     for (const product of c.checkoutHandoffProducts || []) {
-      product.removeFromParent();
-      if (typeof c.checkoutHandoffProductDisposer === 'function') {
-        c.checkoutHandoffProductDisposer(product);
-      }
+      try { product.removeFromParent(); } catch { /* continue releasing sibling resources */ }
+      try {
+        if (typeof c.checkoutHandoffProductDisposer === 'function') {
+          c.checkoutHandoffProductDisposer(product);
+        }
+      } catch { /* paid-bag and character cleanup must still run */ }
     }
     c.checkoutHandoffProducts = [];
     c.checkoutHandoffProductDisposer = null;
     if (c.oversizeCarryRoot) {
-      if (c.checkoutProductResources) c.checkoutProductResources.dispose(c.oversizeCarryRoot);
-      c.oversizeCarryRoot.removeFromParent();
+      try {
+        if (c.checkoutProductResources) c.checkoutProductResources.dispose(c.oversizeCarryRoot);
+      } catch { /* keep removing the paid customer */ }
+      try { c.oversizeCarryRoot.removeFromParent(); } catch { /* keep removing */ }
       c.oversizeCarryRoot = null;
     }
-    disposeCustomerHandoffReceipt(c);
+    try { disposeCustomerHandoffReceipt(c); } catch { c.handoffReceipt = null; }
 
     // Character resources are captured by makeCharacter before any shared item
     // proxy or paid-bag GLB is parented beneath it, so this cannot evict cached
@@ -10714,11 +10802,19 @@ export function makeClubhouse(ctx) {
     customerFor: (id) => customers.find((c) => sameReservationId(c.reservationId, id)) || null,
     readyCustomerFor: (id) => {
       const customer = customers.find((c) => sameReservationId(c.reservationId, id));
+      // A booking holder who asks to check in on an open goods ticket remains
+      // the checkout customer (`waiting`) until the one combined payment
+      // completes. This is screen readiness only; routing and unpaid-exit
+      // ownership stay with checkout.
+      const combinedAtCounter = !!(customer
+        && customer.deskErrandRaisedMidSale
+        && customer.deskErrandPending
+        && customer.cart?.length);
       return customer
         && customer.queued
         && counterQueue.indexOf(customer) === 0
         && !customer.reservationReleased
-        && customer.checkoutPhase === 'reservation-waiting'
+        && (customer.checkoutPhase === 'reservation-waiting' || combinedAtCounter)
         ? customer
         : null;
     },
@@ -10808,10 +10904,13 @@ export function makeClubhouse(ctx) {
       if (!(customer.deskErrandRaisedMidSale && customer.cart && customer.cart.length)) {
         customer.checkoutPhase = 'reservation-waiting';
         customer.currentDestination = 'front-desk';
-      } else {
-        customer.deskErrandPending = false;
-        customer.deskErrandAwaitingAnswer = false;
       }
+      // A combined visit is not answered merely because the tee-sheet row was
+      // created. The green fee still has to join the open goods ticket. Leave
+      // both errand flags armed until beginReservationPayment confirms that
+      // attachGreenFeeToTx succeeded; on a rejected/invalid attachment the new
+      // booking therefore remains visible and actionable instead of becoming a
+      // ghost unpaid reservation with no retry path.
       result.res.currentDestination = 'front-desk';
       result.res.checkInStatus = 'waiting';
       return { ...result, customer };
@@ -11503,7 +11602,15 @@ export function makeClubhouse(ctx) {
         if (holdingInLounge) {
           c.linger = 0;
           if (char) char.setMode('Idle');
-        } else if (stop.kind === 'counter' && openReservationCustomer(c)) {
+        // A reservation holder who also shopped is still an unpaid checkout
+        // customer until the merchandise ticket owns those units. Keeping this
+        // exclusion local to counter dispatch is deliberate: lifecycle checks
+        // above still need openReservationCustomer(c) to protect an active
+        // booking from closing-time or stale-status release. Once the cart is
+        // paid, onCustomerPaid clears it and the combined desk result already
+        // carried the green fee on that same ticket.
+        } else if (stop.kind === 'counter' && openReservationCustomer(c)
+            && !(c.cart?.length && !c.bought)) {
           c.checkoutPhase = 'reservation-waiting';
           c.currentDestination = 'front-desk';
           const reservation = reservationRecordForCustomer(c);
@@ -11563,6 +11670,11 @@ export function makeClubhouse(ctx) {
             const placed = updateCustomerPlacement(c, dt);
             if (placed && !register.hasTx()) {
               c.onPaid = (transaction) => onCustomerPaid(c, transaction);
+              c.onPaidOwnership = () => transferCustomerPaidOwnership(c);
+              c.onPaidRelease = (transaction) => releasePaidCustomerFromCheckout(c, transaction);
+              c.onPaidReleaseAuthoritative = () => (
+                releasePaidCustomerFromCheckoutAuthoritative(c)
+              );
               // B2 (Goal 23): the register owns the barcode, clubhouse owns the
               // person, so the register says WHEN the goods are all scanned and
               // this decides what the person does about it.
@@ -12223,6 +12335,10 @@ export function makeClubhouse(ctx) {
     // tearing the scene down must not pocket whatever shoppers were holding: the save is written
     // from `state`, and stock in a deleted shopper's hands would simply cease to exist.
     for (let i = customers.length - 1; i >= 0; i--) removeCustomer(i);
+    // Six customer-card canvases deliberately stay cached after the opaque GPU
+    // warm-up. They are not all reachable from the scene graph, so the register
+    // releases that explicit ownership ledger before the broad resource walk.
+    const registerDisposal = register.dispose?.() || null;
 
     const equipmentBorrowedResources = deliveryEquipment?.borrowedResources?.() || null;
     clearDeliveryVanColliders();
@@ -12294,6 +12410,7 @@ export function makeClubhouse(ctx) {
     disposalSummary = Object.freeze({
       procedural,
       merchandise,
+      register: registerDisposal,
       firstDoorVisibilityReady: firstDoorVisibilityReadyDisposal,
       deliveryEquipment: deliveryEquipmentDisposal,
       boxPlacement: boxPlacementDisposal,
@@ -12533,6 +12650,8 @@ export function makeClubhouse(ctx) {
       // never built. A probe reported registerKeysMatching /bag/i as [] and
       // accessorType undefined, which is what settled it.
       bagNode: () => (register.bagNode ? register.bagNode() : null),
+      checkoutBagOwnershipStatus: () => (register.checkoutBagOwnershipStatus
+        ? register.checkoutBagOwnershipStatus() : null),
       // C2 (Goal 19): forwarded the day it was added — the facade's own note
       // above records what an unforwarded accessor costs.
       cardNode: () => (register.cardNode ? register.cardNode() : null),
@@ -12540,6 +12659,14 @@ export function makeClubhouse(ctx) {
       // above records what an unforwarded accessor costs.
       repaintBrand: () => (register.repaintBrand ? register.repaintBrand() : false),
       cardBrandCanvas: () => (register.cardBrandCanvas ? register.cardBrandCanvas() : null),
+      debugPaymentCardCanvas: (cardId) => (register.debugPaymentCardCanvas
+        ? register.debugPaymentCardCanvas(cardId) : null),
+      cardOwnedResourceStatus: () => (register.cardOwnedResourceStatus
+        ? register.cardOwnedResourceStatus() : null),
+      paidBagResourceStatus: () => (register.paidBagResourceStatus
+        ? register.paidBagResourceStatus() : null),
+      cardTextureCacheStatus: () => (register.cardTextureCacheStatus
+        ? register.cardTextureCacheStatus() : null),
       itemMesh: (uid) => (register.itemMesh ? register.itemMesh(uid) : null),
       bagIsAtCounter: () => (register.bagIsAtCounter ? register.bagIsAtCounter() : false),
       enter: () => register.enter(),
@@ -12560,6 +12687,33 @@ export function makeClubhouse(ctx) {
       // in Recovery looks identical from the outside to one that is merely
       // waiting — only this says which.
       checkoutWatchdogDiagnostics: () => register.checkoutWatchdogDiagnostics(),
+      debugFailNextBankHelperReturn: () => register.debugFailNextBankHelperReturn?.(),
+      debugFailNextPaidCustomerPresentation: () => {
+        const transaction = register.getTx();
+        const customer = register.getCustomer();
+        if (!transaction || !customer || transaction.banked) {
+          qaPaidPresentationFault = null;
+          return { armed: false, transactionNumber: null, customerId: null };
+        }
+        qaPaidPresentationFault = {
+          transactionNumber: transaction.number,
+          customerId: customer.customerId,
+        };
+        return { armed: true, ...qaPaidPresentationFault };
+      },
+      debugFailNextPaidCustomerRelease: () => {
+        const transaction = register.getTx();
+        const customer = register.getCustomer();
+        if (!transaction || !customer || transaction.banked) {
+          qaPaidReleaseFault = null;
+          return { armed: false, transactionNumber: null, customerId: null };
+        }
+        qaPaidReleaseFault = {
+          transactionNumber: transaction.number,
+          customerId: customer.customerId,
+        };
+        return { armed: true, ...qaPaidReleaseFault };
+      },
       scanPresentation: () => register.scanPresentation(),
       scanAlignment: () => register.scanAlignment(),
       cashHandoffPresentation: () => register.cashHandoffPresentation(),
@@ -12593,6 +12747,7 @@ export function makeClubhouse(ctx) {
       checkoutInstruction: () => (register.checkoutInstruction ? register.checkoutInstruction() : null),
       cardXScreenPoint: () => register.cardXScreenPoint(),
       presentedCashScreenPoint: () => register.presentedCashScreenPoint(),
+      drawerSlotScreenPoint: (denom) => register.drawerSlotScreenPoint(denom),
       // ITEM 12: the offered notes INDIVIDUALLY. presentedCashScreenPoint
       // returns the pile's one generous hit sphere, which is the right target
       // to click and the wrong one to aim a per-note hover test at. This
@@ -12607,6 +12762,7 @@ export function makeClubhouse(ctx) {
       cardKeyScreenPoint: (actionId) => register.cardKeyScreenPoint(actionId),
       debugTerminalXAt: (x, y) => register.debugTerminalXAt(x, y),
       debugWorkingPose: () => register.debugWorkingPose(),
+      debugMonitorTabPixels: () => register.debugMonitorTabPixels(),
       debugCardGrabOutline: (on) => register.debugCardGrabOutline(on),
       cardTerminalLocked: () => register.cardTerminalLocked(),
       monitorHotspots: () => register.monitorHotspots(),

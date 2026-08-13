@@ -486,14 +486,18 @@ test('driver phase validation rejects stale-probe counter and identity relabelin
       = relabeledAcceptedBoundary.alignment.stalePostStallRafCallbacks[0].timestampMs;
     assert.equal(validateGoal24BusyStallPhaseAlignment(relabeledAcceptedBoundary), false);
 
-    const preRequestAcceptedBoundary = structuredClone(control);
-    const preRequestEnd = preRequestAcceptedBoundary.alignment
+    // Chromium may stamp an accepted callback with the frame's nominal
+    // deadline just before JavaScript requested it. Delivery still has to be
+    // after the request; the observed callback time proves that ordering.
+    const deadlineBeforeRequest = structuredClone(control);
+    const preRequestEnd = deadlineBeforeRequest.alignment
       .acceptedPostStallRafRequestedAtMs - 0.01;
-    preRequestAcceptedBoundary.alignment.postStallDisplayTickTimestampMs = preRequestEnd;
-    preRequestAcceptedBoundary.alignment.postStallDisplayInterval.endAtMs = preRequestEnd;
-    preRequestAcceptedBoundary.alignment.postStallDisplayInterval.durationMs = preRequestEnd
-      - preRequestAcceptedBoundary.alignment.postStallDisplayInterval.startAtMs;
-    assert.equal(validateGoal24BusyStallPhaseAlignment(preRequestAcceptedBoundary), false);
+    deadlineBeforeRequest.alignment.postStallDisplayTickTimestampMs = preRequestEnd;
+    deadlineBeforeRequest.alignment.postStallDisplayInterval.endAtMs = preRequestEnd;
+    deadlineBeforeRequest.alignment.postStallDisplayInterval.durationMs = preRequestEnd
+      - deadlineBeforeRequest.alignment.postStallDisplayInterval.startAtMs;
+    deadlineBeforeRequest.alignment.phaseAligned = true;
+    assert.equal(validateGoal24BusyStallPhaseAlignment(deadlineBeforeRequest), true);
 
     const futureAcceptedBoundary = structuredClone(control);
     const futureEnd = futureAcceptedBoundary.alignment.postStallDisplayTickObservedAtMs + 1;

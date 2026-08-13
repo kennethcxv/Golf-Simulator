@@ -594,6 +594,12 @@ export function initShop(state) {
     salesWindow: [],     // the last seven closed days of the same — velocity reads this
     transactionHistory: [], // completed physical-register tickets, newest first
     nextTransactionNo: 1,
+    // V15 persistence authority. It is intentionally present even when empty,
+    // so load can distinguish a clean journal from a missing/torn one.
+    pendingCheckouts: {},
+    checkoutSettlementReceipts: {},
+    checkoutSettlementReceiptKeys: [],
+    checkoutProjectionIds: {},
     fittingsYesterday: 0,
     // THE DOOR SIGN. A new day — and a new game — starts CLOSED: the morning
     // preparation window is the whole point of it (src/sim/shopSign.js).
@@ -1389,6 +1395,7 @@ export function shopDailyAccrual(state) {
         ok: false,
         dayAbs,
         reason: shop.lastAccrualError,
+        diagnostic: revenueReady.diagnostic || cogsReady.diagnostic,
         inventoryChanged: false,
         ledgerChanged: false,
       };

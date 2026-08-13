@@ -55,6 +55,10 @@ import {
 import { makeCashierHands } from './cashierHands.js';
 import { createFrontDeskMonitorUi } from './frontDeskMonitorUi.js';
 import {
+  createPaidBagResourceLedger, paidBagAttachedToCustomer, retainedPaidBagDisposalStatus,
+  retryRetainedPaidBagDisposals, salvagePaidBagToCustomer,
+} from './customerPaidBag.js';
+import {
   billFit, billLayout, clipFillRatio, coinLayout,
 } from './drawerMoneyLayout.js';
 
@@ -108,6 +112,65 @@ export const CHECKOUT_DISPLAY_BRAND_PRESENTATION = Object.freeze({
   }),
 });
 const DEFAULT_DISPLAY_BRAND = CHECKOUT_DISPLAY_BRAND_PRESENTATION.defaultClubName;
+
+export function runCheckoutCleanupSteps(steps) {
+  const failures = [];
+  for (const step of steps || []) {
+    const stage = String(step?.stage || 'checkout-cleanup');
+    try {
+      step?.run?.();
+    } catch (error) {
+      failures.push({ stage, error });
+    }
+  }
+  return failures;
+}
+
+export function runPaidCustomerAuthoritativeRelease({
+  actorRelease = null,
+  bridgeRelease = null,
+  attempt = null,
+} = {}) {
+  const safeAttempt = typeof attempt === 'function'
+    ? attempt
+    : (stage, operation) => {
+      try {
+        return { ok: true, value: operation(), stage };
+      } catch (error) {
+        return { ok: false, error, stage };
+      }
+    };
+  const invoke = (stage, operation) => {
+    if (typeof operation !== 'function') {
+      return { ok: false, value: false, missing: true, stage };
+    }
+    try {
+      return safeAttempt(stage, () => {
+        const value = operation();
+        if (value !== true) {
+          throw new Error(`${stage} did not confirm release.`);
+        }
+        return true;
+      });
+    } catch (error) {
+      // A diagnostic wrapper is not allowed to defeat the independent bridge.
+      return { ok: false, error, stage };
+    }
+  };
+
+  const actor = invoke('paid-customer-authoritative-release', actorRelease);
+  if (actor.ok && actor.value === true) {
+    return { ...actor, source: 'actor', actor, bridge: null };
+  }
+
+  const bridge = invoke('paid-customer-authoritative-release-bridge', bridgeRelease);
+  return {
+    ...bridge,
+    source: bridge.ok && bridge.value === true ? 'bridge' : null,
+    actor,
+    bridge,
+  };
+}
 
 export function checkoutDisplayClubName(state) {
   const value = String(state?.clubName || '').trim();
@@ -603,20 +666,560 @@ export function checkoutMoneyGpuPrewarmStems(denoms = DENOMS) {
   ])];
 }
 
-export function cashGpuPrewarmReleaseReady({ ready, built, expected, drawn } = {}) {
+export function checkoutPaymentGpuPrewarmStems(denoms = DENOMS) {
+  return [...checkoutMoneyGpuPrewarmStems(denoms), 'payment_card'];
+}
+
+export function checkoutPaymentCardGpuPrewarmVariantIds(cards = PAYMENT_CARDS) {
+  const seen = new Set();
+  const ids = [];
+  for (const card of cards || []) {
+    const id = typeof card?.id === 'string' ? card.id : '';
+    if (!id || seen.has(id)) continue;
+    seen.add(id);
+    ids.push(id);
+  }
+  return ids;
+}
+
+const CHECKOUT_CARD_OWNED_TEXTURE_KEYS = Object.freeze([
+  'map', 'emissiveMap', 'roughnessMap', 'metalnessMap', 'normalMap',
+]);
+
+/**
+ * Identity-based owner for resources minted by a live payment-card mesh.
+ *
+ * The authored GLB geometry/material and the cached branded face texture are
+ * borrowed and never marked. Fallback geometry/materials and the dynamic face
+ * plane are marked through this ledger. Failed identities and failed detach
+ * roots stay strongly reachable so a card can be cleared from gameplay without
+ * making its WebGL cleanup authority disappear.
+ */
+export function createCardMeshResourceLedger() {
+  const knownGeometries = new WeakSet();
+  const knownMaterials = new WeakSet();
+  const knownTextures = new WeakSet();
+  const disposedGeometries = new WeakSet();
+  const disposedMaterials = new WeakSet();
+  const disposedTextures = new WeakSet();
+  // Live identities are strongly held from the instant they are marked. That
+  // covers construction faults before the local card root reaches `cardMesh`,
+  // while retained* below distinguishes identities whose disposer failed.
+  const liveGeometries = new Set();
+  const liveMaterials = new Set();
+  const liveTextures = new Set();
+  const retainedGeometries = new Set();
+  const retainedMaterials = new Set();
+  const retainedTextures = new Set();
+  const retainedRoots = new Set();
+  const counts = {
+    geometriesCreated: 0,
+    geometriesDisposed: 0,
+    materialsCreated: 0,
+    materialsDisposed: 0,
+    texturesCreated: 0,
+    texturesDisposed: 0,
+    disposalErrors: 0,
+  };
+
+  const own = (resource, known, live, disposedSet, countKey) => {
+    if (!resource || (typeof resource !== 'object' && typeof resource !== 'function')) {
+      return resource;
+    }
+    if (!known.has(resource)) {
+      known.add(resource);
+      counts[countKey] += 1;
+    }
+    if (!disposedSet.has(resource)) live.add(resource);
+    return resource;
+  };
+  const ownGeometry = (resource) => own(
+    resource, knownGeometries, liveGeometries, disposedGeometries, 'geometriesCreated',
+  );
+  const ownMaterial = (resource) => own(
+    resource, knownMaterials, liveMaterials, disposedMaterials, 'materialsCreated',
+  );
+  const ownTexture = (resource) => own(
+    resource, knownTextures, liveTextures, disposedTextures, 'texturesCreated',
+  );
+  const status = () => {
+    return {
+      ...counts,
+      liveGeometries: liveGeometries.size,
+      liveMaterials: liveMaterials.size,
+      liveTextures: liveTextures.size,
+      retainedGeometries: retainedGeometries.size,
+      retainedMaterials: retainedMaterials.size,
+      retainedTextures: retainedTextures.size,
+      retainedRoots: retainedRoots.size,
+      retainedResources: retainedGeometries.size
+        + retainedMaterials.size + retainedTextures.size,
+      disposed: liveGeometries.size === 0 && liveMaterials.size === 0
+        && liveTextures.size === 0
+        && retainedRoots.size === 0,
+    };
+  };
+  const mark = (object, { geometry = true, material = false } = {}) => {
+    if (!object) return object;
+    if (geometry && object.geometry) {
+      if (!object.userData?.checkoutCardOwnedGeometry) {
+        object.userData = { ...object.userData, checkoutCardOwnedGeometry: true };
+      }
+      ownGeometry(object.geometry);
+    }
+    if (material && object.material) {
+      if (!object.userData?.checkoutCardOwnedMaterial) {
+        object.userData = { ...object.userData, checkoutCardOwnedMaterial: true };
+      }
+      const materials = Array.isArray(object.material) ? object.material : [object.material];
+      for (const ownedMaterial of new Set(materials.filter(Boolean))) {
+        ownMaterial(ownedMaterial);
+        for (const key of CHECKOUT_CARD_OWNED_TEXTURE_KEYS) {
+          if (ownedMaterial?.[key]?.isTexture) ownTexture(ownedMaterial[key]);
+        }
+      }
+    }
+    return object;
+  };
+  const dispose = (root = null, { onError = null } = {}) => {
+    const geometries = new Set(liveGeometries);
+    const materials = new Set(liveMaterials);
+    const textures = new Set(liveTextures);
+    const roots = new Set(retainedRoots);
+    if (root) roots.add(root);
+    const failures = [];
+    const report = (stage, error, resource = null) => {
+      counts.disposalErrors += 1;
+      const failure = { stage, error, resource };
+      failures.push(failure);
+      if (typeof onError === 'function') {
+        try {
+          onError(stage, error);
+        } catch (reportError) {
+          failures.push({ stage: 'card-disposal-reporter', error: reportError, resource });
+        }
+      }
+    };
+    for (const candidateRoot of roots) {
+      let traversed = false;
+      try {
+        if (typeof candidateRoot?.traverse === 'function') {
+          candidateRoot.traverse((object) => {
+            if (object.userData?.checkoutCardOwnedGeometry && object.geometry) {
+              ownGeometry(object.geometry);
+              geometries.add(object.geometry);
+            }
+            if (!object.userData?.checkoutCardOwnedMaterial || !object.material) return;
+            const ownedMaterials = Array.isArray(object.material)
+              ? object.material : [object.material];
+            for (const ownedMaterial of ownedMaterials) {
+              if (!ownedMaterial) continue;
+              ownMaterial(ownedMaterial);
+              materials.add(ownedMaterial);
+              for (const key of CHECKOUT_CARD_OWNED_TEXTURE_KEYS) {
+                if (ownedMaterial[key]?.isTexture) {
+                  ownTexture(ownedMaterial[key]);
+                  textures.add(ownedMaterial[key]);
+                }
+              }
+            }
+          });
+        }
+        traversed = true;
+      } catch (error) {
+        retainedRoots.add(candidateRoot);
+        report('card-resource-collect', error, candidateRoot);
+      }
+      try {
+        candidateRoot?.removeFromParent?.();
+        if (traversed) retainedRoots.delete(candidateRoot);
+      } catch (error) {
+        retainedRoots.add(candidateRoot);
+        report('card-detach', error, candidateRoot);
+      }
+    }
+
+    const released = { geometries: 0, materials: 0, textures: 0 };
+    const release = (
+      stage, resource, live, retained, disposedSet, disposedKey, releasedKey,
+    ) => {
+      if (disposedSet.has(resource)) {
+        live.delete(resource);
+        retained.delete(resource);
+        return;
+      }
+      try {
+        resource.dispose();
+        live.delete(resource);
+        retained.delete(resource);
+        disposedSet.add(resource);
+        counts[disposedKey] += 1;
+        released[releasedKey] += 1;
+      } catch (error) {
+        retained.add(resource);
+        report(stage, error, resource);
+      }
+    };
+    for (const texture of textures) {
+      release(
+        'card-texture', texture, liveTextures, retainedTextures, disposedTextures,
+        'texturesDisposed', 'textures',
+      );
+    }
+    for (const material of materials) {
+      release(
+        'card-material', material, liveMaterials, retainedMaterials, disposedMaterials,
+        'materialsDisposed', 'materials',
+      );
+    }
+    for (const geometry of geometries) {
+      release(
+        'card-geometry', geometry, liveGeometries, retainedGeometries, disposedGeometries,
+        'geometriesDisposed', 'geometries',
+      );
+    }
+    const result = { ...status(), released, errors: failures.map(({ stage, error }) => ({
+      stage, message: String(error?.message || error),
+    })) };
+    if (failures.length > 0 && typeof onError !== 'function') {
+      const aggregate = new AggregateError(
+        failures.map((failure) => failure.error),
+        'Payment-card resource disposal failed after exhausting owned siblings.',
+      );
+      aggregate.result = result;
+      throw aggregate;
+    }
+    return result;
+  };
+
+  return Object.freeze({ mark, dispose, retry: (options = {}) => dispose(null, options), status });
+}
+
+/**
+ * Explicit ownership for the denomination-tinted material clones used by both
+ * GPU prewarm representatives and live cash. The clones borrow their maps from
+ * merchandise GLBs, so this owner releases materials only. References are
+ * detached from the register tree first so the clubhouse's later broad scene
+ * walk cannot discover and dispose the same clone a second time.
+ */
+export function createKitMoneyMaterialCache() {
+  const entries = new Map();
+  const knownMaterials = new WeakSet();
+  let materialsCreated = 0;
+  let disposedMaterials = 0;
+  let disposalErrors = 0;
+  let closing = false;
+  let disposed = false;
+
+  const liveMaterials = () => new Set(entries.values());
+  const status = () => ({
+    disposed,
+    closing,
+    entries: entries.size,
+    materialsCreated,
+    disposedMaterials,
+    liveMaterials: liveMaterials().size,
+    disposalErrors,
+  });
+  const getOrCreate = (key, factory) => {
+    if (closing || disposed) throw new Error('Kit-money material cache is disposing or disposed.');
+    if (entries.has(key)) return entries.get(key);
+    const material = factory();
+    if (!material) return material;
+    entries.set(key, material);
+    if (!knownMaterials.has(material)) {
+      knownMaterials.add(material);
+      materialsCreated += 1;
+    }
+    return material;
+  };
+  const detachOwnedReferences = (roots, owned) => {
+    const source = Array.isArray(roots) ? roots : [roots];
+    for (const root of source) {
+      if (!root || typeof root.traverse !== 'function') continue;
+      root.traverse((object) => {
+        if (!object || !object.material) return;
+        if (Array.isArray(object.material)) {
+          object.material = object.material.map((material) => (
+            owned.has(material) ? null : material
+          ));
+        } else if (owned.has(object.material)) {
+          object.material = null;
+        }
+      });
+    }
+  };
+  const dispose = ({ detachFrom = null } = {}) => {
+    if (disposed) return { ...status(), releasedMaterials: 0, errors: [], alreadyDisposed: true };
+    closing = true;
+    const owned = liveMaterials();
+    detachOwnedReferences(detachFrom, owned);
+    const errors = [];
+    let releasedMaterials = 0;
+    for (const material of owned) {
+      try {
+        material?.dispose?.();
+        for (const [key, candidate] of entries) {
+          if (candidate === material) entries.delete(key);
+        }
+        disposedMaterials += 1;
+        releasedMaterials += 1;
+      } catch (error) {
+        disposalErrors += 1;
+        errors.push({
+          materialName: material?.name || null,
+          message: String(error?.message || error),
+        });
+      }
+    }
+    disposed = entries.size === 0;
+    return { ...status(), releasedMaterials, errors, alreadyDisposed: false };
+  };
+
+  return Object.freeze({ getOrCreate, status, dispose });
+}
+
+// The six payment-card canvases are scene-owned resources, not per-transaction
+// resources. Keeping them here means the opaque startup draw uploads the exact
+// Texture objects that syncPhysicalBrand later assigns to the live shared card
+// material. A customer change is therefore a map pointer swap, not a repaint,
+// upload, or dispose/recreate cycle on the first card presentation.
+export function createPaymentCardTextureCache(textureFactory = paymentCardTexture) {
+  const textures = new Map(); // cache key -> { texture, designId, clubScoped }
+  const knownTextures = new WeakSet();
+  let texturesCreated = 0;
+  let disposed = false;
+  let closing = false;
+  let disposedTextures = 0;
+  let disposalErrors = 0;
+  let evictedTextures = 0;
+
+  const descriptor = (clubName, design) => {
+    const club = checkoutDisplayClubName({ clubName });
+    const card = design || DEFAULT_PAYMENT_CARD;
+    // Issuer cards contain no club-dependent pixels. Keeping those five maps
+    // under stable design-only keys means renaming the club can replace exactly
+    // one member-card texture instead of retaining another full six-card deck.
+    const clubScoped = !card.issuer;
+    return {
+      key: clubScoped ? `club:${club}\u0000${card.id}` : `issuer:${card.id}`,
+      designId: card.id,
+      clubScoped,
+    };
+  };
+  const uniqueTextures = () => new Set([...textures.values()].map((entry) => entry.texture));
+  const status = () => ({
+    disposed,
+    closing,
+    entries: textures.size,
+    liveTextures: uniqueTextures().size,
+    keys: [...textures.keys()].sort(),
+    texturesCreated,
+    disposedTextures,
+    evictedTextures,
+    disposalErrors,
+  });
+  const releaseTexture = (texture, { cause, keys }) => {
+    const targetKeys = new Set(keys);
+    const identityKeys = [...textures.entries()]
+      .filter(([, entry]) => entry.texture === texture)
+      .map(([key]) => key);
+    const borrowedKeys = identityKeys.filter((key) => !targetKeys.has(key));
+    if (borrowedKeys.length > 0) {
+      // Dropping one cache alias must not dispose the same Texture identity
+      // while an issuer/member entry still owns it. Factories normally return
+      // distinct CanvasTextures, but treating identity as the ownership unit
+      // keeps custom/test factories and exceptional rename cleanup safe too.
+      for (const key of targetKeys) {
+        if (textures.get(key)?.texture === texture) textures.delete(key);
+      }
+      return { ok: true, disposed: false };
+    }
+    try {
+      texture?.dispose?.();
+      for (const key of identityKeys) textures.delete(key);
+      disposedTextures += 1;
+      if (cause === 'club-rename') evictedTextures += 1;
+      return { ok: true, disposed: true };
+    } catch (error) {
+      disposalErrors += 1;
+      return {
+        ok: false,
+        error: {
+          cause,
+          keys: [...keys],
+          message: String(error?.message || error),
+        },
+      };
+    }
+  };
+  const get = (clubName, design = DEFAULT_PAYMENT_CARD) => {
+    if (disposed || closing) throw new Error('Payment-card texture cache is disposing or disposed.');
+    const card = design || DEFAULT_PAYMENT_CARD;
+    const wanted = descriptor(clubName, card);
+    if (textures.has(wanted.key)) return textures.get(wanted.key).texture;
+    const pendingReplacementKey = `pending-replacement:${wanted.designId}`;
+    const obsoleteClubEntries = () => [...textures.entries()].filter(([, entry]) => (
+      entry.clubScoped && entry.designId === wanted.designId
+    ));
+    const releaseObsoleteClubTextures = () => {
+      const obsolete = obsoleteClubEntries();
+      for (const previousTexture of new Set(obsolete.map(([, entry]) => entry.texture))) {
+        const keys = obsolete
+          .filter(([, entry]) => entry.texture === previousTexture)
+          .map(([key]) => key);
+        const released = releaseTexture(previousTexture, { cause: 'club-rename', keys });
+        if (!released.ok) return released;
+      }
+      return { ok: true };
+    };
+    if (wanted.clubScoped && textures.has(pendingReplacementKey)) {
+      const pending = textures.get(pendingReplacementKey);
+      // Retry the old owner before allocating another canvas. A permanently
+      // throwing old texture therefore retains exactly one usable replacement
+      // per card design, even if every frame presents a different club name.
+      const obsoleteReleased = releaseObsoleteClubTextures();
+      if (!obsoleteReleased.ok) {
+        throw new Error(
+          `Payment-card pending replacement is still live: ${obsoleteReleased.error.message}`,
+        );
+      }
+      if (pending.targetKey === wanted.key) {
+        textures.delete(pendingReplacementKey);
+        textures.set(wanted.key, { texture: pending.texture, ...wanted });
+        return pending.texture;
+      }
+      // The old owner is gone, but this request targets a newer club name than
+      // the retained painted canvas. Release that one bounded pending identity
+      // before painting the current name. Shared aliases remain protected by
+      // releaseTexture's identity-level borrower check.
+      const pendingReleased = releaseTexture(pending.texture, {
+        cause: 'stale-pending-replacement',
+        keys: [pendingReplacementKey],
+      });
+      if (!pendingReleased.ok) {
+        throw new Error(
+          `Payment-card pending replacement is still live: ${pendingReleased.error.message}`,
+        );
+      }
+    }
+
+    // Paint first. If the canvas factory fails during a rename, the prior
+    // member texture remains cached, live, and retryable under its old key.
+    const texture = textureFactory(clubName, card);
+    if (!texture || typeof texture.dispose !== 'function') {
+      throw new TypeError('Payment-card texture factory returned no disposable texture.');
+    }
+    if (texture && !knownTextures.has(texture)) {
+      knownTextures.add(texture);
+      texturesCreated += 1;
+    }
+    if (wanted.clubScoped) {
+      const obsolete = obsoleteClubEntries();
+      for (const previousTexture of new Set(obsolete.map(([, entry]) => entry.texture))) {
+        const previousKeys = obsolete
+          .filter(([, entry]) => entry.texture === previousTexture)
+          .map(([key]) => key);
+        // A factory may deliberately repaint and return the same CanvasTexture.
+        // Rekey that identity without disposing the map live presentation uses.
+        if (previousTexture === texture) {
+          for (const key of previousKeys) textures.delete(key);
+          continue;
+        }
+        const released = releaseTexture(previousTexture, {
+          cause: 'club-rename',
+          keys: previousKeys,
+        });
+        if (!released.ok) {
+          // Keep the already-painted replacement usable and strongly owned.
+          // The next request retries the old identity before it can paint or
+          // retain anything else, bounding both memory and canvas churn.
+          textures.set(pendingReplacementKey, {
+            texture,
+            designId: wanted.designId,
+            clubScoped: false,
+            targetKey: wanted.key,
+          });
+          throw new Error(`Payment-card club texture could not be replaced: ${released.error.message}`);
+        }
+      }
+    }
+
+    textures.set(wanted.key, { texture, ...wanted });
+    return texture;
+  };
+  const prime = (clubName, cards = PAYMENT_CARDS) => {
+    const unique = new Map();
+    for (const card of cards || []) {
+      if (!card?.id || unique.has(card.id)) continue;
+      unique.set(card.id, card);
+    }
+    return [...unique.values()].map((design) => ({
+      id: design.id,
+      design,
+      texture: get(clubName, design),
+    }));
+  };
+  const dispose = () => {
+    if (disposed) return { ...status(), alreadyDisposed: true };
+    closing = true;
+    const errors = [];
+    let releasedTextures = 0;
+    for (const texture of uniqueTextures()) {
+      const keys = [...textures.entries()]
+        .filter(([, entry]) => entry.texture === texture)
+        .map(([key]) => key);
+      const released = releaseTexture(texture, { cause: 'teardown', keys });
+      if (released.ok) releasedTextures += 1;
+      else errors.push(released.error);
+    }
+    disposed = textures.size === 0;
+    return {
+      ...status(), releasedTextures, errors, alreadyDisposed: false,
+    };
+  };
+
+  return Object.freeze({ get, prime, status, dispose });
+}
+
+function sameExactStringSet(left, right) {
+  if (!Array.isArray(left) || !Array.isArray(right)) return false;
+  const a = [...new Set(left.map(String))].sort();
+  const b = [...new Set(right.map(String))].sort();
+  return a.length === b.length && a.every((value, index) => value === b[index]);
+}
+
+export function cashGpuPrewarmReleaseReady({
+  ready, built, expected, drawn, expectedDrawUnits, observedDrawUnits,
+  expectedCardVariants, observedCardVariants,
+  expectedCardVariantIds, observedCardVariantIds,
+} = {}) {
   const expectedCount = Number(expected);
-  return ready === true
+  const modelsReady = ready === true
     && Number.isInteger(expectedCount)
     && expectedCount > 0
     && Number(built) === expectedCount
     && Number(drawn) === expectedCount;
+  if (!modelsReady) return false;
+  const unitCount = Number(expectedDrawUnits);
+  const cardVariantCount = Number(expectedCardVariants);
+  const cardVariantsReady = Number.isInteger(cardVariantCount)
+    && cardVariantCount > 0
+    && Number(observedCardVariants) === cardVariantCount
+    && Array.isArray(expectedCardVariantIds)
+    && expectedCardVariantIds.length === cardVariantCount
+    && Array.isArray(observedCardVariantIds)
+    && observedCardVariantIds.length === cardVariantCount
+    && sameExactStringSet(expectedCardVariantIds, observedCardVariantIds);
+  return Number.isInteger(unitCount) && unitCount > 0
+    && Number(observedDrawUnits) === unitCount
+    && cardVariantsReady;
 }
 
-export function cashGpuPrewarmShouldRelease(status, { renderFinished = false } = {}) {
-  // A bounded asset wait may expire before the merchandise callback fires. Once
-  // the opaque warm-up render has finished, the offscreen representative root
-  // must still be retired so late model readiness cannot leak hidden scene nodes.
-  return renderFinished === true || cashGpuPrewarmReleaseReady(status);
+export function cashGpuPrewarmShouldRelease(status, { abort = false } = {}) {
+  // Normal retirement is evidence-driven. Abort is a distinct cleanup path so
+  // a readiness timeout can never masquerade as a successful GPU draw.
+  return abort === true || cashGpuPrewarmReleaseReady(status);
 }
 
 export function shouldPrewarmDrawerCoin(denom) {
@@ -1063,7 +1666,9 @@ export function createRegisterMode(B) {
   const root = new THREE.Group();
   root.name = 'SimplifiedFrontDeskRegister';
   interior.add(root);
-  let physicalBrandSignature = '';
+  const cardTextureCache = createPaymentCardTextureCache();
+  let bagBrandSignature = '';
+  let cardBrandSignature = '';
   const bagBrandMaterial = new THREE.MeshBasicMaterial({
     toneMapped: false,
     side: THREE.DoubleSide,
@@ -1073,19 +1678,25 @@ export function createRegisterMode(B) {
     side: THREE.DoubleSide,
   });
   function syncPhysicalBrand() {
-    const signature = displayClubName();
-    if (signature === physicalBrandSignature) return false;
-    bagBrandMaterial.map?.dispose();
-    cardBrandMaterial.map?.dispose();
-    bagBrandMaterial.map = displayBrandTexture(signature, {
-      width: 640,
-      height: 760,
-      background: '#c3a06d',
-      backgroundEnd: '#a77f4e',
-      border: '#6c4b29',
-      foreground: '#173f2d',
-      subtitle: '#294f37',
-    });
+    const clubSignature = displayClubName();
+    const paymentCard = currentPaymentCard();
+    const nextCardSignature = `${clubSignature}\u0000${paymentCard.id}`;
+    let changed = false;
+    if (clubSignature !== bagBrandSignature) {
+      bagBrandMaterial.map?.dispose();
+      bagBrandMaterial.map = displayBrandTexture(clubSignature, {
+        width: 640,
+        height: 760,
+        background: '#c3a06d',
+        backgroundEnd: '#a77f4e',
+        border: '#6c4b29',
+        foreground: '#173f2d',
+        subtitle: '#294f37',
+      });
+      bagBrandMaterial.needsUpdate = true;
+      bagBrandSignature = clubSignature;
+      changed = true;
+    }
     // The card wears an actual CARD face — chip, member number, brand — not
     // the shop wordmark panel. Round 7: "make the card look better when
     // inserted": the wordmark read as a green sliver in the reader's slot;
@@ -1093,11 +1704,13 @@ export function createRegisterMode(B) {
     // H (Goal 23): the card at the reader is the card THIS customer carries,
     // chosen deterministically from their own identity so a person who pays
     // twice does not change bank between visits.
-    cardBrandMaterial.map = paymentCardTexture(signature, currentPaymentCard());
-    bagBrandMaterial.needsUpdate = true;
-    cardBrandMaterial.needsUpdate = true;
-    physicalBrandSignature = signature;
-    return true;
+    if (nextCardSignature !== cardBrandSignature) {
+      cardBrandMaterial.map = cardTextureCache.get(clubSignature, paymentCard);
+      cardBrandMaterial.needsUpdate = true;
+      cardBrandSignature = nextCardSignature;
+      changed = true;
+    }
+    return changed;
   }
   syncPhysicalBrand();
   const cashierHands = makeCashierHands(root);
@@ -1547,6 +2160,15 @@ export function createRegisterMode(B) {
   let bagGroup = null;
   let bagContentsNode = null;
   let bagHandoffNode = null;
+  const paidBagResourceCounts = {
+    transferredBags: 0,
+    successfullyDisposedBags: 0,
+    failedDisposals: 0,
+    ownedGeometriesTransferred: 0,
+    ownedMaterialsTransferred: 0,
+    ownedGeometriesDisposed: 0,
+    ownedMaterialsDisposed: 0,
+  };
   const BAG_COUNTER_SCALE = CHECKOUT_BAG_PRESENTATION.scale;
   const BAG_FLATTEN = CHECKOUT_BAG_PRESENTATION.flatten;
   const bagCounterQuaternion = () => frontDeskQuaternion(
@@ -1797,7 +2419,7 @@ export function createRegisterMode(B) {
 
   const itemResources = createRegisterItemResources();
   const itemMeshes = new Map();
-  // One representative of every authored cash model sits well outside the
+  // One representative of every authored payment model sits well outside the
   // player frustum only while courseScene performs its opaque-veil GPU warm-up.
   // That warm-up temporarily disables frustum culling, so the exact shared
   // geometry/materials used by later tender clones receive one real draw. The
@@ -1806,12 +2428,26 @@ export function createRegisterMode(B) {
   cashGpuPrewarmRoot.name = 'CheckoutCashGpuPrewarm';
   cashGpuPrewarmRoot.position.set(0, -1000, 0);
   root.add(cashGpuPrewarmRoot);
-  const cashGpuPrewarmExpected = checkoutMoneyGpuPrewarmStems().length;
+  const cashGpuPrewarmExpected = checkoutPaymentGpuPrewarmStems().length;
   let cashGpuPrewarmReleased = false;
   let cashGpuPrewarmReady = false;
   let cashGpuPrewarmBuilt = 0;
   let cashGpuPrewarmDrawn = 0;
+  const cashGpuPrewarmDrawnStems = new Set();
+  const cashGpuPrewarmExactVariantStems = new Set();
+  const cashGpuPrewarmExpectedDrawUnits = new Set();
+  const cashGpuPrewarmObservedDrawUnits = new Set();
+  const cashGpuPrewarmExpectedCardVariantIds = new Set(
+    checkoutPaymentCardGpuPrewarmVariantIds(),
+  );
+  const cashGpuPrewarmObservedCardVariantIds = new Set();
+  const cashGpuPrewarmRenderObservers = [];
+  let cashGpuPrewarmAborted = false;
+  let cashGpuPrewarmAbortReason = null;
   let cashGpuPrewarmReleasedCount = 0;
+  const cashGpuPrewarmOwnedGeometries = new Set();
+  const cashGpuPrewarmOwnedMaterials = new Set();
+  const cashGpuPrewarmReleaseErrors = [];
   const cashGpuPrewarmWaiters = new Set();
   let drawerPrewarmToken = 0;
   let drawerPrewarm = {
@@ -2070,6 +2706,7 @@ export function createRegisterMode(B) {
   let hoveredItem = null;
 
   let cardMesh = null;
+  const cardOwnedResources = createCardMeshResourceLedger();
   // C2 (Goal 19) scratch for the world-authored in-hand card pose
   const _cardPoseEye = new THREE.Vector3();
   const _cardPoseGrip = new THREE.Vector3();
@@ -2123,12 +2760,16 @@ export function createRegisterMode(B) {
   let checkoutWatchdogRunning = false;
   let checkoutWatchdogPostResume = null;
   const checkoutWatchdogEvents = [];
+  const checkoutPostBankFailures = [];
+  const checkoutPostBankRecoveries = [];
+  let qaBankHelperReturnFault = null;
 
-  function clearCashValidationToast() {
-    if (cashValidationToast && typeof cashValidationToast.remove === 'function') {
-      cashValidationToast.remove();
-    }
+  function clearCashValidationToast(onError = null) {
+    const removing = cashValidationToast;
     cashValidationToast = null;
+    if (removing && typeof removing.remove === 'function') {
+      try { removing.remove(); } catch (error) { onError?.('cash-validation-toast', error); }
+    }
   }
 
   function cashValidationWarning(message) {
@@ -2577,8 +3218,7 @@ export function createRegisterMode(B) {
       if (tx.method !== 'card' || !['card-present', 'card-ready'].includes(tx.stage)) {
         return { ok: false, reason: 'Card presentation recovery has no unresolved card.' };
       }
-      if (cardMesh) cardMesh.removeFromParent();
-      cardMesh = null;
+      disposeCardMesh();
       createCardMesh();
       cardPresentationTimer = 0.55;
       cardAccepted = false;
@@ -2608,8 +3248,7 @@ export function createRegisterMode(B) {
         return { ok: false, reason: 'Paid presentation recovery has no authorization checkpoint.' };
       }
       clearCardWatchdogWork();
-      if (cardMesh) cardMesh.removeFromParent();
-      cardMesh = null;
+      disposeCardMesh();
       deliveryTimer = 0;
       finalizeTimer = 0;
       if (resumeState === 'Bagging') {
@@ -2700,8 +3339,7 @@ export function createRegisterMode(B) {
     }
     syncFlow(released.flow);
     clearCardWatchdogWork();
-    if (cardMesh) cardMesh.removeFromParent();
-    cardMesh = null;
+    disposeCardMesh();
     cardAccepted = false;
     cardPresentationTimer = 0;
     // …and re-arm the automatic payment beat, or the sale would sit at a
@@ -2716,6 +3354,25 @@ export function createRegisterMode(B) {
   function recoverCheckoutWatchdog(nowMs = flowNow()) {
     const flow = tx && tx.checkoutFlow;
     if (!flow || checkoutWatchdogRunning
+        // AllProductsScanned normally owns only a short automatic-payment
+        // hold. A combined visitor deliberately extends that same state while
+        // the cashier answers the tee-time request on the desk screen. That is
+        // player-owned progress, not a stuck animation: recovering here redraws
+        // the monitor during a real row click and can make the selection miss.
+        // Resume the bounded watchdog as soon as the answer clears the errand.
+        || (flow.state === 'AllProductsScanned' && (
+          deskErrandOutstanding()
+          || (paymentAutoTimer > 0 && !paymentAutoSuppressed
+            && tx?.stage === 'scanning' && unscannedCount(tx) === 0 && !scanMotion)
+        ))
+        // The contract watchdog uses wall time while authored motion advances
+        // with capped frame delta. On a genuinely slow render process, the
+        // 0.55-second card handoff can therefore still be making measurable
+        // progress after its wall-clock deadline. Let that owned timer finish;
+        // if presentCard then fails, the timer is zero and the next frame may
+        // recover the unresolved CardPresented checkpoint normally.
+        || (flow.state === 'CardPresented'
+          && tx?.stage === 'card-present' && cardPresentationTimer > 0)
         || !SIMPLIFIED_REGISTER_WATCHDOG_SET.has(flow.state)
         || !checkoutStateTimedOut(flow, nowMs)) return false;
     checkoutWatchdogRunning = true;
@@ -3785,8 +4442,7 @@ export function createRegisterMode(B) {
     if (checkoutFlowState() && checkoutFlowState().startsWith('Card')) {
       flowTo('AllProductsScanned', 'cashier-pulled-card-at-reader');
     }
-    if (cardMesh) cardMesh.removeFromParent();
-    cardMesh = null;
+    disposeCardMesh();
     cardU = 0;
     cardMessage = '';
     cardPresentationTimer = 0;
@@ -4447,7 +5103,7 @@ export function createRegisterMode(B) {
     0.5: 0xa4b4bc,    // half dollar: the largest silver
   };
   const MONEY_EMISSIVE = 0.15;
-  const kitMoneyMaterials = new Map(); // `${denom}|${sourceMaterial.uuid}` -> tinted clone
+  const kitMoneyMaterials = createKitMoneyMaterialCache();
 
   // Apply the denomination tint to an instantiated kit note/coin. Materials are
   // cloned once per (denomination, source material) so the tray costs a handful
@@ -4462,24 +5118,23 @@ export function createRegisterMode(B) {
       const applied = source.map((material) => {
         if (!material) return material;
         const key = `${denom}|${material.uuid}`;
-        let tinted = kitMoneyMaterials.get(key);
-        if (!tinted) {
-          tinted = material.clone();
-          if (tinted.color) tinted.color.setHex(tint);
-          if (tinted.emissive) {
-            tinted.emissive.setHex(tint);
-            tinted.emissiveMap = tinted.map || null;
-            tinted.emissiveIntensity = MONEY_EMISSIVE;
+        const tinted = kitMoneyMaterials.getOrCreate(key, () => {
+          const cloned = material.clone();
+          if (cloned.color) cloned.color.setHex(tint);
+          if (cloned.emissive) {
+            cloned.emissive.setHex(tint);
+            cloned.emissiveMap = cloned.map || null;
+            cloned.emissiveIntensity = MONEY_EMISSIVE;
           }
           // Fully metallic coins go BLACK anywhere the drawer light does not
           // reach. Half-metal keeps the mint sheen and still takes ambient.
-          if (coin && typeof tinted.metalness === 'number') {
-            tinted.metalness = Math.min(tinted.metalness, 0.45);
-            tinted.roughness = Math.min(Math.max(tinted.roughness ?? 0.4, 0.26), 0.5);
+          if (coin && typeof cloned.metalness === 'number') {
+            cloned.metalness = Math.min(cloned.metalness, 0.45);
+            cloned.roughness = Math.min(Math.max(cloned.roughness ?? 0.4, 0.26), 0.5);
           }
-          tinted.needsUpdate = true;
-          kitMoneyMaterials.set(key, tinted);
-        }
+          cloned.needsUpdate = true;
+          return cloned;
+        });
         return tinted;
       });
       object.material = Array.isArray(object.material) ? applied : applied[0];
@@ -4566,16 +5221,39 @@ export function createRegisterMode(B) {
   }
 
   function cashGpuPrewarmStatus() {
-    const complete = cashGpuPrewarmReady && cashGpuPrewarmBuilt === cashGpuPrewarmExpected;
-    return {
+    const expectedCardVariantIds = [...cashGpuPrewarmExpectedCardVariantIds].sort();
+    const observedCardVariantIds = [...cashGpuPrewarmObservedCardVariantIds].sort();
+    const cardCache = cardTextureCache.status();
+    const moneyMaterialCache = kitMoneyMaterials.status();
+    const status = {
       ready: cashGpuPrewarmReady,
-      complete,
       expected: cashGpuPrewarmExpected,
       built: cashGpuPrewarmBuilt,
       drawn: cashGpuPrewarmDrawn,
+      expectedDrawUnits: cashGpuPrewarmExpectedDrawUnits.size,
+      observedDrawUnits: cashGpuPrewarmObservedDrawUnits.size,
+      expectedCardVariants: expectedCardVariantIds.length,
+      observedCardVariants: observedCardVariantIds.length,
+      expectedCardVariantIds,
+      observedCardVariantIds,
+    };
+    const complete = cashGpuPrewarmReleaseReady(status);
+    return {
+      ...status,
+      complete,
       released: cashGpuPrewarmReleased,
-      aborted: cashGpuPrewarmReleased && !complete,
+      aborted: cashGpuPrewarmAborted,
+      abortReason: cashGpuPrewarmAbortReason,
+      observedStems: [...cashGpuPrewarmDrawnStems].sort(),
+      exactVariantStems: [...cashGpuPrewarmExactVariantStems].sort(),
+      cachedCardVariants: cardCache.entries,
+      cardTextureCacheDisposed: cardCache.disposed,
+      cachedMoneyMaterials: moneyMaterialCache.liveMaterials,
+      moneyMaterialCacheDisposed: moneyMaterialCache.disposed,
       releasedCount: cashGpuPrewarmReleasedCount,
+      retainedOwnedGeometries: cashGpuPrewarmOwnedGeometries.size,
+      retainedOwnedMaterials: cashGpuPrewarmOwnedMaterials.size,
+      releaseErrors: cashGpuPrewarmReleaseErrors.map((entry) => ({ ...entry })),
       representatives: cashGpuPrewarmRoot.children.length,
     };
   }
@@ -4604,13 +5282,79 @@ export function createRegisterMode(B) {
 
   function buildCashGpuPrewarmRepresentatives() {
     if (cashGpuPrewarmReleased || cashGpuPrewarmRoot.children.length || !merch?.instantiateKit) return;
-    for (const stem of checkoutMoneyGpuPrewarmStems()) {
-      const model = merch.instantiateKit(stem, { scale: MONEY_KIT_SCALE });
+    const cardVariants = cardTextureCache.prime(displayClubName(), PAYMENT_CARDS);
+    const moneySpecs = new Map(DENOMS.map((denom) => [
+      checkoutMoneyAssetStem(denom, 'drawer'), { denom, from: 'drawer' },
+    ]));
+    moneySpecs.set(checkoutMoneyAssetStem(0.05, 'tender'), { denom: 0.05, from: 'tender' });
+    for (const stem of checkoutPaymentGpuPrewarmStems()) {
+      // Warm the exact runtime variant. Live notes/coins do not render with
+      // the raw GLB material: makeMoney routes the denomination and reuses the
+      // tintKitMoney clone (including emissiveMap/program defines). Drawing a
+      // raw kit clone here can therefore green the startup gate while the first
+      // real cash interaction still compiles a different shader.
+      const moneySpec = moneySpecs.get(stem);
+      const model = moneySpec
+        ? makeMoney(moneySpec.denom, moneySpec.from)
+        : merch.instantiateKit(stem, { scale: MONEY_KIT_SCALE });
       if (!model) continue;
+      cashGpuPrewarmExactVariantStems.add(stem);
       model.name = `GPU_PREWARM_${stem}`;
+      if (stem === 'payment_card') {
+        // All finite designs draw simultaneously with the exact cached Texture
+        // objects the live shared material will later select. One shared live
+        // material cannot expose six maps in one render, so these short-lived,
+        // cache-borrowing materials exist only for the opaque startup draw.
+        // Their materials/geometries are prewarm-owned; their maps remain owned
+        // by cardTextureCache and stay GPU-resident for customer presentation.
+        cardVariants.forEach((variant, index) => {
+          const material = new THREE.MeshBasicMaterial({
+            map: variant.texture,
+            toneMapped: false,
+            side: THREE.DoubleSide,
+          });
+          const face = new THREE.Mesh(
+            new THREE.PlaneGeometry(CARD_WIDTH - 0.005, CARD_HEIGHT - 0.005),
+            material,
+          );
+          face.name = `GPU_PREWARM_payment_card_dynamic_face_${variant.id}`;
+          face.userData.gpuPrewarmOwnedGeometry = true;
+          face.userData.gpuPrewarmOwnedMaterial = true;
+          face.userData.gpuPrewarmCardVariantId = variant.id;
+          face.rotation.x = -Math.PI / 2;
+          face.position.y = 0.00102 + index * 0.000001;
+          model.add(face);
+        });
+      }
       model.traverse((object) => {
         if (!object.isMesh) return;
         object.userData = { ...object.userData, gpuPrewarm: stem };
+        let visibleThroughModel = true;
+        for (let ancestor = object; ancestor; ancestor = ancestor.parent) {
+          if (!ancestor.visible) visibleThroughModel = false;
+          if (ancestor === model) break;
+        }
+        if (!visibleThroughModel) return;
+        const drawUnit = `${stem}|${object.uuid}`;
+        object.userData.gpuPrewarmDrawUnit = drawUnit;
+        cashGpuPrewarmExpectedDrawUnits.add(drawUnit);
+        const hadOwn = Object.prototype.hasOwnProperty.call(object, 'onAfterRender');
+        const prior = object.onAfterRender;
+        const wrapper = function observePaymentGpuPrewarm(...args) {
+          let value;
+          try {
+            value = prior?.apply(this, args);
+          } finally {
+            cashGpuPrewarmDrawnStems.add(stem);
+            cashGpuPrewarmObservedDrawUnits.add(drawUnit);
+            const cardVariantId = object.userData?.gpuPrewarmCardVariantId;
+            if (cardVariantId) cashGpuPrewarmObservedCardVariantIds.add(cardVariantId);
+            cashGpuPrewarmDrawn = cashGpuPrewarmDrawnStems.size;
+          }
+          return value;
+        };
+        object.onAfterRender = wrapper;
+        cashGpuPrewarmRenderObservers.push({ object, hadOwn, prior, wrapper });
       });
       suppressInteriorSunShadows(model);
       cashGpuPrewarmRoot.add(model);
@@ -4620,23 +5364,136 @@ export function createRegisterMode(B) {
     resolveCashGpuPrewarmWaiters();
   }
 
-  function releaseCashGpuPrewarmRepresentatives({ drawn = false } = {}) {
+  function restoreCashGpuPrewarmRenderObservers() {
+    for (const observer of cashGpuPrewarmRenderObservers) {
+      if (observer.object.onAfterRender !== observer.wrapper) continue;
+      if (observer.hadOwn) observer.object.onAfterRender = observer.prior;
+      else delete observer.object.onAfterRender;
+    }
+    cashGpuPrewarmRenderObservers.length = 0;
+  }
+
+  function releaseCashGpuPrewarmRepresentatives({ abort = false, cause = null } = {}) {
     if (cashGpuPrewarmReleased) return cashGpuPrewarmStatus();
-    if (drawn) cashGpuPrewarmDrawn = cashGpuPrewarmRoot.children.length;
-    const status = {
-      ready: cashGpuPrewarmReady,
-      built: cashGpuPrewarmBuilt,
-      expected: cashGpuPrewarmExpected,
-      drawn: cashGpuPrewarmDrawn,
-    };
-    if (!cashGpuPrewarmShouldRelease(status, { renderFinished: drawn })) {
+    const status = cashGpuPrewarmStatus();
+    const retryingOwnedRelease = cashGpuPrewarmOwnedMaterials.size > 0
+      || cashGpuPrewarmOwnedGeometries.size > 0;
+    if (!retryingOwnedRelease && !cashGpuPrewarmShouldRelease(status, { abort })) {
       return cashGpuPrewarmStatus();
     }
-    cashGpuPrewarmReleasedCount = cashGpuPrewarmRoot.children.length;
-    cashGpuPrewarmReleased = true;
+    if (cashGpuPrewarmReleasedCount === 0) {
+      cashGpuPrewarmReleasedCount = cashGpuPrewarmRoot.children.length;
+    }
+    cashGpuPrewarmAborted = abort === true;
+    cashGpuPrewarmAbortReason = cashGpuPrewarmAborted ? String(cause || 'aborted') : null;
+    restoreCashGpuPrewarmRenderObservers();
+    cashGpuPrewarmRoot.traverse((object) => {
+      if (object.userData?.gpuPrewarmOwnedGeometry && object.geometry) {
+        cashGpuPrewarmOwnedGeometries.add(object.geometry);
+      }
+      if (object.userData?.gpuPrewarmOwnedMaterial && object.material) {
+        const materials = Array.isArray(object.material) ? object.material : [object.material];
+        for (const material of materials) if (material) cashGpuPrewarmOwnedMaterials.add(material);
+      }
+    });
     cashGpuPrewarmRoot.clear();
     cashGpuPrewarmRoot.removeFromParent();
+    const release = (kind, set, resource) => {
+      try {
+        resource.dispose();
+        set.delete(resource);
+      } catch (error) {
+        cashGpuPrewarmReleaseErrors.push({ kind, message: String(error?.message || error) });
+        if (cashGpuPrewarmReleaseErrors.length > 32) {
+          cashGpuPrewarmReleaseErrors.splice(0, cashGpuPrewarmReleaseErrors.length - 32);
+        }
+      }
+    };
+    for (const material of [...cashGpuPrewarmOwnedMaterials]) {
+      release('material', cashGpuPrewarmOwnedMaterials, material);
+    }
+    for (const geometry of [...cashGpuPrewarmOwnedGeometries]) {
+      release('geometry', cashGpuPrewarmOwnedGeometries, geometry);
+    }
+    cashGpuPrewarmReleased = cashGpuPrewarmOwnedMaterials.size === 0
+      && cashGpuPrewarmOwnedGeometries.size === 0;
+    if (cashGpuPrewarmReleased) resolveCashGpuPrewarmWaiters();
     return cashGpuPrewarmStatus();
+  }
+
+  let registerDisposalSummary = null;
+  let registerDisposalComplete = false;
+  function disposeRegisterModeResources() {
+    if (registerDisposalComplete && registerDisposalSummary) {
+      return { ...registerDisposalSummary, alreadyDisposed: true };
+    }
+    let paymentPrewarm = cashGpuPrewarmReleased
+      ? cashGpuPrewarmStatus()
+      : releaseCashGpuPrewarmRepresentatives({
+        abort: true,
+        cause: 'register-disposed',
+      });
+    let cardResources = disposeCardMesh(() => {}) || cardOwnedResources.status();
+    // Detach the one live map before disposing the cache so the outer scene
+    // resource walk cannot discover and dispose that same owned texture twice.
+    // The shared GLB geometry/materials remain untouched and stay under merch.
+    cardBrandMaterial.map = null;
+    cardBrandMaterial.needsUpdate = true;
+    cardBrandSignature = '';
+    let cardTextures = cardTextureCache.dispose();
+    // These are register-owned material clones. Their maps remain borrowed
+    // from merchandise prototypes and are never disposed here. Detaching exact
+    // clone identities before release prevents the clubhouse's later broad
+    // scene walk from releasing a live drawer clone for a second time.
+    let moneyMaterials = kitMoneyMaterials.dispose({ detachFrom: root });
+    // Customers are removed before register teardown. Any paid-bag ledger that
+    // could not finish during that removal is held by customerPaidBag's explicit
+    // retry owner, so it remains reachable here even though the actor is gone.
+    let retainedPaidBags = retryRetainedPaidBagDisposals();
+    let itemResourcesReleased = itemResources.retry({ onError: () => {} });
+    // The outer clubhouse owns a one-shot structural teardown, so finish
+    // retryable resource ledgers here while their exact identities remain in
+    // register-owned sets. Three attempts cover ordinary one-shot/transient
+    // disposer faults; permanent faults remain visible in the summary instead
+    // of being falsely marked complete or losing their last strong owner.
+    for (let attempt = 1; attempt < 3; attempt += 1) {
+      if (!cashGpuPrewarmReleased) {
+        paymentPrewarm = releaseCashGpuPrewarmRepresentatives({
+          abort: true,
+          cause: 'register-disposed-retry',
+        });
+      }
+      if (cardTextures.disposed !== true) cardTextures = cardTextureCache.dispose();
+      if (moneyMaterials.disposed !== true) {
+        moneyMaterials = kitMoneyMaterials.dispose({ detachFrom: root });
+      }
+      if (cardOwnedResources.status().disposed !== true) {
+        cardResources = retryCardMeshResources(() => {});
+      }
+      if (retainedPaidBags.retained > 0) retainedPaidBags = retryRetainedPaidBagDisposals();
+      if (itemResources.status().retainedResources > 0) {
+        itemResourcesReleased = itemResources.retry({ onError: () => {} });
+      }
+    }
+    const itemResourceStatus = itemResources.status();
+    const cardResourceStatus = cardOwnedResources.status();
+    registerDisposalComplete = paymentPrewarm.released === true
+      && cardTextures.disposed === true
+      && moneyMaterials.disposed === true
+      && cardResourceStatus.disposed === true
+      && retainedPaidBags.retained === 0
+      && itemResourceStatus.retainedResources === 0;
+    registerDisposalSummary = Object.freeze({
+      paymentPrewarm,
+      cardTextures,
+      moneyMaterials,
+      cardResources: { ...cardResourceStatus, released: cardResources?.released || null },
+      retainedPaidBags,
+      itemResources: { ...itemResourceStatus, released: itemResourcesReleased },
+      complete: registerDisposalComplete,
+      alreadyDisposed: false,
+    });
+    return registerDisposalSummary;
   }
 
   if (merch) merch.onReady(buildCashGpuPrewarmRepresentatives);
@@ -4754,11 +5611,12 @@ export function createRegisterMode(B) {
     kraftWrinkleTexture.wrapT = THREE.RepeatWrapping;
     return kraftWrinkleTexture;
   }
-  function applyKraftBagStyle(model) {
+  function applyKraftBagStyle(model, ownedResources = null) {
     model.traverse((object) => {
       if (!object.isMesh || !object.material) return;
       const styleMaterial = (material) => {
         const styled = material.clone();
+        ownedResources?.ownMaterial(styled);
         const label = `${object.name || ''} ${material.name || ''}`.toLowerCase();
         const handle = /handle|cord|rope/.test(label);
         const liner = /liner/.test(label);
@@ -4794,20 +5652,41 @@ export function createRegisterMode(B) {
   function buildBag() {
     if (bagGroup) return;
     const builtBag = new THREE.Group();
+    const ownedResources = createPaidBagResourceLedger();
     bagGroup = builtBag;
     builtBag.name = 'FrontDeskShoppingBag';
+    const disposeOwnedBagResources = () => {
+      const result = ownedResources.dispose();
+      if (builtBag.userData.checkoutPaidBagTransferCounted === true) {
+        paidBagResourceCounts.ownedGeometriesDisposed += result.geometries;
+        paidBagResourceCounts.ownedMaterialsDisposed += result.materials;
+        const failed = result.liveGeometries > 0 || result.liveMaterials > 0;
+        if (failed && builtBag.userData.checkoutPaidBagFailureRecorded !== true) {
+          paidBagResourceCounts.failedDisposals += 1;
+          builtBag.userData.checkoutPaidBagFailureRecorded = true;
+        } else if (!failed && builtBag.userData.checkoutPaidBagDisposalRecorded !== true) {
+          paidBagResourceCounts.successfullyDisposedBags += 1;
+          builtBag.userData.checkoutPaidBagDisposalRecorded = true;
+        }
+      }
+      return result;
+    };
     builtBag.userData = {
       pick: false,
       kind: 'bag',
       checkoutOwner: 'register',
+      disposeCheckoutPaidBagResources: disposeOwnedBagResources,
+      checkoutPaidBagResourceStatus: () => ownedResources.status(),
     };
     builtBag.position.copy(BAG_POS);
     builtBag.quaternion.copy(bagCounterQuaternion());
     builtBag.scale.setScalar(BAG_COUNTER_SCALE);
     root.add(builtBag);
     const fallback = new THREE.Mesh(
-      new THREE.BoxGeometry(0.26, 0.30, 0.17 * BAG_FLATTEN),
-      new THREE.MeshStandardMaterial({ color: 0xbda274, roughness: 0.92, metalness: 0.0 }),
+      ownedResources.ownGeometry(new THREE.BoxGeometry(0.26, 0.30, 0.17 * BAG_FLATTEN)),
+      ownedResources.ownMaterial(new THREE.MeshStandardMaterial({
+        color: 0xbda274, roughness: 0.92, metalness: 0.0,
+      })),
     );
     fallback.position.y = 0.15;
     fallback.name = 'BagFallback';
@@ -4819,8 +5698,8 @@ export function createRegisterMode(B) {
     // whatever slides past the mouth is occluded by the bag being AROUND it,
     // not by a scale. 2 cm shy of the lip: you see a little way in.
     const interiorOccluder = new THREE.Mesh(
-      new THREE.BoxGeometry(0.24, 0.33, 0.15 * BAG_FLATTEN),
-      new THREE.MeshBasicMaterial({ colorWrite: false }),
+      ownedResources.ownGeometry(new THREE.BoxGeometry(0.24, 0.33, 0.15 * BAG_FLATTEN)),
+      ownedResources.ownMaterial(new THREE.MeshBasicMaterial({ colorWrite: false })),
     );
     interiorOccluder.position.set(0, 0.175, 0);
     interiorOccluder.renderOrder = -5;
@@ -4829,7 +5708,7 @@ export function createRegisterMode(B) {
     builtBag.add(interiorOccluder);
     const bagPanel = CHECKOUT_DISPLAY_BRAND_PRESENTATION.bagPanel;
     const brandPanel = new THREE.Mesh(
-      new THREE.PlaneGeometry(bagPanel.width, bagPanel.height),
+      ownedResources.ownGeometry(new THREE.PlaneGeometry(bagPanel.width, bagPanel.height)),
       bagBrandMaterial,
     );
     brandPanel.name = 'PineHillsDynamicBagBrand';
@@ -4846,16 +5725,18 @@ export function createRegisterMode(B) {
       merch.onReady(() => {
         // This callback can resolve after the previous customer has taken their
         // bag and a new counter wrapper exists. Never graft that late model (or
-        // its anchors) onto a different transaction's carrier.
-        if (bagGroup !== builtBag) return;
+        // its anchors) onto a different transaction's carrier. Ownership
+        // transfer is also a resource-accounting boundary: freeze a bag once
+        // the customer owns it so late readiness cannot change its ledger.
+        if (bagGroup !== builtBag || builtBag.userData.checkoutOwner !== 'register') return;
         const model = (merch.instantiateKit && merch.instantiateKit('shopping_bag', { scale: 1.0 }))
           || merch.instantiate('checkout_shopping_bag');
         if (!model) return;
         fallback.removeFromParent();
-        fallback.geometry.dispose();
-        fallback.material.dispose();
+        ownedResources.releaseGeometry(fallback.geometry);
+        ownedResources.releaseMaterial(fallback.material);
         suppressLegacyCheckoutBrandNodes(model, 'shoppingBag');
-        applyKraftBagStyle(model);
+        applyKraftBagStyle(model, ownedResources);
         suppressInteriorSunShadows(model);
         // Collapse the gusset. Scaling the MODEL rather than the group keeps the
         // group's scale uniform for every other consumer (handoff drag, delivery
@@ -5334,15 +6215,22 @@ export function createRegisterMode(B) {
     root.add(tenderHandful);
   }
 
-  function clearTenderHandful() {
+  function clearTenderHandful(onError = null) {
     if (!tenderHandful) return;
-    tenderHandful.removeFromParent();
+    const removing = tenderHandful;
+    tenderHandful = null;
+    const release = (stage, operation) => {
+      try { operation(); } catch (error) { if (onError) onError(stage, error); else throw error; }
+    };
+    release('tender-handful-detach', () => removing.removeFromParent());
     // This generous invisible hit target is transaction-owned (unlike the
     // shared denomination meshes). Dispose it on every cancel/settlement so a
     // long cash-register session does not retain one sphere buffer per sale.
-    tenderHandful.geometry?.dispose();
-    tenderHandful.material?.dispose();
-    tenderHandful = null;
+    release('tender-handful-geometry', () => removing.geometry?.dispose());
+    const materials = Array.isArray(removing.material) ? removing.material : [removing.material];
+    for (const material of new Set(materials.filter(Boolean))) {
+      release('tender-handful-material', () => material.dispose());
+    }
   }
 
   // Selected change accumulates as a FLAT PILE on the bare counter left of the
@@ -5361,11 +6249,14 @@ export function createRegisterMode(B) {
     });
   }
 
-  function clearCashHandoffBundle() {
-    if (cashHandoffBundle) cashHandoffBundle.removeFromParent();
+  function clearCashHandoffBundle(onError = null) {
+    const removing = cashHandoffBundle;
     cashHandoffBundle = null;
     cashHandoffHoldTimer = 0;
     cashHandoffPhase = null;
+    if (removing) {
+      try { removing.removeFromParent(); } catch (error) { onError?.('cash-handoff-detach', error); }
+    }
   }
 
   function finishChangeHandoff(bundle = null) {
@@ -5439,6 +6330,10 @@ export function createRegisterMode(B) {
     resetCounterBag = true,
     preserveCustomerBag = false,
   } = {}) {
+    const steps = [];
+    const deferredFailures = [];
+    const addStep = (stage, run) => steps.push({ stage, run });
+    const capture = (stage, error) => deferredFailures.push({ stage, error });
     pendingChangeConfirmation = null;
     // Motions retain mesh references. Release them before any item can be
     // disposed, reparented to a customer, or replaced by the next transaction.
@@ -5453,33 +6348,48 @@ export function createRegisterMode(B) {
       complete: true,
     };
     const transferredProducts = [];
-    for (const mesh of itemMeshes.values()) {
+    const clearingItemMeshes = [...itemMeshes.values()];
+    itemMeshes.clear();
+    for (const mesh of clearingItemMeshes) {
       if (preserveCustomerBag
           && bagGroup?.userData.checkoutOwner === 'customer'
           && mesh.userData?.checkoutOwner === 'customer') {
         transferredProducts.push(mesh);
         continue;
       }
-      mesh.removeFromParent();
-      itemResources.dispose(mesh);
+      addStep('checkout-item-detach', () => mesh.removeFromParent());
+      addStep('checkout-item-resources', () => itemResources.dispose(mesh, {
+        onError: ({ kind, error }) => capture(`checkout-item-${kind}`, error),
+      }));
     }
     if (cust && transferredProducts.length) {
       cust.checkoutHandoffProducts = transferredProducts;
+      // createRegisterItemResources journals every error internally, attempts
+      // all owned siblings, and only then raises one AggregateError. The
+      // customer-removal funnel catches that deferred report after this exact
+      // transferred product has been exhausted.
       cust.checkoutHandoffProductDisposer = (mesh) => itemResources.dispose(mesh);
     }
-    itemMeshes.clear();
     loose.length = 0;
-    tenderMeshes.forEach((mesh) => mesh.removeFromParent());
+    const clearingTenderMeshes = tenderMeshes;
     tenderMeshes = [];
-    clearTenderHandful();
-    selectedChangeMeshes.forEach((mesh) => mesh.removeFromParent());
+    for (const mesh of clearingTenderMeshes) {
+      addStep('tender-mesh-detach', () => mesh.removeFromParent());
+    }
+    addStep('tender-handful-clear', () => clearTenderHandful(capture));
+    const clearingChangeMeshes = selectedChangeMeshes;
     selectedChangeMeshes = [];
-    clearCashHandoffBundle();
-    cashMotions.forEach((motion) => motion.mesh.removeFromParent());
+    for (const mesh of clearingChangeMeshes) {
+      addStep('change-mesh-detach', () => mesh.removeFromParent());
+    }
+    addStep('cash-handoff-clear', () => clearCashHandoffBundle(capture));
+    const clearingCashMotions = cashMotions;
     cashMotions = [];
+    for (const motion of clearingCashMotions) {
+      addStep('cash-motion-detach', () => motion.mesh?.removeFromParent());
+    }
     cashMotionRefillPending = false;
-    if (cardMesh) cardMesh.removeFromParent();
-    cardMesh = null;
+    addStep('card-mesh-dispose', () => disposeCardMesh(capture));
     autoFulfilled = false;
     deliveryPhase = null;
     deliveryTimer = 0;
@@ -5498,19 +6408,19 @@ export function createRegisterMode(B) {
       bagGroup = null;
       bagContentsNode = null;
       bagHandoffNode = null;
-      buildBag();
-      resetBagAtCounter();
       if (cust) cust.checkoutHandoffBag = null;
+      addStep('counter-bag-build', () => buildBag());
+      addStep('counter-bag-reset', () => resetBagAtCounter());
     } else {
-      if (!bagGroup) buildBag();
       nextBagResetIsQuiet = true; // recovery re-assert, not a new bag
-      resetBagAtCounter();
       if (resetCounterBag && cust) cust.checkoutHandoffBag = null;
+      if (!bagGroup) addStep('counter-bag-build', () => buildBag());
+      addStep('counter-bag-reset', () => resetBagAtCounter());
     }
     selectedItem = null;
     scanDrag = null;
     scanMotion = null;
-    setScannerFeedback('idle');
+    addStep('scanner-feedback-reset', () => setScannerFeedback('idle'));
     scanReturnTimer = 0;
     paymentAutoTimer = 0;
     paymentAutoSuppressed = false;
@@ -5530,19 +6440,26 @@ export function createRegisterMode(B) {
     checkoutWatchdogRunning = false;
     checkoutWatchdogPostResume = null;
     cashierCashAction = null;
-    cashierHands.hideImmediately();
-    clearCashValidationToast();
+    addStep('cashier-hands-reset', () => cashierHands.hideImmediately());
+    addStep('cash-validation-toast-clear', () => clearCashValidationToast(capture));
     drawerWant = 0;
     drawerAmount = 0;
     cashPoseCache = null;
-    if (drawerMotionRoot) {
-      drawerMotionRoot.position.z = 0;
-      drawerMotionRoot.visible = false;
-    }
-    if (drawerAssetSlide) drawerAssetSlide.position.z = drawerAssetSlideBaseZ;
-    setGrabOutline(null);
-    hideTip();
+    addStep('drawer-presentation-reset', () => {
+      if (drawerMotionRoot) {
+        drawerMotionRoot.position.z = 0;
+        drawerMotionRoot.visible = false;
+      }
+      if (drawerAssetSlide) drawerAssetSlide.position.z = drawerAssetSlideBaseZ;
+    });
+    addStep('grab-outline-clear', () => setGrabOutline(null));
+    addStep('tip-clear', () => hideTip());
     hoveredItem = null;
+    const failures = [
+      ...runCheckoutCleanupSteps(steps),
+      ...deferredFailures,
+    ];
+    return { ok: failures.length === 0, failures };
   }
 
   function begin(customer) {
@@ -5627,6 +6544,24 @@ export function createRegisterMode(B) {
     return true;
   }
 
+  // A combined visitor temporarily borrows the register monitor for the desk
+  // answer, but the physical sale never left the till. Put the player back on
+  // that sale without rebuilding it or touching the already-armed automatic
+  // payment beat. `activeTab` drives the authored camera pose, so restoring the
+  // tab and monitor workspace together also brings the checkout/card target
+  // back into the player's view on the next frame.
+  function returnFromDeskAnswerToCheckout() {
+    selectedReservationId = null;
+    selectedWalkInCustomerId = null;
+    activeTab = 'checkout';
+    // The flow's AllProductsScanned timestamp can be minutes old if the player
+    // studies the tee sheet. Re-arm the normal readable handoff so the expired
+    // watchdog cannot race the first post-answer frame.
+    paymentAutoTimer = AUTO_PAYMENT_HOLD;
+    paymentAutoSuppressed = false;
+    setWorkspace('monitor');
+  }
+
   function beginReservationPayment(reservation) {
     if (!reservation) return false;
     // ONE VISIT, ONE PAYMENT. If the customer already has goods on the counter,
@@ -5643,7 +6578,6 @@ export function createRegisterMode(B) {
         toast(joined.reason || 'That reservation cannot be added to this sale.', 'warn');
         return false;
       }
-      selectedReservationId = reservation.id;
       // ANSWERED. The desk errand is settled on this ticket, so the automatic
       // payment advance may run again and the post-payment path must not send
       // them back to the desk for the same errand.
@@ -5652,8 +6586,7 @@ export function createRegisterMode(B) {
         cust.deskErrandAwaitingAnswer = false;
       }
       layoutGoods();
-      drawScreen();
-      drawTerm();
+      returnFromDeskAnswerToCheckout();
       toast(t('till.greenFeeAdded', { amount: joined.amount.toFixed(2) }), 'good');
       return true;
     }
@@ -5862,9 +6795,69 @@ export function createRegisterMode(B) {
     drawTerm();
   }
 
+  function markCardOwnedResources(object, { geometry = true, material = false } = {}) {
+    return cardOwnedResources.mark(object, { geometry, material });
+  }
+
+  function disposeCardMesh(onError = null) {
+    const before = cardOwnedResources.status();
+    const liveResources = before.liveGeometries + before.liveMaterials + before.liveTextures;
+    if (!cardMesh && liveResources === 0 && before.retainedRoots === 0) return false;
+    const disposingCard = cardMesh;
+    cardMesh = null;
+    const failures = [];
+    const capture = (stage, error) => {
+      failures.push({ stage, error });
+      if (typeof onError === 'function') {
+        try { onError(stage, error); } catch (reportError) {
+          failures.push({ stage: 'card-disposal-reporter', error: reportError });
+        }
+      }
+    };
+    try {
+      setGrabOutline(null);
+    } catch (error) {
+      capture('card-outline-clear', error);
+    }
+    const result = cardOwnedResources.dispose(disposingCard, { onError: capture });
+    if (failures.length > 0 && typeof onError !== 'function') {
+      const aggregate = new AggregateError(
+        failures.map((failure) => failure.error),
+        'Payment-card cleanup failed after exhausting owned siblings.',
+      );
+      aggregate.result = result;
+      throw aggregate;
+    }
+    return result;
+  }
+
+  function retryCardMeshResources(onError = null) {
+    const failures = [];
+    const capture = (stage, error) => {
+      failures.push({ stage, error });
+      if (typeof onError === 'function') {
+        try {
+          onError(stage, error);
+        } catch (reportError) {
+          failures.push({ stage: 'card-disposal-reporter', error: reportError });
+        }
+      }
+    };
+    const result = cardOwnedResources.retry({ onError: capture });
+    if (failures.length > 0 && typeof onError !== 'function') {
+      const aggregate = new AggregateError(
+        failures.map((failure) => failure.error),
+        'Payment-card cleanup retry failed after exhausting owned siblings.',
+      );
+      aggregate.result = result;
+      throw aggregate;
+    }
+    return result;
+  }
+
   function createCardMesh() {
     cardReady.copy(customerCardReadyPoint());
-    if (cardMesh) cardMesh.removeFromParent();
+    disposeCardMesh();
     // The finished Fairhollow member card from the checkout kit; the
     // procedural card remains only as a fallback if the kit failed to load.
     let base = (merch && merch.instantiateKit)
@@ -5875,24 +6868,12 @@ export function createRegisterMode(B) {
         new THREE.BoxGeometry(CARD_WIDTH, CARD_THICKNESS, CARD_HEIGHT),
         new THREE.MeshStandardMaterial({ color: 0x173f2d, roughness: 0.36 }),
       );
-      const faceTexture = paymentCardTexture(displayClubName(), currentPaymentCard());
-      const face = new THREE.Mesh(
-        new THREE.PlaneGeometry(CARD_WIDTH - 0.004, CARD_HEIGHT - 0.004),
-        new THREE.MeshStandardMaterial({
-          map: faceTexture,
-          emissive: 0xffffff,
-          emissiveMap: faceTexture,
-          emissiveIntensity: 0.16,
-          roughness: 0.42,
-        }),
-      );
-      face.rotation.x = -Math.PI / 2;
-      face.position.y = CARD_THICKNESS / 2 + 0.0002;
-      base.add(face);
+      markCardOwnedResources(base, { material: true });
       const stripe = new THREE.Mesh(
         new THREE.BoxGeometry(CARD_WIDTH - 0.004, 0.0008, 0.014),
         new THREE.MeshStandardMaterial({ color: 0x111411, roughness: 0.5 }),
       );
+      markCardOwnedResources(stripe, { material: true });
       stripe.position.set(0, -CARD_THICKNESS / 2 - 0.0003, -0.016);
       base.add(stripe);
     }
@@ -5902,6 +6883,7 @@ export function createRegisterMode(B) {
       cardBrandMaterial,
     );
     brandPanel.name = 'PineHillsDynamicPaymentCardBrand';
+    markCardOwnedResources(brandPanel);
     brandPanel.rotation.x = -Math.PI / 2;
     brandPanel.position.y = 0.00102;
     base.add(brandPanel);
@@ -5912,7 +6894,7 @@ export function createRegisterMode(B) {
     // lifts the reader). Pick stays true through presentation; the accept
     // handler itself checks the stage.
     const data = { pick: true, kind: 'payment-card' };
-    base.userData = data;
+    base.userData = { ...base.userData, ...data };
     base.traverse((o) => { if (o.isMesh) o.userData = { ...o.userData, ...data }; });
     suppressInteriorSunShadows(base);
     root.add(base);
@@ -6099,8 +7081,7 @@ export function createRegisterMode(B) {
     if (checkoutFlowState() === 'CardDeclined') flowTo('ChoosingPayment', 'customer-switched-to-cash');
     const changed = payCashInstead(tx);
     if (!changed.ok) return false;
-    if (cardMesh) cardMesh.removeFromParent();
-    cardMesh = null;
+    disposeCardMesh();
     if (checkoutFlowState() === 'ChoosingPayment') flowTo('CashPresented', 'customer-presented-cash-after-decline');
     poseCustomerForCheckout('PayCash');
     createTender();
@@ -7172,6 +8153,27 @@ export function createRegisterMode(B) {
     return restarted;
   }
 
+  function salvagePaidBagAfterPresentationFailure(customer) {
+    if (!bagGroup || bagGroup.userData?.checkoutOwner !== 'customer') return false;
+    if (salvagePaidBagToCustomer(customer, bagGroup)) return true;
+
+    // Do not report a green recovery for an arbitrary parent or a conflicting
+    // customer pointer. Reclaim the wrapper only when it can be put back under
+    // the register root; clearPhysicalTransaction can then remove its products
+    // and reset it as the counter carrier without leaving customer-owned nodes
+    // beneath the register.
+    try {
+      if (bagGroup.parent !== root) root.attach(bagGroup);
+      if (bagGroup.parent !== root) return false;
+      bagGroup.userData.checkoutOwner = 'register';
+      if (customer?.bagMesh === bagGroup) customer.bagMesh = null;
+      if (customer?.checkoutHandoffBag === bagGroup) customer.checkoutHandoffBag = null;
+    } catch {
+      return false;
+    }
+    return false;
+  }
+
   function finalizeTransaction() {
     if (!tx || tx.stage !== 'done') {
       toast(t('till.finishPaymentBeforeFinalizing'), 'warn');
@@ -7193,27 +8195,148 @@ export function createRegisterMode(B) {
       ? tx.servicePayment.reservationId
       : null;
     const carriedGoods = goodsLinesOf(tx).length > 0;
+    let postBankFailure = null;
+    let durablyBanked = false;
     let result;
-    if (finishedReservationId) {
-      result = finalizeReservationCheckIn(state, tx, finishedReservationId);
-    } else {
-      result = completeSale(state, tx, cust || 'A customer');
+    const recordPostBankFailure = (stage, error) => {
+      const failure = {
+        stage,
+        transactionNumber: finishedTx.number,
+        customerId: finishedCustomer?.customerId ?? null,
+        reservationId: finishedReservationId,
+        message: String(error?.message || error),
+      };
+      checkoutPostBankFailures.push(failure);
+      checkoutPostBankFailures.splice(0, Math.max(0, checkoutPostBankFailures.length - 16));
+      postBankFailure ||= failure;
+      return failure;
+    };
+    const attempt = (stage, operation) => {
+      try {
+        return { ok: true, value: operation() };
+      } catch (error) {
+        recordPostBankFailure(stage, error);
+        return { ok: false, error };
+      }
+    };
+    try {
+    // Banking belongs inside the same recovery boundary as every later step.
+    // The QA seam interrupts the real write-ahead settlement after stock,
+    // drawer, ledger, and tax have committed but before a ticket is appended.
+    // The same live transaction then retries once against that durable plan.
+    try {
+      let injectedCoreFault = null;
+      if (qaBankHelperReturnFault
+          && Number(qaBankHelperReturnFault.transactionNumber) === Number(finishedTx.number)
+          && String(qaBankHelperReturnFault.customerId || '')
+            === String(finishedCustomer?.customerId || '')) {
+        injectedCoreFault = () => {
+          qaBankHelperReturnFault = null;
+          throw new Error('QA injected bank-helper interruption after core commit.');
+        };
+      }
+      if (finishedReservationId) {
+        result = finalizeReservationCheckIn(state, finishedTx, finishedReservationId, {
+          qaFaultAfterCoreCommit: injectedCoreFault,
+        });
+      } else {
+        result = completeSale(state, finishedTx, finishedCustomer || 'A customer', {
+          qaFaultAfterCoreCommit: injectedCoreFault,
+        });
+      }
+    } catch (error) {
+      // A prepared WAL is already an irreversible commit decision. Retain the
+      // actor and immediately finish it through the ordinary helper without the
+      // one-shot fault; only release once the final ticket is discoverable.
+      if (!finishedTx.banked && finishedTx.commitPrepared) {
+        recordPostBankFailure('bank-helper-partial-commit-recovered', error);
+        try {
+          if (finishedReservationId) {
+            result = finalizeReservationCheckIn(state, finishedTx, finishedReservationId);
+          } else {
+            result = completeSale(state, finishedTx, finishedCustomer || 'A customer');
+          }
+        } catch (retryError) {
+          recordPostBankFailure('bank-helper-retry-failed', retryError);
+          toast(t('checkout.integrityUnavailable'), 'warn');
+          return false;
+        }
+      } else if (!finishedTx.banked) {
+        recordPostBankFailure('bank-helper-failed-before-commit', error);
+        toast(t('checkout.integrityUnavailable'), 'warn');
+        return false;
+      } else {
+        durablyBanked = true;
+        recordPostBankFailure('bank-helper-return-after-commit', error);
+        result = { ok: true, recoveredAfterBankThrow: true };
+      }
     }
-    if (!result.ok) {
-      toast(result.reason, 'warn');
+    if (!result?.ok) {
+      if (!finishedTx.banked) {
+        toast(result?.reason || t('checkout.integrityUnavailable'), 'warn');
+        return false;
+      }
+      durablyBanked = true;
+      recordPostBankFailure(
+        'bank-helper-failed-after-commit',
+        new Error(result?.reason || 'The bank helper reported failure after committing the sale.'),
+      );
+    } else if (!finishedTx.banked) {
+      toast(t('checkout.integrityUnavailable'), 'warn');
       return false;
+    } else {
+      durablyBanked = true;
+    }
+
+    // A combined ticket owes BOTH: the round is checked in above, and the goods
+    // still have to be handed to the customer who bought them. Transfer that
+    // ownership before the reservation bridge points the character at the exit;
+    // the exit safety net must never see a durably paid cart as unpaid stock.
+    if (carriedGoods && finishedCustomer) {
+      const ownership = typeof finishedCustomer.onPaidOwnership === 'function'
+        ? attempt('paid-goods-ownership', () => finishedCustomer.onPaidOwnership(finishedTx))
+        : { ok: false, value: false };
+      if (!ownership.ok || ownership.value === false) {
+        attempt('paid-goods-ownership-fallback', () => {
+          finishedCustomer.bought = true;
+          finishedCustomer.paymentStatus = 'paid';
+          finishedCustomer.cart = [];
+          finishedCustomer.awaitingCheckout = false;
+          finishedCustomer.checkoutPhase = 'complete';
+        });
+      }
+      if (finishedCustomer.onPaid) {
+        attempt('paid-customer-presentation', () => finishedCustomer.onPaid(finishedTx));
+      }
+      const customerRelease = typeof finishedCustomer.onPaidRelease === 'function'
+        ? attempt('paid-customer-route-release', () => finishedCustomer.onPaidRelease(finishedTx))
+        : { ok: false, value: false };
+      if (!customerRelease.ok || customerRelease.value === false) {
+        attempt('paid-customer-route-release-fallback', () => {
+          finishedCustomer.currentDestination = 'exit';
+          finishedCustomer.awaitingCheckout = false;
+          finishedCustomer.linger = 0;
+          finishedCustomer.path = null;
+          finishedCustomer.pathGoal = null;
+          const exitIdx = finishedCustomer.stops?.findIndex((stop) => stop.kind === 'exit') ?? -1;
+          if (exitIdx >= 0) finishedCustomer.stopIdx = exitIdx;
+        });
+      }
     }
     if (finishedReservationId) {
       const bridge = reservationBridge();
       if (bridge && typeof bridge.completeCustomer === 'function') {
-        bridge.completeCustomer(finishedReservationId);
+          const released = attempt(
+            'reservation-customer-release',
+            () => bridge.completeCustomer(finishedReservationId),
+          );
+          if (released.ok && released.value === false) {
+            attempt('reservation-customer-release-missing', () => {
+              throw new Error('The banked reservation customer could not be released.');
+            });
+          }
       }
-      sfx('doorbell');
-    }
-    // A combined ticket owes BOTH: the round is checked in above, and the goods
-    // still have to be handed to the customer who bought them.
-    if (carriedGoods && finishedCustomer && finishedCustomer.onPaid) {
-      finishedCustomer.onPaid(finishedTx);
+      attempt('reservation-complete-sound', () => sfx('doorbell'));
     }
     if (finishedTx.checkoutFlow && finishedTx.checkoutFlow.state === 'CustomerLeaving') {
       const completed = transitionCheckout(finishedTx.checkoutFlow, 'TransactionComplete', {
@@ -7243,20 +8366,112 @@ export function createRegisterMode(B) {
     };
     // (the till already slid shut with its sound the moment the change was handed
     // over in confirmChange — see the drawerClose there; nothing to close here)
-    sfx('checkoutComplete');
-    clearPhysicalTransaction({
-      resetCounterBag: false,
-      preserveCustomerBag: true,
-    });
-    if (finishedCustomer) finishedCustomer.tx = null;
-    tx = null;
-    cust = null;
-    transactionKind = 'retail';
-    selectedReservationId = null;
-    activeTab = 'checkout';
-    assignWorkspace('monitor');
-    drawScreen();
-    drawTerm();
+    attempt('checkout-complete-sound', () => sfx('checkoutComplete'));
+    } catch (error) {
+      if (!durablyBanked && !finishedTx.banked) {
+        recordPostBankFailure('checkout-finalize-before-commit', error);
+        toast(t('checkout.integrityUnavailable'), 'warn');
+        return false;
+      }
+      durablyBanked = true;
+      recordPostBankFailure('post-bank-finalize', error);
+    } finally {
+    if (durablyBanked || finishedTx.banked) {
+      let salvage = null;
+      if (postBankFailure) {
+        salvage = attempt('paid-bag-salvage',
+          () => salvagePaidBagAfterPresentationFailure(finishedCustomer),
+        );
+      }
+      // This callback is a deliberately tiny, non-visual ownership boundary
+      // supplied by clubhouse. Invoke it even when the ordinary release hook
+      // succeeded: it is idempotent, and it is the last-resort guarantee that a
+      // paid customer cannot remain at the head of counterQueue.
+      const actorAuthoritativeRelease = typeof finishedCustomer
+        ?.onPaidReleaseAuthoritative === 'function'
+        ? () => finishedCustomer.onPaidReleaseAuthoritative(finishedTx)
+        : null;
+      const bridgeAuthoritativeRelease = typeof B
+        .releasePaidCustomerFromCheckoutAuthoritative === 'function'
+        ? () => B.releasePaidCustomerFromCheckoutAuthoritative(finishedCustomer, finishedTx)
+        : null;
+      const authoritativeRelease = carriedGoods && finishedCustomer
+        ? runPaidCustomerAuthoritativeRelease({
+          actorRelease: actorAuthoritativeRelease,
+          bridgeRelease: bridgeAuthoritativeRelease,
+          attempt,
+        })
+        : { ok: !carriedGoods || !finishedCustomer, value: !carriedGoods || !finishedCustomer };
+
+      const preCleanupEvidence = {
+        customerBagAttachedBeforeCleanup: paidBagAttachedToCustomer(finishedCustomer),
+        customerBagOwnerBeforeCleanup: finishedCustomer?.bagMesh
+          ?.userData?.checkoutOwner ?? null,
+        pendingHandoffBagClearedBeforeCleanup: finishedCustomer
+          ? finishedCustomer.checkoutHandoffBag == null
+          : null,
+        customerOwnedUnderRegisterBeforeCleanup: [],
+      };
+      root.traverse((object) => {
+        if (object !== root && object.userData?.checkoutOwner === 'customer') {
+          preCleanupEvidence.customerOwnedUnderRegisterBeforeCleanup.push(
+            object.name || object.type || 'unnamed',
+          );
+        }
+      });
+
+      const physicalCleanup = attempt('post-bank-physical-cleanup', () => clearPhysicalTransaction({
+        resetCounterBag: false,
+        preserveCustomerBag: true,
+      }));
+      if (physicalCleanup.ok) {
+        for (const failure of physicalCleanup.value?.failures || []) {
+          recordPostBankFailure(
+            `post-bank-physical-cleanup:${failure.stage}`,
+            failure.error,
+          );
+        }
+      }
+      if (finishedCustomer?.tx === finishedTx) finishedCustomer.tx = null;
+      if (tx === finishedTx) tx = null;
+      if (cust === finishedCustomer) cust = null;
+      transactionKind = 'retail';
+      selectedReservationId = null;
+      activeTab = 'checkout';
+      attempt('post-bank-monitor-reset', () => {
+        assignWorkspace('monitor');
+        drawScreen();
+        drawTerm();
+      });
+      const recovery = postBankFailure ? {
+        transactionNumber: finishedTx.number,
+        customerId: finishedCustomer?.customerId ?? null,
+        reservationId: finishedReservationId,
+        firstFailureStage: postBankFailure.stage,
+        salvageAttempted: !!salvage,
+        salvageSucceeded: salvage?.ok === true && salvage.value !== false,
+        authoritativeReleaseSucceeded: authoritativeRelease.ok === true
+          && authoritativeRelease.value !== false,
+        ...preCleanupEvidence,
+      } : null;
+      if (recovery) {
+        recovery.counterBagOwnerAfterCleanup = bagGroup?.userData?.checkoutOwner ?? null;
+        recovery.counterBagParentAfterCleanup = bagGroup?.parent?.name ?? null;
+        checkoutPostBankRecoveries.push(recovery);
+        checkoutPostBankRecoveries.splice(
+          0,
+          Math.max(0, checkoutPostBankRecoveries.length - 16),
+        );
+      }
+    }
+    }
+    if (!durablyBanked && !finishedTx.banked) return false;
+    if (postBankFailure) {
+      attempt('post-bank-warning', () => toast(
+        t('till.saleCompletedPresentationSkipped'),
+        'warn',
+      ));
+    }
     return true;
   }
 
@@ -7365,8 +8580,7 @@ export function createRegisterMode(B) {
         : false;
       if (rejected) {
         toast(t('till.noTeeTimeFor', { name: walkIn.fullName || walkIn.name }));
-        selectedWalkInCustomerId = null;
-        drawScreen();
+        returnFromDeskAnswerToCheckout();
       }
       return Boolean(rejected);
     }
@@ -8067,6 +9281,14 @@ export function createRegisterMode(B) {
       ...bagGroup.userData,
       checkoutOwner: 'customer',
     };
+    cust.checkoutHandoffBag = bagGroup;
+    if (bagGroup.userData.checkoutPaidBagTransferCounted !== true) {
+      const owned = bagGroup.userData.checkoutPaidBagResourceStatus?.() || {};
+      paidBagResourceCounts.transferredBags += 1;
+      paidBagResourceCounts.ownedGeometriesTransferred += Number(owned.liveGeometries) || 0;
+      paidBagResourceCounts.ownedMaterialsTransferred += Number(owned.liveMaterials) || 0;
+      bagGroup.userData.checkoutPaidBagTransferCounted = true;
+    }
     const oversizeProducts = [];
     for (const item of tx?.items || []) {
       if (!item.bagged) continue;
@@ -8078,7 +9300,6 @@ export function createRegisterMode(B) {
         oversizeProducts.push(product);
       }
     }
-    cust.checkoutHandoffBag = bagGroup;
     cust.checkoutHandoffOversizeProducts = oversizeProducts;
     return true;
   }
@@ -9015,7 +10236,27 @@ export function createRegisterMode(B) {
       inView: world.z >= -1 && world.z <= 1 && Math.abs(world.x) <= 1 && Math.abs(world.y) <= 1,
     };
   }
-  const presentedCashScreenPoint = () => meshScreenPoint(tenderHandful);
+  const presentedCashScreenPoint = () => {
+    const point = meshScreenPoint(tenderHandful);
+    return point ? { ...point, clickable: !!(tx && tx.stage === 'cash-tender') } : null;
+  };
+  const drawerSlotScreenPoint = (denom) => {
+    const value = Number(denom);
+    const hotspot = slotHotspots.find((candidate) => Number(candidate.userData?.denom) === value);
+    const visiblePieces = drawerMoney?.children?.filter((candidate) => (
+      candidate.userData?.from === 'drawer' && Number(candidate.userData?.denom) === value
+    )) || [];
+    const target = visiblePieces[visiblePieces.length - 1] || hotspot;
+    const point = meshScreenPoint(target);
+    return point ? {
+      ...point,
+      denom: value,
+      source: target === hotspot ? 'drawer-slot' : 'drawer-money',
+      visible: workspace === 'cash' && drawerAmount > 0.92,
+      clickable: !!(tx?.drawerOpen && tx?.deposited
+        && !cashMotions.some((motion) => motion.kind === 'cash-deposit')),
+    } : null;
+  };
   const presentedCardScreenPoint = () => {
     const point = meshScreenPoint(cardMesh);
     return point ? { ...point, clickable: !!(tx && tx.stage === 'card-ready') } : null;
@@ -9114,6 +10355,7 @@ export function createRegisterMode(B) {
   return {
     simplified: true,
     presentedCashScreenPoint,
+    drawerSlotScreenPoint,
     presentedCardScreenPoint,
     // C2 (Goal 18): the gap between the presented card and the customer's
     // grip, in metres, so "the card is in the hand" is measured, not eyeballed.
@@ -9146,6 +10388,23 @@ export function createRegisterMode(B) {
     debugWorkingPose: () => {
       const solved = dynamicPose('overview');
       return { ...solved.pose, fov: solved.fov, poseKey: poseKey() };
+    },
+    // QA-only pixel reads from the actual CanvasTexture sent to the physical
+    // monitor. These sample each tab's painted background away from text and
+    // rounded edges, so an acceptance driver can prove which UI the player is
+    // looking at instead of trusting an internal workspace string.
+    debugMonitorTabPixels: () => {
+      const context = screenCanvas.getContext('2d');
+      // One readback for the whole tab row. Three independent getImageData
+      // calls force repeated GPU/CPU synchronization in Chromium and can stall
+      // long enough to perturb the very payment animation this probe observes.
+      const row = context.getImageData(44, 104, 401, 1).data;
+      const pixel = (offset) => [...row.slice(offset * 4, offset * 4 + 4)];
+      return {
+        checkIn: pixel(0),
+        checkout: pixel(200),
+        teeSheet: pixel(400),
+      };
     },
     // QA-only: apply/clear the REAL hover highlight on the card mesh. The
     // live pointer path is timing-gated - the customer's own card inserts
@@ -9195,6 +10454,19 @@ export function createRegisterMode(B) {
     // after the fibres went instanced. G4.1 says a bag is ALWAYS at the bagging
     // position; anything checking that should ask, not search.
     bagNode: () => bagGroup,
+    checkoutBagOwnershipStatus: () => {
+      const customerOwnedUnderRegister = [];
+      root.traverse((object) => {
+        if (object !== root && object.userData?.checkoutOwner === 'customer') {
+          customerOwnedUnderRegister.push(object.name || object.type || 'unnamed');
+        }
+      });
+      return {
+        customerOwnedUnderRegister,
+        counterBagOwner: bagGroup?.userData?.checkoutOwner ?? null,
+        counterBagParent: bagGroup?.parent?.name ?? null,
+      };
+    },
     // C2 (Goal 19): the offered card, exposed for the same reason as bagNode
     // — a driver that hunts the graph by name or size finds scorecard
     // holders and wood chips (both happened tonight) and reports on them.
@@ -9203,13 +10475,29 @@ export function createRegisterMode(B) {
     // lives in this closure, so a driver photographing the four variants has to
     // ask the register to repaint rather than reimplement the artwork — a
     // driver's own copy of a painter proves nothing about the shipped one.
-    repaintBrand: () => { physicalBrandSignature = null; return syncPhysicalBrand(); },
+    repaintBrand: () => {
+      bagBrandSignature = null;
+      cardBrandSignature = null;
+      return syncPhysicalBrand();
+    },
     // The painted card FACE, available without entering the register. cardNode
     // is null until a customer brings a sale, so a driver photographing the
     // card artwork would otherwise have to stage a whole transaction to look at
     // a texture that is painted at construction.
     cardBrandCanvas: () => (cardBrandMaterial && cardBrandMaterial.map
       && cardBrandMaterial.map.image ? cardBrandMaterial.map.image : null),
+    debugPaymentCardCanvas: (cardId) => {
+      const design = PAYMENT_CARDS.find((card) => card.id === cardId) || null;
+      if (!design) return null;
+      return cardTextureCache.get(displayClubName(), design)?.image || null;
+    },
+    cardOwnedResourceStatus: () => cardOwnedResources.status(),
+    paidBagResourceStatus: () => ({
+      ...paidBagResourceCounts,
+      livePaidBags: paidBagResourceCounts.transferredBags
+        - paidBagResourceCounts.successfullyDisposedBags,
+      retainedResourceDisposals: retainedPaidBagDisposalStatus(),
+    }),
     // The mesh for a ticket line, by uid. Same reason as bagNode: a driver that
     // hunts the scene graph for a product finds nothing when it guesses wrong,
     // and a scan that finds nothing is indistinguishable from an empty counter.
@@ -9256,10 +10544,28 @@ export function createRegisterMode(B) {
     checkoutWatchdogDiagnostics: () => ({
       managedStates: [...SIMPLIFIED_REGISTER_WATCHDOG_STATES],
       events: checkoutWatchdogEvents.map((entry) => ({ ...entry })),
+      postBankFailures: checkoutPostBankFailures.map((entry) => ({ ...entry })),
+      postBankRecoveries: checkoutPostBankRecoveries.map((entry) => ({
+        ...entry,
+        customerOwnedUnderRegisterBeforeCleanup: [
+          ...entry.customerOwnedUnderRegisterBeforeCleanup,
+        ],
+      })),
       running: checkoutWatchdogRunning,
       pendingPostResume: checkoutWatchdogPostResume,
       cashRecoveryPending: cashRecoveryTimer > 0,
     }),
+    debugFailNextBankHelperReturn: () => {
+      if (!tx || !cust || tx.banked) {
+        qaBankHelperReturnFault = null;
+        return { armed: false, transactionNumber: null, customerId: null };
+      }
+      qaBankHelperReturnFault = {
+        transactionNumber: tx.number,
+        customerId: cust.customerId,
+      };
+      return { armed: true, ...qaBankHelperReturnFault };
+    },
     accessibilityPreferences: () => ({ ...accessibilityPrefs }),
     scanPresentation,
     scanAlignment,
@@ -9269,6 +10575,8 @@ export function createRegisterMode(B) {
     cashGpuPrewarmStatus,
     waitForCashGpuPrewarmRepresentatives,
     releaseCashGpuPrewarmRepresentatives,
+    cardTextureCacheStatus: () => ({ ...cardTextureCache.status() }),
+    moneyMaterialCacheStatus: () => ({ ...kitMoneyMaterials.status() }),
     // Read-only choreography state for browser acceptance evidence. Gameplay
     // still advances this exclusively through updateReceipt/updateDelivery.
     deliveryPhase: () => deliveryPhase,
@@ -9306,6 +10614,7 @@ export function createRegisterMode(B) {
     onKey,
     recoverInput,
     tapTerminal,
+    dispose: disposeRegisterModeResources,
     drawScreen,
     label,
   };

@@ -24,6 +24,21 @@ import {
   moveInventory,
 } from './inventoryLifecycle.js';
 import { migrateDrawer, newDrawer } from './register.js';
+import {
+  CHECKOUT_SETTLEMENT_VERSION,
+  checkoutInventoryIdentity,
+  checkoutSettlementReceiptForPlan,
+  checkoutSettlementTicketDigest,
+  checkoutWalIsQuarantined,
+  drainPendingCheckoutCore,
+  quarantineCheckoutWal,
+  reconcilePendingCheckouts,
+  validateCheckoutSettlementAuthorities,
+  validateCheckoutSettlementReceipt,
+  validateCheckoutSettlementReceipts,
+  validateCheckoutWalRecord,
+} from './checkoutSettlement.js';
+import { reconcileReservationCheckInTickets } from './reservationCheckIn.js';
 import { ensurePaymentBag, paymentBagStats } from './paymentBag.js';
 import { ensureWash } from './washing.js';
 import { ensureWet, wetGridForRoom } from './cleaningWet.js';
@@ -31,7 +46,9 @@ import { ensureDebris } from './cleaningDebris.js';
 import { ensureLayout } from './layout.js';
 import { ensureClubhouseRestoration } from './clubhouseRestoration.js';
 import { ensureProperty, tickProperty } from './property.js';
-import { tickSalesTax } from './salesTax.js';
+import {
+  ensureSalesTax, normalizeSalesTax, reconstructSalesTaxFromLedger, tickSalesTax,
+} from './salesTax.js';
 import {
   initReservations, ensureReservations, reservationsDailyTick,
   generateOnlineReservations, processReservationTimeline, ensureReservationHorizon,
@@ -42,6 +59,7 @@ import {
 } from './customerSimulation.js';
 import {
   initCustomerDirectory, ensureCustomerDirectory, reconcileReservationCustomerIdentities,
+  reconcileCustomerVisitEvents,
 } from './customerIdentity.js';
 import { ensureGolfDay, initGolfDay } from './golfDay.js';
 import { initTractor, ensureTractor } from './tractor.js';
@@ -61,7 +79,8 @@ import { initProgression, prestigeDailyTick, resolveTournamentIfDue, solvencyDai
 import { initTutorial, ensureTutorial } from './tutorial.js';
 import { initCampaign, ensureCampaign } from './campaign.js';
 import {
-  addExpense, beginLedgerClose, closeBooks, ensureLedger, initLedger,
+  addExpense, beginLedgerClose, closeBooks, ensureLedger, initLedger, LEDGER_HISTORY_DAYS,
+  preflightLedgerEntry, preflightOutcome,
 } from './economy.js';
 import { closeDayIndicators, ensureBusiness, initBusiness } from './business.js';
 import { initNotifications, ensureNotifications } from './notifications.js';
@@ -113,7 +132,15 @@ export { rngOf }; // re-export: rngOf lives in core/utils to avoid import cycles
 // existing full fixture floor until they purchase their next tier.
 // v13: Pine Hills becomes the canonical display identity and the furnished
 // clubhouse restoration is installed idempotently without changing property ids.
-export const SAVE_VERSION = 13;
+// v14: sales-tax liability becomes a durable authority. V13 ledger entries are
+// replayed as migration evidence only; no cash or accounting entry is posted.
+// v15: every current-schema shop save carries the signed checkout settlement
+// journal. Its absence is therefore distinguishable from a legitimate V14
+// legacy save and must fail closed instead of guessing whether banked money and
+// held stock belonged to an interrupted checkout.
+export const SAVE_VERSION = 15;
+export const SALES_TAX_SAVE_VERSION = 14;
+export const CHECKOUT_WAL_SAVE_VERSION = 15;
 export const DEFAULT_CLUB_NAME = 'Pine Hills Municipal Golf';
 const LEGACY_DEFAULT_CLUB_NAMES = new Set([
   'Willow Creek Golf Club',
@@ -135,6 +162,8 @@ export const SAVE_MIGRATIONS = Object.freeze([
   Object.freeze({ version: 11, name: 'property-inventory' }),
   Object.freeze({ version: 12, name: 'tiered-shop-progression' }),
   Object.freeze({ version: 13, name: 'pine-hills-furnished-clubhouse' }),
+  Object.freeze({ version: SALES_TAX_SAVE_VERSION, name: 'durable-sales-tax-liability' }),
+  Object.freeze({ version: CHECKOUT_WAL_SAVE_VERSION, name: 'durable-checkout-settlement-journal' }),
 ]);
 
 export const FIXTURE_FOOTPRINT_SAVE_VERSION = 10;
@@ -375,6 +404,10 @@ export function newGame(mode = 'relaxed', seed = Date.now() % 2147483647, opts =
   ensureWash(state); // a fixer-upper arrives with a filthy exterior
   ensureProperty(state); // ...and a landlord
   bindPropertyInventory(state, opts.propertyId || `property:${seed}`);
+  // Sales-tax liability is a first-class save authority. Initialize it before
+  // the first checkout so a collected cent can never live only in a lazy
+  // runtime object and disappear across a save/load boundary.
+  ensureSalesTax(state);
   initReservations(state);
   initGolfDay(state);
   initCustomerSimulation(state);
@@ -396,6 +429,18 @@ export function newGame(mode = 'relaxed', seed = Date.now() % 2147483647, opts =
 // --- master tick --------------------------------------------------------------
 
 export function dailyTick(state) {
+  // Midnight must not close books or roll sales while a prepared checkout still
+  // owns economic projections from the prior operating day.
+  const checkoutRecovery = drainPendingCheckoutCore(state);
+  if (!checkoutRecovery.ok || checkoutRecovery.pending > 0) {
+    return {
+      ok: false,
+      pendingCheckout: true,
+      reason: checkoutRecovery.failures?.[0]?.reason
+        || 'A pending checkout must recover before the operating day can close.',
+      diagnostic: checkoutRecovery.failures?.[0]?.diagnostic,
+    };
+  }
   const todayAbs = calendarOf(state.clock.minutes).dayAbs;
   const closingDay = todayAbs - 1;
   // Midnight has advanced the clock already, but the newly exposed horizon and
@@ -503,6 +548,18 @@ export function hourlyTick(state, hourOfDay) {
 }
 
 export function update(state, gameMinutes) {
+  // Drain before advancing the clock so recovery keeps the settlement's day,
+  // sales window, and outcome aligned with the payment the player completed.
+  const checkoutRecovery = reconcilePendingCheckouts(state);
+  if (!checkoutRecovery.ok || checkoutRecovery.pending > 0) {
+    return {
+      daysPassed: 0,
+      pendingCheckout: true,
+      reason: checkoutRecovery.failures?.[0]?.reason
+        || 'A pending checkout must recover before time can advance.',
+      diagnostic: checkoutRecovery.failures?.[0]?.diagnostic,
+    };
+  }
   // advance the clock INCREMENTALLY so every hourly/daily tick reads the calendar
   // at its own moment — batching several days into one update must behave exactly
   // like living through them (maintenance day-stamps, outing dates, book closes)
@@ -542,7 +599,7 @@ const STATE_SAVE_KEYS = new Set([
   'golfers', 'staff', 'club', 'reputation', 'business', 'ledger', 'shop',
   'reservations', 'golfDay', 'customerDirectory', 'tractor', 'props',
   'progression', 'tutorial', 'campaign', 'notifications', 'uiPrefs',
-  'property', 'propertyInventory', 'surfaceDamage', 'debtDays', 'failed', 'turf',
+  'property', 'propertyInventory', 'salesTax', 'surfaceDamage', 'debtDays', 'failed', 'turf',
 ]);
 const COURSE_SAVE_KEYS = new Set([
   'w', 'h', 'zones', 'elevation', 'holes', 'nextHoleId', 'structures',
@@ -610,9 +667,28 @@ function golfDayForSave(day) {
 }
 
 export function snapshot(state) {
+  const authorities = validateCheckoutSettlementAuthorities(state);
+  if (!authorities.ok) {
+    throw new Error(authorities.diagnostic || 'The checkout settlement authority is invalid.');
+  }
+  // Customer identity aliases must be canonical before a checkout tail tries
+  // to publish its durable visit event.
+  reconcileReservationCustomerIdentities(state);
+  if (!checkoutWalIsQuarantined(state)) {
+    const recovery = reconcilePendingCheckouts(state);
+    if (!recovery.ok || recovery.pending !== 0) {
+      throw new Error('Cannot save while checkout settlement recovery is incomplete.');
+    }
+  }
   // Reservations keep compatibility name fields for old UI, but the directory
   // is their sole identity authority. Reconcile before every persisted snapshot.
-  reconcileReservationCustomerIdentities(state);
+  // A prepared settlement is the durable commit decision. Drain its economic,
+  // inventory, ticket, reservation, and customer projections before writing a
+  // snapshot; exact targets make repeated snapshots no-ops.
+  reconcileReservationCheckInTickets(state);
+  // A banked ticket is the durable outbox for customer accounting. Drain any
+  // pending event before snapshotting; event ids make repeat snapshots no-ops.
+  reconcileCustomerVisitEvents(state);
   const { course, turf } = state;
   return ({
     ...(state.__unknownSaveFields || {}),
@@ -681,6 +757,7 @@ export function snapshot(state) {
     uiPrefs: state.uiPrefs || null, // the office machine's own settings (scale, default views)
     property: state.property, // the rent schedule, or reloading is a rent holiday
     propertyInventory: state.propertyInventory,
+    salesTax: ensureSalesTax(state),
     surfaceDamage: state.surfaceDamage,
     debtDays: state.debtDays || 0,
     failed: state.failed || null,
@@ -1337,8 +1414,610 @@ function normalizeTurf(rawTurf, defaults, report) {
   };
 }
 
-function normalizeShopState(state, rawShop, defaults, report) {
+const CHECKOUT_LEDGER_SUFFIXES = Object.freeze([
+  'sale', 'salestax', 'cogs', 'cash-over-short', 'cash-overage',
+]);
+const CHECKOUT_PROJECTION_SUFFIXES = Object.freeze([
+  'sales-projection', 'tax-projection',
+]);
+const CHECKOUT_INVENTORY_PREFIX = 'checkout-sale-batch:v2:';
+
+function checkoutTransactionFromKey(key, suffixes) {
+  if (typeof key !== 'string' || !key.startsWith('checkout:')) return null;
+  for (const suffix of suffixes) {
+    const tail = `:${suffix}`;
+    if (!key.endsWith(tail)) continue;
+    const transactionId = key.slice('checkout:'.length, -tail.length);
+    if (transactionId) return { transactionId, suffix };
+  }
+  return null;
+}
+
+function checkoutMarkerMatches(value, settlementId) {
+  return isRecord(value)
+    && value.version === CHECKOUT_SETTLEMENT_VERSION
+    && value.settlementId === settlementId;
+}
+
+function settlementIdFromMarker(value) {
+  return isRecord(value)
+    && value.version === CHECKOUT_SETTLEMENT_VERSION
+    && typeof value.settlementId === 'string'
+    && value.settlementId
+    ? value.settlementId : null;
+}
+
+function sameCheckoutValue(left, right) {
+  try {
+    return JSON.stringify(left) === JSON.stringify(right);
+  } catch {
+    return false;
+  }
+}
+
+function ticketMatchesCheckoutKey(ticket, key) {
+  if (key?.kind === 'transaction') return ticket?.transactionId === key.transactionId;
+  return key?.kind === 'service'
+    && ticket?.type === key.type
+    && ticket?.referenceId === key.referenceId;
+}
+
+function ticketRetailPairs(ticket) {
+  if (!Array.isArray(ticket?.items)) return null;
+  const pairs = ticket.items
+    .filter((item) => typeof item?.skuId === 'string' && !item.skuId.startsWith('service:'))
+    .map((item) => [item?.uid, item?.skuId]);
+  if (pairs.some(([uid, skuId]) => typeof uid !== 'string' || !uid
+      || typeof skuId !== 'string' || !skuId)) return null;
+  const compare = (left, right) => (left < right ? -1 : left > right ? 1 : 0);
+  return pairs.sort((left, right) => (
+    compare(left[0], right[0]) || compare(left[1], right[1])
+  ));
+}
+
+function checkoutEvidenceGroup(groups, settlementId) {
+  if (!groups.has(settlementId)) {
+    groups.set(settlementId, {
+      settlementId,
+      hard: false,
+      plans: [],
+      receipts: [],
+      tickets: [],
+      rows: [],
+      outcomes: [],
+      processed: [],
+      processedOutcomes: [],
+      projections: [],
+      inventoryOperations: [],
+    });
+  }
+  return groups.get(settlementId);
+}
+
+function currentCheckoutSchemaClaim(raw, persistedVersion) {
+  const numericLikeVersion = Number(raw?.version);
+  return persistedVersion >= CHECKOUT_WAL_SAVE_VERSION
+    || (Number.isSafeInteger(numericLikeVersion)
+      && numericLikeVersion >= CHECKOUT_WAL_SAVE_VERSION)
+    || ['pendingCheckouts', 'checkoutSettlementReceipts',
+      'checkoutSettlementReceiptKeys', 'checkoutProjectionIds']
+      .some((field) => Object.hasOwn(raw?.shop || {}, field))
+    || Object.values(isRecord(raw?.shop?.pendingCheckouts)
+      ? raw.shop.pendingCheckouts : {}).some((plan) => (
+      settlementIdFromMarker(plan?.checkoutSettlement) != null
+    ))
+    || Object.values(isRecord(raw?.shop?.checkoutSettlementReceipts)
+      ? raw.shop.checkoutSettlementReceipts : {}).some((receipt) => (
+      receipt?.version === CHECKOUT_SETTLEMENT_VERSION
+    ))
+    || (Array.isArray(raw?.shop?.transactionHistory)
+      && raw.shop.transactionHistory.some((ticket) => (
+        settlementIdFromMarker(ticket?.checkoutSettlement) != null
+      )))
+    || (Array.isArray(raw?.ledger?.entries) && raw.ledger.entries.some((entry) => (
+      settlementIdFromMarker(entry?.metadata?.checkoutSettlement) != null
+    )))
+    || (Array.isArray(raw?.ledger?.outcomes) && raw.ledger.outcomes.some((outcome) => (
+      settlementIdFromMarker(outcome?.metadata?.checkoutSettlement) != null
+    )))
+    || Object.keys(isRecord(raw?.shop?.inventoryLifecycle?.operations)
+      ? raw.shop.inventoryLifecycle.operations : {})
+      .some((key) => key.startsWith(CHECKOUT_INVENTORY_PREFIX));
+}
+
+function pendingPlanFinancialEvidenceIsCoherent(raw, plan, receipt = null) {
+  const ledger = raw?.ledger;
+  const entries = Array.isArray(ledger?.entries) ? ledger.entries : [];
+  const processedIds = isRecord(ledger?.processedIds) ? ledger.processedIds : {};
+  for (const posting of plan.postings || []) {
+    const key = posting.spec.idempotencyKey;
+    const expectedId = plan.ticketDraft?.ledgerEntryIds?.[posting.component];
+    const rows = entries.filter((entry) => entry?.idempotencyKey === key);
+    const checkpointPresent = Object.hasOwn(processedIds, key);
+    const checked = (rows.length > 0 || checkpointPresent)
+      ? preflightLedgerEntry(raw, posting.spec) : null;
+    const receiptPosting = receipt?.postings?.find((item) => item.idempotencyKey === key) || null;
+    if (rows.length > 1
+        || (receipt && (!receiptPosting || receiptPosting.entryId !== expectedId))
+        || (rows.length === 1 && (rows[0].id !== expectedId
+          || rows[0].relatedId == null
+          || posting.spec.relatedId == null
+          || String(rows[0].relatedId) !== String(posting.spec.relatedId)
+          || !checkoutMarkerMatches(rows[0].metadata?.checkoutSettlement, plan.settlementId)))
+        || (checkpointPresent && (processedIds[key] !== expectedId
+          || rows.length !== 1 || !checked?.ok || !checked.duplicate))
+        || (!checkpointPresent && rows.length === 1 && (!checked?.orphan
+          || checked.entry?.id !== expectedId))) return false;
+  }
+
+  if (plan.outcomeSpec == null) {
+    return receipt?.outcomeId == null && receipt?.outcomeKey == null;
+  }
+  const outcomeKey = plan.outcomeSpec.idempotencyKey;
+  const outcomes = Array.isArray(ledger?.outcomes) ? ledger.outcomes : [];
+  const rows = outcomes.filter((outcome) => outcome?.idempotencyKey === outcomeKey);
+  const processed = isRecord(ledger?.processedOutcomeIds) ? ledger.processedOutcomeIds : {};
+  const checkpointPresent = Object.hasOwn(processed, outcomeKey);
+  const checked = (rows.length > 0 || checkpointPresent)
+    ? preflightOutcome(raw, plan.outcomeSpec) : null;
+  const expectedId = checked?.preview?.id
+    || plan.outcomeSpec.id
+    || receipt?.outcomeId
+    || null;
+  return rows.length <= 1
+    && (!receipt || (receipt.outcomeKey === outcomeKey && receipt.outcomeId === expectedId))
+    && (rows.length === 0 || (rows[0].id === expectedId
+      && rows[0].type === plan.outcomeSpec.type
+      && rows[0].relatedId != null
+      && plan.outcomeSpec.relatedId != null
+      && String(rows[0].relatedId) === String(plan.outcomeSpec.relatedId)
+      && checkoutMarkerMatches(rows[0].metadata?.checkoutSettlement, plan.settlementId)))
+    && (!checkpointPresent || (processed[outcomeKey] === expectedId
+      && rows.length === 1 && checked?.ok && checked.duplicate))
+    && (checkpointPresent || rows.length === 0 || (checked?.orphan
+      && checked.outcome?.id === expectedId));
+}
+
+function classifyCheckoutJournalCoherence(raw, persistedVersion) {
+  const groups = new Map();
+  const rawShop = raw?.shop;
+  const schemaClaim = currentCheckoutSchemaClaim(raw, persistedVersion);
+  if (!isRecord(rawShop)) {
+    return schemaClaim
+      ? { unsafe: true, diagnostic: 'missing-current-checkout-shop-authority' }
+      : { unsafe: false };
+  }
+
+  const walPresent = Object.hasOwn(rawShop, 'pendingCheckouts');
+  const requiredAuthorityFields = [
+    'pendingCheckouts',
+    'checkoutSettlementReceipts',
+    'checkoutSettlementReceiptKeys',
+    'checkoutProjectionIds',
+  ];
+  if (schemaClaim && requiredAuthorityFields.some((field) => !Object.hasOwn(rawShop, field))) {
+    return { unsafe: true, diagnostic: 'missing-current-checkout-journal' };
+  }
+  if (walPresent) {
+    const validation = validateCheckoutWalRecord(rawShop.pendingCheckouts, raw);
+    if (!validation.ok) return { unsafe: true, diagnostic: 'invalid-current-checkout-journal' };
+    for (const plan of Object.values(rawShop.pendingCheckouts)) {
+      const group = checkoutEvidenceGroup(groups, plan.settlementId);
+      group.hard = true;
+      group.plans.push(plan);
+    }
+  }
+
+  const receiptFieldsPresent = Object.hasOwn(rawShop, 'checkoutSettlementReceipts')
+    || Object.hasOwn(rawShop, 'checkoutSettlementReceiptKeys');
+  if (schemaClaim && !receiptFieldsPresent) {
+    return { unsafe: true, diagnostic: 'missing-current-checkout-receipts' };
+  }
+  if (schemaClaim || receiptFieldsPresent) {
+    const receiptValidation = validateCheckoutSettlementReceipts(
+      rawShop.checkoutSettlementReceipts,
+      rawShop.checkoutSettlementReceiptKeys,
+      raw,
+    );
+    if (!receiptValidation.ok) {
+      return { unsafe: true, diagnostic: 'invalid-current-checkout-receipts' };
+    }
+    for (const receipt of Object.values(rawShop.checkoutSettlementReceipts)) {
+      const group = checkoutEvidenceGroup(groups, receipt.settlementId);
+      group.hard = true;
+      group.receipts.push(receipt);
+    }
+  }
+
+  const retainedServiceSettlementIds = new Map();
+  for (const receipt of Object.values(isRecord(rawShop.checkoutSettlementReceipts)
+    ? rawShop.checkoutSettlementReceipts : {})) {
+    if (receipt?.ticketKey?.kind !== 'service') continue;
+    retainedServiceSettlementIds.set(
+      `${receipt.ticketKey.type}\u0000${receipt.ticketKey.referenceId}`,
+      receipt.settlementId,
+    );
+  }
+  for (const plan of Object.values(isRecord(rawShop.pendingCheckouts)
+    ? rawShop.pendingCheckouts : {})) {
+    for (const key of [plan?.ticketKey, ...(Array.isArray(plan?.alternateTicketKeys)
+      ? plan.alternateTicketKeys : [])]) {
+      if (key?.kind !== 'service') continue;
+      retainedServiceSettlementIds.set(
+        `${key.type}\u0000${key.referenceId}`,
+        plan.settlementId,
+      );
+    }
+  }
+
+  const projectionJournal = rawShop.checkoutProjectionIds;
+  if (projectionJournal != null && !isRecord(projectionJournal)) {
+    return { unsafe: true, diagnostic: 'invalid-current-checkout-projections' };
+  }
+  for (const [projectionId, projection] of Object.entries(projectionJournal || {})) {
+    const parsed = checkoutTransactionFromKey(projectionId, CHECKOUT_PROJECTION_SUFFIXES);
+    if (!parsed || !isRecord(projection)) {
+      return { unsafe: true, diagnostic: 'invalid-current-checkout-projections' };
+    }
+    const markerId = settlementIdFromMarker(projection.checkoutSettlement);
+    if (!markerId || markerId !== `checkout:${parsed.transactionId}`) {
+      return { unsafe: true, diagnostic: 'invalid-current-checkout-projections' };
+    }
+    const group = checkoutEvidenceGroup(groups, markerId);
+    group.hard = true;
+    group.projections.push({ id: projectionId, projection, suffix: parsed.suffix });
+  }
+
+  const inventoryOperations = rawShop.inventoryLifecycle?.operations;
+  if (isRecord(inventoryOperations)) {
+    for (const [referenceId, operation] of Object.entries(inventoryOperations)) {
+      if (!referenceId.startsWith(CHECKOUT_INVENTORY_PREFIX)) continue;
+      const identity = checkoutInventoryIdentity(referenceId);
+      if (!identity) {
+        return { unsafe: true, diagnostic: 'invalid-current-checkout-inventory-marker' };
+      }
+      const group = checkoutEvidenceGroup(groups, `checkout:${identity.transactionId}`);
+      group.hard = true;
+      group.inventoryOperations.push({ referenceId, operation, identity });
+    }
+  }
+
+  for (const ticket of Array.isArray(rawShop.transactionHistory)
+    ? rawShop.transactionHistory : []) {
+    const markerPresent = ticket?.checkoutSettlement != null;
+    const serviceSettlementId = typeof ticket?.type === 'string'
+      && typeof ticket?.referenceId === 'string'
+      ? retainedServiceSettlementIds.get(`${ticket.type}\u0000${ticket.referenceId}`) || null
+      : null;
+    const currentShape = markerPresent
+      || ticket?.checkoutKind === 'direct'
+      || (typeof ticket?.transactionId === 'string' && ticket.transactionId)
+      || serviceSettlementId != null;
+    if (!currentShape) continue;
+    const settlementId = markerPresent
+      ? settlementIdFromMarker(ticket.checkoutSettlement)
+      : (typeof ticket?.transactionId === 'string' && ticket.transactionId
+        ? `checkout:${ticket.transactionId}` : serviceSettlementId);
+    if (!settlementId || (markerPresent
+        && !checkoutMarkerMatches(ticket.checkoutSettlement, settlementId))) {
+      return { unsafe: true, diagnostic: 'invalid-current-checkout-ticket-marker' };
+    }
+    const group = checkoutEvidenceGroup(groups, settlementId);
+    if (markerPresent) group.hard = true;
+    group.tickets.push(ticket);
+  }
+
+  const ledger = raw?.ledger;
+  for (const entry of Array.isArray(ledger?.entries) ? ledger.entries : []) {
+    const parsed = checkoutTransactionFromKey(entry?.idempotencyKey, CHECKOUT_LEDGER_SUFFIXES);
+    const marker = entry?.metadata?.checkoutSettlement;
+    const markerId = settlementIdFromMarker(marker);
+    if (marker != null && !markerId) {
+      return { unsafe: true, diagnostic: 'invalid-current-checkout-ledger-marker' };
+    }
+    if (!parsed && !markerId) continue;
+    const group = checkoutEvidenceGroup(groups, markerId || `checkout:${parsed.transactionId}`);
+    if (marker != null) group.hard = true;
+    group.rows.push({ entry, suffix: parsed?.suffix ?? null });
+  }
+  for (const [key, id] of Object.entries(isRecord(ledger?.processedIds)
+    ? ledger.processedIds : {})) {
+    const parsed = checkoutTransactionFromKey(key, CHECKOUT_LEDGER_SUFFIXES);
+    if (!parsed) continue;
+    checkoutEvidenceGroup(groups, `checkout:${parsed.transactionId}`).processed.push({ key, id, suffix: parsed.suffix });
+  }
+  for (const outcome of Array.isArray(ledger?.outcomes) ? ledger.outcomes : []) {
+    const parsed = checkoutTransactionFromKey(outcome?.idempotencyKey, ['completed']);
+    const marker = outcome?.metadata?.checkoutSettlement;
+    const markerId = settlementIdFromMarker(marker);
+    if (marker != null && !markerId) {
+      return { unsafe: true, diagnostic: 'invalid-current-checkout-outcome-marker' };
+    }
+    if (!parsed && !markerId) continue;
+    const group = checkoutEvidenceGroup(groups, markerId || `checkout:${parsed.transactionId}`);
+    if (marker != null) group.hard = true;
+    group.outcomes.push(outcome);
+  }
+  for (const [key, id] of Object.entries(isRecord(ledger?.processedOutcomeIds)
+    ? ledger.processedOutcomeIds : {})) {
+    const parsed = checkoutTransactionFromKey(key, ['completed']);
+    if (!parsed) continue;
+    checkoutEvidenceGroup(groups, `checkout:${parsed.transactionId}`).processedOutcomes.push({ key, id });
+  }
+
+  const rawHeldUids = (Array.isArray(rawShop.held) ? rawShop.held : [])
+    .map((item) => item?.uid)
+    .filter((uid) => typeof uid === 'string' && uid);
+  const heldUids = new Set(rawHeldUids);
+  const heldAllocationUids = new Set(Object.keys(
+    isRecord(rawShop.inventoryLifecycle?.heldAllocations)
+      ? rawShop.inventoryLifecycle.heldAllocations : {},
+  ));
+  const currentDay = Math.floor((Number(raw?.clock?.minutes) || 0) / 1440);
+
+  for (const group of groups.values()) {
+    if (!group.hard) continue;
+    if (group.plans.length > 1 || group.receipts.length > 1) {
+      return { unsafe: true, diagnostic: 'ambiguous-current-checkout-authority' };
+    }
+    const plan = group.plans[0] || null;
+    if (plan) {
+      const postingKeys = new Set(plan.postings.map((posting) => posting.spec.idempotencyKey));
+      const projectionIds = new Set((plan.projections || []).map((projection) => projection.id));
+      const outcomeKey = plan.outcomeSpec?.idempotencyKey || null;
+      const inventoryReferenceId = plan.inventory?.referenceId || null;
+      const plannedIdentity = checkoutInventoryIdentity(plan.inventory?.referenceId);
+      const plannedPairs = Array.isArray(plan.inventory?.entries)
+        ? plan.inventory.entries.map((item) => [item?.uid, item?.skuId]) : [];
+      const matchingRawHeld = plannedPairs.map(([uid]) => (
+        (Array.isArray(rawShop.held) ? rawShop.held : [])
+          .filter((item) => item?.uid === uid)
+      ));
+      const rebuiltReceipt = group.receipts[0]
+        ? checkoutSettlementReceiptForPlan(plan, group.receipts[0].outcomeId) : null;
+      const planTicketKeys = [plan.ticketKey, ...(plan.alternateTicketKeys || [])];
+      const receiptPostingIds = new Map((group.receipts[0]?.postings || [])
+        .map((posting) => [posting.idempotencyKey, posting.entryId]));
+      const receiptOutcomeId = group.receipts[0]?.outcomeId || null;
+      if (group.tickets.length > 1
+          || group.receipts.length > 1
+          || (rebuiltReceipt && !sameCheckoutValue(rebuiltReceipt, group.receipts[0]))
+          || !pendingPlanFinancialEvidenceIsCoherent(raw, plan, group.receipts[0] || null)
+          || (plan.inventory != null && (!plannedIdentity
+            || !sameCheckoutValue(plannedIdentity.items, plannedPairs)
+            || matchingRawHeld.some((matches) => matches.length > 1
+              || (matches.length === 1 && matches[0].skuId !== plannedPairs[matchingRawHeld.indexOf(matches)]?.[1]))))
+          || group.rows.some(({ entry }) => !postingKeys.has(entry.idempotencyKey)
+            || (group.receipts[0]
+              && (entry.id !== receiptPostingIds.get(entry.idempotencyKey)
+                || entry.relatedId == null)))
+          || group.processed.some(({ key, id }) => !postingKeys.has(key)
+            || (group.receipts[0] && id !== receiptPostingIds.get(key)))
+          || group.projections.some(({ id }) => !projectionIds.has(id))
+          || group.outcomes.some((outcome) => outcome.idempotencyKey !== outcomeKey
+            || (group.receipts[0] && outcome.id !== receiptOutcomeId))
+          || group.processedOutcomes.some(({ key, id }) => key !== outcomeKey
+            || (group.receipts[0] && id !== receiptOutcomeId))
+          || group.inventoryOperations.some(({ referenceId }) => referenceId !== inventoryReferenceId)
+          || group.tickets.some((ticket) => ticket.number !== plan.ticketNumber
+            || !planTicketKeys.every((key) => ticketMatchesCheckoutKey(ticket, key))
+            || !sameCheckoutValue(
+              ticket?.ledgerIdempotencyKeys,
+              plan.ticketDraft?.ledgerIdempotencyKeys,
+            )
+            || !sameCheckoutValue(ticket?.ledgerEntryIds, plan.ticketDraft?.ledgerEntryIds)
+            || (plan.ticketKey.kind === 'transaction'
+              && !sameCheckoutValue(ticketRetailPairs(ticket), plannedPairs)))) {
+        return { unsafe: true, diagnostic: 'checkout-evidence-owned-by-different-plan' };
+      }
+      continue;
+    }
+
+    const receipt = group.receipts[0] || null;
+    const receiptValidation = receipt
+      ? validateCheckoutSettlementReceipt(receipt, group.settlementId, raw) : { ok: false };
+    if (!receipt || !receiptValidation.ok || receipt.settlementId !== group.settlementId) {
+      return { unsafe: true, diagnostic: 'current-checkout-evidence-has-no-journal-or-receipt' };
+    }
+    if (receipt.minute != null && receipt.minute > Number(raw?.clock?.minutes)) {
+      return { unsafe: true, diagnostic: 'terminal-checkout-receipt-time-is-invalid' };
+    }
+    if (group.projections.length > 0) {
+      return { unsafe: true, diagnostic: 'terminal-checkout-retains-active-projection' };
+    }
+    const ticketKeys = [receipt.ticketKey, ...(receipt.alternateTicketKeys || [])];
+    if (group.tickets.length > 1
+        || group.tickets.some((ticket) => !ticketKeys.every((key) => (
+          ticketMatchesCheckoutKey(ticket, key)
+        )))) {
+      return { unsafe: true, diagnostic: 'terminal-checkout-ticket-is-ambiguous' };
+    }
+    const receiptKeys = new Set(receipt.postings.map((posting) => posting.idempotencyKey));
+    const receiptByKey = new Map(receipt.postings.map((posting) => [posting.idempotencyKey, posting]));
+    if (group.rows.some(({ entry }) => !receiptKeys.has(entry.idempotencyKey))
+        || group.processed.some(({ key }) => !receiptKeys.has(key))) {
+      return { unsafe: true, diagnostic: 'terminal-checkout-ledger-bindings-conflict' };
+    }
+    const receiptDay = Number.isFinite(receipt.minute)
+      ? Math.floor(receipt.minute / 1440) : null;
+    const financialRowsMayBePruned = receiptDay != null
+      && currentDay - receiptDay >= LEDGER_HISTORY_DAYS;
+    for (const expected of receipt.postings) {
+      const checkpointPresent = isRecord(ledger?.processedIds)
+        && Object.hasOwn(ledger.processedIds, expected.idempotencyKey);
+      const checkpointId = checkpointPresent
+        ? ledger.processedIds[expected.idempotencyKey] : null;
+      const rows = (Array.isArray(ledger?.entries) ? ledger.entries : [])
+        .filter((entry) => entry?.idempotencyKey === expected.idempotencyKey);
+      const exactRow = rows.length === 1
+        ? preflightLedgerEntry(raw, expected.spec) : null;
+      if (!checkpointPresent || checkpointId !== expected.entryId
+          || rows.length > 1
+          || (rows.length === 0 && !financialRowsMayBePruned)
+          || (rows.length === 1 && (!exactRow?.ok || !exactRow.duplicate
+            || rows[0].id !== expected.entryId
+            || rows[0].relatedId == null
+            || String(rows[0].relatedId) !== expected.relatedId
+            || (receipt.minute != null && rows[0].timestamp !== receipt.minute)))) {
+        return { unsafe: true, diagnostic: 'terminal-checkout-ledger-bindings-incomplete' };
+      }
+    }
+    const exactOutcome = receiptValidation.kind === 'transaction'
+      && group.outcomes.length === 1
+      ? preflightOutcome(raw, receipt.outcomeSpec) : null;
+    if (receiptValidation.kind === 'transaction' && (
+      receipt.outcomeKey !== `${group.settlementId}:completed`
+        || group.processedOutcomes.length !== 1
+        || group.processedOutcomes[0].key !== receipt.outcomeKey
+        || group.processedOutcomes[0].id !== receipt.outcomeId
+        || group.outcomes.length > 1
+        || (group.outcomes.length === 0 && !financialRowsMayBePruned)
+        || (group.outcomes.length === 1 && (
+          !exactOutcome?.ok || !exactOutcome.duplicate
+          || group.outcomes[0].id !== receipt.outcomeId
+          || group.outcomes[0].type !== 'checkoutCompleted'
+          || String(group.outcomes[0].relatedId) !== receipt.transactionId
+          || (receipt.minute != null && group.outcomes[0].timestamp !== receipt.minute)
+        )))) {
+      return { unsafe: true, diagnostic: 'terminal-checkout-outcome-binding-incomplete' };
+    }
+    if (receiptValidation.kind === 'service'
+        && (group.outcomes.length > 0 || group.processedOutcomes.length > 0
+          || group.inventoryOperations.length > 0)) {
+      return { unsafe: true, diagnostic: 'terminal-service-checkout-retains-retail-authority' };
+    }
+    if (group.tickets.length === 1) {
+      const ticket = group.tickets[0];
+      const expectedPairs = receiptValidation.inventoryIdentity?.items || [];
+      const expectedComponents = receipt.postings.map((posting) => posting.component).sort();
+      if (ticket.number !== receipt.ticketNumber
+          || (receipt.minute != null && ticket.minute !== receipt.minute)
+          || checkoutSettlementTicketDigest(ticket)
+            !== checkoutSettlementTicketDigest(receipt.ticketSnapshot)
+          || !isRecord(ticket.ledgerIdempotencyKeys)
+          || !isRecord(ticket.ledgerEntryIds)
+          || !sameCheckoutValue(
+            Object.keys(ticket.ledgerIdempotencyKeys).sort(),
+            expectedComponents,
+          )
+          || !sameCheckoutValue(
+            Object.keys(ticket.ledgerEntryIds).sort(),
+            expectedComponents,
+          )
+          || (receiptValidation.kind === 'transaction'
+            && !sameCheckoutValue(ticketRetailPairs(ticket), expectedPairs))
+          || receipt.postings.some((posting) => (
+            ticket.ledgerIdempotencyKeys[posting.component] !== posting.idempotencyKey
+            || ticket.ledgerEntryIds[posting.component] !== posting.entryId
+          ))) {
+        return { unsafe: true, diagnostic: 'terminal-checkout-ticket-bindings-conflict' };
+      }
+    }
+    if (receiptValidation.kind === 'transaction' && (group.inventoryOperations.length > 1
+        || group.inventoryOperations.some(({ referenceId, operation, identity }) => (
+          referenceId !== receipt.inventoryReferenceId
+          || !isRecord(operation) || operation.ok !== true
+          || operation.from !== INVENTORY_STAGE.CUSTOMER_HELD
+          || operation.to !== INVENTORY_STAGE.SOLD
+          || operation.moved !== identity.items.length
+        )))) {
+      return { unsafe: true, diagnostic: 'terminal-checkout-inventory-binding-conflicts' };
+    }
+    if (receipt.itemUids.some((uid) => heldUids.has(uid) || heldAllocationUids.has(uid))) {
+      return { unsafe: true, diagnostic: 'terminal-checkout-retains-matching-held-inventory' };
+    }
+    for (const { key } of group.processed) {
+      if (!receiptByKey.has(key)) {
+        return { unsafe: true, diagnostic: 'terminal-checkout-has-extra-ledger-binding' };
+      }
+    }
+  }
+  return { unsafe: false };
+}
+
+function normalizeShopState(state, rawShop, defaults, report, { checkoutJournalCoherence = null } = {}) {
   const shop = state.shop;
+  const persistedCheckoutWalPresent = isRecord(rawShop)
+    && Object.hasOwn(rawShop, 'pendingCheckouts');
+  const persistedCheckoutWalValidation = persistedCheckoutWalPresent
+    ? validateCheckoutWalRecord(rawShop.pendingCheckouts)
+    : { ok: true };
+  const malformedPersistedCheckoutWal = persistedCheckoutWalPresent
+    && !persistedCheckoutWalValidation.ok;
+  if (malformedPersistedCheckoutWal) {
+    shop.pendingCheckouts = {};
+    quarantineCheckoutWal(
+      state,
+      isRecord(rawShop.pendingCheckouts)
+        ? 'invalid-persisted-checkout-settlement'
+        : 'malformed-persisted-checkout-journal',
+      { pendingCheckouts: cloneSaveValue(rawShop.pendingCheckouts, null) },
+    );
+    noteRepair(
+      report,
+      '$.shop.pendingCheckouts',
+      'invalid checkout journal quarantined; financial and inventory recovery blocked',
+    );
+  } else if (checkoutJournalCoherence?.unsafe) {
+    const evidence = {};
+    for (const field of [
+      'pendingCheckouts',
+      'checkoutSettlementReceipts',
+      'checkoutSettlementReceiptKeys',
+      'checkoutProjectionIds',
+    ]) {
+      if (isRecord(rawShop) && Object.hasOwn(rawShop, field)) {
+        evidence[field] = cloneSaveValue(rawShop[field], null);
+      }
+    }
+    shop.pendingCheckouts = {};
+    shop.checkoutSettlementReceipts = {};
+    shop.checkoutSettlementReceiptKeys = [];
+    shop.checkoutProjectionIds = {};
+    const missing = checkoutJournalCoherence.diagnostic?.startsWith('missing-');
+    quarantineCheckoutWal(
+      state,
+      missing
+        ? 'missing-checkout-journal-with-unresolved-evidence'
+        : 'incoherent-persisted-checkout-settlement',
+      evidence,
+    );
+    noteRepair(
+      report,
+      '$.shop.pendingCheckouts',
+      `${checkoutJournalCoherence.diagnostic || 'incoherent checkout journal'} quarantined; financial and inventory recovery blocked`,
+    );
+  } else if (shop.pendingCheckouts != null && !isRecord(shop.pendingCheckouts)) {
+    shop.pendingCheckouts = {};
+    quarantineCheckoutWal(state, 'unavailable-checkout-journal');
+    noteRepair(report, '$.shop.pendingCheckouts', 'unavailable checkout journal quarantined');
+  }
+  if (shop.checkoutProjectionIds != null && !isRecord(shop.checkoutProjectionIds)) {
+    shop.checkoutProjectionIds = {};
+    noteRepair(report, '$.shop.checkoutProjectionIds', 'invalid checkout projection journal reset');
+  }
+  if (!isRecord(shop.checkoutSettlementReceipts)) {
+    shop.checkoutSettlementReceipts = {};
+    noteRepair(report, '$.shop.checkoutSettlementReceipts', 'invalid checkout settlement receipts reset');
+  }
+  if (!Array.isArray(shop.checkoutSettlementReceiptKeys)) {
+    shop.checkoutSettlementReceiptKeys = [];
+    noteRepair(report, '$.shop.checkoutSettlementReceiptKeys', 'invalid checkout settlement receipt order reset');
+  }
+  if (shop.salesLive != null && (!isRecord(shop.salesLive)
+      || !Number.isSafeInteger(shop.salesLive.units) || shop.salesLive.units < 0
+      || typeof shop.salesLive.revenue !== 'number'
+      || !Number.isFinite(shop.salesLive.revenue) || shop.salesLive.revenue < 0)) {
+    shop.salesLive = { units: 0, revenue: 0 };
+    noteRepair(report, '$.shop.salesLive', 'invalid live-sales totals reset');
+  }
+  if (shop.salesToday != null && (!isRecord(shop.salesToday)
+      || Object.entries(shop.salesToday).some(([skuId, quantity]) => (
+        !skuId || !Number.isSafeInteger(quantity) || quantity < 0
+      )))) {
+    shop.salesToday = {};
+    noteRepair(report, '$.shop.salesToday', 'invalid daily sales totals reset');
+  }
   if (!isRecord(shop.inventory)) shop.inventory = cloneSaveValue(defaults.inventory, {});
   for (const sku of SHOP_CATALOG) {
     const fallback = defaults.inventory[sku.id] || { shelf: 0, back: 0 };
@@ -1366,6 +2045,14 @@ function normalizeShopState(state, rawShop, defaults, report) {
   shop.transactionHistory = dedupeRecords(
     recordsOnly(shop.transactionHistory, report, '$.shop.transactionHistory', { max: 100 }),
     (ticket) => Number.isSafeInteger(ticket.number) && ticket.number > 0 ? ticket.number : null,
+    report,
+    '$.shop.transactionHistory',
+  );
+  shop.transactionHistory = dedupeRecords(
+    shop.transactionHistory,
+    (ticket) => (typeof ticket.transactionId === 'string' && ticket.transactionId
+      ? `transaction:${ticket.transactionId}`
+      : `ticket:${ticket.number}`),
     report,
     '$.shop.transactionHistory',
   );
@@ -1546,9 +2233,45 @@ function persistedVersionOf(raw) {
   return Number.isSafeInteger(raw.version) && raw.version >= 0 ? raw.version : 0;
 }
 
+function restoreSalesTax(state, rawSalesTax, persistedVersion, report) {
+  const dayAbs = calendarOf(state.clock.minutes).dayAbs;
+  // V13 never wrote this authority. Its immutable liability ledger entries are
+  // migration evidence, not commands: reconstruction must not move cash or
+  // append accounting rows a second time.
+  if (persistedVersion < SALES_TAX_SAVE_VERSION && !isRecord(rawSalesTax)) {
+    reconstructSalesTaxFromLedger(state, {
+      dayAbs,
+      onIgnoredEvidence: ({ index, reason }) => {
+        noteRepair(
+          report,
+          `$.ledger.entries[${index}]`,
+          `ignored as sales-tax migration evidence: ${reason}`,
+        );
+      },
+    });
+    return;
+  }
+
+  // Build feature-owned defaults for the loaded day before the generic merge.
+  // This keeps a missing schedule current while retaining unknown nested keys.
+  state.salesTax = {};
+  normalizeSalesTax(state, { dayAbs });
+  state.salesTax = mergeSaveDefaults(
+    state.salesTax,
+    rawSalesTax,
+    report,
+    '$.salesTax',
+  );
+  const normalized = normalizeSalesTax(state, { dayAbs, constrainToDay: true });
+  for (const repair of normalized.repairs) {
+    noteRepair(report, `$.salesTax.${repair.field}`, repair.message);
+  }
+}
+
 export function deserializeWithReport(json) {
   const raw = parseSaveInput(json, { kind: 'game save' });
   const persistedVersion = persistedVersionOf(raw);
+  const checkoutJournalCoherence = classifyCheckoutJournalCoherence(raw, persistedVersion);
   if (persistedVersion > SAVE_VERSION) {
     throw new SaveCompatibilityError(
       `This save uses game schema ${persistedVersion}, but this build supports through ${SAVE_VERSION}.`,
@@ -1651,9 +2374,10 @@ export function deserializeWithReport(json) {
   // have valid display lots moved back to reserve. Full campaign migration is
   // still deferred until the rest of the save authorities are ready.
   state.campaign = isRecord(raw.campaign) ? cloneSaveValue(raw.campaign) : null;
-  normalizeShopState(state, raw.shop, shopDefaults, report);
+  normalizeShopState(state, raw.shop, shopDefaults, report, { checkoutJournalCoherence });
   normalizeCollections(state, report);
   ensureLedger(state);
+  restoreSalesTax(state, raw.salesTax, persistedVersion, report);
   if (!isRecord(raw.shop?.inventoryLifecycle)) delete state.shop.inventoryLifecycle;
   ensureInventoryLifecycle(state);
   if (persistedVersion < 12 && !isRecord(raw.shop?.progression)) delete state.shop.progression;
@@ -1663,6 +2387,10 @@ export function deserializeWithReport(json) {
   // experienced (open during trading hours) rather than the new-game default.
   healShopSign(state);
   state.shop.drawer = migrateDrawer(persistedDrawer || state.shop.drawer || newDrawer());
+  // Finish the economic core after the persisted drawer is normalized but
+  // before orphan recovery can put a committed basket back on the shelf.
+  // Customer/reservation tails wait until those authorities load below.
+  reconcilePendingCheckouts(state, { applyCustomerEvents: false });
   ensurePaymentBag(state);
   paymentBagStats(state);
   ensureShopReno(state);
@@ -1688,7 +2416,10 @@ export function deserializeWithReport(json) {
   ensureGolfDay(state, { restoring: true });
   ensureCustomerDirectory(state);
   reconcileReservationCustomerIdentities(state);
-  recoverCustomerSimulation(state);
+  reconcilePendingCheckouts(state);
+  reconcileReservationCheckInTickets(state);
+  reconcileCustomerVisitEvents(state);
+  if (!checkoutWalIsQuarantined(state)) recoverCustomerSimulation(state);
   ensureTractor(state, { legacyRepaired: true });
   ensureCourseProps(state);
   ensureMaintenanceOrders(state);

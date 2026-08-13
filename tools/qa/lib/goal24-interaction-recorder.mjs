@@ -1092,8 +1092,11 @@ export async function installGoal24InteractionRecorder(page) {
               <= request.acceptedPostStallRafRequestedAtMs
             && request.acceptedPostStallRafRequestedAtMs
               <= postStallDisplayTickObservedAtMs
-            && request.acceptedPostStallRafRequestedAtMs
-              <= postStallDisplayTickTimestampMs
+            // Chromium's rAF timestamp is the frame's nominal deadline, not
+            // the JavaScript callback-delivery time. After a stale callback,
+            // the accepted rAF can therefore be requested just after that
+            // deadline and still be delivered afterward. The observed time
+            // above is the authority for request-before-delivery ordering.
             && postStallDisplayTickTimestampMs
               <= postStallDisplayTickObservedAtMs
             && request.stalePostStallRafCallbacks.length <= 1
@@ -1532,8 +1535,6 @@ export function validateGoal24BusyStallPhaseAlignment(immediateControl) {
       > alignment.acceptedPostStallRafRequestedAtMs
     || alignment.acceptedPostStallRafRequestedAtMs
       > alignment.postStallDisplayTickObservedAtMs
-    || alignment.acceptedPostStallRafRequestedAtMs
-      > alignment.postStallDisplayTickTimestampMs
     || alignment.postStallDisplayTickTimestampMs
       > alignment.postStallDisplayTickObservedAtMs
     || busyStall.endedAtMs > alignment.postStallDisplayTickTimestampMs

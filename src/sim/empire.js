@@ -19,7 +19,13 @@
 import { ZONE, DAY_START_MIN } from './constants.js';
 import { BALANCE } from './balance.js';
 import { makeRng, rngOf, clamp, formatMoney } from '../core/utils.js';
-import { newGame, update, snapshot, deserializeWithReport } from './state.js';
+import {
+  CHECKOUT_WAL_SAVE_VERSION,
+  newGame,
+  update,
+  snapshot,
+  deserializeWithReport,
+} from './state.js';
 import { calendarOf } from './time.js';
 import { rollDailyWeather } from './weather.js';
 import { conditionRating, zonePolicyKey, DISEASE } from './turf.js';
@@ -39,6 +45,13 @@ import {
 import { jurisdictionForProperty } from '../data/salesTax.js';
 import { appraiseProperty, appraisalBreakdown } from './valuation.js';
 import { bindPropertyInventory } from './propertyInventory.js';
+import {
+  checkoutWalIsQuarantined,
+  pendingCheckoutCount,
+  quarantineCheckoutWal,
+  reconcilePendingCheckouts,
+  validateCheckoutSettlementAuthorities,
+} from './checkoutSettlement.js';
 import {
   ensureEmpireProgression,
   initEmpireProgression,
@@ -127,14 +140,71 @@ export function activeState(empire) {
   return h ? h.state : null;
 }
 
-// The active club's cash IS the wallet; pull it back before empire-level math.
-export function syncWallet(empire) {
-  const st = activeState(empire);
+const CHECKOUT_PORTFOLIO_BLOCKED = 'Finish or repair the current checkout before changing the property portfolio.';
+
+function checkoutAuthorityIsValid(state) {
+  try {
+    return validateCheckoutSettlementAuthorities(state).ok;
+  } catch {
+    return false;
+  }
+}
+
+function reconcilePortfolioCheckout(state) {
+  if (!state) return { ok: true };
+  if (checkoutWalIsQuarantined(state) || !checkoutAuthorityIsValid(state)) {
+    return { ok: false };
+  }
+  try {
+    const recovery = reconcilePendingCheckouts(state);
+    if (!recovery.ok || recovery.pending > 0 || pendingCheckoutCount(state) > 0) {
+      return { ok: false };
+    }
+  } catch {
+    return { ok: false };
+  }
+  return { ok: true };
+}
+
+function captureWallet(empire, st = activeState(empire)) {
   if (st) {
     empire.cash = st.cash;
     empire.clockMinutes = st.clock.minutes;
   }
   return empire.cash;
+}
+
+// UI reads only mirror the live wallet. Settlement recovery belongs to explicit
+// save and portfolio-mutation boundaries, never a HUD/render read.
+export function syncWallet(empire) {
+  return captureWallet(empire);
+}
+
+function parkedCheckoutBlocksPortfolio(holding) {
+  const state = holding?.state;
+  return !state
+    || checkoutWalIsQuarantined(state)
+    || !checkoutAuthorityIsValid(state)
+    || pendingCheckoutCount(state) > 0
+    || state.cash !== 0;
+}
+
+function preparePortfolioMutation(empire) {
+  const active = activeHolding(empire);
+  // Inspect every parked authority before touching the active settlement. A
+  // target-side conflict must not leave active cash ahead of the envelope.
+  if (empire.holdings.some((holding) => (
+    holding !== active && parkedCheckoutBlocksPortfolio(holding)
+  ))) {
+    return { ok: false, reason: CHECKOUT_PORTFOLIO_BLOCKED };
+  }
+
+  const recovery = reconcilePortfolioCheckout(active?.state);
+  // Recovery can advance the economic core before a later tail reports a
+  // failure, so publish its cash authority immediately at this boundary.
+  captureWallet(empire, active?.state);
+  if (!recovery.ok) return { ok: false, reason: CHECKOUT_PORTFOLIO_BLOCKED };
+  return { ok: true };
 }
 
 export function worldMinutes(empire) {
@@ -262,9 +332,10 @@ export function initPropertyState(property, mode) {
 // --- transactions ----------------------------------------------------------------
 
 export function buyProperty(empire, propertyId) {
-  syncWallet(empire);
   const i = empire.market.findIndex((p) => p.id === propertyId);
   if (i === -1) return { ok: false, reason: 'That listing is gone.' };
+  const checkout = preparePortfolioMutation(empire);
+  if (!checkout.ok) return checkout;
   const property = empire.market[i];
   if (empire.cash < property.askingPrice) {
     return {
@@ -344,9 +415,10 @@ export function latestPropertyAppraisal(empire, propertyId) {
 }
 
 export function requestPropertyAppraisal(empire, propertyId) {
-  syncWallet(empire);
   const holding = empire.holdings.find((item) => item.property.id === propertyId);
   if (!holding) return { ok: false, reason: "You don't own that property." };
+  const checkout = preparePortfolioMutation(empire);
+  if (!checkout.ok) return checkout;
   const progression = ensureEmpireProgression(empire);
   const sequence = progression.nextAppraisalId++;
   const id = `appraisal-${sequence}`;
@@ -399,6 +471,8 @@ export function rejectPropertyAppraisal(empire, appraisalId, choice = 'rejected'
   const appraisal = ensureEmpireProgression(empire).appraisals.find((item) => item.id === appraisalId);
   if (!appraisal) return { ok: false, reason: 'That appraisal is no longer available.' };
   if (!['offered', 'information'].includes(appraisal.status)) return { ok: false, reason: 'That appraisal is already closed.' };
+  const checkout = preparePortfolioMutation(empire);
+  if (!checkout.ok) return checkout;
   appraisal.status = choice === 'keep' ? 'kept' : 'rejected';
   appraisal.closedDay = calendarOf(worldMinutes(empire)).dayAbs;
   return { ok: true, appraisal };
@@ -447,7 +521,6 @@ function recordCompletedSale(empire, holding, details) {
 
 export function confirmPropertySale(empire, propertyId, appraisalId, confirmed = false) {
   if (!confirmed) return { ok: false, reason: 'Explicit sale confirmation is required.' };
-  syncWallet(empire);
   const progression = ensureEmpireProgression(empire);
   const saleId = `sale:${appraisalId}`;
   if (progression.processedSaleIds[saleId]) {
@@ -456,6 +529,11 @@ export function confirmPropertySale(empire, propertyId, appraisalId, confirmed =
   }
   const appraisal = progression.appraisals.find((item) => item.id === appraisalId && item.propertyId === propertyId);
   if (!appraisal || appraisal.status !== 'offered') return { ok: false, reason: 'Request a current sale appraisal first.' };
+  const index = empire.holdings.findIndex((item) => item.property.id === propertyId);
+  if (index < 0) return { ok: false, reason: "You don't own that property." };
+  const holding = index >= 0 ? empire.holdings[index] : null;
+  const checkout = preparePortfolioMutation(empire);
+  if (!checkout.ok) return checkout;
   const newer = progression.appraisals.some((item) => item.propertyId === propertyId && item.sequence > appraisal.sequence);
   if (newer) {
     appraisal.status = 'superseded';
@@ -466,9 +544,6 @@ export function confirmPropertySale(empire, propertyId, appraisalId, confirmed =
     appraisal.status = 'expired';
     return { ok: false, reason: 'That offer expired. Request a new appraisal.' };
   }
-  const index = empire.holdings.findIndex((item) => item.property.id === propertyId);
-  if (index < 0) return { ok: false, reason: "You don't own that property." };
-  const holding = empire.holdings[index];
   const readiness = propertyReadiness(holding.state, empire);
   if (!readiness.saleEligible) return { ok: false, reason: 'The property no longer meets the sale requirements.' };
 
@@ -500,10 +575,11 @@ export function confirmPropertySale(empire, propertyId, appraisalId, confirmed =
 }
 
 export function sellProperty(empire, propertyId) {
-  syncWallet(empire);
   const i = empire.holdings.findIndex((h) => h.property.id === propertyId);
   if (i === -1) return { ok: false, reason: "You don't own that property." };
   const holding = empire.holdings[i];
+  const checkout = preparePortfolioMutation(empire);
+  if (!checkout.ok) return checkout;
   const payout = holdingValue(empire, holding);
   const saleId = `legacy-sale:${propertyId}:${ensureEmpireProgression(empire).completedSales.length + 1}`;
   const sold = performSale(empire, i, payout);
@@ -515,7 +591,7 @@ export function sellProperty(empire, propertyId) {
 // --- parking, passive days, and coming back ------------------------------------------
 
 // Freeze the headline stats the passive tick needs; the full state just waits.
-function parkHolding(holding) {
+function parkHolding(holding, { preserveCash = false } = {}) {
   const st = holding.state;
   const counts = memberCounts(st);
   holding.passive = {
@@ -530,7 +606,7 @@ function parkHolding(holding) {
     sinceVisitNet: 0,
     accruedNet: holding.passive ? holding.passive.accruedNet : 0,
   };
-  st.cash = 0;
+  if (!preserveCash) st.cash = 0;
 }
 
 // One world-day for one parked property. See DEV_LOG.md for the reasoning.
@@ -591,7 +667,8 @@ export function switchProperty(empire, propertyId) {
   const target = empire.holdings.find((h) => h.property.id === propertyId);
   if (!target) return { ok: false, reason: "You don't own that property." };
   if (empire.activeId === propertyId) return { ok: true, state: target.state, already: true };
-  syncWallet(empire);
+  const checkout = preparePortfolioMutation(empire);
+  if (!checkout.ok) return checkout;
   const outgoing = activeHolding(empire);
   if (outgoing) parkHolding(outgoing);
   reconcileOnActivate(empire, target);
@@ -688,7 +765,46 @@ export function empireUpdate(empire, gameMinutes) {
 // --- persistence -----------------------------------------------------------------
 
 export function empireSnapshot(empire) {
-  syncWallet(empire);
+  const activeLive = activeHolding(empire);
+
+  // Validate the complete portfolio before any snapshot or recovery pass can
+  // mutate live state. Quarantine is itself valid persisted evidence; malformed
+  // authorities are not, even when a caller has not tried to use them yet.
+  for (const holding of empire.holdings) {
+    if (!checkoutAuthorityIsValid(holding.state)) {
+      throw new Error('Cannot save a portfolio with an invalid checkout settlement authority.');
+    }
+  }
+  for (const holding of empire.holdings) {
+    if (holding === activeLive || checkoutWalIsQuarantined(holding.state)) continue;
+    if (pendingCheckoutCount(holding.state) > 0) {
+      throw new Error('Cannot save a parked property with an unresolved checkout settlement.');
+    }
+    if (holding.state.cash !== 0) {
+      throw new Error('Cannot save a parked property with conflicting checkout wallet authority.');
+    }
+  }
+
+  // Only the active state owns the shared wallet and may recover its WAL. A
+  // quarantined active state is still serializable so its evidence survives,
+  // but it must never enter automatic recovery.
+  if (activeLive && !checkoutWalIsQuarantined(activeLive.state)) {
+    const recovery = reconcilePortfolioCheckout(activeLive.state);
+    captureWallet(empire, activeLive.state);
+    if (!recovery.ok) {
+      throw new Error('Cannot save while checkout settlement recovery is incomplete.');
+    }
+  } else {
+    captureWallet(empire, activeLive?.state);
+  }
+
+  const activeImage = activeLive ? snapshot(activeLive.state) : null;
+  const holdings = empire.holdings.map((h) => ({
+    ...(h.__unknownSaveFields || {}),
+    property: h.property,
+    passive: h.passive,
+    state: h === activeLive ? activeImage : snapshot(h.state),
+  }));
   return {
     ...(empire.__unknownSaveFields || {}),
     empireVersion: EMPIRE_VERSION,
@@ -705,12 +821,7 @@ export function empireSnapshot(empire) {
     marketCondition: empire.marketCondition,
     marketConditionTarget: empire.marketConditionTarget,
     progression: ensureEmpireProgression(empire),
-    holdings: empire.holdings.map((h) => ({
-      ...(h.__unknownSaveFields || {}),
-      property: h.property,
-      passive: h.passive,
-      state: snapshot(h.state),
-    })),
+    holdings,
   };
 }
 
@@ -1083,6 +1194,135 @@ function appendNestedReport(report, nested, prefix) {
   }
 }
 
+const CHECKOUT_AUTHORITY_FIELDS = Object.freeze([
+  'pendingCheckouts',
+  'checkoutSettlementReceipts',
+  'checkoutSettlementReceiptKeys',
+  'checkoutProjectionIds',
+]);
+
+function rawCheckoutAuthorityClaimed(rawState) {
+  const shop = rawState?.shop;
+  return Number(rawState?.version) >= CHECKOUT_WAL_SAVE_VERSION
+    || (isRecord(shop) && CHECKOUT_AUTHORITY_FIELDS.some((field) => Object.hasOwn(shop, field)));
+}
+
+function rawHoldingPropertyId(rawHolding) {
+  const id = rawHolding?.property?.id;
+  return typeof id === 'string' && id.trim()
+    ? id.trim().slice(0, 160)
+    : null;
+}
+
+function rawCheckoutAuthorityStrength(rawState) {
+  const claimed = rawCheckoutAuthorityClaimed(rawState);
+  const valid = checkoutAuthorityIsValid(rawState);
+  const shop = isRecord(rawState?.shop) ? rawState.shop : {};
+  const recordSize = (value) => (isRecord(value) ? Object.keys(value).length : 0);
+  const evidence = recordSize(shop.pendingCheckouts)
+    + recordSize(shop.checkoutSettlementReceipts)
+    + recordSize(shop.checkoutProjectionIds)
+    + (checkoutWalIsQuarantined(rawState) ? 1 : 0);
+  return {
+    // A complete current authority is stronger than a legacy record that does
+    // not claim one; a malformed claimed authority is never a tie-break win.
+    validity: claimed ? (valid ? 2 : 0) : 1,
+    evidence: valid ? evidence : 0,
+  };
+}
+
+function canonicalActiveRawIndex(rawHoldings, requestedActiveId, envelopeCash) {
+  if (requestedActiveId == null) return -1;
+  const candidates = [];
+  for (let index = 0; index < rawHoldings.length; index += 1) {
+    if (rawHoldingPropertyId(rawHoldings[index]) !== requestedActiveId) continue;
+    const state = isRecord(rawHoldings[index].state) ? rawHoldings[index].state : {};
+    const numericCash = Number(state.cash);
+    candidates.push({
+      index,
+      walletMatch: Number.isFinite(envelopeCash)
+        && Number.isFinite(numericCash)
+        && Object.is(numericCash, envelopeCash),
+      ...rawCheckoutAuthorityStrength(state),
+    });
+  }
+  candidates.sort((left, right) => (
+    Number(right.walletMatch) - Number(left.walletMatch)
+      || right.validity - left.validity
+      || right.evidence - left.evidence
+      || left.index - right.index
+  ));
+  return candidates[0]?.index ?? -1;
+}
+
+function protectParkedCheckoutOnLoad(rawState, report, path) {
+  const rawShop = rawState?.shop;
+  const hasPending = isRecord(rawShop) && Object.hasOwn(rawShop, 'pendingCheckouts');
+  const pending = hasPending ? rawShop.pendingCheckouts : undefined;
+  const pendingRisk = hasPending && (!isRecord(pending) || Object.keys(pending).length > 0);
+  const authorityMalformed = rawCheckoutAuthorityClaimed(rawState)
+    && !checkoutAuthorityIsValid(rawState);
+  const numericCash = Number(rawState?.cash);
+  const walletConflict = Number.isFinite(numericCash) && numericCash !== 0;
+  const alreadyQuarantined = checkoutWalIsQuarantined(rawState);
+
+  // Quarantine is durable evidence, not an invitation to recalculate it from
+  // the now-inert journal. In particular, never replace a preserved malformed
+  // journal with the operative empty map on the next load.
+  if (alreadyQuarantined && (!walletConflict
+      || rawShop.pendingCheckoutsQuarantine?.reason === 'parked-wallet-authority-conflict')) {
+    return rawState;
+  }
+  if (!pendingRisk && !authorityMalformed && !walletConflict) return rawState;
+
+  const protectedState = cloneSaveValue(rawState, {});
+  if (!isRecord(protectedState.shop)) protectedState.shop = {};
+  const evidence = {};
+  if (hasPending) evidence.pendingCheckouts = cloneSaveValue(pending, null);
+  if (authorityMalformed) {
+    evidence.checkoutAuthorities = Object.fromEntries(CHECKOUT_AUTHORITY_FIELDS
+      .filter((field) => isRecord(rawShop) && Object.hasOwn(rawShop, field))
+      .map((field) => [field, cloneSaveValue(rawShop[field], null)]));
+  }
+  if (walletConflict) evidence.cash = numericCash;
+
+  const reason = walletConflict
+    ? 'parked-wallet-authority-conflict'
+    : alreadyQuarantined
+      ? rawShop.pendingCheckoutsQuarantine.reason
+      : 'parked-checkout-journal-requires-manual-repair';
+  quarantineCheckoutWal(protectedState, reason, evidence);
+  noteRepair(
+    report,
+    walletConflict ? `${path}.cash` : `${path}.shop.pendingCheckouts`,
+    walletConflict
+      ? 'parked local wallet quarantined; shared-wallet authority preserved'
+      : 'parked checkout authority quarantined; shared-wallet recovery blocked',
+  );
+  return protectedState;
+}
+
+function preserveProtectedParkedCheckoutEvidence(protectedState, state) {
+  const protectedQuarantine = protectedState?.shop?.pendingCheckoutsQuarantine;
+  if (!isRecord(protectedQuarantine) || protectedQuarantine.active !== true
+      || !isRecord(state?.shop)) return;
+  const normalizedQuarantine = isRecord(state.shop.pendingCheckoutsQuarantine)
+    ? state.shop.pendingCheckoutsQuarantine : {};
+  const normalizedEvidence = isRecord(normalizedQuarantine.evidence)
+    ? normalizedQuarantine.evidence : {};
+  const protectedEvidence = isRecord(protectedQuarantine.evidence)
+    ? protectedQuarantine.evidence : {};
+  state.shop.pendingCheckoutsQuarantine = {
+    ...normalizedQuarantine,
+    active: true,
+    reason: protectedQuarantine.reason || normalizedQuarantine.reason,
+    evidence: {
+      ...cloneSaveValue(normalizedEvidence, {}),
+      ...cloneSaveValue(protectedEvidence, {}),
+    },
+  };
+}
+
 export function deserializeEmpireWithReport(raw) {
   const data = parseSaveInput(raw, { kind: 'empire save' });
   if (!isEmpireEnvelope(data)) {
@@ -1116,20 +1356,84 @@ export function deserializeEmpireWithReport(raw) {
   const defaults = newEmpire(mode, seed);
   const holdings = [];
   const holdingIds = new Set();
-  const rawHoldings = recordsOnly(data.holdings, report, '$.holdings', { max: 1000 });
+  const persistedHoldings = recordsOnly(data.holdings, report, '$.holdings', { max: 1000 });
+  const requestedActiveId = typeof data.activeId === 'string' ? data.activeId : null;
+  const numericEnvelopeCash = Number(data.cash);
+  const canonicalActiveIndex = canonicalActiveRawIndex(
+    persistedHoldings,
+    requestedActiveId,
+    numericEnvelopeCash,
+  );
+  // Duplicate copies of the requested active holding are corruption, not
+  // parked wallet authorities. Select the canonical live record before the
+  // parked preflight so an identical copy (or an earlier stale zero-wallet
+  // copy) cannot permanently quarantine a legitimate active club.
+  const rawHoldingEntries = persistedHoldings.flatMap((rawHolding, sourceIndex) => {
+    if (canonicalActiveIndex >= 0
+        && sourceIndex !== canonicalActiveIndex
+        && rawHoldingPropertyId(rawHolding) === requestedActiveId) {
+      noteRepair(
+        report,
+        `$.holdings[${sourceIndex}]`,
+        `duplicate property authority ${requestedActiveId} removed`,
+      );
+      return [];
+    }
+    return [{ rawHolding, sourceIndex }];
+  });
+  const rawHoldings = rawHoldingEntries.map((entry) => entry.rawHolding);
+  const activeRawIndex = rawHoldingEntries.findIndex(
+    (entry) => entry.sourceIndex === canonicalActiveIndex,
+  );
+  // Inspect every parked authority before deserializing the active club. A
+  // nested active deserialize is allowed to reconcile its WAL, so discovering
+  // a parked wallet or checkout conflict afterward would be too late to keep
+  // the shared portfolio wallet atomic.
+  const nestedInputs = rawHoldings.map((rawHolding, index) => {
+    const rawState = isRecord(rawHolding.state) ? rawHolding.state : {};
+    return index === activeRawIndex
+      ? rawState
+      : protectParkedCheckoutOnLoad(
+        rawState,
+        report,
+        `$.holdings[${rawHoldingEntries[index].sourceIndex}].state`,
+      );
+  });
+  const parkedCheckoutConflict = nestedInputs.some((nestedInput, index) => (
+    index !== activeRawIndex && checkoutWalIsQuarantined(nestedInput)
+  ));
+  if (activeRawIndex >= 0 && parkedCheckoutConflict
+      && !checkoutWalIsQuarantined(nestedInputs[activeRawIndex])) {
+    const activeInput = cloneSaveValue(nestedInputs[activeRawIndex], {});
+    if (!isRecord(activeInput.shop)) activeInput.shop = {};
+    quarantineCheckoutWal(activeInput, 'portfolio-parked-checkout-conflict', {
+      pendingCheckouts: cloneSaveValue(activeInput.shop.pendingCheckouts, null),
+    });
+    nestedInputs[activeRawIndex] = activeInput;
+    noteRepair(
+      report,
+      `$.holdings[${rawHoldingEntries[activeRawIndex].sourceIndex}].state.shop.pendingCheckouts`,
+      'active checkout recovery blocked by parked portfolio authority',
+    );
+  }
   for (let index = 0; index < rawHoldings.length; index += 1) {
     const rawHolding = rawHoldings[index];
-    const nested = deserializeWithReport(isRecord(rawHolding.state) ? rawHolding.state : {});
-    appendNestedReport(report, nested.report, `$.holdings[${index}].state`);
-    const property = normalizedProperty(rawHolding.property, nested.state, index, seed, report);
+    const sourceIndex = rawHoldingEntries[index].sourceIndex;
+    const nestedInput = nestedInputs[index];
+    const nested = deserializeWithReport(nestedInput);
+    if (index !== activeRawIndex) {
+      preserveProtectedParkedCheckoutEvidence(nestedInput, nested.state);
+    }
+    appendNestedReport(report, nested.report, `$.holdings[${sourceIndex}].state`);
+    const property = normalizedProperty(rawHolding.property, nested.state, sourceIndex, seed, report);
     if (holdingIds.has(property.id)) {
-      noteRepair(report, `$.holdings[${index}]`, `duplicate property authority ${property.id} removed`);
+      noteRepair(report, `$.holdings[${sourceIndex}]`, `duplicate property authority ${property.id} removed`);
       continue;
     }
     holdingIds.add(property.id);
     const holding = {
       property,
-      passive: normalizedPassive(rawHolding.passive, nested.state, index, report),
+      passive: normalizedPassive(rawHolding.passive, nested.state, sourceIndex, report),
       state: nested.state,
     };
     preserveUnknownSaveFields(holding, rawHolding, HOLDING_SAVE_KEYS);
@@ -1193,9 +1497,21 @@ export function deserializeEmpireWithReport(raw) {
   for (const holding of empire.holdings) {
     if (holding.property.id === empire.activeId) {
       holding.passive = null;
-      holding.state.cash = empire.cash;
+      if (!Object.is(empire.cash, holding.state.cash)) {
+        noteRepair(
+          report,
+          '$.cash',
+          'stale portfolio wallet replaced by authoritative active-club cash',
+        );
+      }
+      // Nested state recovery may have committed a checkout before this
+      // envelope was read. The live club owns the wallet, so publish that value
+      // outward instead of overwriting it with stale portfolio cash.
+      empire.cash = holding.state.cash;
     } else if (!holding.passive) {
-      parkHolding(holding);
+      parkHolding(holding, {
+        preserveCash: checkoutWalIsQuarantined(holding.state),
+      });
       noteRepair(report, '$.holdings', `missing passive summary rebuilt for ${holding.property.id}`);
     }
   }

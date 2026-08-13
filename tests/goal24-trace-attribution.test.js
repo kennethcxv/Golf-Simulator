@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
+  GOAL24_TRACE_CAUSAL_CANDIDATE_LIMIT,
   analyzeGoal24ChromiumTrace,
   goal24TraceMarkName,
   parseGoal24TraceMarkName,
@@ -200,6 +201,56 @@ test('candidate ledger explicitly retains GPU, raster, GC, nav, geometry, and sh
     'shader-material-warmup',
   ]);
   assert.equal(analysis.ok, true);
+});
+
+test('candidate ledger retains the globally strongest bounded prefix with explicit truncation provenance', () => {
+  const classified = Array.from(
+    { length: GOAL24_TRACE_CAUSAL_CANDIDATE_LIMIT + 17 },
+    (_, index) => ({
+      ph: 'X', cat: 'v8', name: `MajorGC-${String(index).padStart(3, '0')}`,
+      ts: 101_000 + index * 10,
+      dur: 40_000 + index,
+      pid: index % 2 ? 99 : 10,
+      tid: index % 2 ? 7 : 20,
+    }),
+  );
+  const analysis = analyzeGoal24ChromiumTrace(overBudgetFixture(classified), {
+    interactionIds: ['npc-1'],
+  });
+  const interaction = analysis.interactions[0];
+  const ledger = interaction.causalScan.candidateLedger;
+  assert.equal(analysis.ok, true);
+  assert.equal(interaction.causalCandidates.length, GOAL24_TRACE_CAUSAL_CANDIDATE_LIMIT);
+  assert.equal(interaction.causalScan.classifiedCandidateCount, classified.length);
+  assert.deepEqual(ledger, {
+    ordering: 'overlap-desc-duration-desc-start-asc-pid-asc-tid-asc-trace-event-ordinal-asc',
+    retentionPolicy: 'global-strongest-top-k',
+    totalCount: classified.length,
+    retainedCount: GOAL24_TRACE_CAUSAL_CANDIDATE_LIMIT,
+    limit: GOAL24_TRACE_CAUSAL_CANDIDATE_LIMIT,
+    omittedCount: 17,
+    truncated: true,
+    retainedZeroDurationCount: 0,
+    retainedCrossThreadCount: 32,
+  });
+  assert.equal(interaction.causalCandidates[0].name,
+    `MajorGC-${String(classified.length - 1).padStart(3, '0')}`);
+  assert.equal(interaction.causalCandidates.at(-1).name, 'MajorGC-017');
+  assert.equal(interaction.strongestCausalEvidence.name,
+    `MajorGC-${String(classified.length - 1).padStart(3, '0')}`);
+  assert.equal(validateGoal24TraceAttribution(analysis, {
+    requiredInteractionIds: ['npc-1'],
+  }).ok, true);
+
+  const forgedTotal = structuredClone(analysis);
+  forgedTotal.interactions[0].causalScan.candidateLedger.totalCount -= 1;
+  assert.match(validateGoal24TraceAttribution(forgedTotal).failures.join('\n'),
+    /bounded causal candidate ledger provenance/u);
+
+  const forgedOrder = structuredClone(analysis);
+  forgedOrder.interactions[0].causalCandidates.reverse();
+  assert.match(validateGoal24TraceAttribution(forgedOrder).failures.join('\n'),
+    /not ranked|duration-ranked raw evidence/u);
 });
 
 test('unknown over-budget work fails closed even if summary status is spoofed to pass', () => {

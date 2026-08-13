@@ -3501,14 +3501,23 @@ async (page) => {
     const owner = globalThis.__goal24GpuFrameTiming;
     if (!owner?.probe) {
       delete globalThis.__goal24GpuFrameTimingMetadata;
-      return { installed: false, flushed: false, disposed: false, evidence: null };
+      return {
+        installed: false, detached: false, flushed: false, disposed: false, evidence: null,
+      };
     }
+    // Stop producing queries before flushing. Leaving the render wrapper live
+    // lets every polling rAF enqueue one more query, so a healthy stream can
+    // time out forever with exactly one unresolved tail query and be marked
+    // invalid during disposal.
+    const detached = owner.detach?.() === true;
+    if (!detached) throw new Error('GPU frame-timing render wrapper did not detach before flush.');
     const flushed = await owner.probe.flush({ timeoutMs: 5000 });
     const disposed = owner.probe.dispose();
     delete globalThis.__goal24GpuFrameTimingMetadata;
     delete globalThis.__goal24GpuFrameTiming;
     return {
       installed: true,
+      detached,
       flushed: flushed?.gpu?.counters?.pendingQueries === 0,
       flushGpuValidity: flushed?.gpu?.validity ?? null,
       disposed: disposed?.disposed === true,
@@ -3516,6 +3525,7 @@ async (page) => {
     };
   }).catch((error) => ({
     installed: activeGpuFrameTiming,
+    detached: false,
     flushed: false,
     disposed: false,
     evidence: null,
@@ -3536,6 +3546,7 @@ async (page) => {
     recorder: recorderUninstall,
     gpuFrameTiming: {
       installed: gpuFrameTimingCleanup.installed,
+      detached: gpuFrameTimingCleanup.detached,
       flushed: gpuFrameTimingCleanup.flushed,
       flushGpuValidity: gpuFrameTimingCleanup.flushGpuValidity ?? null,
       disposed: gpuFrameTimingCleanup.disposed,
@@ -3547,6 +3558,9 @@ async (page) => {
   report.controls.recorderUninstalled = recorderUninstall?.uninstalled === true;
   report.controls.gpuFrameTimingClean = !gpuFrameTimingRequested || (
     gpuFrameTimingInstall.installed === true
+    && gpuFrameTimingCleanup.detached === true
+    && gpuFrameTimingCleanup.flushed === true
+    && gpuFrameTimingCleanup.flushGpuValidity?.valid === true
     && gpuFrameTimingCleanup.disposed === true
     && gpuFrameTimingCleanup.evidence?.lifecycle?.disposed === true
     && gpuFrameTimingCleanup.evidence?.cleanup?.leakFree === true

@@ -6,6 +6,11 @@ export const GOAL24_TRACE_ATTRIBUTION_SCHEMA = 'golf-flipper/goal24-trace-attrib
 export const GOAL24_TRACE_CAUSAL_BUDGET_MS = 33;
 export const GOAL24_TRACE_MIN_MEANINGFUL_CAUSAL_OVERLAP_MS = 1;
 export const GOAL24_TRACE_MIN_MEANINGFUL_CAUSAL_COVERAGE_RATIO = 0.1;
+export const GOAL24_TRACE_CAUSAL_CANDIDATE_LIMIT = 64;
+
+const CAUSAL_CANDIDATE_ORDER =
+  'overlap-desc-duration-desc-start-asc-pid-asc-tid-asc-trace-event-ordinal-asc';
+const CAUSAL_CANDIDATE_RETENTION_POLICY = 'global-strongest-top-k';
 
 const finite = (value) => Number.isFinite(value);
 const nonEmpty = (value) => typeof value === 'string' && value.trim().length > 0;
@@ -244,9 +249,15 @@ function rawEventEvidence(event) {
   };
 }
 
-function eventEvidence(indexed, startUs, endUs, metadata, rendererThreadKey) {
+function eventEvidence(
+  indexed,
+  startUs,
+  endUs,
+  metadata,
+  rendererThreadKey,
+  classification = classifyEventCause(indexed.event),
+) {
   const { event, traceEventOrdinal } = indexed;
-  const classification = classifyEventCause(event);
   const durationTraceUs = eventDurationUs(event);
   const overlapTraceUs = overlapUs(event, startUs, endUs);
   const threadKey = `${event?.pid}:${event?.tid}`;
@@ -282,8 +293,136 @@ function compareEvidenceStrength(left, right) {
     || left.traceEventOrdinal - right.traceEventOrdinal;
 }
 
-function strongestEvidence(evidence) {
-  return [...evidence].sort(compareEvidenceStrength)[0] || null;
+function indexedEvidenceRank(indexed, startUs, endUs) {
+  const { event, traceEventOrdinal } = indexed;
+  return {
+    overlapTraceUs: overlapUs(event, startUs, endUs),
+    durationTraceUs: eventDurationUs(event),
+    startedAtTraceUs: Number(event?.ts),
+    pid: event?.pid,
+    tid: event?.tid,
+    traceEventOrdinal,
+  };
+}
+
+function strongestIndexedEvidence(entries, startUs, endUs) {
+  let strongest = null;
+  let strongestRank = null;
+  for (const entry of entries) {
+    const rank = indexedEvidenceRank(entry, startUs, endUs);
+    if (strongestRank == null || compareEvidenceStrength(rank, strongestRank) < 0) {
+      strongest = entry;
+      strongestRank = rank;
+    }
+  }
+  return strongest;
+}
+
+function compareEvidenceWeakestFirst(left, right) {
+  return -compareEvidenceStrength(left, right);
+}
+
+function pushWeakestFirst(heap, candidate) {
+  heap.push(candidate);
+  let index = heap.length - 1;
+  while (index > 0) {
+    const parent = Math.floor((index - 1) / 2);
+    if (compareEvidenceWeakestFirst(heap[index], heap[parent]) >= 0) break;
+    [heap[index], heap[parent]] = [heap[parent], heap[index]];
+    index = parent;
+  }
+}
+
+function replaceWeakest(heap, candidate) {
+  heap[0] = candidate;
+  let index = 0;
+  for (;;) {
+    const left = index * 2 + 1;
+    const right = left + 1;
+    let weakest = index;
+    if (left < heap.length
+      && compareEvidenceWeakestFirst(heap[left], heap[weakest]) < 0) weakest = left;
+    if (right < heap.length
+      && compareEvidenceWeakestFirst(heap[right], heap[weakest]) < 0) weakest = right;
+    if (weakest === index) return;
+    [heap[index], heap[weakest]] = [heap[weakest], heap[index]];
+    index = weakest;
+  }
+}
+
+function boundedCausalCandidateLedger(
+  semanticTemporalEvents,
+  startUs,
+  endUs,
+  metadata,
+  rendererThreadKey,
+  limit,
+) {
+  const retainedHeap = [];
+  let totalCount = 0;
+  let zeroDurationCount = 0;
+  let crossThreadCount = 0;
+  let unclassifiedFallbackIndexed = null;
+  let unclassifiedFallbackRank = null;
+
+  for (const indexed of semanticTemporalEvents) {
+    const classification = classifyEventCause(indexed.event);
+    const rank = indexedEvidenceRank(indexed, startUs, endUs);
+    if (classification.cause === 'unknown') {
+      if (unclassifiedFallbackRank == null
+        || compareEvidenceStrength(rank, unclassifiedFallbackRank) < 0) {
+        unclassifiedFallbackIndexed = indexed;
+        unclassifiedFallbackRank = rank;
+      }
+      continue;
+    }
+    totalCount += 1;
+    if (rank.durationTraceUs === 0) zeroDurationCount += 1;
+    if (`${indexed.event?.pid}:${indexed.event?.tid}` !== rendererThreadKey) {
+      crossThreadCount += 1;
+    }
+    if (retainedHeap.length >= limit
+      && compareEvidenceStrength(rank, retainedHeap[0]) >= 0) continue;
+    const evidence = eventEvidence(
+      indexed,
+      startUs,
+      endUs,
+      metadata,
+      rendererThreadKey,
+      classification,
+    );
+    if (retainedHeap.length < limit) pushWeakestFirst(retainedHeap, evidence);
+    else replaceWeakest(retainedHeap, evidence);
+  }
+
+  const candidates = retainedHeap
+    .sort(compareEvidenceStrength)
+    .map((entry, index) => ({ ...entry, rank: index + 1 }));
+  const retainedZeroDurationCount = candidates.filter(
+    ({ durationTraceUs }) => durationTraceUs === 0,
+  ).length;
+  const retainedCrossThreadCount = candidates.filter(
+    ({ onRendererMainThread }) => !onRendererMainThread,
+  ).length;
+  const omittedCount = totalCount - candidates.length;
+  return {
+    candidates,
+    unclassifiedFallbackIndexed,
+    totalCount,
+    zeroDurationCount,
+    crossThreadCount,
+    provenance: {
+      ordering: CAUSAL_CANDIDATE_ORDER,
+      retentionPolicy: CAUSAL_CANDIDATE_RETENTION_POLICY,
+      totalCount,
+      retainedCount: candidates.length,
+      limit,
+      omittedCount,
+      truncated: omittedCount > 0,
+      retainedZeroDurationCount,
+      retainedCrossThreadCount,
+    },
+  };
 }
 
 function causalConfiguration(options = {}) {
@@ -300,7 +439,12 @@ function causalConfiguration(options = {}) {
     || !(minimumMeaningfulCoverageRatio > 0 && minimumMeaningfulCoverageRatio <= 1)) {
     throw new TypeError('Goal 24 trace causal thresholds are invalid.');
   }
-  return { budgetMs, minimumMeaningfulOverlapMs, minimumMeaningfulCoverageRatio };
+  return {
+    budgetMs,
+    minimumMeaningfulOverlapMs,
+    minimumMeaningfulCoverageRatio,
+    causalCandidateLimit: GOAL24_TRACE_CAUSAL_CANDIDATE_LIMIT,
+  };
 }
 
 function assessCausalEvidence(selected, maximum, configuration) {
@@ -377,23 +521,42 @@ export function analyzeGoal24ChromiumTrace(input, options = {}) {
           - overlapUs(left.event, start.tsUs, end.tsUs)
         || eventDurationUs(right.event) - eventDurationUs(left.event)
       ))[0] || null;
-    const evidence = durationEvents.map((entry) => (
-      eventEvidence(entry, start.tsUs, end.tsUs, metadata, rendererThreadKey)
-    ));
-    const maximumOverlappingEvent = strongestEvidence(evidence);
+    const maximumOverlappingIndexed = strongestIndexedEvidence(
+      durationEvents,
+      start.tsUs,
+      end.tsUs,
+    );
+    const maximumOverlappingEvent = maximumOverlappingIndexed
+      ? eventEvidence(
+        maximumOverlappingIndexed,
+        start.tsUs,
+        end.tsUs,
+        metadata,
+        rendererThreadKey,
+      )
+      : null;
     const semanticTemporalEvents = temporalEvents.filter(({ event }) => (
       event?.ph !== 'M' && !isGoal24MarkEvent(event) && !isTopLevelTask(event)
     ));
-    const semanticEvidence = semanticTemporalEvents.map((entry) => (
-      eventEvidence(entry, start.tsUs, end.tsUs, metadata, rendererThreadKey)
-    ));
-    const causalCandidates = semanticEvidence
-      .filter((entry) => entry.cause !== 'unknown')
-      .sort(compareEvidenceStrength)
-      .map((entry, index) => ({ ...entry, rank: index + 1 }));
-    const unclassifiedFallbackEvidence = strongestEvidence(
-      semanticEvidence.filter((entry) => entry.cause === 'unknown'),
+    const candidateLedger = boundedCausalCandidateLedger(
+      semanticTemporalEvents,
+      start.tsUs,
+      end.tsUs,
+      metadata,
+      rendererThreadKey,
+      configuration.causalCandidateLimit,
     );
+    const causalCandidates = candidateLedger.candidates;
+    const unclassifiedFallbackEvidence = candidateLedger.unclassifiedFallbackIndexed
+      ? eventEvidence(
+        candidateLedger.unclassifiedFallbackIndexed,
+        start.tsUs,
+        end.tsUs,
+        metadata,
+        rendererThreadKey,
+        { cause: 'unknown', matchedCauses: [], confidence: 'unknown' },
+      )
+      : null;
     const longestMainThreadTask = longestTaskIndexed
       ? {
         ...eventEvidence(
@@ -416,13 +579,10 @@ export function analyzeGoal24ChromiumTrace(input, options = {}) {
       temporallyOverlappingEventCount: temporalEvents.length,
       durationEventCount: durationEvents.length,
       processThreadCount: threadKeys.size,
-      classifiedCandidateCount: causalCandidates.length,
-      zeroDurationClassifiedCandidateCount: causalCandidates.filter(
-        ({ durationTraceUs }) => durationTraceUs === 0,
-      ).length,
-      crossThreadClassifiedCandidateCount: causalCandidates.filter(
-        ({ onRendererMainThread }) => !onRendererMainThread,
-      ).length,
+      classifiedCandidateCount: candidateLedger.totalCount,
+      zeroDurationClassifiedCandidateCount: candidateLedger.zeroDurationCount,
+      crossThreadClassifiedCandidateCount: candidateLedger.crossThreadCount,
+      candidateLedger: candidateLedger.provenance,
       maximumOverlappingEvent,
       unclassifiedFallbackEvidence,
     };
@@ -609,10 +769,29 @@ export function validateGoal24TraceAttribution(analysis, options = {}) {
     }
     const crossThreadCount = candidates.filter(({ onRendererMainThread }) => !onRendererMainThread).length;
     const zeroDurationCount = candidates.filter(({ durationTraceUs }) => durationTraceUs === 0).length;
-    if (scan.classifiedCandidateCount !== candidates.length
-      || scan.crossThreadClassifiedCandidateCount !== crossThreadCount
-      || scan.zeroDurationClassifiedCandidateCount !== zeroDurationCount) {
-      failures.push(`${entry.id}: causal scan counts differ from preserved candidates`);
+    const ledger = scan.candidateLedger;
+    const scanCountsValid = Number.isInteger(scan.classifiedCandidateCount)
+      && Number.isInteger(scan.crossThreadClassifiedCandidateCount)
+      && Number.isInteger(scan.zeroDurationClassifiedCandidateCount)
+      && scan.classifiedCandidateCount >= 0
+      && scan.crossThreadClassifiedCandidateCount >= crossThreadCount
+      && scan.zeroDurationClassifiedCandidateCount >= zeroDurationCount
+      && scan.crossThreadClassifiedCandidateCount <= scan.classifiedCandidateCount
+      && scan.zeroDurationClassifiedCandidateCount <= scan.classifiedCandidateCount;
+    const ledgerValid = ledger?.ordering === CAUSAL_CANDIDATE_ORDER
+      && ledger?.retentionPolicy === CAUSAL_CANDIDATE_RETENTION_POLICY
+      && ledger?.limit === expectedConfiguration.causalCandidateLimit
+      && ledger?.totalCount === scan.classifiedCandidateCount
+      && ledger?.retainedCount === candidates.length
+      && ledger?.retainedCount <= ledger?.limit
+      && ledger?.omittedCount === ledger?.totalCount - ledger?.retainedCount
+      && ledger?.omittedCount >= 0
+      && ledger?.truncated === (ledger?.omittedCount > 0)
+      && (!ledger?.truncated || ledger?.retainedCount === ledger?.limit)
+      && ledger?.retainedCrossThreadCount === crossThreadCount
+      && ledger?.retainedZeroDurationCount === zeroDurationCount;
+    if (!scanCountsValid || !ledgerValid) {
+      failures.push(`${entry.id}: bounded causal candidate ledger provenance is malformed`);
     }
     if (scan.maximumOverlappingEvent) {
       validateEvidenceBinding(

@@ -25,21 +25,32 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { newGame } from '../src/sim/state.js';
+import { deserialize, newGame, serialize } from '../src/sim/state.js';
 import { calendarOf } from '../src/sim/time.js';
-import { bookSlot, reservationById } from '../src/sim/reservations.js';
+import {
+  bookSlot, reservationById, selectWalkInSlot, walkInAvailability,
+} from '../src/sim/reservations.js';
 import { pickFromShelf, heldUnits } from '../src/sim/checkout.js';
 import {
   createTx, scanItem, completeSale, requestPayment, presentCard, insertCard,
   submitCardAmount, enterCardDigit, runCard, totalOf, taxOf,
   printReceipt, takeReceipt, packReceipt, bagItem, allBagged, handOverGoods,
   serviceLinesOf, goodsLinesOf,
+  customerCash, acceptCash, openDrawer, depositTendered, takeFromDrawer,
+  handOverChange, changeDue, makeChange, newDrawer,
 } from '../src/sim/register.js';
 import {
   attachGreenFeeToTx,
   finalizeReservationCheckIn,
   GREEN_FEE_SKU,
+  reconcileReservationCheckInTickets,
+  RESERVATION_CHECK_IN_TYPE,
+  reservationPaymentReference,
 } from '../src/sim/reservationCheckIn.js';
+import {
+  allocateCustomerIdentity, customerIdentityById, identityForReservation,
+  reconcileCustomerVisitEvents, recordCustomerVisitEvent,
+} from '../src/sim/customerIdentity.js';
 
 const rngFor = (seq) => { let i = 0; return () => seq[i++ % seq.length]; };
 const round2 = (v) => Math.round(v * 100) / 100;
@@ -53,6 +64,7 @@ function reserve(state, name = 'Ray Falk', minute = 480) {
   const day = calendarOf(state.clock.minutes).dayAbs + 1;
   const made = bookSlot(state, day, minute, name);
   assert.equal(made.ok, true);
+  identityForReservation(state, made.res);
   return made.res;
 }
 
@@ -98,6 +110,27 @@ function payOnce(tx) {
   assert.equal(packReceipt(tx).ok, true);
   for (const item of tx.items) if (!item.bagged) bagItem(tx, item.uid);
   assert.equal(allBagged(tx), true, 'a tee time is not something you put in a bag');
+  assert.equal(handOverGoods(tx).ok, true);
+}
+
+function payCashOnce(state, tx) {
+  state.shop.drawer ||= newDrawer();
+  tx.prefer = 'cash';
+  assert.equal(requestPayment(tx).ok, true);
+  customerCash(tx);
+  assert.equal(acceptCash(tx).ok, true);
+  assert.equal(openDrawer(tx).ok, true);
+  assert.equal(depositTendered(tx, state.shop.drawer).ok, true);
+  for (const [denom, count] of Object.entries(makeChange(changeDue(tx)))) {
+    for (let index = 0; index < count; index += 1) {
+      assert.equal(takeFromDrawer(tx, state.shop.drawer, Number(denom)).ok, true);
+    }
+  }
+  assert.equal(handOverChange(tx, state.shop.drawer).ok, true);
+  assert.equal(printReceipt(tx).ok, true);
+  assert.equal(takeReceipt(tx).ok, true);
+  assert.equal(packReceipt(tx).ok, true);
+  for (const item of tx.items) if (!item.bagged) bagItem(tx, item.uid);
   assert.equal(handOverGoods(tx).ok, true);
 }
 
@@ -185,6 +218,293 @@ test('it is one ticket number and one payment method, not two', () => {
   assert.equal(booking.checkInTransactionNumber, done.ticket.number);
 });
 
+test('the banked combined ticket records one exact customer visit and payment', () => {
+  const state = newGame();
+  const res = reserve(state, 'Exact History Golfer');
+  const tx = goodsOnCounter(state, 'relaxed', 'history-');
+  attachGreenFeeToTx(state, tx, res.id);
+  const paidTotal = totalOf(tx);
+  payOnce(tx);
+
+  // This is deliberately the simulation bank call with no renderer/onPaid
+  // callback after it. Durable customer accounting must already be complete.
+  const done = finalizeReservationCheckIn(state, tx, res.id);
+  assert.equal(done.ok, true, done.reason);
+  assert.equal(done.customerVisitRecorded, true);
+  assert.equal(reservationById(state, res.id).visitHistoryRecorded, true);
+
+  const history = customerIdentityById(state, res.customerId).visitHistory;
+  assert.equal(history.totalVisits, 1, 'one person walked through the door');
+  assert.equal(history.completedCheckIns, 1, 'the round is one recorded outcome');
+  assert.equal(history.completedPurchases, 1, 'the goods are one recorded outcome');
+  assert.equal(history.cardPayments, 1, 'the single card is counted once');
+  assert.equal(history.cashPayments, 0);
+  assert.equal(history.lifetimeSpend, round2(paidTotal),
+    'spend is the exact whole ticket, not the fee plus the whole ticket');
+  assert.equal(history.firstVisitDayAbs, res.dayAbs,
+    'combined accounting retains the reservation day, not renderer wall time');
+
+  assert.equal(done.ticket.customerVisitEvent.status, 'applied');
+  assert.equal(done.ticket.customerVisitRecorded, true);
+  assert.match(done.ticket.customerVisitEvent.id, /^checkout:.+:customer-visit$/);
+  const once = JSON.stringify(history);
+  assert.equal(reconcileCustomerVisitEvents(state).ok, true);
+  assert.equal(reconcileCustomerVisitEvents(state).ok, true);
+  assert.equal(JSON.stringify(history), once, 'reconciliation is an exact no-op after apply');
+});
+
+test('a fully prepaid tee time remains a zero-dollar service on one combined retail visit', () => {
+  const state = newGame();
+  const dayAbs = calendarOf(state.clock.minutes).dayAbs + 1;
+  const made = bookSlot(state, dayAbs, 480, {
+    holder: 'Prepaid Combined Golfer',
+    partySize: 1,
+    paymentPlan: 'prepaid',
+    paymentMethod: 'card',
+    cardOnFile: true,
+  });
+  assert.equal(made.ok, true);
+  const reservation = made.res;
+  identityForReservation(state, reservation);
+  assert.equal(reservation.payment.amountPaid, reservation.fee);
+  assert.equal(reservation.payment.amountDue, 0);
+  assert.equal(reservation.depositPaid, 0,
+    'prepayment is not misrepresented as a deposit');
+
+  const greenBefore = state.ledger.today.revenue.greenFees || 0;
+  const bookingBefore = state.ledger.today.revenue.bookingRevenue || 0;
+  const cashBefore = state.cash;
+  const tx = goodsOnCounter(state, 'relaxed', 'prepaid-combined-');
+  const goodsTotal = totalOf(tx);
+  const bookedBeforeSettlement = structuredClone(reservation);
+  const attached = attachGreenFeeToTx(state, tx, reservation.id);
+  assert.equal(attached.ok, true, attached.reason);
+  assert.equal(attached.amount, 0);
+  assert.equal(serviceLinesOf(tx).length, 1);
+  assert.equal(serviceLinesOf(tx)[0].price, 0);
+  payCashOnce(state, tx);
+
+  const done = finalizeReservationCheckIn(state, tx, reservation.id);
+  assert.equal(done.ok, true, done.reason);
+  const referenceId = reservationPaymentReference(reservation.id);
+  assert.equal(done.ticket.type, RESERVATION_CHECK_IN_TYPE,
+    'zero balance cannot erase the check-in ticket identity');
+  assert.equal(done.ticket.referenceId, referenceId);
+  assert.equal(done.ticket.serviceTotal, 0);
+  assert.equal(done.ticket.total, goodsTotal);
+  assert.equal(done.ticket.customerVisitEvent.amount, done.ticket.total,
+    'the customer event records the retail money exchanged on this visit');
+  assert.equal(state.cash, round2(cashBefore + goodsTotal));
+  assert.equal(state.ledger.today.revenue.greenFees || 0, greenBefore,
+    'the already-posted green fee is not banked twice');
+  assert.equal(state.ledger.today.revenue.bookingRevenue || 0, bookingBefore,
+    'advance booking revenue is unchanged at physical check-in');
+
+  const history = customerIdentityById(state, reservation.customerId).visitHistory;
+  assert.equal(history.totalVisits, 1);
+  assert.equal(history.completedCheckIns, 1);
+  assert.equal(history.completedPurchases, 1);
+  assert.equal(history.cashPayments, 1);
+  assert.equal(history.cardPayments, 0);
+  assert.equal(history.lifetimeSpend, goodsTotal,
+    'the visit records only the money exchanged at this combined payment');
+  assert.equal(history.lastVisitPurpose, 'tee-time+retail');
+
+  const checkedIn = reservationById(state, reservation.id);
+  assert.equal(checkedIn.status, 'played');
+  assert.equal(checkedIn.paidAmount, 0);
+  assert.equal(checkedIn.totalPaid, checkedIn.fee,
+    'the existing prepaid amount survives the zero-balance check-in');
+  assert.equal(checkedIn.payment.amountPaid, checkedIn.fee);
+  assert.equal(checkedIn.payment.amountDue, 0);
+  assert.equal(checkedIn.payment.status, 'paid');
+  assert.equal(checkedIn.payment.method, 'card',
+    'a zero-dollar check-in keeps the canonical advance-payment tender');
+  assert.equal(checkedIn.paymentMethod, 'cash',
+    'the compatibility field records the tender used for the retail ticket');
+
+  const immediateReplay = reconcileReservationCheckInTickets(state);
+  assert.equal(immediateReplay.ok, true, JSON.stringify(immediateReplay));
+  assert.equal(immediateReplay.already, 1);
+
+  const loaded = deserialize(serialize(state));
+  const loadedReservation = reservationById(loaded, reservation.id);
+  const loadedTicket = loaded.shop.transactionHistory.find(
+    (entry) => entry.type === RESERVATION_CHECK_IN_TYPE && entry.referenceId === referenceId,
+  );
+  assert.ok(loadedTicket, 'the zero-dollar service reference survives save/load');
+  assert.equal(loadedTicket.serviceTotal, 0);
+  assert.equal(loadedReservation.totalPaid, loadedReservation.fee);
+  assert.equal(loadedReservation.payment.amountPaid, loadedReservation.fee);
+  const loadedReplay = reconcileReservationCheckInTickets(loaded);
+  assert.equal(loadedReplay.ok, true, JSON.stringify(loadedReplay));
+  assert.equal(loadedReplay.already, 1);
+
+  const tailLostRaw = JSON.parse(serialize(state));
+  const reservationIndex = tailLostRaw.reservations.booked.findIndex(
+    (entry) => entry.id === reservation.id,
+  );
+  tailLostRaw.reservations.booked[reservationIndex] = bookedBeforeSettlement;
+  const tailRecovered = deserialize(JSON.stringify(tailLostRaw));
+  const recoveredReservation = reservationById(tailRecovered, reservation.id);
+  assert.equal(recoveredReservation.status, 'played',
+    'save/load replays a genuine prepaid combined ticket after a torn reservation tail');
+  const recoveredReplay = reconcileReservationCheckInTickets(tailRecovered);
+  assert.equal(recoveredReplay.ok, true, JSON.stringify(recoveredReplay));
+  assert.equal(recoveredReplay.already, 1);
+  assert.equal(loadedReservation.payment.method, 'card');
+  assert.equal(loadedReservation.paymentMethod, 'cash');
+  assert.equal(customerIdentityById(loaded, reservation.customerId).visitHistory.completedCheckIns, 1);
+});
+
+test('a pending banked ticket repairs customer history once across save/load', () => {
+  const state = newGame();
+  const res = reserve(state, 'Recovered History Golfer');
+  const tx = goodsOnCounter(state, 'relaxed', 'recovered-history-');
+  attachGreenFeeToTx(state, tx, res.id);
+  const paidTotal = totalOf(tx);
+  payOnce(tx);
+  const done = finalizeReservationCheckIn(state, tx, res.id);
+  assert.equal(done.ok, true, done.reason);
+
+  // Model the only dangerous checkpoint: money/ticket persisted while the
+  // derived customer aggregate did not. The ticket event remains the outbox.
+  const raw = JSON.parse(serialize(state));
+  const rawCustomer = raw.customerDirectory.customers.find(
+    (customer) => customer.customerId === res.customerId,
+  );
+  Object.assign(rawCustomer.visitHistory, {
+    totalVisits: 0,
+    completedPurchases: 0,
+    completedCheckIns: 0,
+    noShows: 0,
+    cancellations: 0,
+    cashPayments: 0,
+    cardPayments: 0,
+    lifetimeSpend: 0,
+    firstVisitDayAbs: null,
+    lastVisitDayAbs: null,
+    lastVisitPurpose: null,
+    lastPaymentMethod: null,
+    appliedEvents: [],
+  });
+  raw.shop.transactionHistory[0].customerVisitRecorded = false;
+  raw.shop.transactionHistory[0].customerVisitEvent.status = 'pending';
+  raw.reservations.booked.find((reservation) => reservation.id === res.id).visitHistoryRecorded = false;
+
+  const recovered = deserialize(JSON.stringify(raw));
+  const recoveredHistory = customerIdentityById(recovered, res.customerId).visitHistory;
+  assert.equal(recoveredHistory.totalVisits, 1);
+  assert.equal(recoveredHistory.completedCheckIns, 1);
+  assert.equal(recoveredHistory.completedPurchases, 1);
+  assert.equal(recoveredHistory.cardPayments, 1);
+  assert.equal(recoveredHistory.lifetimeSpend, round2(paidTotal));
+  assert.equal(recoveredHistory.appliedEvents.length, 1);
+  assert.equal(recovered.shop.transactionHistory[0].customerVisitRecorded, true);
+  assert.equal(recovered.shop.transactionHistory[0].customerVisitEvent.status, 'applied');
+  assert.equal(reservationById(recovered, res.id).visitHistoryRecorded, true,
+    'reservation compatibility flag follows the reconciled ticket event');
+
+  const recoveredAgain = deserialize(serialize(recovered));
+  assert.deepEqual(
+    customerIdentityById(recoveredAgain, res.customerId).visitHistory,
+    recoveredHistory,
+    'a second reconciliation cannot double the repaired event',
+  );
+});
+
+test('reusing a customer event id with different money is rejected without mutation', () => {
+  const state = newGame();
+  const customer = allocateCustomerIdentity(state, { sourceId: 'event-conflict-customer' });
+  const tx = goodsOnCounter(state, 'relaxed', 'event-conflict-');
+  payOnce(tx);
+  const done = completeSale(state, tx, customer);
+  assert.equal(done.ok, true, done.reason);
+  const before = JSON.stringify(customer.visitHistory);
+
+  const conflicting = {
+    ...done.ticket.customerVisitEvent,
+    outcomes: [...done.ticket.customerVisitEvent.outcomes],
+    amount: done.ticket.customerVisitEvent.amount + 1,
+  };
+  const replay = recordCustomerVisitEvent(state, conflicting);
+  assert.equal(replay.ok, false);
+  assert.equal(replay.conflict, true);
+  assert.equal(JSON.stringify(customer.visitHistory), before);
+});
+
+test('an ordinary banked retail ticket records one purchase at the same boundary', () => {
+  const state = newGame();
+  const customer = allocateCustomerIdentity(state, { sourceId: 'retail-history-customer' });
+  const tx = goodsOnCounter(state, 'relaxed', 'retail-history-');
+  const paidTotal = totalOf(tx);
+  payOnce(tx);
+
+  const done = completeSale(state, tx, customer);
+  assert.equal(done.ok, true, done.reason);
+  assert.equal(done.customerVisitRecorded, true);
+  const history = customer.visitHistory;
+  assert.equal(history.totalVisits, 1);
+  assert.equal(history.completedPurchases, 1);
+  assert.equal(history.completedCheckIns, 0);
+  assert.equal(history.cashPayments, 0);
+  assert.equal(history.cardPayments, 1);
+  assert.equal(history.lifetimeSpend, round2(paidTotal));
+  assert.equal(history.lastVisitPurpose, 'retail');
+  assert.equal(history.lastPaymentMethod, 'card');
+});
+
+test('the combined ticket retains customer identity through save history', () => {
+  const state = newGame();
+  const res = reserve(state, 'Identity Golfer');
+  const tx = goodsOnCounter(state);
+  attachGreenFeeToTx(state, tx, res.id);
+  payOnce(tx);
+
+  const done = finalizeReservationCheckIn(state, tx, res.id);
+  assert.equal(done.ok, true, done.reason);
+  assert.equal(done.ticket.customerId, res.customerId);
+  assert.equal(state.shop.transactionHistory[0].customerId, res.customerId);
+  assert.equal(state.shop.transactionHistory[0].customer, res.fullName || res.name);
+  const loaded = deserialize(serialize(state));
+  assert.equal(loaded.shop.transactionHistory[0].customerId, res.customerId);
+});
+
+test('a new walk-in booking remains payable after save/load before payment', () => {
+  const state = newGame();
+  const dayAbs = calendarOf(state.clock.minutes).dayAbs;
+  const slot = walkInAvailability(state, { dayAbs, partySize: 1 })[0];
+  assert.ok(slot, 'the deterministic opening state offers a same-day walk-in slot');
+  const made = selectWalkInSlot(state, {
+    dayAbs,
+    minute: slot.minute,
+    customerId: 'combined-save-customer',
+    name: 'Saved Walk-In',
+    fullName: 'Saved Walk-In',
+    partySize: 1,
+    paymentPreference: 'card',
+  });
+  assert.equal(made.ok, true, made.reason);
+
+  const tx = goodsOnCounter(state, 'relaxed', 'save-combined-');
+  assert.equal(attachGreenFeeToTx(state, tx, made.res.id).ok, true);
+  assert.equal(heldUnits(state).length, 2, 'the goods are still owned by the open checkout');
+
+  const loaded = deserialize(serialize(state));
+  const booking = reservationById(loaded, made.res.id);
+  assert.ok(booking, 'the newly-created booking survives reload');
+  assert.equal(booking.status, 'booked', 'an unbanked fee never checks the golfer in early');
+  assert.equal(booking.customerId, 'combined-save-customer');
+  assert.deepEqual(heldUnits(loaded), [], 'reload rolls the abandoned merchandise hold back');
+  assert.equal(loaded.shop.transactionHistory.length, 0, 'reload cannot invent a payment');
+
+  const retry = goodsOnCounter(loaded, 'relaxed', 'retry-combined-');
+  const reattached = attachGreenFeeToTx(loaded, retry, booking.id);
+  assert.equal(reattached.ok, true, reattached.reason);
+  assert.equal(retry.items.filter((item) => item.skuId === GREEN_FEE_SKU).length, 1,
+    'the surviving booking has one coherent retry path');
+});
+
 test('the same booking cannot be checked in twice through the merged door', () => {
   const state = newGame();
   const res = reserve(state);
@@ -209,6 +529,49 @@ test('a ticket refuses to carry the same fee twice', () => {
   const twice = attachGreenFeeToTx(state, tx, res.id);
   assert.equal(twice.ok, false, 'one round, one line');
   assert.equal(tx.items.length, 3, 'and the ticket is not left with a stray line');
+});
+
+test('a duplicate service line is rejected before paid fulfilment mutates the ticket', () => {
+  const state = newGame();
+  const res = reserve(state, 'Duplicate Service Golfer');
+  const tx = goodsOnCounter(state, 'relaxed', 'duplicate-service-');
+  assert.equal(attachGreenFeeToTx(state, tx, res.id).ok, true);
+  tx.items.push({
+    uid: 'duplicate-service:cart',
+    skuId: 'service:cart-rental',
+    name: 'Duplicate zero-dollar service',
+    priceCents: 0,
+    price: 0,
+    scanned: true,
+    bagged: false,
+  });
+
+  assert.equal(requestPayment(tx).ok, true);
+  assert.equal(presentCard(tx).ok, true);
+  assert.equal(insertCard(tx).ok, true);
+  assert.equal(confirmExactAmount(tx).ok, true);
+  assert.equal(runCard(tx).result, 'approved');
+  const before = {
+    stage: tx.stage,
+    receiptPrinted: tx.receiptPrinted,
+    receiptPacked: tx.receiptPacked,
+    bagged: tx.items.map((item) => item.bagged),
+  };
+  const cashBefore = state.cash;
+
+  const refused = finalizeReservationCheckIn(state, tx, res.id);
+  assert.equal(refused.ok, false);
+  assert.match(refused.diagnostic || refused.reason, /exactly one ticket line/i);
+  assert.deepEqual({
+    stage: tx.stage,
+    receiptPrinted: tx.receiptPrinted,
+    receiptPacked: tx.receiptPacked,
+    bagged: tx.items.map((item) => item.bagged),
+  }, before, 'validation must happen before receipt, bagging, or handoff state advances');
+  assert.equal(tx.banked, undefined);
+  assert.equal(state.cash, cashBefore);
+  assert.equal(state.shop.transactionHistory.length, 0);
+  assert.equal(reservationById(state, res.id).status, 'booked');
 });
 
 test('the line split is by class, not by the green fee alone', () => {

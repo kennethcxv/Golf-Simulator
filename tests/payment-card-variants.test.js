@@ -12,6 +12,7 @@
 // reaching a screenshot.
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
 import { PAYMENT_CARDS, DEFAULT_PAYMENT_CARD, paymentCardFor } from '../src/data/paymentCards.js';
 
 // Real networks, issuers and schemes. Substring match, case-insensitive.
@@ -79,4 +80,15 @@ test('a missing identity falls back to the club card rather than throwing', () =
   assert.equal(paymentCardFor(null).id, DEFAULT_PAYMENT_CARD.id);
   assert.equal(paymentCardFor(undefined).id, DEFAULT_PAYMENT_CARD.id);
   assert.ok(paymentCardFor(0).id, 'a falsy but present key still resolves');
+});
+
+test('the runtime card-sheet verifier compares painted bytes, not unique filenames', () => {
+  const source = fs.readFileSync(
+    new URL('../tools/qa/electron-h-card-variants.js', import.meta.url),
+    'utf8',
+  );
+  assert.match(source, /createHash\('sha256'\)\.update\(bytes\)\.digest\('hex'\)/);
+  assert.match(source, /new Set\(painted\.map\(\(c\) => c\.sha256\)\)/);
+  assert.doesNotMatch(source, /new Set\(painted\.map\(\(c\) => c\.file\)\)/,
+    'different output names are not evidence of different artwork');
 });

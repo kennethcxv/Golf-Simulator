@@ -508,3 +508,96 @@ complete locked cross-feature interaction/matrix/stress rerun.
 slices source and evals it (an `export const` inside an invisible line range
 killed a distant file with a stack pointing at the test), and the
 station-versus-crosshair driver that scores identically on both builds.
+
+---
+
+## 2026-08-13 checkout / settlement handoff checkpoint
+
+This checkpoint freezes the coherent checkout, settlement, and save-recovery
+work on `feature/pro-shop-vertical-slice`. It deliberately does not start or
+claim another Goal 24 subsystem.
+
+### Verified in this checkpoint
+
+- The player-string ratchet was fixed without raising its ceiling. Checkout
+  coherence codes in `state.js` now use the internal `diagnostic` channel rather
+  than the player-facing `reason` channel. The measured ceiling was lowered from
+  2,091 to 2,085. `node --test tests/player-strings-ratchet.test.js` passes 3/3.
+- The relevant checkout/register/settlement/save/state/inventory/reservation/
+  empire/portfolio selection passes **878/878** tests. This includes immutable
+  price authority, cash conservation, WAL and terminal-receipt replay,
+  exact-once ticket/ledger/inventory/customer publication, reservation target
+  recovery, V15 save migration, portfolio persistence, paid-customer release,
+  and renderer-owned checkout resource cleanup.
+- With the quarantined untracked tests absent and the ignored checkout runtime
+  mirror materialized from the candidate's own 49 authored GLBs, the detached
+  commit candidate passes the same relevant selection: **876/876** tests, zero
+  failures and zero skips.
+- `npm test` in the shared working checkout passes the complete repository
+  suite: **3,606/3,606** tests, zero failures, zero skips, in 255.2 seconds.
+- The detached commit-candidate `npm test` is not green: **3,557/3,600** pass,
+  with 40 failures and 3 skips. The reds are outside the required checkout/
+  save/portfolio selection and are dominated by fresh-worktree asset, LFS, and
+  runtime-binding gates. One exact red is `every binding points at a runtime
+  GLB that exists on disk`; `the tuning overlay takes pointer events, or no
+  slider can be dragged` is also red. The staged performance-harness selection
+  subsequently passes **69/69** in isolation; that does not erase its one red
+  result under the full concurrent run. This checkpoint is therefore committed
+  with the detached full-suite red named, as requested.
+- The current cash browser baseline completed one combined goods + green-fee
+  ticket, exact change, customer departure, and register release without page,
+  console, request, or HTTP errors. It also proves the remaining defect: one
+  presented-cash click automatically deposits the tender, and confirming change
+  completes the remaining handoff without another player gesture.
+- The current card browser baseline reaches `CardInsertReady` with the player-
+  facing instruction that insertion is automatic, and the goods are already in
+  the bag before payment. This is baseline evidence, not physical-checkout
+  acceptance.
+- No `qa/goal24/` artifact is part of the handoff commit.
+
+### Golden-capture status
+
+The uncommitted `tools/qa/golden-capture.js` rewrite was **reverted to HEAD** and
+its untracked source-contract test was removed. The rewrite had useful fail-
+closed viewport/readiness checks, but it had not passed a real Electron golden
+capture and its `waitFrames` race retained live 120-second timers. Therefore the
+golden gate is exactly the previously committed implementation; it was not
+changed or rerun here and this checkpoint is not new evidence that the pixel
+gate is trustworthy. A future rewrite must fix timer cancellation and pass
+`npm run golden` plus `npm run golden:control` before replacing it.
+
+### Explicitly unfinished
+
+The player-facing checkout is still not accepted against the eleven-step
+physical sequence. Products use the one-click scan-and-bag shortcut; card
+payment automatically inserts rather than requiring a mouse swipe; received
+cash is automatically deposited; change is animated to the customer after
+confirmation; receipt handling and final product/bag fulfillment remain
+automatic. There is no current normal-controls card-and-cash video proving all
+eleven steps, no matching before/after visual acceptance set, and no new matched
+runtime performance comparison for this candidate. Those items belong to the
+next agent; they were not redesigned in this checkpoint.
+
+`npm run gate`, `npm run golden`, and `npm run golden:control` were not run.
+Only the requested relevant test selection and full repository suite are claimed
+above.
+
+### Mixed-author quarantined G1/G2 files
+
+These are the only files containing both checkout work and inherited ledger WIP.
+The handoff commit includes only their checkout hunks; the named ledger hunks
+remain in the working tree for the next owner:
+
+- `src/core/i18n.js` — checkout owns the three `*.integrityUnavailable` keys and
+  `till.saleCompletedPresentationSkipped`; G1 owns `controls.ledgerBook`.
+- `src/render3d/clubhouse.js` — checkout owns paid-customer release, bag/resource
+  cleanup, post-bank fault recovery, combined-visit handling, and register QA
+  diagnostics; G2 owns `ledgerHasThePlayer` and its explanatory block.
+- `src/render3d/courseScene.js` — checkout owns payment-GPU prewarm readiness,
+  forced-draw observation, release, and failure handling; G2 owns movement
+  suppression while the ledger is open.
+
+Pure ledger files left outside the handoff commit are `src/core/keyBindings.js`,
+`src/main.js`, and `tools/qa/electron-g12-ledger-hotkey-and-lock.js`.
+`tools/lint-baseline.json` remains quarantined because its aggregate count spans
+multiple authors' dirty-tree changes.

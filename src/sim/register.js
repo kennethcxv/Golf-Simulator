@@ -10,13 +10,27 @@
 // `0.1 * 300` is 30.000000000000004 in float, which would make a till that
 // balances on paper fail to balance in code. Cents in, dollars out at the edge.
 
-import {
-  addCostOfGoods, addExpense, addRevenue, preflightLedgerEntry, recordOutcome,
-} from './economy.js';
-import { liveSales, consumeHeldBatch } from './checkout.js';
-import { recordSale } from './shop.js';
+import { addRevenue, preflightLedgerEntry } from './economy.js';
+import { t } from '../core/i18n.js';
 import { skuById } from '../data/shopItems.js';
-import { accrueSalesTax, preflightSalesTaxAccrual } from './salesTax.js';
+import { ensureSalesTax, SALES_TAX_LINE } from './salesTax.js';
+import {
+  preflightCustomerVisitEvent,
+} from './customerIdentity.js';
+import {
+  bindCheckoutPriceAuthority,
+  checkoutTicketByTransaction,
+  checkoutSettlementMarker,
+  pendingCheckout,
+  pendingCheckoutCount,
+  prepareCheckoutInventory,
+  preparePendingCheckout,
+  reconcilePendingCheckout,
+} from './checkoutSettlement.js';
+import {
+  checkoutPaymentContract,
+  MAX_EXTRA_CHANGE_CENTS as CHECKOUT_MAX_EXTRA_CHANGE_CENTS,
+} from './checkoutCashContract.js';
 
 // --- currency -----------------------------------------------------------------
 // Shop prices land on arbitrary cents. The drawer carries five coin
@@ -190,6 +204,10 @@ export function createTx({
 }
 
 const round2 = (v) => Math.round(v * 100) / 100;
+const safeCentValue = (value) => typeof value === 'number'
+  && Number.isFinite(value)
+  && round2(value) === value
+  && Number.isSafeInteger(Math.round(value * 100));
 const itemOf = (tx, uid) => tx.items.find((i) => i.uid === uid);
 
 // --- scanning -------------------------------------------------------------------
@@ -325,7 +343,19 @@ export function requestPayment(tx) {
   tx.method = tx.prefer || (tx.rng() < 0.5 ? 'card' : 'cash');
   if (tx.method === 'cash') {
     tx.rounding = round2(cashTotalOf(tx) - totalOf(tx));
-    tx.stage = 'cash-tender';
+    if (cents(cashTotalOf(tx)) === 0) {
+      tx.tendered = {};
+      tx.acceptedTender = {};
+      tx.tenderedTotal = 0;
+      tx.drawerStart = null;
+      tx.drawerPending = null;
+      tx.deposited = true;
+      tx.changeGiven = 0;
+      tx.lost = 0;
+      tx.stage = 'receipt';
+    } else {
+      tx.stage = 'cash-tender';
+    }
   } else {
     tx.stage = 'card-present';
   }
@@ -609,6 +639,10 @@ export function newDrawer() {
 // back as whole notes instead of a fistful of shrapnel — about a third of people.
 export function customerCash(tx) {
   const due = cashTotalOf(tx);
+  if (cents(due) === 0) {
+    tx.tendered = {};
+    return tx.tendered;
+  }
   const step = due > 100 ? 50 : due > 40 ? 20 : due > 15 ? 10 : 5;
   const oddCents = Math.round(due * 100) % 100;
   let amount = Math.ceil(round2(due) / step) * step;
@@ -843,7 +877,7 @@ export function handTotal(tx) {
 // a cent), and the player may round up to at most $5.00 extra — a real courtesy
 // the till pays for. `tx.lost` books that overage (+ = till short) and the
 // exact amount handed across is remembered for the receipt.
-export const MAX_EXTRA_CHANGE_CENTS = 500;
+export const MAX_EXTRA_CHANGE_CENTS = CHECKOUT_MAX_EXTRA_CHANGE_CENTS;
 
 export function changeGivingState(tx) {
   const requiredCents = cents(changeDue(tx));
@@ -855,7 +889,7 @@ export function changeGivingState(tx) {
   return { requiredCents, givingCents, deltaCents, state };
 }
 
-export function handOverChange(tx, drawer) {
+export function handOverChange(tx) {
   if (tx.stage !== 'cash-drawer') return { ok: false, reason: 'No change to give.' };
   if (!tx.deposited) return { ok: false, reason: 'Put their money in the till first.' };
   const { deltaCents } = changeGivingState(tx);
@@ -984,6 +1018,10 @@ export function voidTx(tx) {
 // being scanned, or has already completed cannot bank a second time.
 function drawerCommitFor(state, tx) {
   if (tx.method !== 'cash') return { ok: true, cash: dueOf(tx), contents: null };
+  if (cents(dueOf(tx)) === 0 && cents(tx.tenderedTotal || 0) === 0
+      && cents(tx.lost || 0) === 0 && tx.deposited) {
+    return { ok: true, cash: 0, contents: null, before: null, alreadyCommitted: true };
+  }
   if (!tx.deposited || !tx.drawerStart || !tx.drawerPending) {
     return { ok: false, reason: 'The cash has not been secured in the drawer.' };
   }
@@ -992,7 +1030,8 @@ function drawerCommitFor(state, tx) {
   }
 
   const current = state.shop.drawer || tx.drawerStart;
-  if (!sameStack(current, tx.drawerStart)) {
+  const alreadyCommitted = sameStack(current, tx.drawerPending);
+  if (!sameStack(current, tx.drawerStart) && !alreadyCommitted) {
     return { ok: false, reason: 'The drawer changed before this sale could bank.' };
   }
 
@@ -1001,15 +1040,13 @@ function drawerCommitFor(state, tx) {
   if (cash !== expected) {
     return { ok: false, reason: 'The drawer does not balance with this transaction.' };
   }
-  return { ok: true, cash, contents: copyStack(tx.drawerPending) };
-}
-
-function commitDrawer(state, contents) {
-  if (!contents) return;
-  const drawer = state.shop.drawer || {};
-  for (const key of Object.keys(drawer)) delete drawer[key];
-  Object.assign(drawer, contents);
-  state.shop.drawer = drawer;
+  return {
+    ok: true,
+    cash,
+    contents: copyStack(tx.drawerPending),
+    before: copyStack(tx.drawerStart),
+    alreadyCommitted,
+  };
 }
 
 // Direct service charges (online reservation deposits and card-on-file no-show
@@ -1029,6 +1066,186 @@ export function serviceTicketByReference(state, type, referenceId) {
 const serviceLedgerKey = (type, referenceId, component) => (
   `service:${type}:${referenceId}:${component}`
 );
+
+function canAssignServiceField(target, key) {
+  try {
+    if (!target || (typeof target !== 'object' && typeof target !== 'function')) return false;
+    const own = Object.getOwnPropertyDescriptor(target, key);
+    if (own) return Object.hasOwn(own, 'value') && own.writable === true;
+    let prototype = Object.getPrototypeOf(target);
+    while (prototype) {
+      const inherited = Object.getOwnPropertyDescriptor(prototype, key);
+      if (inherited) {
+        if (!Object.hasOwn(inherited, 'value') || inherited.writable !== true) return false;
+        break;
+      }
+      prototype = Object.getPrototypeOf(prototype);
+    }
+    return Object.isExtensible(target);
+  } catch {
+    return false;
+  }
+}
+
+function stableServiceValue(value) {
+  if (value === null || typeof value !== 'object') return JSON.stringify(value);
+  if (Array.isArray(value)) return `[${value.map(stableServiceValue).join(',')}]`;
+  return `{${Object.keys(value).sort().map((key) => (
+    `${JSON.stringify(key)}:${stableServiceValue(value[key])}`
+  )).join(',')}}`;
+}
+
+function preflightTicketNumber(state, history, requestedNumber = null) {
+  const persistedNext = Number(state?.shop?.nextTransactionNo);
+  if (!Number.isSafeInteger(persistedNext) || persistedNext < 1) {
+    return { ok: false, reason: t('checkout.integrityUnavailable'), diagnostic: 'The checkout ticket counter is invalid.' };
+  }
+  let greatestTicket = 0;
+  for (const ticket of history) {
+    const number = Number(ticket?.number);
+    if (!(number > 0)) continue;
+    if (!Number.isSafeInteger(number)) {
+      return { ok: false, reason: t('checkout.integrityUnavailable'), diagnostic: 'The checkout ticket history contains an invalid number.' };
+    }
+    greatestTicket = Math.max(greatestTicket, number);
+  }
+  const requested = Math.trunc(Number(requestedNumber));
+  const ticketNumber = Number.isSafeInteger(requested)
+    && requested > greatestTicket
+    && requested >= persistedNext
+    ? requested
+    : Math.max(greatestTicket + 1, persistedNext);
+  if (!Number.isSafeInteger(ticketNumber) || ticketNumber < 1
+      || !Number.isSafeInteger(ticketNumber + 1)) {
+    return { ok: false, reason: t('checkout.integrityUnavailable'), diagnostic: 'The checkout ticket counter has reached its safe limit.' };
+  }
+  return { ok: true, ticketNumber };
+}
+
+function serviceChargeSpec(state, {
+  type,
+  referenceId,
+  revenueKey,
+  total,
+  customer,
+  method,
+  itemName,
+  minute,
+}) {
+  const settlementMinute = Math.round(Number(minute));
+  return {
+    strictIdentity: true,
+    idempotencyKey: serviceLedgerKey(type, referenceId, 'revenue'),
+    relatedId: referenceId,
+    category: revenueKey,
+    description: `${itemName} - ${customer}`,
+    source: 'service-charge',
+    customerCount: 1,
+    metadata: { type, method },
+    direction: 'revenue',
+    lineKey: revenueKey,
+    amount: total,
+    day: Math.floor(settlementMinute / 1440),
+    timestamp: settlementMinute,
+    propertyId: state.property?.id,
+  };
+}
+
+function validateExistingServiceCharge(state, expected) {
+  const matches = state.shop.transactionHistory.filter((entry) => entry
+    && entry.type === expected.type
+    && entry.referenceId === expected.referenceId);
+  if (matches.length !== 1) {
+    return {
+      ok: false,
+      conflict: matches.length > 1,
+      reason: t('checkout.integrityUnavailable'),
+      diagnostic: matches.length > 1
+        ? 'That service payment has ambiguous ticket provenance.'
+        : 'That service payment ticket is missing.',
+    };
+  }
+  const [ticket] = matches;
+  const item = Array.isArray(ticket.items) && ticket.items.length === 1 ? ticket.items[0] : null;
+  const exactTicket = Number.isSafeInteger(Number(ticket.number)) && Number(ticket.number) > 0
+    && ticket.customer === expected.customer
+    && (ticket.customerId ?? null) === (expected.customerId ?? null)
+    && ticket.method === expected.method
+    && round2(Number(ticket.total)) === expected.total
+    && round2(Number(ticket.cash)) === expected.total
+    && round2(Number(ticket.lost || 0)) === 0
+    && ticket.revenueKey === expected.revenueKey
+    && Number.isFinite(Number(ticket.minute))
+    && item?.uid === `${expected.referenceId}:charge`
+    && item?.skuId === expected.skuId
+    && item?.name === expected.itemName
+    && round2(Number(item?.price)) === expected.total
+    && stableServiceValue(ticket.details) === stableServiceValue(expected.details);
+  if (!exactTicket) {
+    return { ok: false, conflict: true, reason: t('checkout.integrityUnavailable'), diagnostic: 'That service ticket belongs to a different charge.' };
+  }
+
+  const ledgerKey = serviceLedgerKey(expected.type, expected.referenceId, 'revenue');
+  if (expected.total === 0) {
+    const hasLedgerAuthority = ticket.ledgerEntryId != null
+      || Object.hasOwn(state.ledger.processedIds || {}, ledgerKey)
+      || (state.ledger.entries || []).some((entry) => entry?.idempotencyKey === ledgerKey);
+    return hasLedgerAuthority
+      ? { ok: false, conflict: true, reason: t('checkout.integrityUnavailable'), diagnostic: 'The zero-dollar service ticket has conflicting ledger provenance.' }
+      : { ok: true, already: true, ticket, ledgerPreflight: null };
+  }
+
+  const ledgerPreflight = preflightLedgerEntry(state, serviceChargeSpec(state, {
+    ...expected,
+    minute: ticket.minute,
+  }));
+  if (!ledgerPreflight.ok || !ledgerPreflight.duplicate
+      || !ledgerPreflight.entry || ticket.ledgerEntryId !== ledgerPreflight.entry.id) {
+    return {
+      ok: false,
+      conflict: true,
+      reason: ledgerPreflight.reason || t('ledger.integrityUnavailable'),
+      diagnostic: ledgerPreflight.diagnostic || 'That service ticket lacks exact ledger provenance.',
+    };
+  }
+  return { ok: true, already: true, ticket, ledgerPreflight };
+}
+
+export function validateServiceChargeTicket(state, {
+  type,
+  referenceId,
+  revenueKey = 'greenFees',
+  amount,
+  customer = 'A customer',
+  customerId = null,
+  method = 'card-on-file',
+  skuId = 'service:charge',
+  itemName = 'Service Charge',
+  details = {},
+} = {}) {
+  if (!state?.shop || !Array.isArray(state.shop.transactionHistory) || !state?.ledger) {
+    return { ok: false, reason: t('ledger.integrityUnavailable'), diagnostic: 'The club books are not available.' };
+  }
+  const total = round2(Number(amount));
+  if (typeof type !== 'string' || !type.trim()
+      || typeof referenceId !== 'string' || !referenceId.trim()
+      || revenueKey !== 'greenFees' || !safeCentValue(total) || total < 0
+      || typeof method !== 'string' || !method.trim()) {
+    return { ok: false, reason: t('checkout.integrityUnavailable'), diagnostic: 'The service charge identity is invalid.' };
+  }
+  return validateExistingServiceCharge(state, {
+    type,
+    referenceId,
+    revenueKey,
+    total,
+    customer,
+    customerId,
+    method,
+    skuId,
+    itemName,
+    details: { ...details },
+  });
+}
 
 export function bankServiceCharge(state, {
   type,
@@ -1060,45 +1277,71 @@ export function bankServiceCharge(state, {
     return { ok: false, reason: 'That service revenue line is not supported.' };
   }
   const total = round2(Number(amount));
-  if (!Number.isFinite(total) || total < 0) {
+  if (!safeCentValue(total) || total < 0) {
     return { ok: false, reason: 'The service charge amount is invalid.' };
   }
   if (typeof method !== 'string' || !method.trim()) {
     return { ok: false, reason: 'The service charge has no payment method.' };
   }
-
-  const existing = serviceTicketByReference(state, type, referenceId);
-  if (existing) return { ok: true, already: true, total: existing.total, ticket: existing };
+  const pending = Object.values(state.shop.pendingCheckouts || {});
+  if (pending.some((plan) => (
+    (plan?.ticketKey?.kind === 'service'
+      && plan.ticketKey.type === type
+      && plan.ticketKey.referenceId === referenceId)
+    || (Array.isArray(plan?.alternateTicketKeys)
+      && plan.alternateTicketKeys.some((key) => key?.kind === 'service'
+        && key.type === type && key.referenceId === referenceId))
+  ))) {
+    return {
+      ok: false,
+      reason: t('checkout.integrityUnavailable'),
+      diagnostic: 'That service payment has a pending register settlement.',
+    };
+  }
 
   const history = Array.isArray(state.shop.transactionHistory)
     ? state.shop.transactionHistory
     : [];
-  const revenueMeta = total > 0 ? {
-    idempotencyKey: serviceLedgerKey(type, referenceId, 'revenue'),
-    relatedId: referenceId,
-    category: revenueKey,
-    description: `${itemName} - ${customer}`,
-    source: 'service-charge',
-    customerCount: 1,
-    metadata: { type, method },
-  } : null;
-  const revenuePreflight = revenueMeta ? preflightLedgerEntry(state, {
-    ...revenueMeta,
-    direction: 'revenue',
-    lineKey: revenueKey,
-    amount: total,
+  const existing = serviceTicketByReference(state, type, referenceId);
+  const expected = {
+    type,
+    referenceId,
+    revenueKey,
+    total,
+    customer,
+    customerId,
+    method,
+    skuId,
+    itemName,
+    details: { ...details },
+  };
+  if (existing) {
+    const validated = validateExistingServiceCharge(state, expected);
+    return validated.ok
+      ? { ok: true, already: true, recovered: true, total, ticket: validated.ticket }
+      : validated;
+  }
+
+  const settlementMinute = Number.isFinite(Number(minute))
+    ? Math.round(Number(minute))
+    : Math.round(Number(state.clock?.minutes));
+  if (!Number.isFinite(settlementMinute)) {
+    return {
+      ok: false,
+      reason: t('checkout.integrityUnavailable'),
+      diagnostic: 'The service charge timestamp is invalid.',
+    };
+  }
+  const revenueSpec = total > 0 ? serviceChargeSpec(state, {
+    ...expected,
+    minute: settlementMinute,
   }) : null;
+  const revenuePreflight = revenueSpec ? preflightLedgerEntry(state, revenueSpec) : null;
   if (revenuePreflight && !revenuePreflight.ok) return revenuePreflight;
 
-  const greatestTicket = history.reduce(
-    (greatest, ticket) => Math.max(greatest, Number(ticket && ticket.number) || 0),
-    0,
-  );
-  const ticketNumber = Math.max(
-    1,
-    greatestTicket + 1,
-    Number(state.shop.nextTransactionNo) || 1,
-  );
+  const ticketPreflight = preflightTicketNumber(state, history);
+  if (!ticketPreflight.ok) return ticketPreflight;
+  const { ticketNumber } = ticketPreflight;
   const ticket = {
     type,
     referenceId,
@@ -1117,28 +1360,33 @@ export function bankServiceCharge(state, {
       price: total,
     }],
     details: { ...details },
-    minute,
+    minute: settlementMinute,
     ledgerEntryId: revenuePreflight?.entry?.id || null,
   };
+
+  if (!canAssignServiceField(state.shop, 'nextTransactionNo')
+      || !canAssignServiceField(state.shop, 'transactionHistory')) {
+    return {
+      ok: false,
+      reason: t('checkout.integrityUnavailable'),
+      diagnostic: 'The service ticket authority is not writable.',
+    };
+  }
 
   // All validation and duplicate detection is complete before this synchronous
   // accounting checkpoint. Zero-dollar tickets are allowed when a retained
   // deposit fully covers a no-show policy fee; they provide durable provenance
   // without moving money twice.
   let recovered = !!revenuePreflight?.duplicate;
-  if (revenueMeta && !recovered) {
-    const bank = addRevenue(state, revenueKey, total, revenueMeta);
+  if (revenueSpec && !recovered) {
+    const bank = addRevenue(state, revenueKey, total, revenueSpec);
     if (!bank.ok) return bank;
     recovered = !!bank.duplicate;
     ticket.ledgerEntryId = bank.entry?.id || null;
   }
   state.shop.nextTransactionNo = ticketNumber + 1;
-  if (!Array.isArray(state.shop.transactionHistory)) state.shop.transactionHistory = history;
-  history.unshift(ticket);
-  if (history.length > 100) history.length = 100;
-  if (!Array.isArray(state.shop.log)) state.shop.log = [];
-  state.shop.log.unshift(`${customer} paid ${total.toFixed(2)} for ${itemName.toLowerCase()}`);
-  if (state.shop.log.length > 8) state.shop.log.pop();
+  state.shop.transactionHistory = [ticket, ...history].slice(0, 100);
+  appendShopLog(state, `${customer} paid ${total.toFixed(2)} for ${itemName.toLowerCase()}`);
 
   return { ok: true, already: recovered, recovered, total, ticket };
 }
@@ -1152,6 +1400,73 @@ export function bankServiceCharge(state, {
 // `referenceId` is the idempotency key.  Keeping it in persisted transaction
 // history prevents a freshly-created transaction from banking the same service
 // again after a save/load or renderer restart.
+function ticketMatchesTransaction(ticket, tx, expected = {}) {
+  if (!ticket || !tx || ticket.method !== tx.method
+      || round2(Number(ticket.total)) !== round2(Number(expected.total ?? dueOf(tx)))
+      || round2(Number(ticket.lost || 0)) !== round2(Number(tx.lost || 0))) {
+    return false;
+  }
+  for (const [key, value] of Object.entries(expected)) {
+    if (key === 'total' || value === undefined) continue;
+    if (key === 'net' || key === 'tax' || key === 'serviceTotal') {
+      if (round2(Number(ticket[key] || 0)) !== round2(Number(value || 0))) return false;
+    } else if (ticket[key] !== value) return false;
+  }
+  if (!Array.isArray(ticket.items) || ticket.items.length !== tx.items.length) return false;
+  return ticket.items.every((item, index) => {
+    const source = tx.items[index];
+    return item?.uid === source?.uid
+      && item?.skuId === source?.skuId
+      && round2(Number(item?.price)) === round2(Number(source?.price));
+  });
+}
+
+function finishBankedTransaction(state, tx, ticket) {
+  tx.banked = true;
+  tx.commitPrepared = false;
+  tx.number = ticket.number;
+  tx.stage = 'done';
+  tx.drawerStart = null;
+  tx.drawerPending = null;
+  tx.customerVisitEventId = ticket.customerVisitEvent?.id || null;
+  tx.customerVisitRecorded = ticket.customerVisitRecorded === true;
+  if (ticket.transactionId) {
+    tx.ledgerEntryId = ticket.ledgerEntryIds?.sale
+      || state.ledger?.processedIds?.[ticket.ledgerIdempotencyKeys?.sale]
+      || null;
+  }
+}
+
+function resultFromTicket(state, tx, ticket, { recovered = false } = {}) {
+  finishBankedTransaction(state, tx, ticket);
+  return {
+    ok: true,
+    already: recovered,
+    recovered,
+    total: round2(ticket.total),
+    net: ticket.net == null ? undefined : round2(ticket.net),
+    tax: ticket.tax == null ? undefined : round2(ticket.tax),
+    cash: round2(ticket.cash),
+    lost: round2(ticket.lost || 0),
+    ticket,
+    customerVisitRecorded: tx.customerVisitRecorded,
+  };
+}
+
+function reservationTargetForTicket(target, ticketNumber) {
+  if (!target) return null;
+  return {
+    ...target,
+    expected: { ...(target.expected || {}) },
+    fields: {
+      ...(target.fields || {}),
+      checkInTransactionNumber: ticketNumber,
+    },
+    ...(target.paymentExpected ? { paymentExpected: { ...target.paymentExpected } } : {}),
+    ...(target.paymentFields ? { paymentFields: { ...target.paymentFields } } : {}),
+  };
+}
+
 export function completeServicePayment(state, tx, {
   type,
   referenceId,
@@ -1159,6 +1474,9 @@ export function completeServicePayment(state, tx, {
   expectedTotal,
   customer = 'A customer',
   details = {},
+  customerVisitEvent = null,
+  reservationTarget = null,
+  qaFaultAfterCoreCommit = null,
 } = {}) {
   if (
     !state
@@ -1184,6 +1502,9 @@ export function completeServicePayment(state, tx, {
 
   const service = tx.servicePayment;
   const amount = round2(Number(expectedTotal));
+  const settlementMinute = Number.isFinite(state.clock?.minutes)
+    ? Math.round(state.clock.minutes) : 0;
+  const settlementDay = Math.floor(settlementMinute / 1440);
   if (!Number.isFinite(amount) || amount < 0) {
     return { ok: false, reason: 'The service amount is invalid.' };
   }
@@ -1198,7 +1519,9 @@ export function completeServicePayment(state, tx, {
   if (round2(totalOf(tx)) !== amount || round2(dueOf(tx)) !== amount) {
     return { ok: false, reason: 'The paid amount no longer matches the service total.' };
   }
-  if (!Number.isFinite(tx.lost || 0)) {
+  if (!Number.isFinite(tx.lost || 0)
+      || round2(Number(tx.lost || 0)) < 0
+      || Math.round(round2(Number(tx.lost || 0)) * 100) > MAX_EXTRA_CHANGE_CENTS) {
     return { ok: false, reason: 'The cash variance is invalid.' };
   }
   if (tx.method === 'card' && tx.cardResult !== 'approved') {
@@ -1209,103 +1532,206 @@ export function completeServicePayment(state, tx, {
   }
 
   const history = Array.isArray(state.shop.transactionHistory) ? state.shop.transactionHistory : [];
-  if (history.some((entry) => entry
-    && entry.type === type
-    && entry.referenceId === referenceId)) {
+  const settlementId = `service:${type}:${referenceId}`;
+  const settlementMarker = checkoutSettlementMarker(settlementId);
+  const pending = pendingCheckout(state, settlementId);
+  if (pending) {
+    if (!ticketMatchesTransaction(pending.ticketDraft, tx, { total: amount, type, referenceId })) {
+      return {
+        ok: false,
+        conflict: true,
+        reason: t('checkout.integrityUnavailable'),
+        diagnostic: 'The pending service payment does not match this transaction.',
+      };
+    }
+    const resumed = reconcilePendingCheckout(state, settlementId, { qaFaultAfterCoreCommit });
+    if (!resumed.ok) return resumed;
+    if (resumed.pendingTail) {
+      return {
+        ok: false,
+        reason: t('checkout.integrityUnavailable'),
+        diagnostic: 'The service payment has a pending durable projection.',
+      };
+    }
+    const result = resultFromTicket(state, tx, resumed.ticket, { recovered: true });
+    appendShopLog(state, `${customer} paid ${amount.toFixed(2)} at check-in`);
+    return result;
+  }
+  const existingTicket = serviceTicketByReference(state, type, referenceId);
+  if (existingTicket) {
     return { ok: false, reason: 'That service payment is already banked.' };
   }
+  const retainedReceipt = state.shop.checkoutSettlementReceipts?.[settlementId] || null;
+  if (retainedReceipt) {
+    const retainedTicket = retainedReceipt.ticketSnapshot;
+    const exactReceipt = retainedReceipt.settlementId === settlementId
+      && retainedReceipt.ticketKey?.kind === 'service'
+      && retainedReceipt.ticketKey.type === type
+      && retainedReceipt.ticketKey.referenceId === referenceId
+      && retainedReceipt.transactionId === null
+      && ticketMatchesTransaction(retainedTicket, tx, { total: amount, type, referenceId });
+    if (!exactReceipt) {
+      return {
+        ok: false,
+        conflict: true,
+        reason: t('checkout.integrityUnavailable'),
+        diagnostic: 'The retained service settlement receipt conflicts with this payment.',
+      };
+    }
+    const preparedReceiptReplay = preparePendingCheckout(state, {
+      settlementId,
+      ticketNumber: retainedReceipt.ticketNumber,
+      ticketKey: JSON.parse(JSON.stringify(retainedReceipt.ticketKey)),
+      alternateTicketKeys: JSON.parse(JSON.stringify(
+        retainedReceipt.alternateTicketKeys || [],
+      )),
+      ticketDraft: JSON.parse(JSON.stringify(retainedTicket)),
+      inventory: null,
+      drawer: JSON.parse(JSON.stringify(retainedReceipt.drawer ?? null)),
+      postings: retainedReceipt.postings.map((posting) => ({
+        component: posting.component,
+        spec: JSON.parse(JSON.stringify(posting.spec)),
+      })),
+      projections: [],
+      outcomeSpec: null,
+      reservationTarget: JSON.parse(JSON.stringify(
+        retainedReceipt.reservationTarget ?? null,
+      )),
+    });
+    if (!preparedReceiptReplay.ok) return preparedReceiptReplay;
+    const replayedReceipt = reconcilePendingCheckout(state, settlementId, {
+      qaFaultAfterCoreCommit,
+    });
+    if (!replayedReceipt.ok) return replayedReceipt;
+    if (replayedReceipt.pendingTail) {
+      return {
+        ok: false,
+        pending: true,
+        reason: t('checkout.integrityUnavailable'),
+        diagnostic: 'The retained service settlement has a pending durable projection.',
+      };
+    }
+    const recoveredResult = resultFromTicket(
+      state,
+      tx,
+      replayedReceipt.ticket,
+      { recovered: true },
+    );
+    appendShopLog(state, `${customer} paid ${amount.toFixed(2)} at check-in`);
+    return recoveredResult;
+  }
+
+  // Older interrupted service flows could durably post the ledger row before
+  // they published a ticket/WAL. When that exact strict row exists, use its
+  // persisted settlement marker while reconstructing the durable outbox; a
+  // freshly-created marker would turn an otherwise exact replay into a false
+  // identity conflict.
+  const replayRevenueKey = serviceLedgerKey(type, referenceId, 'revenue');
+  const replayRevenueId = state.ledger?.processedIds?.[replayRevenueKey];
+  const replayRevenueRows = (Array.isArray(state.ledger?.entries) ? state.ledger.entries : [])
+    .filter((entry) => entry?.idempotencyKey === replayRevenueKey);
+  const replaySettlementMarker = replayRevenueRows.length === 1
+    && replayRevenueRows[0].id === replayRevenueId
+    && replayRevenueRows[0].metadata?.checkoutSettlement != null
+    ? replayRevenueRows[0].metadata.checkoutSettlement
+    : settlementMarker;
 
   // Every check above is side-effect free.  Drawer validation is also performed
   // against the transaction-local journal before the first persistent mutation.
   const drawerCommit = drawerCommitFor(state, tx);
   if (!drawerCommit.ok) return drawerCommit;
+  let preparedCustomerVisitEvent = null;
+  if (customerVisitEvent) {
+    const visitPreflight = preflightCustomerVisitEvent(state, customerVisitEvent);
+    if (!visitPreflight.ok) {
+      return {
+        ok: false,
+        reason: visitPreflight.reason || t('customer.historyUnavailable'),
+        diagnostic: visitPreflight.diagnostic || visitPreflight.reason,
+      };
+    }
+    if (visitPreflight.already) {
+      return {
+        ok: false,
+        reason: t('customer.historyUnavailable'),
+        diagnostic: 'Customer history event is already attached to a completed payment.',
+      };
+    }
+    const expectedVisitId = `service:${type}:${referenceId}:customer-visit`;
+    if (visitPreflight.event.id !== expectedVisitId
+        || (details.customerId && String(details.customerId) !== visitPreflight.event.customerId)) {
+      return {
+        ok: false,
+        reason: t('customer.historyUnavailable'),
+        diagnostic: 'Customer history event does not match this service ticket.',
+      };
+    }
+    preparedCustomerVisitEvent = visitPreflight.event;
+  }
 
   const postings = [];
   if (amount > 0) {
     const meta = {
+      strictIdentity: true,
       idempotencyKey: serviceLedgerKey(type, referenceId, 'revenue'),
       relatedId: referenceId,
       category: revenueKey,
       description: `Service payment - ${customer}`,
       source: 'service-payment',
       customerCount: 1,
-      metadata: { type, method: tx.method },
+      metadata: { type, method: tx.method, checkoutSettlement: replaySettlementMarker },
     };
-    postings.push({
-      component: 'revenue',
-      preflight: preflightLedgerEntry(state, {
-        ...meta,
-        direction: 'revenue',
-        lineKey: revenueKey,
-        amount,
-      }),
-      post: () => addRevenue(state, revenueKey, amount, meta),
-    });
+    postings.push({ component: 'revenue', spec: {
+      ...meta,
+      direction: 'revenue',
+      lineKey: revenueKey,
+      amount,
+      day: settlementDay,
+      timestamp: settlementMinute,
+    } });
   }
   if (tx.lost > 0) {
     const meta = {
+      strictIdentity: true,
       idempotencyKey: serviceLedgerKey(type, referenceId, 'cash-over-short'),
       relatedId: referenceId,
       source: 'service-payment',
-      metadata: { type, method: tx.method },
+      metadata: { type, method: tx.method, checkoutSettlement: replaySettlementMarker },
     };
-    postings.push({
-      component: 'cash-over-short',
-      preflight: preflightLedgerEntry(state, {
-        ...meta,
-        direction: 'expense',
-        lineKey: 'cashOverShort',
-        category: 'cashOverShort',
-        amount: tx.lost,
-      }),
-      post: () => addExpense(state, 'cashOverShort', tx.lost, meta),
-    });
-  } else if (tx.lost < 0) {
-    const meta = {
-      idempotencyKey: serviceLedgerKey(type, referenceId, 'cash-overage'),
-      relatedId: referenceId,
-      source: 'service-payment',
-      metadata: { type, method: tx.method },
-    };
-    postings.push({
-      component: 'cash-overage',
-      preflight: preflightLedgerEntry(state, {
-        ...meta,
-        direction: 'revenue',
-        lineKey: 'cashOverShort',
-        category: 'cashOverShort',
-        amount: -tx.lost,
-      }),
-      post: () => addRevenue(state, 'cashOverShort', -tx.lost, meta),
-    });
+    postings.push({ component: 'cash-over-short', spec: {
+      ...meta,
+      direction: 'expense',
+      lineKey: 'cashOverShort',
+      category: 'cashOverShort',
+      amount: tx.lost,
+      day: settlementDay,
+      timestamp: settlementMinute,
+    } });
   }
-  const failedPreflight = postings.find((posting) => !posting.preflight.ok);
-  if (failedPreflight) return failedPreflight.preflight;
-  const duplicateCount = postings.filter((posting) => posting.preflight.duplicate).length;
-  if (duplicateCount > 0 && duplicateCount !== postings.length) {
-    return { ok: false, reason: 'The service ledger checkpoint is incomplete.' };
-  }
-  const recovered = postings.length > 0 && duplicateCount === postings.length;
+  const preflights = postings.map((posting) => preflightLedgerEntry(state, posting.spec));
+  const failedPreflightIndex = preflights.findIndex((preflight) => !preflight.ok);
+  if (failedPreflightIndex >= 0) return preflights[failedPreflightIndex];
+  postings.forEach((posting, index) => {
+    posting.spec.idempotencyKey = preflights[index].idempotencyKey;
+  });
+  const recovered = preflights.some((preflight) => preflight.duplicate);
 
-  const greatestTicket = history.reduce(
-    (greatest, ticket) => Math.max(greatest, Number(ticket && ticket.number) || 0),
-    0,
-  );
-  const ticketNumber = Math.max(
-    1,
-    greatestTicket + 1,
-    Number(state.shop.nextTransactionNo) || 1,
-  );
+  const ticketPreflight = preflightTicketNumber(state, history);
+  if (!ticketPreflight.ok) return ticketPreflight;
+  const { ticketNumber } = ticketPreflight;
   const ticket = {
     type,
     referenceId,
     number: ticketNumber,
     customer,
-    customerId: details.customerId || null,
+    customerId: details.customerId || preparedCustomerVisitEvent?.customerId || null,
     method: tx.method,
     total: amount,
     cash: drawerCommit.cash,
     lost: tx.lost || 0,
+    tendered: tx.method === 'cash' ? Number(tx.tenderedTotal || 0) : null,
+    changeGiven: tx.method === 'cash' ? Number(tx.changeGiven ?? 0) : null,
+    extraChange: tx.method === 'cash' ? round2(Number(tx.lost || 0)) : null,
     revenueKey,
     items: tx.items.map((item) => ({
       uid: item.uid,
@@ -1314,97 +1740,293 @@ export function completeServicePayment(state, tx, {
       price: item.price,
     })),
     details: { ...details },
-    minute: state.clock ? state.clock.minutes : null,
-    ledgerEntryIds: Object.fromEntries(postings.map((posting) => [
+    minute: settlementMinute,
+    ledgerEntryIds: Object.fromEntries(postings.map((posting, index) => [
       posting.component,
-      posting.preflight.entry?.id || null,
+      preflights[index].entry?.id
+        || `le:${state.property?.id || `club-${state.seed}`}:${posting.spec.idempotencyKey}`,
     ])),
+    ledgerIdempotencyKeys: Object.fromEntries(postings.map((posting) => [
+      posting.component,
+      posting.spec.idempotencyKey,
+    ])),
+    ...(preparedCustomerVisitEvent ? {
+      customerVisitEvent: {
+        ...preparedCustomerVisitEvent,
+        outcomes: [...preparedCustomerVisitEvent.outcomes],
+        status: 'pending',
+      },
+      customerVisitRecorded: false,
+    } : {}),
   };
-
-  // A matching ledger checkpoint with no ticket is a crash-recovery replay: the
-  // persistent money and drawer were already committed, so rebuild provenance
-  // without moving either one twice. Fresh payments post every verified entry
-  // before replacing the persistent drawer or marking the transaction banked.
-  if (!recovered) {
-    for (const posting of postings) {
-      const posted = posting.post();
-      if (!posted.ok || posted.duplicate) {
-        return {
-          ok: false,
-          reason: posted.duplicate ? 'The service payment was already posted.' : posted.reason,
-        };
-      }
-      ticket.ledgerEntryIds[posting.component] = posted.entry?.id || null;
-    }
-    commitDrawer(state, drawerCommit.contents);
+  if (!checkoutPaymentContract(ticket)) {
+    return { ok: false, reason: t('checkout.integrityUnavailable'), diagnostic: 'The service cash payment does not match a completed register interaction.' };
   }
 
-  tx.banked = true;
-  tx.number = ticketNumber;
-  tx.stage = 'done';
-  tx.drawerStart = null;
-  tx.drawerPending = null;
-  state.shop.nextTransactionNo = ticketNumber + 1;
-  if (!Array.isArray(state.shop.transactionHistory)) state.shop.transactionHistory = history;
-  state.shop.transactionHistory.unshift(ticket);
-  if (state.shop.transactionHistory.length > 100) state.shop.transactionHistory.length = 100;
-
-  if (!Array.isArray(state.shop.log)) state.shop.log = [];
-  state.shop.log.unshift(`${customer} paid ${amount.toFixed(2)} at check-in`);
-  if (state.shop.log.length > 8) state.shop.log.pop();
-
-  return {
-    ok: true,
-    already: recovered,
-    recovered,
-    total: amount,
-    cash: drawerCommit.cash,
-    lost: tx.lost || 0,
-    ticket,
-  };
+  const prepared = preparePendingCheckout(state, {
+    settlementId,
+    ticketNumber,
+    ticketKey: { kind: 'service', type, referenceId },
+    ticketDraft: ticket,
+    inventory: null,
+    drawer: tx.method === 'cash' && drawerCommit.contents ? {
+      before: drawerCommit.before,
+      after: drawerCommit.contents,
+    } : null,
+    postings,
+    projections: [],
+    outcomeSpec: null,
+    reservationTarget: reservationTargetForTicket(reservationTarget, ticketNumber),
+  });
+  if (!prepared.ok) return prepared;
+  tx.commitPrepared = true;
+  const settled = reconcilePendingCheckout(state, settlementId, { qaFaultAfterCoreCommit });
+  if (!settled.ok) return settled;
+  if (settled.pendingTail) {
+    return {
+      ok: false,
+      reason: t('checkout.integrityUnavailable'),
+      diagnostic: 'The service payment has a pending durable projection.',
+    };
+  }
+  const result = resultFromTicket(state, tx, settled.ticket, {
+    recovered: recovered || prepared.already || settled.recovered,
+  });
+  appendShopLog(state, `${customer} paid ${amount.toFixed(2)} at check-in`);
+  return result;
 }
 
-export function completeSale(state, tx, who = 'A customer', { serviceCleared = false } = {}) {
+function appendShopLog(state, message) {
+  try {
+    if (!Array.isArray(state?.shop?.log)) state.shop.log = [];
+    if (state.shop.log[0] !== message) Array.prototype.unshift.call(state.shop.log, message);
+    if (state.shop.log.length > 8) state.shop.log.length = 8;
+    return { ok: true };
+  } catch (error) {
+    // This is flavor text, never a settlement authority. A hostile or broken
+    // array method must not turn a completed payment into an unpaid customer.
+    return { ok: false, reason: String(error?.message || error) };
+  }
+}
+
+export function completeSale(state, tx, who = 'A customer', {
+  serviceCleared = false,
+  customerVisitDayAbs = null,
+  customerVisitReservationId = null,
+  serviceDetails = null,
+  reservationTarget = null,
+  qaFaultAfterCoreCommit = null,
+} = {}) {
   if (!canComplete(tx)) return { ok: false, reason: 'The sale is not finished.' };
   if (tx.banked) return { ok: false, reason: 'Already banked.' };
+  if (!state?.shop || !state?.ledger || !Number.isFinite(state.cash)) {
+    return { ok: false, reason: 'The club books are not available.' };
+  }
+  if (!Number.isFinite(tx.lost || 0)
+      || round2(Number(tx.lost || 0)) < 0
+      || Math.round(round2(Number(tx.lost || 0)) * 100) > MAX_EXTRA_CHANGE_CENTS) {
+    return { ok: false, reason: 'The cash variance is invalid.' };
+  }
 
   const customerName = typeof who === 'object' && who
     ? (who.fullName || who.name || 'A customer')
     : who;
   const customerId = typeof who === 'object' && who ? (who.customerId || null) : null;
-
-  // Check every fallible invariant before touching stock, drawer, or books.
-  const drawerCommit = drawerCommitFor(state, tx);
-  if (!drawerCommit.ok) return drawerCommit;
-  const total = dueOf(tx);
+  const total = round2(dueOf(tx));
+  const saleTax = round2(taxOf(tx));
+  const serviceRevenue = round2(serviceSubtotal(tx));
+  const saleRevenue = round2(total - saleTax - serviceRevenue);
+  const goodsLines = goodsLinesOf(tx);
+  const serviceLines = serviceLinesOf(tx);
+  const serviceBooking = tx.servicePayment || null;
+  const settlementMinute = Number.isFinite(state.clock?.minutes)
+    ? Math.round(state.clock.minutes) : 0;
+  const settlementDay = Math.floor(settlementMinute / 1440);
   if (!Number.isFinite(total) || total <= 0) {
     return { ok: false, reason: 'The sale total must be positive and finite.' };
   }
-  // THE SHOP'S MONEY AND THE STATE'S MONEY ARE POSTED SEPARATELY.
-  //
-  // `total` is what the customer handed over; only `saleRevenue` is income. For a cash sale
-  // the ticket is rounded to the cent the drawer can actually make, and that rounding belongs
-  // to the goods line, not to the tax — the tax figure is the one printed on the receipt and
-  // owed to the state, so it is taken first and revenue is whatever is left.
-  //
-  // A ticket may also carry SERVICE lines — a tee time checked in at the same
-  // desk, on the same payment. That money is owed to a different revenue account,
-  // so it comes out here and is posted separately below. The cash rounding stays
-  // with the goods deliberately: a booked green fee is a number the reservation
-  // already agreed and re-asserts at check-in, so it must land on the books at
-  // exactly the figure that was booked, to the cent.
-  const saleTax = Math.round(taxOf(tx) * 100) / 100;
-  const serviceRevenue = Math.round(serviceSubtotal(tx) * 100) / 100;
-  const saleRevenue = Math.round((total - saleTax - serviceRevenue) * 100) / 100;
-  const goodsLines = goodsLinesOf(tx);
-  if (!(saleRevenue > 0)) {
+  if (!(saleRevenue > 0) || !goodsLines.length) {
     return { ok: false, reason: 'The goods total must be positive once tax is separated out.' };
   }
-  const saleKey = `checkout:${tx.id}:sale`;
-  const saleMeta = {
-    idempotencyKey: saleKey,
+  if (serviceLines.length > 0 && !serviceBooking) {
+    return { ok: false, reason: 'A service line has no booking to bank it against.' };
+  }
+  if (serviceBooking && serviceLines.length !== 1) {
+    return {
+      ok: false,
+      reason: t('checkout.integrityUnavailable'),
+      diagnostic: 'A service booking must have exactly one ticket line.',
+    };
+  }
+  if (serviceBooking && serviceLines.length === 0) {
+    return {
+      ok: false,
+      reason: t('checkout.integrityUnavailable'),
+      diagnostic: 'A service booking has no ticket line.',
+    };
+  }
+  if (serviceBooking && !serviceCleared) {
+    return { ok: false, reason: 'Finalize the tee time on this ticket through check-in.' };
+  }
+  if (serviceBooking && (
+    serviceBooking.revenueKey !== 'greenFees'
+    || round2(Number(serviceBooking.amount)) !== serviceRevenue
+  )) {
+    return { ok: false, reason: 'The service line no longer matches the booked amount.' };
+  }
+
+  const settlementId = `checkout:${String(tx.id)}`;
+  const settlementMarker = checkoutSettlementMarker(settlementId);
+  const expectedTicket = {
+    total,
+    net: saleRevenue,
+    tax: saleTax,
+    ...(serviceBooking ? {
+      type: serviceBooking.type,
+      referenceId: serviceBooking.referenceId,
+      serviceTotal: serviceRevenue,
+    } : {}),
+  };
+  const pending = pendingCheckout(state, settlementId);
+  if (pending) {
+    if (!ticketMatchesTransaction(pending.ticketDraft, tx, expectedTicket)) {
+      return {
+        ok: false,
+        conflict: true,
+        reason: t('checkout.integrityUnavailable'),
+        diagnostic: 'The pending sale does not match this transaction.',
+      };
+    }
+    const resumed = reconcilePendingCheckout(state, settlementId, { qaFaultAfterCoreCommit });
+    if (!resumed.ok) return resumed;
+    if (resumed.pendingTail) {
+      return {
+        ok: false,
+        pending: true,
+        reason: t('checkout.integrityUnavailable'),
+        diagnostic: 'The sale has a pending durable projection.',
+      };
+    }
+    const recovered = resultFromTicket(state, tx, resumed.ticket, { recovered: true });
+    appendShopLog(
+      state,
+      `${customerName} bought ${tx.items.map((item) => item.name).join(' + ')} at the counter (${Math.round(total)} dollars)`,
+    );
+    return recovered;
+  }
+
+  const existing = checkoutTicketByTransaction(state, String(tx.id));
+  if (existing) {
+    if (!ticketMatchesTransaction(existing, tx, expectedTicket)) {
+      return {
+        ok: false,
+        conflict: true,
+        reason: t('checkout.integrityUnavailable'),
+        diagnostic: 'That checkout identity belongs to a different ticket.',
+      };
+    }
+    // Only the WAL can prove that stock, books, sales/tax projections, outcome,
+    // and ticket crossed the same commit boundary. A history row alone is a
+    // derived projection and may be forged or torn from those authorities.
+    // Genuine interrupted work always retains its pending settlement until all
+    // tails complete; a row with no WAL is therefore a closed duplicate, never
+    // permission to mark a fresh transaction banked.
+    return {
+      ok: false,
+      already: true,
+      reason: t('checkout.integrityUnavailable'),
+      diagnostic: 'That sale is already banked; no pending settlement remains to recover.',
+    };
+  }
+  if (pendingCheckoutCount(state) > 0) {
+    return {
+      ok: false,
+      reason: t('checkout.integrityUnavailable'),
+      diagnostic: 'Resolve the pending register settlement before banking another sale.',
+    };
+  }
+  if (serviceBooking && serviceTicketByReference(
+    state,
+    serviceBooking.type,
+    serviceBooking.referenceId,
+  )) {
+    return { ok: false, reason: 'That service payment is already banked.' };
+  }
+
+  const drawerCommit = drawerCommitFor(state, tx);
+  if (!drawerCommit.ok) return drawerCommit;
+  const goodsListTotal = round2(goodsLines.reduce(
+    (sum, item) => sum + Number(item.price),
+    0,
+  ));
+  const discountAmount = round2(goodsListTotal - saleRevenue);
+  const pricing = {
+    goodsSubtotal: goodsListTotal,
+    discountAmount,
+    saleRevenue,
+    taxRate: Number(tx.taxRate) || 0,
+    tax: saleTax,
+    serviceTotal: serviceRevenue,
+    total,
+  };
+  const priceAuthority = bindCheckoutPriceAuthority(
+    state,
+    goodsLines,
+    String(tx.id),
+    pricing,
+  );
+  if (!priceAuthority.ok) return priceAuthority;
+  const inventoryPlan = prepareCheckoutInventory(
+    state,
+    goodsLines,
+    String(tx.id),
+    priceAuthority.authority,
+  );
+  if (!inventoryPlan.ok) return inventoryPlan;
+
+  let customerVisitEvent = null;
+  if (customerId) {
+    const visitPreflight = preflightCustomerVisitEvent(state, {
+      id: `checkout:${String(tx.id)}:customer-visit`,
+      customerId,
+      dayAbs: Number.isFinite(customerVisitDayAbs)
+        ? customerVisitDayAbs
+        : (Number.isFinite(state.clock?.minutes) ? Math.floor(state.clock.minutes / 1440) : null),
+      purpose: serviceBooking ? 'tee-time+retail' : 'retail',
+      outcomes: serviceBooking ? ['check-in', 'purchase'] : ['purchase'],
+      countsAsVisit: true,
+      paymentMethod: tx.method,
+      amount: total,
+      reservationId: customerVisitReservationId,
+    });
+    if (!visitPreflight.ok) {
+      return {
+        ok: false,
+        reason: visitPreflight.reason || t('customer.historyUnavailable'),
+        diagnostic: visitPreflight.diagnostic || visitPreflight.reason,
+      };
+    }
+    if (visitPreflight.already) {
+      return {
+        ok: false,
+        reason: t('customer.historyUnavailable'),
+        diagnostic: 'Customer history event is already attached to a completed sale.',
+      };
+    }
+    customerVisitEvent = visitPreflight.event;
+  }
+
+  const postings = [];
+  const saleSpec = {
+    strictIdentity: true,
+    idempotencyKey: `checkout:${tx.id}:sale`,
     relatedId: tx.id,
+    direction: 'revenue',
+    lineKey: 'shopSales',
     category: 'shopSales',
+    amount: saleRevenue,
+    day: settlementDay,
+    timestamp: settlementMinute,
     description: `Register sale - ${customerName}`,
     source: 'checkout',
     units: goodsLines.length,
@@ -1413,32 +2035,59 @@ export function completeSale(state, tx, who = 'A customer', { serviceCleared = f
       method: tx.method,
       itemIds: goodsLines.map((item) => item.uid),
       skuIds: goodsLines.map((item) => item.skuId),
+      tax: saleTax,
+      taxRate: Number(tx.taxRate) || 0,
+      ticketTotal: total,
     },
   };
-  const salePreflight = preflightLedgerEntry(state, {
-    ...saleMeta,
-    direction: 'revenue',
-    lineKey: 'shopSales',
-    amount: saleRevenue,
-  });
-  if (!salePreflight.ok) return salePreflight;
-  if (salePreflight.duplicate) {
-    tx.banked = true;
-    return { ok: false, reason: 'Already banked.', duplicate: true };
-  }
+  postings.push({ component: 'sale', spec: saleSpec });
 
-  const goodsCost = goodsLines.reduce((sum, item) => sum + (skuById(item.skuId)?.cost || 0), 0);
-  const cogsMeta = goodsCost > 0 ? {
-    idempotencyKey: `checkout:${tx.id}:cogs`,
-    relatedId: tx.id,
-    description: `Cost of goods - ${customerName}`,
-    source: 'checkout',
-    units: goodsLines.length,
-    metadata: { skuIds: goodsLines.map((item) => item.skuId) },
-  } : null;
-  if (cogsMeta) {
-    const cogsPreflight = preflightLedgerEntry(state, {
-      ...cogsMeta,
+  if (serviceBooking && serviceRevenue > 0) {
+    postings.push({ component: 'service', spec: {
+      strictIdentity: true,
+      idempotencyKey: serviceLedgerKey(serviceBooking.type, serviceBooking.referenceId, 'revenue'),
+      relatedId: serviceBooking.referenceId,
+      direction: 'revenue',
+      lineKey: serviceBooking.revenueKey,
+      category: serviceBooking.revenueKey,
+      amount: serviceRevenue,
+      day: settlementDay,
+      timestamp: settlementMinute,
+      description: `Service payment - ${customerName}`,
+      source: 'service-payment',
+      customerCount: 1,
+      metadata: { type: serviceBooking.type, method: tx.method, withGoods: true },
+    } });
+  }
+  if (saleTax > 0) {
+    postings.push({ component: 'sales-tax', spec: {
+      strictIdentity: true,
+      idempotencyKey: `checkout:${tx.id}:salestax`,
+      relatedId: tx.id,
+      direction: 'revenue',
+      lineKey: SALES_TAX_LINE,
+      category: SALES_TAX_LINE,
+      accountingClass: 'liability',
+      profitImpact: 0,
+      aggregate: null,
+      amount: saleTax,
+      day: settlementDay,
+      timestamp: settlementMinute,
+      description: `Sales tax collected - ${customerName}`,
+      source: 'checkout',
+      customerCount: 1,
+      metadata: { taxRate: Number(tx.taxRate) || 0, ticketTotal: total },
+    } });
+  }
+  const goodsCost = round2(goodsLines.reduce(
+    (sum, item) => sum + (skuById(item.skuId)?.cost || 0),
+    0,
+  ));
+  if (goodsCost > 0) {
+    postings.push({ component: 'cogs', spec: {
+      strictIdentity: true,
+      idempotencyKey: `checkout:${tx.id}:cogs`,
+      relatedId: tx.id,
       direction: 'expense',
       lineKey: 'costOfGoods',
       category: 'costOfGoods',
@@ -1446,215 +2095,73 @@ export function completeSale(state, tx, who = 'A customer', { serviceCleared = f
       cashImpact: 0,
       aggregate: null,
       amount: goodsCost,
-    });
-    if (!cogsPreflight.ok) return cogsPreflight;
-    if (cogsPreflight.duplicate) {
-      return { ok: false, reason: 'Cost of goods was already posted without this sale.', duplicate: true };
-    }
+      day: settlementDay,
+      timestamp: settlementMinute,
+      description: `Cost of goods - ${customerName}`,
+      source: 'checkout',
+      units: goodsLines.length,
+      metadata: { skuIds: goodsLines.map((item) => item.skuId) },
+    } });
   }
-
   const variance = tx.lost > 0 ? {
-    key: 'cash-over-short',
+    component: 'cash-over-short',
     direction: 'expense',
-    amount: tx.lost,
-  } : tx.lost < 0 ? {
-    key: 'cash-overage',
-    direction: 'revenue',
-    amount: -tx.lost,
-  } : null;
-  const varianceMeta = variance ? {
-    idempotencyKey: `checkout:${tx.id}:${variance.key}`,
-    relatedId: tx.id,
-    source: 'checkout',
+    amount: round2(tx.lost),
   } : null;
   if (variance) {
-    const variancePreflight = preflightLedgerEntry(state, {
-      ...varianceMeta,
+    postings.push({ component: variance.component, spec: {
+      strictIdentity: true,
+      idempotencyKey: `checkout:${tx.id}:${variance.component}`,
+      relatedId: tx.id,
       direction: variance.direction,
       lineKey: 'cashOverShort',
       category: 'cashOverShort',
       amount: variance.amount,
-    });
-    if (!variancePreflight.ok) return variancePreflight;
-    if (variancePreflight.duplicate) {
-      return { ok: false, reason: 'The drawer variance was already posted without this sale.', duplicate: true };
-    }
-  }
-
-  const taxKey = `checkout:${tx.id}:salestax`;
-  if (saleTax > 0) {
-    const taxPreflight = preflightSalesTaxAccrual(state, saleTax, {
-      idempotencyKey: taxKey, relatedId: tx.id,
-    });
-    if (!taxPreflight.ok) return taxPreflight;
-    if (taxPreflight.duplicate) {
-      return { ok: false, reason: 'The sales tax was already booked without this sale.', duplicate: true };
-    }
-  }
-
-  // A tee time has no shelf and no held unit. Only merchandise moves stock.
-  // THE SERVICE HALF OF A COMBINED TICKET, CHECKED BEFORE ANYTHING MOVES.
-  //
-  // It carries the SAME idempotency key the standalone check-in would have used,
-  // so a booking cannot be banked once through the merged door and again through
-  // the service door - the second one collides here, before stock or drawer move.
-  const serviceBooking = serviceRevenue > 0 && tx.servicePayment ? tx.servicePayment : null;
-  if (serviceRevenue > 0 && !serviceBooking) {
-    return { ok: false, reason: 'A service line has no booking to bank it against.' };
-  }
-  // A SERVICE LINE MAY ONLY BANK THROUGH THE DOOR THAT OWNS ITS BOOKING.
-  //
-  // completeSale can post to greenFees now, but it knows nothing about the
-  // reservation: not whether it is still booked, not whether the fee still reads
-  // the same, not how to flip it to played. Those checks and that transition live
-  // in finalizeReservationCheckIn, which sets this flag once it has done them.
-  // Without the flag a caller could bank the fee and leave the round un-checked-in
-  // — money taken for a tee time the sheet still shows as open, which then also
-  // attracts a no-show fee. Refusing here makes that state unreachable rather
-  // than merely unused.
-  if (serviceBooking && !serviceCleared) {
-    return { ok: false, reason: 'Finalize the tee time on this ticket through check-in.' };
-  }
-  let serviceMeta = null;
-  if (serviceBooking) {
-    if (serviceBooking.revenueKey !== 'greenFees') {
-      return { ok: false, reason: 'That service revenue line is not supported at this desk.' };
-    }
-    if (round2(Number(serviceBooking.amount)) !== serviceRevenue) {
-      return { ok: false, reason: 'The service line no longer matches the booked amount.' };
-    }
-    const history = Array.isArray(state.shop.transactionHistory) ? state.shop.transactionHistory : [];
-    if (history.some((entry) => entry
-      && entry.type === serviceBooking.type
-      && entry.referenceId === serviceBooking.referenceId)) {
-      return { ok: false, reason: 'That service payment is already banked.' };
-    }
-    serviceMeta = {
-      idempotencyKey: serviceLedgerKey(serviceBooking.type, serviceBooking.referenceId, 'revenue'),
-      relatedId: serviceBooking.referenceId,
-      category: serviceBooking.revenueKey,
-      description: `Service payment - ${customerName}`,
-      source: 'service-payment',
-      customerCount: 1,
-      metadata: { type: serviceBooking.type, method: tx.method, withGoods: true },
-    };
-    const servicePreflight = preflightLedgerEntry(state, {
-      ...serviceMeta,
-      direction: 'revenue',
-      lineKey: serviceBooking.revenueKey,
-      amount: serviceRevenue,
-    });
-    if (!servicePreflight.ok) return servicePreflight;
-    if (servicePreflight.duplicate) {
-      return { ok: false, reason: 'That service payment is already banked.', duplicate: true };
-    }
-  }
-
-  const consumed = consumeHeldBatch(state, goodsLines);
-  if (!consumed.ok) return consumed;
-  commitDrawer(state, drawerCommit.contents);
-
-  const bank = addRevenue(state, 'shopSales', saleRevenue, {
-    ...saleMeta,
-    metadata: { ...saleMeta.metadata, tax: saleTax, taxRate: Number(tx.taxRate) || 0, ticketTotal: total },
-  });
-  if (!bank.ok) return bank;
-  if (bank.duplicate) {
-    tx.banked = true;
-    return { ok: false, reason: 'Already banked.', duplicate: true };
-  }
-
-  if (serviceBooking) {
-    const bankedService = addRevenue(state, serviceBooking.revenueKey, serviceRevenue, serviceMeta);
-    if (!bankedService.ok || bankedService.duplicate) {
-      return {
-        ok: false,
-        reason: bankedService.duplicate ? 'That service payment is already banked.' : bankedService.reason,
-        duplicate: bankedService.duplicate || false,
-      };
-    }
-  }
-
-  if (saleTax > 0) {
-    accrueSalesTax(state, saleTax, {
-      idempotencyKey: taxKey,
-      relatedId: tx.id,
-      description: `Sales tax collected - ${customerName}`,
+      day: settlementDay,
+      timestamp: settlementMinute,
       source: 'checkout',
-      customerCount: 1,
-      taxableSales: saleRevenue,
-      metadata: { taxRate: Number(tx.taxRate) || 0, ticketTotal: total },
-    });
+    } });
   }
 
-  if (cogsMeta) {
-    const cogs = addCostOfGoods(state, goodsCost, cogsMeta);
-    if (!cogs.ok || cogs.duplicate) {
-      return { ok: false, reason: cogs.duplicate ? 'Cost of goods was already posted.' : cogs.reason };
-    }
+  for (const posting of postings) {
+    posting.spec.metadata = {
+      ...(posting.spec.metadata || {}),
+      checkoutSettlement: settlementMarker,
+    };
   }
 
-  // Keep the merchandise ticket intact, then book the drawer variance so the
-  // ledger cash reconciles with the physical till in both directions.
-  if (variance) {
-    const postedVariance = variance.direction === 'expense'
-      ? addExpense(state, 'cashOverShort', variance.amount, varianceMeta)
-      : addRevenue(state, 'cashOverShort', variance.amount, varianceMeta);
-    if (!postedVariance.ok || postedVariance.duplicate) {
-      return {
-        ok: false,
-        reason: postedVariance.duplicate ? 'The drawer variance was already posted.' : postedVariance.reason,
-      };
-    }
+  const postingPreflights = postings.map((posting) => preflightLedgerEntry(state, posting.spec));
+  const failedPostingIndex = postingPreflights.findIndex((preflight) => !preflight.ok);
+  if (failedPostingIndex >= 0) return postingPreflights[failedPostingIndex];
+  if (postingPreflights.some((preflight) => preflight.duplicate)) {
+    return {
+      ok: false,
+      duplicate: true,
+      reason: t('ledger.integrityUnavailable'),
+      diagnostic: 'A checkout ledger entry already exists without its settlement journal.',
+    };
   }
-
-  const live = liveSales(state);
-  // A tee time is not a unit sold off the shop floor.
-  live.units += goodsLines.length;
-  live.revenue = round2(live.revenue + saleRevenue); // the goods, not the state's cut
-
-  // The held batch was consumed before banking; now feed the same items into the
-  // per-SKU velocity tally used by Inventory and Analytics.
-  // GOODS ONLY. This feeds the per-SKU velocity window that Inventory and
-  // Analytics reorder from; a tee time has no shelf to reorder, and putting one
-  // in invents a SKU that nobody can ever stock.
-  for (const it of goodsLines) {
-    recordSale(state, it.skuId);
-  }
-  recordOutcome(state, {
-    idempotencyKey: `checkout:${tx.id}:completed`,
-    type: 'checkoutCompleted',
-    count: 1,
-    amount: total,
-    relatedId: tx.id,
-    reason: `Register checkout completed with ${goodsLines.length} item${goodsLines.length === 1 ? '' : 's'}.`,
-    metadata: {
-      units: goodsLines.length,
-      method: tx.method,
-      // the visit is one event; the split is recorded so the tail can tell them apart
-      ...(serviceBooking ? { serviceRevenue, serviceType: serviceBooking.type } : {}),
-    },
+  postings.forEach((posting, index) => {
+    posting.spec.idempotencyKey = postingPreflights[index].idempotencyKey;
   });
 
-  tx.banked = true;
-  tx.ledgerEntryId = bank.entry?.id || null;
-  tx.stage = 'done';
-  tx.drawerStart = null;
-  tx.drawerPending = null;
-
-  const names = tx.items.map((i) => i.name);
-  state.shop.log.unshift(`${customerName} bought ${names.join(' + ')} at the counter (${Math.round(total)} dollars)`);
-  if (state.shop.log.length > 8) state.shop.log.pop();
-
-  const history = state.shop.transactionHistory || (state.shop.transactionHistory = []);
-  const ticketNumber = Math.max(1, Number(tx.number || state.shop.nextTransactionNo || history.length + 1));
-  tx.number = ticketNumber;
-  state.shop.nextTransactionNo = Math.max(
-    Number(state.shop.nextTransactionNo || 1),
-    ticketNumber + 1,
-  );
-  history.unshift({
+  const history = Array.isArray(state.shop.transactionHistory) ? state.shop.transactionHistory : [];
+  const requestedNumber = Math.trunc(Number(tx.number));
+  const ticketPreflight = preflightTicketNumber(state, history, requestedNumber);
+  if (!ticketPreflight.ok) return ticketPreflight;
+  const { ticketNumber } = ticketPreflight;
+  const ledgerEntryIds = Object.fromEntries(postings.map((posting, index) => [
+    posting.component,
+    postingPreflights[index].entry?.id
+      || `le:${state.property?.id || `club-${state.seed}`}:${posting.spec.idempotencyKey}`,
+  ]));
+  const ledgerIdempotencyKeys = Object.fromEntries(postings.map((posting) => [
+    posting.component,
+    posting.spec.idempotencyKey,
+  ]));
+  const ticket = {
     number: ticketNumber,
+    transactionId: String(tx.id),
     customer: customerName,
     customerId,
     method: tx.method,
@@ -1662,6 +2169,10 @@ export function completeSale(state, tx, who = 'A customer', { serviceCleared = f
     net: saleRevenue,
     tax: saleTax,
     taxRate: Number(tx.taxRate) || 0,
+    pricing: {
+      version: 1,
+      ...pricing,
+    },
     cash: drawerCommit.cash,
     lost: tx.lost || 0,
     tendered: tx.method === 'cash' ? tx.tenderedTotal : null,
@@ -1669,25 +2180,135 @@ export function completeSale(state, tx, who = 'A customer', { serviceCleared = f
       ? (tx.changeGiven != null ? tx.changeGiven : changeDue(tx))
       : null,
     extraChange: tx.method === 'cash' ? round2(Math.max(0, tx.lost || 0)) : null,
-    items: tx.items.map((item) => ({ uid: item.uid, skuId: item.skuId, name: item.name, price: item.price })),
-    // A COMBINED TICKET LEAVES A SERVICE-TYPED TRAIL.
-    //
-    // Without these the row is just a sale: the exact-once guard above cannot
-    // match one merged ticket against another, serviceTicketByReference can never
-    // find a check-in that rode in with merchandise, and the fee is an unlabelled
-    // part of a larger total. `total` stays the whole visit; `serviceTotal` is the
-    // half that belongs to the booking.
+    items: tx.items.map((item) => ({
+      uid: item.uid,
+      skuId: item.skuId,
+      name: item.name,
+      price: item.price,
+    })),
+    ledgerEntryIds,
+    ledgerIdempotencyKeys,
     ...(serviceBooking ? {
       type: serviceBooking.type,
       referenceId: serviceBooking.referenceId,
       serviceTotal: serviceRevenue,
       serviceRevenueKey: serviceBooking.revenueKey,
+      details: { ...(serviceDetails || {}) },
     } : {}),
-    minute: state.clock ? state.clock.minutes : null,
-  });
-  if (history.length > 100) history.length = 100;
+    minute: settlementMinute,
+    ...(customerVisitEvent ? {
+      customerVisitEvent: {
+        ...customerVisitEvent,
+        outcomes: [...customerVisitEvent.outcomes],
+        status: 'pending',
+      },
+      customerVisitRecorded: false,
+    } : {}),
+  };
+  if (!checkoutPaymentContract(ticket)) {
+    return { ok: false, reason: t('checkout.integrityUnavailable'), diagnostic: 'The cash payment does not match a completed register interaction.' };
+  }
 
-  return { ok: true, total, net: saleRevenue, tax: saleTax, cash: drawerCommit.cash, lost: tx.lost };
+  const perSku = {};
+  for (const item of goodsLines) perSku[item.skuId] = (perSku[item.skuId] || 0) + 1;
+  const salesBefore = {
+    units: state.shop.salesLive?.units ?? 0,
+    revenue: state.shop.salesLive?.revenue ?? 0,
+    perSku: Object.fromEntries(Object.keys(perSku).map((skuId) => [
+      skuId,
+      state.shop.salesToday?.[skuId] ?? 0,
+    ])),
+  };
+  const salesAfter = {
+    units: salesBefore.units + goodsLines.length,
+    revenue: round2(salesBefore.revenue + saleRevenue),
+    perSku: Object.fromEntries(Object.entries(perSku).map(([skuId, quantity]) => [
+      skuId,
+      salesBefore.perSku[skuId] + quantity,
+    ])),
+  };
+  const projections = [{
+    id: `checkout:${tx.id}:sales-projection`,
+    kind: 'sales',
+    delta: { units: goodsLines.length, revenue: saleRevenue, perSku },
+    before: salesBefore,
+    after: salesAfter,
+  }];
+  if (saleTax > 0) {
+    ensureSalesTax(state);
+    const taxBefore = {
+      collected: state.salesTax.collected,
+      owed: state.salesTax.owed,
+      taxableSales: state.salesTax.taxableSales,
+    };
+    projections.push({
+      id: `checkout:${tx.id}:tax-projection`,
+      kind: 'tax',
+      delta: { collected: saleTax, owed: saleTax, taxableSales: saleRevenue },
+      before: taxBefore,
+      after: {
+        collected: round2(taxBefore.collected + saleTax),
+        owed: round2(taxBefore.owed + saleTax),
+        taxableSales: round2(taxBefore.taxableSales + saleRevenue),
+      },
+    });
+  }
+  const outcomeSpec = {
+    idempotencyKey: `checkout:${tx.id}:completed`,
+    type: 'checkoutCompleted',
+    count: 1,
+    amount: total,
+    day: settlementDay,
+    timestamp: settlementMinute,
+    relatedId: tx.id,
+    reason: `Register checkout completed with ${goodsLines.length} item${goodsLines.length === 1 ? '' : 's'}.`,
+    metadata: {
+      units: goodsLines.length,
+      method: tx.method,
+      ...(serviceBooking ? { serviceRevenue, serviceType: serviceBooking.type } : {}),
+    },
+  };
+  const prepared = preparePendingCheckout(state, {
+    settlementId,
+    ticketNumber,
+    ticketKey: { kind: 'transaction', transactionId: String(tx.id) },
+    alternateTicketKeys: serviceBooking ? [{
+      kind: 'service',
+      type: serviceBooking.type,
+      referenceId: serviceBooking.referenceId,
+    }] : [],
+    ticketDraft: ticket,
+    inventory: inventoryPlan.inventory,
+    drawer: tx.method === 'cash' ? {
+      before: drawerCommit.before,
+      after: drawerCommit.contents,
+    } : null,
+    postings,
+    projections,
+    outcomeSpec,
+    reservationTarget: reservationTargetForTicket(reservationTarget, ticketNumber),
+  });
+  if (!prepared.ok) return prepared;
+  priceAuthority.commit();
+  tx.commitPrepared = true;
+  const settled = reconcilePendingCheckout(state, settlementId, { qaFaultAfterCoreCommit });
+  if (!settled.ok) return settled;
+  if (settled.pendingTail) {
+    return {
+      ok: false,
+      pending: true,
+      reason: t('checkout.integrityUnavailable'),
+      diagnostic: 'The sale has a pending durable projection.',
+    };
+  }
+  const result = resultFromTicket(state, tx, settled.ticket, {
+    recovered: prepared.already || settled.recovered,
+  });
+  appendShopLog(
+    state,
+    `${customerName} bought ${tx.items.map((item) => item.name).join(' + ')} at the counter (${Math.round(total)} dollars)`,
+  );
+  return result;
 }
 
 // --- the scan volume ----------------------------------------------------------------

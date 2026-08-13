@@ -174,6 +174,50 @@ test('the live register watchdog covers bounded active states and excludes untim
   }
 });
 
+test('the live watchdog does not recover the intentional combined-visit desk wait', () => {
+  const source = fs.readFileSync(
+    new URL('../src/render3d/clubhouse/simplifiedRegisterMode.js', import.meta.url),
+    'utf8',
+  ).replaceAll('\r\n', '\n');
+  const start = source.indexOf('  function recoverCheckoutWatchdog(');
+  const end = source.indexOf('\n  function customerAnchor(', start);
+  assert.ok(start >= 0 && end > start);
+  const watchdog = source.slice(start, end);
+
+  assert.match(watchdog, /flow\.state === 'AllProductsScanned'/);
+  assert.match(watchdog, /deskErrandOutstanding\(\)/,
+    'an unanswered desk request is intentional player input, not a timed-out animation');
+  assert.match(watchdog,
+    /paymentAutoTimer > 0\s*&&\s*!paymentAutoSuppressed[\s\S]*tx\?\.stage === 'scanning'[\s\S]*unscannedCount\(tx\) === 0[\s\S]*!scanMotion/,
+    'only an eligible live automatic-payment countdown receives the post-answer grace');
+  assert.ok(
+    watchdog.indexOf('deskErrandOutstanding()')
+      < watchdog.indexOf('checkoutStateTimedOut(flow, nowMs)')
+      && watchdog.indexOf('paymentAutoTimer > 0')
+        < watchdog.indexOf('checkoutStateTimedOut(flow, nowMs)'),
+    'desk input and its post-answer handoff must short-circuit before recovery redraws the screen',
+  );
+});
+
+test('the live watchdog lets a progressing card presentation finish on a slow renderer', () => {
+  const source = fs.readFileSync(
+    new URL('../src/render3d/clubhouse/simplifiedRegisterMode.js', import.meta.url),
+    'utf8',
+  ).replaceAll('\r\n', '\n');
+  const start = source.indexOf('  function recoverCheckoutWatchdog(');
+  const end = source.indexOf('\n  function customerAnchor(', start);
+  assert.ok(start >= 0 && end > start);
+  const watchdog = source.slice(start, end);
+
+  assert.match(watchdog,
+    /flow\.state === 'CardPresented'[\s\S]*tx\?\.stage === 'card-present'[\s\S]*cardPresentationTimer > 0/,
+    'a positive owned animation timer is progress, even beyond a wall-clock deadline');
+  assert.ok(
+    watchdog.indexOf("flow.state === 'CardPresented'")
+      < watchdog.indexOf('checkoutStateTimedOut(flow, nowMs)'),
+    'the progressing presentation must short-circuit before timeout recovery');
+});
+
 test('an already-active cashier advances the next queued owner through cashier entry', () => {
   const source = fs.readFileSync(
     new URL('../src/render3d/clubhouse/simplifiedRegisterMode.js', import.meta.url),

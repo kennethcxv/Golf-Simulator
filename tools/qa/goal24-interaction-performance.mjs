@@ -31,6 +31,7 @@ import {
 } from './locked-performance-contract.mjs';
 import {
   analyzeGoal24ChromiumTrace,
+  parseGoal24TraceMarkName,
   validateGoal24TraceAttribution,
 } from './lib/goal24-trace-attribution.mjs';
 import {
@@ -2931,6 +2932,274 @@ function sha256File(file) {
   return { algorithm: 'sha256', sha256: digest.digest('hex'), bytes };
 }
 
+const TRACE_STREAM_CHUNK_BYTES = 4 * 1024 * 1024;
+const TRACE_STREAM_MAX_LINE_BYTES = 1024 * 1024;
+const TRACE_STREAM_MAX_ENVELOPE_BYTES = 16 * 1024 * 1024;
+
+function traceMarkFromEvent(event) {
+  return parseGoal24TraceMarkName(event?.name)
+    || parseGoal24TraceMarkName(event?.args?.data?.name)
+    || parseGoal24TraceMarkName(event?.args?.name);
+}
+
+function traceEventTouchesWindow(event, window) {
+  const startedAtUs = Number(event?.ts);
+  if (!Number.isFinite(startedAtUs)) return false;
+  const durationUs = Math.max(0, Number(event?.dur) || 0);
+  if (durationUs === 0) {
+    return startedAtUs >= window.startUs && startedAtUs <= window.endUs;
+  }
+  return Math.max(
+    0,
+    Math.min(startedAtUs + durationUs, window.endUs) - Math.max(startedAtUs, window.startUs),
+  ) > 0;
+}
+
+function traceWindowsFromMarks(marks, interactionIds) {
+  const sorted = [...marks].sort((left, right) => left.tsUs - right.tsUs);
+  const windows = [];
+  for (const id of interactionIds) {
+    const own = sorted.filter((mark) => mark.id === id);
+    const start = own.find((mark) => mark.phase === 'start');
+    const contractEnd = [...own].reverse().find((mark) => (
+      mark.phase === 'marker' && mark.label === 'post-outcome-render-boundary'
+    ));
+    const stopped = [...own].reverse().find((mark) => mark.phase === 'end');
+    const end = contractEnd || stopped;
+    if (start && end && end.tsUs >= start.tsUs) {
+      windows.push({ id, startUs: start.tsUs, endUs: end.tsUs });
+    }
+  }
+  return windows;
+}
+
+function scanBoundedTraceLines(file, label, onEvent) {
+  const descriptor = fs.openSync(file, 'r');
+  const chunk = Buffer.allocUnsafe(TRACE_STREAM_CHUNK_BYTES);
+  const digest = createHash('sha256');
+  const utf8 = new TextDecoder('utf-8', { fatal: true });
+  let carry = Buffer.alloc(0);
+  let bytes = 0;
+  let lineNumber = 0;
+  let eventCount = 0;
+  let state = 'header';
+  let envelope = null;
+  let envelopeTail = '';
+  let envelopeTailBytes = 0;
+
+  const fail = (message, cause = undefined) => {
+    throw new Error(`${label} is not valid JSON: ${message}`, cause ? { cause } : undefined);
+  };
+
+  const appendEnvelopeTail = (text) => {
+    envelopeTailBytes += Buffer.byteLength(text, 'utf8') + 1;
+    if (envelopeTailBytes > TRACE_STREAM_MAX_ENVELOPE_BYTES) {
+      fail(`the non-event envelope exceeds ${TRACE_STREAM_MAX_ENVELOPE_BYTES} bytes`);
+    }
+    envelopeTail += `${text}\n`;
+  };
+
+  const parseEvent = (source) => {
+    let event;
+    try {
+      event = JSON.parse(source);
+    } catch (error) {
+      fail(`trace event ${eventCount + 1} on line ${lineNumber}: ${error.message}`, error);
+    }
+    if (!event || typeof event !== 'object' || Array.isArray(event)) {
+      fail(`trace event ${eventCount + 1} on line ${lineNumber} is not an object`);
+    }
+    onEvent(event, eventCount);
+    eventCount += 1;
+  };
+
+  const acceptLine = (lineBuffer) => {
+    lineNumber += 1;
+    if (lineBuffer.length > TRACE_STREAM_MAX_LINE_BYTES) {
+      fail(`line ${lineNumber} exceeds the ${TRACE_STREAM_MAX_LINE_BYTES}-byte bound`);
+    }
+    let line;
+    try {
+      line = utf8.decode(lineBuffer);
+    } catch (error) {
+      fail(`line ${lineNumber} is not valid UTF-8`, error);
+    }
+    if (line.endsWith('\r')) line = line.slice(0, -1);
+    const trimmed = line.trim();
+    if (state === 'header') {
+      if (!trimmed) return;
+      if (/^\{\s*"traceEvents"\s*:\s*\[$/u.test(trimmed)) {
+        envelope = 'object';
+      } else if (trimmed === '[') {
+        envelope = 'array';
+      } else {
+        fail(`line ${lineNumber} does not contain the Chromium traceEvents envelope`);
+      }
+      state = 'events';
+      return;
+    }
+    if (state === 'tail') {
+      appendEnvelopeTail(line);
+      return;
+    }
+    if (state === 'done') {
+      if (trimmed) fail(`unexpected content after the top-level ${envelope}`);
+      return;
+    }
+    if (!trimmed) return;
+
+    if (envelope === 'object') {
+      const metadataAt = line.lastIndexOf('],"metadata":');
+      const bareEndAt = line.lastIndexOf(']}');
+      if (metadataAt >= 0) {
+        const eventSource = line.slice(0, metadataAt).trim();
+        if (eventSource) parseEvent(eventSource);
+        appendEnvelopeTail(line.slice(metadataAt + '],"metadata":'.length));
+        state = 'tail';
+        return;
+      }
+      if (bareEndAt >= 0 && line.slice(bareEndAt + 2).trim() === '') {
+        const eventSource = line.slice(0, bareEndAt).trim();
+        if (eventSource) parseEvent(eventSource);
+        state = 'done';
+        return;
+      }
+    } else {
+      const arrayEndAt = line.lastIndexOf(']');
+      if (arrayEndAt >= 0 && line.slice(arrayEndAt + 1).trim() === '') {
+        const eventSource = line.slice(0, arrayEndAt).trim();
+        if (eventSource) parseEvent(eventSource);
+        state = 'done';
+        return;
+      }
+    }
+
+    if (!trimmed.endsWith(',')) {
+      fail(`trace event ${eventCount + 1} on line ${lineNumber} lacks its array delimiter`);
+    }
+    const eventSource = trimmed.slice(0, -1).trim();
+    if (!eventSource) fail(`trace event ${eventCount + 1} on line ${lineNumber} is empty`);
+    parseEvent(eventSource);
+  };
+
+  try {
+    for (;;) {
+      const count = fs.readSync(descriptor, chunk, 0, chunk.length, null);
+      if (count === 0) break;
+      const bytesRead = chunk.subarray(0, count);
+      bytes += count;
+      digest.update(bytesRead);
+      const data = carry.length ? Buffer.concat([carry, bytesRead]) : bytesRead;
+      let offset = 0;
+      for (;;) {
+        const newline = data.indexOf(0x0a, offset);
+        if (newline < 0) break;
+        acceptLine(data.subarray(offset, newline));
+        offset = newline + 1;
+      }
+      carry = Buffer.from(data.subarray(offset));
+      if (carry.length > TRACE_STREAM_MAX_LINE_BYTES) {
+        fail(`line ${lineNumber + 1} exceeds the ${TRACE_STREAM_MAX_LINE_BYTES}-byte bound`);
+      }
+    }
+    if (carry.length) acceptLine(carry);
+  } finally {
+    fs.closeSync(descriptor);
+  }
+
+  if (state === 'header' || state === 'events') fail('the traceEvents array is unterminated');
+  if (state === 'tail') {
+    try {
+      const parsedTail = JSON.parse(`{"metadata":${envelopeTail}`);
+      if (!parsedTail.metadata || typeof parsedTail.metadata !== 'object'
+        || Array.isArray(parsedTail.metadata)) {
+        fail('the Chromium metadata envelope is not an object');
+      }
+    } catch (error) {
+      if (String(error?.message || '').startsWith(`${label} is not valid JSON:`)) throw error;
+      fail(`the Chromium metadata envelope is malformed: ${error.message}`, error);
+    }
+  }
+  return {
+    bytes,
+    sha256: digest.digest('hex'),
+    eventCount,
+    envelope,
+  };
+}
+
+export function readGoal24ChromiumTraceArtifact(file, options = {}) {
+  const label = options.label || 'Chromium trace artifact';
+  const interactionIds = [...new Set((options.interactionIds || []).map(String))];
+  const marks = [];
+  let hasExpectedCategory = false;
+  const firstPass = scanBoundedTraceLines(file, label, (event, traceEventOrdinal) => {
+    hasExpectedCategory ||= /renderer|devtools\.timeline|blink|v8|gpu/iu.test(
+      `${event?.cat || ''} ${event?.name || ''}`,
+    );
+    const parsed = traceMarkFromEvent(event);
+    const tsUs = Number(event?.ts);
+    if (parsed && Number.isFinite(tsUs)) {
+      marks.push({ ...parsed, tsUs, pid: event.pid, tid: event.tid, traceEventOrdinal });
+    }
+  });
+  required(firstPass.eventCount > 0, `${label} has no trace events.`);
+  required(hasExpectedCategory,
+    `${label} has no expected renderer/timeline/V8/GPU categories.`);
+
+  const windows = traceWindowsFromMarks(marks, interactionIds);
+  const traceEvents = [];
+  const sourceOrdinals = [];
+  const secondPass = scanBoundedTraceLines(file, label, (event, traceEventOrdinal) => {
+    const isThreadMetadata = event?.ph === 'M' && event?.name === 'thread_name';
+    const isGoal24Mark = traceMarkFromEvent(event) != null;
+    const touchesRequiredWindow = windows.some((window) => (
+      traceEventTouchesWindow(event, window)
+    ));
+    if (!isThreadMetadata && !isGoal24Mark && !touchesRequiredWindow) return;
+    traceEvents.push(event);
+    sourceOrdinals.push(traceEventOrdinal);
+  });
+  required(firstPass.bytes === secondPass.bytes && firstPass.sha256 === secondPass.sha256
+    && firstPass.eventCount === secondPass.eventCount,
+  `${label} changed between its bounded validation and attribution passes.`);
+  return {
+    traceDocument: { traceEvents },
+    sourceOrdinals,
+    source: {
+      algorithm: 'sha256',
+      bytes: firstPass.bytes,
+      sha256: firstPass.sha256,
+      traceEventCount: firstPass.eventCount,
+      retainedTraceEventCount: traceEvents.length,
+      envelope: firstPass.envelope,
+      parser: 'bounded-two-pass-chromium-json-lines-v1',
+    },
+  };
+}
+
+function restoreTraceSourceOrdinals(traceAttribution, sourceOrdinals) {
+  const visited = new Set();
+  const restore = (evidence) => {
+    if (!evidence || typeof evidence !== 'object' || visited.has(evidence)) return;
+    visited.add(evidence);
+    if (Number.isInteger(evidence.traceEventOrdinal)) {
+      const sourceOrdinal = sourceOrdinals[evidence.traceEventOrdinal];
+      required(Number.isInteger(sourceOrdinal),
+        'Trace attribution references an event outside its retained streaming projection.');
+      evidence.traceEventOrdinal = sourceOrdinal;
+    }
+  };
+  for (const interaction of traceAttribution.interactions || []) {
+    restore(interaction.longestMainThreadTask);
+    restore(interaction.causalScan?.maximumOverlappingEvent);
+    restore(interaction.causalScan?.unclassifiedFallbackEvidence);
+    for (const candidate of interaction.causalCandidates || []) restore(candidate);
+    restore(interaction.strongestCausalEvidence);
+    restore(interaction.attribution?.evidence);
+  }
+}
+
 function artifactIntegrity(file, allowedRoot, label) {
   const canonical = assertRegularArtifactFile(file, allowedRoot, label);
   return { path: slash(canonical), ...sha256File(canonical) };
@@ -3827,27 +4096,25 @@ export function executeRun(run, context = {}) {
   if (run.leg === 'trace' || run.leg === 'overlay') validateDiagnosticInteractionRun(raw, run);
   const matrix = run.leg === 'matrix' ? validateMatrixRun(raw, fileEnvelope, run) : null;
   let traceAttribution = null;
+  let traceSourceValidation = null;
   if (run.instrumentation === 'cdp-trace') {
     const actualTrace = fileEnvelope.runner.instrumentation.chromiumTrace?.path;
     required(canonicalFilesystemPath(actualTrace) === canonicalFilesystemPath(tracePath),
       `${run.id}: runner trace path differs from the current leg.`);
     assertRegularArtifactFile(tracePath, legDir, `${run.id} trace artifact`);
     required(fs.statSync(tracePath).size > 0, `${run.id}: trace artifact is empty on disk.`);
-    let traceDocument;
-    try { traceDocument = JSON.parse(fs.readFileSync(tracePath, 'utf8')); } catch (error) {
-      throw new Error(`${run.id}: trace artifact is not valid JSON: ${error.message}`, { cause: error });
-    }
-    const traceEvents = Array.isArray(traceDocument)
-      ? traceDocument : traceDocument?.traceEvents;
-    required(Array.isArray(traceEvents) && traceEvents.length > 0,
-      `${run.id}: trace artifact has no trace events.`);
-    required(traceEvents.some((event) => /renderer|devtools\.timeline|blink|v8|gpu/iu.test(
-      `${event?.cat || ''} ${event?.name || ''}`,
-    )), `${run.id}: trace has no expected renderer/timeline/V8/GPU categories.`);
     const requiredInteractionIds = goal24RequiredTraceInteractionIds(raw);
-    traceAttribution = analyzeGoal24ChromiumTrace(traceDocument, {
+    const streamedTrace = readGoal24ChromiumTraceArtifact(tracePath, {
+      label: `${run.id}: trace artifact`,
       interactionIds: requiredInteractionIds,
     });
+    traceSourceValidation = streamedTrace.source;
+    traceAttribution = analyzeGoal24ChromiumTrace(streamedTrace.traceDocument, {
+      interactionIds: requiredInteractionIds,
+    });
+    restoreTraceSourceOrdinals(traceAttribution, streamedTrace.sourceOrdinals);
+    traceAttribution.traceEventCount = streamedTrace.source.traceEventCount;
+    traceAttribution.sourceArtifact = streamedTrace.source;
     const traceValidation = validateGoal24TraceAttribution(traceAttribution, {
       requiredInteractionIds,
     });
@@ -3975,6 +4242,14 @@ export function executeRun(run, context = {}) {
     videoDecodeInputPath: videoPath ? slash(videoDecodeInputPath) : null,
     videoValidationPath: videoPath ? slash(videoValidationPath) : null,
   });
+  const sealedChromiumTrace = run.instrumentation === 'cdp-trace'
+    ? artifactIntegrity(tracePath, sessionDir, `${run.id} sealed Chromium trace`)
+    : null;
+  if (sealedChromiumTrace) {
+    required(sealedChromiumTrace.bytes === traceSourceValidation?.bytes
+      && sealedChromiumTrace.sha256 === traceSourceValidation?.sha256,
+    `${run.id}: Chromium trace changed after bounded validation and attribution.`);
+  }
   const artifacts = {
     raw: artifactIntegrity(resultPath, sessionDir, `${run.id} sealed raw result`),
     runnerEnvelope: artifactIntegrity(resultEnvelopePath, sessionDir, `${run.id} sealed runner envelope`),
@@ -3984,7 +4259,7 @@ export function executeRun(run, context = {}) {
     validated: artifactIntegrity(validatedPath, sessionDir, `${run.id} sealed validation`),
     ...(run.instrumentation === 'cdp-trace'
       ? {
-        chromiumTrace: artifactIntegrity(tracePath, sessionDir, `${run.id} sealed Chromium trace`),
+        chromiumTrace: sealedChromiumTrace,
         traceAttribution: artifactIntegrity(
           traceAttributionPath,
           sessionDir,

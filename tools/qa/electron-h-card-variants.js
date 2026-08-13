@@ -17,6 +17,7 @@
 async (page) => {
   const fs = process.getBuiltinModule('node:fs');
   const path = process.getBuiltinModule('node:path');
+  const crypto = process.getBuiltinModule('node:crypto');
   const OUT = path.resolve('qa/electron/h-card-variants');
   fs.mkdirSync(OUT, { recursive: true });
   const out = { errs: [], candidates: [] };
@@ -59,11 +60,13 @@ async (page) => {
       continue;
     }
     const file = `card-${out.candidates.length + 1}-${card.id}.png`;
-    fs.writeFileSync(path.join(OUT, file), Buffer.from(dataUrl.url.split(',')[1], 'base64'));
+    const bytes = Buffer.from(dataUrl.url.split(',')[1], 'base64');
+    fs.writeFileSync(path.join(OUT, file), bytes);
     out.candidates.push({
       n: out.candidates.length + 1,
       ...card,
       file,
+      sha256: crypto.createHash('sha256').update(bytes).digest('hex'),
       caption: `${card.network}  ·  ${card.issuer || 'the club'}`,
       ok: true,
     });
@@ -74,7 +77,7 @@ async (page) => {
   out.checks = {
     atLeastFourPainted: painted.length >= 4,
     // the control: four different NAMES on one picture is the old fault
-    allDistinct: new Set(painted.map((c) => c.file)).size === painted.length,
+    allDistinct: new Set(painted.map((c) => c.sha256)).size === painted.length,
     noPageErrors: out.errs.length === 0,
   };
   out.ok = Object.values(out.checks).every(Boolean);

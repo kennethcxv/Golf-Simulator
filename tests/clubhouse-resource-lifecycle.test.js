@@ -366,6 +366,13 @@ test('makeClubhouse teardown releases receiving resources once and leaves loader
     assert.equal(first.merchandise.prototypeGeometries, 1);
     assert.equal(first.merchandise.prototypeMaterials, 1);
     assert.equal(first.merchandise.prototypeTextures, 1);
+    assert.equal(first.register.cardTextures.disposedTextures, 6,
+      'every finite customer-card canvas is released by the register cache owner');
+    assert.equal(first.register.cardTextures.entries, 0);
+    assert.equal(first.register.cardTextures.alreadyDisposed, false);
+    assert.equal(first.register.paymentPrewarm.released, true);
+    assert.equal(first.register.paymentPrewarm.aborted, true,
+      'teardown before the opaque draw uses the explicit abort cleanup path');
     assert.deepEqual(borrowedDisposals, { geometry: 1, material: 1, texture: 1 },
       'borrowed clone resources bypass procedural teardown and are released once by createMerch');
     assert.deepEqual(modernDisposals, { geometry: 1, material: 1, texture: 1 },
