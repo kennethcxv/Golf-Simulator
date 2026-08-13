@@ -2238,7 +2238,15 @@ export function createRegisterMode(B) {
   // size, and only then, already behind the paper, stops being drawn.
   //
   // Nothing pops, nothing shrinks, and no body has to fit. Any size, any shape,
-  // always clean. The bag reads as full through `bagFill`, below.
+  // always clean.
+  //
+  // This comment used to end "the bag reads as full through `bagFill`, below."
+  // It does not: `bagFill` was deleted in Goal 24 because the owner could see the
+  // block through the mouth, and nothing replaced it — a bag with goods in it
+  // reads as full because the goods are IN it, which is the whole point of the
+  // two-leg motion above. The stale half-sentence survived the deletion and would
+  // send the next reader hunting for a fill that no longer exists.
+  // `tests/bag-drop-nothing-shrinks.test.js` holds the removal.
   function packMeshIntoBag(mesh, { scale = null } = {}) {
     if (!bagGroup || !mesh) return;
     bagGroup.add(mesh);

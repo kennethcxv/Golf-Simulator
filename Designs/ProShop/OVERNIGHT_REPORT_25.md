@@ -1042,3 +1042,21 @@ goods retained on refusal, laptop clear-counter voiding) — several already
 evidenced under Phase 1 and Goal 24, but not re-swept together. Verifiers 1 and 2
 are clip work and remain undone.
 
+
+## 8.1 runtime half — the bag, swept and standing
+
+`bagFill` still matched twice in `simplifiedRegisterMode.js`, which for a moment
+looked like Goal 24 item A being found false against my own report. It is not:
+**both hits are comments**, the code is gone, and
+`tests/bag-drop-nothing-shrinks.test.js:238` asserts the source cannot match
+`/refreshBagFill|bagFill|CheckoutBagFill/` — a standing guard, 8/8 green.
+
+But one of the two comments was **stale and actively misleading**: it ended
+*"the bag reads as full through `bagFill`, below."* It does not, and has not since
+Goal 24. A reader trusting it would go hunting for a fill that no longer exists,
+or worse, rebuild one — which is exactly how the deleted thing came back the first
+time. Replaced with what is actually true: a bag with goods in it reads as full
+because the goods are IN it, which is what the two-leg drop motion is for.
+
+Grep is not a defect detector, but a grep that contradicts a shipped item is
+worth two minutes, and this one paid.
