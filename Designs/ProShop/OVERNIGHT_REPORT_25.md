@@ -968,3 +968,39 @@ driver settles it:** `c.mesh.parent === ch.interior`. Until that is answered, 2.
 is NOT DONE and its previous verdict should be treated as withdrawn, not as a
 passing check.
 
+---
+
+# WHAT I DID NOT BUILD, AND THE HEAD START ON EACH
+
+Not started: 3.3, 3.4, 3.5, 4.2, 4.3, 4.4, 5, 6.1, 8.
+
+## 3.3 hover outline — the mechanism already exists, do not write a new one
+
+`setGrabOutline(mesh)` in `src/render3d/clubhouse/simplifiedRegisterMode.js:10415`
+is a working outline-shell implementation with a debug accessor
+(`debugCardGrabOutline`) that already reports `shellCount` and `shellOwnerSpans`.
+It is module-private. The job is to lift it into a shared helper and call it from
+the ledger's hover path, **not** to invent a second outline system.
+
+That accessor is also the ready-made instrument: it makes "the outline is on the
+right object" a footprint number rather than an opinion, which is what caught the
+chip-framing build.
+
+## Why I stopped instead of writing 3.3, 3.4, 4.2 and 5 blind
+
+Every one of these is **visual or moving**. This project's first law is that a
+visual claim needs a screenshot at the default camera and anything that moves
+needs a clip with the frames *viewed* — because four sessions running have
+shipped things that passed their own numeric checks and failed in the owner's
+hands.
+
+I no longer have the context budget to extract and look at frames. Writing these
+features and reporting them on the strength of a number I did not look at is the
+exact production process that fills `FOUND_FALSE.md`. Unverified code that
+*looks* like progress is worse than an honest gap: the gap costs an hour to fill,
+the false DONE costs a session to discover.
+
+**Phase 5 specifically must not be half-done.** Abandoning it partway leaves
+unattributed third-party audio in a repository headed for a Steam page. It is
+start-to-finish work or it is not started, and I am leaving it not started.
+
