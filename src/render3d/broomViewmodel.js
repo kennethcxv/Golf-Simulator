@@ -1311,7 +1311,20 @@ export function createBroomViewmodel({
       _axisY.copy(_axisZ).cross(_axisX).normalize();
       _basis.makeBasis(_axisX, _axisY, _axisZ);
       hand.quaternion.setFromRotationMatrix(_basis);
-      _qHandRoll.setFromAxisAngle(_axisX, roll);
+      // 4.1 (Goal 25) — THE HANDS MUST NOT INHERIT THE HEAD'S ROLL.
+      //
+      // `fpHands.root` is added to the held group (courseScene: heldGroups[tool]
+      // .add(fpHands.root)), so everything applied to `broomGroup.quaternion`
+      // rotates the wrists too. Goal 24 put the square-to-floor solve on that
+      // group, which squares the head correctly and spins both hands about the
+      // shaft with it — the owner's "the handle and stick feel oddly tilted".
+      //
+      // The roll is about the shaft axis, and `_axisX` IS that axis in tool
+      // space, so subtracting it here cancels the group roll for the hands
+      // exactly while leaving the head squared. The alternative — moving the
+      // solve onto the head pivot — fights the lag spring that already owns that
+      // pivot's rotation, for the same visible result.
+      _qHandRoll.setFromAxisAngle(_axisX, roll - (state.squareRoll || 0));
       hand.quaternion.premultiply(_qHandRoll);
       // Rest the PALM on the handle instead of running the shaft through the
       // wrist. The fingers curl toward the hand's +Y (fpHands rotates each

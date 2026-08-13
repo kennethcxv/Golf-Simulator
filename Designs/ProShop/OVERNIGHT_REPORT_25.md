@@ -765,3 +765,49 @@ It completes. What makes it look stuck is that **the queue head is desk business
 waiting for the player**, and that **banking waits on the bag being dragged to
 the customer's palm**. Neither is a code defect; both are legibility, and a
 stranger found both in one run.
+---
+
+# PHASE 4 — TOOLS
+
+## 4.1 The broom head — **head DONE, shaft/hands NOT PROVEN**
+
+### The head is square and stays square
+
+Re-verified this session, five poses, principal-axis fit over the vertices that
+actually draw:
+
+```
+carry-level 0.03   looking-down 0.04   turned-left 1.61
+turned-right 0.02  looking-up 0.06     squareInEveryPose: true
+```
+
+The Goal 24 solve holds. There is no thirteen-candidate value to bake — the
+sheet's own 0° tile IS the shipped constant, and a constant is square in at most
+one shaft direction.
+
+### The hands did inherit the roll, and no longer do
+
+`courseScene.js` does `heldGroups[tool].add(fpHands.root)`, so everything applied
+to `broomGroup.quaternion` — including the square-to-floor solve — rotates both
+wrists with it. That is real and the brief called it: *"the hands must not
+inherit the roll"*. `seat()` now subtracts `state.squareRoll` about the shaft
+axis, which cancels the group roll for the hands exactly while leaving the head
+squared. Head verified unchanged after the change (numbers above).
+
+Moving the solve onto the head pivot was the other option and is worse: that
+pivot's rotation is already owned by the lag spring, for the same visible result.
+
+### But I could not photograph a difference, so I am not claiming the feel fix
+
+Before/after crops at three poses are **near-identical to the eye**. The change is
+correct in principle and the head is unaffected, but the brief's bar is a viewed
+photograph and I do not have one that shows the improvement.
+
+**And there is an analytical reason to doubt the premise.** The solve rolls about
+`_dir` — the shaft's **own axis**. A rotation about a line cannot move that line.
+**The shaft direction is mathematically unchanged by this solve**, so "the handle
+and stick feel oddly tilted" cannot be caused by it. Whoever picks this up next
+should look at the grip pose, the viewmodel offset, or the head's visual mass
+shifting the perception — not at `squareRoll`. That saves the fourth round of
+chasing the wrong term.
+
