@@ -811,3 +811,35 @@ should look at the grip pose, the viewmodel offset, or the head's visual mass
 shifting the perception — not at `squareRoll`. That saves the fourth round of
 chasing the wrong term.
 
+---
+
+# PHASE 7 — GLOBAL ESCAPE (baseline measured, router NOT written)
+
+Measured before building, because half the states may already be right — and
+they are. Real Escape presses, then the only question that matters: **can the
+player move and look afterwards?**
+
+| state | Escape did | player after |
+|---|---|---|
+| walking | raised the **pause menu**, released pointer lock | paused — **correct** |
+| **ledger open** | **closed the book, kept pointer lock** | **move 2.25, look 0.31 — fully recovered** |
+| laptop open (ledger also open) | closed the **ledger**, left the laptop | still in the laptop — one layer unwound |
+
+**Escape from the ledger is already correct** and needs nothing: it closes the
+book, keeps pointer lock, and hands movement and look straight back.
+
+### The real finding: two exclusive modes were open at once
+
+The laptop row shows `ledgerOpen: true` **and** `laptopOpen: true` before the
+press. `enterLedger()` refuses to open while the laptop is up — but **nothing
+stops the laptop opening while the ledger owns input**. The guard is one-way, so
+the pair can stack, and Escape then has to unwind two layers that should never
+have coexisted. That is the concrete thing a Phase 7 router should fix first, and
+it is cheaper than the router: make the guard symmetric.
+
+**Probe lie #11, mine.** The first verdict scored the walking row as *"did not
+recover"* because the player could not move — while a **pause menu** was on
+screen, which is exactly what the brief says Escape should do with nothing open.
+It would have reported the pause menu as an Escape bug. Recovery now means
+walking again **or** a menu the player can resume from.
+
