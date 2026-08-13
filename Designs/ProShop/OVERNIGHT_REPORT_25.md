@@ -1129,3 +1129,23 @@ it is a small structural one with a single aesthetic judgement at the end.
 3.4 says it in words: *"Film it, extract the frames, look at them."* That is not a
 clause I can satisfy without viewing frames. 3.5 requires recovering the Goal 23
 I3 requirements from the repo before anything can be verified against them.
+
+### 3.3's check exists and has been watched failing
+
+`tools/qa/electron-p3-ledger-outline.js`, run tonight on the unfixed build:
+
+```
+verdict: "NOT BUILT — ch.debugLedgerOutline() does not exist"
+```
+
+golf-qa's rule is that every fix gets a check watched failing on the unfixed
+build. Writing it *after* the feature is how a check ends up asserting the bug,
+so 3.3's check is written first and its red is on the record.
+
+It reports "not built" as a **distinct outcome** from "built badly". An instrument
+that cannot tell those apart is useless for deciding what to do next — and every
+probe-lie I caught this session was a variant of that same confusion.
+
+The sixth clause — *tasteful, comparable to the money highlight* — is deliberately
+**not scored**. A driver that pretended to judge taste would be the more dangerous
+kind of green.
