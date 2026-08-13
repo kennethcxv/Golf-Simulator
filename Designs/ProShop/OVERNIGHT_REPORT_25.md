@@ -330,3 +330,45 @@ checkout flow is `CustomerLeaving`. The driver now records all three side by
 side, because "the sale will not complete" is a symptom with no address until
 those three are visible together.
 
+---
+
+## PHASE 0 GATE — the golden suite is RED, and it is diagnosed, not accepted
+
+`npm run golden`: **12 of 12 captured poses FAIL.**
+
+| pose | diff | budget |
+|---|---|---|
+| shop-floor | **23.45%** | 0.25 |
+| stockroom-wall | 0.26% | 0.25 |
+| every tool pose | **6.2 – 7.3%** | 0.75 |
+| bag-packed | NOT CAPTURED — "only 1 goods packed" | — |
+
+**It is not FOUND_FALSE shape 9 recurring.** That was my first suspicion, because
+shape 9 is exactly this silhouette — many poses, one machine, nothing in the
+repository. The capture manifest rules it out by recording the very things shape
+9 taught us to record:
+
+```
+seed 1035912314   interiorY -0.45135   walkFov 66   dpr 1.5
+```
+
+Every one matches the pinned values, and the FOV is the shipped 66 rather than
+the 60 that cost this project a week. **The world is pinned and the picture still
+changed.**
+
+**Looking at the pixels says what the numbers cannot.** Golden `shop-floor` is a
+close-up of a pale panel and a green wall. Current `shop-floor` is a wide view
+down the room — windows, daylight, a counter in the middle distance. Same pose
+name, and something large that used to stand in front of the lens is no longer
+there. Uniform ~7% on every tool pose fits the same cause: those are tool
+close-ups, so a changed room moves a smaller fraction of their pixels.
+
+The likely cause is the world's starting **content/restoration state** changing
+under the Goal 24 door and campaign work — `campaign.js`, `propPlacement.js`,
+`fixtures.js`, `shedInterior.js`, and the campaign snapshot handoff all moved in
+that range. A bisect against `b914151` (the last commit before those fifteen) is
+running to turn "something in this range" into "this range".
+
+**Not rebaselined.** The brief forbids making a red row green without diagnosing
+it, and a 23% whole-scene change is precisely what this gate exists to catch.
+
