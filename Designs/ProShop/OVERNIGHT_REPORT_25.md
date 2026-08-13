@@ -618,3 +618,37 @@ standing at a fixture *browsing* — distance to target near zero and no longer
 improving. Dwell is not a stall. Measuring no-progress only while genuinely en
 route (more than two yards out) turns 37.3 s into 3.0 s.
 
+
+## 2.3 No early or through-body handoff — **NOT DONE**, and the instrument is why
+
+Goal 24 left this with a stated limitation: `placeMotion` is only cleared when a
+product LANDS, so a placement held back by the corridor gate left the last motion
+attached and a **stationary** product read as in-flight. It scored identically on
+the fixed and broken builds.
+
+**That limitation is now fixed.** The sampler measures whether the product
+actually MOVED since the previous sample, so the driver produces the three-way
+verdict the brief demands:
+
+```
+FROZEN — a product was attached to a hand and never moved
+EARLY THROUGH-BODY FLIGHT — a moving product crossed somebody
+CORRECTLY DELAYED — products moved, and none crossed a body
+```
+
+Measured: `flightSamples: 41`, `frozenSamples: 0`. So products genuinely move —
+**the handoff is not frozen**, which was the open question and is now answered.
+
+**But its "through body" verdict cannot be trusted yet, and I am not claiming the
+defect.** The corridor test reports the closest approach at `corridorDist 0.026`
+with `itemY` of **1.45** in one run and **2.82** in the next. The interior floor
+sits near −0.45, so 2.82 puts a product being handed across a counter more than
+three yards in the air. Adding a body-height band (base to base + 1.9 yd) did not
+exclude it, which means the geometry itself is wrong — most likely the item's
+`matrixWorld` is not in the frame the body positions are in.
+
+A measurement that produces an implausible height cannot be used to declare a
+gameplay defect. **Phase 2.3 is NOT DONE**, the remaining work is to establish
+what frame the flying product's transform is actually in, and the honest status
+is: *not frozen, crossing unproven.*
+

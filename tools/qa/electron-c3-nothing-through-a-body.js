@@ -106,6 +106,7 @@ async (page) => {
     window.__c3 = {
       samples: 0, flightSamples: 0, minItemToBody: Infinity, minBodyToBody: Infinity,
       worst: null, placedWhileBackOfTheLine: 0, bothQueuedSamples: 0,
+      frozenSamples: 0, lastItemPos: {},
     };
     const names = [a, b];
     window.__c3iv = setInterval(() => {
@@ -135,6 +136,20 @@ async (page) => {
         mesh.updateWorldMatrix(true, false);
         const e = mesh.matrixWorld.elements;
         const item = { x: e[12], y: e[13], z: e[14] };
+        // IS IT ACTUALLY FLYING? `placeMotion` is only cleared when a product
+        // LANDS, so a placement held back by the corridor gate leaves the last
+        // motion attached and a STATIONARY product reads as in-flight. That is
+        // the limitation this driver shipped with in Goal 24, and it is why it
+        // could not tell a frozen handoff from a correctly delayed one. A
+        // product that has not moved since the previous sample is not in
+        // flight, whatever placeMotion says.
+        const prev = s.lastItemPos[motion.uid];
+        const movedBy = prev ? Math.hypot(item.x - prev.x, item.y - prev.y, item.z - prev.z) : null;
+        s.lastItemPos[motion.uid] = item;
+        if (movedBy != null && movedBy < 0.004) {
+          s.frozenSamples += 1;
+          continue; // stationary: not a flight, and not evidence of one
+        }
         s.flightSamples += 1;
         // "NEAR" IS NOT "THROUGH", and the first version could not tell them
         // apart. It measured the horizontal distance from the product to the
@@ -156,6 +171,15 @@ async (page) => {
           if (len2 < 1e-4) continue;
           const t = (((other.mesh.position.x - ax) * vx) + ((other.mesh.position.z - az) * vz)) / len2;
           if (t <= 0.15 || t >= 1) continue; // behind the hand, or past the product
+          // A BODY IS NOT AN INFINITE COLUMN. The corridor test was flat -- x
+          // and z only -- so a product carried OVER somebody's head scored
+          // exactly like one carried THROUGH their chest. The first verdict this
+          // produced was 'EARLY THROUGH-BODY FLIGHT' at itemY 1.45, which is
+          // above the head of a body whose feet are near -0.85. A person
+          // occupies roughly 1.9 yd above their own base; anything higher is
+          // clear of them and anything lower is under their feet.
+          const baseY = other.mesh.position.y;
+          if (item.y > baseY + 1.9 || item.y < baseY - 0.2) continue;
           const cx = ax + vx * t; const cz = az + vz * t;
           const d = Math.hypot(other.mesh.position.x - cx, other.mesh.position.z - cz);
           if (d < s.minItemToBody) {
@@ -272,6 +296,9 @@ async (page) => {
       // gated: it is the fix's own condition and proves the `if` ran, not that
       // a body was missed.
       placedWhileBackOfTheLine: s.placedWhileBackOfTheLine,
+      // THE THREE-WAY DISTINCTION the brief demands, and the reason velocity
+      // had to be measured: 'never places anything' is not a pass.
+      frozenSamples: s.frozenSamples,
     };
   });
   console.log('C3 measured', JSON.stringify(out.measured));
@@ -295,6 +322,14 @@ async (page) => {
   // A person is about 0.45 yd across the shoulders; half of that is the radius a
   // product must stay outside of to have missed them.
   const BODY_RADIUS_YD = 0.28;
+  // correctly delayed | early through-body flight | frozen
+  out.outcome = (() => {
+    const m = out.measured;
+    if ((m.flightSamples ?? 0) === 0 && (m.frozenSamples ?? 0) > 20) return 'FROZEN — a product was attached to a hand and never moved';
+    if ((m.flightSamples ?? 0) === 0) return 'NO HANDOFF OBSERVED — nothing was placed in the window';
+    if ((m.minItemToBodyYd ?? 99) <= 0.28) return 'EARLY THROUGH-BODY FLIGHT — a moving product crossed somebody';
+    return 'CORRECTLY DELAYED — products moved, and none crossed a body';
+  })();
   out.checks = {
     // CONTROL 1
     flightsObserved: (out.measured.flightSamples ?? 0) >= 10,
@@ -311,6 +346,6 @@ async (page) => {
   };
   out.ok = Object.values(out.checks).every(Boolean);
   fs.writeFileSync(path.join(OUT, 'through-body.json'), `${JSON.stringify(out, null, 2)}\n`);
-  console.log('C3-BODY', JSON.stringify({ measured: out.measured, checks: out.checks }, null, 2));
+  console.log('C3-BODY', JSON.stringify({ outcome: out.outcome, measured: out.measured, checks: out.checks }, null, 2));
   return out;
 }
