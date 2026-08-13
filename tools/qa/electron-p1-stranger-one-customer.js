@@ -182,8 +182,7 @@ async (page) => {
   await page.mouse.click(cx, cy);
   await page.waitForTimeout(800);
   const locked = (await readScreen()).pointerLocked;
-  const calib = await calibrateLook();
-  await beat('clicked to look', { locked, calib });
+  await beat('clicked to look', { locked });
   if (!locked) wall('pointer lock', 'clicking the canvas did not lock the pointer');
 
   // ---- 3. find the way in --------------------------------------------------
@@ -250,6 +249,12 @@ async (page) => {
     const p = await readPose();
     return { ok: false, dist: +Math.hypot(target.x - p.x, target.z - p.z).toFixed(2), why: 'ran out of legs' };
   };
+
+  // Calibrate AFTER the helpers exist. The first version called this at the
+  // pointer-lock beat, which is above these `const` declarations -- a temporal
+  // dead zone throw that ended the run at beat 4 with no JSON at all.
+  out.lookCalibration = await calibrateLook();
+  await beat('calibrated the mouse look', out.lookCalibration);
 
   let insideNow = (await probe()).inside;
   for (let leg = 0; leg < 14 && !insideNow; leg += 1) {

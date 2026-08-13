@@ -193,3 +193,56 @@ checkout phase is seeded.
    wall. It now turns a full circle on the spot before taking a step, which is
    what a person entering a shop does.
 
+## 1.1 "The customer never hands over the card" — chased to its root
+
+The complaint has been read for two sessions as a bug in the card handoff. It is
+not. Measured in Electron, step by step:
+
+| measurement | result |
+|---|---|
+| shop open, stocked, trading hours, waited 3 min | **nobody came** |
+| read the spawn gate's own inputs | every gate **open** — `shopAcceptsWalkIns` true, `campaignAllowsBusiness` true, capacity 5, footfall target 3 |
+| measured the clock | **advancing** — 1.34 game-min per 10 wall seconds, `speedIdx 1`, not paused |
+| watched the **floor** instead of the till | **3–4 customers present** |
+| sampled what they do | cart up to 4, **queued at the counter**, `everAwaitingCheckout` **false**, `everBought` **false**, no `placing` phase ever |
+| cross-tabbed type against the queue | `typesSeen: ["reservation", "walk-in-tee"]` and nothing else |
+
+**Root cause:** customers arrive, shop, fill a basket and queue. The head of that
+queue is tee-time or reservation business waiting for the **player** to serve it
+at the desk. Nobody serves it, so the queue never advances, so the shoppers
+behind never reach index 0, so placement never starts and nothing is ever
+bought. The world is not broken — nobody was playing it.
+
+That is why `electron-b-checkout-unsticks.js` can be 29/29 green and the owner
+still sees no card: it uses `sendToCounter`, which drops a customer straight at
+the head of the queue with a scripted cart and skips the entire arrival, browse
+and queue chain that real customers must traverse.
+
+### My C3 corridor gate is NOT the cause, and I checked because it is mine
+
+Goal 25 warns that *"never places anything is not a pass"*, and my Goal 24 gate
+was the obvious suspect. Disabled it by file copy, asserted the file changed,
+re-ran: `everAwaitingCheckout` false and `everBought` false **exactly as
+before**, same phases, same stops. Restored. An honest negative about my own
+code, and it moved the search upstream where the cause actually was.
+
+### Probe lies #2 and #3, both mine, both in the same probe
+
+2. It imported `shopCustomerCapacity` from `src/sim/shop.js`, where it does not
+   live — it is in `shopProgression.js`. The import returned `undefined`, so the
+   probe would have reported `capacity: null`, which is **indistinguishable from
+   the real zero it was built to detect**.
+3. It asked "did anybody come" by waiting for `tx.items.length` — goods *on the
+   counter*, the END of a twenty-game-minute visit — OR-ed with a
+   `customerCount()` that does not exist on the API, so that arm was permanently
+   0. Two separate ways to report an empty shop that had four people in it. It
+   reads `footfallDiagnostics().onFloor` now, the number the arrival loop owns.
+
+### A fourth correction: the seed opened the shop without restoring it
+
+Customers walked into a shop with no installed fixtures and nothing to buy.
+`disableCampaign()` restores fixtures in **state**; `refreshShopProgression()` is
+the accessor that relays them, retargets the customer fixture stops and rebuilds
+stock so the **scene** agrees. Only the pair is honest — state-restored and
+scene-empty is the same class of fault as everything else in `FOUND_FALSE`.
+
