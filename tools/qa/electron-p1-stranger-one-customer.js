@@ -182,7 +182,8 @@ async (page) => {
   await page.mouse.click(cx, cy);
   await page.waitForTimeout(800);
   const locked = (await readScreen()).pointerLocked;
-  await beat('clicked to look', { locked });
+  const calib = await calibrateLook();
+  await beat('clicked to look', { locked, calib });
   if (!locked) wall('pointer lock', 'clicking the canvas did not lock the pointer');
 
   // ---- 3. find the way in --------------------------------------------------
@@ -195,6 +196,60 @@ async (page) => {
     await page.waitForTimeout(200);
   };
   const look = async (dx) => { await page.mouse.move(cx + dx, cy, { steps: 6 }); await page.waitForTimeout(200); };
+
+  // WALKING SOMEWHERE YOU CAN SEE.
+  //
+  // The stranger could shop, queue and read prompts but could not cross a room,
+  // so it never got near enough to the counter for the register prompt to
+  // appear and walled at "never found a prompt that opened the register". A
+  // person looks at the counter and walks to it; this does the same thing with
+  // the only two inputs a player has, mouse and W.
+  //
+  // The world position is used ONLY to steer the camera -- the equivalent of
+  // seeing where the counter is. Nothing about the transaction is shortcut.
+  //
+  // The pixels-per-radian factor is CALIBRATED against the running build rather
+  // than assumed, because mouse sensitivity is a saved player preference and a
+  // hard-coded constant would silently mis-steer on any profile but this one.
+  let pxPerRad = null;
+  const readPose = () => page.evaluate(() => {
+    const w = window.__fw.scene3d.walk.state;
+    return { x: w.x, z: w.z, yaw: w.yaw };
+  });
+  const calibrateLook = async () => {
+    const a = await readPose();
+    await page.mouse.move(cx + 200, cy, { steps: 4 });
+    await page.waitForTimeout(350);
+    const b = await readPose();
+    await page.mouse.move(cx, cy, { steps: 4 });
+    await page.waitForTimeout(250);
+    let d = b.yaw - a.yaw;
+    while (d > Math.PI) d -= 2 * Math.PI;
+    while (d < -Math.PI) d += 2 * Math.PI;
+    pxPerRad = Math.abs(d) > 1e-4 ? 200 / d : null;
+    return { yawDelta: +d.toFixed(4), pxPerRad: pxPerRad && +pxPerRad.toFixed(1) };
+  };
+  const steerTo = async (target, { reach = 1.6, maxLegs = 40 } = {}) => {
+    if (!pxPerRad) return { ok: false, why: 'look sensitivity never calibrated' };
+    for (let leg = 0; leg < maxLegs; leg += 1) {
+      const p = await readPose();
+      const dist = Math.hypot(target.x - p.x, target.z - p.z);
+      if (dist <= reach) return { ok: true, legs: leg, dist: +dist.toFixed(2) };
+      const want = Math.atan2(-(target.x - p.x), -(target.z - p.z));
+      let err = want - p.yaw;
+      while (err > Math.PI) err -= 2 * Math.PI;
+      while (err < -Math.PI) err += 2 * Math.PI;
+      if (Math.abs(err) > 0.08) {
+        const px = Math.max(-400, Math.min(400, err * pxPerRad));
+        await page.mouse.move(cx + px, cy, { steps: 4 });
+        await page.waitForTimeout(160);
+        await page.mouse.move(cx, cy, { steps: 2 });
+      }
+      await walk('w', Math.abs(err) > 0.5 ? 200 : 500);
+    }
+    const p = await readPose();
+    return { ok: false, dist: +Math.hypot(target.x - p.x, target.z - p.z).toFixed(2), why: 'ran out of legs' };
+  };
 
   let insideNow = (await probe()).inside;
   for (let leg = 0; leg < 14 && !insideNow; leg += 1) {
@@ -230,24 +285,30 @@ async (page) => {
   out.seeded = false;
   if (process.env.P1_OPEN_SHOP === '1') {
     out.seeded = await page.evaluate(async () => {
-      const app = window.__fw;
-      const ch = app.scene3d.clubhouse();
-      // The MINIMAL seed, deliberately: the same four facts the existing
-      // acceptance driver sets, and nothing more. `disableCampaign()` was the
-      // first choice and is worse here -- it restores authored fixtures behind
-      // the renderer's back, and a fixture restored in state but not rebuilt in
-      // the scene is a shop that is open in the sim and empty on screen.
-      if (app.state.shop) app.state.shop.open = true;
-      if (app.state.campaign) app.state.campaign.businessOpen = true;
-      if (app.state.shop) app.state.shop.signOpen = true;
-      for (const id of ['balls1', 'glove1', 'tees1']) {
-        const inv = app.state.shop?.inventory?.[id];
-        if (inv) inv.shelf = Math.max(inv.shelf || 0, 8);
-      }
-      ch.rebuildStock?.();
-      ch.setOrganicWalkins?.(true);
-      // mid-morning, inside trading hours, so walk-ins are allowed at all
-      app.state.clock.minutes = Math.floor(app.state.clock.minutes / 1440) * 1440 + 10 * 60;
+    const app = window.__fw;
+    const ch = app.scene3d.clubhouse();
+    const campaign = await import(new URL('src/sim/campaign.js', document.baseURI).href);
+    // RESTORE, THEN TELL THE RENDERER. The previous seed opened the shop without
+    // restoring it, and the measurement was unambiguous: four customers walked
+    // onto the floor and not one reached the till in 31 game minutes, because an
+    // unrestored shop has no installed fixtures and therefore nothing to buy.
+    // `disableCampaign` restores the authored fixtures in STATE;
+    // `refreshShopProgression` is the accessor that relays those fixtures,
+    // retargets the customer fixture stops and rebuilds stock and boxes so the
+    // scene agrees. Without the second call the shop is stocked in the sim and
+    // empty on screen -- which is the same class of fault as everything else in
+    // FOUND_FALSE.
+    campaign.disableCampaign(app.state);
+    if (app.state.shop) { app.state.shop.open = true; app.state.shop.signOpen = true; }
+    if (app.state.campaign) app.state.campaign.businessOpen = true;
+    for (const id of ['balls1', 'glove1', 'tees1']) {
+      const inv = app.state.shop?.inventory?.[id];
+      if (inv) inv.shelf = Math.max(inv.shelf || 0, 8);
+    }
+    app.state.clock.minutes = Math.floor(app.state.clock.minutes / 1440) * 1440 + 10 * 60;
+    ch.refreshShopProgression?.();
+    ch.rebuildStock?.();
+    ch.setOrganicWalkins?.(true);
       return true;
     });
     await page.waitForTimeout(1500);
@@ -312,8 +373,28 @@ async (page) => {
   // walk toward the counter until the prompt names it, then E
   let atRegister = (await probe()).registerActive;
   if (!atRegister) {
-    await sweepFor(/register|till|counter|serve|checkout|desk/, 'the register');
-    atRegister = (await probe()).registerActive;
+    // Walk to the counter the way a person does: look at it, walk to it, and
+    // press E when the prompt names it. The counter's position is read once, to
+    // STEER, exactly as a player uses their eyes.
+    const stand = await page.evaluate(async () => {
+      const { REGISTER } = await import(new URL('src/data/shopLayout.js', document.baseURI).href);
+      const off = window.__fw.scene3d.clubhouse().interior.position;
+      return { x: REGISTER.stand.x + off.x, z: REGISTER.stand.z + off.z };
+    });
+    out.walkToCounter = await steerTo(stand, { reach: 1.4 });
+    await beat('walked to the counter', out.walkToCounter);
+    // now turn to face the monitor and look for the prompt
+    for (let turn = 0; turn < 12 && !atRegister; turn += 1) {
+      const s2 = await readScreen();
+      const p2 = (s2.prompt[0] || '').toLowerCase();
+      if (/register|till|counter|serve|checkout|desk|front desk/.test(p2)) {
+        await page.keyboard.press('e');
+        await page.waitForTimeout(1800);
+        await beat(`pressed E on "${(s2.prompt[0] || '').slice(0, 44)}"`);
+      }
+      atRegister = (await probe()).registerActive;
+      if (!atRegister) await look(110);
+    }
   }
   await beat('at the register', { atRegister });
   if (!atRegister) wall('the till', 'never found a prompt that opened the register');
