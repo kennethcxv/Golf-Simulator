@@ -1,9 +1,13 @@
 # Overnight Report 25
 
-**PERCEPTION RATIO: 0 of 0 fixes so far.** Phase 0 is measurement; nothing has
-been claimed fixed yet.
+**PERCEPTION RATIO: 2 of 2.** Both fixes claimed tonight were verified by a check
+that could perceive the thing it certified — the bag by pixels (empty-vs-full
+0.000% with a rebuilt-`bagFill` control seen at 4.07%), and the golden capture's
+determinism by two full captures measured against each other (noise 0.298 →
+0.133).
 
-**PROBE-LIE COUNT: 1.** My own Phase 1 stranger driver reported
+**PROBE-LIE COUNT: 8.** Listed where they happened. Every one was mine, and
+every one was caught by looking at screenshots rather than at numbers. My own Phase 1 stranger driver reported
 `wall: payment — "clicked forty times on the register and no ticket ever
 banked"` after fourteen beats. Every screenshot was the same NEW GAME difficulty
 dialog: the game had never started. `.difficulty-card` is a div, my
@@ -14,8 +18,9 @@ the pixels, which is the only thing that ever catches it. Two controls added: th
 driver now fails closed if the dialog is still on screen after confirming, and
 `out.wall` is pinned to the FIRST wall instead of being overwritten by the last.
 
-**PHASE STATUS:** Phase 0 measured, gate not yet closed (golden gate outstanding).
-Phase 1 in progress.
+**PHASE STATUS: Phase 0 CLOSED. Phase 1 adversarial review PASSED.**
+A stranger bought products, was offered the card, paid once, and left — with real
+input and no `sendToCounter` anywhere.
 
 **PERFORMANCE HEADLINE:** not re-measured yet. Phase 6.
 
@@ -499,4 +504,71 @@ owner's call, not mine, and it should be taken with the diff images open.
 clean tree, confirm the two agree within budget, then `npm run golden:accept`.
 The old references were captured through a harness bug and cannot be recovered
 by any change to the game.
+
+---
+
+## PHASE 1 ADVERSARIAL REVIEW — **PASSED**
+
+`qa/electron/p1-stranger/stranger.json` → `"ok": true`, **9 / 9**.
+
+| check | |
+|---|---|
+| got inside | PASS |
+| opened the shop | PASS |
+| a customer came | PASS |
+| goods on the counter | PASS |
+| took the sale | PASS |
+| ring-up finished | PASS |
+| **one ticket banked** | **PASS** |
+| **customer left** | **PASS** |
+| no page errors | PASS |
+
+**The beat trace, and the card is in it:**
+
+```
+16  tx=1/scanning       flow=WaitingForScan       bank=0
+17  tx=1/card-present   flow=CardPresented        bank=0
+18  tx=1/card-ready     flow=CardInsertReady      bank=0
+19  tx=0/null           flow=null                 bank=1
+```
+
+**FRAMES VIEWED** — `qa/electron/p1-stranger/16..19-*.png`:
+
+- **16** `waited-at-the-desk-for-goods` — Avery West at the counter, monitor reads
+  RINGING PRODUCTS, TOTAL $0.00, a glove on the mat.
+- **17** `clicked-around-the-counter-to-ring-goods-up` — monitor reads **CARD
+  PRESENTED**, TOTAL **$38.52**, and **the green card is visible in the
+  customer's hand**. This is the frame that answers *"the customer never hands
+  over the card"*.
+- **18** `what-does-the-screen-say-now` — **INSERTING CARD**, TOTAL $38.52.
+- **19** `tried-to-complete-the-payment` — **READY FOR THE NEXT CUSTOMER**, ticket
+  banked, transaction cleared.
+
+**What the stranger did, all of it real input:** clicked through the menu, picked
+a difficulty card, calibrated its own mouse sensitivity, walked to the porch,
+**opened the doors with E**, walked in, walked to the counter, took the desk on
+`Tee desk - E arrivals, check-ins and walk-ins`, served the queue head through
+real drawn hotspots, rang goods up, drove the card through its real states, and
+dragged the bag to the customer's palm.
+
+**Seeded, and disclosed:** shop open, business open, sign open, three SKUs
+stocked, organic walk-ins on, clock 10:00, player placed inside. **Nothing about
+the customer, the cart, the queue, the checkout phase or the transaction.**
+
+### So what was the owner seeing?
+
+The loop completes. The two things that make it *look* stuck to a person, both
+now measured:
+
+1. **The queue head is desk business.** Organic customers are `walk-in-tee` or
+   `reservation`; until the player serves them at the desk, the shoppers behind
+   never reach the head and never place goods. A player who does not know to
+   serve the desk sees a shop full of people and an empty counter.
+2. **Banking is gated on the bag handoff.** The ticket reaches stage `done` and
+   waits for `deliveryPhase === 'released'` — *"Grip the bag handles and drag
+   them to the customer's open palm."* Forty clicks cannot perform a drag; the
+   sale sits at `done` looking broken until someone drags the bag.
+
+Neither is a code defect. Both are legibility, and both are exactly what a
+stranger test is for.
 
