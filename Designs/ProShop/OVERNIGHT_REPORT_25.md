@@ -275,3 +275,28 @@ against the running build** — measured at −952 px/rad on this profile — be
 mouse sensitivity is a saved player preference and a hard-coded constant would
 mis-steer on every profile but this one.
 
+### Part B's progression, run by run
+
+The gate driver was wrong five times before it was right, and each wrong run
+named an innocent part of the game. They are listed because the pattern is the
+point: **a driver that cannot perform an action reports the same as a game that
+refused it.**
+
+| run | what it reported | what was actually true |
+|---|---|---|
+| 1 | "clicked forty times on the register and no ticket ever banked" | the game never started — `.difficulty-card` is a div and the helper queried `<button>` |
+| 2 | "never found a prompt that opened the shop" | it walked *away* from the door while hunting a card hanging on that door's jamb |
+| 3 | "ran out of legs", distance `null` | `DOOR_MAIN` is `{wall:'S', x:-0.8}` and **has no `z`** — the waypoint was NaN, so every distance comparison was false |
+| 4 | "the player took the desk and no customer ever placed goods" | standing at the desk is not *serving* it; the queue head was waiting for a click |
+| 5 | same | the desk picker preferred `tab-check-in`, which is always enabled, so it clicked one tab **six times** and never selected a row |
+
+By run 5 the stranger reliably: boots through the real menu, picks a difficulty
+card, calibrates its own mouse sensitivity (−952 px/rad on this profile),
+navigates to the porch, **opens the doors with E**, walks inside, walks to the
+counter, and takes the desk on a real prompt naming a real guest —
+`Front desk - E check in Sonny Royce (10:00 AM tee)`. Four customers on the
+floor, `tookTheSale` PASS.
+
+What remains is completing that check-in through the monitor so the queue can
+advance to the shoppers behind it.
+

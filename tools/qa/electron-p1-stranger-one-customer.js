@@ -442,7 +442,10 @@ async (page) => {
       const off = window.__fw.scene3d.clubhouse().interior.position;
       return { x: REGISTER.stand.x + off.x, z: REGISTER.stand.z + off.z };
     });
-    out.walkToCounter = await steerTo(stand, { reach: 1.4 });
+    // 1.4 left it at 1.76 and out of legs. The register prompt reaches further
+    // than that, and an arrival radius tighter than the thing it is approaching
+    // is an oscillation waiting to happen.
+    out.walkToCounter = await steerTo(stand, { reach: 2.0, maxLegs: 50 });
     await beat('walked to the counter', out.walkToCounter);
     // now turn to face the monitor and look for the prompt
     for (let turn = 0; turn < 12 && !atRegister; turn += 1) {
@@ -482,17 +485,26 @@ async (page) => {
     return { action, clicked: true };
   };
   out.deskTrail = [];
-  for (let round = 0; round < 6; round += 1) {
+  const clickedDeskActions = new Set();
+  for (let round = 0; round < 8; round += 1) {
     const ids = await page.evaluate(() => {
       const r = window.__fw.scene3d.clubhouse().register;
       return r.deskHitTargets ? r.deskHitTargets().filter((h) => !h.disabled).map((h) => h.id) : [];
     }).catch(() => []);
     // check-in tab first, then any row, then the action that completes it
-    const pick = ids.find((i) => /^tab-check-in$/.test(i))
-      || ids.find((i) => /^select-(reservation|walkin):/.test(i))
-      || ids.find((i) => /^(reservation-check-in|select-walkin-slot:)/.test(i))
+    // DO NOT CLICK THE SAME THING SIX TIMES. The first version preferred
+    // `tab-check-in`, which is always drawn and never disabled, so every round
+    // chose it again and the driver clicked one tab six times and called it
+    // serving. A row was never selected and the check-in never completed.
+    // Anything already clicked is struck off, so the sequence has to advance:
+    // open the tab, select the row, then take the action that completes it.
+    const fresh = ids.filter((i) => !clickedDeskActions.has(i));
+    const pick = fresh.find((i) => /^(reservation-check-in|select-walkin-slot:)/.test(i))
+      || fresh.find((i) => /^select-(reservation|walkin):/.test(i))
+      || fresh.find((i) => /^tab-check-in$/.test(i))
       || null;
     if (!pick) break;
+    clickedDeskActions.add(pick);
     out.deskTrail.push(await clickDesk(pick));
     const st = await probe();
     if (st.txItems > 0) break;
