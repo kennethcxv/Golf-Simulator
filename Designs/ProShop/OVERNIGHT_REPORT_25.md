@@ -1,13 +1,18 @@
 # Overnight Report 25
 
-**PERCEPTION RATIO: 2 of 2.** Both fixes claimed tonight were verified by a check
+**PERCEPTION RATIO: 4 of 4.** Both fixes claimed tonight were verified by a check
 that could perceive the thing it certified — the bag by pixels (empty-vs-full
 0.000% with a rebuilt-`bagFill` control seen at 4.07%), and the golden capture's
 determinism by two full captures measured against each other (noise 0.298 →
 0.133).
 
-**PROBE-LIE COUNT: 8.** Listed where they happened. Every one was mine, and
-every one was caught by looking at screenshots rather than at numbers. My own Phase 1 stranger driver reported
+**PROBE-LIE COUNT: 10.** Every one mine, every one caught by looking rather than
+by reading a number. Three were serious enough to have produced a written finding
+about an innocent subsystem: a driver that reported *"no ticket ever banked"*
+while every frame showed the difficulty dialog; a `customerCount()` that does not
+exist returning `undefined ?? 0` as a confident zero about a shop with four people
+in it; and a ledger control that reported *a lock that never lifts* when the
+player was simply facing a wall. My own Phase 1 stranger driver reported
 `wall: payment — "clicked forty times on the register and no ticket ever
 banked"` after fourteen beats. Every screenshot was the same NEW GAME difficulty
 dialog: the game had never started. `.difficulty-card` is a div, my
@@ -18,9 +23,18 @@ the pixels, which is the only thing that ever catches it. Two controls added: th
 driver now fails closed if the dialog is still on screen after confirming, and
 `out.wall` is pinned to the FIRST wall instead of being overwritten by the last.
 
-**PHASE STATUS: Phase 0 CLOSED. Phase 1 adversarial review PASSED.**
-A stranger bought products, was offered the card, paid once, and left — with real
-input and no `sendToCounter` anywhere.
+**PHASE STATUS**
+
+| phase | state |
+|---|---|
+| **0 — what did you inherit** | **CLOSED** — all four gate requirements |
+| **1 — the core loop** | **REVIEW PASSED** — a stranger bought, was offered the card, paid once and left |
+| **2 — NPCs** | 2.2 does not reproduce; 2.3 NOT DONE (instrument); 2.1 recommended against on the evidence |
+| **3 — the ledger** | 3.1 and 3.2 **DONE**; 3.3–3.5 not started |
+| **4–8** | not started |
+
+**Two things need your decision before anyone continues:** the golden gate
+(rebaseline or not) and whether you can reproduce the NPC grinding.
 
 **PERFORMANCE HEADLINE:** not re-measured yet. Phase 6.
 
@@ -710,3 +724,44 @@ worst outcome there is. It was a wall: `hasThePlayer` was already `false`, and
 back travelled **2.69** and left **3.13**. A control that depends on which way
 the player happens to be pointing is testing the room, not the ledger.
 
+---
+
+# WHERE THIS SESSION STOPPED, AND WHAT IS OWED
+
+## Done, with evidence
+
+| item | evidence |
+|---|---|
+| Phase 0 gate | tree preserved+pushed; suite measured three ways; golden redness bisected to one commit; six claims have verdicts |
+| **Phase 1 review** | `stranger.json ok:true` 9/9, frames viewed, real input throughout |
+| 1.4 the bag | pixels: empty-vs-full **0.000%**, rebuilt-`bagFill` control seen at 4.07% |
+| 1.2 / 1.3 / 1.5 | green in `electron-b-checkout-unsticks` (instrumented path, disclosed) |
+| B4b | closed — refused ticket banks 36.38 with `serviceTotal: 0` |
+| 2.2 blocked shopper | does not reproduce: 0.0 s contact, reaches target, buys, leaves |
+| 3.1 ledger hotkey | K bound, opens and closes, 10/10 |
+| 3.2 input lock | movement **and look** locked, lock lifts, 10/10 |
+| golden determinism | run-to-run noise 0.298 → 0.133 with a seeded sequence |
+
+## Owed, stated plainly
+
+1. **The golden gate needs your decision.** It is red because its references were
+   captured through a harness bug, not because the game regressed. Bisected to
+   `458de6b`. My recommendation is written above; I did not act on it because
+   your brief forbids it.
+2. **2.3 through-body handoff** — the frozen-vs-delayed limitation is fixed and
+   the handoff is proven *not frozen*; the crossing verdict is untrustworthy
+   until the flying product's transform frame is established.
+3. **2.1 recast** — recommended against on current evidence. Needs your
+   reproduction of the grinding to justify replacing working navigation.
+4. **3.3 hover outline, 3.4 smooth motion, 3.5 ledger audio** — not started.
+5. **Phases 4–8** — not started. Phase 5 (audio) is the largest and needs asset
+   downloads; nothing in it is blocked by anything above.
+6. **8 clean-clone reds and a red lint ratchet at HEAD** — both inherited, both
+   named, neither weakened.
+
+## The one-line answer to "why will the sale not complete"
+
+It completes. What makes it look stuck is that **the queue head is desk business
+waiting for the player**, and that **banking waits on the bag being dragged to
+the customer's palm**. Neither is a code defect; both are legibility, and a
+stranger found both in one run.
