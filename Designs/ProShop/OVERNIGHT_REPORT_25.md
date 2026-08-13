@@ -464,3 +464,39 @@ byte-reproducibility without reintroducing the constant-RNG corruption —
 different values each call, identical values each run. One function in
 `qa-boot.mjs`, and then a fresh baseline is legitimate.
 
+### The seeded-sequence fix, measured — and why I did NOT rebaseline
+
+Installed a seeded generator (mulberry32, five lines, no dependency) via
+`page.addInitScript` in `golden-capture.js`, **before** any page script — so the
+seed gate's own `original` is already deterministic and its restore-to-original
+keeps the capture reproducible. Codex's `installPinnedNewGameSeed` contract is
+untouched; its test asserts `Math.random === original` by identity and still
+passes.
+
+| | shop-floor run A | run B | spread |
+|---|---|---|---|
+| native RNG (as inherited) | 23.4525% | 23.7509% | **0.298** |
+| seeded sequence (this fix) | 23.4294% | 23.5626% | **0.133** |
+
+Run-to-run noise **halved**, and 0.133 now sits inside shop-floor's 0.25 budget.
+Determinism and distinctness were never in conflict — a constant is only one way
+to be reproducible, and it is the broken one.
+
+**But the ~23% gap to the goldens barely moved (23.45 → 23.43), and that is the
+finding.** If the gap were randomness, seeding would have closed it. It did not.
+So the gap is not noise: **the golden images are a picture of the constant-RNG
+world**, which is why `dc8663b` — the last commit that still held that constant
+through scene construction — scores 0.0000% against them and every honest build
+since scores 23%.
+
+**I have not rebaselined**, and this is deliberate. The brief lists it under
+things I may not do, and the act discards the only reference the project has.
+The evidence now supports rebaselining — the current capture is more correct
+than its own reference and is reproducible within budget — but that is the
+owner's call, not mine, and it should be taken with the diff images open.
+
+**Recommendation, stated once:** re-run `npm run golden:capture` twice on a
+clean tree, confirm the two agree within budget, then `npm run golden:accept`.
+The old references were captured through a harness bug and cannot be recovered
+by any change to the game.
+

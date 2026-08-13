@@ -41,6 +41,35 @@ async (page) => {
   // that degraded every budget to 6.0). forceNew + pinSeed makes the seed a
   // constant, so the terrain, the building height, the sun-vs-floor geometry
   // and the outdoor content are byte-comparable across runs.
+  // ...AND THE REST OF THE WORLD IS SEEDED TOO, WHICH IT STOPPED BEING.
+  //
+  // `pinSeed` fixes only the ONE onNewGame seed draw, and since
+  // `458de6b` the gate correctly restores NATIVE Math.random immediately after
+  // it — because holding one constant across asynchronous scene construction
+  // poisoned Three.js UUIDs and made GLTFLoader reuse an unrelated material.
+  // That fix was right about the corruption and left this gate unusable:
+  // everything built after the seed draw now draws real randomness, so two
+  // captures of the SAME COMMIT measured shop-floor at 23.4525% and 23.7509%.
+  // A 0.30-point swing at a pose whose entire budget is 0.25%.
+  //
+  // Determinism and distinctness are not in conflict — a constant is only one
+  // way to be reproducible, and it is the broken one. A SEEDED SEQUENCE gives a
+  // different value every call (so UUIDs stay unique) and the same values every
+  // run (so the gate can compare). Installed before any page script, so the
+  // seed gate's own `original` is already this generator and its
+  // restore-to-original keeps the capture deterministic.
+  //
+  // mulberry32: 5 lines, no dependency, well-distributed, exactly reproducible.
+  await page.addInitScript(() => {
+    let a = 0x9e3779b9;
+    Math.random = function seededCaptureRandom() {
+      a |= 0; a = (a + 0x6d2b79f5) | 0;
+      let t = Math.imul(a ^ (a >>> 15), 1 | a);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  });
+
   const boot = await (await import(`file:///${process.cwd().replace(/\\/g, '/')}/tools/qa/lib/qa-boot.mjs`))
     .clickThroughMenu(page, { forceNew: true, pinSeed: 0.4242 });
   await page.waitForFunction(() => window.__fw?.scene3d?.walk?.isActive?.(), null, { timeout: 300000 });
