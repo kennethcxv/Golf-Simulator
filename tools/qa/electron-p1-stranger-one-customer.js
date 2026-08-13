@@ -230,6 +230,13 @@ async (page) => {
   };
   const steerTo = async (target, { reach = 1.6, maxLegs = 40 } = {}) => {
     if (!pxPerRad) return { ok: false, why: 'look sensitivity never calibrated' };
+    // FAIL LOUDLY ON A NaN WAYPOINT. A NaN target makes every distance
+    // comparison false, so the loop runs its full budget and reports "ran out of
+    // legs" -- which reads as "the room is hard to cross" and is really "the
+    // coordinate was never a number". Two runs were lost to exactly that.
+    if (!Number.isFinite(target?.x) || !Number.isFinite(target?.z)) {
+      return { ok: false, why: `waypoint is not a number: ${JSON.stringify(target)}` };
+    }
     for (let leg = 0; leg < maxLegs; leg += 1) {
       const p = await readPose();
       const dist = Math.hypot(target.x - p.x, target.z - p.z);
@@ -265,10 +272,18 @@ async (page) => {
   // Straight-line steering cannot path around a wall, which is exactly why the
   // DOOR is its own waypoint rather than steering at the interior from outside.
   const places = await page.evaluate(async () => {
-    const { DOOR_MAIN } = await import(new URL('src/data/shopLayout.js', document.baseURI).href);
+    const { DOOR_CLEARWAY } = await import(new URL('src/data/shopLayout.js', document.baseURI).href);
     const ip = window.__fw.scene3d.clubhouse().interior.position;
+    // DOOR_MAIN is {wall:'S', x:-0.8} and HAS NO z -- it is described by which
+    // wall it is in. `ip.z + DOOR_MAIN.z` was therefore NaN, every steering leg
+    // compared against NaN, and the driver reported "ran out of legs" with a
+    // null distance for two whole runs. DOOR_CLEARWAY is the authored keep-clear
+    // rectangle in front of that door, so its centre is the approach point.
     return {
-      door: { x: ip.x + DOOR_MAIN.x, z: ip.z + DOOR_MAIN.z },
+      door: {
+        x: ip.x + (DOOR_CLEARWAY.minX + DOOR_CLEARWAY.maxX) / 2,
+        z: ip.z + (DOOR_CLEARWAY.minZ + DOOR_CLEARWAY.maxZ) / 2,
+      },
       inside: { x: ip.x, z: ip.z },
     };
   });
@@ -444,6 +459,45 @@ async (page) => {
   }
   await beat('at the register', { atRegister });
   if (!atRegister) wall('the till', 'never found a prompt that opened the register');
+
+  // SERVE WHOEVER IS AT THE HEAD. This is the beat the driver was missing.
+  //
+  // The head of the counter queue is tee-time or reservation business, and it
+  // waits for the player. Standing at the desk is not serving it: the previous
+  // run took the desk and then watched four minutes of nothing, because the
+  // person at the front was waiting for a click that never came and the
+  // shoppers behind could not advance past them.
+  //
+  // Every click below lands on a hotspot the monitor is actually drawing,
+  // located by its own screen point -- the same path a player's mouse takes.
+  const clickDesk = async (action) => {
+    const pt = await page.evaluate((a) => {
+      const r = window.__fw.scene3d.clubhouse().register;
+      const p2 = r.monitorScreenPoint ? r.monitorScreenPoint(a) : null;
+      return p2 ? { x: p2.x, y: p2.y } : { missing: true };
+    }, action).catch(() => ({ missing: true }));
+    if (pt.missing) return { action, clicked: false };
+    await page.mouse.click(pt.x, pt.y);
+    await page.waitForTimeout(900);
+    return { action, clicked: true };
+  };
+  out.deskTrail = [];
+  for (let round = 0; round < 6; round += 1) {
+    const ids = await page.evaluate(() => {
+      const r = window.__fw.scene3d.clubhouse().register;
+      return r.deskHitTargets ? r.deskHitTargets().filter((h) => !h.disabled).map((h) => h.id) : [];
+    }).catch(() => []);
+    // check-in tab first, then any row, then the action that completes it
+    const pick = ids.find((i) => /^tab-check-in$/.test(i))
+      || ids.find((i) => /^select-(reservation|walkin):/.test(i))
+      || ids.find((i) => /^(reservation-check-in|select-walkin-slot:)/.test(i))
+      || null;
+    if (!pick) break;
+    out.deskTrail.push(await clickDesk(pick));
+    const st = await probe();
+    if (st.txItems > 0) break;
+  }
+  await beat('served whoever was at the desk', { deskTrail: out.deskTrail });
 
   // Now that the player is at the desk, the queue can move. Give it time.
   const goodsArrived = await page.waitForFunction(() => {
