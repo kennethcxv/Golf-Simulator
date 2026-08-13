@@ -1149,3 +1149,32 @@ probe-lie I caught this session was a variant of that same confusion.
 The sixth clause — *tasteful, comparable to the money highlight* — is deliberately
 **not scored**. A driver that pretended to judge taste would be the more dangerous
 kind of green.
+
+### 3.3's integration design, traced to line numbers
+
+All four pieces located tonight. This is not research any more:
+
+| piece | where |
+|---|---|
+| "am I aimed at it" | `courseScene.js:7748` `walkPropUnderCrosshair()` returns `{prop, label}` — already gated on `WALK_CROSSHAIR_YD` cross-track and `WALK_CROSSHAIR_MIN_FACING` |
+| the ledger's prop entry | `clubhouse.js:10705-10740` — already has a `label()` that returns null while open or carried, so "never stale after open/close" is half-solved |
+| the book itself | `clubhouse/ledgerBook.js`, `ledgerBook.root`, added to `interior` at `clubhouse.js:10703` |
+| the outline mechanism | `simplifiedRegisterMode.js:10415` `setGrabOutline` + `shellOwnerSpans` |
+
+**The shape:** give the ledger's prop entry an `onAim(bool)` callback, fire it from
+the same per-frame place that already consumes `walkPropUnderCrosshair()` for the
+prompt, and have `ledgerBook.js` own its shells. Then `ch.debugLedgerOutline()`
+forwards from the facade.
+
+**The facade trap applies here.** `ch.register` is a narrow facade and accessors
+added to a module are invisible until forwarded in `clubhouse.js` — that has cost
+this project a debugging session before. `debugLedgerOutline` must be added in
+both places or the driver will keep reporting NOT BUILT against working code.
+
+### Why I stopped short of writing it
+
+The edit spans three files, two of them over 10,000 lines, and I do not have the
+budget left to finish and prove it green. A documented gap costs an hour; a
+half-edited tree found broken in the morning costs a session. The tree is clean,
+green and pushed, and the check is red and waiting — which is the correct state to
+hand over in, if not the one that was asked for.
