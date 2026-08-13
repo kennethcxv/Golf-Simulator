@@ -418,3 +418,49 @@ submissions were meant to disappear.
 | C3 corridor gate | **not bypassed.** One call site; both early returns deny rather than permit. Also proven *not* to be the cause of the empty till |
 | the door stall | not re-run — superseded by the golden regression in the same commit range, which is the more urgent fact about that work |
 
+### NARROWED TO ONE COMMIT — and it is in the HARNESS, not the game
+
+| commit | shop-floor | verdict |
+|---|---|---|
+| `dc8663b` "Goal 24: phase-align perceptive control" | **0.0000%** | 12 / 12 ok |
+| `458de6b` **"qa: scope deterministic seed pin to world creation"** | **15.33%** | 12 / 12 FAIL |
+
+`458de6b` changes `tools/qa/lib/qa-boot.mjs`. **No game code is involved.** So the
+first reading — "Codex shipped a visual regression" — is wrong, and I am
+correcting it here rather than leaving it in the earlier section.
+
+What actually happened, and it is subtler than a regression:
+
+- The **goldens** were captured with the OLD stub, which held `Math.random`
+  pinned to one constant through the whole of asynchronous scene construction.
+  Codex's own report records what that did: duplicate three.js UUIDs, and
+  GLTFLoader reusing one collision-authoring material for visible meshes. The
+  reference images are a picture of a **corrupted world** — deterministic, and
+  wrong.
+- `458de6b` correctly narrowed the stub to the exact `onNewGame` seed draw and
+  restored native RNG before any scene object is built. The world is now built
+  properly, so it no longer matches its own reference.
+
+### AND THE GATE IS NOW NON-DETERMINISTIC, WHICH IS THE REAL DAMAGE
+
+Two captures at the **same commit**, same machine, minutes apart:
+
+```
+shop-floor   23.4525%      shop-floor   23.7509%
+```
+
+**A 0.30-point swing at a pose whose entire budget is 0.25%.** The pin that made
+this gate meaningful is gone; native RNG now runs during world construction, so
+two captures of the same build disagree by more than the budget they are judged
+against.
+
+**This means the golden gate is currently unusable, not merely red**, and
+`npm run golden:accept` would produce a baseline that fails its own next run.
+That is why it has not been rebaselined and must not be.
+
+**The fix is small and is the next item:** the world-creation stub should return
+a **seeded pseudo-random sequence** rather than a constant. That restores
+byte-reproducibility without reintroducing the constant-RNG corruption —
+different values each call, identical values each run. One function in
+`qa-boot.mjs`, and then a fresh baseline is legitimate.
+
