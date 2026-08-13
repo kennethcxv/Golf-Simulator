@@ -94,6 +94,13 @@ async (page) => {
       flow: (() => { try { return ch?.register?.getFlow?.()?.state ?? null; } catch { return null; } })(),
       delivery: (() => { try { return ch?.register?.deliveryPresentation?.()?.phase ?? null; } catch { return null; } })(),
       banked2: !!ch?.register?.getTx?.()?.banked,
+      // WHAT THE REGISTER IS TELLING THE PLAYER, read from the register rather
+      // than from the DOM. Every DOM text channel is empty during a checkout
+      // because the instruction is painted into the in-world monitor's canvas
+      // texture -- reading .reg-hint and concluding "the game says nothing"
+      // would have been FOUND_FALSE shape 6 with the roles reversed.
+      regStatus: (() => { try { return ch?.register?.checkoutStatus?.() ?? null; } catch { return null; } })(),
+      regInstruction: (() => { try { return ch?.register?.checkoutInstruction?.() ?? null; } catch { return null; } })(),
       onFloor: ch?.footfallDiagnostics?.()?.onFloor ?? null,
     };
   });
