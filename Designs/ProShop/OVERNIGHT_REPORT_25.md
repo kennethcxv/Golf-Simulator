@@ -134,3 +134,62 @@ inside `completeSale` and the service-payment path. Not extended, not built on,
 not reverted. No Phase 1 item so far has tempted me into it.
 
 ---
+
+# PHASE 1 — THE CORE LOOP
+
+## The Phase 1 adversarial review, part A: a stranger from a fresh new game
+
+**Driver:** `tools/qa/electron-p1-stranger-one-customer.js`. Real menu clicks,
+real pointer lock, real WASD, real E, decisions taken only from on-screen text.
+No `sendToCounter`, no teleport, no forced state.
+
+**Verdict: the stranger cannot reach the checkout, and it is not a bug.**
+
+| check | |
+|---|---|
+| got inside the clubhouse | PASS |
+| opened the shop for business | **FAIL** |
+| a customer came | FAIL |
+| goods on the counter | FAIL |
+| took the sale | FAIL |
+| one ticket banked | FAIL |
+
+First wall, step 8: *never found a prompt that opened the shop for business.*
+
+The stranger did everything right. It read real prompts throughout — `Weeds - E
+pull them`, `Shop doors - E open both · X open left leaf`, `Rangefinder display
+- Laser rangefinder 3/6`, `Fairway Spring Water case · 28 inside - E tear the
+tape` — pressed E on the shop doors, walked in, and swept five standing
+positions × twelve looks each hunting the OPEN/CLOSED card.
+
+The objectives card explains it in one line:
+
+> **ARRIVING AT PINE HILLS 1/19 — Survey the neglected property.**
+
+This is a **nineteen-task restoration campaign** and opening the shop is near the
+end of it. `campaign.js` gates `objective('open', 'Open the clubhouse for
+business')` behind installing the display shelves, repairing the structure,
+opening three cartons, restocking six retail groups, and clearing every route.
+`shopAcceptsWalkIns()` additionally requires trading hours **and** the player's
+physical sign. A stranger three minutes into a new game is thirteen tasks away
+from a customer, by design.
+
+**The reading I took:** Verifier 3's "from a clean start" cannot mean "from a
+fresh new game" without turning the core-loop gate into a test of the
+restoration tutorial. So the review runs in two parts and neither is called the
+other. Part A is above. Part B seeds **four facts** — `shop.open`,
+`campaign.businessOpen`, `shop.signOpen`, stocked shelves and organic walk-ins —
+and then uses **only real input** for everything about the customer and the
+transaction. Nothing about the customer, the cart, the player's position or the
+checkout phase is seeded.
+
+**Two driver faults found on the way, both now controls:**
+
+1. Probe lie #1 (recorded at the top of this report): `.difficulty-card` was
+   never clicked because `clickByText` only queried `<button>`; the game never
+   started and the driver blamed payment.
+2. The sign search walked steadily **away** from the door while hunting for a
+   card that hangs on that door's jamb — five searches, never facing the right
+   wall. It now turns a full circle on the spot before taking a step, which is
+   what a person entering a shop does.
+

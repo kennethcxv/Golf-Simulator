@@ -60,6 +60,11 @@ async (page) => {
       toasts: grab('.notification-center .notification, .toast'),
       regHint: grab('.reg-hint'),
       hintBar: grab('.hint-bar'),
+      // WHAT IS THE GAME TELLING ME TO DO? The first run never recorded this,
+      // so when the stranger failed to open the shop there was no way to tell
+      // "the game never said" from "the game said and the driver did not look".
+      objectives: grab('.objectives-card, .objectives-panel, .objective, .task-card'),
+      firstUse: grab('.first-use, .firstuse-card, .tip-card'),
       veil: grab('.load-veil-place, .load-veil-tip'),
       buttons: [...document.querySelectorAll('button')].filter(visible)
         .map((b) => (b.textContent || '').trim().replace(/\s+/g, ' ').slice(0, 60))
@@ -207,22 +212,82 @@ async (page) => {
   await beat('after trying to get inside', { insideNow });
   if (!insideNow) wall('entrance', 'walked fourteen legs and never got inside the clubhouse');
 
+  // ---- 3b. THE ONE DISCLOSED SEED, AND WHY IT EXISTS ----------------------
+  //
+  // Run with P1_OPEN_SHOP=1 this driver seeds the world to "restored, stocked,
+  // sign open" and records that it did. Nothing about the CUSTOMER or the
+  // TRANSACTION is seeded: no sendToCounter, no scripted cart, no teleport to
+  // the till, no forced checkout phase. Every click and key from here is real.
+  //
+  // It exists because a brand-new game gates customers behind the whole
+  // restoration campaign — install the display shelves, repair the structure,
+  // open three cartons, restock six retail groups, clear every route, and only
+  // then may the shop open. That is the game working as designed, and it is an
+  // hour of play. Without this seed the stranger tests the restoration tutorial;
+  // with it, the stranger tests the checkout, which is the thing the owner
+  // reports broken. Both runs are reported separately and neither is called the
+  // other.
+  out.seeded = false;
+  if (process.env.P1_OPEN_SHOP === '1') {
+    out.seeded = await page.evaluate(async () => {
+      const app = window.__fw;
+      const ch = app.scene3d.clubhouse();
+      // The MINIMAL seed, deliberately: the same four facts the existing
+      // acceptance driver sets, and nothing more. `disableCampaign()` was the
+      // first choice and is worse here -- it restores authored fixtures behind
+      // the renderer's back, and a fixture restored in state but not rebuilt in
+      // the scene is a shop that is open in the sim and empty on screen.
+      if (app.state.shop) app.state.shop.open = true;
+      if (app.state.campaign) app.state.campaign.businessOpen = true;
+      if (app.state.shop) app.state.shop.signOpen = true;
+      for (const id of ['balls1', 'glove1', 'tees1']) {
+        const inv = app.state.shop?.inventory?.[id];
+        if (inv) inv.shelf = Math.max(inv.shelf || 0, 8);
+      }
+      ch.rebuildStock?.();
+      ch.setOrganicWalkins?.(true);
+      // mid-morning, inside trading hours, so walk-ins are allowed at all
+      app.state.clock.minutes = Math.floor(app.state.clock.minutes / 1440) * 1440 + 10 * 60;
+      return true;
+    });
+    await page.waitForTimeout(1500);
+    await beat('seeded a restored, stocked, open shop (disclosed)');
+  }
+
   // ---- 4. open the shop for business --------------------------------------
   // A stranger opens the shop the way the world offers it: find the sign and
   // press E. This is a real interaction, not a state write.
+  // LOOK AROUND WHERE YOU ARE STANDING, THEN MOVE. The first version turned a
+  // little and walked forward every third turn, so it marched steadily AWAY
+  // from the door — and the OPEN/CLOSED card hangs on the jamb of the door it
+  // had just come through. It searched twelve times and never faced the one
+  // wall the sign is on. A person entering a shop turns on the spot first.
+  //
+  // So: a full circle in twelve 30-degree steps without moving the feet,
+  // reading the prompt at every step; only then one step forward and another
+  // circle. Five stations, sixty looks.
   let shopOpen = (await probe()).shopOpen;
-  if (!shopOpen) {
-    for (let turn = 0; turn < 12 && !shopOpen; turn += 1) {
-      const s = await readScreen();
-      const p = (s.prompt[0] || '').toLowerCase();
-      if (/sign|open|closed|business/.test(p)) {
-        await page.keyboard.press('e');
-        await page.waitForTimeout(1200);
-        await beat(`pressed E on "${(s.prompt[0] || '').slice(0, 40)}"`);
+  const sweepFor = async (re, label) => {
+    for (let station = 0; station < 5; station += 1) {
+      for (let turn = 0; turn < 12; turn += 1) {
+        const s = await readScreen();
+        const p = (s.prompt[0] || '').toLowerCase();
+        if (re.test(p)) {
+          await page.keyboard.press('e');
+          await page.waitForTimeout(1200);
+          await beat(`pressed E on "${(s.prompt[0] || '').slice(0, 44)}"`);
+          return true;
+        }
+        await look(110); // ~30 degrees per step at the shipped sensitivity
       }
-      shopOpen = (await probe()).shopOpen;
-      if (!shopOpen) { await look(120); if (turn % 3 === 2) await walk('w', 500); }
+      await walk('w', 650);
     }
+    console.log(`P1 sweep found nothing for ${label}`);
+    return false;
+  };
+  if (!shopOpen) {
+    await sweepFor(/sign|open|closed|business|come in|back soon/, 'the OPEN/CLOSED sign');
+    shopOpen = (await probe()).shopOpen;
   }
   await beat('after trying to open the shop', { shopOpen });
   if (!shopOpen) wall('the sign', 'never found a prompt that opened the shop for business');
@@ -246,16 +311,8 @@ async (page) => {
 
   // walk toward the counter until the prompt names it, then E
   let atRegister = (await probe()).registerActive;
-  for (let leg = 0; leg < 16 && !atRegister; leg += 1) {
-    const s = await readScreen();
-    const p = (s.prompt[0] || '').toLowerCase();
-    if (/register|till|counter|serve|checkout|desk/.test(p)) {
-      await page.keyboard.press('e');
-      await page.waitForTimeout(1500);
-    } else {
-      await walk('w', 700);
-      if (leg % 3 === 2) await look(100);
-    }
+  if (!atRegister) {
+    await sweepFor(/register|till|counter|serve|checkout|desk/, 'the register');
     atRegister = (await probe()).registerActive;
   }
   await beat('at the register', { atRegister });
@@ -314,6 +371,8 @@ async (page) => {
 
   const inst = await probe();
   out.result = {
+    mode: out.seeded ? 'checkout-gate (shop seeded open, transaction all real input)'
+      : 'fresh-start (nothing seeded)',
     reachedTheWall: out.wall ? out.wall.where : null,
     banked: inst.banked,
     wantsTee,
@@ -332,6 +391,8 @@ async (page) => {
   };
   out.ok = !out.wall && Object.values(out.checks).every(Boolean);
   fs.writeFileSync(path.join(OUT, 'stranger.json'), `${JSON.stringify(out, null, 2)}\n`);
-  console.log('P1-STRANGER', JSON.stringify({ result: out.result, checks: out.checks, wall: out.wall }, null, 2));
+  console.log('P1-STRANGER', JSON.stringify({
+    result: out.result, checks: out.checks, firstWall: out.wall, allWalls: out.walls,
+  }, null, 2));
   return out;
 }
