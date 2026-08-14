@@ -1930,6 +1930,26 @@ const handlers = {
       app.courseMode = 'walk';
       app.scene3d.clubhouse?.()?.setDirtReveal?.(0, false);
       enterWalk('resume');
+      // P1 (Goal 25 playtest): "Tab, then Tab again to leave, and the game
+      // effectively crashed."
+      //
+      // Measured across the round trip: pointer lock true before, FALSE after,
+      // and it never came back. WASD still moved (2.11 yd) so every
+      // keyboard-based probe called it healthy, but mouse-look went 0.378 rad to
+      // EXACTLY ZERO and stayed there through a second round trip. A player who
+      // can walk and cannot turn is looking at a game that has stopped
+      // responding to the mouse, which is what "effectively crashed" describes.
+      //
+      // enterWalk leaves lock opt-in on purpose -- on ARRIVAL the HUD controls
+      // should be clickable and "Click to look around" is the instruction. The
+      // Tab RETURN is a different situation: the player was mouse-looking a
+      // second ago and pressed a key that means "put me back on my feet".
+      // Restoring it only here keeps the arrival behaviour untouched.
+      //
+      // The Tab keydown is a user activation, so the request is allowed;
+      // requestLook already swallows a refusal, and a refusal just leaves
+      // today's click-to-look behaviour.
+      requestLook();
     }
     syncPresentationMode(presentationMode());
   },
