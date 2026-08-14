@@ -2,7 +2,7 @@
 
 Working `Designs/ProShop/Goal_26_Playtest_3.md` in the order written.
 
-## 1. Probe-lie count this round: **6** (running total **28**)
+## 1. Probe-lie count this round: **8** (running total **30**)
 
 Checks I wrote that measured the wrong thing. Every one was caught by a number
 disagreeing with something I already knew, never by re-reading the code.
@@ -15,6 +15,8 @@ disagreeing with something I already knew, never by re-reading the code.
 | 26 | `electron-ledger-real-keys` run 1 | a clean run, no freeze, 97 key presses | the book was opened with `setOpen()`, so `app.ledgerOpen` stayed false and the key handler is INSTALLED BY `enterLedger()` and gated on that flag. Every press went nowhere; `spread` never left 0 |
 | 27 | `electron-ledger-reopens-at-page-one` | `no page canvas handle` | called `debugPageCanvas`; the accessor is `pageCanvas`. The pixel half of the check silently did not run |
 | 28 | the checkout routing gate, against my own edit | "missing normal-play routes: coinHandle" | I had written `sfx(handleCue)` with the cue in a variable. The gate greps the source for a literal inside an `sfx()` call and cannot see through an indirection — the cue WAS routed. Defeating the instrument is not satisfying it |
+| 29 | the bag-clearance test | "no footprints to measure" | it drew items from `SHOP_CATALOG.slice(0, 3)`, which is all `separateHandoff` goods. Those take the OVERSIZE branch, which poses by hand and reports no footprint — so it graded the wrong path entirely. Same shape as probe lie 8 |
+| 30 | the same test, next version | the fix "pushed goods TOWARD the bag" | `frontDeskPose` is MIRRORED with respect to the local x the packer works in (measured: local −0.9 → world +0.10, local −0.5 → world −0.30). Reading `pose.x - w/2` as the bag-side edge reads the FAR edge, so a correct fix reported as a regression |
 
 Two of these (23, 28) are worth their own line because they are the same shape
 from opposite directions: an instrument that cannot perceive the thing it is
@@ -30,11 +32,11 @@ asked about will report its own blindness as a fact about the world.
 | **2 — the cash register** | **DONE.** Sequenced, quieter, and picking cash up has its own voice |
 | **3 — the ledger** | **DONE.** Reopens at page one; the SFX are in the switcher for you to pick |
 | **4 — background music** | **DONE.** 4 tracks plus an off switch, in PLAYER settings |
-| 5 — the mop | NOT STARTED |
-| 6 — items must not touch the bag | NOT STARTED |
+| **5 — the mop** | **DONE** except the density ruling, which is yours |
+| **6 — items must not touch the bag** | **DONE.** 0.127 yd of overlap measured and removed |
 | 7 — Phase 3 verifier one | **SETTLED: it was my staging.** The clause itself is still unmeasured |
 | 8 — Phase 10 verifier 3, the stranger | NOT STARTED |
-| 9 — the exploded rake | NOT STARTED |
+| 9 — the exploded rake | IN PROGRESS |
 | 10 — Phase 7's merge | NOT STARTED |
 
 ## 3. P0 — THE CLICK
@@ -241,3 +243,79 @@ the same point with the blockade removed. The first attempt at that control
 failed because the 120 s watch gave the runner time to finish its route and leave
 the shop; the watch now stops the moment the outcome is decided. The gate's clips
 are still outstanding.
+
+
+## 9. ITEM 5 — THE MOP
+
+Both halves of "they form a RING floating around AND BELOW it" were real, and
+both are measurements rather than impressions:
+
+- **RADIAL.** The hub is a cone of bottom radius `HEAD_R * 0.52` = 0.0874. The
+  bunch centres sat at `radius * (0.52 + 0.48 * 0.78)` = **0.150**, spreading
+  inward only to 0.129. The nearest yarn began **42 mm outside** the widest part
+  of the clamp that is supposed to grip it, and everything inside 0.129 was
+  empty.
+- **VERTICAL.** The hub spans y 0.007–0.045; the yarn hung from y = 0, so the
+  strand tops began **7 mm under** the underside of the clamp.
+
+`collarRadiusFrac` (0.50) puts the bunches inside the hub's grip and the rig now
+sits at y 0.022, in the middle of the hub's body.
+
+**And the head did not shrink, which I got wrong first.** Moving the anchors in
+takes 0.39 of a radius off where the strands start; at the old splay the tips
+reached only 0.1259 against a 0.168 head. I had fixed the gap by narrowing the
+whole head, and the suite caught it. Swept rather than guessed, because tip
+radius after settling is not linear in splay:
+
+```
+0.52 -> 0.1259    0.70 -> 0.1364    0.90 -> 0.1476
+1.10 -> 0.1583    1.30 -> 0.1684    1.50 -> 0.1779
+```
+
+**splay 1.30** puts the hem at 0.1684 against a head radius of 0.168 — the rim
+exactly. Anchored at the middle, open at the hem: a cone that FILLS the head
+rather than a ring that outlines it, which is item 5's fourth bullet too.
+
+**Thicker**: 7.6 → 10.2 mm across. **This raises a test bar from 8 mm to 11 mm**
+and the reason is written into the test rather than widened quietly. The 8 mm bar
+was set against 380 strands on a 0.256-wide ball, where a thick strand was a
+large share of the silhouette; at 972 strands on a 0.336-wide disc it is a much
+smaller one. If you look at 10.2 mm and call it pipe, the test names the two
+places to put back. 13 mm is still refused.
+
+**The hollow tubes were already fixed** — the cylinders have been capped
+(`openEnded` false) since Goal 26 round 2, so that fault is not in the build you
+photographed unless you are on an older one.
+
+**Not touched, because it is your ruling**: the number of bunches and the
+daylight between them. Everything above changes WHERE bunches hang and how thick
+a strand is, so 5.1 composes with it either way.
+
+Photograph: `qa/electron/mop-portrait/mop-head-crop.png`. The daylight ring is
+gone and the strands emerge from under the clamp. In that light the red hub reads
+large against the yarn — a judgement I cannot make for you, and it sits right
+next to the density ruling.
+
+## 10. ITEM 6 — THE GOODS CLEAR THE BAG
+
+**The gap was already designed in and the overhang ate it.** The staging strip
+starts at register x −0.74 and the bagging footprint's right edge is −0.82: 0.08
+of clear counter, with a note in `shopLayout.js` saying "clearly right of the bag
+has to be a gap, not a shared edge". What reached the bag was 2.2's own ruling —
+item CENTRES distributed across the full span, outer items allowed to OVERHANG,
+because the staging contract constrains centres rather than extents.
+
+Measured on the unfixed build: **an item's bag-side edge at −0.9472 against a bag
+ending at −0.8200. 0.127 yd driven into the bag.**
+
+The keep-out now applies to the EDGE rather than the centre, per row, and both
+call sites pass it — including the customer's set-down path in `clubhouse.js`,
+which is the one your sentence names. `rowFits` was narrowed with it, or 2.2's
+non-overlap guarantee would have turned back into an overlap in the squeeze;
+there is a test for that case.
+
+Red then green, revert asserted both ways. The bar is a gap **greater than
+zero**, not an overlap of zero: a flush rest passes an overlap test and is
+exactly the state you are complaining about.
+
+Suite 3659 pass / 0 fail. Lint ratchet 323.
