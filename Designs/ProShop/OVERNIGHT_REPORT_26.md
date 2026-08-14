@@ -2,10 +2,11 @@
 
 ## 1. Perception ratio
 
-**7 / 7.** Every fix claimed below was verified by a check that could perceive
+**9 / 9.** Every fix claimed below was verified by a check that could perceive
 the thing it certified — audio-graph voices with measured dBFS on the live master
-bus, the gain node itself for the drone, and voice counts per real press for the
-menu. None was certified by a source assertion or a call count alone.
+bus, the gain node itself for the drone, voice counts per real press for the menu,
+walk-in-place frames per customer for the queue, and pairwise overlap area for the
+counter. None was certified by a source assertion or a call count alone.
 
 The one that matters most: a cue is credited only when the buffer that started
 carries `__fwSample`, the tag `sampleBank` puts on a decoded vendored file. A
@@ -17,8 +18,8 @@ to detect.
 ## 2. Probe-lie count: **9**
 
 Checks I wrote that scored the same before and after, or measured the wrong
-object. All six were caught by looking at a number that disagreed with something
-else I knew.
+object. Every one was caught by a number that disagreed with something else I
+already knew — never by re-reading the code. Probes 7-9 are listed under Phase 2.
 
 | # | The probe | What it reported | What was actually wrong |
 |---|---|---|---|
