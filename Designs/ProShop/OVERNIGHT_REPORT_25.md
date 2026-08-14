@@ -1625,18 +1625,57 @@ and prove inside this item.
 turn against a 6 ms median. Under the 33 ms bar, but a single frame 5× the
 median is exactly the shape of hitch a player feels.
 
-## P2 — THE MOP — **NOT STARTED**
+## P2 — THE MOP — **BUILT, PHOTOGRAPHED, NOT SHIPPED — your two rulings collide**
 
-Not reached. You asked me to look at House Flipper's mop and match it, and that
-is mesh work against a reference I have not opened. Nothing about the mop was
-changed, and no parameter was swept — which is what you asked me not to do.
+**The reference**, from the product descriptions rather than assumption: a
+looped-end **yarn string mop** — fine cotton strands in a tailband, splaying into
+a skirt, clumping, one mass with no daylight through it.
 
-The one thing I can add is an observation from the golden rebaseline earlier
-tonight: the `tool-mop` reference frame shows the head as a pale flat fan, and
-the current capture shows distinct dark strands with daylight between them. That
-is your "comb of pale rods" visible in the gate's own images
-(`tests/goldens/tool-mop.png` vs `qa/golden/current/tool-mop.png`), if the next
-session wants a starting point.
+**What ships today is the opposite:** 22 strands at **13 mm** thick over a 105 mm
+head — **33.7% coverage**, two thirds daylight, each rod reading as a length of
+pipe. Your "comb of pale rods", and it contradicts the module it configures
+(`createVerletMopStrands` defaults to 820 strands at 3.0 mm).
+
+**So I built the reference.** 380 strands at 6.2 mm, `radialSegments` 8→5 to pay
+for it. Draw calls unchanged at **4** — the strands are an `InstancedMesh`, so
+density is nearly free on the axis this renderer is bound by. 132% coverage at
+the collar. Photographed at the player camera.
+
+**It is a brush.** A dense, straight-sided barrel of fibre. No daylight — and no
+mop either.
+
+**And the suite said so before I looked.** `mop-verlet-strands.test.js:212` went
+red, carrying your own ruling twice over:
+
+> *"Filling the disc was the wrong goal: a real string mop is 15-30 thick ropes
+> with visible daylight between them, and **the gaps are most of what
+> distinguishes it from a brush**. The owner asked for 10-20."* … *"Goal 23
+> widened the range to the 16-24 the owner asked for."*
+
+Shipping 380 would reverse a standing ruling to produce the exact thing that
+ruling was written against, and greening the test would be weakening a gate to
+hide a real disagreement. **Reverted.** The 380-strand build is documented in
+full beside the constant so nobody derives it again.
+
+### What I think is actually wrong, having now seen both
+
+Neither count is the answer, and seven passes have gone into that axis. **Both**
+versions hang as a straight-sided cylinder, strands parallel, evenly spread on a
+sunflower fill. A string mop is a **skirt**: narrow at the tailband, spreading
+outward, strands **clumping** into irregular groups, ragged at the hem. The
+silhouette and the clumping are what say "mop". Density only decides sparse comb
+versus solid brush — and both of those are wrong the same way.
+
+Not attempted: splay is `buckle`, which acts only on a *compressed* strand, and
+this file records that over-splaying already made the planted head read as a flat
+disc once. It touches 4.4's dynamics and needs a clip to verify.
+
+**Both frames on disk:** `qa/mop-reference/mop-shipped-22-bands.png` (the comb)
+and `qa/mop-reference/mop-tried-380-strands.png` (the brush).
+
+**Your call.** The 16-24 range came from you; "match House Flipper" points the
+other way. My recommendation is neither — a moderate count, with the skirt and
+the clumping fixed, which no pass has attempted.
 
 ---
 
@@ -1649,7 +1688,7 @@ session wants a starting point.
 | **P1 queue** | **FIXED** both halves — reach 0.80→0.45, lineSlots 3→6; frame viewed |
 | **P1 Tab** | **REPRODUCED AND FIXED** — pointer lock never came back; look 0.000→0.378 |
 | **P2 performance** | **MEASURED**, root cause named, one untried fix recommended |
-| **P2 mop** | **NOT STARTED** |
+| **P2 mop** | **BUILT AND PHOTOGRAPHED, NOT SHIPPED** — it reads as a brush, and a standing owner ruling forbids it. Decision needed |
 
 Suite 3614/3614 throughout. Lint ratchet 325 vs 324 — the inherited red,
 unchanged by any of tonight's work. Every item pushed as it completed.
