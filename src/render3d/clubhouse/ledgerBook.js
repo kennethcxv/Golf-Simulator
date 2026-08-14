@@ -2526,12 +2526,31 @@ export function createLedgerBook({ THREE, state, anchor, counterTop, camera = nu
       // and is a no-op if it has already run for this state. By the time E is
       // pressed there is nothing left to compute.
       // repaints only if the day turned since the walk-up; otherwise free
-      // PHASE 6 — "STATE PERSISTENCE ACROSS CLOSE AND REOPEN." This used to
-      // force `spread = 0` on every open, so the book always reopened on the
-      // contents page and a reader who was four pages into the Restoration
-      // Record paid for the trip again every single time. Nothing else wanted
-      // that reset: the prewarm below repaints whatever spread is current.
-      if (!prewarm()) paintSpread();
+      //
+      // THE BOOK REOPENS AT PAGE ONE. OWNER RULING, PLAYTEST 3 ITEM 3:
+      // "IT MUST REOPEN TO THE FIRST PAGE. If I put the book down and open it
+      // again, it starts at page one."
+      //
+      // This DELIBERATELY REVERSES Phase 6's "state persistence across close and
+      // reopen", which was implemented and verified last session. The Phase 6
+      // reasoning was that a reader four pages into the Restoration Record
+      // should not pay for the trip again -- sound reasoning, and overruled: a
+      // physical ledger on a desk is shut, and shutting a book loses your place
+      // unless you put something in it. The owner has decided; do not restore
+      // the persistence without asking him.
+      //
+      // Placed before the paint so the repaint below draws the contents page
+      // rather than painting the old spread and jumping a frame later.
+      //
+      // The repaint is forced when the spread actually moved. `prewarm()`
+      // returning true means the pages were already painted during the walk-up
+      // -- at whatever spread was current THEN -- so resetting the index without
+      // repainting would leave the canvas showing the old page while the book
+      // believed it was on the first.
+      const wasSpread = spread;
+      spread = 0;
+      lastJumpedSection = null;
+      if (!prewarm() || wasSpread !== 0) paintSpread();
       // the spot it will return to is where it LAY, never a mid-flight
       // position from a re-open during the close beat
       if (bookState === 'closed' || !deskSpot) {
