@@ -1481,7 +1481,28 @@ function startGameNow(
       app.speedIdx = startupCompletion.intendedSpeedIdx;
       lastTs = performance.now();
       app.prewarming = false;
-      veil.hide();
+      // P2 (round 3) — PAY THE HANDS' SHADER BILL WHILE THE VEIL IS STILL UP.
+      //
+      // Measured cause, twice over: the first frame that draws the first-person
+      // hands compiles 8-9 GL programs and stalls 280-360 ms, and the bill lands
+      // on whichever tool draws hands first. The bottle compiles NOTHING (it is
+      // `hands: false`) and hands the whole bill to the next tool, which is the
+      // owner's "bottle to dustpan freezes the first time". Holding the broom's
+      // trigger and sweeping costs nothing extra (0 programs, 27 ms) -- it is
+      // entirely the equip.
+      //
+      // An earlier attempt did this inside courseScene's prewarm and FAILED: it
+      // compiled one program instead of eight, because prewarm deliberately does
+      // not run the normal update loop and the viewmodel is never positioned or
+      // made visible by a forced composer.render() alone. That attempt is kept
+      // in the report as a negative result.
+      //
+      // Here the game is fully live -- prewarming is already false, so the real
+      // update loop is running and the hands go through exactly the path a
+      // player's equip takes -- and the opaque veil is still covering the screen.
+      // Not a seventeenth renderer.compile() configuration: nothing is described
+      // to the renderer, a real tool is equipped and really drawn.
+      warmFirstPersonHands(sceneRef).finally(() => veil.hide());
       const notices = [degradedPrewarmNotice, loadNotice].filter(Boolean);
       if (notices.length) {
         setTimeout(() => {
@@ -1491,6 +1512,30 @@ function startGameNow(
         }, 460);
       }
     });
+}
+
+// Equip a hands-drawing tool for a few real frames, then put it away. Guarded at
+// every step: a warm that throws must never be the reason the veil stays up.
+async function warmFirstPersonHands(sceneRef) {
+  try {
+    const walk = sceneRef?.walk;
+    if (!walk || typeof walk.setTool !== 'function') return;
+    if (app.scene3d !== sceneRef) return;
+    const previous = typeof walk.tool === 'function' ? walk.tool() : null;
+    if (previous) return; // the player already has something out; leave it alone
+    const frame = () => new Promise((resolve) => requestAnimationFrame(resolve));
+    walk.setTool('dustpan');
+    // Three frames: one to mount the viewmodel, one to draw it, one for the
+    // depth pass that follows. Two was not enough in testing.
+    await frame();
+    await frame();
+    await frame();
+    if (app.scene3d !== sceneRef) return;
+    walk.setTool(null);
+    await frame();
+  } catch (error) {
+    reportFault('scene.hands-warm', error);
+  }
 }
 
 // full-screen loading veil (opaque — it also hides the prewarm camera swings)
