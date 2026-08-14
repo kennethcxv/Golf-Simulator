@@ -2947,7 +2947,17 @@ export const PHONE_RING_MINUTES = 3;
 // figure the code states; the per-minute rate is derived from it and never
 // written down separately.
 export const CONTACT_HOURS = Object.freeze({ from: 7, to: 20 });
-export const CONTACTS_PER_DAY = 26;
+// 4.5 (Goal 26): "Calls, voicemails and emails should arrive MORE FREQUENTLY.
+// This is where the booking business comes from, and if the phone is quiet the
+// tee sheet is empty and there is nothing to run."
+//
+// C1 raised this from a measured 4.27 to 26 and he is asking again, so 26 still
+// reads as quiet. 40 over the 13 contact hours is a shade over three an hour --
+// often enough that the phone is part of the job rather than an event, and still
+// far short of a switchboard. The tee sheet is the natural brake: a request only
+// becomes a booking if a slot is free, so a busier phone fills the sheet and then
+// stops mattering rather than compounding.
+export const CONTACTS_PER_DAY = 40;
 const CONTACT_RATE_PER_MIN = CONTACTS_PER_DAY / ((CONTACT_HOURS.to - CONTACT_HOURS.from) * 60);
 
 function rollBookingRequests(state, target) {
@@ -2981,19 +2991,48 @@ function rollBookingRequests(state, target) {
     if (rng.next() < expected - count) count += 1;
     for (let n = 0; n < count; n += 1) {
       const channel = rng.next() < 0.5 ? 'email' : 'phone';
-      const dayAbs = cal.dayAbs + (channel === 'email' ? 1 + rng.int(2) : rng.int(2));
+      // 4.4 (Goal 26): "A caller or an email at 6 am can book 6 PM THE SAME DAY,
+      // or tomorrow, or later in the week. No next-hour restriction -- that rule
+      // exists because a walk-in is physically standing at the desk, and a caller
+      // is not."
+      //
+      // Two things were wrong. EMAIL COULD NEVER BOOK THE SAME DAY at all
+      // (`1 + rng.int(2)` starts at tomorrow), and neither channel reached past
+      // the day after tomorrow, so "later in the week" was unreachable by
+      // construction. Both now draw 0..6 days out, biased toward soon so the
+      // common case still feels immediate. The >= 90 minute floor below is the
+      // only lead restriction, and it is a sensible one for a remote booking --
+      // a 6 am caller asking for 6 pm clears it by eleven hours.
+      const dayAbs = cal.dayAbs + Math.floor((rng.next() ** 1.7) * 7);
+      // PARTY SIZE FIRST, THEN A SLOT THAT CAN ACTUALLY TAKE IT.
+      //
+      // 4.5's busier phone exposed an ordering bug that 26 contacts a day had
+      // hidden: the slot was chosen before the party size, and nothing stopped
+      // two pending requests claiming the same slot. At 40 a day they collide,
+      // and the player gets a request that CANNOT BE ACCEPTED -- "Only 2 places
+      // remain" -- which is a worse experience than a quiet phone.
+      //
+      // So the size is drawn first, slots are filtered by seats actually left,
+      // and any slot already spoken for by another PENDING request is excluded.
+      // Generating an unacceptable request is not traffic, it is a dead end.
+      const sizeRoll = rng.next();
+      const partySize = sizeRoll < 0.3 ? 1 : sizeRoll < 0.75 ? 2 : sizeRoll < 0.9 ? 3 : 4;
+      const claimed = new Set(book.requests
+        .filter((other) => other.status === 'pending' && other.dayAbs === dayAbs)
+        .map((other) => other.minute));
       const sheet = daySheet(state, dayAbs).filter((slot) => slot.available
+        && slot.availableSeats >= partySize
+        && !claimed.has(slot.minute)
         && absoluteMinute(dayAbs, slot.minute) > minute + 90);
       if (sheet.length) {
         const slot = sheet[rng.int(sheet.length)];
         const names = uniqueNamesForGeneration(state, dayAbs);
         const holder = names[rng.int(Math.max(1, Math.min(names.length, 24)))] || 'Caller';
-        const sizeRoll = rng.next();
         const request = {
           id: `req_${book.nextRequestId++}`,
           channel,
           holder,
-          partySize: sizeRoll < 0.3 ? 1 : sizeRoll < 0.75 ? 2 : sizeRoll < 0.9 ? 3 : 4,
+          partySize,
           dayAbs,
           minute: slot.minute,
           createdAtAbs: minute,

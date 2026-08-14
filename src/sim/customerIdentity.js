@@ -252,7 +252,20 @@ export function createCustomerIdentity(seed, sourceId = 0) {
     visitProfile: {
       typicalArrivalLeadMinutes: Math.round(8 + punctuality * 17),
       usualPartySize: 1 + Math.floor(unit(seed, id, 'party-size') * 4),
-      preferredPurpose: unit(seed, id, 'visit-purpose') < 0.58 ? 'tee-time' : 'retail',
+      // 4.3 (Goal 26): "Most golfers book ahead. Walk-ins are the exception, not
+      // the default traffic. Weight the generators accordingly."
+      //
+      // Was 0.58 — a clear MAJORITY of arrivals wanting a tee time, which is the
+      // definition of default traffic rather than an exception. This field has
+      // exactly one consumer (clubhouse.js's walkInRequest gate), so the weight
+      // is the whole lever and nothing else shifts with it.
+      //
+      // 0.18 makes roughly one arrival in six a walk-in tee-time ask. Booked
+      // players still arrive in the same numbers — they come through the
+      // reservation path, which does not read this at all — so the shop gets
+      // busier-feeling traffic rather than quieter, with the tee sheet doing the
+      // work the brief says it should.
+      preferredPurpose: unit(seed, id, 'visit-purpose') < 0.18 ? 'tee-time' : 'retail',
     },
     visitHistory: defaultVisitHistory(),
   };

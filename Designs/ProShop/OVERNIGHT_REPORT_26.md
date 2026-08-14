@@ -43,7 +43,7 @@ not painted" manufactured a false negative about a click.
 | **1 — Audio** | **GATE PASSED** — see §4 |
 | **2 — The walk-up** | **BOTH ITEMS FIXED, MEASURED AND FILMED**; residual handed to Phase 3 |
 | 3 — NPC navigation | **3.1 proven**; stall rate UNMEASURED (the detector failed its control) |
-| 4 — Time and bookings | **4.1 measured (blocked); 4.2 DONE**; 4.3-4.5 not started |
+| 4 — Time and bookings | **4.2-4.5 DONE, gate run**; 4.1 measured and blocked |
 | 5 — Mop and hands | not started |
 | 6 — Ledger UI | not started |
 | 7 — Performance | not started |
@@ -883,7 +883,76 @@ for.
 
 Suite 3640/3640, lint 323.
 
-## 4.3–4.5 — NOT STARTED
+## 4.3 Walk-ins should be rare — **DONE**
 
-Walk-in rarity, phone/inbox booking windows and message frequency were not
-reached.
+`customerIdentity.js` gave **58 %** of arrivals `preferredPurpose: 'tee-time'` —
+a clear majority, which is the definition of default traffic rather than an
+exception. That field has **exactly one consumer** (the `walkInRequest` gate in
+`clubhouse.js`), so the weight is the whole lever and nothing else moves with it.
+Now **0.18**.
+
+Booked players still arrive in the same numbers — they come through the
+reservation path, which never reads this — so the shop gets *busier*, with the
+tee sheet doing the work the brief says it should.
+
+## 4.4 The phone and the inbox book anything — **DONE**
+
+Two things were wrong, and one of them made the clause impossible:
+
+- **Email could never book the same day at all.** `1 + rng.int(2)` starts at
+  tomorrow.
+- **Neither channel reached past the day after tomorrow**, so "later in the week"
+  was unreachable by construction.
+
+Both now draw **0–6 days out**, biased toward soon. The ≥90-minute floor is the
+only lead restriction left, and a 6 am caller asking for 6 pm clears it by eleven
+hours.
+
+## 4.5 More of them — **DONE**
+
+`CONTACTS_PER_DAY` 26 → **40** across the 13 contact hours. C1 had already raised
+it from a measured 4.27 to 26 and he is asking again, so 26 still read as quiet.
+
+**The busier phone exposed an ordering bug that 26 a day had hidden.** The slot
+was chosen *before* the party size, and nothing stopped two pending requests
+claiming the same slot — at 40 a day they collide and the player gets a request
+that **cannot be accepted** ("Only 2 places remain"), which is a worse experience
+than a quiet phone. Party size is now drawn first, slots are filtered by seats
+actually left, and any slot already spoken for by another pending request is
+excluded. Generating an unacceptable request is not traffic, it is a dead end.
+
+## PHASE 4 GATE — RUN (`tools/qa/phase4-booking-week.mjs`, 7 days)
+
+```
+--- WALK-INS (4.2, 4.3) ---
+asks per day          1.6
+refused (hour full)   5
+lead minutes          min 13, max 65, mean 36.6
+OUTSIDE THE HOUR      0          <- 4.2 requires 0
+distinct leads        13, 23, 29, 32, 34, 47, 48, 52, 65
+
+--- PHONE & EMAIL (4.4, 4.5) ---
+phone per day         14.3
+email per day         18.9
+total per day         33.1
+phone lead minutes    min 118, max 8841, mean 3205.8
+email lead minutes    min 94,  max 9063, mean 3835.1
+same-day bookings     40        <- including 23 by EMAIL, previously impossible
+later in the week     146
+days-ahead spread     0, 1, 2, 3, 4, 5, 6
+
+--- SHARE & CLOCK ---
+walk-in share         4.5%      <- the exception, as 4.3 asks
+full game day         180.0 real minutes
+trading day           105.0 real minutes   <- 4.1 NOT MET, see above
+```
+
+**Every walk-in lead time is inside the hour**, phone and email spread across the
+day and into the following week, and walk-ins are 4.5 % of demand.
+
+**One honest caveat about this gate.** The lead times and the refusals come from
+the *production* `walkInAskFrom` with the production grid and real availability,
+so those are the game's numbers. The walk-in *arrival rate* is my own 0.02/minute
+approximation and the 0.18 purpose weight is re-stated in the driver rather than
+imported — so "1.6 asks per day" is an estimate of frequency, while "0 outside
+the hour" and "4.5 % share" rest on the real rule.
