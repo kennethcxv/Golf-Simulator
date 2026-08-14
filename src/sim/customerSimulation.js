@@ -55,8 +55,22 @@ export const CUSTOMER_STATE = Object.freeze({
 // Exported because it is the contract the desk, the sheet and the tests all
 // have to agree on, and because a lead time buried in an expression is how it
 // came to be five hours without anyone noticing.
-export const WALK_IN_ASK_MIN = 20;
-export const WALK_IN_ASK_MAX = 65;
+// 4.2 (Goal 26): "If it is 6:45 am, a walk-in may ask for 7:00, 7:30 or 8:00 and
+// nothing else." From 06:45 those are +15, +45 and +75 minutes, so BOTH ends of
+// the old 20..65 window were wrong: 20 excluded the 7:00 he lists, and 65
+// excluded the 8:00 he lists.
+//
+// The rule that reproduces his example exactly and does not depend on the grid
+// spacing: everything inside the next hour, PLUS the one slot that straddles the
+// hour boundary. A person at the desk at 6:45 does mean "about the next hour",
+// and 8:00 is the first time that is not inside it.
+export const WALK_IN_ASK_MIN = 10;   // nobody asks for a tee time nine minutes out
+export const WALK_IN_ASK_MAX = 60;   // the hour itself; the straddling slot is added below
+// How far past the hour edge a slot may sit and still count as STRADDLING it.
+// Without this bound the "straddler" degenerates into "the next slot whenever it
+// happens", which is exactly the four-hour reach 4.2 overrules -- a sparse sheet
+// with a gap at noon would have handed an 08:00 walk-in a 12:00 ask again.
+export const WALK_IN_ASK_STRADDLE = 30;
 
 // A2 (Goal 21) — THE FRONT OF THE LINE NEVER LEAVES.
 //
@@ -152,21 +166,32 @@ export function queuePositionMayAbandon(queueIndex) {
  *
  * @param roll 0..1, the caller's own deterministic draw
  */
-export function walkInAskFrom(nowMinute, gridMinutes, roll = 0.5) {
+export function walkInAskFrom(nowMinute, gridMinutes, roll = 0.5, options = {}) {
   const grid = (Array.isArray(gridMinutes) ? gridMinutes : []).filter(Number.isFinite);
   if (!grid.length) return null;
   const lo = nowMinute + WALK_IN_ASK_MIN;
-  // NO slack past the window. The first draft allowed a grid step of it, on the
-  // reasoning that an ask should be able to round up to the next real slot —
-  // and that alone put 12:30 back within reach of a 10:58 arrival, 92 minutes,
-  // which is the very number Verifier 1 photographed and questioned. The
-  // fallback below already covers the case the slack was meant to protect.
-  const hi = nowMinute + WALK_IN_ASK_MAX;
-  const within = grid.filter((minute) => minute >= lo && minute <= hi);
-  // Nothing inside the window (late in the day, or a sparse grid): take the
-  // very next slot that exists rather than reaching hours out. Somebody at the
-  // desk at ten to six asks about the last light, not tomorrow afternoon.
-  const pool = within.length ? within : grid.filter((minute) => minute >= lo).slice(0, 1);
+  const hourEdge = nowMinute + WALK_IN_ASK_MAX;
+  const sorted = grid.slice().sort((a, b) => a - b);
+  const eligible = sorted.filter((minute) => minute >= lo);
+  // Inside the hour, plus the one slot that straddles its edge. 06:45 therefore
+  // reaches 07:00 and 07:30 (inside) and 08:00 (the straddler) and nothing else.
+  const within = eligible.filter((minute) => minute <= hourEdge);
+  const straddler = eligible.find(
+    (minute) => minute > hourEdge && minute - hourEdge <= WALK_IN_ASK_STRADDLE,
+  );
+  const candidates = straddler == null ? within : [...within, straddler];
+
+  // 4.2: "If everything inside the next hour is already booked, there is no
+  // walk-in request at all." THIS REPLACES A DELIBERATE FALLBACK -- the previous
+  // rule reached for the next slot that existed however far out, so a sparse
+  // sheet could produce a four-hour ask. The owner has overruled that: a walk-in
+  // who cannot be served soon does not invent a distant time, and the desk says
+  // there is nothing within the hour. `bookedMinutes` is optional so existing
+  // callers keep working; when supplied, a fully-booked hour returns null.
+  const booked = options.bookedMinutes instanceof Set
+    ? options.bookedMinutes
+    : new Set(Array.isArray(options.bookedMinutes) ? options.bookedMinutes : []);
+  const pool = booked.size ? candidates.filter((minute) => !booked.has(minute)) : candidates;
   if (!pool.length) return null;
   const reach = Math.pow(Math.min(0.999999, Math.max(0, roll)), 1.6); // biased toward soon
   return pool[Math.min(pool.length - 1, Math.floor(reach * pool.length))];

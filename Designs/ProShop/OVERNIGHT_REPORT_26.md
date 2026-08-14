@@ -43,7 +43,7 @@ not painted" manufactured a false negative about a click.
 | **1 — Audio** | **GATE PASSED** — see §4 |
 | **2 — The walk-up** | **BOTH ITEMS FIXED, MEASURED AND FILMED**; residual handed to Phase 3 |
 | 3 — NPC navigation | **3.1 proven**; stall rate UNMEASURED (the detector failed its control) |
-| 4 — Time and bookings | **4.1 measured, NOT CHANGED — blocked on the golf day** |
+| 4 — Time and bookings | **4.1 measured (blocked); 4.2 DONE**; 4.3-4.5 not started |
 | 5 — Mop and hands | not started |
 | 6 — Ledger UI | not started |
 | 7 — Performance | not started |
@@ -845,7 +845,45 @@ am not shipping a faster clock on the hope.
 bounded engineering task with a known blocker, instead of a constant nobody dared
 touch. `balance.js` carries the whole table beside the constant.
 
-## 4.2–4.5 — NOT STARTED
+## 4.2 Walk-ins can only ask for the next hour — **DONE**
 
-Walk-in lead times, walk-in rarity, phone/inbox booking windows and message
-frequency were not reached.
+His example is the specification: *"If it is 6:45 am, a walk-in may ask for 7:00,
+7:30 or 8:00 and nothing else."* Those are **+15, +45 and +75** minutes, so the
+old `WALK_IN_ASK_MIN = 20 … MAX = 65` window was wrong at **both ends** — 20
+excluded the 7:00 he lists, 65 excluded the 8:00 he lists.
+
+The rule now: **everything inside the next hour, plus the single slot that
+straddles its edge.** That reproduces his three exactly without depending on the
+grid step. Measured on the real function:
+
+```
+from 06:45 -> 07:00, 07:30, 08:00      (200 rolls, nothing else ever appears)
+all three booked -> null                (no walk-in request at all)
+one free inside the hour -> 07:30
+```
+
+**A deliberate old behaviour was reversed, on his instruction.** D2 (Goal 20) made
+a sparse sheet reach for the next slot that existed *however far out*, reasoning
+that refusing to ask would leave the walk-in mute at the desk. 4.2 overrules it:
+"if everything inside the next hour is already booked, there is no walk-in request
+at all". The test that asserted the old fallback is rewritten with that reasoning
+recorded, rather than deleted.
+
+**The straddler needed a bound**, and finding that out was the useful part. My
+first version defined it as "the first slot after the hour edge", which
+degenerates into "the next slot whenever it happens" — an 08:00 walk-in on a
+sheet whose next gap was noon got handed a **12:00** ask, which is precisely the
+four-hour reach 4.2 exists to stop. It is now capped at 30 minutes past the edge.
+
+**And it is wired to real availability**, not just implemented. `clubhouse.js`
+passes the booked minutes from `availableSlots(state, dayAbs, { walkIn: true })`,
+so the "no request when the hour is full" rule is reachable **in the game** and
+not only in the helper — the zero-call-sites shape this repository keeps paying
+for.
+
+Suite 3640/3640, lint 323.
+
+## 4.3–4.5 — NOT STARTED
+
+Walk-in rarity, phone/inbox booking windows and message frequency were not
+reached.

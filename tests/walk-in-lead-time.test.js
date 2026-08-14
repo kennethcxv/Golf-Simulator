@@ -100,12 +100,17 @@ test('D2 second generator: an ask taken off the slot grid stays inside the windo
   assert.equal(asks.has(12 * 60 + 30), false, '12:30 is still reachable from 10:58');
 });
 
-test('D2 second generator: a sparse sheet takes the next slot, not nothing', () => {
-  // a nearly-full day with one gap far out: the window is empty, and refusing
-  // to ask at all would leave the walk-in mute at the desk
+test('4.2: a sparse sheet produces NO ask, because there is nothing within the hour', () => {
+  // THIS REVERSES D2's FALLBACK, on the owner's explicit instruction. D2 made a
+  // sparse sheet reach for the next slot that existed however far out, on the
+  // reasoning that refusing to ask would leave the walk-in mute at the desk.
+  // Goal 26 4.2 overrules it: "If everything inside the next hour is already
+  // booked, there is no walk-in request at all, and the desk says so plainly:
+  // no times available within the next hour." Nobody walks into a pro shop to
+  // book something four hours out.
   const sparse = [7 * 60, 12 * 60];
-  assert.equal(walkInAskFrom(8 * 60, sparse, 0.9), 12 * 60,
-    'with nothing inside the window, take the next slot that exists');
+  assert.equal(walkInAskFrom(8 * 60, sparse, 0.9), null,
+    'with nothing inside the hour, a walk-in asks for nothing at all');
   // ...but never a slot that has already gone
   assert.equal(walkInAskFrom(13 * 60, sparse, 0.5), null);
   // past the end of the day there is simply nothing to ask for
@@ -123,4 +128,40 @@ test('D2: both generators are the same rule, so neither can drift again', () => 
   assert.match(clubhouse, /walkInAskFrom\(/, 'the floor spawner must use the shared rule');
   assert.doesNotMatch(clubhouse, /Math\.min\(grid\.length, 10\)/,
     'the ten-slot reach must be gone, not merely unused');
+});
+
+
+// ---- 4.2 (Goal 26) — THE OWNER'S OWN EXAMPLE, VERBATIM ----------------------
+//
+// "If it is 6:45 am, a walk-in may ask for 7:00, 7:30 or 8:00 and nothing else."
+//
+// Those are +15, +45 and +75 minutes, so the old 20..65 window was wrong at BOTH
+// ends: 20 excluded the 7:00 he lists and 65 excluded the 8:00 he lists. The rule
+// is now everything inside the next hour plus the single slot that straddles its
+// edge, which reproduces his three exactly without depending on the grid step.
+test('4.2: at 06:45 a walk-in asks for 07:00, 07:30 or 08:00 and nothing else', () => {
+  const grid = [];
+  for (let m = 7 * 60; m <= 18 * 60; m += 30) grid.push(m);
+  const now = 6 * 60 + 45;
+  const asks = new Set();
+  for (let i = 0; i <= 200; i += 1) {
+    const ask = walkInAskFrom(now, grid, i / 200);
+    if (ask !== null) asks.add(ask);
+  }
+  assert.deepEqual([...asks].sort((a, b) => a - b), [7 * 60, 7 * 60 + 30, 8 * 60],
+    `06:45 reached ${[...asks].sort((a, b) => a - b).join(', ')}`);
+});
+
+test('4.2: an hour that is fully booked produces no request at all', () => {
+  const grid = [];
+  for (let m = 7 * 60; m <= 18 * 60; m += 30) grid.push(m);
+  const now = 6 * 60 + 45;
+  // every slot the rule can reach from 06:45 is taken
+  const booked = [7 * 60, 7 * 60 + 30, 8 * 60];
+  for (let i = 0; i <= 50; i += 1) {
+    assert.equal(walkInAskFrom(now, grid, i / 50, { bookedMinutes: booked }), null,
+      'a walk-in with no time inside the hour must ask for nothing, not for the afternoon');
+  }
+  // and one free slot inside the hour is enough to bring the ask back
+  assert.equal(walkInAskFrom(now, grid, 0.5, { bookedMinutes: [7 * 60, 8 * 60] }), 7 * 60 + 30);
 });

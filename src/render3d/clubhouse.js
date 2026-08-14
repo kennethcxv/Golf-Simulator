@@ -102,7 +102,7 @@ import { ceilingCircuitPowered as ceilingCircuitPoweredSim } from '../sim/clubho
 import {
   dueForCheckIn, dueForArrivals, markReservationEnRoute, markReservationArrived,
   walkInAvailability, selectWalkInSlot, fmtSlot, deskReservationList,
-  slotTimes, resolveTeeTimeRequest, reservationById,
+  slotTimes, availableSlots, resolveTeeTimeRequest, reservationById,
   // (the walk-in ask rule lives in the sim; see the import below)
 } from '../sim/reservations.js';
 import {
@@ -9621,8 +9621,21 @@ export function makeClubhouse(ctx) {
         // fault the arrival planner had, in a second place, so fixing the
         // planner alone left half the walk-ins asking for the afternoon. One
         // rule now, in customerSimulation.walkInAskFrom.
+        // 4.2 (Goal 26): the ask is now checked against REAL AVAILABILITY, so
+        // "if everything inside the next hour is already booked, there is no
+        // walk-in request at all" is true in the game and not only in the sim
+        // helper. Without this argument the rule would be correct and unreachable
+        // -- the zero-call-sites shape this repository keeps paying for.
+        const dayAbs = Math.floor(state.clock.minutes / 1440);
+        let bookedMinutes;
+        try {
+          const free = new Set(availableSlots(state, dayAbs, { walkIn: true })
+            .map((slot) => slot.minute));
+          bookedMinutes = slotTimes(state).filter((minute) => !free.has(minute));
+        } catch { bookedMinutes = null; }
         walkInAskMinute = walkInAskFrom(
           state.clock.minutes % 1440, slotTimes(state), rng.next(),
+          bookedMinutes ? { bookedMinutes } : {},
         );
       }
     }
