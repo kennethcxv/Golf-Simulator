@@ -168,11 +168,9 @@ export const COLLAR_INNER = 0.52;
 // object: at 22 strands each bunch was one 13 mm rod (a comb of pale pipes), and
 // at 380 evenly-spread strands there were no bunches at all (a brush).
 //
-//   count 432 fine strands       6.4 mm across: yarn you can pick out one at a
-//                                time, not the 13 mm length of pipe that shipped
-//                                and not the 4.4 mm thread that replaced it
-//   clumps 18                    inside the 16-24 a person can still count, now
-//                                24 strands to a bunch instead of 14
+//   count 252 fine strands       4.4 mm across, so a strand reads as yarn, not
+//                                as the 13 mm length of pipe that shipped
+//   clumps 18                    inside the 16-24 a person can still count
 //   splay 0.32                   the hem sits ~32% of a head-radius proud of
 //                                the collar: a skirt, not a cylinder
 //
@@ -180,20 +178,15 @@ export const COLLAR_INNER = 0.52;
 // density costs geometry and no submissions. That is why "many fine strands"
 // is affordable here at all.
 export const SHIPPED_MOP_YARN = Object.freeze({
-  // ROUND 3: "the mop needs more strings that are bigger, it's currently too
-  // small." All three of those, together -- the head as well as the yarn, because
-  // a fuller bundle on the same 105 mm disc would just read as denser rather than
-  // bigger.
-  //
-  // 432 = 18 x 24 exactly. An uneven split would give some bunches more strands
+  // 252 = 18 x 14 exactly. An uneven split would give some bunches more strands
   // than others, and since the splay force is per-strand that imbalance is the
   // same off-axis drift the even angles above exist to remove.
-  count: 432,
-  radius: 0.128,
-  length: 0.335,
+  count: 252,
+  radius: 0.105,
+  length: 0.30,
   segments: 4,
-  strandRadiusTop: 0.0032,
-  strandRadiusBottom: 0.0023,
+  strandRadiusTop: 0.0022,
+  strandRadiusBottom: 0.0016,
   radialSegments: 5,
   lengthVariation: 0.24,
   clumps: 18,

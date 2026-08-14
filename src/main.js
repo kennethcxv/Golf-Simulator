@@ -1502,7 +1502,7 @@ function startGameNow(
       // player's equip takes -- and the opaque veil is still covering the screen.
       // Not a seventeenth renderer.compile() configuration: nothing is described
       // to the renderer, a real tool is equipped and really drawn.
-      await warmFirstPersonHands(sceneRef);
+      // HANDS WARM DISABLED, 2026-08-13. See warmFirstPersonHands below.
       veil.hide();
       const notices = [degradedPrewarmNotice, loadNotice].filter(Boolean);
       if (notices.length) {
@@ -1517,29 +1517,32 @@ function startGameNow(
 
 // full-screen loading veil (opaque — it also hides the prewarm camera swings)
 let loadVeil = null;
-// Equip a hands-drawing tool for a few real frames, then put it away. Guarded at
-// every step: a warm that throws must never be the reason the veil stays up.
-async function warmFirstPersonHands(sceneRef) {
-  try {
-    const walk = sceneRef?.walk;
-    if (!walk || typeof walk.setTool !== 'function') return;
-    if (app.scene3d !== sceneRef) return;
-    const previous = typeof walk.tool === 'function' ? walk.tool() : null;
-    if (previous) return; // the player already has something out; leave it alone
-    const frame = () => new Promise((resolve) => requestAnimationFrame(resolve));
-    walk.setTool('dustpan');
-    // Three frames: one to mount the viewmodel, one to draw it, one for the
-    // depth pass that follows. Two was not enough in testing.
-    await frame();
-    await frame();
-    await frame();
-    if (app.scene3d !== sceneRef) return;
-    walk.setTool(null);
-    await frame();
-  } catch (error) {
-    reportFault('scene.hands-warm', error);
-  }
-}
+// DISABLED, and kept rather than deleted so the next attempt starts from what
+// was learned rather than from scratch.
+//
+// It worked: the dustpan's first equip went from 282 ms / +8 GL programs to
+// 46 ms / +0, and the broom's from 362 ms / +9 to 102 ms / +1. But the owner
+// then reported the game "absolutely unplayable, like 3 fps" with
+// `GPU state invalid after WaitForGetOffsetInRange` in the log -- a GPU process
+// loss, after which Chromium falls back to software rendering, which is exactly
+// what 3 fps looks like.
+//
+// I CANNOT PROVE THIS CAUSED IT. The harness measures the current build as
+// FASTER than the pre-change build on every axis I could take (load 49 s vs
+// 64 s, 63 fps standing in both, 20.5 vs 7.0 fps after walking outdoors), and no
+// run of mine reproduced the GPU loss. What is true is that this is the only
+// thing tonight that asks the driver to compile shader programs at a NEW moment
+// -- the veil boundary, while prewarm's uploads are still settling -- and a
+// driver reset under exactly that load is a known hazard.
+//
+// So it is off on risk, not on evidence: a one-time 280 ms hitch on the first
+// tool equip is a far better trade than a chance of a GPU reset. If the owner's
+// next session is healthy with this disabled, that is the evidence, and the warm
+// can come back spread over several frames well after the veil has lifted rather
+// than in a burst at the boundary.
+//
+// The implementation is in git at commit adb9ef2 if it is wanted back; it is
+// not carried here as dead code.
 
 function ensureLoadVeil() {
   if (loadVeil) return loadVeil;

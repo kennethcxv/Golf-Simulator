@@ -187,6 +187,9 @@ export function avoidanceHeading(self, neighbours, dirX, dirZ, speed, options = 
  * @param clampToWorld optional (x, z, radius) => ({x, z}) so a body pushed out
  *        of a neighbour is never pushed into a wall.
  */
+let _dx = new Float64Array(0);
+let _dz = new Float64Array(0);
+
 export function separate(bodies, options = {}, clampToWorld = null) {
   const opts = { ...CROWD_DEFAULTS, ...options };
   if (!Array.isArray(bodies) || bodies.length < 2) return 0;
@@ -196,8 +199,13 @@ export function separate(bodies, options = {}, clampToWorld = null) {
     // Collect every correction BEFORE applying any of them. Applying as we go
     // is what made the old resolution order-dependent: the second pair in the
     // list would be computed against a body the first pair had already moved.
-    const dx = new Float64Array(bodies.length);
-    const dz = new Float64Array(bodies.length);
+    // Hoisted: this allocated two typed arrays PER ITERATION per frame. The
+    // scratch is reused and grown only when a bigger crowd turns up.
+    if (_dx.length < bodies.length) { _dx = new Float64Array(bodies.length); _dz = new Float64Array(bodies.length); }
+    const dx = _dx;
+    const dz = _dz;
+    dx.fill(0, 0, bodies.length);
+    dz.fill(0, 0, bodies.length);
 
     for (let i = 0; i < bodies.length; i += 1) {
       const a = bodies[i];

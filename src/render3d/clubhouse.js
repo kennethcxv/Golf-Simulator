@@ -11047,7 +11047,12 @@ export function makeClubhouse(ctx) {
   // Only the people who could matter this frame. Scanning the whole floor per
   // customer is the sort of n-squared that becomes a stall once a room is busy.
   const CROWD_RANGE = 2.4;
+  // POOLED. The first version allocated a fresh record per neighbour per
+  // customer per frame -- O(n^2) short-lived objects at 60 Hz, which is GC
+  // pressure for no reason and the sort of thing that turns into stutter on a
+  // busy floor. The records never outlive the call, so they are reused.
   const _crowdNear = [];
+  const _crowdPool = [];
   function customerNeighbours(c) {
     _crowdNear.length = 0;
     const px = c.mesh.position.x;
@@ -11057,9 +11062,15 @@ export function makeClubhouse(ctx) {
       const ox = other.mesh.position.x;
       const oz = other.mesh.position.z;
       if (Math.abs(ox - px) > CROWD_RANGE || Math.abs(oz - pz) > CROWD_RANGE) continue;
-      _crowdNear.push({
-        x: ox, z: oz, vx: other.vx || 0, vz: other.vz || 0, pinned: customerIsPinned(other),
-      });
+      const slot = _crowdNear.length;
+      let record = _crowdPool[slot];
+      if (!record) { record = { x: 0, z: 0, vx: 0, vz: 0, pinned: false }; _crowdPool[slot] = record; }
+      record.x = ox;
+      record.z = oz;
+      record.vx = other.vx || 0;
+      record.vz = other.vz || 0;
+      record.pinned = customerIsPinned(other);
+      _crowdNear.push(record);
     }
     return _crowdNear;
   }
@@ -11070,6 +11081,7 @@ export function makeClubhouse(ctx) {
   // inside the counter.
   const crowdStats = { passes: 0, pairsOverlapping: 0, worstOverlap: 0 };
   const _crowdBodies = [];
+  const _crowdBodyPool = [];
   function crowdClamp(x, z, radius) {
     let nx = x;
     let nz = z;
@@ -11100,15 +11112,32 @@ export function makeClubhouse(ctx) {
     _crowdBodies.length = 0;
     for (const c of customers) {
       if (!c.mesh || c.mesh.visible === false) continue;
-      _crowdBodies.push({
-        x: c.mesh.position.x,
-        z: c.mesh.position.z,
-        radius: BODY_RADIUS,
-        pinned: customerIsPinned(c),
-        c,
-      });
+      const slot = _crowdBodies.length;
+      let body = _crowdBodyPool[slot];
+      if (!body) {
+        body = { x: 0, z: 0, radius: BODY_RADIUS, pinned: false, c: null };
+        _crowdBodyPool[slot] = body;
+      }
+      body.x = c.mesh.position.x;
+      body.z = c.mesh.position.z;
+      body.radius = BODY_RADIUS;
+      body.pinned = customerIsPinned(c);
+      body.c = c;
+      _crowdBodies.push(body);
     }
     if (_crowdBodies.length < 2) { crowdStats.pairsOverlapping = 0; return; }
+    // Skip the whole solve on the overwhelmingly common frame where nobody is
+    // near anybody. A cheap bounding test first keeps the O(n^2) separation off
+    // the hot path in an empty or spread-out room.
+    let anyClose = false;
+    for (let i = 0; i < _crowdBodies.length && !anyClose; i += 1) {
+      for (let j = i + 1; j < _crowdBodies.length; j += 1) {
+        const a = _crowdBodies[i];
+        const b = _crowdBodies[j];
+        if (Math.abs(a.x - b.x) < 0.8 && Math.abs(a.z - b.z) < 0.8) { anyClose = true; break; }
+      }
+    }
+    if (!anyClose) { crowdStats.pairsOverlapping = 0; return; }
     crowdStats.pairsOverlapping = separate(_crowdBodies, undefined, crowdClamp);
     crowdStats.passes += 1;
     let worst = 0;
