@@ -123,9 +123,37 @@ const arms = [
   })),
 ];
 
+// THE INTERLOCK CONTROL. Everything above wants the latch to STAY OFF, so on
+// its own it is equally consistent with having simply broken the interlock.
+// This arm releases, then tears the save AGAIN, and demands the latch come back.
+// If this goes green-with-the-others, the fix is a blanket amnesty and is wrong.
+function interlockStillBites() {
+  const save = tornSave('interlock', (s) => { s.shop.pendingCheckouts = 'lost-checkout-journal'; });
+  const { state: boot1 } = deserializeWithReport(JSON.stringify(save));
+  if (!checkoutWalIsQuarantined(boot1)) return { error: 'arm did not trip on first boot' };
+  releaseCheckoutWalQuarantine(boot1, { acknowledgedBy: 'relatch-probe' });
+  const released = JSON.parse(serialize(boot1));
+  const cleanAfterRelease = !checkoutWalIsQuarantined(
+    deserializeWithReport(JSON.stringify(released)).state,
+  );
+  // A FRESH half-committed sale lands in the journal the acknowledgement emptied.
+  released.shop.pendingCheckouts = { 'checkout:new-tear': { version: 1 } };
+  const { state: boot3 } = deserializeWithReport(JSON.stringify(released));
+  const relatched = checkoutWalIsQuarantined(boot3);
+  return {
+    cleanAfterRelease,
+    latchesAgainOnNewTear: relatched,
+    reason: boot3.shop.pendingCheckoutsQuarantine?.reason ?? null,
+    verdict: cleanAfterRelease && relatched
+      ? 'INTERLOCK INTACT — the acknowledgement covers the old incident only'
+      : 'BROKEN — the acknowledgement is a standing pass, which is wrong',
+  };
+}
+
 console.log(JSON.stringify({
   question: 'Is the WAL quarantine set once, or re-set on every boot?',
   arms,
+  interlockControl: interlockStillBites(),
   answer: arms.some((a) => a.RE_LATCHED_ON_NEXT_BOOT)
     ? 'IT DEPENDS ON THE TRIP SITE — at least one re-latches every boot'
     : 'SET ONCE — no tested trip site re-latches after a release',

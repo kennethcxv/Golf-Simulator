@@ -30,6 +30,7 @@ import {
   checkoutSettlementReceiptForPlan,
   checkoutSettlementTicketDigest,
   checkoutWalIsQuarantined,
+  checkoutWalQuarantineAcknowledged,
   drainPendingCheckoutCore,
   quarantineCheckoutWal,
   reconcilePendingCheckouts,
@@ -1957,6 +1958,19 @@ function normalizeShopState(state, rawShop, defaults, report, { checkoutJournalC
       report,
       '$.shop.pendingCheckouts',
       'invalid checkout journal quarantined; financial and inventory recovery blocked',
+    );
+  } else if (checkoutJournalCoherence?.unsafe
+      && checkoutWalQuarantineAcknowledged(rawShop)) {
+    // The owner already accepted this loss and the authorities are still empty.
+    // Re-latching here is what made the manager's key useless: the coherence
+    // verdict is derived partly from ledger rows a release cannot rewrite, so
+    // without this the same acknowledged incident wedges the till on every boot
+    // forever. A NEW half-committed sale writes a plan, receipt or projection,
+    // fails the emptiness test above, and takes the branch below as normal.
+    noteRepair(
+      report,
+      '$.shop.pendingCheckouts',
+      `${checkoutJournalCoherence.diagnostic || 'incoherent checkout journal'} previously acknowledged; quarantine not re-applied`,
     );
   } else if (checkoutJournalCoherence?.unsafe) {
     const evidence = {};

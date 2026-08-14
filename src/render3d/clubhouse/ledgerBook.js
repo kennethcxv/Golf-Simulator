@@ -173,13 +173,22 @@ export function createLedgerBook({ THREE, state, anchor, counterTop, camera = nu
       side: THREE.BackSide,
       toneMapped: false,
       transparent: true,
-      opacity: 0.92,
+      // Quieter than the register's grab highlight on purpose: this one sits on
+      // a dark leather cover in a dim room, where 0.92 of an unlit saturated
+      // yellow blooms into a glow rather than reading as an edge.
+      opacity: 0.62,
       depthWrite: false,
     });
   };
   const outlineMaterial = makeOutlineMaterial();
   const outlineShells = [];
   let outlineOn = false;
+  // Every candidate part with the metrics the filter could sort on, so the
+  // filter threshold is chosen from measurements instead of guessed.
+  let outlineCandidates = [];
+  // The box is rebuilt when the outline switches on; the previous one is freed
+  // rather than left to accumulate one geometry per hover for the session.
+
 
   function clearOutline() {
     for (const shell of outlineShells) shell.removeFromParent();
@@ -188,6 +197,20 @@ export function createLedgerBook({ THREE, state, anchor, counterTop, camera = nu
   }
 
   function applyOutline() {
+    // ONE RIM, ROUND THE WHOLE BOOK. Judged by eye from
+    // qa/electron/p1-outline-look/outline-aimed-close.png at six shells, which
+    // was still not what the owner asked for: the binding rings read as a solid
+    // yellow crescent and the page block as yellow stripes, because a 5.5 mm rim
+    // grown around leaves that sit 1-2 mm apart closes the gaps between them and
+    // fills in as a mass. Per-part shells cannot express "the book's outline" --
+    // every part they add is another interior edge picked out in yellow, which is
+    // the exact complaint.
+    //
+    // So: one box the size of the closed book, one draw call, and the only edges
+    // it can possibly draw are the book's own. The per-part measurement pass is
+    // kept below because it is what diagnoses the next surprise, and it costs a
+    // traverse of a dozen meshes on the frame the outline switches on.
+    //
     // ALWAYS FROM THE CLOSED SHELL. The open book is not something the player
     // aims at from the floor, and outlining the open spread would frame the
     // pages the player is already reading.
@@ -207,19 +230,64 @@ export function createLedgerBook({ THREE, state, anchor, counterTop, camera = nu
       const box = mesh.geometry.boundingBox;
       if (!box || box.isEmpty()) return;
       const size = box.getSize(new THREE.Vector3());
-      parts.push({ mesh, size, span: Math.max(size.x, size.y, size.z) });
+      parts.push({
+        mesh,
+        size,
+        span: Math.max(size.x, size.y, size.z),
+        thickness: Math.min(size.x, size.y, size.z),
+      });
     });
     const biggest = parts.reduce((max, p) => Math.max(max, p.span), 0);
-    for (const { mesh, size, span } of parts) {
+    outlineCandidates = parts.map(({ mesh, size, span }) => ({
+      name: mesh.name || '(unnamed)',
+      span: +span.toFixed(4),
+      thickness: +Math.min(size.x, size.y, size.z).toFixed(4),
+      volume: +(size.x * size.y * size.z).toFixed(6),
+    }));
+    // A RIM ON THE SILHOUETTE, NOT A RIM ON EVERY PART. The owner, on the first
+    // version: "Sixteen shells outlining boards, spine and page block is not
+    // subtle. I want a quiet rim on the book's silhouette."
+    //
+    // The span rule alone kept sixteen, and the measurements say why: the cover
+    // is decorated with FLAT parts that span nearly the whole board and so pass
+    // any size test. Thickness separates them completely, with no judgement call
+    // in the gap --
+    //
+    //   cover slabs   LB_CoverBack*, LB_CoverFrontBody   7.0 - 84.4 mm thick
+    //   flat decals   LB_BorderInner/Outer_*              1.2 mm
+    //                 LB_FaceTitle, the unnamed plane     0.0 mm  (planes)
+    //
+    // A zero-thickness plane lying on the cover cannot contribute to the book's
+    // outline; shelling it just prints a second yellow rectangle inside the
+    // first. Requiring real thickness keeps the boards and drops the printing.
+    //
+    // AND ONE BOX ROUND THE WHOLE BOOK WAS TRIED, AND IS WORSE. Measured tight --
+    // 0.351 x 0.085 x 0.267, the book's own dimensions -- and photographed as a
+    // pale slab sticking out past two corners. A back-face shell reads as the
+    // SILHOUETTE of its own geometry, so a box draws the box: every place the
+    // book's real shape falls inside its bounding box (the whole binding side,
+    // every corner) fills with yellow. A box can only outline a box.
+    // qa/electron/p1-outline-look/ has both frames.
+    const thickest = parts.reduce((max, p) => Math.max(max, p.thickness), 0);
+    for (const { mesh, size, span, thickness } of parts) {
       // a quarter of the largest part is the boards and the spine; below that is
       // trim that the boards' own rim already encloses
       if (biggest > 0 && span < biggest * 0.25) continue;
+      // and it has to be a solid, not something printed on one
+      if (thickest > 0 && thickness < thickest * 0.05) continue;
+      // THE RIM CANNOT BE ALLOWED TO CLOSE A GAP. An absolute 5.5 mm grown around
+      // parts that sit 1-2 mm apart merges them: photographed at six shells, the
+      // binding rings came out as one solid yellow crescent and the page block as
+      // yellow stripes, which is what "not subtle" meant. Capping the rim at a
+      // third of the part's own thickness keeps thin parts' rims thinner than the
+      // gaps between them, so the outline stays an edge instead of filling in.
+      const rim = Math.min(OUTLINE_RIM, Math.max(thickness * 0.33, 0.0012));
       const shell = new THREE.Mesh(mesh.geometry, outlineMaterial);
       shell.userData = { ledgerOutlineShell: true, pick: false };
       shell.scale.set(
-        size.x > 1e-6 ? (size.x + OUTLINE_RIM * 2) / size.x : 1,
-        size.y > 1e-6 ? (size.y + OUTLINE_RIM * 2) / size.y : 1,
-        size.z > 1e-6 ? (size.z + OUTLINE_RIM * 2) / size.z : 1,
+        size.x > 1e-6 ? (size.x + rim * 2) / size.x : 1,
+        size.y > 1e-6 ? (size.y + rim * 2) / size.y : 1,
+        size.z > 1e-6 ? (size.z + rim * 2) / size.z : 1,
       );
       shell.raycast = () => {}; // the outline must never eat the E press
       shell.renderOrder = (mesh.renderOrder || 0) - 1;
@@ -234,11 +302,20 @@ export function createLedgerBook({ THREE, state, anchor, counterTop, camera = nu
   // every frame would be the material/geometry churn clause 6 is about.
   function setAimed(on) {
     const want = !!on
-      // "never goes stale after open or close" — while the book is open or in
-      // hand there is nothing on the desk to outline, and the closed shell is
-      // hidden anyway. Answering here rather than at the call site means the
-      // rule cannot be half-applied by a caller that forgets it.
-      && !isOpen() && !carried && closedShell.visible;
+      // FOUND-FALSE (Goal 25 round 2): "the outline stays lit when I pick the
+      // book up." This read `!isOpen() && !carried`, and the reading gesture
+      // sets NEITHER. K raises the book through `raising` into `held` -- in hand,
+      // shut, and `carried` still false, because `carried` is the X/Z carry flag
+      // for walking the book somewhere else. Measured on the real key press:
+      // raising 2/2 lit, held 12/12 lit, 16 shells, all with carried === false.
+      // Opening it only appeared to fix it because the shells hang off meshes
+      // inside closedShell, which the open pose hides.
+      //
+      // isInHand() is `bookState !== 'closed'`, which is exactly the question:
+      // the outline belongs to a book sitting shut on the desk waiting to be
+      // aimed at, and to no other state. Answering here rather than at the call
+      // site means the rule cannot be half-applied by a caller that forgets it.
+      && !isInHand() && closedShell.visible;
     if (want === outlineOn) return outlineOn;
     if (want) applyOutline(); else clearOutline();
     return outlineOn;
@@ -2627,6 +2704,11 @@ export function createLedgerBook({ THREE, state, anchor, counterTop, camera = nu
     debugOutline: () => ({
       active: outlineOn,
       shellCount: outlineShells.length,
+      // Names, not just spans: "16 shells" says the outline is busy but not
+      // WHICH parts are being picked out, and the owner's note is about exactly
+      // that ("boards, spine and page block is not subtle").
+      shellOwners: outlineShells.map((shell) => shell.parent?.name || '(unnamed)'),
+      candidates: outlineCandidates,
       shellOwnerSpans: outlineShells.map((shell) => {
         const owner = shell.parent;
         if (!owner?.geometry) return null;

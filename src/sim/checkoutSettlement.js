@@ -54,6 +54,37 @@ export function checkoutWalIsQuarantined(state) {
   return state?.shop?.[CHECKOUT_WAL_QUARANTINE_FIELD]?.active === true;
 }
 
+// P0 (Goal 25 round 2) — WHY THE MANAGER'S KEY DID NOT WORK.
+//
+// The owner asked whether the load-time repair re-latches on every boot. It
+// does, on every trip site (tools/qa/node/p0-relatch-probe.mjs). The reason is
+// that the repair at state.js:1961 discards the shop authorities and then
+// quarantines, while classifyCheckoutJournalCoherence derives "unsafe" partly
+// from the LEDGER -- an orphan bank posting with no replay checkpoint. The
+// release rewrites shop.pendingCheckouts; it cannot rewrite financial history.
+// So the evidence that trips the check outlives every repair, and the repair
+// re-derives the same verdict forever. The key turned, and the door relocked.
+//
+// This predicate is the one thing a release can leave behind that the next boot
+// will believe. It is deliberately narrow: an explicit release (active === false
+// with a releasedBy, which only releaseCheckoutWalQuarantine writes) AND shop
+// authorities that are still empty. Emptiness is what makes it safe -- the
+// acknowledged loss was of records already discarded, and any NEW half-committed
+// sale writes a plan, a receipt or a projection, which fails this test and
+// latches again. Acknowledging one incident must never grant a standing pass.
+export function checkoutWalQuarantineAcknowledged(rawShop) {
+  const q = rawShop?.[CHECKOUT_WAL_QUARANTINE_FIELD];
+  if (!isRecord(q) || q.active !== false) return false;
+  if (typeof q.releasedBy !== 'string' || !q.releasedBy) return false;
+  const empty = (value) => value == null
+    || (isRecord(value) && Object.keys(value).length === 0)
+    || (Array.isArray(value) && value.length === 0);
+  return empty(rawShop.pendingCheckouts)
+    && empty(rawShop.checkoutSettlementReceipts)
+    && empty(rawShop.checkoutSettlementReceiptKeys)
+    && empty(rawShop.checkoutProjectionIds);
+}
+
 export function quarantineCheckoutWal(
   state,
   reason = 'malformed-persisted-checkout-journal',
