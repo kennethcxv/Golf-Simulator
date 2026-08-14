@@ -12214,13 +12214,32 @@ export function makeClubhouse(ctx) {
     const resortPresentationEnabled = typeof resortClubhouse.enabled === 'function'
       && resortClubhouse.enabled();
     const interiorDrawDistance = resortPresentationEnabled ? 34 : CLUBHOUSE_INTERIOR_DRAW_DISTANCE;
+    // THE ROOM YOU ARE STANDING IN MUST NOT VANISH BECAUSE THE CAMERA IS
+    // ELSEWHERE. This asked the CAMERA where it was, and on the way back from
+    // the overview the camera is still out over the course for several frames
+    // while it returns to the player. For those frames the fit-out is culled and
+    // what remains on screen is the bare authored shell -- green walls, carpet,
+    // a window, no counter and no fixtures -- which is exactly the owner's
+    // "it shows the dummy map before my grey one", and why it only happens on
+    // Tab-then-Tab-again rather than on the way in. Recorded and viewed at
+    // qa/tab-map/frames/frame-0371.png.
+    //
+    // While walking, the PLAYER's position is the authority: they are the reason
+    // the interior is being drawn at all. The camera keeps its say for every
+    // other view, which is what the draw-distance saving was measured on.
     const visible = clubhouseInteriorVisibleAt(
       camera.position.x,
       camera.position.z,
       center.x,
       center.z,
       interiorDrawDistance,
-    );
+    ) || (walk.active && clubhouseInteriorVisibleAt(
+      walk.x,
+      walk.z,
+      center.x,
+      center.z,
+      interiorDrawDistance,
+    ));
     // Visual-evidence scripts may isolate the permanent authored shell from a
     // player's saved furniture. The flag never changes simulation or save data.
     interior.visible = interior.userData.visualQaForceHidden ? false : visible;

@@ -100,7 +100,12 @@ async (page) => {
 
   await page.waitForTimeout(400);
   await page.keyboard.press('Tab');
-  await page.waitForTimeout(9000); // well past the owner's 3-5 s
+  await page.waitForTimeout(5000);
+  // THE RETURN LEG. His round-3 wording is "clicking tab then tab again", and
+  // every earlier version of this driver only ever pressed Tab ONCE -- a true
+  // measurement of the half of the round trip he was not complaining about.
+  await page.keyboard.press('Tab');
+  await page.waitForTimeout(9000);
   const trace = await page.evaluate(() => {
     window.__tabStop = true;
     return window.__tab;
@@ -109,6 +114,8 @@ async (page) => {
 
   // Where the Tab press lands in the trace: the frame the mode flag changes.
   const flipIndex = trace.findIndex((f) => f.mode === 'overview');
+  const backIndex = trace.findIndex((f, i) => i > flipIndex && f.mode === 'walk');
+  const back = backIndex >= 0 ? trace[backIndex] : null;
   const flip = flipIndex >= 0 ? trace[flipIndex] : null;
   // "Settled" = draw calls stop moving for 30 consecutive frames (~0.5 s).
   let settled = null;
@@ -125,6 +132,9 @@ async (page) => {
     modeFlipAtMs: flip?.ms ?? null,
     settledAtMs: settled?.ms ?? null,
     msFlipToSettled: flip && settled ? +(settled.ms - flip.ms).toFixed(1) : null,
+    returnedToWalkAtMs: back?.ms ?? null,
+    longestFrameOnReturn: backIndex >= 0
+      ? trace.slice(backIndex, backIndex + 120).reduce((m, f) => Math.max(m, f.dt), 0) : null,
     framesOver100ms: longFrames.length,
     longestFrameMs: trace.reduce((m, f) => Math.max(m, f.dt), 0),
     longFrames: longFrames.slice(0, 12),
