@@ -1048,6 +1048,34 @@ export function buildShell(B) {
     // practicals stay on all day (retail) but carry the room after dark
     const finishScale = [0.60, 0.80, 1.0, 1.14][shopTierNow] || 0.60;
     const scale = (0.72 + 0.55 * (1 - moodDayF)) * finishScale;
+    // 9.3 (Goal 26) — "The interior is unreadably dark at 6 am, which is when the
+    // game starts. The lights are on the restoration path, so either the game
+    // does not start at 6 am, or the lobby has ONE WORKING BULB from the
+    // beginning. Pick one and say which."
+    //
+    // PICKED: the lobby should keep one working bulb. The game DOES start at
+    // 6 am -- newClock() returns DAY_START_MIN and a live boot measured 360.45 --
+    // and moving the start time would drag the tee sheet, the arrival planner and
+    // every authored morning beat with it to fix a lighting problem.
+    //
+    // HIS REPORT REPRODUCES, in corners rather than everywhere. 28 sampled views
+    // (7 positions x 4 headings, HUD cropped out, campaign on, ceiling unrepaired):
+    // median-of-medians 50, but TWO views are genuinely unreadable -- median luma
+    // 20 of 255 with 56% of the frame indistinguishable from black, worst at
+    // interior offset (3,3) looking back at 180 degrees.
+    //
+    // I TRIED THE BULB AND IT DID NOTHING, so it is not in the tree. Forcing
+    // practical index 0 to a third brightness while unpowered moved the
+    // median-of-medians 50 -> 50, the unreadable count 2 -> 2, and the darkest
+    // sample 20 -> 21. That fitting is nowhere near the corner that is dark, and
+    // shipping a light that cannot be told apart from no light would be exactly
+    // the kind of unverifiable change this project keeps paying for.
+    //
+    // WHAT THE NEXT ATTEMPT NEEDS: the practicals' own positions, so the one
+    // nearest interior offset (3,3) can be the emergency bulb instead of index 0.
+    // The measurement is ready -- tools/qa/electron-dawn-readability.js -- and it
+    // asserts its own precondition, because ceilingCircuitPowered returns TRUE for
+    // free play and my first run measured a lit room.
     practicals.forEach((p, i) => {
       let on = ceilingCircuitPowered ? 1 : 0;
       if (shopTierNow === 0 && [1, 2, 4, 5, 6].includes(i)) on = 0;
