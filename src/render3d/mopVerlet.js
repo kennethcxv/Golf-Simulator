@@ -256,16 +256,44 @@ export const SHIPPED_MOP_YARN = Object.freeze({
   // was correctly refused. 2.25x the strands at the same fineness is 2.25x the
   // fill without turning the yarn back into the pipes Goal 25 threw out.
   count: 972,
-  radius: 0.128,
-  length: 0.335,
+  // GOAL 26 5.1 ROUND 2 -- THE PROPORTIONS WERE A BALL, NOT A DISC.
+  //
+  // His reference is a spin mop: the white microfibre is roughly TWICE AS WIDE
+  // AS IT IS DEEP, a flat packed disc under a red collar. Shipped, the head was
+  // 0.256 across and the yarn hung 0.335 -- longer than the head was wide -- so
+  // whatever the density, the silhouette could only ever be a sphere of spikes,
+  // and that is what it photographed as. Widening to 0.336 across and cutting
+  // the drop to 0.20 puts the ratio at 1.7:1, which is the reference's shape.
+  radius: 0.168,
+  length: 0.20,
+  // "The solver can keep four simulation nodes; the GEOMETRY must not show
+  // them." With 4 the outward flare -- which scales by n/S -- puts a visible
+  // corner at every node, and at the shorter 0.20 drop those corners photograph
+  // as fish-hooks around the rim. 8 halves the angle at each joint, which is
+  // what turns the chain back into a rope. It costs four more instanced draws on
+  // the one tool that is on screen at viewmodel distance.
+  // I raised this to 8 believing the fish-hooks around the rim were a corner at
+  // every simulation node, photographed it, and the picture was indistinguishable
+  // -- so that was not what they were. They are the OPEN MOUTHS of the strand
+  // tubes (see the openEnded note below). 4 is enough for the motion and costs
+  // half the draws and half the triangles, so it stays at 4.
   segments: 4,
   strandRadiusTop: 0.0038,
   strandRadiusBottom: 0.0027,
   radialSegments: 5,
   lengthVariation: 0.24,
   clumps: 18,
-  clumpGather: 0.42,
-  splay: 0.32,
+  // GOAL 26 5.1 ROUND 2: "clumped into a MASS." 0.42 gathers each bunch to 42%
+  // of the gap to its neighbour, which leaves daylight all the way round every
+  // one of the 18 -- photographed at the player camera the head read as a sea
+  // urchin, a starburst of separate tufts with black between them, not the
+  // packed white disc in his reference. 0.80 lets neighbouring bunches meet at
+  // the collar while the bunches themselves stay countable, which is what the
+  // Goal 25 ruling was actually about.
+  clumpGather: 0.80,
+  // and a stronger flare, because a disc is what the outward push makes: at 0.32
+  // the bundle fell as a column and only the hem opened.
+  splay: 0.52,
 });
 
 export function createVerletMopStrands({
@@ -334,8 +362,13 @@ export function createVerletMopStrands({
   const radiusAt = (t) => strandRadiusTop + (strandRadiusBottom - strandRadiusTop) * t;
   const segmentGeometries = [];
   for (let s = 0; s < S; s += 1) {
+    // NOT open-ended. Photographed at the player camera, an open 5-sided tube
+    // seen anywhere near end-on shows its own far wall through the mouth, and
+    // 972 of them read as a ring of curled paper shells around the collar -- the
+    // "fish-hooks" I first blamed on the solver's node corners. Caps cost ten
+    // triangles a segment on one viewmodel tool and remove the whole artifact.
     const g = new THREE.CylinderGeometry(
-      radiusAt(s / S), radiusAt((s + 1) / S), nominalSeg, RADIAL, 1, true,
+      radiusAt(s / S), radiusAt((s + 1) / S), nominalSeg, RADIAL, 1, false,
     );
     g.translate(0, -nominalSeg / 2, 0);
     segmentGeometries.push(g);

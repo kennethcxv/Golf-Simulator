@@ -270,7 +270,17 @@ test('B (Goal 25): 16-24 countable BUNCHES of many fine strands, not 16-24 rods'
   }
   assert.ok(widest * 2 < closest,
     `a bunch (${(widest * 2 * 1000).toFixed(1)} mm wide) must not close the gap to its neighbour (${(closest * 1000).toFixed(1)} mm)`);
-  assert.equal(rig.drawCalls, 4, 'still one instanced call per segment index');
+  // The literal 4 here was a snapshot of the segment count at the time, not the
+  // contract -- the contract is the message beside it, one instanced call per
+  // segment index, and 5.1 raised the count to 8 so the flare stops showing a
+  // corner at every node. Binding the assertion to the number it was describing
+  // keeps that contract exactly. The separate ceiling is the thing the literal
+  // was quietly guarding: the yarn must not turn into a draw-call budget of its
+  // own, and Phase 7 is about that budget.
+  assert.equal(rig.drawCalls, SHIPPED_MOP_YARN.segments,
+    'still one instanced call per segment index');
+  assert.ok(rig.drawCalls <= 8,
+    `the yarn may not cost more than 8 draws; costs ${rig.drawCalls}`);
   const head = new THREE.Group();
   head.add(rig.root);
   head.position.set(0, 1, 0);
