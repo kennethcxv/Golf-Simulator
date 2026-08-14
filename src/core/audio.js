@@ -64,6 +64,13 @@ export function makeAudio(preferences = null) {
 
   let rainGain = null;
   let mowerGain = null;
+  // The mower passes rather than drones (see update). A settle delay means no
+  // sustained ambience can start on the load frame, which is the specific
+  // complaint 1.6 is about.
+  const MOWER_SETTLE_SECONDS = 25;
+  let mowerPassTimer = 0;
+  let mowerPassUntil = 0;
+  let mowerSettleIn = MOWER_SETTLE_SECONDS;
   let birdTimer = 0;
   let strikeTimer = 0;
   const checkoutCueLastAt = new Map();
@@ -2421,6 +2428,12 @@ export function makeAudio(preferences = null) {
     src.stop(t + tail + 0.02);
   }
 
+  // The last context `update` was driven with, and the ambient gains that came
+  // out of it. 1.6 asks for the SOURCE of a drone, and a probe that reasons from
+  // the clock to the gate to the gain is three inferences away from the node the
+  // player actually hears -- this reports the node.
+  let lastAmbient = null;
+
   // called ~once per second with live game context
   function update(dt, { minuteOfDay = 720, rainIn = 0, golfersVisible = 0, inShop = false, tempHiF = 70 } = {}) {
     if (!ctx || paused || !lifecycleActive) return;
@@ -2428,8 +2441,44 @@ export function makeAudio(preferences = null) {
 
     if (rainGain) rainGain.gain.setTargetAtTime(Math.min(0.35, rainIn * 0.4) * (inShop ? 0.35 : 1), ctx.currentTime, 0.6);
 
-    const mowerOn = !inShop && minuteOfDay >= 300 && minuteOfDay <= 420; // the 5–7 AM shift
+    // 1.6 — THE MOWER-LIKE STATIC ON LOAD.
+    //
+    // This was two detuned sawtooths at 92 and 95.5 Hz held open for the whole
+    // 5-7 AM window. The game starts at 6 AM (Phase 9.3 of this brief says so
+    // about the lighting), so on every new game outdoors the first thing the
+    // player heard was a two-hour unbroken drone at mower pitch -- which is
+    // exactly the report, and 1.5 names "mower timbre" as the thing background
+    // audio must never be.
+    //
+    // A real mower is not a drone; it is a machine that passes. So the gate now
+    // opens for SHORT PASSES separated by long gaps, and the first pass cannot
+    // begin until the player has been outdoors a while -- nothing sustained
+    // starts on the load frame. The window itself is unchanged: mowing still
+    // happens on the early shift, and it is still not audible indoors.
+    const inMowWindow = !inShop && minuteOfDay >= 300 && minuteOfDay <= 420;
+    if (!inMowWindow) {
+      mowerPassTimer = 0;
+      mowerPassUntil = 0;
+      mowerSettleIn = MOWER_SETTLE_SECONDS;
+    } else if (mowerSettleIn > 0) {
+      mowerSettleIn = Math.max(0, mowerSettleIn - dt);
+    } else {
+      mowerPassTimer -= dt;
+      if (mowerPassTimer <= 0) {
+        // a pass every 40-90 s, lasting 7-13 s: audible as a machine working
+        // somewhere on the course rather than as a tone sitting on the mix
+        mowerPassTimer = 40 + Math.random() * 50;
+        mowerPassUntil = ctx.currentTime + 7 + Math.random() * 6;
+      }
+    }
+    const mowerOn = inMowWindow && mowerPassUntil > ctx.currentTime;
     if (mowerGain) mowerGain.gain.setTargetAtTime(mowerOn ? 0.05 : 0, ctx.currentTime, 1.2);
+    lastAmbient = {
+      minuteOfDay, inShop, rainIn, inMowWindow, mowerOn,
+      mowerGain: mowerGain ? +mowerGain.gain.value.toFixed(5) : null,
+      rainGain: rainGain ? +rainGain.gain.value.toFixed(5) : null,
+      mowerSettleIn: +mowerSettleIn.toFixed(2),
+    };
 
     birdTimer -= dt;
     if (birdTimer <= 0) {
@@ -2483,6 +2532,10 @@ export function makeAudio(preferences = null) {
     // check ends up certifying a graph the player never hears.
     qaContext: () => ctx,
     qaSampleBankDiagnostics: () => (sampleBank?.diagnostics ? sampleBank.diagnostics() : null),
+    // The ambient gains as they actually stand, plus the inputs that set them.
+    // Reading the node closes the gap between "the gate should be shut" and "the
+    // player hears nothing".
+    qaAmbient: () => (lastAmbient ? { ...lastAmbient } : null),
     changeSelect,
     changeHandoff,
     receiptPrint: receipt,
