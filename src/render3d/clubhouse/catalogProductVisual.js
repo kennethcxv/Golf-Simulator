@@ -732,15 +732,122 @@ export function catalogCheckoutLayout(items, staging, restY) {
     return poses;
   }
 
-  const cols = Math.min(3, Math.max(1, compact.length));
-  compact.forEach((index, order) => {
-    const cx = order % cols;
-    const cz = Math.floor(order / cols);
-    const span = localStaging.maxX - localStaging.minX - 0.28;
-    const x = localStaging.minX + 0.14 + cx * ((span / Math.max(1, cols - 1)) || 0);
-    const z = Math.min(localStaging.minZ + 0.09 + cz * 0.14, localStaging.maxZ - 0.06);
-    poses[index] = poseAt(x, z, (order * 0.7) % 1.2 - 0.6, 'compact');
+  // 2.2 (Goal 26) — ITEMS ON THE COUNTER MUST BEHAVE LIKE OBJECTS.
+  //
+  // "Right now they overlap and phase through each other... they come to rest ON
+  // the surface, they come to rest AGAINST each other, they do not interpenetrate,
+  // and a later item does not occupy the same space as an earlier one."
+  //
+  // This was a FIXED GRID: three columns at a fixed 0.14 pitch in x and 0.14 in z,
+  // with no reference to any item's actual size. Every descriptor carries a real
+  // `size: [x, y, z]`, and the grid ignored all of it -- so a golf-bag-sized box
+  // and a sleeve of tees were handed identical slots, and anything wider than the
+  // pitch necessarily intersected its neighbour. The overlap was not a physics
+  // failure; it was a layout that never asked how big anything was.
+  //
+  // No rigid bodies here, and 2.2 explicitly does not ask for them: what it asks
+  // for is resting contact and no overlap. This is shelf packing -- run along x
+  // placing each item against the previous one with its OWN half-extent plus a
+  // small gap, wrap to a new row when the row is full, and stack onto the row
+  // below only when the surface genuinely runs out. Nothing floats, because every
+  // pose sits on restY or on the measured top of what it rests on.
+  const GAP = 0.012;          // the sliver of counter visible between two objects
+  // THE STRIP IS SHALLOWER THAN THE GOODS, and that governs the shape of this
+  // packer. Measured: the staging rectangle is 0.640 wide and 0.150 DEEP, while a
+  // cap is 0.210 deep and a shoe carton 0.190. Nothing fits "within" it
+  // front-to-back, so there is exactly ONE row and its centre line is the strip's
+  // centre line; items overhang, which is what real objects on a real counter do
+  // and what the staging contract already allows, since it constrains pose
+  // CENTRES rather than extents.
+  //
+  // An earlier attempt inset the usable area by a fixed 0.06 a side. On a 0.150
+  // strip that leaves 0.03 of usable depth, so every item overflowed immediately
+  // and was pushed onto its own stacked layer -- three balls and a cap came out
+  // as three layers. There is no z inset now because there is no z packing.
+
+  // A rotated box occupies a bigger axis-aligned slot than its own width. The
+  // rotation here is small and decorative, so the footprint is computed from the
+  // rotated extent rather than the raw size -- otherwise the gap it eats would
+  // reintroduce exactly the overlap this is removing.
+  const footprint = (descriptor, ry) => {
+    const size = (descriptor && descriptor.size) || [0.16, 0.09, 0.12];
+    const w = Math.max(0.02, Number(size[0]) || 0.16);
+    const d = Math.max(0.02, Number(size[2]) || 0.12);
+    const c = Math.abs(Math.cos(ry || 0));
+    const s = Math.abs(Math.sin(ry || 0));
+    return { w: w * c + d * s, d: d * c + w * s, h: Math.max(0.01, Number(size[1]) || 0.09) };
+  };
+
+  // HOW MANY FIT SIDE BY SIDE, AND WHERE THEIR CENTRES GO.
+  //
+  // Packing edge-to-edge from the left is the obvious approach and it is too
+  // strict here: it demands sum(widths) + gaps <= 0.60, so three bulky items
+  // (a 0.31 shoe carton plus two 0.2-0.24 apparel folds) were declared not to fit
+  // and the third was stacked. Distributing CENTRES across the full staging span
+  // instead lets the outer items overhang the marked strip -- which real objects
+  // on a real counter do, and which the staging contract already allows, since it
+  // constrains centres and not extents. Those same three then sit side by side
+  // with room to spare.
+  //
+  // A row is accepted only when every ADJACENT pair clears: the centre spacing
+  // must exceed the two touching half-widths plus a gap. That is the exact
+  // non-overlap condition for a row sorted along x, so a row that passes cannot
+  // interpenetrate. Whatever does not fit goes to the next layer and rests on top.
+  const spanMinX = localStaging.minX;
+  const spanMaxX = localStaging.maxX;
+  const rowCentreZ = (localStaging.minZ + localStaging.maxZ) / 2;
+
+  const boxes = compact.map((index, order) => {
+    const ry = (order * 0.7) % 0.5 - 0.25; // a little variety, kept small on purpose
+    return { index, order, ry, box: footprint(descriptors[index], ry) };
   });
+
+  /** Do n items fit one row, distributing their centres evenly across the span? */
+  const rowFits = (entries) => {
+    if (entries.length <= 1) return true;
+    const step = (spanMaxX - spanMinX) / (entries.length - 1);
+    for (let i = 0; i + 1 < entries.length; i += 1) {
+      if (step < (entries[i].box.w + entries[i + 1].box.w) / 2 + GAP) return false;
+    }
+    return true;
+  };
+
+  let cursor = 0;
+  let layer = 0;
+  let layerBaseY = 0;
+  while (cursor < boxes.length) {
+    // Take the largest run that still fits, never fewer than one -- an item wider
+    // than the whole counter still has to be put down somewhere.
+    let take = boxes.length - cursor;
+    while (take > 1 && !rowFits(boxes.slice(cursor, cursor + take))) take -= 1;
+    const row = boxes.slice(cursor, cursor + take);
+    const step = row.length > 1 ? (spanMaxX - spanMinX) / (row.length - 1) : 0;
+    let rowMaxHeight = 0;
+    row.forEach((entry, i) => {
+      const x = row.length > 1 ? spanMinX + i * step : (spanMinX + spanMaxX) / 2;
+      const pose = frontDeskPose(x, rowCentreZ, entry.ry);
+      poses[entry.index] = {
+        x: pose.x,
+        y: restY + layerBaseY,
+        z: pose.z,
+        ry: pose.ry,
+        sizeClass: 'compact',
+        // Reported so a check can assert non-overlap against the same numbers the
+        // layout used, rather than re-deriving footprints and grading its own
+        // arithmetic. `layer` makes a legitimate stack distinguishable from an
+        // interpenetration at a glance.
+        footprintW: +entry.box.w.toFixed(4),
+        footprintD: +entry.box.d.toFixed(4),
+        layer,
+      };
+      rowMaxHeight = Math.max(rowMaxHeight, entry.box.h);
+    });
+    cursor += take;
+    if (cursor < boxes.length) {
+      layer += 1;
+      layerBaseY += rowMaxHeight + 0.002; // rests ON what is under it; never floats
+    }
+  }
   return poses;
 }
 
