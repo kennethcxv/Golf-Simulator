@@ -1,27 +1,47 @@
 # Overnight Report 25
 
-**PERCEPTION RATIO: 4 of 4.** Both fixes claimed tonight were verified by a check
-that could perceive the thing it certified — the bag by pixels (empty-vs-full
-0.000% with a rebuilt-`bagFill` control seen at 4.07%), and the golden capture's
-determinism by two full captures measured against each other (noise 0.298 →
-0.133).
+**PERCEPTION RATIO: 6 of 6.** Every fix claimed was verified by a check that
+could perceive the thing it certified: the bag by pixels (empty-vs-full 0.000%
+against a rebuilt-`bagFill` control at 4.07%), the golden capture's determinism
+by two full captures measured against each other, the two legibility lines by
+reading the live DOM and the live register accessors and then LOOKING at the
+frames, and the ledger outline by shell spans plus a viewed frame.
 
-**PROBE-LIE COUNT: 10.** Every one mine, every one caught by looking rather than
-by reading a number. Three were serious enough to have produced a written finding
-about an innocent subsystem: a driver that reported *"no ticket ever banked"*
-while every frame showed the difficulty dialog; a `customerCount()` that does not
-exist returning `undefined ?? 0` as a confident zero about a shop with four people
-in it; and a ledger control that reported *a lock that never lifts* when the
-player was simply facing a wall. My own Phase 1 stranger driver reported
-`wall: payment — "clicked forty times on the register and no ticket ever
-banked"` after fourteen beats. Every screenshot was the same NEW GAME difficulty
-dialog: the game had never started. `.difficulty-card` is a div, my
-`clickByText` helper only queried `<button>`, so no card was ever picked. That
-is *A PROBE THAT CANNOT SEE THE THING REPORTS THE SAME AS A THING THAT DID NOT
-HAPPEN*, and it would have been written up as a payment bug. Caught by looking at
-the pixels, which is the only thing that ever catches it. Two controls added: the
-driver now fails closed if the dialog is still on screen after confirming, and
-`out.wall` is pinned to the FIRST wall instead of being overwritten by the last.
+**PROBE-LIE COUNT: 15.** Every one mine. Five are new tonight and four of those
+came out of a single item -- 3.3, whose check was written before the feature and
+was one glance from being believed:
+
+11. **The 3.3 driver aimed at nothing.** It nudged the mouse a few hundred
+    pixels from wherever the player was standing and called that "aimed".
+    Against the FINISHED outline it returned `active:false` in all five samples
+    and scored **two clauses GREEN** -- "clears when aim is lost" and "does not
+    clone a material per frame" are both trivially true about an outline that
+    never turns on. Identical readings before and after, which is this project's
+    signature failure, and it would have been filed as a product bug.
+12. **Two selectors.** That same driver read the prompt from
+    `.walk-prompt, .prompt`. Neither exists in this build. It returned `''` and
+    scored "the prompt does not name the ledger" against a prompt that does.
+    The shipping selector is `.shop-prompt`.
+13. **A camera anchor that only exists on the fixed build.** The revert
+    screenshot preferred `ch.ledgerProp()`, fell through to `matrixWorld` on the
+    reverted build, stood the camera somewhere else, and produced two pictures
+    of two different views that I was about to present as a control.
+14. **`'([^']*)'`** stopped at the backslash of an escaped apostrophe and
+    returned `null`, scoring "the wording was never changed" against a file that
+    had been changed. Caught only because the fixed build came back two clauses
+    short of green.
+15. **A clause that matched one English noun.** `/shopper/i` would have gone RED
+    on the correct plural-safe rewrite and stayed GREEN in nine locales that
+    never contained the word. Now scored as a count plus a consequence.
+
+The earlier ten stand as recorded below. **A zero would mean I was not looking.**
+
+**THE OWNER'S TWO DECISIONS, ANSWERED AND ACTED ON**
+
+| decision | what I did |
+|---|---|
+| **Golden gate: accept** | Two captures on the same tree agree to 0.0882% worst against a 0.35% budget. Accepted. 12/12 green. `bag-packed` still red and named, not weakened. |
+| **Recast: leave vendored, do not wire** | Untouched. Pending his reproduction. |
 
 **PHASE STATUS**
 
@@ -30,11 +50,13 @@ driver now fails closed if the dialog is still on screen after confirming, and
 | **0 — what did you inherit** | **CLOSED** — all four gate requirements |
 | **1 — the core loop** | **REVIEW PASSED** — a stranger bought, was offered the card, paid once and left |
 | **2 — NPCs** | 2.2 does not reproduce; 2.3 NOT DONE (instrument); 2.1 recommended against on the evidence |
-| **3 — the ledger** | 3.1 and 3.2 **DONE**; 3.3–3.5 not started |
-| **4–8** | not started |
+| **3 — the ledger** | 3.1, 3.2 and **3.3 DONE**; 3.4–3.5 not started |
+| **4–8** | 4.1 and 7 done; 8.1 swept; Verifier 3 passing; 4.2–4.4, 5, 6, Verifiers 1–2 open |
+| **legibility (owner-added)** | **L1 and L2 DONE** |
 
-**Two things need your decision before anyone continues:** the golden gate
-(rebaseline or not) and whether you can reproduce the NPC grinding.
+**Both decisions received and acted on.** The golden gate is rebaselined with
+the evidence below; recast is left vendored and unwired pending your
+reproduction.
 
 **PERFORMANCE HEADLINE:** not re-measured yet. Phase 6.
 
@@ -1178,3 +1200,229 @@ budget left to finish and prove it green. A documented gap costs an hour; a
 half-edited tree found broken in the morning costs a session. The tree is clean,
 green and pushed, and the check is red and waiting — which is the correct state to
 hand over in, if not the one that was asked for.
+
+
+---
+
+# THE GOLDEN GATE — ACCEPTED, AND THE REFERENCE WAS A WALL
+
+You authorised the accept on the bisect. I did what you asked first — two
+captures, agreement inside budget, the diffs on the record — and then looked at
+the reference images, which said something the percentages did not.
+
+## Determinism: two captures, same tree, same commit
+
+| pose | runB vs runC | budget |
+|---|---|---|
+| shop-floor | **0.0000** | 0.35 |
+| stockroom-wall | **0.0000** | 0.35 |
+| tool-spray | 0.0002 | 0.35 |
+| tool-dustpan | 0.0006 | 0.35 |
+| tool-cloth | 0.0016 | 0.35 |
+| tool-vacuum | 0.0048 | 0.35 |
+| tool-paint | 0.0108 | 0.35 |
+| tool-sponge | 0.0310 | 0.35 |
+| tool-washer | 0.0334 | 0.35 |
+| tool-trashbag | 0.0500 | 0.35 |
+| tool-broom | 0.0810 | 0.35 |
+| tool-mop | **0.0882** | 0.35 |
+
+Worst 0.0882 against 0.35. A third capture (runA) was taken *before* tonight's
+source edits and agrees to 0.2177 worst — which also says tonight's edits are
+invisible in these twelve frames, since none of them stages a queue or a
+register screen.
+
+## The diffs against the standing references, before accepting
+
+| pose | diff | budget |
+|---|---|---|
+| shop-floor | **23.4222** | 0.25 |
+| stockroom-wall | 0.2571 | 0.25 |
+| tool-mop | 7.1655 | 0.75 |
+| tool-broom | 6.9532 | 0.75 |
+| tool-vacuum | 6.9275 | 0.75 |
+| tool-sponge | 6.8887 | 0.75 |
+| tool-spray | 6.8429 | 0.75 |
+| tool-washer | 6.7330 | 0.75 |
+| tool-dustpan | 6.7173 | 0.75 |
+| tool-cloth | 6.6245 | 0.75 |
+| tool-paint | 6.5440 | 0.75 |
+| tool-trashbag | 6.2607 | 0.75 |
+
+## WHY they were wrong, which is not what the numbers suggested
+
+**`shop-floor`'s stored reference is the camera pressed INTO A WALL.** Not the
+same room differently lit — a flat brown surface where the shop should be. I
+opened both images side by side rather than trusting the percentage.
+
+Before the seed pin, every harness boot built a new world with the interior
+origin up to 1.6 yd away, and the staged shop-floor position landed inside
+geometry. **The most stable pose in the set was the one showing nothing** —
+which is exactly why the last calibration recorded it at "literal zero" two-run
+noise and it read as the healthiest row in the table. A wall is very repeatable.
+
+The tool poses keep their framing. What changed inside them is the **window** —
+a blown-out white blank in the reference, the actual course view now — and the
+ceiling. Those windows sit in every tool frame, which is the ~7% they all share.
+The current image is the more correct one in both cases.
+
+## The control I ran because a wrong lens cost this project a week
+
+Both manifests record `lens {before, shipped, after}`. The reference booted at
+**60** and was **pinned to 66 before any screenshot**; tonight booted at 66 and
+stayed. **Both sets were shot through the same lens.** FOV is not the
+explanation and I am not repeating that diagnosis.
+
+## Thresholds untouched
+
+0.25 static, 0.75 tool. Measured noise is 3x under the tightest of them, so
+nothing had to be loosened to make this pass.
+
+## STILL RED, NOT WEAKENED: `bag-packed`
+
+`npm run golden` exits 1, and it should. The pose needs three goods packed and
+got **1, 1, 2** across tonight's three runs, so it captured in none of them.
+
+The reference manifest that shipped with the accepted goldens records
+`SKIP bag-packed: only 1 goods packed` **too** — so `tests/goldens/bag-packed.png`
+survived the last rebaseline without being re-shot. It is an orphan: present on
+disk, never compared, and it is the pose guarding the one thing Goal 24 item A
+was about. Named, left in place, its own item.
+
+---
+
+# L1 AND L2 — THE TWO LEGIBILITY LINES
+
+## L1 — the queue head is desk business
+
+**Symptom (yours):** a shop full of people and an untouched counter.
+**Cause:** until the player serves the person at the front *at the desk*, nobody
+behind them advances. The game knew and said nothing.
+
+`ch.deskHoldup()` in `clubhouse.js` owns the rule, beside the router that owns
+the predicates it calls; `main.js` only renders what it returns. Re-deriving
+"is this desk business" from `customerType` in the HUD would have been a second
+copy of a rule that has already been wrong once in that file.
+
+**The implementation was wrong first and a test caught it.** My first version
+toggled `style.display`, and
+`tests/goal24-door-condition-chip-compositor.test.js` went red: a first display
+flip just after door entry is the layout-and-paint flush that cost this project
+200 ms of stalled WebGL queue at every doorway. The note now carries
+representative text from boot, sits on the translucent compositor path at 0.004
+opacity, and only its opacity class changes at runtime. I watched that test go
+red, changed the code, watched it go green. **The test was right and my code was
+wrong** — nothing was weakened.
+
+## L2 — banking waits on the bag
+
+`finalizeTransaction()` only runs once `deliveryPhase === 'released'`, which
+only happens when the bag reaches the customer's palm. The screen said
+"HANDOFF PAUSED" and told the player to drag the bag but never said the drag
+**is** the last step of the sale, so an accepted payment that never appeared in
+the day's money read as a broken game.
+
+| surface | before | after |
+|---|---|---|
+| register status | `HANDOFF PAUSED` | `SALE NOT BANKED YET` |
+| register instruction | "Grip the bag handles and drag them to the customer's open palm." | "The sale banks when the customer has the bag. Grip the handles and drag them to their open palm." |
+| behind-the-till hint | "Hand the completed order to the customer" | "Drag the bag to the customer's palm - the sale banks when they take it" |
+
+## The check, its controls, and the watched failure
+
+`tools/qa/electron-p1-legibility-two-lines.js`.
+
+L1 is measured **three ways**, because "the text is present" is not the
+question: empty shop (**absent**), a plain retail shopper at the head
+(**absent** — they are not desk business and the line is not blocked on the
+player), desk business with a queue (**present, with the count**). A note that
+was always on would pass a naive check and tell the player nothing.
+
+**Reverted build** (file-copy revert, all four files asserted CHANGED before the
+run and byte-identical after restore):
+
+```
+notePresentForDeskHead      false
+noteNamesTheDesk            false
+registerStatusNamesBanking  false
+tillHintNamesBanking        false
+l1ReadingsDiffer            FALSE   <- the instrument's own control, correctly
+                                       reporting that it had measured nothing
+```
+
+**Fixed build: 11 / 11.**
+
+**FRAMES VIEWED**
+- `qa/electron/p1-legibility/l1-c-desk-head-queue.png` — the note renders as an
+  amber card under the condition chip with the `[E]` keycap composited, legible
+  at the default camera: *"Lila Fields needs the desk (tee time). Waiting
+  behind: 2. Nobody reaches the counter until you serve it. [E] at the tee desk."*
+- `qa/electron/p1-legibility/l1-a-empty-shop.png` — that corner is **empty**.
+  The prepainted node at 0.004 opacity is genuinely imperceptible.
+
+## Two suite reds of my own making, both fixed rather than silenced
+
+An em dash in player copy, and a new player-facing string bypassing `t()`
+(2085 to 2086). Both HUD strings now go through `t()`.
+
+**All ten locale tables were at ZERO missing keys**, so shipping an English-only
+key would have been the first crack in a fully translated project. The four new
+keys are written in all ten. The count renders as `Waiting behind: {n}` rather
+than `{n} shoppers` because English plural agreement baked into a template is
+not translatable.
+
+> **Caveat for you:** those translations are model-authored and unreviewed. A
+> native speaker should audit `hud.deskHoldup`, `hud.deskHoldupAlone`,
+> `hud.deskKindTeeTime`, `hud.deskKindCheckIn`.
+
+---
+
+# 3.3 — THE HOVER OUTLINE — **DONE**
+
+Built against the design traced last session; all four pieces were where the
+trace said. `ledgerBook.js` owns the shells and one `BackSide` material made
+once; `clubhouse.js` forwards `setLedgerAimed` / `debugLedgerOutline` /
+`ledgerProp` (the facade trap, flagged in advance and avoided);
+`courseScene.js:8751` makes one call after `walkFindFocus()`.
+
+**Driven from `walkFocus`, not from the prop's `label()`.**
+`walkPropUnderCrosshair` calls `label()` on every *candidate* while scoring, so
+a book that loses to the tee desk still gets its label read. Lighting the cover
+there would put the outline on the book while the prompt named something else —
+3.3's "clears the moment aim is lost" failing in precisely the case Goal 24's
+aim rule exists to separate. `walkFocus` is the resolved answer after every
+early return, so outline and prompt are the same decision by construction.
+
+| clause | result |
+|---|---|
+| aimed and away differ (instrument control) | **true** |
+| the game agrees I am aimed at it (prompt) | **true** — "The club ledger - E read the book" |
+| prompt names the ledger | **true** |
+| clears when aim is lost | **true** — `active:false`, 0 shells |
+| does not frame the whole desk | **true** — largest outlined span **0.3509 yd** |
+| survives open and close | **true** — `active:true` after a full cycle |
+| does not clone a material per frame | **true** — 1 created, 1 distinct, stable over 3 s |
+| *clear, tasteful, comparable to the money highlight* | **NOT SCORED — needs your eye** |
+
+**Draw calls.** The first version shelled all 39 meshes in the GLB. Most were
+clasp studs and 5 mm page slivers sitting inside the boards' own rim —
+invisible, unresolvable, and thirty extra draw calls for as long as the player
+looks at the book. Parts under a quarter of the largest span are skipped:
+**39 to 16**, clauses unchanged.
+
+**Watched failing:** file-copy revert of all three files, each asserted CHANGED
+before the run and byte-identical after restore. Reverted build reports
+`NOT BUILT — ch.debugLedgerOutline() does not exist`.
+
+**FRAME VIEWED:** `qa/electron/p3-ledger-outline/outline-ON.png` — the book on
+the counter wears a warm gold rim tracing boards, spine and page block. It is
+the book and not the desk.
+
+> **Caveat, stated rather than hidden:** the ON/OFF pair is **not** a matched
+> control. Camera staging landed in two different places across builds and I
+> could not make it repeatable inside this item's budget, so only the ON frame
+> is evidence.
+
+Commits: `d7256d5` (goldens), `8f74975` (L1/L2), `b7d18e9` (3.3). All pushed.
+Suite 3606/3606 before each. Lint ratchet 325 vs 324 throughout — the inherited
+red, unchanged by any of tonight's work.
