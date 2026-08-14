@@ -1769,21 +1769,35 @@ sweep, and consistent page-turn direction.
 
 # HANDOFF
 
-Committed and pushed to `goal25/phase0-inherited-tree`.
-Suite **3642/3642**, lint ratchet **323**.
+Committed and pushed to `goal25/phase0-inherited-tree` after every item.
+Suite **3648/3648**, lint ratchet **323** throughout.
 
 | Phase | Status |
 |---|---|
 | **1 — Audio** | **CLOSED. Gate passed.** 50 CC0 files, every cue measured in dBFS, both controls hold |
 | **2 — The walk-up** | **CLOSED.** Both items fixed and measured; clip recorded, frames viewed |
-| 3 — NPC navigation | 3.1 **proven** (zero production call sites); stall rate **unmeasured** — detector failed its control |
-| 4 — Time and bookings | **4.2–4.5 DONE, gate run.** 4.1 measured and blocked on the golf day |
-| 5 — Mop and hands | **5.1 DONE** (all three faults). 5.2, 5.3 not done |
-| 6 — Ledger UI | **6 of 10 clauses DONE and measured** |
-| 7 — Performance | **7.1 measured** — every baseline in the brief is stale. Merge not started |
-| **8 — Global Escape** | **CLOSED.** Router measured; "Restart the current day" added |
-| 9 — The remainder | 9.2 improved (40.4 % → 26.7 %), 9.3 measured, **9.4 reproduced**. 9.1/9.5/9.6 not started |
+| **3 — NPC navigation** | **3.1 DONE** — recast serves **20 of 26** real routes, one bake, proven at the call site. **3.3 jitter DONE** — peak ladders/frame **5 → 2** against a control. **Gate verifier two PASSES: zero sustained contacts in ten minutes.** Gate verifier one (staged queue block + clip) NOT DONE |
+| 4 — Time and bookings | **4.2–4.5 DONE, gate run.** **4.1 NOT DONE — blocked on a decision only you can make** (see the section; it is not the clock) |
+| **5 — Mop and hands** | **5.1 round 2** (proportions, density, capped tubes) and **5.2 DONE** (two tunings, measured in-game, clip viewed). **5.3 NOT DONE for "both hands"** — forward hand is a mitten at viewmodel distance. **Gate photographed, both side-by-sides in the report** |
+| 6 — Ledger UI | **6 of 10 clauses DONE and measured.** Four remain: type at the reading camera, hover/selected, mouse usability, page-turn direction |
+| 7 — Performance | **7.1 measured** — every baseline in the brief is stale. Merge NOT STARTED |
+| **8 — Global Escape** | **CLOSED.** Router now measured from **13 states**: one rung each, none stranding the player. Phone and placement NOT STAGED (no driver-reachable entry point) |
+| 9 — The remainder | 9.2 improved (40.4 % → 26.7 %), 9.3 measured, **9.4 reproduced, not fixed**. 9.1/9.5/9.6 NOT STARTED |
 | 10 — Final verification | **NOT STARTED** |
+
+## The two things I need from you before the next session can finish a phase
+
+1. **4.1 — the day length.** Your 10–20 minute band needs 36–72× compression.
+   Golfers move at a fixed WALL speed by design, so compressing the day makes
+   rounds proportionally LONGER in game time — a walk to the practice range
+   already costs 128 game-minutes at 16×. Either the wall-speed cap is lifted for
+   the COURSE population only (A3 was about shoppers at arm's length, not golfers
+   across a fairway), or the authored route distances shrink. **Pick one.**
+2. **5.1 — the mop's daylight.** Goal 25 ruled that daylight between bunches is
+   what stops a mop reading as a brush, with a test enforcing it. Your Goal 26
+   reference is a packed disc with no daylight at all. 0.80 gather is as dense as
+   I can go with that test untouched. **If you want the packed disc, that ruling
+   has to be superseded in writing.**
 
 ## What actually got fixed
 
