@@ -13155,6 +13155,26 @@ export function makeClubhouse(ctx) {
       navRepathFramesWithAny = 0;
       navRepathTotal = 0;
     },
+    // PHASE 3 GATE: how deep is a point inside a static collider, in yards, 0
+    // when clear. It reads `custCols` -- the SAME list resolveCustomer pushes
+    // people out of -- because a contact probe that derives its own colliders
+    // from the scene graph is measuring a different world from the one the
+    // customers are actually resolved against, and would disagree with the game
+    // rather than reporting on it.
+    qaPointBlocked: (x, z, r = 0.3) => {
+      let worst = 0;
+      for (const col of custCols) {
+        if (col.door) continue;
+        if (x + r > col.minX && x - r < col.maxX && z + r > col.minZ && z - r < col.maxZ) {
+          const pen = Math.min(
+            x + r - col.minX, col.maxX - (x - r),
+            z + r - col.minZ, col.maxZ - (z - r),
+          );
+          if (pen > worst) worst = pen;
+        }
+      }
+      return worst;
+    },
     qaPickStats: () => ({ ...pickStats }),
     qaPlayerBlocksCustomers: () => playerBlocksCustomers(),
     qaCustomerTrack: () => customers
@@ -13193,6 +13213,17 @@ export function makeClubhouse(ctx) {
         // can exclude it rather than be quietly wrong about it.
         waitingForStand: c.waitSlot != null || c.waitFixtureId != null,
         fixtureClaim: c.fixtureClaim ?? null,
+        // 3.1: WHICH ROUTER ANSWERED. It was missing from this projection while
+        // a driver was reading `c.pathSource` off it and tallying six nulls as
+        // "no customer used recast" -- next to a routesServed counter saying
+        // twenty had. The counter was right and the tally was reading a field
+        // that did not exist here.
+        pathSource: c.pathSource ?? null,
+        // PHASE 3 GATE: enough to tell "walking" from "standing at a stop", so a
+        // contact watcher does not have to guess from velocity which of those it
+        // is looking at. Queue-standing counted as running-in-place once already.
+        walking: !!(c.path && c.path.length && !(c.waitSlot != null || c.waitFixtureId != null)),
+        repathJitter: Number.isFinite(c.repathJitter) ? +c.repathJitter.toFixed(4) : null,
         linger: Number.isFinite(c.linger) ? +c.linger.toFixed(2) : null,
         colliderPen: (() => {
           if (!c.mesh) return null;
