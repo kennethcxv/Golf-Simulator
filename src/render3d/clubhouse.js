@@ -13197,6 +13197,35 @@ export function makeClubhouse(ctx) {
       }
       return worst;
     },
+    // PHASE 3 GATE: IS THIS POINT SOMEWHERE A WALKER CAN BE DELIVERED AT ALL?
+    // `qaPointBlocked` above answers a different question than it looks like it
+    // answers -- it reads the CUSTOMER collider list, so it says nothing about
+    // the walkable grid, and it returned a confident 0 for a goal the grid could
+    // not deliver anyone to. This is the grid's own answer, from the same call
+    // the stuck ladder's rung 4 uses to relocate an unreachable stop, so a
+    // driver can tell "the customer stopped short" from "the customer arrived
+    // at the only place its goal could be moved to" before writing either down.
+    qaNavOpenPoint: (x, z, radius = 6) => {
+      const grid = navFresh();
+      // `isOpenWorld` IS THE ANSWER, and comparing nearestOpenWorld's output to
+      // the point is not. nearestOpenWorld returns a CELL CENTRE, so a perfectly
+      // walkable point still comes back displaced by up to half a cell diagonal
+      // -- the first version of this called a threshold of 0.05 yd on that
+      // displacement and duly reported every open point in the shop as
+      // unreachable, including the floor the customers were standing on.
+      const openHere = grid.isOpenWorld(x, z);
+      const near = grid.nearestOpenWorld(x, z, radius);
+      const movedBy = near ? Math.hypot(near.x - x, near.z - z) : null;
+      return {
+        reachable: !!openHere,
+        // where rung 4 would relocate a stop placed here, and how far -- which is
+        // the distance a driver holding the original coordinates would report as
+        // a walker mysteriously stopping short
+        x: near ? +near.x.toFixed(4) : null,
+        z: near ? +near.z.toFixed(4) : null,
+        movedBy: movedBy === null ? null : +movedBy.toFixed(4),
+      };
+    },
     qaPickStats: () => ({ ...pickStats }),
     qaPlayerBlocksCustomers: () => playerBlocksCustomers(),
     qaCustomerTrack: () => customers
@@ -13223,6 +13252,26 @@ export function makeClubhouse(ctx) {
         // browsing, or they walked past it -- and the route index separates them.
         stopIdx: c.stopIdx ?? null,
         stopKind: (c.stops && c.stops[c.stopIdx]) ? c.stops[c.stopIdx].kind : null,
+        // WHERE THE STOP IS *NOW*. A stop is not a constant: the stuck ladder's
+        // rung 4 REWRITES stop.x/stop.z to the nearest cell the grid can deliver
+        // a walker to, and rung 5 abandons the stop and steps stopIdx past it.
+        // A driver that remembers the coordinates it asked for and measures the
+        // customer against those is therefore measuring a goal the customer may
+        // no longer hold -- which is exactly how "sent to a point behind the
+        // blockade, never got within 4.3 yd" was reported for a customer whose
+        // own target had been moved out from under it. These are read from the
+        // live stop object every call, so a relocation shows up as a moved goal
+        // rather than as a walker that inexplicably stopped short.
+        stopX: (c.stops && c.stops[c.stopIdx] && Number.isFinite(c.stops[c.stopIdx].x))
+          ? +c.stops[c.stopIdx].x.toFixed(4) : null,
+        stopZ: (c.stops && c.stops[c.stopIdx] && Number.isFinite(c.stops[c.stopIdx].z))
+          ? +c.stops[c.stopIdx].z.toFixed(4) : null,
+        stopCount: Array.isArray(c.stops) ? c.stops.length : null,
+        // Which rung of the give-up ladder this walker is on. 0 = walking
+        // normally; 4 = its target has just been moved; 5 = the stop is being
+        // abandoned. Without it, "stopped short" and "gave up and moved on" look
+        // identical from the outside.
+        stuckEscalation: Number.isFinite(c.stuckEscalation) ? c.stuckEscalation : 0,
         // How deep inside the nearest customer collider this body is, and how far
         // outside if it is clear. The residual walk-in-place happens with ~1.9 yd
         // of clear space to the nearest neighbour, so it is NOT crowd separation;
