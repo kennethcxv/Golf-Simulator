@@ -938,9 +938,50 @@ export function createLedgerBook({ THREE, state, anchor, counterTop, camera = nu
   }
 
   // the labels that will actually be printed in the band, for this binding
+  // WHICH SPREAD IS OPEN. Declared HERE, above the foot machinery, and not down
+  // beside the paint functions where it used to live.
+  //
+  // PHASE 6 put the running section name into footCells, and footCells runs at
+  // CONSTRUCTION -- remeasureFoot calls it to size the foot band before any page
+  // exists. With the declaration further down that read hit the temporal dead
+  // zone and threw "Cannot access 'spread' before initialization", which took out
+  // four unrelated clubhouse teardown and cargo tests: the constructor died, so
+  // the clubhouse never finished building.
+  let spread = 0;
+  // PHASE 6: the section the reader last asked for, used by currentSection when
+  // that section is still on the open spread. Cleared by any page turn.
+  let lastJumpedSection = null;
+
+  // THE SECTION NAME, SAFE TO ASK FOR AT CONSTRUCTION TIME.
+  //
+  // footCells runs before the page model exists -- remeasureFoot calls it to size
+  // the foot band during the constructor -- so reaching for `model` and `spread`
+  // there hits the temporal dead zone and throws. That did not fail quietly: the
+  // constructor died and took four unrelated clubhouse teardown and cargo tests
+  // with it, none of which mention the ledger.
+  //
+  // Hoisting one variable fixed one of them and the next one threw on the next
+  // variable, which is the signal to stop hoisting and let the call be
+  // optional instead. Before there is a book there is no section to name, and the
+  // foot simply measures without one.
+  function safeSectionTitle() {
+    try {
+      const here = currentSection();
+      return here ? here.title : null;
+    } catch {
+      return null; // asked before the model exists; the foot re-measures later
+    }
+  }
+
   function footCells(side) {
     if (side === 'left') {
-      return { left: `◀  ${footerHint.prev}  previous page`, right: null };
+      // PHASE 6: the running section name, on the page the reader's eye lands on
+      // first. This is the "where am I" half; the folio under it is the "which
+      // page" half, and neither answers the other.
+      return {
+        left: `◀  ${footerHint.prev}  previous page`,
+        right: safeSectionTitle(),
+      };
     }
     return { left: `${footerHint.close}  close the book`, right: `next page  ${footerHint.next}  ▶` };
   }
@@ -1994,7 +2035,7 @@ export function createLedgerBook({ THREE, state, anchor, counterTop, camera = nu
   let bookState = 'closed';
   let stateT = 0;
   let carried = false;
-  let spread = 0;
+
   let leaf = null;
   let lastPaint = { entries: 0, notes: 0, spread: 0, painted: 0, contentReady: false };
   // A2/C5: the turn's deferred paint jobs (drained on visibility inside the
@@ -2025,6 +2066,60 @@ export function createLedgerBook({ THREE, state, anchor, counterTop, camera = nu
 
   function spreadCount() {
     return model ? Math.ceil(model.pages.length / 2) : 1;
+  }
+
+  // PHASE 6 (Goal 26) — "CLEAR CURRENT SECTION AND PAGE IDENTITY: where am I, at
+  // a glance."
+  //
+  // The foot printed "2 of 10", which answers WHICH PAGE and not WHERE. A reader
+  // who has turned four pages into a seven-section book knows the folio and not
+  // the chapter, which is the half of the question that actually matters.
+  //
+  // model.pageOfSection already maps each section to its first page -- it was
+  // built to PRINT the contents list and nothing read it back. The section a page
+  // belongs to is the last section whose start page is at or before it.
+  function sectionOfPage(pageNumber) {
+    if (!model || !model.pageOfSection) return null;
+    let best = null;
+    for (const section of (model.sections || [])) {
+      const start = model.pageOfSection[section.id];
+      if (!Number.isFinite(start) || start > pageNumber) continue;
+      if (!best || start >= best.start) best = { ...section, start };
+    }
+    return best;
+  }
+
+  function currentSection() {
+    // BOTH PAGES OF THE SPREAD, not just the left one.
+    //
+    // A spread shows two pages, and two sections can begin inside one spread --
+    // measured: jumping to `firsts` landed on a spread whose LEFT page still
+    // belongs to `restoration`, so reading the left page alone reported the
+    // reader as being in the section they had just left. Three of seven jumps
+    // "failed" that way against a book that had gone exactly where it was told.
+    //
+    // The section shown is the last one that has BEGUN by the end of the spread,
+    // which is what a reader would say if you asked them.
+    // AND IF THE READER NAVIGATED HERE ON PURPOSE, SAY WHERE THEY ASKED FOR.
+    //
+    // A spread that starts one section on the left page and the next on the
+    // right genuinely shows two, and no single rule about page numbers can pick
+    // the right one -- measured, jumping to `restoration` landed on a spread
+    // that also begins `firsts`, and naming either is defensible from the page
+    // alone. What is NOT defensible is telling a reader who just asked for
+    // Restoration that they are in Firsts.
+    //
+    // So intent wins while it is still on screen: if the section last jumped to
+    // begins on this spread, that is the answer. Turn a page and it falls back
+    // to the page rule, because the intent is no longer what is in front of them.
+    if (lastJumpedSection) {
+      const start = model?.pageOfSection?.[lastJumpedSection];
+      if (Number.isFinite(start) && start >= spread * 2 + 1 && start <= spread * 2 + 2) {
+        const named = (model.sections || []).find((x) => x.id === lastJumpedSection);
+        if (named) return named;
+      }
+    }
+    return sectionOfPage(spread * 2 + 2) || sectionOfPage(spread * 2 + 1);
   }
 
   function paintSpread() {
@@ -2355,7 +2450,12 @@ export function createLedgerBook({ THREE, state, anchor, counterTop, camera = nu
       // and is a no-op if it has already run for this state. By the time E is
       // pressed there is nothing left to compute.
       // repaints only if the day turned since the walk-up; otherwise free
-      if (!prewarm() && spread !== 0) { spread = 0; paintSpread(); }
+      // PHASE 6 — "STATE PERSISTENCE ACROSS CLOSE AND REOPEN." This used to
+      // force `spread = 0` on every open, so the book always reopened on the
+      // contents page and a reader who was four pages into the Restoration
+      // Record paid for the trip again every single time. Nothing else wanted
+      // that reset: the prewarm below repaints whatever spread is current.
+      if (!prewarm()) paintSpread();
       // the spot it will return to is where it LAY, never a mid-flight
       // position from a re-open during the close beat
       if (bookState === 'closed' || !deskSpot) {
@@ -2435,7 +2535,7 @@ export function createLedgerBook({ THREE, state, anchor, counterTop, camera = nu
     if (bookState === 'closed' || bookState === 'lowering') { setOpen(true); return bookState; }
     if (bookState === 'raising' || bookState === 'held') {
       // second press: swing the cover from wherever the rise has got to
-      if (!prewarm() && spread !== 0) { spread = 0; paintSpread(); }
+      if (!prewarm()) paintSpread(); // PHASE 6: reopen where the reader left off
       stateT = 0;
       bookState = 'opening';
       play('paper');
@@ -2505,6 +2605,7 @@ export function createLedgerBook({ THREE, state, anchor, counterTop, camera = nu
       paintIndexWith(model, leafFront, next * 2 + 1);
     }
     spread = next;
+    lastJumpedSection = null; // turning a page leaves the jump behind
     paintSpread();
     paintStats.lastTurnFrameMs = +(performance.now() - t0).toFixed(1);
     leaf = { direction: direction > 0 ? 1 : -1, t: 0, settled: false };
@@ -2519,6 +2620,7 @@ export function createLedgerBook({ THREE, state, anchor, counterTop, camera = nu
     if (!isOpen() || !model) return false;
     const pageNumber = model.pageOfSection[sectionId];
     if (!Number.isFinite(pageNumber)) return false;
+    lastJumpedSection = sectionId;
     spread = Math.floor((pageNumber - 1) / 2);
     paintSpread();
     return true;
@@ -2872,6 +2974,18 @@ export function createLedgerBook({ THREE, state, anchor, counterTop, camera = nu
     turnPage,
     goToPage,
     goToSection,
+    // PHASE 6: what a reader can jump TO, and where they are now. goToSection
+    // shipped exported with ZERO call sites -- nothing in the game ever called
+    // it, so "navigation to every section" existed only as a function. These two
+    // are what let a key binding reach it.
+    sections: () => ((model && model.sections) ? model.sections.map((x, i) => ({
+      index: i + 1, id: x.id, title: x.title, locked: !!x.locked,
+      page: model.pageOfSection ? model.pageOfSection[x.id] ?? null : null,
+    })) : []),
+    currentSection: () => {
+      const here = currentSection();
+      return here ? { id: here.id, title: here.title } : null;
+    },
     // the footer's key labels come from the LIVE binding table (N2), so a
     // rebound interact key cannot leave the book teaching the wrong key
     setControlLabels: (labels) => {

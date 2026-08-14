@@ -892,9 +892,26 @@ function enterLedger() {
     } else if (/^[1-9]$/.test(key)) {
       // I3 (Goal 23): the contents list prints page numbers and now they work.
       // Reaching The Deed on page 9 from the index was seven presses of E.
+      //
+      // PHASE 6 (Goal 26) — "OBVIOUS NAVIGATION TO EVERY SECTION FROM ANYWHERE."
+      //
+      // A page number is only navigation if you are looking at the contents
+      // page, which is the one place you do not need it. From page 7 the number
+      // keys addressed a folio the reader could no longer see. So a digit now
+      // means the Nth SECTION -- the same seven names the contents lists, in the
+      // same order, reachable from any page in the book.
+      //
+      // goToSection has existed and been exported since Goal 23 with ZERO call
+      // sites: "navigation to every section" was implemented and unreachable.
+      // This is the call site.
       event.preventDefault();
       event.stopPropagation();
-      const jumped = ledgerBookApi()?.goToPage(Number(key));
+      const book = ledgerBookApi();
+      const sections = book?.sections?.() || [];
+      const wanted = sections[Number(key) - 1];
+      // Falls back to the page number when the digit is past the last section,
+      // so nothing a reader already learned stops working.
+      const jumped = wanted ? book.goToSection(wanted.id) : book?.goToPage(Number(key));
       if (jumped) audio.ledgerTurn?.();
     } else if (key === 'arrowright') {
       // F4 (Goal 20): the moveRight binding (D by default) used to turn
