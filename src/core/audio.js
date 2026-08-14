@@ -12,6 +12,8 @@ export const CHECKOUT_CUE_APIS = Object.freeze([
   'scannerActivate', 'scanSuccess', 'scanInvalid', 'posAdd',
   'cardMove', 'cardSwipe', 'cardInsert', 'cardProcessing', 'cardApproved', 'cardDeclined',
   'cashPresent', 'billHandle', 'coinHandle',
+  // PLAYTEST 3 item 2: picking cash back up, which had no voice of its own
+  'cashPickup',
   // H2 (Goal 20): notes and coins landing are two different events
   'notesDown', 'coinsDown', 'cardOut',
   // G2 (Goal 23): money landing IN THE DRAWER, on top of what is already there
@@ -1033,7 +1035,7 @@ export function makeAudio(preferences = null) {
     // chosen for that (a ~500 ms swell into a hard transient). The bell is a
     // separate cue because a real till rings on the sale, not on every drawer
     // movement, and firing both together is what made this sound like a toy.
-    if (sampled('drawerOpen', sfxBus, { gain: 0.9 })) return;
+    if (sampled('drawerOpen', sfxBus, { gain: 0.55 })) return;
     if (!ctx) return;
     const t0 = ctx.currentTime;
     const buf = ctx.createBuffer(1, ctx.sampleRate * 0.16, ctx.sampleRate);
@@ -1337,6 +1339,18 @@ export function makeAudio(preferences = null) {
     checkoutTone({ at: 0.025, freq: 196, to: 164.81, type: 'triangle', dur: 0.12, peak: 0.015, filter: 700 });
   }
 
+  // ITEM 2 — PICKING CASH BACK UP. Its own recording, because the cue that used
+  // to serve this was the same one that plays when cash goes DOWN: the two
+  // gestures were acoustically identical, which is why the owner heard nothing
+  // for one of them. Deliberately quiet -- it is a correction, not an event.
+  function cashPickup() {
+    if (sampled('cashPickup', sfxBus, { gain: 0.55 })) return;
+    // No recording: the handle voice is a closer relative than silence. NOTE the
+    // local name -- `coinHandle` is the EXPORTED key for this function and does
+    // not exist as an identifier inside the module.
+    coin();
+  }
+
   function billHandle() {
     checkoutNoise({ dur: 0.135, band: 1150, toBand: 2150, q: 0.6, peak: 0.031, attack: 0.01 });
     checkoutTone({ at: 0.025, freq: 220, to: 196, type: 'triangle', dur: 0.075, peak: 0.009, filter: 650 });
@@ -1453,13 +1467,13 @@ export function makeAudio(preferences = null) {
   }
 
   function drawerUnlock() {
-    if (sampled('drawerUnlock', sfxBus, { gain: 0.85 })) return;
+    if (sampled('drawerUnlock', sfxBus, { gain: 0.5 })) return;
     checkoutTone({ freq: 980, to: 620, type: 'square', dur: 0.045, peak: 0.017, filter: 1800 });
     checkoutTone({ at: 0.024, freq: 142, to: 88, type: 'triangle', dur: 0.085, peak: 0.026, filter: 650 });
   }
 
   function drawerClose() {
-    if (sampled('drawerClose', sfxBus, { gain: 0.9 })) return;
+    if (sampled('drawerClose', sfxBus, { gain: 0.55 })) return;
     checkoutNoise({ dur: 0.18, band: 720, toBand: 390, q: 0.55, peak: 0.027, attack: 0.008 });
     checkoutTone({ at: 0.045, freq: 120, to: 64, type: 'triangle', dur: 0.14, peak: 0.035, filter: 520 });
     checkoutTone({ at: 0.15, freq: 920, to: 610, type: 'square', dur: 0.042, peak: 0.015, filter: 1500 });
@@ -1501,7 +1515,10 @@ export function makeAudio(preferences = null) {
     // the individual landings, which still have to punch through it, and clearly
     // present as the continuous run 1.2 asks for.
     // tools/qa/electron-phase1-audio-gate.js re-measures it.
-    const peak = 0.78;
+    // ITEM 2: "Lower the overall level. It is fighting everything else." 0.78 put
+    // the run near -18 dBFS, which was solved against the OLD landings; the
+    // deposit cues are quieter now and the run has to sit under them, not over.
+    const peak = 0.46;
     gain.gain.setValueAtTime(0.0001, t0);
     gain.gain.linearRampToValueAtTime(peak * Math.max(0.4, Math.min(1.6, intensity)), t0 + 0.045);
     gain.connect(sfxBus);
@@ -1542,8 +1559,44 @@ export function makeAudio(preferences = null) {
     return true;
   }
 
+  // PLAYTEST 3, ITEM 2 — HOW LONG IS THIS CUE?
+  //
+  // "The drawer opens. Its sound FINISHES. Then the cash starts going in." That
+  // is a timing the CALLER has to honour, because the cash also has to move on
+  // screen -- and the caller cannot honour it without knowing how long the
+  // drawer takes. Read from the buffer the bank would actually pick, so a
+  // different audition option with a different length re-times the sequence
+  // instead of desynchronising it.
+  function cueSeconds(cue) {
+    const buffer = sampleBank?.buffer?.(cue);
+    return buffer ? buffer.duration : null;
+  }
+
+  // ITEM 2 — THE DRAWER, IN ORDER: the latch, then the slide, then the money.
+  //
+  // All three used to fire in the same millisecond -- `drawerUnlock`,
+  // `drawerOpen` and `billHandle` on three consecutive lines -- and three
+  // impacts at one instant is not a drawer opening, it is a bang. Each now waits
+  // for the one before it to finish. Returns the total, so the caller can hold
+  // the cash back until the drawer has finished speaking.
+  function drawerOpenSequence() {
+    if (!ctx) return 0;
+    const unlockSec = cueSeconds('drawerUnlock') ?? 0.42;
+    const openSec = cueSeconds('drawerOpen') ?? 1.20;
+    drawerUnlock();
+    // 0.82 rather than 1.0: a latch's tail is decay, and the slide beginning as
+    // the click dies is what a real till does. Nothing OVERLAPS the attack,
+    // which is the part that was reading as a bang.
+    const openAt = Math.max(0.05, unlockSec * 0.82);
+    // `drawer` is the local function; `drawerOpen` is only its exported name.
+    setTimeout(() => { drawer(); }, Math.round(openAt * 1000));
+    return openAt + openSec;
+  }
+
   /** Stop the run. Safe to call when nothing is running, and safe to call twice. */
-  function cashRunStop({ fade = 0.13 } = {}) {
+  function cashRunStop({ fade = 0.06 } = {}) {
+    // ITEM 2: "it starts late and runs past". 0.13 s of tail after the final
+    // piece has landed is heard as the run outliving the money.
     const voice = cashRunVoice;
     if (!voice || !ctx) return false;
     cashRunVoice = null;
@@ -2653,6 +2706,10 @@ export function makeAudio(preferences = null) {
     // path calls stop. `cashRunActive` exists so a probe can ask whether the
     // voice is up rather than inferring it from a node count.
     cashRunStart,
+    // ITEM 2: the drawer's ordered voice, and the length query it needs
+    drawerOpenSequence,
+    cueSeconds,
+    cashPickup,
     cashRunStop,
     cashRunActive,
     coinSettle,

@@ -823,6 +823,30 @@
       "dur": 1.3,
       "targetDb": -12,
       "note": "the antique till bell, which is what finishing a sale should sound like"
+    },
+    {
+      "cue": "cashPickup",
+      "file": "cash-pickup-1.ogg",
+      "source": "coins-handful",
+      "start": 1.6,
+      "dur": 0.85,
+      "targetDb": -13
+    },
+    {
+      "cue": "cashPickup",
+      "file": "cash-pickup-2.ogg",
+      "source": "coins-handled-rattled",
+      "start": 26,
+      "dur": 0.9,
+      "targetDb": -13
+    },
+    {
+      "cue": "cashPickup",
+      "file": "cash-pickup-3.ogg",
+      "source": "cash-money-fieldtapes",
+      "start": 14,
+      "dur": 0.8,
+      "targetDb": -14
     }
   ]
 }

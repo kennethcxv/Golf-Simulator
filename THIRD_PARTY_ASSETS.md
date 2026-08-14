@@ -17,7 +17,7 @@ to any remote service. Downloads happen at development time through
 
 ## Audio
 
-84 files, 1786 kB total.
+87 files, 1817 kB total.
 
 | file | cue | title | creator | licence | source | obtained | attribution required | conversions |
 |---|---|---|---|---|---|---|---|---|
@@ -105,6 +105,9 @@ to any remote service. Downloads happen at development time through
 | `ui-close-warm-1.ogg` | `uiClose` | Low Click 1 by CJspellsfish | CJspellsfish | CC0-1.0 | https://freesound.org/s/669468/ | 2026-08-14 | none (CC0) | freesound HQ preview transcode; whole file; leading silence trimmed; peak-normalised to -15 dBFS; short in/out fades; encoded Vorbis q5 mono 44.1 kHz |
 | `ui-error-warm-1.ogg` | `uiError` | Mechanical switch (latch) 02 by xkeril | xkeril | CC0-1.0 | https://freesound.org/s/815493/ | 2026-08-14 | none (CC0) | freesound HQ preview transcode; whole file; leading silence trimmed; peak-normalised to -15 dBFS; short in/out fades; encoded Vorbis q5 mono 44.1 kHz |
 | `checkout-complete-warm-1.ogg` | `checkoutComplete` | cash register old antique open close drawer with bell ring various combinations.wav by kyles | kyles | CC0-1.0 | https://freesound.org/s/452572/ | 2026-08-14 | none (CC0) | freesound HQ preview transcode; sliced 32.36s +1.3s; leading silence trimmed; peak-normalised to -12 dBFS; short in/out fades; encoded Vorbis q5 mono 44.1 kHz |
+| `cash-pickup-1.ogg` | `cashPickup` | Coins.wav by pinchos | pinchos | CC0-1.0 | https://freesound.org/s/444257/ | 2026-08-14 | none (CC0) | freesound HQ preview transcode; sliced 1.6s +0.85s; leading silence trimmed; peak-normalised to -13 dBFS; short in/out fades; encoded Vorbis q5 mono 44.1 kHz |
+| `cash-pickup-2.ogg` | `cashPickup` | coins being handled, shaken, rattled (coins in hands).wav by Alexbuk | Alexbuk | CC0-1.0 | https://freesound.org/s/391818/ | 2026-08-14 | none (CC0) | freesound HQ preview transcode; sliced 26s +0.9s; leading silence trimmed; peak-normalised to -13 dBFS; short in/out fades; encoded Vorbis q5 mono 44.1 kHz |
+| `cash-pickup-3.ogg` | `cashPickup` | Cash Money sounds_fieldtapes.wav by fieldtapes | fieldtapes | CC0-1.0 | https://freesound.org/s/271341/ | 2026-08-14 | none (CC0) | freesound HQ preview transcode; sliced 14s +0.8s; leading silence trimmed; peak-normalised to -14 dBFS; short in/out fades; encoded Vorbis q5 mono 44.1 kHz |
 
 ### Where each source came from
 

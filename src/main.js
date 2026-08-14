@@ -1367,7 +1367,10 @@ function startGameNow(
   // notes — could not be told, and every deposit would have sounded identical.
   app.scene3d.walk.hooks.sfx = (name, ...args) => {
     if (!audio.ready) return;
-    if (audio[name]) { audio[name](...args); return; }
+    // ITEM 2: the RESULT travels back. A cue that answers a question -- how long
+    // is the drawer, did the sequence start -- was answering into a void, so the
+    // register could not time the cash against the drawer it had just opened.
+    if (audio[name]) return audio[name](...args);
     // E1: an unmapped cue is a sender defect, not a silent no-op. Named once
     // per cue; the list stays readable for QA drivers.
     window.__fwUnknownCues = window.__fwUnknownCues || [];

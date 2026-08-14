@@ -1896,6 +1896,69 @@
         "short in/out fades",
         "encoded Vorbis q5 mono 44.1 kHz"
       ]
+    },
+    {
+      "cue": "cashPickup",
+      "file": "Assets/audio/cash-pickup-1.ogg",
+      "seconds": 0.83,
+      "peakDb": -9,
+      "bytes": 13132,
+      "licence": "CC0-1.0",
+      "source": "https://freesound.org/s/444257/",
+      "title": "Coins.wav by pinchos",
+      "creator": "pinchos",
+      "attribution": null,
+      "obtained": "2026-08-14",
+      "conversions": [
+        "freesound HQ preview transcode",
+        "sliced 1.6s +0.85s",
+        "leading silence trimmed",
+        "peak-normalised to -13 dBFS",
+        "short in/out fades",
+        "encoded Vorbis q5 mono 44.1 kHz"
+      ]
+    },
+    {
+      "cue": "cashPickup",
+      "file": "Assets/audio/cash-pickup-2.ogg",
+      "seconds": 0.84,
+      "peakDb": -13.3,
+      "bytes": 12666,
+      "licence": "CC0-1.0",
+      "source": "https://freesound.org/s/391818/",
+      "title": "coins being handled, shaken, rattled (coins in hands).wav by Alexbuk",
+      "creator": "Alexbuk",
+      "attribution": null,
+      "obtained": "2026-08-14",
+      "conversions": [
+        "freesound HQ preview transcode",
+        "sliced 26s +0.9s",
+        "leading silence trimmed",
+        "peak-normalised to -13 dBFS",
+        "short in/out fades",
+        "encoded Vorbis q5 mono 44.1 kHz"
+      ]
+    },
+    {
+      "cue": "cashPickup",
+      "file": "Assets/audio/cash-pickup-3.ogg",
+      "seconds": 0.12,
+      "peakDb": -13.3,
+      "bytes": 5387,
+      "licence": "CC0-1.0",
+      "source": "https://freesound.org/s/271341/",
+      "title": "Cash Money sounds_fieldtapes.wav by fieldtapes",
+      "creator": "fieldtapes",
+      "attribution": null,
+      "obtained": "2026-08-14",
+      "conversions": [
+        "freesound HQ preview transcode",
+        "sliced 14s +0.8s",
+        "leading silence trimmed",
+        "peak-normalised to -14 dBFS",
+        "short in/out fades",
+        "encoded Vorbis q5 mono 44.1 kHz"
+      ]
     }
   ]
 }

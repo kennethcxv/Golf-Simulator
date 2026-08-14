@@ -1633,7 +1633,7 @@ export function createRegisterMode(B) {
   const canvas = B.ctx.canvas || document.querySelector('canvas');
   const focusOn = B.ctx.focusOn || (() => {});
   const clearFocus = B.ctx.clearFocus || (() => {});
-  const sfx = (name, ...args) => { if (hooks.sfx) hooks.sfx(name, ...args); };
+  const sfx = (name, ...args) => (hooks.sfx ? hooks.sfx(name, ...args) : undefined);
   const toast = (message, kind) => (hooks.toast ? hooks.toast(message, kind) : null);
   // Declared HERE rather than 900 lines down, because syncPhysicalBrand() runs
   // during setup and currentPaymentCard() reads this: with the declaration
@@ -7073,10 +7073,35 @@ export function createRegisterMode(B) {
     if (checkoutFlowState() === 'CashAccepted') {
       flowTo('DrawerOpening', 'cash-accepted-and-drawer-opened-automatically');
     }
+    // ITEM 2 — THE DRAWER SPEAKS FIRST, AND ITS LENGTH TIMES EVERYTHING ELSE.
+    //
+    // "The drawer opens. Its sound FINISHES. Then the cash starts going in."
+    // `drawerUnlock`, `drawerOpen` and `billHandle` used to fire on three
+    // consecutive lines -- in the same millisecond -- and three impacts at one
+    // instant is a bang, not a drawer. The sequence plays the latch, then the
+    // slide once the latch has died, and returns how long the pair takes.
+    //
+    // It has to run BEFORE the motions are queued, because they read the length.
+    // Queued first, they would take the PREVIOUS sale's value -- zero on the
+    // first sale of the session, which is exactly the overlap being removed.
+    const drawerVoiceSeconds = Number(sfx('drawerOpenSequence')) || 0;
+    if (drawerVoiceSeconds > 0) {
+      setTimeout(() => { sfx('billHandle'); }, Math.round(drawerVoiceSeconds * 1000));
+    } else {
+      // No audio engine (or no recordings): keep the old immediate voice rather
+      // than holding the cash back for a silence.
+      sfx('drawerUnlock');
+      sfx('drawerOpen');
+      sfx('billHandle');
+    }
     tenderMeshes.forEach((mesh, index) => {
       const denom = Number(mesh.userData.denom);
       queueCashMotion(mesh, drawerSlotPosition(denom, index * 0.00035), {
-        delay: 0.18 + index * 0.045,
+        // 0.18 s put the first note in the air while the drawer was still
+        // sliding, so the two ran together as noise. The hold comes from the
+        // drawer cue's REAL length, so auditioning a longer drawer moves the
+        // cash with it instead of desynchronising.
+        delay: drawerVoiceSeconds + index * 0.045,
         duration: 0.44,
         remove: true,
         kind: 'cash-deposit',
@@ -7096,9 +7121,6 @@ export function createRegisterMode(B) {
     cashMotionRefillPending = true;
     setWorkspace('cash');
     toast(t('till.cashTakenTheDrawer'));
-    sfx('drawerUnlock');
-    sfx('drawerOpen');
-    sfx('billHandle');
     drawScreen();
     return true;
   }
@@ -7501,7 +7523,10 @@ export function createRegisterMode(B) {
     layoutSelectedChange();
     refillDrawerMoney();
     drawScreen();
-    sfx(BILLS.includes(mesh.userData.denom) ? 'billHandle' : 'coinHandle');
+    // ITEM 2: taking change back off the counter is a PICK-UP, and it used to
+    // play the same handle cue as laying it down. One gesture, two directions,
+    // one sound -- so neither direction read as itself.
+    sfx('cashPickup');
     return true;
   }
 
