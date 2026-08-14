@@ -2246,11 +2246,22 @@ export function createLedgerBook({ THREE, state, anchor, counterTop, camera = nu
   //
   // drawFrame() is supplied by the caller because only courseScene knows how a
   // real frame is submitted (the composer, with the water-reflection guard).
+  // What the gesture ACTUALLY managed, not what it attempted. A warm that opens
+  // the book but never gets a leaf into the air draws the same number of frames
+  // as one that does, takes about as long, and warms nothing -- the two are
+  // indistinguishable from outside unless it says so.
+  let gestureReport = null;
   let gesturePrewarmed = false;
   function prewarmGesture(drawFrame) {
     if (gesturePrewarmed || typeof drawFrame !== 'function') return false;
     if (carried) return false;
     gesturePrewarmed = true;
+    const report = {
+      openIterations: 0, reachedState: null, turnedForward: false, turnedBack: false,
+      leafFramesDrawn: 0, frames: 0,
+    };
+    gestureReport = report;
+    const draw = () => { report.frames += 1; drawFrame(); };
     const saved = {
       position: root.position.clone(),
       quaternion: root.quaternion.clone(),
@@ -2272,25 +2283,31 @@ export function createLedgerBook({ THREE, state, anchor, counterTop, camera = nu
       for (let guard = 0; guard < 24 && bookState !== 'open'; guard += 1) {
         if (bookState !== 'opening' && bookState !== 'closing') advance();
         update(0.34);
-        drawFrame();
+        draw();
+        report.openIterations += 1;
       }
+      report.reachedState = bookState;
       // 2. turn a page, drawn ACROSS the flight. The leaf is only visible while
       //    it is in the air, and its two faces present at different points of
       //    the arc (the back face is not on screen until the flip passes 90
       //    degrees), so one frame at one instant would warm one of them.
       if (turnPage(1)) {
+        report.turnedForward = true;
         for (let step = 0; step < 5 && leaf; step += 1) {
           update(LEAF_SECONDS * 0.24);
-          drawFrame();
+          if (leafPivot.visible) report.leafFramesDrawn += 1;
+          draw();
         }
         update(LEAF_SECONDS);
       }
       // 3. and back, which is the other rotation direction and the other pair of
       //    face-to-canvas bindings.
       if (turnPage(-1)) {
+        report.turnedBack = true;
         for (let step = 0; step < 4 && leaf; step += 1) {
           update(LEAF_SECONDS * 0.3);
-          drawFrame();
+          if (leafPivot.visible) report.leafFramesDrawn += 1;
+          draw();
         }
         update(LEAF_SECONDS);
       }
@@ -2785,6 +2802,7 @@ export function createLedgerBook({ THREE, state, anchor, counterTop, camera = nu
     prewarm,
     prewarmVisual,
     prewarmGesture,
+    prewarmGestureReport: () => (gestureReport ? { ...gestureReport } : null),
     isOpen,
     isInHand,
     setCarried,

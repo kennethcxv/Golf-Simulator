@@ -12530,15 +12530,30 @@ export function makeCourseScene(canvas, state) {
       // three's deprecation rewrite of PCFSoftShadowMap (see the shadowMap.type
       // note where the renderer is built) happens inside a shadow bake, and
       // shadowMapType is part of every program's cache key -- so a gesture warmed
-      // before the first bake of this phase builds programs the player's frame
-      // will not ask for. Measured exactly that way: with the ledger gesture
-      // first, the first page turn STILL compiled one program and the two keys on
-      // that material differed by `shadowMapType 2 -> 1` alone. The tools came out
-      // clean only because their own loop bakes before it draws.
+      // before the rewrite builds programs the player's frame will not ask for.
+      // Measured exactly that way: with the ledger gesture first, the first page
+      // turn STILL compiled one program and the two keys on that material
+      // differed by `shadowMapType 2 -> 1` alone.
       //
-      // One bake and one frame here puts the whole phase on the settled side.
-      renderer.shadowMap.needsUpdate = true;
-      drawWarmFrame();
+      // LOOPED, NOT ASSUMED, and that distinction was earned. A single
+      // needsUpdate + frame here made the page turn clean on one run and left it
+      // red on the next: WebGLShadowMap.render() returns before the rewrite
+      // unless the bake actually runs, which needs shadow-casting lights in the
+      // render state as well as the flag. So this waits for the OUTCOME -- the
+      // type no longer being the deprecated value -- instead of for a call that
+      // may have returned early. Normally one iteration; the cap keeps a scene
+      // with no shadow-casting light from spinning.
+      let shadowSettleFrames = 0;
+      while (shadowSettleFrames < 6 && renderer.shadowMap.type === THREE.PCFSoftShadowMap) {
+        fitSunShadow();
+        renderer.shadowMap.needsUpdate = true;
+        drawWarmFrame();
+        shadowSettleFrames += 1;
+      }
+      // Reported so a driver can tell "the warm ran on the settled side" from
+      // "the warm ran and the type never moved", which look identical downstream.
+      const settleLabel = `gesture-shadow-settled-${renderer.shadowMap.type}`;
+      prewarmTimings.push({ label: settleLabel, ms: shadowSettleFrames });
       // The ledger: open, turn forward, turn back, close. It restores its own
       // pose and suppresses its paper cue; see prewarmGesture in ledgerBook.js.
       try {
@@ -12633,7 +12648,59 @@ export function makeCourseScene(canvas, state) {
       // which is a fair reminder that it matches text, not intent.)
       const label = 'gesture-tools-warmed';
       prewarmTimings.push({ label, ms: warmedTools });
-      markPrewarm('gesture-tools', phaseAt);
+      phaseAt = markPrewarm('gesture-tools', phaseAt);
+
+      // THE TEE DESK. Its prop label reads "Tee desk - [E] arrivals, check-ins
+      // and walk-ins" and its action is register.enter(), so the gesture to warm
+      // is the entry itself.
+      //
+      // Measured in the owner's own save (tools/qa/electron-tee-desk-press.js):
+      // the first press cost a 71.8 ms frame against a 21.4 ms idle worst, with
+      // +0 programs, +0 textures and +56 GEOMETRIES. Nothing compiles -- the
+      // register's meshes simply reach the GPU for the first time on the frame
+      // the player opens it. The second and third presses cost 25.4 and 22.3 ms.
+      //
+      // enter() is gated only on `active`, not on where the player is standing,
+      // so it can be driven from here. Camera pose and FOV are captured around it
+      // regardless of what leave() restores: the veil is about to lift on this
+      // frame and a register entry that leaked its close-up camera would be worse
+      // than the stall it removes.
+      let registerWarmed = 'skipped';
+      try {
+        const reg = clubhouseApi?.register;
+        if (typeof reg?.enter === 'function' && typeof reg?.leave === 'function') {
+          const camFov = camera.fov;
+          const camPos = camera.position.clone();
+          const camQuat = camera.quaternion.clone();
+          if (reg.enter()) {
+            // TICKED, not held still. Two static frames took the first press
+            // from +56 geometries to +31: the register's entry is ANIMATED --
+            // the camera settles into the workspace and the reader and drawer
+            // move into place -- so a frozen warm draws only what is on screen
+            // at t=0 and the rest still arrives in the player's frame. Driving
+            // its own update between frames lets the entry actually play out.
+            renderer.shadowMap.needsUpdate = true;
+            for (let step = 0; step < 8; step += 1) {
+              try { reg.update?.(1 / 30); } catch { /* a stage that will not tick still draws */ }
+              drawWarmFrame();
+            }
+            reg.leave({ restorePointer: false });
+            registerWarmed = 'entered';
+          } else {
+            registerWarmed = 'refused';
+          }
+          camera.fov = camFov;
+          camera.position.copy(camPos);
+          camera.quaternion.copy(camQuat);
+          camera.updateProjectionMatrix();
+          camera.updateMatrixWorld(true);
+        }
+      } catch {
+        registerWarmed = 'failed';
+      }
+      const registerLabel = `gesture-register-${registerWarmed}`;
+      prewarmTimings.push({ label: registerLabel, ms: 0 });
+      markPrewarm('gesture-register', phaseAt);
       await tick();
       if (!alive()) return false;
       // Put the frame back to the settled pose the veil is about to lift on.

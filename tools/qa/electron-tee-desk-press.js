@@ -31,8 +31,33 @@ async (page) => {
     if (/fault:|Error/i.test(text)) out.errs.push(`console: ${text.slice(0, 200)}`);
   });
 
-  const bootPath = `${process.cwd()}/tools/qa/lib/qa-boot.mjs`.replace(/\\/g, '/');
-  await (await import(`file:///${bootPath}`)).clickThroughMenu(page, { forceNew: true });
+  // THE OWNER'S OWN SAVE, planted into the QA profile. ensureGolfFacilities()
+  // returns immediately without `st.golfDay.routeNetwork`, so on a clean profile
+  // the starter desk does not exist at all -- the first run of this driver
+  // searched a world with no tee desk in it and found nothing, which is a true
+  // answer to the wrong question. `forceNew: false` does not help either: the
+  // runner always launches on a fresh temp --user-data-dir, so there is no save
+  // to resume. Same planting sequence as electron-owner-save-fps.js.
+  const saveDir = path.join(process.env.APPDATA || '', 'GOLF EMPIRE', 'saves');
+  const autosave = JSON.parse(fs.readFileSync(path.join(saveDir, 'autosave.json'), 'utf8'));
+  const meta = JSON.parse(fs.readFileSync(path.join(saveDir, 'autosave-meta.json'), 'utf8'));
+  await page.waitForFunction(() => !!window.fairwayNative?.save, null, { timeout: 120000 });
+  await page.waitForTimeout(2500);
+  await page.evaluate(async ({ save, saveMeta }) => {
+    await window.fairwayNative.save('autosave', save);
+    await window.fairwayNative.save('autosave-meta', saveMeta);
+  }, { save: autosave, saveMeta: meta });
+  await page.reload();
+  // NOT /\bContinue\b/: an ENABLED Continue reads "ContinuePine Hills..." and the
+  // trailing word boundary can only ever match a DISABLED button. Wait for the
+  // button to enable, then click it. A timeout is a loud failure, not a fallback
+  // to a new game -- a fresh campaign has no route network and would abort below
+  // while looking like a measurement.
+  await page.waitForFunction(() => {
+    const b = document.querySelector('.menu-action-primary');
+    return !!b && !b.disabled;
+  }, null, { timeout: 45000 });
+  await page.evaluate(() => document.querySelector('.menu-action-primary').click());
   await page.waitForFunction(() => window.__fw?.scene3d?.walk?.isActive?.(), null, { timeout: 300000 });
   await page.waitForFunction(() => {
     const v = document.querySelector('.load-veil');
@@ -40,54 +65,49 @@ async (page) => {
   }, null, { timeout: 300000 });
   await page.waitForTimeout(7000); // past the deferred warm
 
-  // 1. Find the starter desk in the world. The prop list is not exposed, but the
-  //    facility kit is placed in the scene, so the STAND is findable by name and
-  //    the prop sits on it.
-  out.located = await page.evaluate(() => {
+  // RETARGETED TO THE INDOOR TEE DESK.
+  //
+  // There are two desks and only one of them is the owner's. Outdoors by the
+  // first tee is the "Starter desk", whose action routes to enterFrontDesk() --
+  // and that bails, because nothing in src/ ever assigns frontDeskUi
+  // (src/ui/frontDesk.js is imported by nothing). Measured there: the press
+  // opens NOTHING, frontDeskOpen stays false and the DOM does not change.
+  //
+  // The owner's "tee desk" is the counter prop in clubhouse.js whose label reads
+  // literally "Tee desk - [E] arrivals, check-ins and walk-ins", and whose action
+  // is register.enter(). That is this one.
+  await page.evaluate(() => {
     const s3 = window.__fw.scene3d;
-    const hits = [];
-    s3.scene.traverse((o) => {
-      if (!/starter/i.test(o.name || '')) return;
-      const p = o.getWorldPosition(new (o.position.constructor)());
-      hits.push({ name: o.name, type: o.type, x: +p.x.toFixed(2), y: +p.y.toFixed(2), z: +p.z.toFixed(2) });
-    });
-    return hits.slice(0, 12);
-  });
-
-  // 2. Stand at it, facing it, and PROVE it with the focus label the player
-  //    reads. A press with no focus is a press at nothing.
-  out.approach = await page.evaluate((spots) => {
-    const s3 = window.__fw.scene3d;
+    const st = s3.walk.stations()[0];
     const w = s3.walk.state;
-    const tries = [];
-    for (const spot of spots) {
-      // ring of stand-off points around the stand; the prop radius is ~3.1 and
-      // the collider ~0.55, so 1.6 yd out is inside reach and outside the desk
-      for (let i = 0; i < 12; i += 1) {
-        const a = (i / 12) * Math.PI * 2;
-        const x = spot.x + Math.sin(a) * 1.6;
-        const z = spot.z + Math.cos(a) * 1.6;
-        w.x = x; w.z = z; w.vx = 0; w.vz = 0;
-        w.yaw = Math.atan2(-(spot.x - x), -(spot.z - z));
-        w.pitch = -0.12;
-        s3.walk.update?.(0.016);
-        const label = s3.walk.getFocusLabel?.() ?? null;
-        tries.push({ spot: spot.name, angle: i, label });
-        if (label && /starter desk/i.test(label)) {
-          return { found: true, spot: spot.name, x, z, label, tried: tries.length };
-        }
-      }
-    }
-    return { found: false, tried: tries.length, sample: tries.slice(0, 8) };
-  }, out.located);
-
-  if (!out.approach.found) {
-    out.summary = { ABORTED: 'never reached a focus that names the starter desk', located: out.located, approach: out.approach };
-    fs.writeFileSync(path.join(OUT, 'tee-desk.json'), `${JSON.stringify(out, null, 2)}\n`);
+    w.x = st.x; w.z = st.z + 1.15;
+    w.yaw = Math.atan2(-(st.x - w.x), -(st.z - w.z));
+    w.pitch = -0.2; w.vx = 0; w.vz = 0;
+  });
+  await page.waitForTimeout(900);
+  out.approach = await page.evaluate(() => ({
+    found: true,
+    spot: 'walk.stations()[0]',
+    label: window.__fw.scene3d.walk.getFocusLabel?.() ?? null,
+  }));
+  if (!/tee desk/i.test(out.approach.label || '')) {
+    out.summary = { ABORTED: 'focus does not name the tee desk', approach: out.approach };
+    fs.writeFileSync(path.join(OUT, 'tee-desk.json'), JSON.stringify(out, null, 2) + String.fromCharCode(10));
     console.log('TEE-DESK', JSON.stringify(out.summary, null, 2));
     return out;
   }
   await page.waitForTimeout(800);
+
+  // DID THE WARM ACTUALLY ENTER? gesture-register-<outcome> carries it. An
+  // enter() that returned false and one that ran are indistinguishable from the
+  // press side, and the whole point of the warm is that the player press is
+  // really the SECOND entry.
+  out.prewarmTimings = await page.evaluate(() => {
+    const t = window.__fw.scene3d.prewarmTimings?.() ?? null;
+    return Array.isArray(t) ? t.map((x) => ({ label: x.label, ms: x.ms })) : t;
+  });
+  out.gesturePhases = (out.prewarmTimings || []).filter((t) => String(t.label).startsWith('gesture'));
+  console.log('GESTURE-PHASES', JSON.stringify(out.gesturePhases));
 
   const counters = () => page.evaluate(() => {
     const s3 = window.__fw.scene3d;
@@ -151,7 +171,11 @@ async (page) => {
   // floor to be read against.
   await gesture('control_idle', async () => {}, 3000);
   await gesture('teeDesk_press_1st', () => page.keyboard.press('e'), 3500);
+  await page.evaluate(() => window.__fw.scene3d.clubhouse().register.leave?.());
+  await page.waitForTimeout(1200);
   await gesture('teeDesk_press_2nd_CONTROL', () => page.keyboard.press('e'), 3000);
+  await page.evaluate(() => window.__fw.scene3d.clubhouse().register.leave?.());
+  await page.waitForTimeout(1200);
   await gesture('teeDesk_press_3rd', () => page.keyboard.press('e'), 3000);
 
   out.summary = {

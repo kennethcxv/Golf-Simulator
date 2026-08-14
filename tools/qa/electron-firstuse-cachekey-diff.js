@@ -59,6 +59,12 @@ async (page) => {
     return Array.isArray(t) ? t.map((x) => ({ label: x.label, ms: x.ms })) : t;
   });
   out.gesturePhases = (out.prewarmTimings || []).filter((t) => String(t.label).startsWith('gesture'));
+  // What the ledger's warm gesture actually MANAGED. "gesture-ledger ran for
+  // 315 ms" is compatible with a book that opened and never got a leaf into the
+  // air, which warms nothing and looks identical from outside.
+  out.ledgerGesture = await page.evaluate(() => (
+    window.__fw.scene3d.clubhouse?.()?.ledgerBook?.prewarmGestureReport?.() ?? null));
+  console.log('LEDGER-GESTURE', JSON.stringify(out.ledgerGesture));
   out.loadTotalMs = (out.prewarmTimings || []).find((t) => t.label === 'TOTAL')?.ms ?? null;
 
   const canvas = await page.$('#game') || await page.$('canvas');
@@ -131,6 +137,33 @@ async (page) => {
 
   // ---- CONTROL: an idle window of the same length ---------------------------
   await gesture('control_idle', async () => {}, 2500);
+
+  // ---- THE TEE DESK, which is register.enter() ------------------------------
+  //
+  // The owner's "tee desk" is the counter prop in clubhouse.js whose label reads
+  // "Tee desk - [E] arrivals, check-ins and walk-ins" and whose action is
+  // register.enter(). It is NOT the outdoor "Starter desk" by the first tee --
+  // that one's action routes to enterFrontDesk(), which bails because nothing in
+  // src/ ever assigns frontDeskUi, and a driver aimed there measures a press
+  // that opens nothing.
+  await page.evaluate(() => {
+    const s3 = window.__fw.scene3d;
+    const st = s3.walk.stations()[0];
+    const w = s3.walk.state;
+    w.x = st.x; w.z = st.z + 1.15;
+    w.yaw = Math.atan2(-(st.x - w.x), -(st.z - w.z));
+    w.pitch = -0.2; w.vx = 0; w.vz = 0;
+  });
+  await page.waitForTimeout(900);
+  // The prompt is the proof the press lands on the desk rather than on air.
+  out.teeDeskFocus = await page.evaluate(() => window.__fw.scene3d.walk.getFocusLabel?.() ?? null);
+  console.log('TEE-DESK-FOCUS', JSON.stringify(out.teeDeskFocus));
+  await gesture('teeDesk_enter_1st', () => page.keyboard.press('e'), 3200);
+  await page.evaluate(() => window.__fw.scene3d.clubhouse().register.leave?.());
+  await page.waitForTimeout(1200);
+  await gesture('teeDesk_enter_2nd_CONTROL', () => page.keyboard.press('e'), 2600);
+  await page.evaluate(() => window.__fw.scene3d.clubhouse().register.leave?.());
+  await page.waitForTimeout(1000);
 
   // ---- the ledger, driven by the REAL key presses ---------------------------
   await page.evaluate(() => {
