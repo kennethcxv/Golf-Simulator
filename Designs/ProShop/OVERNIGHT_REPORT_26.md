@@ -1106,6 +1106,63 @@ this is.
 
 ---
 
+# PHASE 8 — GLOBAL ESCAPE
+
+## The router — **DONE and measured**
+
+There were **eighteen** Escape handlers across nine files, each deciding for
+itself in whatever order the listeners happened to be registered. That is how
+Escape unwinds two layers at once, or none.
+
+One capture-phase listener on `window`, installed at UI construction so it is
+first, calling `stopImmediatePropagation()` whenever it acts. A layer is either
+handled there or not reached — which is the literal meaning of "nothing
+lower-level double-handles it". The order is the brief's, verbatim.
+
+**Real key presses, not calls into the handler** (a router on the wrong target
+would pass a direct call and fail a keypress):
+
+| state | rung fired | rungs | can move | can look |
+|---|---|---|---|---|
+| walking (nothing open) | `pause-open` | **1** | ✓ | ✓ |
+| ledger carried | `ledger` | **1** | ✓ | ✓ |
+| register mode | `register` | **1** | ✓ | ✓ |
+| laptop open | `laptop` | **1** | ✓ | ✓ |
+| tool in hand | `pause-open` | **1** | ✓ | ✓ |
+
+`multiRungPresses: []` — exactly one layer per press. `strandedAfter: []` — the
+player can still move and look after every press, checked by nudging the walk
+state and re-reading it rather than trusting a label.
+
+## The pause menu — **"Restart the current day" added**
+
+The other three (Resume, Return to main menu, Quit) already existed with
+confirmation. The fourth needed a snapshot that did not exist: `autosave-prev`
+rotates on the **interval** trigger too, so it is routinely minutes old rather
+than this morning. `daystart` is now written once per rollover and never on the
+timer, and the button is **born disabled** until that snapshot is confirmed
+present — on day one there is no rollover behind you, and a destructive button
+that does nothing is worse than one that says why it cannot.
+
+**The allowlist entry went in before the writer**, because `security.cjs` carries
+a comment saying exactly what happens otherwise: `fw:save` throws, the renderer's
+guard swallows it, and the snapshot silently never happens.
+
+**Three of the repository's own traps, all caught by the suite:** an em dash and
+an ellipsis in player-visible copy; a raw `text:` literal that would reach every
+locale in English; and — the one worth telling — **my comment explaining the
+string sink tripped the string-sink detector**, because I quoted the scanned
+property name followed by a backtick. `i18n.js` gained a "raw player-facing
+string" that was a sentence about raw player-facing strings.
+
+Both new keys are translated into all nine other locales rather than banked
+against the untranslated baseline.
+
+**NOT DONE:** the eighteen superseded handlers are now unreachable for Escape but
+have not been swept out of their files. That is dead code someone should delete.
+
+---
+
 # HANDOFF
 
 Everything committed and pushed to `goal25/phase0-inherited-tree`.
@@ -1127,7 +1184,7 @@ Suite **3642/3642**, lint ratchet **323**.
 | 5 | 5.2 mop weight / 5.3 the hands | **NOT DONE** |
 | 6 | ledger UI | **NOT STARTED** |
 | 7 | performance | **NOT STARTED** |
-| 8 | global Escape | **NOT STARTED** |
+| **8** | global Escape | **ROUTER DONE + measured; menu item added** |
 | 9 | 9.2 sticky prompt | **IMPROVED** 40.4 % → 26.7 %; residual remains |
 | 9 | 9.3 dark interior | **MEASURED**, decision made, ineffective fix reverted |
 | 9 | 9.4 bunker rake | **REPRODUCED and PHOTOGRAPHED** — not fixed |
