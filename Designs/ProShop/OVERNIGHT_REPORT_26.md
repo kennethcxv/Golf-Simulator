@@ -1206,54 +1206,60 @@ been caught by that before when batched props draw via `layers.mask`.
 
 # HANDOFF
 
-Everything committed and pushed to `goal25/phase0-inherited-tree`.
+Committed and pushed to `goal25/phase0-inherited-tree`.
 Suite **3642/3642**, lint ratchet **323**.
 
 | Phase | Item | Status |
 |---|---|---|
-| **1** | 1.0–1.8, all items | **DONE** |
-| **1** | **GATE** | **PASSED** — 50 CC0 files, every cue measured in dBFS, both controls hold |
-| **2** | 2.1 player blocks the queue | **DONE** — 4 stations phase out and restore; 110 → 0 walk-in-place frames |
+| **1** | 1.0 – 1.8, every item | **DONE** |
+| **1** | **GATE** | **PASSED** — 50 CC0 files, every cue in dBFS, both controls hold |
+| **2** | 2.1 player blocks the queue | **DONE** — 110 → 0 walk-in-place frames; 4 stations phase out and restore |
 | **2** | 2.2 counter items overlap | **DONE** — 3 overlapping pairs → 0 |
-| **2** | **GATE** | **PASSED** for the counter and queue; clip frames viewed (`tiles-14`) |
+| **2** | **GATE** | **PASSED** — clip recorded, frames viewed (`tiles-14`) |
 | 3 | 3.1 recast in production | **DIAGNOSED** — zero production call sites proven; not integrated |
 | 3 | 3.2 / 3.3 | **NOT DONE** — stall rate **unmeasured**; detector failed its own control |
 | 4 | 4.1 time flows too slowly | **NOT DONE** — ceiling measured at 4×; blocker is the golf day |
 | **4** | 4.2 / 4.3 / 4.4 / 4.5 | **DONE** |
 | **4** | **GATE** | **RUN** — full week, every figure reported |
-| **5** | 5.1 the mop | **DONE** — all three named faults fixed at their actual causes |
+| **5** | 5.1 the mop | **DONE** — all three named faults fixed at their causes |
 | 5 | 5.2 mop weight / 5.3 the hands | **NOT DONE** |
-| 6 | ledger UI | **NOT STARTED** |
-| 7 | performance | **7.1 re-measured — baselines are stale**; not merged |
-| **8** | global Escape | **ROUTER DONE + measured; menu item added** |
+| 6 | ledger UI rebuild | **NOT STARTED** |
+| 7 | 7.1 measure first | **DONE** — every baseline in the brief is stale |
+| 7 | 7.1 merge / 7.2 – 7.7 | **NOT DONE** |
+| **8** | Escape router | **DONE and measured** — one layer per press, never stranded |
+| **8** | pause menu | **DONE** — "Restart the current day" added with a real snapshot |
+| 8 | sweep the 18 dead handlers | **NOT DONE** — unreachable, but still in the files |
 | 9 | 9.2 sticky prompt | **IMPROVED** 40.4 % → 26.7 %; residual remains |
-| 9 | 9.3 dark interior | **MEASURED**, decision made, ineffective fix reverted |
+| 9 | 9.3 dark interior | **MEASURED**; decision made; ineffective fix reverted |
 | 9 | 9.4 bunker rake | **REPRODUCED and PHOTOGRAPHED** — not fixed |
 | 9 | 9.1, 9.5, 9.6 | **NOT STARTED** |
 | 10 | final verification | **NOT STARTED** |
 
-## The four things worth knowing
+## Five things worth knowing
 
-1. **The cash is audible.** Phase 1 is closed for the first time in four goals.
+1. **The cash is audible.** Phase 1 closed for the first time in four goals.
 2. **Customer staging needs three facts and two are invisible** — the owner's
    save, trading hours, and **the sign open**. Without the sign the game routes
-   every customer to the exit, which reads exactly like a pathing catastrophe.
-   `FOUND_FALSE` shape 15.
-3. **The rake bug is real and now has a photograph.** A previous session couldn't
-   reproduce it because the rake isn't drawn indoors.
-4. **I reverted two of my own changes and withdrew three findings.** The 9.3 bulb
-   made no measurable difference; the 5.3 % stall rate came from a detector that
-   failed its own control. Both are out.
+   every customer to the exit: correct behaviour that reads exactly like a
+   pathing catastrophe. `FOUND_FALSE` shape 15.
+3. **The rake bug is real and now has a photograph.** The previous session
+   couldn't reproduce it because the rake isn't drawn indoors.
+4. **Phase 7's baselines are stale and the worst frame is outdoors** — 4404 draw
+   calls at `inside: false`, against a recorded peak of 942.
+5. **I reverted two of my own changes and withdrew three findings.** The 9.3 bulb
+   could not be distinguished from no bulb; the 5.3 % stall rate came from a
+   detector that failed its own negative control.
 
-## Where to pick up
+## Where to pick up, in order
 
 1. **Phase 3** — build a stuck detector that passes the pinned-customer control
-   *before* measuring anything. Everything in 3.2/3.3 depends on seeing a stall.
-2. **9.4** — the exploded rake. Hands are ruled out by measurement; find what the
-   tan capsules with planks through them actually belong to.
-3. **9.3** — get the practicals' positions and light the fitting nearest interior
-   offset (3,3), not index 0.
-4. **Phases 6, 7, 8** — untouched.
+   *before* measuring anything. All of 3.2/3.3 depends on being able to see a stall.
+2. **Phase 6** — untouched. The ledger UI rebuild is a clean, self-contained slice.
+3. **Phase 7** — read `tools/gltf-census.mjs` for what dedup would remove before
+   writing a merger; 817 materials is the ceiling on what merging can buy.
+4. **9.4** — the exploded rake. Hands are ruled out by measurement.
+5. **9.3** — get the practicals' positions; light the one nearest interior offset
+   (3,3), not index 0.
 
 ## Standing caveats
 
@@ -1261,6 +1267,6 @@ Suite **3642/3642**, lint ratchet **323**.
   plus acoustic classification. If a cue sounds *wrong* rather than *absent*,
   that is the gap between what I can measure and what you can hear.
 - **Probe-lie count 22.** One passed on the broken build; one made me publish a
-  wrong number I corrected in place; three findings were withdrawn outright. The
-  count is high because I went looking, and the report would be worth less if it
+  number I later corrected in place; three findings were withdrawn outright. The
+  count is high because I went looking, and this report would be worth less if it
   were lower.
