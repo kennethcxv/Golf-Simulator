@@ -10,6 +10,7 @@
 import * as THREE from 'three';
 import { PAYMENT_CARDS, DEFAULT_PAYMENT_CARD, paymentCardFor } from '../../data/paymentCards.js';
 import { t } from '../../core/i18n.js';
+import { reportFault } from '../../core/faultGuard.js';
 import {
   FRONT_DESK_FRAME, REGISTER, COUNTER, COUNTER_TOP,
   frontDeskLocalPoint, frontDeskPoint, frontDeskVector, queueSlot,
@@ -8230,6 +8231,34 @@ export function createRegisterMode(B) {
       postBankFailure ||= failure;
       return failure;
     };
+    // P0 (Goal 25 round 2) — MAKE THE REFUSAL SAY WHICH REFUSAL IT WAS.
+    //
+    // The owner has now reported "Checkout records are unavailable right now"
+    // three times, and neither of us can act on it. That sentence
+    // (`checkout.integrityUnavailable`) has 277 call sites in src/, each with its
+    // own internal `diagnostic` naming the real cause, and every one of the four
+    // paths below throws that diagnostic away before the player sees anything.
+    // Last round I found ONE of the 277, reproduced it, and reported it as the
+    // cause; his save then ruled it out. That was a guess dressed as a finding.
+    //
+    // The diagnostic cannot go in the toast: player-facing copy is localized
+    // (tests/player-strings-ratchet.test.js) and an English machine code would
+    // show on all ten locale tables. So it goes where machine codes belong and
+    // where I can actually READ it -- reportFault writes through the preload
+    // bridge into userData/logs/crash.log, which is how I read his save this
+    // round. Rate-limited by origin+message inside reportFault, so a till that
+    // refuses every second cannot fill the disk.
+    const reportRefusal = (where, result) => {
+      const diagnostic = result?.diagnostic || result?.reason || 'no diagnostic reported';
+      reportFault(`checkout.refused.${where}`, new Error(String(diagnostic)), {
+        transactionNumber: finishedTx?.number ?? null,
+        customerId: finishedCustomer?.customerId ?? null,
+        reservationId: finishedReservationId ?? null,
+        banked: finishedTx?.banked === true,
+        commitPrepared: finishedTx?.commitPrepared === true,
+      });
+      return result;
+    };
     const attempt = (stage, operation) => {
       try {
         return { ok: true, value: operation() };
@@ -8277,11 +8306,13 @@ export function createRegisterMode(B) {
           }
         } catch (retryError) {
           recordPostBankFailure('bank-helper-retry-failed', retryError);
+          reportRefusal('retry-failed', { diagnostic: String(retryError?.message || retryError) });
           toast(t('checkout.integrityUnavailable'), 'warn');
           return false;
         }
       } else if (!finishedTx.banked) {
         recordPostBankFailure('bank-helper-failed-before-commit', error);
+        reportRefusal('failed-before-commit', { diagnostic: String(error?.message || error) });
         toast(t('checkout.integrityUnavailable'), 'warn');
         return false;
       } else {
@@ -8292,6 +8323,7 @@ export function createRegisterMode(B) {
     }
     if (!result?.ok) {
       if (!finishedTx.banked) {
+        reportRefusal('sale-refused', result);
         toast(result?.reason || t('checkout.integrityUnavailable'), 'warn');
         return false;
       }
@@ -8301,6 +8333,9 @@ export function createRegisterMode(B) {
         new Error(result?.reason || 'The bank helper reported failure after committing the sale.'),
       );
     } else if (!finishedTx.banked) {
+      // ok:true and yet the transaction is not banked -- the one path here with
+      // no error object of its own, and so the one that told us least.
+      reportRefusal('ok-but-not-banked', { diagnostic: 'completeSale returned ok with tx.banked false' });
       toast(t('checkout.integrityUnavailable'), 'warn');
       return false;
     } else {

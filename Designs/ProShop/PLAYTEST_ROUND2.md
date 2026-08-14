@@ -95,10 +95,27 @@ never released — which is `completeSale` running twice on one transaction. It 
 **not** it: an early `tx.banked` guard returns "Already banked." before the
 duplicate path is reached (`tools/qa/node/p0-double-complete-repro.mjs`).
 
-**This is the thing I would fix next, and I have not.** The defect is that the
-error cannot identify itself. Until the diagnostic is surfaced or recorded, your
-next report and my next investigation both start from a sentence that is true of
-277 different failures.
+**So I made the refusal say which refusal it was.** All four paths in
+`simplifiedRegisterMode.js` now call `reportFault('checkout.refused.<where>', ...)`
+with the real `diagnostic`, the transaction number, and whether the sale had
+banked or prepared a commit.
+
+It does NOT go in the toast: player copy is localized across ten locale tables
+and an English machine code would show on all of them (the ratchet enforces
+this). It goes where machine codes belong and where I can actually read it —
+`reportFault` writes through the preload bridge into
+`%APPDATA%\GOLF EMPIRE\logs\crash.log`, which is the same way I read your save
+this round. Rate-limited by origin inside `reportFault`, so a till refusing every
+second cannot fill the disk.
+
+**Next time it happens, that file will name the cause.** Send me `crash.log`, or
+say the word and I will read it here.
+
+*Honest limit:* I verified the sink end to end — origin, diagnostic text and
+context all arrive at the bridge that writes the log. I have **not** watched one
+of the four call sites fire during a live refusal, because driving a real
+customer sale to failure in the harness was more than the remaining session had.
+The plumbing is proven; the trigger is not.
 
 ---
 
