@@ -146,6 +146,13 @@ async (page) => {
   await page.evaluate((n) => { window.__spawnCount = n; }, Number(process.env.WALKUP_SPAWN || 4));
   out.spawned = await page.evaluate(() => {
     const ch = window.__fw.scene3d.clubhouse();
+    // OPEN THE SIGN. shopAcceptsWalkIns = withinTradingHours && signIsOpen, and
+    // when it is false EVERY customer on the floor is routed straight to the exit
+    // (clubhouse.js: `if (!open) { ... c.stopIdx = c.stops.length - 2 }`). The save
+    // resumes before opening, so my spawned shoppers were evicted 70 ms after
+    // arriving -- which is CORRECT behaviour and looked exactly like a navigation
+    // fault. debugSpawn does not set `scriptedVisit`, so it gets no exemption.
+    if (window.__fw.state?.shop) window.__fw.state.shop.signOpen = true;
     try { ch.setOrganicWalkins?.(false); } catch { /* older builds */ }
     try { ch.clearWalkins?.(); } catch { /* older builds */ }
     const made = [];

@@ -10278,6 +10278,8 @@ export function makeClubhouse(ctx) {
   const pickStats = {
     calls: 0, noSkus: 0, cartFull: 0, nothingStocked: 0, browseOnlyRoll: 0,
     browseOnlyReplace: 0, shelfRefused: 0, took: 0,
+    // and the approach half: did they ever get the stand at all?
+    claimed: 0, standGivenUp: 0, noFixtureRecord: 0, fixtureStopSeen: 0,
   };
   function customerPick(c, stop) {
     pickStats.calls += 1;
@@ -11786,6 +11788,7 @@ export function makeClubhouse(ctx) {
       let waitingForStand = false;
       let waitFace = null;
       if (stop.kind === 'fixture' && stop.fixtureId) {
+        pickStats.fixtureStopSeen += 1;
         if (c.fixtureClaim && c.fixtureClaim !== stop.fixtureId) releaseFixtureClaim(c);
         const holder = fixtureClaims.get(stop.fixtureId);
         const mine = holder === c;
@@ -11795,6 +11798,7 @@ export function makeClubhouse(ctx) {
           if (holderGone) fixtureClaims.delete(stop.fixtureId);
           if (reach <= STAND_CLAIM_RADIUS) {
             if (!fixtureClaims.get(stop.fixtureId)) {
+              pickStats.claimed += 1;
               fixtureClaims.set(stop.fixtureId, c);
               c.fixtureClaim = stop.fixtureId;
               c.waitSlot = null;
@@ -11812,6 +11816,8 @@ export function makeClubhouse(ctx) {
                 // No fixture record, or the crowd is full: give this stand up
                 // rather than joining an unbounded scrum. Their remaining plan
                 // still stands, and an empty plan simply heads for the exit.
+                pickStats.standGivenUp += 1;
+                if (!fixture) pickStats.noFixtureRecord += 1;
                 releaseFixtureClaim(c);
                 c.stopIdx += 1;
                 c.path = [];
