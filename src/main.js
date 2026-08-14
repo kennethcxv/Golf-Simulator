@@ -17,6 +17,7 @@ import {
 } from './sim/empire.js';
 import { buildShedEmpire } from './sim/shedScene.js';
 import { SAVE_VERSION } from './sim/state.js';
+import { checkoutWalIsQuarantined, releaseCheckoutWalQuarantine } from './sim/checkoutSettlement.js';
 import { addHole, courseDesignRating, holeNumber } from './sim/course.js';
 import { formatMoney } from './core/utils.js';
 import { createHeldKeys, overviewCameraDelta, OVERVIEW_KEYS, isTextEntryTarget } from './core/heldKeys.js';
@@ -4344,7 +4345,12 @@ function boot() {
 
   gameUi = el('div', { class: 'game-ui', style: 'display:none' });
   hud = makeHud(app, handlers);
-  laptopUi = makeLaptop(app, {
+  // The opts object is captured on app so a driver can ask the LAPTOP what it
+  // would do, rather than re-deriving the answer from state and certifying that
+  // its own copy of the rule agrees with itself. The laptop reads its
+  // capabilities from here, so this is the surface that decides whether a fix is
+  // reachable at all.
+  const laptopOpts = {
     close: () => exitLaptop(),
     openPropertyMarket: () => {
       exitLaptop();
@@ -4363,7 +4369,14 @@ function boot() {
     // the verb — it funnels through removeCustomer so the register lets go and
     // the stock returns — and this only carries the result back to the screen.
     clearCounterCustomer: () => app.scene3d?.clubhouse?.()?.dismissCounterCustomer?.() ?? null,
-  });
+    // P0: the checkout interlock's key. Both halves go through the sim module
+    // that owns the latch -- the laptop asks whether it is set and asks it to be
+    // released, and never touches state.shop itself.
+    checkoutRecordsWedged: () => checkoutWalIsQuarantined(app.state),
+    resolveCheckoutRecords: () => releaseCheckoutWalQuarantine(app.state, { acknowledgedBy: 'owner' }).released === true,
+  };
+  app.laptopOpts = laptopOpts; // reachable from window.__fw, see the note above
+  laptopUi = makeLaptop(app, laptopOpts);
   // The laptop component itself, reachable from window.__fw — the drivers already read
   // app.laptopOpen for the door state, and tools/qa/laptop-search-navigate.js needs the
   // instrument side too (searchIndexKinds, lastSearchReveal).

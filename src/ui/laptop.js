@@ -3482,6 +3482,40 @@ export function makeLaptop(app, opts) {
         ),
         meta(t('laptop.clearCounterNote')),
       ),
+      // P0 (Goal 25) — THE MANAGER'S KEY FOR THE CHECKOUT INTERLOCK.
+      //
+      // When the settlement journal cannot be trusted the till refuses to bank
+      // and says "Checkout records are unavailable right now. Try again." That
+      // refusal is correct and stays. Until now there was no way to answer it:
+      // nothing in the game cleared the latch, it survived every save, and the
+      // sale it told the player to resolve had already been discarded by the
+      // same repair that set the latch. The owner hit it and his save could not
+      // trade again.
+      //
+      // Offered ONLY while the latch is actually set, because a button that
+      // clears nothing teaches the player it does nothing. Destructive styling
+      // and a confirm, like clear-counter above: this accepts a loss.
+      ...(opts.checkoutRecordsWedged?.() ? [card(
+        el('div', { class: 'lt-minihead', text: t('laptop.checkoutRecordsSection') }),
+        row(
+          el('span', { class: 'lt-mulabel', text: t('laptop.checkoutRecordsWedged') }),
+          el('button', {
+            class: 'lt-primary lt-danger',
+            text: t('laptop.resolveCheckoutRecords'),
+            onclick: () => askConfirm(
+              t('laptop.resolveCheckoutRecordsAsk'),
+              t('laptop.resolveCheckoutRecords'),
+              () => {
+                const done = opts.resolveCheckoutRecords?.();
+                toast(done ? t('laptop.checkoutRecordsResolved') : t('laptop.checkoutRecordsNotWedged'),
+                  done ? 'good' : 'warn');
+                render();
+              },
+            ),
+          }),
+        ),
+        meta(t('laptop.resolveCheckoutRecordsNote')),
+      )] : []),
     ];
 
     paint(

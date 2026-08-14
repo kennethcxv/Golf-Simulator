@@ -74,6 +74,69 @@ export function quarantineCheckoutWal(
   return quarantine;
 }
 
+// P0 (Goal 25, owner playtest) — THE INTERLOCK HAD NO KEY.
+//
+// The owner finished a checkout and got "Checkout records are unavailable right
+// now. Try again." Reproduced in tools/qa/node/p0-wal-quarantine-repro.mjs: the
+// same finished sale banks with the latch clear and is refused with it set.
+//
+// The refusal itself is CORRECT and stays. If the journal cannot be trusted a
+// half-committed sale may exist, and banking on top of it is how a sale gets
+// counted twice. pendingCheckoutCount() reporting 1 while quarantined is
+// deliberate too -- tests/checkout-settlement-recovery.test.js:998 pins it as
+// "unresolved work, never an empty journal" -- and none of that is weakened here.
+//
+// What was missing is a WAY OUT. Nothing in src/ ever set `active` back to false
+// or deleted the field, the latch is stored in state.shop so it survives every
+// save, and the diagnostic told the player to "resolve the pending register
+// settlement" when the same load-time repair that set the latch had already
+// emptied shop.pendingCheckouts to {}. There was nothing to resolve and no way
+// to say so: a dead save file rather than a bad hour.
+//
+// DELIBERATELY NOT AN AUTOMATIC CLEAR. An auto-release on an empty journal would
+// defeat the interlock in exactly the case it exists for -- the journal is empty
+// BECAUSE the repair emptied it, and emptiness is not evidence that no sale was
+// half-committed. This is a manager's key: someone decides to accept whatever
+// was lost, and that decision is recorded.
+//
+// Returns { ok, released, diagnostic, accepted } and never throws. `accepted`
+// keeps the quarantine's own reason and evidence so the incident survives the
+// release -- releasing the latch must not erase the record of why it was set.
+//
+// The outcome codes ride `diagnostic`, NOT `reason`. That is this project's
+// established split (tests/player-strings-ratchet.test.js, 2091 -> 2085): the
+// player-facing `reason` channel carries localized prose, and exact machine
+// codes like 'not-quarantined' belong in the internal channel. Put them in
+// `reason` and toast(result.reason) shows an English slug on every locale.
+export function releaseCheckoutWalQuarantine(state, { acknowledgedBy = 'owner' } = {}) {
+  if (!isRecord(state?.shop)) {
+    return { ok: false, released: false, diagnostic: 'no-shop-state' };
+  }
+  const prior = state.shop[CHECKOUT_WAL_QUARANTINE_FIELD];
+  if (!isRecord(prior) || prior.active !== true) {
+    return { ok: true, released: false, diagnostic: 'not-quarantined' };
+  }
+  if (!canAssignProperty(state.shop, CHECKOUT_WAL_QUARANTINE_FIELD)) {
+    return { ok: false, released: false, diagnostic: 'quarantine-field-not-writable' };
+  }
+  const accepted = {
+    reason: typeof prior.reason === 'string' ? prior.reason : null,
+    evidence: isRecord(prior.evidence) ? jsonClone(prior.evidence) : null,
+  };
+  // The pending map is emptied so the released state is a CLEAN journal rather
+  // than a trusted-again unknown one. Anything still sitting in there was, by
+  // definition, not understood -- carrying it forward past an acknowledged loss
+  // is how the untrusted record gets banked after all.
+  if (canAssignProperty(state.shop, 'pendingCheckouts')) state.shop.pendingCheckouts = {};
+  state.shop[CHECKOUT_WAL_QUARANTINE_FIELD] = {
+    active: false,
+    reason: accepted.reason,
+    releasedBy: String(acknowledgedBy || 'owner'),
+    ...(accepted.evidence ? { evidence: accepted.evidence } : {}),
+  };
+  return { ok: true, released: true, diagnostic: 'released', accepted };
+}
+
 function compareText(left, right) {
   if (left < right) return -1;
   if (left > right) return 1;
