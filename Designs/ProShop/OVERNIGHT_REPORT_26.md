@@ -1163,6 +1163,47 @@ have not been swept out of their files. That is dead code someone should delete.
 
 ---
 
+# PHASE 7 — 7.1 MEASURED AGAIN FIRST
+
+The brief says measure before merging, and it was right to: **every baseline in
+it is stale.**
+
+| metric | brief | **today** | |
+|---|---|---|---|
+| standing draw calls | 574 | **658** | +15 % |
+| peak draw calls | 942 | **4404** | +367 % |
+| materials | 290 | **817** | +182 % |
+| static visual meshes | 838 | **2482** | of 3186 total |
+
+**The peak is the finding**, and *where* it happens matters more than the number:
+interior offset (12,12), yaw 45, **`inside: false`**. The worst frame in this shop
+is not in the shop — it is outdoors, which is exactly where the owner already
+reports ~6.7 fps walking away from the clubhouse.
+
+**Caveat stated rather than buried:** my sweep includes outdoor positions and the
+942 baseline may have been indoor-only, so part of that gap could be a different
+sample rather than a regression. The **standing** figure is like-for-like and is
+up 15 %.
+
+**Materials nearly tripled, and that is the ceiling on what 7.1 can buy.** Merging
+is per material and render state, so 817 materials over 2482 static visual meshes
+is about three meshes per material *before* any merge. The 30 % target is
+reachable only if many of those materials are duplicates that dedup would collapse
+first — `tools/gltf-census.mjs` already reports what dedup *would* remove, and
+that is the number to read before writing a merger.
+
+**Classified as 7.1 asks**, rather than one lump: 2482 static visual, 99 animated,
+91 instanced, 10 interactive, 504 hidden, 0 skinned, 0 collision-only. **The merge
+candidate pool is the 2482, not the 3186.**
+
+Draw figures come from `renderer.info.render.calls` after a real frame, never from
+counting meshes — a scene-graph count is not a draw call, and this repository has
+been caught by that before when batched props draw via `layers.mask`.
+
+**NOT MERGED.** 7.1 said measure first; this is the measurement.
+
+---
+
 # HANDOFF
 
 Everything committed and pushed to `goal25/phase0-inherited-tree`.
@@ -1183,7 +1224,7 @@ Suite **3642/3642**, lint ratchet **323**.
 | **5** | 5.1 the mop | **DONE** — all three named faults fixed at their actual causes |
 | 5 | 5.2 mop weight / 5.3 the hands | **NOT DONE** |
 | 6 | ledger UI | **NOT STARTED** |
-| 7 | performance | **NOT STARTED** |
+| 7 | performance | **7.1 re-measured — baselines are stale**; not merged |
 | **8** | global Escape | **ROUTER DONE + measured; menu item added** |
 | 9 | 9.2 sticky prompt | **IMPROVED** 40.4 % → 26.7 %; residual remains |
 | 9 | 9.3 dark interior | **MEASURED**, decision made, ineffective fix reverted |
