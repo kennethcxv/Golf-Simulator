@@ -1204,6 +1204,61 @@ been caught by that before when batched props draw via `layers.mask`.
 
 ---
 
+# PHASE 6 — THE LEDGER UI
+
+I3's original wording, **recovered from `Full_Goal_22` rather than invented**:
+*"the whole interface: what a page shows, how sections are found, the type, the
+hierarchy. Obvious at a glance where you are and how to get anywhere else."*
+
+Three of Phase 6's clauses are checkable without a human eye. All three pass:
+
+| | result |
+|---|---|
+| sections | 7 |
+| identity works | **yes** |
+| **jumps correct** | **7 of 7** — from wherever the last jump landed |
+| **persisted across close** | **yes** — closed on `deed`, reopened on `deed` |
+
+**Current section identity.** The foot printed "2 of 10", which answers *which
+page* and not *where*. `model.pageOfSection` already mapped every section to its
+first page and **nothing ever read it back** — it existed to print the contents
+list. The running section name is now beside the folio.
+
+**Navigation to every section from anywhere.** `goToSection` has been exported
+since Goal 23 with **zero call sites** — navigation to every section was
+implemented and unreachable. The number keys addressed *page* numbers, which is
+only navigation if you are looking at the contents page: the one place you do not
+need it. A digit is now the Nth section, from any page, with the old page-number
+behaviour kept as a fallback.
+
+**State persistence.** The book forced `spread = 0` on every open, so a reader
+four pages into the Restoration Record paid for the trip again every time.
+
+## Three things the measurements corrected
+
+1. **A TDZ crash that did not look like one.** `footCells` runs during the
+   *constructor*, so reading `spread` there threw "Cannot access before
+   initialization" — and took out **four unrelated clubhouse teardown and cargo
+   tests**, none of which mention the ledger. Hoisting one variable fixed one and
+   the next threw on `model`, which is the signal to stop hoisting and make the
+   call optional.
+2. **Identity read only the left page.** A spread shows two, and two sections can
+   begin inside one: jumping to `firsts` landed on a spread whose left page still
+   belonged to `restoration`, so **three of seven jumps "failed" against a book
+   that had gone exactly where it was told**.
+3. **Where a spread genuinely begins two sections**, no page-number rule can pick
+   between them. Intent wins while it is on screen; a page turn drops it.
+
+**My own driver aborted on a working book first** — it carried the book before
+opening it, and `setOpen` refuses while held ("a book in your arms is not a book
+to read").
+
+**NOT CLAIMED:** type, hierarchy and spacing at the reading camera are judgements
+about a picture. Back/forward history, hover states and the no-dead-end sweep are
+**NOT DONE**.
+
+---
+
 # HANDOFF
 
 Committed and pushed to `goal25/phase0-inherited-tree`.
@@ -1223,7 +1278,7 @@ Suite **3642/3642**, lint ratchet **323**.
 | **4** | **GATE** | **RUN** — full week, every figure reported |
 | **5** | 5.1 the mop | **DONE** — all three named faults fixed at their causes |
 | 5 | 5.2 mop weight / 5.3 the hands | **NOT DONE** |
-| 6 | ledger UI rebuild | **NOT STARTED** |
+| 6 | ledger UI | **3 measurable clauses DONE**; type/history/hover not done |
 | 7 | 7.1 measure first | **DONE** — every baseline in the brief is stale |
 | 7 | 7.1 merge / 7.2 – 7.7 | **NOT DONE** |
 | **8** | Escape router | **DONE and measured** — one layer per press, never stranded |
