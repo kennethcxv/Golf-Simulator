@@ -1275,10 +1275,30 @@ makes a Back control untrustworthy. Left **unhandled** when there is nowhere to
 go rather than swallowed, because a key that silently does nothing teaches the
 player it is broken.
 
-## Phase 6 status: **5 of 10 clauses** measured and passing
+## No dead-end pages — **DONE**
+
+```
+spreads walked   5
+unnamed spreads  0    every page can say which section it belongs to
+dead ends        0    every page has a way onward, or is the last one
+```
+
+A dead end is a page that can neither say where it is nor be left. Both halves
+are checked at **every** spread rather than asserted from the navigation code,
+and a locked section is not counted as a dead end when it explains itself.
+
+**My first sweep reported "0 unnamed, 0 dead ends" over an empty list.** It called
+`book.paintStats()`, which is not a method — `paintStats` is a *field inside*
+`diagnostics()`. The call returned `undefined`, the loop never ran, and the
+summary printed two reassuring zeros about zero pages. It failed loudly only
+because the block is gated on an `ok` flag the spread count has to satisfy.
+Without that gate it would have been a clean pass over nothing — the single most
+common shape in this repository's found-false ledger.
+
+## Phase 6 status: **6 of 10 clauses** measured and passing
 
 Section identity · navigation to every section from anywhere · back and forward ·
-state persistence · keyboard usability.
+no dead-end pages · state persistence · keyboard usability.
 
 **NOT DONE:** type and hierarchy at the reading camera (a judgement about a
 picture), hover and selected states, mouse usability, the no-dead-end-pages
@@ -1305,7 +1325,7 @@ Suite **3642/3642**, lint ratchet **323**.
 | **4** | **GATE** | **RUN** — full week, every figure reported |
 | **5** | 5.1 the mop | **DONE** — all three named faults fixed at their causes |
 | 5 | 5.2 mop weight / 5.3 the hands | **NOT DONE** |
-| 6 | ledger UI | **5 of 10 clauses DONE and measured**; type/hover/dead-ends not done |
+| 6 | ledger UI | **6 of 10 clauses DONE and measured**; type/hover/mouse not done |
 | 7 | 7.1 measure first | **DONE** — every baseline in the brief is stale |
 | 7 | 7.1 merge / 7.2 – 7.7 | **NOT DONE** |
 | **8** | Escape router | **DONE and measured** — one layer per press, never stranded |
