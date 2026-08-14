@@ -136,13 +136,29 @@ async (page) => {
   });
   console.log('PLAYER-BLOCKS-CUSTOMERS', JSON.stringify(out.phased));
 
-  // ARE THERE ANY CUSTOMERS AT ALL? A room with nobody in it produces a perfect
-  // score on both builds, so an empty shop must abort rather than pass. Waited
-  // for rather than assumed, because arrival takes game-minutes.
+  // FOUR CUSTOMERS, SPAWNED DELIBERATELY. Waiting for organic arrivals was the
+  // blocker: the save resumes at 06:01 and moving the clock forward does not
+  // drive the arrival loop, so the first runs sampled an empty room -- which
+  // scores perfectly on every build. clubhouse.debugSpawn(true) is the hook the
+  // module already exposes for exactly this ("QA: force a walk-in"), and
+  // setOrganicWalkins(false) keeps the population to the four being watched
+  // instead of letting random traffic wander through the measurement.
+  out.spawned = await page.evaluate(() => {
+    const ch = window.__fw.scene3d.clubhouse();
+    try { ch.setOrganicWalkins?.(false); } catch { /* older builds */ }
+    try { ch.clearWalkins?.(); } catch { /* older builds */ }
+    const made = [];
+    for (let i = 0; i < 4; i += 1) {
+      try { made.push(!!ch.debugSpawn?.(true)); } catch (e) { made.push(String(e.message)); }
+    }
+    return { made, onFloor: (ch.qaCustomerTrack?.() || []).length };
+  });
+  console.log('SPAWNED', JSON.stringify(out.spawned));
+
   const gotCustomers = await page.waitForFunction(() => {
     const ch = window.__fw?.scene3d?.clubhouse?.();
     return (ch?.qaCustomerTrack?.() || []).length > 0;
-  }, null, { timeout: 180000 }).then(() => true).catch(() => false);
+  }, null, { timeout: 60000 }).then(() => true).catch(() => false);
   out.customersPresent = gotCustomers;
   console.log('CUSTOMERS-PRESENT', gotCustomers);
   if (!gotCustomers) {
