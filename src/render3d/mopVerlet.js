@@ -90,6 +90,68 @@ export const COLLAR_INNER = 0.52;
 //     which at ~40 mm anchor spacing is nearly touching at rest and fully matted
 //     once they splay.
 // Cost is 88 instances against 3,280 before Goal 22, still 4 draw calls.
+// P2 (Goal 25 playtest) — "THE MOP still does not look right. Go and look at
+// House Flipper's mop and match it. That is the reference, not a parameter
+// sweep."
+//
+// THE REFERENCE, and it decides everything below: a looped-end YARN STRING MOP.
+// Many fine cotton strands gathered in a tailband, folded double so the ends are
+// loops rather than cut tips, splaying into a skirt and CLUMPING — one mass with
+// no daylight through it. That is what House Flipper hands you and what every
+// commercial string-mop head is.
+//
+// WHAT SHIPPED WAS THE OPPOSITE OF THE REFERENCE, and not by a little:
+//
+//   22 strands, each 13 mm thick, over a 105 mm head.
+//
+// Twenty-two fat rods on a 0.0346 m2 disc is 33.7% coverage — two thirds of the
+// head is daylight — and at 13 mm each rod reads individually as a length of
+// pipe. That is precisely the owner's "comb of pale rods with daylight between
+// every one", and it is visible in the golden gate's own tool-mop frame.
+//
+// It is also a contradiction of the module it configures: createVerletMopStrands
+// below DEFAULTS to 820 strands at 3.0 mm. Seven passes of guessing landed on
+// few-and-thick when the reference, and this file's own design point, is
+// many-and-thin.
+//
+// THE SHAPE OF THE ANSWER, stated as the brief requires. Three were open: many
+// more thin overlapping strands; flat ribbons overlapping into a sheet; or
+// modelled/cloth-baked geometry through golf-assets. TAKEN: MANY MORE THIN
+// STRANDS.
+//   * the per-strand verlet solver already exists here, and 4.4 wants believable
+//     per-strand dynamics — ribbons would need new geometry AND a new binding to
+//     that solver, and a baked mesh cannot move per strand at all
+//   * the strands are drawn from an InstancedMesh (line ~137), so DRAW CALLS
+//     EQUAL THE SEGMENT COUNT and are completely independent of strand count.
+//     Density is nearly free on the axis this renderer is bound by; the note in
+//     this file records it as draw-call bound.
+//
+// THE ARITHMETIC, so the next reader does not have to guess again:
+//   head area           pi * 0.105^2                 = 0.0346 m2
+//   shipped   22 x 13.0 mm  ->  33.7% coverage,   1 408 triangles
+//   now      380 x  6.2 mm  -> 132% at the collar, 100% at the head radius
+//                              once the taper is counted, 15 200 triangles
+// Over 100% is the point: strands must overlap or the eye finds the gaps. The
+// hem still opens up as the skirt splays past the head radius, which is correct
+// — a real mop is ragged at the hem and solid above it.
+//
+// radialSegments 8 -> 5 is what pays for the density. A 6 mm strand is a few
+// pixels wide at the viewmodel camera; sides are not what makes a fibre read as
+// a fibre, and mopStrands.js already carries that finding in words. Draw calls
+// are unchanged at 4.
+//
+// The MATERIAL is deliberately untouched (0x8f8a80, roughness 0.97, metalness 0
+// in toolViewmodel.js) — already damp cotton. The plastic read was the geometry.
+// NOT CHANGED. I built the 380-strand version described above, photographed it
+// at the player camera, and it is a BRUSH -- a dense straight-sided barrel of
+// fibre. tests/mop-verlet-strands.test.js:212 predicted exactly that, in the
+// owner's own words from Goal 22 and 23: "filling the disc was the wrong goal
+// ... the gaps are most of what distinguishes it from a brush", count asked for
+// as 10-20 and then widened to 16-24. Shipping 380 would have reversed a
+// standing ruling to produce the thing that ruling was written against, and
+// making the test green would have been weakening a gate to hide a real
+// disagreement. Left at the values the owner ruled on; the conflict is in the
+// report for him to settle.
 export const SHIPPED_MOP_YARN = Object.freeze({
   count: 22,
   radius: 0.105,
