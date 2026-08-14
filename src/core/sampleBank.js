@@ -41,6 +41,17 @@ export function createSampleBank({ decode, fetchFn, now = () => 0 } = {}) {
       try {
         const data = await fetchFn(entry.file);
         const buffer = await decode(data);
+        // NAME THE BUFFER SO A PROBE CAN TELL A RECORDING FROM A SYNTH BURST.
+        //
+        // The synth voices in audio.js also build AudioBuffers -- every
+        // filtered-noise cue does -- so "a BufferSource started" is NOT evidence
+        // that a vendored recording played, and a gate that counted buffer
+        // sources would certify the oscillators it was built to replace. This
+        // tag travels on the decoded buffer itself, so the check is on the thing
+        // that reached the speakers rather than on the call that scheduled it.
+        try {
+          buffer.__fwSample = { cue: key, file: entry.file, licence: entry.licence || null };
+        } catch { /* a frozen AudioBuffer still plays; it just cannot be attributed */ }
         const list = buffers.get(key) || [];
         list.push(buffer);
         buffers.set(key, list);
@@ -66,6 +77,21 @@ export function createSampleBank({ decode, fetchFn, now = () => 0 } = {}) {
     },
 
     has(cue) { return buffers.has(cue) && buffers.get(cue).length > 0; },
+
+    /**
+     * One decoded buffer for a cue, or null.
+     *
+     * `play()` cannot serve a SUSTAINED cue: it starts a one-shot and forgets it,
+     * and the cash run has to loop for as long as money is going in and then stop
+     * on the last piece. That needs the buffer itself so the caller can own the
+     * source node's lifetime. Kept deliberately narrow -- it hands out the buffer
+     * and nothing else, so the pooling and the licence gate still live here.
+     */
+    buffer(cue, random = Math.random) {
+      const list = buffers.get(cue);
+      if (!list || !list.length) return null;
+      return list[list.length === 1 ? 0 : Math.floor(random() * list.length) % list.length];
+    },
 
     /**
      * Play a cue from the bank. Returns false when the bank cannot serve it, so

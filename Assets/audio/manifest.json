@@ -260,7 +260,7 @@
       ]
     },
     {
-      "cue": "billDeposit",
+      "cue": "billDepositEmpty",
       "file": "Assets/audio/bill-deposit-1.ogg",
       "seconds": 1.06,
       "peakDb": -5.8,

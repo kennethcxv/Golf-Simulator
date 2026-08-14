@@ -952,6 +952,11 @@ export function makeAudio(preferences = null) {
 
   // the cash drawer: rolling slide, hard stop, and the till bell
   function drawer() {
+    // The recording IS the slide and the stop at the end of travel -- it was
+    // chosen for that (a ~500 ms swell into a hard transient). The bell is a
+    // separate cue because a real till rings on the sale, not on every drawer
+    // movement, and firing both together is what made this sound like a toy.
+    if (sampled('drawerOpen', sfxBus, { gain: 0.9 })) return;
     if (!ctx) return;
     const t0 = ctx.currentTime;
     const buf = ctx.createBuffer(1, ctx.sampleRate * 0.16, ctx.sampleRate);
@@ -1287,8 +1292,15 @@ export function makeAudio(preferences = null) {
   // how full the compartment already is) shortens the thud and lifts the
   // partials, which is the whole "on the one before it" effect.
   function billDeposit(depth = 0) {
-    if (sampled('billDeposit', sfxBus, { rate: 1 + 0.06 * depth })) return;
-    const d = Math.max(0, Math.min(1, Number(depth) || 0));
+    // Same two-recording split as coinDeposit: `billDepositEmpty` is a note laid
+    // onto a bare wooden surface, `billDeposit` is a note onto a stack of notes.
+    // The first note into an empty well genuinely thuds; the tenth does not.
+    const dd = Math.max(0, Math.min(1, Number(depth) || 0));
+    const empty = dd < 0.34 && sampleBank?.has?.('billDepositEmpty');
+    if (sampled(empty ? 'billDepositEmpty' : 'billDeposit', sfxBus, {
+      rate: 1 + 0.05 * dd, gain: 0.95 - 0.2 * dd,
+    })) return;
+    const d = dd;
     // the slap of the note going flat onto the pile — short, broad, with attack
     checkoutNoise({ dur: 0.055, band: 1750 + 500 * d, toBand: 850, q: 1.1, peak: 0.040, attack: 0.0015 });
     // the well underneath, which is what a full drawer takes away
@@ -1301,8 +1313,22 @@ export function makeAudio(preferences = null) {
   }
 
   function coinDeposit(depth = 0) {
-    if (sampled('coinDeposit', sfxBus, { rate: 1 + 0.06 * depth })) return;
-    const d = Math.max(0, Math.min(1, Number(depth) || 0));
+    // "The pile it lands on changes the sound: the first note hits a wooden well
+    // and thuds, the tenth hits nine notes and barely does."
+    //
+    // Those are two DIFFERENT RECORDINGS, not one recording pitched up. A coin
+    // striking bare wood and a coin striking a heap of coins differ in decay and
+    // in the whole upper spectrum, and a playbackRate tweak cannot manufacture
+    // that -- it moves the pitch and takes the duration with it. `coinDepositEmpty`
+    // is a coin onto an empty wooden well; `coinDeposit` is a coin onto coins.
+    // Depth chooses between them, and the rate jitter on top only stops the chosen
+    // file repeating identically.
+    const dd = Math.max(0, Math.min(1, Number(depth) || 0));
+    const empty = dd < 0.34 && sampleBank?.has?.('coinDepositEmpty');
+    if (sampled(empty ? 'coinDepositEmpty' : 'coinDeposit', sfxBus, {
+      rate: 1 + 0.05 * dd, gain: 0.9 - 0.2 * dd,
+    })) return;
+    const d = dd;
     // metal on metal: two close partials, the second a beat later, because a
     // coin never lands flat first time
     checkoutTone({ freq: 2450 + 380 * d, to: 2180 + 380 * d, type: 'triangle', dur: 0.055, peak: 0.030, attack: 0.001 });
@@ -1350,14 +1376,119 @@ export function makeAudio(preferences = null) {
   }
 
   function drawerUnlock() {
+    if (sampled('drawerUnlock', sfxBus, { gain: 0.85 })) return;
     checkoutTone({ freq: 980, to: 620, type: 'square', dur: 0.045, peak: 0.017, filter: 1800 });
     checkoutTone({ at: 0.024, freq: 142, to: 88, type: 'triangle', dur: 0.085, peak: 0.026, filter: 650 });
   }
 
   function drawerClose() {
+    if (sampled('drawerClose', sfxBus, { gain: 0.9 })) return;
     checkoutNoise({ dur: 0.18, band: 720, toBand: 390, q: 0.55, peak: 0.027, attack: 0.008 });
     checkoutTone({ at: 0.045, freq: 120, to: 64, type: 'triangle', dur: 0.14, peak: 0.035, filter: 520 });
     checkoutTone({ at: 0.15, freq: 920, to: 610, type: 'square', dur: 0.042, peak: 0.015, filter: 1500 });
+  }
+
+  // --- 1.2 THE CASH RUN ---------------------------------------------------------
+  //
+  // "Cash going in: a continuous run, 'tchhhhh', for as long as money is going in,
+  // stopping when the last piece lands. Not one impact."
+  //
+  // Every other cue in this file is a one-shot, which is precisely why the money
+  // has never sounded like anything: eight notes going into a drawer fired eight
+  // separate impacts with silence between them. A run is a SUSTAINED voice whose
+  // lifetime the caller owns -- it starts when the first piece leaves the hand,
+  // holds while pieces are in the air, and stops when the last one lands.
+  //
+  // It must also cancel cleanly. A transaction can be interrupted mid-deposit (the
+  // drawer force-closed, register mode left, the till reset), and a looping node
+  // that outlives its transaction is a stuck sound the player cannot stop. So
+  // there is exactly one voice, `stop` is idempotent, and every exit path calls it.
+  let cashRunVoice = null;
+
+  function cashRunStart({ intensity = 1 } = {}) {
+    if (!ctx) return false;
+    // Already running: lift the level toward the new intensity rather than
+    // stacking a second loop on top of the first.
+    if (cashRunVoice) {
+      cashRunVoice.gain.gain.cancelScheduledValues(ctx.currentTime);
+      cashRunVoice.gain.gain.setTargetAtTime(
+        cashRunVoice.peak * Math.max(0.4, Math.min(1.6, intensity)), ctx.currentTime, 0.05,
+      );
+      return true;
+    }
+    const t0 = ctx.currentTime;
+    const gain = ctx.createGain();
+    // MEASURED, not guessed. At 0.30 the run read -26.3 dBFS on the master bus
+    // against impacts landing at -12 to -16 — audible, but sitting under the
+    // thing it is supposed to be the body of. 0.78 puts it near -18 dBFS: below
+    // the individual landings, which still have to punch through it, and clearly
+    // present as the continuous run 1.2 asks for.
+    // tools/qa/electron-phase1-audio-gate.js re-measures it.
+    const peak = 0.78;
+    gain.gain.setValueAtTime(0.0001, t0);
+    gain.gain.linearRampToValueAtTime(peak * Math.max(0.4, Math.min(1.6, intensity)), t0 + 0.045);
+    gain.connect(sfxBus);
+
+    const buffer = sampleBank?.buffer?.('cashRun') || null;
+    let source;
+    if (buffer) {
+      source = ctx.createBufferSource();
+      source.buffer = buffer;
+      source.loop = true;
+      // Loop INSIDE the recording rather than over the whole file: the head and
+      // tail of a riffle are the hand arriving and leaving, and looping those
+      // gives an audible bump every cycle. Trimming a tenth off each end puts the
+      // seam in continuous material.
+      const edge = Math.min(0.12, buffer.duration * 0.1);
+      source.loopStart = edge;
+      source.loopEnd = Math.max(edge + 0.05, buffer.duration - edge);
+      source.playbackRate.value = 0.94 + Math.random() * 0.12;
+      source.connect(gain);
+      source.start(t0);
+    } else {
+      // No recording: a filtered noise run, so the cue is never silent. Same
+      // shape, same lifetime, so the caller cannot tell the difference.
+      const noise = ctx.createBuffer(1, Math.ceil(ctx.sampleRate * 0.5), ctx.sampleRate);
+      const d = noise.getChannelData(0);
+      for (let i = 0; i < d.length; i += 1) d[i] = (Math.random() * 2 - 1) * (0.55 + 0.45 * Math.sin(i * 0.011));
+      source = ctx.createBufferSource();
+      source.buffer = noise;
+      source.loop = true;
+      const bp = ctx.createBiquadFilter();
+      bp.type = 'bandpass';
+      bp.frequency.value = 2100;
+      bp.Q.value = 0.7;
+      source.connect(bp).connect(gain);
+      source.start(t0);
+    }
+    cashRunVoice = { source, gain, peak, startedAt: t0, sampled: !!buffer };
+    return true;
+  }
+
+  /** Stop the run. Safe to call when nothing is running, and safe to call twice. */
+  function cashRunStop({ fade = 0.13 } = {}) {
+    const voice = cashRunVoice;
+    if (!voice || !ctx) return false;
+    cashRunVoice = null;
+    const t0 = ctx.currentTime;
+    try {
+      voice.gain.gain.cancelScheduledValues(t0);
+      voice.gain.gain.setValueAtTime(Math.max(0.0001, voice.gain.gain.value), t0);
+      voice.gain.gain.exponentialRampToValueAtTime(0.0001, t0 + fade);
+      voice.source.stop(t0 + fade + 0.02);
+    } catch { /* a node that already stopped is the state we wanted */ }
+    return true;
+  }
+
+  const cashRunActive = () => !!cashRunVoice;
+
+  // 1.2's "settling — the little rattle of a coin against its neighbours". A real
+  // recording of coins moving against each other; the synth fallback is the
+  // rattle tail that coinDeposit already builds.
+  function coinSettle() {
+    if (sampled('coinSettle', sfxBus, { gain: 0.8 })) return;
+    checkoutNoise({ dur: 0.09, band: 4000, toBand: 2800, q: 1.5, peak: 0.012 });
+    checkoutTone({ at: 0.02, freq: 2600, to: 2400, type: 'sine', dur: 0.09, peak: 0.008 });
   }
 
   function changeSelect() {
@@ -2338,6 +2469,20 @@ export function makeAudio(preferences = null) {
     drawerUnlock,
     drawerOpen: drawer,
     drawerClose,
+    // 1.2's continuous run. Three verbs rather than one cue name because the
+    // caller owns the lifetime: the register starts it when the first piece
+    // leaves the hand, stops it when the last one lands, and every interruption
+    // path calls stop. `cashRunActive` exists so a probe can ask whether the
+    // voice is up rather than inferring it from a node count.
+    cashRunStart,
+    cashRunStop,
+    cashRunActive,
+    coinSettle,
+    // QA handles. A gate that cannot reach the live context has to build a second
+    // one, and two contexts measure two different signals — which is how an audio
+    // check ends up certifying a graph the player never hears.
+    qaContext: () => ctx,
+    qaSampleBankDiagnostics: () => (sampleBank?.diagnostics ? sampleBank.diagnostics() : null),
     changeSelect,
     changeHandoff,
     receiptPrint: receipt,

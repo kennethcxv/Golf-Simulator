@@ -17,7 +17,7 @@
     { "cue": "cashRun", "file": "cash-run-2.ogg", "source": "money-count",          "start": 1.10, "dur": 2.80, "targetDb": -6.0, "fadeIn": 0.03, "fadeOut": 0.03, "trimHead": false },
     { "cue": "cashRun", "file": "cash-run-3.ogg", "source": "bills-flip-count",     "start": 0.60, "dur": 2.60, "targetDb": -6.0, "fadeIn": 0.03, "fadeOut": 0.03, "trimHead": false },
 
-    { "cue": "billDeposit", "file": "bill-deposit-1.ogg", "source": "paper-placed-on-bench", "start": 0.83, "dur": 1.10, "targetDb": -6.0 },
+    { "cue": "billDepositEmpty", "file": "bill-deposit-1.ogg", "source": "paper-placed-on-bench", "start": 0.83, "dur": 1.10, "targetDb": -6.0 },
     { "cue": "billDeposit", "file": "bill-deposit-2.ogg", "source": "money-counting-b",      "start": 1.30, "dur": 0.55, "targetDb": -6.0 },
     { "cue": "billDeposit", "file": "bill-deposit-3.ogg", "source": "money-counting-b",      "start": 3.40, "dur": 0.55, "targetDb": -6.0 },
     { "cue": "billHandle",  "file": "bill-handle-1.ogg",  "source": "cash-money-fieldtapes", "start": 2.00, "dur": 0.90, "targetDb": -8.0 },

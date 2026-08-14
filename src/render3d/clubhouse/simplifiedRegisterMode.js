@@ -2756,6 +2756,11 @@ export function createRegisterMode(B) {
   let selectedChangeMeshes = [];
   let cashMotions = [];
   let cashMotionRefillPending = false;
+  // Whether the sustained cash run is currently up. Tracked so the stop is sent
+  // ONCE on the frame the last piece lands rather than every frame afterwards --
+  // a stop per frame would re-trigger the fade and is the kind of thing that
+  // looks harmless until an audio-graph probe counts the events.
+  let cashRunRunning = false;
   let exactChangeAssistancePending = false;
   let cashAutoConfirmPhase = 'idle'; // idle | waiting | fired
   let cashAutoConfirmTimer = 0;
@@ -3116,6 +3121,10 @@ export function createRegisterMode(B) {
     selectedChangeMeshes = [];
     cashMotions = [];
     cashMotionRefillPending = false;
+    // The run is derived from the motion list, and the list was just emptied
+    // without a frame in between. Stop it here so an interrupted deposit cannot
+    // leave a looping voice running with nothing to explain it.
+    if (cashRunRunning) { sfx('cashRunStop'); cashRunRunning = false; }
     clearTenderHandful();
     // C4: the customer's own cash, on the CUSTOMER half beside the goods they
     // put down — not on changeHandoff, which is where the player counts change
@@ -6409,6 +6418,9 @@ export function createRegisterMode(B) {
       addStep('cash-motion-detach', () => motion.mesh?.removeFromParent());
     }
     cashMotionRefillPending = false;
+    // Same reason as restoreAcceptedTenderMeshes: the pieces this run was
+    // describing have just been taken out from under it.
+    if (cashRunRunning) { sfx('cashRunStop'); cashRunRunning = false; }
     addStep('card-mesh-dispose', () => disposeCardMesh(capture));
     autoFulfilled = false;
     deliveryPhase = null;
@@ -9528,8 +9540,42 @@ export function createRegisterMode(B) {
       if (motion.remove) motion.mesh.removeFromParent();
       else if (motion.enablePick) motion.mesh.userData.pick = true;
       cashMotions.splice(index, 1);
+      // 1.2 — EACH PIECE LANDS ON THE ONE BEFORE IT.
+      //
+      // The auto-deposit path flew every piece into the drawer in silence: the
+      // only deposit sound in the build was on the hand-dragged route through
+      // settleTenderDrag, and taking a customer's cash normally goes through
+      // HERE. So the most common way money enters the drawer was the one with no
+      // landing sound at all.
+      //
+      // `depositDepth` is how full that denomination's well already is, which
+      // picks the wooden-well recording for the first piece and the coins-on-coins
+      // recording once there is a pile.
+      if (motion.kind === 'cash-deposit' && motion.drawerDenom != null) {
+        const stacked = Number(drawer?.[motion.drawerDenom]) || 1;
+        const depth = Math.max(0, Math.min(1, (stacked - 1) / 9));
+        sfx(BILLS.includes(Number(motion.drawerDenom)) ? 'billDeposit' : 'coinDeposit', depth);
+      }
       if (typeof motion.onComplete === 'function') motion.onComplete(motion.mesh);
     }
+    // 1.2 — THE CONTINUOUS RUN, DRIVEN BY REAL ANIMATION PROGRESS.
+    //
+    // "a continuous run, tchhhhh, for as long as money is going in, stopping when
+    // the last piece lands... cancels cleanly if the transaction is interrupted."
+    //
+    // Deliberately derived from the motion list every frame rather than started
+    // and stopped at call sites. A start/stop pair scattered across the accept,
+    // cancel, reset and leave paths is how a looping voice ends up outliving its
+    // transaction and sticking on -- whereas "is a piece in the air right now?"
+    // has exactly one answer and every interruption already clears the list.
+    // Pieces still waiting out their stagger delay do NOT count: the run starts
+    // when money is actually moving.
+    const flying = cashMotions.reduce(
+      (n, motion) => n + (motion.kind === 'cash-deposit' && motion.delay <= 0 ? 1 : 0), 0,
+    );
+    if (flying > 0) sfx('cashRunStart', { intensity: Math.min(1.5, 0.65 + 0.2 * flying) });
+    else if (cashRunRunning) sfx('cashRunStop');
+    cashRunRunning = flying > 0;
     if (cashMotionRefillPending
         && !cashMotions.some((motion) => motion.kind === 'cash-deposit')) {
       cashMotionRefillPending = false;
