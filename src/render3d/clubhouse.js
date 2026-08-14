@@ -12913,6 +12913,17 @@ export function makeClubhouse(ctx) {
     //
     // Returns null when there is nothing to say, so the caller has no rule of
     // its own to get wrong.
+    // 3.3 (Goal 25) — THE FACADE FORWARDS, and this is where the trap is.
+    //
+    // ch is a NARROW facade: an accessor added to ledgerBook.js is invisible to
+    // courseScene and to every driver until it is named here. That has already
+    // cost this project a debugging session — a working implementation reported
+    // as NOT BUILT because the only thing missing was a line in this object.
+    // Both halves go in together: the per-frame setter and the read-back the
+    // 3.3 check asks for.
+    ledgerProp: () => ledgerProp,
+    setLedgerAimed: (on) => ledgerBook.setAimed?.(on),
+    debugLedgerOutline: () => ledgerBook.debugOutline?.() ?? null,
     deskHoldup: () => {
       const head = counterQueue[0];
       if (!head) return null;

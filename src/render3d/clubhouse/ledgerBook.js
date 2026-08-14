@@ -129,6 +129,102 @@ export function createLedgerBook({ THREE, state, anchor, counterTop, camera = nu
   // and is scoped to the pages' own decay so it lights the object rather than
   // the room. The gold turn-in and the new gilt fore-edges have nothing to
   // catch without it.
+  // 3.3 (Goal 25) — THE HOVER OUTLINE, and it is the MONEY HIGHLIGHT's technique.
+  //
+  // The brief asks for "a clear, tasteful outline comparable to the money
+  // highlight", so this is the register's setGrabOutline reduced to the one case
+  // a book needs: back-face shells of the cover's own geometry, grown by an
+  // absolute rim so the edge reads the same whatever the book's scale.
+  //
+  // Deliberately NOT a copy of applyGrabHighlight. That function carries a
+  // flat/round/chip classifier for coins, notes and cards, and none of it means
+  // anything for a closed book — importing it would be building the wrong
+  // abstraction to avoid writing twenty lines.
+  //
+  // THE MATERIAL IS CREATED ONCE, HERE. "Does not clone a material per frame" is
+  // one of 3.3's six clauses, and the only way to fail it is to make one inside
+  // the aim callback, which fires every frame the crosshair is on the cover.
+  const OUTLINE_COLOR = 0xffd479;
+  const OUTLINE_RIM = 0.006;   // yards; ~5.5 mm of visible edge
+  let outlineMaterialsCreated = 0;
+  const makeOutlineMaterial = () => {
+    outlineMaterialsCreated += 1;
+    return new THREE.MeshBasicMaterial({
+      color: OUTLINE_COLOR,
+      side: THREE.BackSide,
+      toneMapped: false,
+      transparent: true,
+      opacity: 0.92,
+      depthWrite: false,
+    });
+  };
+  const outlineMaterial = makeOutlineMaterial();
+  const outlineShells = [];
+  let outlineOn = false;
+
+  function clearOutline() {
+    for (const shell of outlineShells) shell.removeFromParent();
+    outlineShells.length = 0;
+    outlineOn = false;
+  }
+
+  function applyOutline() {
+    // ALWAYS FROM THE CLOSED SHELL. The open book is not something the player
+    // aims at from the floor, and outlining the open spread would frame the
+    // pages the player is already reading.
+    //
+    // MEASURE FIRST, THEN OUTLINE THE PARTS THAT MAKE THE SILHOUETTE. The first
+    // version shelled every mesh in the GLB: 39 shells, so 39 extra draw calls
+    // for as long as the player looks at the book. Most of them were clasp studs
+    // and page-edge slivers 5 mm across whose glow nobody can resolve, sitting
+    // inside the covers' outline anyway. Phase 6 of this brief is about draw
+    // calls; adding thirty of them to a hover state would be spending the
+    // budget on something invisible.
+    const parts = [];
+    closedShell.traverse((mesh) => {
+      if (!mesh.isMesh || !mesh.geometry) return;
+      if (mesh.userData?.ledgerOutlineShell) return; // never outline an outline
+      if (!mesh.geometry.boundingBox) mesh.geometry.computeBoundingBox();
+      const box = mesh.geometry.boundingBox;
+      if (!box || box.isEmpty()) return;
+      const size = box.getSize(new THREE.Vector3());
+      parts.push({ mesh, size, span: Math.max(size.x, size.y, size.z) });
+    });
+    const biggest = parts.reduce((max, p) => Math.max(max, p.span), 0);
+    for (const { mesh, size, span } of parts) {
+      // a quarter of the largest part is the boards and the spine; below that is
+      // trim that the boards' own rim already encloses
+      if (biggest > 0 && span < biggest * 0.25) continue;
+      const shell = new THREE.Mesh(mesh.geometry, outlineMaterial);
+      shell.userData = { ledgerOutlineShell: true, pick: false };
+      shell.scale.set(
+        size.x > 1e-6 ? (size.x + OUTLINE_RIM * 2) / size.x : 1,
+        size.y > 1e-6 ? (size.y + OUTLINE_RIM * 2) / size.y : 1,
+        size.z > 1e-6 ? (size.z + OUTLINE_RIM * 2) / size.z : 1,
+      );
+      shell.raycast = () => {}; // the outline must never eat the E press
+      shell.renderOrder = (mesh.renderOrder || 0) - 1;
+      mesh.add(shell);
+      outlineShells.push(shell);
+    }
+    outlineOn = outlineShells.length > 0;
+  }
+
+  // The one entry point the clubhouse drives per frame. Idempotent on purpose:
+  // it is called with the same boolean on most frames, and rebuilding shells
+  // every frame would be the material/geometry churn clause 6 is about.
+  function setAimed(on) {
+    const want = !!on
+      // "never goes stale after open or close" — while the book is open or in
+      // hand there is nothing on the desk to outline, and the closed shell is
+      // hidden anyway. Answering here rather than at the call site means the
+      // rule cannot be half-applied by a caller that forgets it.
+      && !isOpen() && !carried && closedShell.visible;
+    if (want === outlineOn) return outlineOn;
+    if (want) applyOutline(); else clearOutline();
+    return outlineOn;
+  }
+
   const readingLight = new THREE.PointLight(0xffe6bd, 0, 0.85, 2.0);
   readingLight.name = 'LedgerReadingLight';
   readingLight.position.set(HINGE_X, 0.30, 0.16);
@@ -2485,6 +2581,38 @@ export function createLedgerBook({ THREE, state, anchor, counterTop, camera = nu
     isInHand,
     setCarried,
     isCarried: () => carried,
+    // 3.3 — driven from the same per-frame place that already decides the
+    // prompt, so the outline and the prompt can never disagree about what the
+    // crosshair is on.
+    setAimed,
+    // The five numeric clauses of 3.3, answered by the object that owns them.
+    // shellOwnerSpans is the "never highlights the whole desk" proof: it reports
+    // the LARGEST DIMENSION OF EACH OUTLINED MESH, so a run that framed the
+    // counter instead of the cover shows a span of desk width and cannot pass by
+    // merely having an outline. Same instrument the register's chip-suppression
+    // proof used.
+    debugOutline: () => ({
+      active: outlineOn,
+      shellCount: outlineShells.length,
+      shellOwnerSpans: outlineShells.map((shell) => {
+        const owner = shell.parent;
+        if (!owner?.geometry) return null;
+        if (!owner.geometry.boundingBox) owner.geometry.computeBoundingBox();
+        const box = owner.geometry.boundingBox;
+        if (!box) return null;
+        const size = box.getSize(new THREE.Vector3());
+        return +Math.max(size.x, size.y, size.z).toFixed(4);
+      }),
+      // Two independent readings of the same clause, because a single counter
+      // is only as honest as the line that increments it. The allocation count
+      // is sampled twice seconds apart and must not climb; distinctMaterials is
+      // derived from the LIVE shells and would jump the moment anyone cloned
+      // per shell or per frame, whether or not they remembered the counter.
+      materialsCreatedSinceBoot: outlineMaterialsCreated,
+      distinctMaterials: new Set(outlineShells.map((s) => s.material?.uuid)).size,
+      open: isOpen(),
+      carried,
+    }),
     // I1 (Goal 23): drive the cover swing to an exact fraction. A clip samples
     // wherever the frames happen to land, so two recordings of the same gesture
     // do not line up for comparison; the sweep needs the SAME moment twice.

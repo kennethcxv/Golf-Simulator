@@ -8749,6 +8749,22 @@ export function makeCourseScene(canvas, state) {
       }
     }
     walkFindFocus();
+    // 3.3 (Goal 25) — THE OUTLINE FOLLOWS THE PROMPT, from ONE place.
+    //
+    // Not from the prop's own label(): walkPropUnderCrosshair calls label() on
+    // every CANDIDATE while scoring, so a book that loses to the tee desk still
+    // gets its label read. Driving the outline there would light the cover while
+    // the prompt named something else — 3.3's "clears the moment aim is lost"
+    // failing in exactly the case the aim rule exists to separate.
+    //
+    // walkFocus is the resolved answer after every early return in
+    // walkFindFocus, so reading it here means the outline and the prompt are the
+    // same decision by construction. onAim is idempotent; this runs every frame.
+    if (clubhouseApi?.setLedgerAimed) {
+      clubhouseApi.setLedgerAimed(
+        walkFocus?.kind === 'prop' && walkFocus.prop === clubhouseApi.ledgerProp?.(),
+      );
+    }
     reconcileAutoTool();   // contextual prop tools equip on focus, stow on look-away
     runHold(dt);           // holding E runs whatever the focused prop exposes as a hold verb
     updateHeldFeel(dt);
