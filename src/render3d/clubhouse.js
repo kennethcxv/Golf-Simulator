@@ -11038,7 +11038,15 @@ export function makeClubhouse(ctx) {
   function customerIsPinned(c) {
     if (!c) return false;
     if (c.pinnedForCrowd === true) return true;
-    // Holding a place in the line, or standing at the till being served.
+    // Holding a place in the line, or standing at the till being served --
+    // and actually STANDING. A queuer advancing to the next slot is moving,
+    // and calling a mover immovable broke the one guarantee the settle pass
+    // makes: pinned-vs-pinned pairs are skipped entirely, so two queuers
+    // walking up the line at once could interpenetrate with nothing to part
+    // them. The crowd driver caught it as 3/70 overlapping frames, worst
+    // 0.19 yd, the first regression of that number since the pass shipped.
+    const standing = Math.hypot(c.vx || 0, c.vz || 0) < 0.08;
+    if (!standing) return false;
     if (c.queued === true) return true;
     if (c.queueSlotHeld != null) return true;
     return false;
