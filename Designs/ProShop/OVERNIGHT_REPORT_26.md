@@ -433,6 +433,44 @@ walk-up and it belongs to Phase 3.
 
 ---
 
+# 9.5 — THE STRANGER'S FINDINGS
+
+Four of the fourteen worked this session. Two needed a fix, two were already
+fixed and I checked rather than assumed.
+
+## Finding 3 — "an object is named with no verb" — **FIXED**
+
+They were right, and the reason there was no key is that there was nothing to
+restock — which the prompt never said. `Rangefinder display · Laser rangefinder
+3/6 · backroom empty` read as an offer the game then declined to honour. It is
+now `… · restock: nothing in the back`, which names the unavailable action and
+why, in the refusal voice they praised elsewhere in the same session.
+
+## Finding 14 — dev jargon in player UI — **FIXED, and there were two**
+
+"Recover any missing **authored** workstation" was the one they screenshotted.
+The same word was also in "a non-movable object still blocks the **authored**
+safe layout". Fixing only the one they saw would have left the other sitting
+there for the next stranger.
+
+So `tests/player-copy-jargon.test.js` catches the **class**: `authored`,
+`collider`, `raycast`, `navmesh`, `viewmodel` and the rest, scanned in the
+`reason:`/`label:` literals the objectives panel prints verbatim. The list is
+deliberately short and specific — one that also banned "stock" or "state" would
+ban the game's own vocabulary and get itself weakened the first time it fired.
+
+## Finding 5 — "B means two things" — **ALREADY FIXED**, checked not assumed
+
+The tool wheel no longer advertises letters at all; the shortcut is the wheel
+POSITION (1–9), which collides with nothing and is correct whichever belt is
+showing. `tests/tool-wheel-shortcuts.test.js` holds it. 5 green.
+
+## Finding 9 — "the task card double-prints" — **ALREADY FIXED**, photographed
+
+Cropped out of tonight's own full-resolution frame at the default camera
+(`qa/electron/mop-weight/taskcard.png`): eyebrow, progress, dismiss, title, hint,
+each drawn once. **No faded second layer bleeding under the header.**
+
 # PHASE 6 — THREE MORE CLAUSES CLOSED
 
 **Two were already done and I checked rather than rebuilt them.**
