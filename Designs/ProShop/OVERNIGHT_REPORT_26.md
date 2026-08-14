@@ -43,7 +43,7 @@ not painted" manufactured a false negative about a click.
 | **1 — Audio** | **GATE PASSED** — see §4 |
 | **2 — The walk-up** | **BOTH ITEMS FIXED, MEASURED AND FILMED**; residual handed to Phase 3 |
 | 3 — NPC navigation | **3.1 proven**; stall rate UNMEASURED (the detector failed its control) |
-| 4 — Time and bookings | not started |
+| 4 — Time and bookings | **4.1 measured, NOT CHANGED — blocked on the golf day** |
 | 5 — Mop and hands | not started |
 | 6 — Ledger UI | not started |
 | 7 — Performance | not started |
@@ -789,3 +789,63 @@ None of this touches the earlier results, which were measured differently:
 Number 15 is the one I would most want a reader to notice. It reported the
 answer I was hoping for — a clean build — and it was the least trustworthy
 measurement in this report. The control is the only reason I know that.
+
+
+---
+
+# PHASE 4 — 4.1 TIME FLOWS TOO SLOWLY
+
+**NOT CHANGED, and the reason is measured rather than argued.**
+
+Today: `gameMinutesPerRealSecond = 4/30` — **180 real minutes** for a full game
+day, **105** for the 06:00–20:00 trading window. 4.1 asks for a full day "in the
+region of ten to twenty real minutes", which needs roughly **32/30**.
+
+## The shop tolerates that. The golf day does not.
+
+Six retail shoppers on the real build, at three compressions
+(`electron-walkup-blocked.js` with `WALKUP_COMPRESSION`):
+
+| compression | full day | trading day | held goods | items taken | stands given up |
+|---|---|---|---|---|---|
+| 4× (today) | 180 min | 105 min | 6/6 | 13 | 0 |
+| 16× | 45 min | 26.3 min | 6/6 | 15 | 0 |
+| **32×** | **22.5 min** | **13.1 min** | 6/6 | 17 | 0 |
+
+32× puts the trading day inside the brief's band and the shop shows **no
+degradation at all**. So I set it — and the suite went red. Bisected:
+
+| compression | golf-day failures |
+|---|---|
+| **4×** | **0** ← where it stays |
+| 5× | 2 |
+| 6× | 6 |
+| 8× | 8 |
+| 16× | 8, plus the compression-ceiling contract itself |
+
+**The real ceiling is FOUR**, not the sixteen `balance.js` claims, and the
+blocker is the **golf day**, not the shop. Raising the constant without fixing
+that ships a broken tee sheet to make the shop feel better, so it is reverted.
+
+## What I could not separate, stated plainly
+
+Whether the golf day **genuinely breaks** at 5×, or whether
+`golfDayProduction.test.js` is **calibrated to 4×** and reporting its own
+assumptions back at me. Its durations scale with compression, and the failing
+assertions look for events inside fixed game-minute windows — both stories fit
+the evidence, and one of the failing tests is literally named *"a coarse service
+tick cannot collapse cleaning and charging into one frame"*, which reads like a
+real invariant.
+
+Deciding that is the first task of any future attempt, and it is the difference
+between a one-line change and a golf-day rework. I am not guessing at it, and I
+am not shipping a faster clock on the hope.
+
+**The measurement is the deliverable here**: "make the day faster" is now a
+bounded engineering task with a known blocker, instead of a constant nobody dared
+touch. `balance.js` carries the whole table beside the constant.
+
+## 4.2–4.5 — NOT STARTED
+
+Walk-in lead times, walk-in rarity, phone/inbox booking windows and message
+frequency were not reached.

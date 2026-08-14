@@ -85,6 +85,36 @@ export const BALANCE = {
   // NPC decisions follow it automatically. Without that link, shortening the day
   // would have re-created SIM-TIME-001 by the other route — the clock faster,
   // the shoppers not.
+  // 4.1 (Goal 26) — "Time flows too slowly. The day drags." NOT CHANGED, and
+  // the reason is measured rather than argued.
+  //
+  // This is 180 real minutes for a full game day, 105 for the 06:00-20:00
+  // trading window. 4.1 asks for a full day "in the region of ten to twenty real
+  // minutes", which needs roughly 32/30 here.
+  //
+  // THE SHOP TOLERATES THAT. Six retail shoppers on the real build
+  // (tools/qa/electron-walkup-blocked.js with WALKUP_COMPRESSION) at 4x, 16x and
+  // 32x compression: 6/6 held goods at every rate, 13 / 15 / 17 items taken, and
+  // zero stands given up. No degradation.
+  //
+  // THE GOLF DAY DOES NOT. Bisected against the suite:
+  //
+  //     4x   0 golf-day failures   <- here
+  //     5x   2 failures
+  //     6x   6 failures
+  //     8x   8 failures
+  //    16x   8 failures, plus the compression-ceiling contract itself
+  //
+  // So the ceiling is FOUR, not the sixteen the note below claims, and the
+  // blocker is the golf day rather than the shop. Raising this constant without
+  // fixing that ships a broken tee sheet to make the shop feel better.
+  //
+  // WHAT I COULD NOT SEPARATE, said plainly: whether the golf day genuinely
+  // breaks at 5x, or whether golfDayProduction.test.js is calibrated to 4x and is
+  // reporting its own assumptions back. Its durations scale with compression and
+  // the failing assertions look for events inside fixed game-minute windows, so
+  // both stories fit the evidence. Deciding that is the first task of any future
+  // attempt on 4.1.
   gameMinutesPerRealSecond: 4 / 30,
   // The rate the NPC dwell/patience/arrival numbers were authored against. The
   // clubhouse scales its decision dt by (actual / baseline), so those authored

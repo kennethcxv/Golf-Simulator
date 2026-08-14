@@ -66,6 +66,26 @@ async (page) => {
   }, null, { timeout: 300000 });
   await page.waitForTimeout(7000);
 
+  // 4.1: an optional clock-rate override, so the day's real-time length can be
+  // MEASURED at several compressions instead of trusted from a comment. The
+  // number in balance.js claims a "measured healthy ceiling is 16x"; this is what
+  // lets that be re-measured on the build in front of me.
+  if (process.env.WALKUP_COMPRESSION) {
+    out.compression = await page.evaluate(async (mult) => {
+      const bal = await import(new URL('src/sim/balance.js', document.baseURI).href);
+      const B = bal.BALANCE;
+      const baseline = B.npcTimingBaselineGameMinutesPerRealSecond;
+      B.gameMinutesPerRealSecond = baseline * mult;
+      return {
+        requested: mult,
+        perRealSecond: B.gameMinutesPerRealSecond,
+        realMinutesPerFullDay: +(1440 / B.gameMinutesPerRealSecond / 60).toFixed(1),
+        realMinutesPerTradingDay: +(840 / B.gameMinutesPerRealSecond / 60).toFixed(1),
+      };
+    }, Number(process.env.WALKUP_COMPRESSION));
+    console.log('COMPRESSION', JSON.stringify(out.compression));
+  }
+
   out.clock = await page.evaluate(() => {
     const app = window.__fw;
     const before = app.state.clock.minutes;
