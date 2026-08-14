@@ -15,7 +15,7 @@ the oscillator build** — the synth voices being replaced are themselves
 filtered-noise buffers — so it would have certified the exact absence it existed
 to detect.
 
-## 2. Probe-lie count: **13**
+## 2. Probe-lie count: **15**
 
 Checks I wrote that scored the same before and after, or measured the wrong
 object. Every one was caught by a number that disagreed with something else I
@@ -42,7 +42,7 @@ not painted" manufactured a false negative about a click.
 |---|---|
 | **1 — Audio** | **GATE PASSED** — see §4 |
 | **2 — The walk-up** | **BOTH ITEMS FIXED, MEASURED AND FILMED**; residual handed to Phase 3 |
-| 3 — NPC navigation | **3.1 proven, residual characterised to 5.3%**; integration not started |
+| 3 — NPC navigation | **3.1 proven**; stall rate UNMEASURED (the detector failed its control) |
 | 4 — Time and bookings | not started |
 | 5 — Mop and hands | not started |
 | 6 — Ledger UI | not started |
@@ -727,3 +727,65 @@ five decline paths fired), `qaCustomerTrack` now carrying `targetDist`,
 
 **NOT FIXED.** The 5.3 % is measured, isolated and handed over — no fix is
 claimed for it.
+
+
+---
+
+# PHASE 3 — THE STALL RATE IS UNMEASURED, AND I AM RETRACTING THE NUMBER
+
+The section above reports the residual stall decomposed to **5.3 %**. **Withdraw
+that number.** It was produced by a metric that cannot be trusted, and the reason
+is worth more than the figure was.
+
+## Why the 5.3 % is void
+
+That metric called a customer stuck when `c.vx/c.vz` was above 0.35 yd/s while
+sampled travel was near zero. **`c.vx` is not intent.** `clubhouse.js` computes it
+from the displacement the resolver actually produced, and leaves it **untouched**
+on any frame where the movement block is skipped — so a customer who stops keeps
+a stale high velocity, and "moving fast while not moving" is partly just an old
+number that nobody cleared.
+
+## The replacement, built to 3.3's own wording
+
+3.3 asks for "a stuck detector based on **real progress toward the path target**,
+not on velocity". So: a customer is stuck when their distance to their own
+current stop fails to improve for 1.5 s, while not queued, not holding for a
+shelf stand and not lingering, and still further from it than an arrival radius.
+
+It reported **0 stalls**. On the fixed build, and on the reverted build.
+
+## And then it failed its own negative control
+
+A detector that reads zero on every build has proved nothing. So one customer was
+**physically pinned in place** for 356 samples — roughly 20 seconds — while the
+simulation kept trying to move them.
+
+**`controlDetectedStall: false`. It still reported zero.**
+
+The instrument cannot see a stall that I created on purpose. Every zero it
+produced is therefore worthless, and so is the 5.3 % from the version before it.
+
+> **The stall rate in this shop is currently UNMEASURED.** Not zero — unmeasured.
+> I have no instrument that has demonstrated it can perceive the thing it counts.
+
+## What is still solid
+
+None of this touches the earlier results, which were measured differently:
+
+- **2.1's fix** — the player phasing out at all four stations, watched flipping
+  and restoring on the live predicate.
+- **The clip** — `tiles-14` shows a customer served with three queued behind.
+- **The shop works** — 4/4 reach the queue, 4/4 hold goods, 9–12 items taken per
+  run, `standGivenUp: 0`, `noFixtureRecord: 0`.
+
+## Probe lies 14-15
+
+| # | The probe | What it reported | What was wrong |
+|---|---|---|---|
+| 14 | velocity-based stall metric | 5.3 % residual | `c.vx` is resolved displacement, stale on skipped frames — not intent |
+| 15 | progress-based stall metric | 0 stalls on every build | **failed its own negative control**: a deliberately pinned customer produced no stall |
+
+Number 15 is the one I would most want a reader to notice. It reported the
+answer I was hoping for — a clean build — and it was the least trustworthy
+measurement in this report. The control is the only reason I know that.

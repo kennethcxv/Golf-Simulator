@@ -1,29 +1,41 @@
-// 2.1 (Goal 26) — DOES MY BODY BLOCK THE QUEUE?
+// 2.1 / 3.2 (Goal 26) — DOES ANYONE GET STUCK ON THE WAY TO THE COUNTER?
 //
-// "I finish a transaction. The second person walks up, gets blocked by something,
-// sidesteps right to left, then walks in place without moving, then leaves. It
-// happens when I am standing in the middle of the cash register from the opposite
-// side. THAT IS ME."
+// "The second person walks up, gets blocked by something, sidesteps right to
+// left, then walks in place without moving, then leaves."
 //
-// The claim to test is not "customers reach the till" -- that can be true while
-// the symptom he describes still happens on the way. The symptom has two named
-// signatures and both are measurable per customer per frame:
+// THE STAGING THIS NEEDS, all three found the hard way, and two of them invisible
+// in the worst way — the game behaves perfectly correctly and simply does nothing:
 //
-//   WALKING IN PLACE  the animation says moving, the position does not change.
-//                     Measured as: intended speed above a threshold while actual
-//                     travel over the same interval is near zero.
-//   SIDESTEPPING      lateral displacement without progress toward the target.
+//   1. THE OWNER'S SAVE. A fresh profile has no route network: no traffic at all,
+//      and walk.stations()[0] is a weed patch outdoors at x -356.9.
+//   2. TRADING HOURS. The save resumes at 06:01.
+//   3. THE SIGN OPEN. shopAcceptsWalkIns = withinTradingHours && signIsOpen, and
+//      when it is false clubhouse.js routes EVERY customer straight to the exit.
+//      A 20 Hz trace caught a shopper jumping from stop 0 to stop 6 in SEVENTY
+//      MILLISECONDS — which reads exactly like a catastrophic pathing fault and
+//      is a closed shop working as designed. debugSpawn does not set
+//      `scriptedVisit`, so a spawned shopper gets no exemption from it.
 //
-// And one outcome: LEAVING UNSERVED.
+// And debugSpawn(FALSE) — a retail shopper who browses fixtures and fills a cart.
+// debugSpawn(true) is a tee-time arrival that plans NO basket, so those customers
+// pass the till with nothing to buy and leave. That is correct behaviour, and
+// mistaking it for a queue defect cost me a published finding.
 //
-// THE INSTRUMENT MUST NOT MEASURE ITS OWN INTERVENTION. The fix phases the player
-// out of the crowd tests while register mode owns the camera, so a driver that
-// stands the player anywhere ELSE would report clean numbers on both builds and
-// prove nothing. This one puts the player exactly where he says he stands -- at
-// the till, in register mode -- and that is asserted before any sampling starts.
+// THE METRIC IS PROGRESS TOWARD THE PATH TARGET, NOT VELOCITY — which is 3.3's
+// wording, and the wording matters. Two earlier versions of this file used
+// c.vx/c.vz as "intent". They are not intent: clubhouse.js computes them from the
+// displacement the resolver actually produced and leaves them UNTOUCHED on any
+// frame where the movement block is skipped, so a stopped customer keeps a stale
+// high velocity. Worse, both earlier versions counted legitimate standing still —
+// queued, or holding for a shelf — as the defect, and reported 59.6% on a build
+// that works.
+//
+// A customer is STUCK here when their distance to their own current stop fails to
+// improve for 1.5 s while they are not queued, not holding for a stand and not
+// lingering, and they are still further away than an arrival radius.
 //
 //   node tools/qa/run-electron.cjs tools/qa/electron-walkup-blocked.js --clubhouse=pine-hills-v2
-//   VIDEO_DIR=qa/clips/walkup node tools/qa/run-electron.cjs tools/qa/electron-walkup-blocked.js --clubhouse=pine-hills-v2
+//   VIDEO_DIR=qa/clips/walkup WALKUP_SPAWN=4 WALKUP_SECONDS=170 node tools/qa/run-electron.cjs ...
 async (page) => {
   const fs = process.getBuiltinModule('node:fs');
   const path = process.getBuiltinModule('node:path');
@@ -32,13 +44,6 @@ async (page) => {
   const out = { errs: [] };
   page.on('pageerror', (e) => out.errs.push(String(e.message || e)));
 
-  // THE OWNER'S OWN SAVE. A fresh profile has no route network, so the shop has
-  // no traffic: the first version of this driver ran 150 s and saw ZERO
-  // customers, which is a true answer to the wrong question -- with nobody in the
-  // room, "nobody walks in place" is guaranteed on both builds and proves
-  // nothing. It also mis-staged the player: walk.stations()[0] on a clean profile
-  // is a WEED PATCH at x -356.9, outdoors, nowhere near a till, and
-  // register.enter() still returned true from there.
   const saveDir = path.join(process.env.APPDATA || '', 'GOLF EMPIRE', 'saves');
   const autosave = JSON.parse(fs.readFileSync(path.join(saveDir, 'autosave.json'), 'utf8'));
   const meta = JSON.parse(fs.readFileSync(path.join(saveDir, 'autosave-meta.json'), 'utf8'));
@@ -61,23 +66,23 @@ async (page) => {
   }, null, { timeout: 300000 });
   await page.waitForTimeout(7000);
 
-  // OPEN THE SHOP. The save resumes at 06:01 on day 0, before trading, and the
-  // first attempt sampled 150 s of an empty room and reported it clean. An empty
-  // room scores perfectly on every build.
   out.clock = await page.evaluate(() => {
     const app = window.__fw;
     const before = app.state.clock.minutes;
     const day = Math.floor(before / 1440);
     app.state.clock.minutes = day * 1440 + 630; // 10:30, mid-morning trade
-    return { before: +before.toFixed(1), after: app.state.clock.minutes };
+    if (app.state.shop) app.state.shop.signOpen = true;
+    return {
+      before: +before.toFixed(1),
+      after: app.state.clock.minutes,
+      signOpen: !!app.state.shop?.signOpen,
+    };
   });
   console.log('CLOCK', JSON.stringify(out.clock));
 
-  // STAND WHERE HE STANDS -- BEHIND the counter, which means approaching each
-  // station from the INTERIOR side. The first attempt offset z by +1.15 blindly
-  // and put the player OUTSIDE the building (interior centre z 4, stations z 7.5,
-  // so +1.15 lands at 8.5 -- through the wall), where the crosshair found a weed
-  // patch and register.enter() still returned true.
+  // Stand at the till, approaching each station from the INTERIOR side. An
+  // earlier version offset z blindly and put the player through the wall, where
+  // the crosshair found a weed patch and register.enter() still returned true.
   out.staged = await page.evaluate(() => {
     const s3 = window.__fw.scene3d;
     const ch = s3.clubhouse();
@@ -85,7 +90,6 @@ async (page) => {
     const w = s3.walk.state;
     const c = ch.interior.position;
     const tryStation = (st) => {
-      // step from the station toward the interior centre, never away from it
       let dx = c.x - st.x;
       let dz = c.z - st.z;
       const d = Math.hypot(dx, dz) || 1;
@@ -101,32 +105,27 @@ async (page) => {
       const label = tryStation(st);
       if (/tee desk|register|till|check-?in/i.test(label || '')) {
         return {
-          label, x: +w.x.toFixed(2), z: +w.z.toFixed(2), stations: stations.length,
-          matched: true, inside: ch.isInside(w.x, w.z),
+          label, x: +w.x.toFixed(2), z: +w.z.toFixed(2), matched: true, inside: ch.isInside(w.x, w.z),
         };
       }
     }
     const label = stations.length ? tryStation(stations[0]) : null;
     return {
-      label, x: +w.x.toFixed(2), z: +w.z.toFixed(2), stations: stations.length,
-      matched: false, inside: ch.isInside(w.x, w.z),
+      label, x: +w.x.toFixed(2), z: +w.z.toFixed(2), matched: false, inside: ch.isInside(w.x, w.z),
     };
   });
   await page.waitForTimeout(900);
-  const entered = await page.evaluate(() => {
+  out.registerEntered = await page.evaluate(() => {
     const reg = window.__fw.scene3d.clubhouse()?.register;
     if (!reg?.enter) return { ok: false, why: 'no register.enter' };
     const ok = reg.enter();
     return { ok: !!ok, active: !!reg.isActive?.() };
   });
-  out.registerEntered = entered;
-  console.log('STAGED', JSON.stringify(out.staged), 'REGISTER', JSON.stringify(entered));
-  // FAIL CLOSED. Sampling with the player NOT in register mode measures a
-  // different situation from the one being fixed and would read clean either way.
-  if (!entered.active) {
-    out.summary = { ABORTED: 'register mode is not active; the player is not where the report says' };
+  console.log('STAGED', JSON.stringify(out.staged), 'REGISTER', JSON.stringify(out.registerEntered));
+  if (!out.registerEntered.active) {
+    out.verdict = { ABORTED: 'register mode is not active; the player is not where the report says' };
     fs.writeFileSync(path.join(OUT, 'walkup.json'), `${JSON.stringify(out, null, 2)}\n`);
-    console.log('WALKUP', JSON.stringify(out.summary));
+    console.log('WALKUP', JSON.stringify(out.verdict));
     return out;
   }
 
@@ -136,32 +135,13 @@ async (page) => {
   });
   console.log('PLAYER-BLOCKS-CUSTOMERS', JSON.stringify(out.phased));
 
-  // FOUR CUSTOMERS, SPAWNED DELIBERATELY. Waiting for organic arrivals was the
-  // blocker: the save resumes at 06:01 and moving the clock forward does not
-  // drive the arrival loop, so the first runs sampled an empty room -- which
-  // scores perfectly on every build. clubhouse.debugSpawn(true) is the hook the
-  // module already exposes for exactly this ("QA: force a walk-in"), and
-  // setOrganicWalkins(false) keeps the population to the four being watched
-  // instead of letting random traffic wander through the measurement.
   await page.evaluate((n) => { window.__spawnCount = n; }, Number(process.env.WALKUP_SPAWN || 4));
   out.spawned = await page.evaluate(() => {
     const ch = window.__fw.scene3d.clubhouse();
-    // OPEN THE SIGN. shopAcceptsWalkIns = withinTradingHours && signIsOpen, and
-    // when it is false EVERY customer on the floor is routed straight to the exit
-    // (clubhouse.js: `if (!open) { ... c.stopIdx = c.stops.length - 2 }`). The save
-    // resumes before opening, so my spawned shoppers were evicted 70 ms after
-    // arriving -- which is CORRECT behaviour and looked exactly like a navigation
-    // fault. debugSpawn does not set `scriptedVisit`, so it gets no exemption.
-    if (window.__fw.state?.shop) window.__fw.state.shop.signOpen = true;
     try { ch.setOrganicWalkins?.(false); } catch { /* older builds */ }
     try { ch.clearWalkins?.(); } catch { /* older builds */ }
     const made = [];
     for (let i = 0; i < (window.__spawnCount || 4); i += 1) {
-      // debugSpawn(TRUE) is a tee-time arrival and deliberately plans NO basket
-      // (clubhouse.js: `plansBasket = !toCounter && ...`), so those customers pass
-      // the till with nothing to buy and leave -- which is correct behaviour and
-      // which cost me a false finding. A RETAIL shopper is debugSpawn(false):
-      // they browse fixtures, fill a cart and therefore actually queue.
       try { made.push(!!ch.debugSpawn?.(false)); } catch (e) { made.push(String(e.message)); }
     }
     return { made, onFloor: (ch.qaCustomerTrack?.() || []).length };
@@ -172,192 +152,153 @@ async (page) => {
     const ch = window.__fw?.scene3d?.clubhouse?.();
     return (ch?.qaCustomerTrack?.() || []).length > 0;
   }, null, { timeout: 60000 }).then(() => true).catch(() => false);
-  out.customersPresent = gotCustomers;
-  console.log('CUSTOMERS-PRESENT', gotCustomers);
   if (!gotCustomers) {
-    out.summary = { ABORTED: 'no customers on the floor; an empty room scores clean on every build' };
+    out.verdict = { ABORTED: 'no customers on the floor; an empty room scores clean on every build' };
     fs.writeFileSync(path.join(OUT, 'walkup.json'), `${JSON.stringify(out, null, 2)}\n`);
-    console.log('WALKUP', JSON.stringify(out.summary));
+    console.log('WALKUP', JSON.stringify(out.verdict));
     return out;
   }
 
-  // Sample every customer every ~100 ms for a long stretch. Per customer we keep
-  // the previous position so "walking in place" can be computed as intent versus
-  // actual travel -- a single snapshot cannot express it.
   const SAMPLE_MS = 100;
   const SECONDS = Number(process.env.WALKUP_SECONDS || 150);
   out.track = await page.evaluate(async ({ sampleMs, seconds }) => {
-    const s3 = window.__fw.scene3d;
-    const ch = s3.clubhouse();
+    const ch = window.__fw.scene3d.clubhouse();
     const prev = new Map();
     const stats = new Map();
     const t0 = performance.now();
-    const seenIds = new Set();
+    const seen = new Set();
     let samples = 0;
+    let controlSamples = 0;
+    let controlStalledAtEnd = 0;
+    let controlStalledAtStart = null;
     await new Promise((resolve) => {
       const tick = () => {
         const list = (ch.qaCustomerTrack ? ch.qaCustomerTrack() : []) || [];
         samples += 1;
         for (const c of list) {
-          seenIds.add(c.id);
-          const p = prev.get(c.id);
+          seen.add(c.id);
           if (!stats.has(c.id)) {
             stats.set(c.id, {
-              id: c.id, frames: 0, walkInPlace: 0, moved: 0, travel: 0,
-              maxSpeedIntent: 0, reachedQueue: false, served: false, left: false,
-              reachedCounterStop: false, lastStopKind: null, route: null, cart: null, cartMax: 0,
-              minFixtureDist: null, walkInPlaceQueued: 0, walkInPlaceApproaching: 0, movedApproaching: 0,
+              id: c.id, frames: 0, moved: 0, travel: 0, reachedQueue: false, left: false,
+              cartMax: 0, route: null, lastStopKind: null,
+              bestDist: null, noProgress: 0, stalled: 0, stallTargetSum: 0,
+              stallCrowded: 0, stallOnCollider: 0,
             });
           }
           const s = stats.get(c.id);
           s.frames += 1;
           if (c.queued) s.reachedQueue = true;
-          if (c.served) s.served = true;
-          s.lastStopKind = c.stopKind;
           s.route = c.stopKinds;
-          // MAX, NOT LAST. The cart is surrendered on exit, so the final value is
-          // 0 for a shopper who bought nothing AND for one who never picked
-          // anything up -- and those are different findings. Recording the peak
-          // separates "never had goods" from "had goods and left with none".
-          s.cart = c.cart;
-          s.cartMax = Math.max(s.cartMax || 0, c.cart || 0);
-          if (c.stopKind === 'counter') s.reachedCounterStop = true;
-          if (c.stopKind === 'fixture' && Number.isFinite(c.targetDist)) {
-            s.minFixtureDist = Math.min(
-              s.minFixtureDist == null ? Infinity : s.minFixtureDist, c.targetDist,
-            );
-          }
-          const intent = Math.hypot(c.vx || 0, c.vz || 0);
-          s.maxSpeedIntent = Math.max(s.maxSpeedIntent, intent);
+          s.lastStopKind = c.stopKind;
+          s.cartMax = Math.max(s.cartMax, c.cart || 0);
+          const p = prev.get(c.id);
           if (p) {
             const d = Math.hypot(c.x - p.x, c.z - p.z);
             s.travel += d;
-            // WALKING IN PLACE: the sim wants to move at a real speed and the
-            // body goes essentially nowhere over the interval. The thresholds are
-            // in yards per sample: 0.35 yd/s of intent is a purposeful walk, and
-            // 0.004 yd over 100 ms is under half a centimetre.
-            // SPLIT BY QUEUE STATE. A customer holding a place in the line is
-            // MEANT to be standing still, and counting that as "walking in place"
-            // would score correct behaviour as the defect -- which is how a
-            // headline number ends up at 60% on a build that works. What the
-            // owner reported is someone trying to WALK UP and getting nowhere,
-            // so the number that matters is the not-yet-queued one.
-            if (intent > 0.35 && d < 0.004) {
-              s.walkInPlace += 1;
-              if (c.queued) s.walkInPlaceQueued += 1;
-              else {
-                s.walkInPlaceApproaching += 1;
-                // WHO IS STOPPING THEM? At the moment of treading air, how far is
-                // the nearest other body, and how far to the target? A neighbour
-                // inside body-radius says crowd separation; a clear neighbour with
-                // a far target says something else is eating the step. Computed in
-                // the driver from positions, so no production code has to be
-                // instrumented to ask it.
-                let nearest = Infinity;
-                for (const o of list) {
-                  if (o.id === c.id) continue;
-                  nearest = Math.min(nearest, Math.hypot(o.x - c.x, o.z - c.z));
-                }
-                if (Number.isFinite(nearest)) {
-                  s.wipNearestSum = (s.wipNearestSum || 0) + nearest;
-                  s.wipNearestMin = Math.min(
-                    s.wipNearestMin == null ? Infinity : s.wipNearestMin, nearest,
-                  );
-                  if (nearest < 0.75) s.wipCrowded = (s.wipCrowded || 0) + 1;
-                  else s.wipClear = (s.wipClear || 0) + 1;
-                }
-                if (Number.isFinite(c.targetDist)) {
-                  s.wipTargetSum = (s.wipTargetSum || 0) + c.targetDist;
-                }
-                if (c.waitingForStand) s.wipWaitingForStand = (s.wipWaitingForStand || 0) + 1;
-                else s.wipTrulyStuck = (s.wipTrulyStuck || 0) + 1;
-                if (Number.isFinite(c.colliderPen)) {
-                  s.wipPenSum = (s.wipPenSum || 0) + c.colliderPen;
-                  s.wipPenMax = Math.max(
-                    s.wipPenMax == null ? -99 : s.wipPenMax, c.colliderPen,
-                  );
-                  if (c.colliderPen > -0.05) s.wipAgainstCollider = (s.wipAgainstCollider || 0) + 1;
+            if (d >= 0.004) s.moved += 1;
+            // Every legitimate reason to be standing still, excluded BY NAME.
+            const waiting = c.queued || c.waitingForStand
+              || (Number.isFinite(c.linger) && c.linger > 0);
+            if (Number.isFinite(c.targetDist)) {
+              if (waiting) {
+                s.bestDist = null;
+                s.noProgress = 0;
+              } else if (s.bestDist == null || c.targetDist < s.bestDist - 0.02) {
+                s.bestDist = c.targetDist;
+                s.noProgress = 0;
+              } else {
+                s.noProgress += 1;
+                if (s.noProgress >= 15 && c.targetDist > 0.3) { // 1.5 s of nothing
+                  s.stalled += 1;
+                  s.stallTargetSum += c.targetDist;
+                  let nearest = Infinity;
+                  for (const o of list) {
+                    if (o.id === c.id) continue;
+                    nearest = Math.min(nearest, Math.hypot(o.x - c.x, o.z - c.z));
+                  }
+                  if (Number.isFinite(nearest) && nearest < 0.75) s.stallCrowded += 1;
+                  if (Number.isFinite(c.colliderPen) && c.colliderPen > -0.05) s.stallOnCollider += 1;
                 }
               }
-            } else if (d >= 0.004) {
-              s.moved += 1;
-              if (!c.queued) s.movedApproaching += 1;
             }
           }
           prev.set(c.id, { x: c.x, z: c.z });
         }
-        // anybody we had and no longer have has gone
         for (const [id, s] of stats) if (!list.some((c) => c.id === id)) s.left = true;
+        // ---- NEGATIVE CONTROL: PIN SOMEBODY ON PURPOSE --------------------
+        //
+        // A stuck detector that reports 0 on every build has not proved the game
+        // is clean; it has proved nothing at all, and this one DID read 0 on both
+        // the fixed and the reverted build before this control existed. So for a
+        // window in the middle of the run one customer is physically held in
+        // place while the simulation keeps trying to move them. If `stalled` does
+        // not rise during that window the instrument cannot see a stall and every
+        // zero it reports is worthless.
+        const elapsed = performance.now() - t0;
+        const inControl = elapsed > seconds * 1000 * 0.55 && elapsed < seconds * 1000 * 0.75;
+        if (inControl && list.length) {
+          const victim = window.__fw.scene3d.clubhouse().qaCustomerMeshById?.(list[0].id);
+          if (victim) {
+            if (!window.__pin) {
+              window.__pin = { x: victim.position.x, z: victim.position.z, id: list[0].id };
+              controlStalledAtStart = stats.get(list[0].id)?.stalled ?? 0;
+            }
+            if (window.__pin.id === list[0].id) {
+              victim.position.x = window.__pin.x;
+              victim.position.z = window.__pin.z;
+            }
+          }
+          controlSamples += 1;
+          const cs = stats.get(window.__pin?.id);
+          if (cs) controlStalledAtEnd = cs.stalled;
+        } else if (!inControl && window.__pin) {
+          window.__pin = null;
+        }
         if (performance.now() - t0 >= seconds * 1000) resolve();
         else setTimeout(tick, sampleMs);
       };
       tick();
     });
-    return { samples, seen: seenIds.size, customers: [...stats.values()] };
+    return {
+      samples, seen: seen.size, customers: [...stats.values()],
+      control: { samples: controlSamples, stalledAtEnd: controlStalledAtEnd, stalledAtStart: controlStalledAtStart },
+    };
   }, { sampleMs: SAMPLE_MS, seconds: SECONDS });
 
-  const cs = out.track.customers || [];
-  const withMotion = cs.filter((c) => c.frames > 20);
   out.pickStats = await page.evaluate(() => {
     const ch = window.__fw.scene3d.clubhouse();
     return ch.qaPickStats ? ch.qaPickStats() : null;
   });
   console.log('PICK-STATS', JSON.stringify(out.pickStats));
 
+  const tracked = (out.track.customers || []).filter((c) => c.frames > 20);
+  const sum = (k) => tracked.reduce((a, c) => a + (c[k] || 0), 0);
   out.verdict = {
     samples: out.track.samples,
     customersSeen: out.track.seen,
-    customersTracked: withMotion.length,
-    // the headline: how many sampled frames had somebody treading air
-    walkInPlaceFrames: withMotion.reduce((a, c) => a + c.walkInPlace, 0),
-    movedFrames: withMotion.reduce((a, c) => a + c.moved, 0),
-    // THE HEADLINE: treading air while still trying to REACH the counter.
-    approachingWalkInPlace: withMotion.reduce((a, c) => a + (c.walkInPlaceApproaching || 0), 0),
-    approachingMoved: withMotion.reduce((a, c) => a + (c.movedApproaching || 0), 0),
-    approachingRatio: (() => {
-      const w = withMotion.reduce((a, c) => a + (c.walkInPlaceApproaching || 0), 0);
-      const m = withMotion.reduce((a, c) => a + (c.movedApproaching || 0), 0);
-      return (w + m) ? +(w / (w + m)).toFixed(4) : null;
+    customersTracked: tracked.length,
+    reachedQueue: tracked.filter((c) => c.reachedQueue).length,
+    everHeldGoods: tracked.filter((c) => c.cartMax > 0).length,
+    routes: [...new Set(tracked.map((c) => c.route))],
+    stalledSamples: sum('stalled'),
+    movedSamples: sum('moved'),
+    stallRatio: (() => {
+      const st = sum('stalled');
+      const mv = sum('moved');
+      return (st + mv) ? +(st / (st + mv)).toFixed(4) : null;
     })(),
-    queuedWalkInPlace: withMotion.reduce((a, c) => a + (c.walkInPlaceQueued || 0), 0),
-    wipCrowded: withMotion.reduce((a, c) => a + (c.wipCrowded || 0), 0),
-    wipClear: withMotion.reduce((a, c) => a + (c.wipClear || 0), 0),
-    wipNearestMin: Math.min(...withMotion.map((c) => (c.wipNearestMin == null ? 99 : c.wipNearestMin))),
-    wipMeanNearest: (() => {
-      const n = withMotion.reduce((a, c) => a + (c.walkInPlaceApproaching || 0), 0);
-      const sum = withMotion.reduce((a, c) => a + (c.wipNearestSum || 0), 0);
-      return n ? +(sum / n).toFixed(3) : null;
+    stallCrowded: sum('stallCrowded'),
+    stallOnCollider: sum('stallOnCollider'),
+    stallMeanTargetDist: (() => {
+      const st = sum('stalled');
+      return st ? +(sum('stallTargetSum') / st).toFixed(3) : null;
     })(),
-    wipWaitingForStand: withMotion.reduce((a, c) => a + (c.wipWaitingForStand || 0), 0),
-    wipTrulyStuck: withMotion.reduce((a, c) => a + (c.wipTrulyStuck || 0), 0),
-    wipAgainstCollider: withMotion.reduce((a, c) => a + (c.wipAgainstCollider || 0), 0),
-    wipPenMax: Math.max(...withMotion.map((c) => (c.wipPenMax == null ? -99 : c.wipPenMax))),
-    wipMeanPen: (() => {
-      const n = withMotion.reduce((a, c) => a + (c.walkInPlaceApproaching || 0), 0);
-      const sum = withMotion.reduce((a, c) => a + (c.wipPenSum || 0), 0);
-      return n ? +(sum / n).toFixed(3) : null;
-    })(),
-    wipMeanTargetDist: (() => {
-      const n = withMotion.reduce((a, c) => a + (c.walkInPlaceApproaching || 0), 0);
-      const sum = withMotion.reduce((a, c) => a + (c.wipTargetSum || 0), 0);
-      return n ? +(sum / n).toFixed(3) : null;
-    })(),
-    walkInPlaceRatio: (() => {
-      const w = withMotion.reduce((a, c) => a + c.walkInPlace, 0);
-      const m = withMotion.reduce((a, c) => a + c.moved, 0);
-      return (w + m) ? +(w / (w + m)).toFixed(4) : null;
-    })(),
-    worstCustomer: withMotion.slice().sort((a, b) => b.walkInPlace - a.walkInPlace)[0] || null,
-    reachedQueue: withMotion.filter((c) => c.reachedQueue).length,
-    reachedCounterStop: withMotion.filter((c) => c.reachedCounterStop).length,
-    everHeldGoods: withMotion.filter((c) => (c.cartMax || 0) > 0).length,
-    minFixtureDists: withMotion.map((c) => c.minFixtureDist),
-    arrivalRadius: 0.18,
-    gotWithinArrivalRadius: withMotion.filter((c) => (c.minFixtureDist ?? 99) < 0.18).length,
-    cartMaxes: withMotion.map((c) => c.cartMax || 0),
-    routes: [...new Set(withMotion.map((c) => c.route))],
-    lastStops: withMotion.map((c) => c.lastStopKind),
-    leftWithoutQueueing: withMotion.filter((c) => c.left && !c.reachedQueue).length,
+    // THE CONTROL. If this did not rise while a customer was physically pinned,
+    // the detector cannot see a stall and every zero above means nothing.
+    control: out.track.control,
+    controlDetectedStall: (out.track.control?.stalledAtEnd ?? 0)
+      > (out.track.control?.stalledAtStart ?? 0),
+    errs: out.errs.slice(0, 6),
   };
   fs.writeFileSync(path.join(OUT, 'walkup.json'), `${JSON.stringify(out, null, 2)}\n`);
   console.log('WALKUP', JSON.stringify(out.verdict, null, 2));

@@ -12985,6 +12985,13 @@ export function makeClubhouse(ctx) {
     // while the crowd is told another; `qaCustomerTrack` reports each customer's
     // live position, intended velocity and queue state, which is what makes
     // "walking in place" (intent high, travel zero) expressible at all.
+    // QA ONLY: the mesh behind a qaCustomerTrack id, so a driver can pin a body
+    // in place and prove its stuck detector can actually see a stall. A detector
+    // that reports zero on every build has proved nothing.
+    qaCustomerMeshById: (id) => {
+      for (const c of customers) if (c && c.mesh && qaTrackId(c) === id) return c.mesh;
+      return null;
+    },
     qaPickStats: () => ({ ...pickStats }),
     qaPlayerBlocksCustomers: () => playerBlocksCustomers(),
     qaCustomerTrack: () => customers
