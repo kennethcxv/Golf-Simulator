@@ -69,7 +69,16 @@ async (page) => {
   await page.evaluate((durationMs) => {
     const app = window.__fw;
     const ch = app.scene3d.clubhouse();
-    const R = 0.32;          // a person's radius, matching the nav inflation
+    // 0.30, NOT 0.32, AND THE DIFFERENCE WAS THE ENTIRE FIRST FINDING.
+    //
+    // resolveCustomer pushes people out of colliders with r = 0.3. Probing with
+    // 0.32 reports every customer standing flush against a shelf as 0.02 yd
+    // inside it -- and 0.02 is exactly 0.32 - 0.30. The first ten-minute run
+    // came back with 349 body-fixture contacts, 154 of them "sustained", one
+    // lasting 79 seconds, and every single peak depth was 0.01 or 0.02: a
+    // measurement of my own radius, not of the shop. A browsing customer stands
+    // AT a fixture on purpose.
+    const R = 0.30;
     const PAIR_HIT = R * 2;  // two capsules touching
     const PLAYER_HIT = R + 0.35;
 
@@ -171,7 +180,10 @@ async (page) => {
           const pen = typeof ch.qaPointBlocked === 'function'
             ? ch.qaPointBlocked(ap.x, ap.z, R)
             : (Number.isFinite(a.colliderPen) ? a.colliderPen : 0);
-          if (pen > 0) openOrExtend(`bf:${ai}`, 'bodyFixture', pen, now);
+          // and a floor on the depth as well as the radius: a contact a
+          // centimetre deep is a stand point flush against a shelf, not a person
+          // inside furniture. 0.05 yd is about two inches.
+          if (pen > 0.05) openOrExtend(`bf:${ai}`, 'bodyFixture', pen, now);
 
           // BODY - BODY
           for (let j = i + 1; j < list.length; j += 1) {
@@ -255,6 +267,9 @@ async (page) => {
       lastError: s.lastError || null,
       byKind,
       worst: s.closed.slice().sort((a, b) => b.seconds - a.seconds).slice(0, 12),
+      // the depth distribution, so "sustained contact" can never again mean
+      // "flush against a shelf for a long time"
+      deepest: s.closed.slice().sort((a, b) => b.peakDepth - a.peakDepth).slice(0, 12),
     };
   });
 

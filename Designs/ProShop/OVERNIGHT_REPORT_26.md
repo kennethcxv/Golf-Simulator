@@ -972,6 +972,152 @@ establish why 432 authored strands photograph as a dozen.
 
 ---
 
+# PHASE 3 — NPC NAVIGATION
+
+# 3.1 RECAST IN PRODUCTION — **DONE**, 20 OF 26 REAL ROUTES
+
+"It is vendored and it initialises. **Zero production customers query it.**"
+
+That was true, and it is not now. `src/render3d/clubhouse/recastNav.js` is one
+init, one bake, one query surface returning the same `{x,z}` waypoint array the
+grid router returns — a substitution, not a rewrite. The bake is kicked as the
+last statement before the clubhouse API returns and defers to
+`requestIdleCallback`, so it lands after that frame: **never on a gameplay
+frame**, as written.
+
+**It fails soft.** Wasm won't load, bake empty, query throws — any of them return
+null and the shipping grid A\* answers exactly as before. A navigation system
+that can turn the shop into statues when a vendored binary changes is not an
+improvement on one that works.
+
+| | measured in Electron |
+|---|---|
+| navmesh | 1826 meshes, 456,068 tris |
+| cost | gather 61 ms + bake 66 ms, **once** |
+| bakes after 6 spawns and 26 routes | **1** |
+| routes served by recast | **20 of 26** |
+| routes fallen back to grid | 6 |
+| query cost | mean 0.135 ms, max 0.8 ms, 0 errors |
+
+Evidence: `qa/electron/recast-production/recast.json`. `routesServed` is
+incremented inside the real customer routing call and nowhere else, so a non-zero
+value cannot be produced by anything but a production customer asking recast for
+a path. Watched fail: against HEAD the driver **ABORTS** rather than reporting a
+green nothing.
+
+## Two wrong turns, both found by instrumenting instead of guessing
+
+**Every route missed, and I could not tell an empty navmesh from a bad query.**
+Recording the snap distance showed `bakedFloorY = -1002`: my "the lowest vertex
+is the floor" heuristic had found the **sky dome** hanging under the interior
+root, so all 30 production routes were asking Detour about a point a thousand
+yards underground. Nothing about that read as a Y-range problem — it read as an
+empty navmesh. The floor now comes from the interior's own origin and the gather
+is bounded to a 12 yd band around it.
+
+**Then 24 of 31 still fell back, and every refusal was the FROM end**, clustered
+at dz +18..20 and +7.6..8.4 from the interior origin: customers walking in off
+the porch, and standing on the threshold. `group` (shell, porch) and `interior`
+(floor, fixtures) are **sibling** groups, not parent and child. Baking `group`
+alone took it to 23 of 29 — **and I nearly shipped that**, until the mesh count
+fell from 1502 to 324 and I realised the navmesh no longer knew the shelving
+existed. Routing that ignores shelves is not an improvement. Both roots now.
+
+# 3.3 REPATH JITTER — **DONE**, PEAK 5 → 2, PROVEN BY CONTROL
+
+The progress-based stuck detector 3.3 asks for **already shipped** (Goal 24's
+`navStuckVerdict`, `noProgressT`, the five-rung ladder). My Goal 26 retraction of
+a 5.3 % stall rate was my probe failing its control, not the detector being
+absent. What was missing was the jitter.
+
+| 24 shoppers, player parked in the walkway | jitter OFF | jitter ON |
+|---|---|---|
+| **peak ladder rungs on one frame** | **5** | **2** |
+| frames with any | 235 | 213 |
+| total rungs | 262 | 227 |
+
+**The density is the finding.** At EIGHT shoppers the peak is 1 on *both* builds
+— rungs come about one a second and never land together. I ran the
+disabled-jitter control at eight first, saw it also report 1, and only then went
+looking for the density where there is something to fix. **A control that agrees
+with the fix is not a pass**, and measured at eight this driver would have
+printed a green "peak 1" while proving nothing.
+
+**And the first hash was not jitter.** `h * 31 + charCode` maps sequential
+customer ids to sequential outputs: seven customers came out at 0.120, 0.121,
+0.121, 0.122, 0.122, 0.122, 0.123 — a three-millisecond spread wearing the name.
+The avalanche mix gives 0.377 s of spread across 24.
+
+The stability check was wrong before it was right, too: it compared two reads of
+the jitter list **by index**, and the population changes between reads as people
+arrive and leave, so it called the values unstable when it was the list that had
+moved.
+
+# PHASE 3 GATE, VERIFIER TWO — THE CONTACT WATCHER
+
+Four contact kinds, each an interval keyed by the pair so the report can say how
+LONG rather than how many frames. **The control ran first and caught two things.**
+
+**`qaCustomerTrack` returns a projection, not customer objects.** No `.mesh` on
+it at all. Both contact drivers filtered on `c.mesh`, matched nothing, and
+reported a spotless shop containing zero customers — a ten-minute watch would
+have printed all zeros and looked like a pass.
+
+> **Correction to 3.1's own evidence, above.** The same bug is in the recast
+> driver I had already shipped: it read `c.pathSource` off that projection and
+> tallied six nulls as "no customer used recast", printed directly beneath its
+> own counter saying twenty had. **The counter was the real evidence and it was
+> right; the tally was reading a field that did not exist.** `pathSource`,
+> `walking` and `repathJitter` are on the projection now.
+
+**The staged overlaps came back undetected, and the detector was fine.**
+`settleCustomerCrowd` and `resolveCustomer` had already pulled the bodies apart
+before the next frame. Sampling on the same tick separates "the instrument cannot
+see it" from "the game fixed it before I looked".
+
+| control | result |
+|---|---|
+| detector fires at 0.07 yd | yes |
+| detector silent at 7 yd | yes |
+| two bodies staged at 0.07 yd | **separated in 1 frame** |
+| a body staged on the player | **separated in 1 frame** |
+| a body inside a fixture | detected, 0.36 yd penetration |
+
+## The ten-minute watch, and the finding I withdrew from it
+
+The first full run reported, over 600 s and 82,350 sampled frames with twelve
+customers in the shop:
+
+| kind | contacts | longest | sustained > 1 s | total |
+|---|---|---|---|---|
+| body → body | 2 | 0.0 s | 0 | 0 s |
+| body → fixture | **349** | **79.35 s** | **154** | **1054.9 s** |
+| body → player | 0 | — | 0 | 0 s |
+| runs in place | 2 | 0.61 s | 0 | 0.74 s |
+
+**I am withdrawing the body-to-fixture row of that table in full.** Every one of
+the deepest contacts came back at a peak penetration of **0.01 or 0.02 yards** —
+one to two centimetres. `resolveCustomer` pushes people out of colliders with
+r = 0.30 and I probed with **0.32**. The difference is 0.02. Every "sustained
+contact", including the seventy-nine-second one, was a customer standing at a
+shelf **on purpose**, measured against a radius two centimetres larger than the
+one the game resolves against. It was a measurement of my own probe.
+
+What makes it worth writing down rather than quietly re-running: **the number was
+enormous and completely plausible.** 154 sustained fixture contacts in ten
+minutes is exactly what a broken navigation system looks like, it agreed with a
+complaint that has been made before, and the only thing that stopped it going in
+the report as a finding was that the peak depths were all the same two numbers.
+
+The probe now uses r = 0.30 and ignores penetrations below 0.05 yd, and the
+depth distribution is recorded alongside the durations so "sustained contact" can
+never again mean "flush against a shelf for a long time".
+
+**The other three rows stand**, and they are good news: two single-frame
+body-to-body brushes in ten minutes, **zero** contacts with the player, and two
+run-in-place episodes totalling three quarters of a second. Person-versus-person
+navigation is in good shape.
+
 # 5.1 THE MOP — TWO OF THREE FIXED, AND I HAD THE THIRD WRONG
 
 > **Correction to this section's own heading.** It read "ALL THREE FAULTS FIXED"
