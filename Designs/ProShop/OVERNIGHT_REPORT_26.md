@@ -1292,6 +1292,38 @@ the jitter list **by index**, and the population changes between reads as people
 arrive and leave, so it called the values unstable when it was the list that had
 moved.
 
+# PHASE 3 GATE, VERIFIER ONE — **NOT DONE**, and what it did measure
+
+"Stage three queuers blocking the corridor to the right-side merchandise, spawn a
+shopper whose item is behind them. Overhead clip and player-view clip, frames
+inspected."
+
+I staged the blockade and it held — three bodies pinned across the corridor,
+re-asserted every frame, because one write is undone by the crowd settle within a
+single frame (measured at exactly 1 frame by the contact control).
+
+**What it measured, and this part is real:** four shoppers, **7,239 samples
+each** over roughly two minutes, and the closest any of them came to a pinned
+body was **0.752 yd**. Two capsules at 0.32 radius touch at 0.64. **Nobody walked
+through the blockade, and nobody touched it.** Lateral excursions of 1.7–2.9 yd
+say they were going around things rather than standing still.
+
+**Why it is NOT DONE, in two parts, both mine:**
+
+1. **No shopper was ever given an item behind the blockade.** The clause is "a
+   shopper blocked by the queue routes around it AND REACHES THE ITEM", and I
+   watched whoever happened to be in the room instead of staging that shopper.
+   My `reachedFarSide: 0` therefore proves nothing at all — I invented a "far
+   side" zone that no customer had any reason to walk to. **A zero against a goal
+   nobody was given is not a failure, and it is not a pass either.**
+2. **The clip is of a field.** The player camera ended up OUTSIDE the building,
+   so 122 seconds of recording show the clubhouse from across the fairway. The
+   frames were extracted and viewed, which is the only reason I know — the
+   numbers were fine and would have been reported beside a clip of grass.
+
+The revert half of the gate — "show the old grinding fails the same check" — was
+not reached.
+
 # PHASE 3 GATE, VERIFIER TWO — THE CONTACT WATCHER
 
 Four contact kinds, each an interval keyed by the pair so the report can say how
