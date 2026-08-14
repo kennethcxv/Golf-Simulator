@@ -18,6 +18,9 @@ const ACTIVE_SIMPLIFIED_CUES = Object.freeze([
   'scanSuccess', 'scanInvalid', 'posAdd',
   'cardInsert', 'cardProcessing', 'cardApproved', 'cardDeclined',
   'cashPresent', 'billHandle', 'coinHandle', 'drawerUnlock', 'drawerOpen', 'drawerClose',
+  // PLAYTEST 3 item 2: routed from returnSelectedChange in the register, which is
+  // the normal-play path for taking change back off the counter.
+  'cashPickup',
   'changeSelect', 'changeHandoff',
   // receiptPrint / receiptTear retired 2026-07-30 round 2: the physical receipt
   // was removed outright — the sim files the paperwork silently and the

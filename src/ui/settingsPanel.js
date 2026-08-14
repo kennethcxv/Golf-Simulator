@@ -130,15 +130,15 @@ export function makeSettingsPanel({
       audio?.musicStart?.();
     };
     const select = el('select', {
-      'aria-label': t('settings.audio.music') || 'Background music',
+      'aria-label': t('settings.audio.music'),
       onchange: (event) => applyTrack(event.currentTarget.value),
     },
-    el('option', { value: '', text: 'Default', selected: preferences.get(path) ? null : true }),
+    el('option', { value: '', text: t('settings.audio.music.default'), selected: preferences.get(path) ? null : true }),
     ...fam.options.map((o) => el('option', {
       value: o.id, text: o.label, selected: preferences.get(path) === o.id ? true : null,
     })),
-    el('option', { value: 'off', text: 'Off', selected: preferences.get(path) === 'off' ? true : null }));
-    return row('Background music', 'Which track loops while you play, or none at all.', select);
+    el('option', { value: 'off', text: t('settings.audio.music.off'), selected: preferences.get(path) === 'off' ? true : null }));
+    return row(t('settings.audio.music'), t('settings.audio.music.detail'), select);
   }
 
   function audioPage() {
@@ -506,15 +506,8 @@ export function makeSettingsPanel({
   // meter. Each family offers several genuinely different recordings; the owner
   // switches while the game runs, hears the change immediately, and names the
   // winner by its label.
-  const SFX_FAMILY_LABELS = {
-    menuButton: 'Menu buttons',
-    drawerOpen: 'Cash drawer',
-    cashLand: 'Cash landing',
-    ledgerTurn: 'Ledger page turn',
-    ledgerPickup: 'Ledger pickup',
-    ledgerClose: 'Ledger close / set down',
-    music: 'Background music',
-  };
+  const SFX_FAMILIES = ['menuButton', 'drawerOpen', 'cashLand', 'ledgerTurn', 'ledgerPickup', 'ledgerClose'];
+  const sfxFamilyLabel = (id) => (SFX_FAMILIES.includes(id) ? t(`settings.sfx.family.${id}`) : id);
   // Which cue to fire when Preview is pressed. A family covers several cues and
   // they are not equally representative -- previewing `uiError` to judge a menu
   // click would have the owner rejecting a sound they will rarely hear.
@@ -534,11 +527,11 @@ export function makeSettingsPanel({
       // when the audio context unlocks, so before the first click there is
       // genuinely nothing to list -- and a blank picker looks like a broken one.
       return [el('div', { class: 'setting-native-status', role: 'status' },
-        description('No sample families are loaded yet. Click anything once to start the audio engine, then reopen this tab.'))];
+        description(t('settings.sfx.none')))];
     }
     const saved = preferences.get('audio.sfx') || {};
     return families.map((fam) => {
-      const label = SFX_FAMILY_LABELS[fam.family] || fam.family;
+      const label = sfxFamilyLabel(fam.family);
       let pending = saved[fam.family] || fam.current || '';
       // Cue preference, then whatever the option actually covers -- an option
       // that does not include the preferred cue must still be auditionable.
@@ -568,16 +561,22 @@ export function makeSettingsPanel({
           if (cue) audio?.sfxPreview?.(fam.family, pending, cue);
         },
       },
-      el('option', { value: '', text: 'Default (all variants)', selected: pending ? null : true }),
+      el('option', { value: '', text: t('settings.sfx.default'), selected: pending ? null : true }),
       ...fam.options.map((o) => el('option', {
         value: o.id,
-        text: `${o.label}${o.files > 1 ? ` (${o.files})` : ''}`,
+        // The count suffix went through a template literal, which put a raw
+        // player-facing format string back into this file -- the one file whose
+        // whole job is to be readable in the player's own language. The label
+        // itself is DATA (the recording's name, which is how the owner tells me
+        // which wins); only the "(3)" around it is prose, and that is what t()
+        // now owns.
+        text: o.files > 1 ? t('settings.sfx.optionCount', { label: o.label, count: o.files }) : o.label,
         selected: pending === o.id ? true : null,
       })));
       const preview = el('button', {
         type: 'button',
         class: 'setting-toggle',
-        text: 'Play',
+        text: t('settings.sfx.play'),
         onclick: () => {
           const cue = cueFor(pending);
           if (!cue) return;
@@ -585,10 +584,10 @@ export function makeSettingsPanel({
           // Report rather than shrug: a Play button that does nothing when the
           // bank has not loaded the file is indistinguishable from a sound the
           // owner simply cannot hear over the ambience.
-          if (!heard) notify({ message: `No recording loaded for ${label}.`, category: 'invalid' });
+          if (!heard) notify({ message: t('settings.sfx.noRecording', { family: label }), category: 'invalid' });
         },
       });
-      return row(label, `${fam.options.length} recordings. Switching plays it straight away.`,
+      return row(label, t('settings.sfx.detail', { count: fam.options.length }),
         el('div', { class: 'setting-inline' }, select, preview));
     });
   }
@@ -633,9 +632,7 @@ export function makeSettingsPanel({
         row(t('settings.developer.apply'), t('settings.developer.apply.detail'),
           el('button', { type: 'button', class: 'primary', text: t('settings.developer.save'), onclick: applyRoom })),
       ),
-      section('Sound auditions',
-        'Every family below offers several genuinely different recordings. Switch one and you hear it immediately — tell me which wins by its name and it becomes the default.',
-        ...sfxAuditionRows()),
+      section(t('settings.sfx.title'), t('settings.sfx.intro'), ...sfxAuditionRows()),
     );
   }
 

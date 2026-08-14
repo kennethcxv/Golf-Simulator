@@ -7085,14 +7085,28 @@ export function createRegisterMode(B) {
     // Queued first, they would take the PREVIOUS sale's value -- zero on the
     // first sale of the session, which is exactly the overlap being removed.
     const drawerVoiceSeconds = Number(sfx('drawerOpenSequence')) || 0;
+    // WHAT WAS ACTUALLY TENDERED. This fired `billHandle` unconditionally, so a
+    // customer paying with a fistful of coins rustled like paper notes. The
+    // handful is notes if there are any notes in it and coins otherwise, which
+    // is what a hand full of mixed change sounds like.
+    // The cue names are written out rather than held in a variable: the routing
+    // check greps the source for a literal inside an sfx() call, and an
+    // indirection it cannot see through reads to it as "this cue has no
+    // normal-play route at all". Defeating the instrument is not the same as
+    // satisfying it.
+    const tenderHasNotes = tenderMeshes.some((m) => BILLS.includes(Number(m.userData.denom)));
+    const playHandle = () => {
+      if (tenderHasNotes) sfx('billHandle');
+      else sfx('coinHandle');
+    };
     if (drawerVoiceSeconds > 0) {
-      setTimeout(() => { sfx('billHandle'); }, Math.round(drawerVoiceSeconds * 1000));
+      setTimeout(playHandle, Math.round(drawerVoiceSeconds * 1000));
     } else {
       // No audio engine (or no recordings): keep the old immediate voice rather
       // than holding the cash back for a silence.
       sfx('drawerUnlock');
       sfx('drawerOpen');
-      sfx('billHandle');
+      playHandle();
     }
     tenderMeshes.forEach((mesh, index) => {
       const denom = Number(mesh.userData.denom);

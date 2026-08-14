@@ -245,7 +245,21 @@ test('B (Goal 25): 16-24 countable BUNCHES of many fine strands, not 16-24 rods'
     `and each bunch is many fine strands, got ${(rig.strandCount / rig.clumpCount).toFixed(1)} per bunch`);
   // The fineness is the other half of "many fine strands": at 13 mm a strand
   // reads as a length of pipe however many of them there are.
-  assert.ok(SHIPPED_MOP_YARN.strandRadiusTop * 2 < 0.008,
+  //
+  // BAR RAISED 8 mm -> 11 mm ON THE OWNER'S INSTRUCTION, PLAYTEST 3 ITEM 5:
+  // "MAKE EACH STRAND THICKER. They are far too thin", with "strand thickness
+  // and the hub connection are NOT part of that [density] decision -- fix those
+  // regardless." He is looking at the shipped 7.6 mm strand and calling it thin.
+  //
+  // The 8 mm bar was set against a DIFFERENT head: 380 strands on a 0.256-wide
+  // ball, where a thick strand was a large fraction of what the eye saw. At 972
+  // strands on a 0.336-wide disc the same millimetre is a much smaller share of
+  // the silhouette. 13 mm is still pipe and the bar still refuses it.
+  //
+  // Recorded here rather than quietly widened: if he looks at 10.2 mm and says
+  // it is now pipe, this line and SHIPPED_MOP_YARN.strandRadiusTop are the two
+  // places to put back.
+  assert.ok(SHIPPED_MOP_YARN.strandRadiusTop * 2 < 0.011,
     `a strand is yarn, not pipe: ${(SHIPPED_MOP_YARN.strandRadiusTop * 2 * 1000).toFixed(1)} mm across`);
   // AND THE GAPS SURVIVE THE DENSITY. This is what stops "many fine strands"
   // sliding back into the brush: bunches must stay separated at the collar.

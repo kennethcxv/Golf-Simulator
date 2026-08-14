@@ -480,6 +480,15 @@ export function buildToolViewmodels() {
                   // rather than the function defaults nobody holds.
                   ...SHIPPED_MOP_YARN,
                 });
+                // PLAYTEST 3 ITEM 5, THE VERTICAL HALF OF "they form a ring
+                // floating around AND BELOW it". The hub is a cone spanning
+                // y 0.007 .. 0.045, and the yarn hung from y = 0: the strand
+                // tops began 7 mm UNDER the underside of the clamp, so even
+                // where the radii overlapped there was a horizontal slot of
+                // daylight between the two. Lifting the rig to 0.022 puts the
+                // anchors in the middle of the hub's body, so the tops are
+                // INSIDE it and the clamp visibly grips them.
+                rig.root.position.y = 0.022;
                 collar.add(rig.root);
 
                 // 5.1 (Goal 26) — "IT DOES NOT CONNECT TO THE STEM. There is a

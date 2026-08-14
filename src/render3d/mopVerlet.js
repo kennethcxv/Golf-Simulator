@@ -278,8 +278,19 @@ export const SHIPPED_MOP_YARN = Object.freeze({
   // tubes (see the openEnded note below). 4 is enough for the motion and costs
   // half the draws and half the triangles, so it stays at 4.
   segments: 4,
-  strandRadiusTop: 0.0038,
-  strandRadiusBottom: 0.0027,
+  // PLAYTEST 3 ITEM 5 -- "MAKE EACH STRAND THICKER. They are far too thin."
+  //
+  // 0.0038 yd is 3.5 mm of radius, 7 mm across. An earlier round went to 4.5 mm
+  // radius (9 mm across) and was refused as too thick -- but that was against a
+  // DIFFERENT head: 380 strands on a 0.256-wide ball, where 9 mm ropes read as
+  // pipes. At 972 strands on a 0.336-wide disc the same thickness reads as yarn,
+  // because each strand is a smaller fraction of what the eye sees.
+  //
+  // 1.35x, not 2x: the tips are what splay apart at the hem, and doubling the
+  // bottom radius closes the daylight between bunches that the Goal 25 ruling is
+  // about -- which is the owner's call, not mine to pre-empt.
+  strandRadiusTop: 0.0051,
+  strandRadiusBottom: 0.0036,
   radialSegments: 5,
   lengthVariation: 0.24,
   clumps: 18,
@@ -291,9 +302,26 @@ export const SHIPPED_MOP_YARN = Object.freeze({
   // the collar while the bunches themselves stay countable, which is what the
   // Goal 25 ruling was actually about.
   clumpGather: 0.80,
+  // ITEM 5: the bunches hang from inside the hub's grip rather than from a ring
+  // outside it. See COLLAR_RADIUS below for the measurement that forced this.
+  collarRadiusFrac: 0.50,
   // and a stronger flare, because a disc is what the outward push makes: at 0.32
   // the bundle fell as a column and only the hem opened.
-  splay: 0.52,
+  // ITEM 5, AND IT IS THE OTHER HALF OF MOVING THE ANCHORS INSIDE THE HUB.
+  //
+  // Clamping the bunches at 0.50 of the head radius takes 0.39 of a radius off
+  // where they start, and at splay 0.52 the tips then reached only 0.1259
+  // against a 0.168 head -- I had made the whole head NARROWER while fixing the
+  // gap, which the "the collar must still reach the rim" assertion caught.
+  //
+  // Swept rather than guessed (tip radius after 240 frames of settling is not
+  // linear in splay):
+  //     0.52 -> 0.1259   0.70 -> 0.1364   0.90 -> 0.1476
+  //     1.10 -> 0.1583   1.30 -> 0.1684   1.50 -> 0.1779
+  // 1.30 puts the hem at 0.1684 against a head radius of 0.168, so the yarn
+  // reaches the rim exactly. Anchored at the middle, open at the hem: a cone
+  // that fills the head rather than a ring that outlines it.
+  splay: 1.30,
 });
 
 export function createVerletMopStrands({
@@ -322,6 +350,10 @@ export function createVerletMopStrands({
   // neighbouring bunches. Below 1 the bunches do not touch, which IS the point:
   // the daylight between them is what stops it reading as a brush.
   clumpGather = 0.42,
+  // Where the bunch centres sit, as a fraction of the head radius. Must stay
+  // inside the hub's bottom radius (HEAD_R * 0.52 in toolViewmodel.js) or the
+  // yarn hangs outside the clamp again.
+  collarRadiusFrac = 0.50,
   // outward flare at the hem, as a fraction of the head radius. This is the
   // skirt: 0 is the straight-sided barrel that photographed as a brush.
   splay = 0.55,
@@ -406,7 +438,30 @@ export function createVerletMopStrands({
   // Bunch centres ride the collar annulus. Spacing between neighbours sets how
   // far a strand may wander from its own centre, so the gaps survive whatever
   // count is asked for.
-  const COLLAR_RADIUS = radius * (COLLAR_INNER + (1 - COLLAR_INNER) * 0.78);
+  // PLAYTEST 3 ITEM 5 -- "THE STRANDS DO NOT TOUCH THE RED HUB. They form a RING
+  // floating around and below it with clear daylight between."
+  //
+  // He is describing a measurement. The hub is a cone of bottom radius
+  // HEAD_R * 0.52 = 0.0874, and this ring sat at
+  //     radius * (0.52 + 0.48 * 0.78) = 0.894 * radius = 0.150,
+  // with the bunches spreading inward only as far as 0.129. So the nearest yarn
+  // began 42 mm outside the widest part of the clamp that is supposed to be
+  // gripping it, and the middle of the head -- everything inside 0.129 -- was
+  // empty. That is a ring, exactly as reported, and no amount of density fixes
+  // it because the strands were never under the hub to begin with.
+  //
+  // `collarRadiusFrac` is now the fraction of the head radius the bunch centres
+  // sit at, and it defaults INSIDE the hub's grip. The hem still reaches the
+  // rim: the splay force pushes the tips out by about `splay * radius`, so
+  // anchors at 0.50 * radius plus a 0.52 splay lands the hem at roughly the full
+  // head radius. Clamped at the middle, open at the hem -- which is what a spin
+  // mop is, and it fills the disc instead of outlining it.
+  //
+  // NOTE FOR THE DENSITY RULING, which is the owner's: this changes WHERE the
+  // bunches hang, not how many there are or how far apart they are. The 18
+  // bunches and their daylight are untouched, so whichever way that ruling goes
+  // it composes with this.
+  const COLLAR_RADIUS = radius * collarRadiusFrac;
   const clumpGap = (2 * Math.PI * COLLAR_RADIUS) / CLUMPS;
   for (let i = 0; i < N; i += 1) {
     // D (Goal 23) — THE BANDS HANG FROM A COLLAR, NOT FROM A POINT.
