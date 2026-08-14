@@ -13011,6 +13011,34 @@ export function makeClubhouse(ctx) {
         // browsing, or they walked past it -- and the route index separates them.
         stopIdx: c.stopIdx ?? null,
         stopKind: (c.stops && c.stops[c.stopIdx]) ? c.stops[c.stopIdx].kind : null,
+        // How deep inside the nearest customer collider this body is, and how far
+        // outside if it is clear. The residual walk-in-place happens with ~1.9 yd
+        // of clear space to the nearest neighbour, so it is NOT crowd separation;
+        // the remaining candidate is static geometry, and this is what asks it.
+        // Positive = penetration depth, negative = clearance.
+        // Is this body deliberately HOLDING for a fixture stand? A shopper waiting
+        // their turn at a shelf stands still with movement intent still set, which
+        // my walk-in-place metric would score as the defect -- the same mistake
+        // the queue split already corrected one level up. Exposed so the metric
+        // can exclude it rather than be quietly wrong about it.
+        waitingForStand: c.waitSlot != null || c.waitFixtureId != null,
+        fixtureClaim: c.fixtureClaim ?? null,
+        linger: Number.isFinite(c.linger) ? +c.linger.toFixed(2) : null,
+        colliderPen: (() => {
+          if (!c.mesh) return null;
+          const x = c.mesh.position.x;
+          const z = c.mesh.position.z;
+          let best = -Infinity;
+          for (const col of custCols) {
+            if (col.door) continue;
+            // signed distance to the box: >0 inside
+            const dx = Math.min(x - col.minX, col.maxX - x);
+            const dz = Math.min(z - col.minZ, col.maxZ - z);
+            const pen = Math.min(dx, dz);
+            if (pen > best) best = pen;
+          }
+          return Number.isFinite(best) ? +best.toFixed(3) : null;
+        })(),
         // Distance to the CURRENT stop. The arrival test is `dist < 0.18`, and
         // "they never arrived" is only meaningful next to how close they got.
         targetDist: (c.stops && c.stops[c.stopIdx] && c.mesh)

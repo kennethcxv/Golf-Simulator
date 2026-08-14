@@ -42,7 +42,7 @@ not painted" manufactured a false negative about a click.
 |---|---|
 | **1 — Audio** | **GATE PASSED** — see §4 |
 | **2 — The walk-up** | **BOTH ITEMS FIXED, MEASURED AND FILMED**; residual handed to Phase 3 |
-| 3 — NPC navigation | **3.1 diagnosed and proven**; integration not started |
+| 3 — NPC navigation | **3.1 proven, residual characterised to 5.3%**; integration not started |
 | 4 — Time and bookings | not started |
 | 5 — Mop and hands | not started |
 | 6 — Ledger UI | not started |
@@ -684,3 +684,46 @@ the camera is re-driven every frame).
 Two missing accessors in one file, in one run, both producing a confident false
 negative. An optional chain onto a name that was never there returns `undefined`,
 and `undefined` dressed as a zero is a measurement of nothing.
+
+
+---
+
+# PHASE 3 — THE RESIDUAL STALL, CHARACTERISED
+
+2.1 removed the player's body as a cause and left a residual. Rather than guess
+at it, the residual was decomposed until every part of it was either explained or
+isolated. Four measurements, each of which changed the answer:
+
+| # | Question | Result |
+|---|---|---|
+| 1 | Is it another body? | **No.** 0 of 153 stalls had any neighbour within 0.75 yd; mean clear space **1.93 yd** |
+| 2 | Is it static geometry? | **No.** 0 stalls against a collider; the closest any stalled body came to one was **0.30 yd**, mean clearance 0.72 yd |
+| 3 | Is it waiting for a shelf? | **Partly — 53 % of it.** `waitingForStand` accounts for 86 of 161, and that is *correct behaviour* |
+| 4 | What is left? | **75 frames.** True stall rate **75 / 1403 = 5.3 %** |
+
+So the honest residual is a customer standing in open floor — no neighbour within
+three-quarters of a yard, at least 0.30 yd clear of every collider, not holding
+for a stand — roughly **1.4 yd from its target**, with a movement intent above
+0.35 yd/s, going nowhere.
+
+That is not avoidance, not separation, and not collision. It is internal to the
+steering or the path, which is exactly what 3.3 is about ("a stuck detector based
+on real progress toward the path target, not on velocity" — note that this
+measurement *is* progress-toward-target, which is why it can see the fault at
+all).
+
+**Question 3 is the important lesson**, and it is shape 16 for the second time,
+one level down. Before that split the residual read 10.8 %; after it, 5.3 %. Half
+the "defect" was shoppers politely waiting their turn at a shelf. A metric that
+cannot tell waiting from stuck will condemn a build that is behaving.
+
+## Instrumentation this leaves behind
+
+All QA-only, all read by drivers rather than by the game: `qaPickStats` (which of
+five decline paths fired), `qaCustomerTrack` now carrying `targetDist`,
+`colliderPen` (signed penetration, positive inside), `waitingForStand`,
+`fixtureClaim` and `linger`, plus the 20 Hz stop tracer. Between them they turn
+"they get stuck sometimes" into a number with its causes separated.
+
+**NOT FIXED.** The 5.3 % is measured, isolated and handed over — no fix is
+claimed for it.

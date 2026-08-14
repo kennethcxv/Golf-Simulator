@@ -244,7 +244,41 @@ async (page) => {
             // so the number that matters is the not-yet-queued one.
             if (intent > 0.35 && d < 0.004) {
               s.walkInPlace += 1;
-              if (c.queued) s.walkInPlaceQueued += 1; else s.walkInPlaceApproaching += 1;
+              if (c.queued) s.walkInPlaceQueued += 1;
+              else {
+                s.walkInPlaceApproaching += 1;
+                // WHO IS STOPPING THEM? At the moment of treading air, how far is
+                // the nearest other body, and how far to the target? A neighbour
+                // inside body-radius says crowd separation; a clear neighbour with
+                // a far target says something else is eating the step. Computed in
+                // the driver from positions, so no production code has to be
+                // instrumented to ask it.
+                let nearest = Infinity;
+                for (const o of list) {
+                  if (o.id === c.id) continue;
+                  nearest = Math.min(nearest, Math.hypot(o.x - c.x, o.z - c.z));
+                }
+                if (Number.isFinite(nearest)) {
+                  s.wipNearestSum = (s.wipNearestSum || 0) + nearest;
+                  s.wipNearestMin = Math.min(
+                    s.wipNearestMin == null ? Infinity : s.wipNearestMin, nearest,
+                  );
+                  if (nearest < 0.75) s.wipCrowded = (s.wipCrowded || 0) + 1;
+                  else s.wipClear = (s.wipClear || 0) + 1;
+                }
+                if (Number.isFinite(c.targetDist)) {
+                  s.wipTargetSum = (s.wipTargetSum || 0) + c.targetDist;
+                }
+                if (c.waitingForStand) s.wipWaitingForStand = (s.wipWaitingForStand || 0) + 1;
+                else s.wipTrulyStuck = (s.wipTrulyStuck || 0) + 1;
+                if (Number.isFinite(c.colliderPen)) {
+                  s.wipPenSum = (s.wipPenSum || 0) + c.colliderPen;
+                  s.wipPenMax = Math.max(
+                    s.wipPenMax == null ? -99 : s.wipPenMax, c.colliderPen,
+                  );
+                  if (c.colliderPen > -0.05) s.wipAgainstCollider = (s.wipAgainstCollider || 0) + 1;
+                }
+              }
             } else if (d >= 0.004) {
               s.moved += 1;
               if (!c.queued) s.movedApproaching += 1;
@@ -286,6 +320,28 @@ async (page) => {
       return (w + m) ? +(w / (w + m)).toFixed(4) : null;
     })(),
     queuedWalkInPlace: withMotion.reduce((a, c) => a + (c.walkInPlaceQueued || 0), 0),
+    wipCrowded: withMotion.reduce((a, c) => a + (c.wipCrowded || 0), 0),
+    wipClear: withMotion.reduce((a, c) => a + (c.wipClear || 0), 0),
+    wipNearestMin: Math.min(...withMotion.map((c) => (c.wipNearestMin == null ? 99 : c.wipNearestMin))),
+    wipMeanNearest: (() => {
+      const n = withMotion.reduce((a, c) => a + (c.walkInPlaceApproaching || 0), 0);
+      const sum = withMotion.reduce((a, c) => a + (c.wipNearestSum || 0), 0);
+      return n ? +(sum / n).toFixed(3) : null;
+    })(),
+    wipWaitingForStand: withMotion.reduce((a, c) => a + (c.wipWaitingForStand || 0), 0),
+    wipTrulyStuck: withMotion.reduce((a, c) => a + (c.wipTrulyStuck || 0), 0),
+    wipAgainstCollider: withMotion.reduce((a, c) => a + (c.wipAgainstCollider || 0), 0),
+    wipPenMax: Math.max(...withMotion.map((c) => (c.wipPenMax == null ? -99 : c.wipPenMax))),
+    wipMeanPen: (() => {
+      const n = withMotion.reduce((a, c) => a + (c.walkInPlaceApproaching || 0), 0);
+      const sum = withMotion.reduce((a, c) => a + (c.wipPenSum || 0), 0);
+      return n ? +(sum / n).toFixed(3) : null;
+    })(),
+    wipMeanTargetDist: (() => {
+      const n = withMotion.reduce((a, c) => a + (c.walkInPlaceApproaching || 0), 0);
+      const sum = withMotion.reduce((a, c) => a + (c.wipTargetSum || 0), 0);
+      return n ? +(sum / n).toFixed(3) : null;
+    })(),
     walkInPlaceRatio: (() => {
       const w = withMotion.reduce((a, c) => a + c.walkInPlace, 0);
       const m = withMotion.reduce((a, c) => a + c.moved, 0);
