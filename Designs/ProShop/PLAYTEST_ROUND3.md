@@ -348,3 +348,73 @@ had failed to pay for.
 **Remaining suspects for his session:** a cash-tender head, or a check-in head
 that waits for the player at the desk by design. If it happens again: does the
 person at the front have a shopping basket, or are they there for a tee time?
+
+
+---
+
+# ROUND 5 — the two remaining first-time lags
+
+> "the biggest issue is just turning the ledger book page for the first time and
+> switching to the dust cleaner. If there is a way we can simulate these before
+> hand... they only lag the first time you do it."
+
+They were not the same defect, and only one of them was still real.
+
+## The dustpan was already warm
+
+First equip: **+0 programs, +0 textures, +0 geometries**, 20-27 ms. The deferred
+warm from round 4 covers it and reports `hands:done sweep:done`. If it still
+lags in a session, that session is on a build from before round 4.
+
+## The ledger: the prewarm compiled hidden objects but never DREW them
+
+The prewarm's own phase log said `ledger-first-visibility` had run — so the call
+was landing and the cost was arriving anyway. `renderer.info.memory` is what
+separated cause from symptom:
+
+> **`compile()` builds PROGRAMS. It never uploads GEOMETRY.**
+
+`hidden-objects-revealed` revealed every hidden object, compiled it, and hid it
+again — so a hidden object's first **draw** was still the frame the player
+triggered. That is not a ledger bug; it is the shape of every "first time I press
+this" stall in the game.
+
+| | before | after |
+|---|---|---|
+| ledger open | +25 geometries | **0** |
+| **first page turn** | **464.4 ms**, +2 geometries | **32.9 ms**, 0 geometries |
+| first cashier E | 560.5 ms | ~270 ms |
+| first tool equip (spray) | +13 geometries | **0** |
+
+The fix is one composer frame with the revealed set actually drawn, frustum
+culling off so an object the prewarm camera is not pointed at is still
+submitted.
+
+**The millisecond figures are noisy** — the same unchanged build gave 33.7 ms and
+464.4 ms for the same gesture on two runs. This claim rests on the geometry
+counters, which are deterministic and went to zero. I nearly reported a "cashier
+regression" from that noise before A/B-ing it; the A/B showed the change halved
+it.
+
+## Still open, and named
+
+One `basic` program compiles on the first page turn.
+`renderer.properties` matches it to its owner:
+
+```
+LedgerTurningLeafBack · parent LedgerTurningLeafPivot
+MeshBasicMaterial · side 1 (BackSide) · hasMap true
+```
+
+It IS the leaf, and it does draw during the warm — so the warm frame and the
+turn frame want different variants of the same material. A layer the prewarm
+camera does not test, or a frame-state term in the cache key, are the candidates
+left. **Not chased further:** one program, ~15 ms, against the 464 → 33 ms
+already bought on that same gesture. `tools/qa/electron-pageturn-owner.js` names
+the owner so the next attempt does not start from a guess.
+
+**PROBE-LIE COUNT: 32.** #32: the first page-turn survey walked only the ledger's
+own subtree, found it unchanged, and so could report what had NOT changed while
+saying nothing about what had. Widening it to the whole scene is what showed the
+mesh count identical either side and turned the search toward the renderer's
+own bookkeeping.
