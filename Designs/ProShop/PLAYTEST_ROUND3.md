@@ -248,3 +248,53 @@ in a burst at the boundary. The implementation is at `adb9ef2`.
   the sponge pose with the same "page closed" signature, which may be the same
   GPU loss. Re-running on a quiet machine.
 - The pre-existing outdoor collapse (item 1 above).
+
+
+## ADDENDUM RESOLVED — the 3 fps was the GPU process, and the game now says so
+
+The full matrix, every axis excluded by measurement:
+
+| axis | result |
+|---|---|
+| fresh save, current code | 69 fps |
+| **his actual save**, planted into a clean profile, booted via Continue | 63 standing / 47 walking |
+| pre-tonight code | 63 fps |
+| GPU string in every harness run | hardware ANGLE, RTX 5080, D3D11 |
+
+The one thing his broken launches share with no harness run is his session's GPU
+process, and his own log names it: `GPU state invalid after
+WaitForGetOffsetInRange`. After that loss Chromium continues under SwiftShader,
+and software rendering on this scene IS 3 fps from the first frame — which also
+explains "the loading screen is faster but then no fps".
+
+**Done about it:** his profile's GPU shader caches cleared (17 MB GPUCache plus
+both Dawn caches, all written during the crashed sessions; saves untouched), and
+`src/core/gpuHealth.js` now watches both observable forms — a context that boots
+in software, and a context lost mid-session — reporting to crash.log and
+toasting a localized "save and restart" line. Healthy boots stay silent, pinned
+by a control using his exact RTX 5080 renderer string. If the next session is
+still 3 fps, the toast will say so, and the suspect becomes the NVIDIA driver
+itself.
+
+**Two more instrument findings from proving the save axis**, recorded because
+they will bite again: the menu enables Continue asynchronously (sampling it
+immediately tests a fresh game while claiming to test the save), and
+`/Continue/` can never match an ENABLED Continue button — the label
+concatenates with the summary into "ContinuePine Hills…" and the trailing word
+boundary fails. qa-boot's VERIFY2_L comment documents that same landmine.
+
+**And one self-inflicted git wound, caught and fixed:** `git checkout <commit>
+-- <path>` STAGES what it restores. The perf A/B staged the pre-round-3 mop and
+the next commit silently shipped it; the suite could not object because both
+values sit inside the test's band. The 432-strand mop is restored, and the
+accepted tool-mop golden was captured from that build, so code and reference
+agree.
+
+Suite **3637/3637** (five gpu-health tests new). Golden gate **13/13**, control
+OK. Lint ratchet 325, the inherited red, unchanged through everything.
+
+**PROBE-LIE COUNT: 31.** #30: the owner-save driver measured a fresh game twice
+while claiming to test his save (the async Continue). #31: the boot-fps
+comparison I first showed him was taken while a full test suite and a golden
+capture were competing for the machine — the numbers were real, the comparison
+was not; it was retaken quiet.
