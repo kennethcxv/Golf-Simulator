@@ -20,7 +20,8 @@
     "golden:accept": "node tools/golden-diff.mjs --accept",
     "golden:control": "node tools/golden-control.mjs",
     "gate": "node tools/lint-ratchet.mjs && node tools/build-vendor-models.mjs --check && npm test && npm run golden && npm run golden:control",
-    "gen:broom-metrics": "node tools/gen/extract-broom-metrics.mjs"
+    "gen:broom-metrics": "node tools/gen/extract-broom-metrics.mjs",
+    "save:check": "node tools/inspect-save.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
