@@ -1,4 +1,4 @@
-# PLAYTEST ROUND 3 — six items
+# PLAYTEST ROUNDS 3-4
 
 **PROBE-LIE COUNT: 29.** Four new, all mine, all caught before they reached you —
 three of them by one control. See the last section.
@@ -298,3 +298,53 @@ while claiming to test his save (the async Continue). #31: the boot-fps
 comparison I first showed him was taken while a full test suite and a golden
 capture were competing for the machine — the numbers were real, the comparison
 was not; it was retaken quiet.
+
+
+---
+
+# ROUND 4 — the report while it was being written
+
+## First-press stalls — **one defect, four hats, FIXED**
+
+Bottle to dustpan, first cashier click, first check-in, first page turn: every
+one is the first draw of a material set compiling GL programs on a player-facing
+frame. The warm is back at a **different moment** than the withdrawn version:
+seconds after the game is interactive, from a timeout — never at the veil
+boundary where the round-3 attempt sat when the GPU process died. Two stages:
+the real-draw hands warm, then `renderer.compileAsync` over the whole scene
+(KHR_parallel_shader_compile — every remaining program builds off the render
+thread, covering the register and the ledger, without blocking a frame).
+
+| gesture | unwarmed (round-3 measurement) | now |
+|---|---|---|
+| dustpan first equip | 282.4 ms / +8 programs | **24.9 ms / +0** |
+| cashier first E | "lagged really hard" | **20.2 ms / +0** |
+| page turn first | 32-34 ms / +1 | 34.4 ms / +1 (the ledger's own paint) |
+
+## NPCs — three additions his words asked for
+
+- **The player is a neighbour.** Walkers ran reciprocal avoidance against every
+  customer and treated the player as a hard clamp at the last half-yard — which
+  is "running into myself in general". The player now enters the same math,
+  pinned, with a wider 0.4 body.
+- **A queue gets a berth** — pinned members carry +0.12 radius, so walkers pass
+  the line at a distance instead of grazing it.
+- **Yield, not just swerve** — an urgent threat scales the step to 0.6/0.35, so
+  two crossing walkers resolve as one yielding instead of both wedging into the
+  gap at full stride.
+
+## "The second person doesn't come up" — **cannot reproduce, and the proof is a driver**
+
+- Arm A, head despawned outright: #2 advances in **0.5 s**.
+- Arm B, the **entire shipped sale** driven at the register (E, click-to-scan,
+  card, exact total with tax, bag handoff to `released`): #2 advances in ~5 s
+  and the next transaction auto-starts.
+
+Two instrument lessons paid for it: `checkoutQueue()` rows are sim entries with
+no meshes, and the terminal wants `totalOf()` **with tax** — the first run typed
+the untaxed sum, was never approved, and blamed the game for a sale the driver
+had failed to pay for.
+
+**Remaining suspects for his session:** a cash-tender head, or a check-in head
+that waits for the player at the desk by design. If it happens again: does the
+person at the front have a shopping basket, or are they there for a tee time?
