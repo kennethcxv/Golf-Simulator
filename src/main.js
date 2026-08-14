@@ -5,6 +5,7 @@
 
 import { BALANCE, simSpeedMultipliers } from './sim/balance.js';
 import { installFaultGuard, reportFault, showFatalPanel } from './core/faultGuard.js';
+import { watchGpuHealth } from './core/gpuHealth.js';
 import { installQaLookCapture } from './core/qaLookCapture.js';
 import { createFrameCap } from './core/frameCap.js';
 import { createStartupHold, installStartupInputHold } from './core/startupHold.js';
@@ -1082,9 +1083,12 @@ function announceOutbreaks() {
 // --- game lifecycle -----------------------------------------------------------
 
 let sceneStartGeneration = 0;
+let disposeGpuHealthWatch = null;
 let pendingSceneBarrier = null;
 
 function destroyCurrentScene({ hideVeil = false } = {}) {
+  disposeGpuHealthWatch?.();
+  disposeGpuHealthWatch = null;
   if (app.laptopOpen) exitLaptop(true);
   toolWheel?.close('scene-change');
   clearNotifications();
@@ -1158,6 +1162,19 @@ function startGameNow(
   // the opaque loading veil is still up and make Continue change saved cash.
   app.screen = 'game';
   app.scene3d = makeCourseScene(canvas, state);
+  // GPU HEALTH (2026-08-13): the owner played a whole session at 3 fps because
+  // his GPU process died and nothing in the game said so -- software rendering
+  // spent a night masquerading as a performance regression. The watch names
+  // both observable forms: a context that boots in SwiftShader, and a context
+  // lost mid-session. reportFault lands it in crash.log next to the checkout
+  // diagnostics; the toast tells the player the one thing that helps (restart).
+  disposeGpuHealthWatch?.();
+  disposeGpuHealthWatch = watchGpuHealth({
+    canvas,
+    gl: app.scene3d.renderer?.getContext?.(),
+    report: (origin, message, extra) => reportFault(origin, new Error(message), extra || {}),
+    notify: (kind) => toast(t(kind === 'software' ? 'gpu.softwareMode' : 'gpu.contextLost'), 'warn'),
+  });
   if (!startupHold.attachScene(startupToken, app.scene3d)) {
     throw new Error('Course startup hold ownership changed before scene attachment.');
   }
