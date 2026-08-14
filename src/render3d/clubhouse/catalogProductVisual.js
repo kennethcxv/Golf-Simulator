@@ -682,7 +682,7 @@ export function buildCatalogProductProxy({
 // One deterministic layout is used by the customer's placement proxy and the
 // register-owned replacement, preventing a pop when ownership changes. Long goods
 // lie across the staging tray; compact goods occupy the remaining customer-side row.
-export function catalogCheckoutLayout(items, staging, restY) {
+export function catalogCheckoutLayout(items, staging, restY, keepOut = null) {
   const source = items || [];
   const descriptors = source.map((item) => catalogProductVisual(item && (item.sku || item)));
   const large = [];
@@ -793,7 +793,36 @@ export function catalogCheckoutLayout(items, staging, restY) {
   // must exceed the two touching half-widths plus a gap. That is the exact
   // non-overlap condition for a row sorted along x, so a row that passes cannot
   // interpenetrate. Whatever does not fit goes to the next layer and rests on top.
-  const spanMinX = localStaging.minX;
+  // PLAYTEST 3 ITEM 6 — THE GOODS MUST NOT TOUCH THE BAG.
+  //
+  // "When the customer puts goods down, they must never intersect or rest
+  // against the shopping bag. Not overlapping, not touching."
+  //
+  // The layout already had a designed gap: the staging strip starts at register
+  // x -0.74 and the bagging footprint's right edge is -0.82, which is 0.08 of
+  // clear counter. The goods reached the bag anyway, and the reason is 2.2's own
+  // ruling -- centres are distributed across the FULL span and outer items are
+  // allowed to OVERHANG, because the staging contract constrains centres and not
+  // extents. A 0.31-wide shoe carton centred on -0.74 puts its left edge at
+  // -0.895, which is 0.075 PAST the bag. The gap was real and the overhang ate
+  // it.
+  //
+  // So the keep-out is applied to the EDGE rather than the centre: the span's
+  // left end moves right by however much the widest item in the row overhangs,
+  // and only far enough to clear. Nothing else about the packing changes, so
+  // 2.2's non-overlap guarantee between goods is untouched.
+  const keepOutCorners = keepOut ? [
+    frontDeskLocalPoint(keepOut.minX, keepOut.minZ),
+    frontDeskLocalPoint(keepOut.minX, keepOut.maxZ),
+    frontDeskLocalPoint(keepOut.maxX, keepOut.minZ),
+    frontDeskLocalPoint(keepOut.maxX, keepOut.maxZ),
+  ] : null;
+  // "Not overlapping, not touching" -- so a clear sliver, not a shared edge.
+  const BAG_CLEARANCE = 0.02;
+  const keepOutMaxX = keepOutCorners
+    ? Math.max(...keepOutCorners.map((point) => point.x)) + BAG_CLEARANCE
+    : null;
+
   const spanMaxX = localStaging.maxX;
   const rowCentreZ = (localStaging.minZ + localStaging.maxZ) / 2;
 
@@ -805,7 +834,15 @@ export function catalogCheckoutLayout(items, staging, restY) {
   /** Do n items fit one row, distributing their centres evenly across the span? */
   const rowFits = (entries) => {
     if (entries.length <= 1) return true;
-    const step = (spanMaxX - spanMinX) / (entries.length - 1);
+    // The same shifted span the placement will use, computed from THIS candidate
+    // row's leftmost item. Asking "does it fit" against the unshifted span would
+    // accept a row the placement then has to squeeze, which is how a non-overlap
+    // guarantee turns back into an overlap.
+    const leftHalf = entries[0].box.w / 2;
+    const minX = keepOutMaxX === null
+      ? localStaging.minX
+      : Math.min(spanMaxX, Math.max(localStaging.minX, keepOutMaxX + leftHalf));
+    const step = (spanMaxX - minX) / (entries.length - 1);
     for (let i = 0; i + 1 < entries.length; i += 1) {
       if (step < (entries[i].box.w + entries[i + 1].box.w) / 2 + GAP) return false;
     }
@@ -821,6 +858,13 @@ export function catalogCheckoutLayout(items, staging, restY) {
     let take = boxes.length - cursor;
     while (take > 1 && !rowFits(boxes.slice(cursor, cursor + take))) take -= 1;
     const row = boxes.slice(cursor, cursor + take);
+    // The leftmost item is the one that can reach the bag, so the span's left end
+    // is pushed in by ITS half-width -- per row, because which item sits leftmost
+    // changes with the row. Clamped so a very wide item cannot invert the span.
+    const leftHalf = row.length ? row[0].box.w / 2 : 0;
+    const spanMinX = keepOutMaxX === null
+      ? localStaging.minX
+      : Math.min(spanMaxX, Math.max(localStaging.minX, keepOutMaxX + leftHalf));
     const step = row.length > 1 ? (spanMaxX - spanMinX) / (row.length - 1) : 0;
     let rowMaxHeight = 0;
     row.forEach((entry, i) => {
@@ -838,6 +882,16 @@ export function catalogCheckoutLayout(items, staging, restY) {
         // interpenetration at a glance.
         footprintW: +entry.box.w.toFixed(4),
         footprintD: +entry.box.d.toFixed(4),
+        // THE FRAME THE PACKING HAPPENED IN. `frontDeskPose` is MIRRORED with
+        // respect to local x -- measured, local -0.9 lands at world +0.10 and
+        // local -0.5 at world -0.30 -- so a check reading `x` and reasoning about
+        // "left" is reasoning in the opposite direction from the packer. The
+        // first version of the bag-clearance test did exactly that and reported
+        // the keep-out as pushing goods TOWARD the bag while it was pushing them
+        // away. Reported for the same reason footprintW is: so a check grades
+        // the numbers the layout used rather than re-deriving them.
+        localX: +x.toFixed(4),
+        localMinX: +(x - entry.box.w / 2).toFixed(4),
         layer,
       };
       rowMaxHeight = Math.max(rowMaxHeight, entry.box.h);

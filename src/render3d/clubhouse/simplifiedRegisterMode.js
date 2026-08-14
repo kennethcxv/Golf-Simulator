@@ -5090,6 +5090,10 @@ export function createRegisterMode(B) {
       tx.items.map((item) => ({ sku: skuById(item.skuId) })),
       REGISTER.staging,
       REST_Y,
+      // ITEM 6: the bag's own footprint is a keep-out. The strip already starts
+      // clear of it; what reached the bag was the OVERHANG 2.2 deliberately
+      // allows, so the layout needs to know where the bag actually is.
+      REGISTER.bagging,
     );
     tx.items.forEach((item, index) => {
       const mesh = itemMeshes.get(item.uid);

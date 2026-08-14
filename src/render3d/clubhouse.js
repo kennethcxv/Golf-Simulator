@@ -10091,6 +10091,10 @@ export function makeClubhouse(ctx) {
         c.cart.map((entry) => ({ sku: SHOP_CATALOG.find((sku) => sku.id === entry.skuId) })),
         REGISTER.staging,
         COUNTER_TOP + 0.012,
+        // ITEM 6: this is the CUSTOMER's set-down path -- the one the brief names
+        // ("when the customer puts goods down") -- so it needs the keep-out even
+        // more than the register's own layout does.
+        REGISTER.bagging,
       );
       const pose = poses[index];
       item.placed = false;
