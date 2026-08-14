@@ -9316,7 +9316,10 @@ export function makeClubhouse(ctx) {
   // So the body has to have arrived. QUEUE_HEAD_REACH_YD is a stride and a bit:
   // tight enough that there is nobody between them and the counter, loose enough
   // that the last few inches of settling do not stall the sale.
-  const QUEUE_HEAD_REACH_YD = 0.8;
+  // Read from the layout table, which owns the queue geometry this is measured
+  // against. It was a local 0.8 while the pitch between slots is 0.684, so slot
+  // 1 counted as the desk — see the note beside `headReachYd`.
+  const QUEUE_HEAD_REACH_YD = PINE_HILLS_V2_LAYOUT?.queue?.headReachYd ?? 0.45;
   // Half a set of shoulders, plus a little. A product whose path comes closer
   // than this to somebody's centre line has gone through them.
   const BODY_CLEARANCE_YD = 0.32;
@@ -12994,6 +12997,59 @@ export function makeClubhouse(ctx) {
     queueHeadSlot: () => {
       const s = queueSlotW(0);
       return { x: s.x, z: s.z };
+    },
+    // P1 (Goal 25 playtest) — WHERE THE LINE STANDS, AND WHO IS IN FRONT OF WHOM.
+    //
+    // Reports through the SAME functions the placement gate uses
+    // (customerIsAtTheDesk, and the corridor geometry deskApproachIsClear
+    // measures), so a driver cannot certify a rule its own copy invented. The
+    // body gap is recomputed here from live world positions rather than read
+    // back as a boolean, because "did it refuse" and "was anyone actually in the
+    // way" are different questions and a probe that can only see the first
+    // cannot tell a working gate from an empty shop.
+    queueSlotForIndex: (i) => {
+      const s = queueSlotW(Math.max(0, Math.floor(i)));
+      return { x: s.x, z: s.z };
+    },
+    stagingPointWorld: () => {
+      const p = L2W(REGISTER.staging.x, REGISTER.staging.z);
+      return { x: p.x, z: p.z };
+    },
+    debugQueueCorridors: () => {
+      const staging = L2W(REGISTER.staging.x, REGISTER.staging.z);
+      return counterQueue.map((c, index) => {
+        if (!c?.mesh) return { index, name: c?.name ?? null, mesh: false };
+        const ax = c.mesh.position.x;
+        const az = c.mesh.position.z;
+        const vx = staging.x - ax;
+        const vz = staging.z - az;
+        const len2 = (vx * vx) + (vz * vz);
+        let minGap = Infinity;
+        let blockedBy = null;
+        if (len2 >= 1e-4) {
+          for (const other of customers) {
+            if (other === c || !other.mesh) continue;
+            const t = (((other.mesh.position.x - ax) * vx) + ((other.mesh.position.z - az) * vz)) / len2;
+            if (t <= 0.15 || t >= 1) continue;
+            const cx = ax + (vx * t);
+            const cz = az + (vz * t);
+            const gap = Math.hypot(other.mesh.position.x - cx, other.mesh.position.z - cz);
+            if (gap < minGap) { minGap = gap; blockedBy = other.name || null; }
+          }
+        }
+        return {
+          index,
+          name: c.name || null,
+          atDesk: customerIsAtTheDesk(c),
+          awaitingCheckout: !!c.awaitingCheckout,
+          hasCart: !!(c.cart && c.cart.length),
+          distanceToHeadSlotYd: +Math.hypot(
+            ax - queueSlotW(0).x, az - queueSlotW(0).z,
+          ).toFixed(3),
+          corridorMinBodyGapYd: Number.isFinite(minGap) ? +minGap.toFixed(3) : null,
+          blockedBy,
+        };
+      });
     },
     // B5 (Goal 24) — CLEAR THE PERSON AT THE COUNTER.
     //

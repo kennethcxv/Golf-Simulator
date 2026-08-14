@@ -382,7 +382,36 @@ export const PINE_HILLS_V2_LAYOUT = Object.freeze({
     // tail off the exit-lane side; spacing 0.68 stays in the body band the
     // old line proved. The head does not move (F5's fix keeps).
     pitchLocal: Object.freeze({ x: 0.18, z: -0.66 }),
-    lineSlots: 3,
+    // P1 (Goal 25 playtest): 3 -> 6. "At four deep the line stops being a line —
+    // the fourth person stood left of the third and behind. Single file."
+    //
+    // The fourth person is index 3, so with a cap of 3 they fell into the
+    // overflow pocket's golden-angle packing. The pocket is right for a full
+    // house; four deep is not a full house. The stated reason for the cap
+    // ("the face runs out at member_station, so the line holds three", above)
+    // belongs to the 2026-07-28 EAST re-pitch that ran the line sideways along
+    // the desk face. B1 superseded that and re-pitched the line SOUTH into open
+    // floor; the cap was never re-derived for the new direction.
+    //
+    // Measured against the same clearance rules the layout suite applies to
+    // every stand point: slots 0-8 all clear walls, fixtures, the desk slab and
+    // the exit lane by >= 0.30 yd. Six is chosen rather than nine because the
+    // tightest slots (6-8, 0.42-0.80 yd from putting_demo) leave less room than
+    // a waiting body deserves. tests/queue-single-file-and-reach.test.js holds
+    // the clearance for every slot the line now uses.
+    lineSlots: 6,
+    // How close to slot 0 a body counts as "at the desk", the gate on placing
+    // goods. IT MUST BE SHORTER THAN THE PITCH, and that is the whole of the
+    // other half of the same playtest note: "the next person passes their items
+    // straight through the body of the person in front, immediately."
+    //
+    // It was 0.80 while the pitch is hypot(0.18, 0.66) = 0.684 -- so a customer
+    // standing in SLOT 1 was already within reach of slot 0, qualified as being
+    // at the desk, and placed goods over the shoulder of whoever was still being
+    // served instead of walking up when the line advanced. Arithmetic, not
+    // opinion. It lives here with the rest of the queue geometry because that is
+    // what it is measured against.
+    headReachYd: 0.45,
     // Room-absolute sunflower packing: r = min(r0 + rGrow*sqrt(k), rMax) at
     // angle k*goldenAngle. The nine points a full house uses (k 0-8) are all
     // ≥0.30 from every fixture rect, wall and the desk slab, and every one is
