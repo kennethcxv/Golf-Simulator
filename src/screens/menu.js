@@ -324,7 +324,28 @@ export function makeMenu(handlers) {
   const pressSound = (event) => {
     const target = event.target?.closest?.('button');
     if (!target || target.disabled) return;
+    // THIS CALL STAYS AND MUST STAY FIRST. A context can only be created from a
+    // user gesture, and this is the first gesture of the session -- without it
+    // the very click that should make the first sound is the one that cannot.
     audio?.init?.();
+    // 1.4 — THE SOUND ITSELF BELONGS TO THE SHARED SINK, NOT HERE.
+    //
+    // main.js installs window.__fwUiClick at construction now, so the menu is
+    // already covered, and it is the only place that knows 1.4's classification:
+    // cancel and destructive controls get their own variant. When this function
+    // also spoke, it called uiTick FIRST and the sink's uiCancel then lost the
+    // 120 ms press window -- measured on "Back out of Credits", which reported
+    // cancelCalls: 1 and still played the plain tick. Two populations deciding
+    // one thing, with the wrong one winning (shape 1).
+    //
+    // Delegating keeps one rule and one sound. On the very first press the sink
+    // may not have a context yet, which is why the fallback below still exists:
+    // audio.init() above has just created one, and this press must not be the
+    // silent one.
+    if (typeof window !== 'undefined' && typeof window.__fwUiClick === 'function') {
+      window.__fwUiClick(target);
+      return;
+    }
     if (target.classList.contains('menu-action-primary')) audio?.uiConfirm?.();
     else audio?.uiTick?.();
   };

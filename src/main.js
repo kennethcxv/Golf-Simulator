@@ -862,6 +862,49 @@ function exitLedger(silent = false) {
 
 const audio = makeAudio(preferences);
 app.audio = audio;
+
+// 1.4 (Goal 26) — THE ONE CLICK SINK FOR THE WHOLE SESSION.
+//
+// Module scope, and idempotent, because it is called from two places that cannot
+// be collapsed into one: at UI construction (so the menu and its dialogs are
+// covered from the first frame) and again on the game-start path (so a rebuilt
+// game UI cannot end up without it). Installing twice would double every click,
+// so the guard is not decoration.
+//
+// E1: the laptop subtree is excluded -- its own dispatcher already ticks every
+// press centrally in laptop.js, and covering it here would be the second
+// population all over again.
+const CANCEL_WORDS = /^\s*(cancel|back|close|dismiss|not now|no thanks|never mind)\s*$/i;
+const DESTRUCTIVE = /(danger|destructive|delete|remove|discard|void|quit|restart)/i;
+let uiClickSinkInstalled = false;
+function installUiClickSink() {
+  if (uiClickSinkInstalled) return;
+  uiClickSinkInstalled = true;
+  window.__fwUiClick = (node) => {
+    if (!audio.ready) return;
+    if (node && node.closest && node.closest('.laptop-screen')) return;
+    // 1.4: "Disabled controls stay silent." A disabled control did not act, and
+    // the capture-phase listener below sees presses on it regardless.
+    if (node && (node.disabled || node.getAttribute?.('aria-disabled') === 'true')) return;
+    // 1.4: "Cancel and destructive actions get their own variant." Classified
+    // from what the control IS -- its label, its class, its data-action -- so a
+    // dialog's Cancel sounds like a cancel without every dialog knowing it.
+    const label = (node?.textContent || node?.getAttribute?.('aria-label') || '').trim();
+    const cls = `${node?.className || ''} ${node?.dataset?.action || ''}`;
+    if (node && (CANCEL_WORDS.test(label) || DESTRUCTIVE.test(cls) || DESTRUCTIVE.test(label))) {
+      if (audio.uiCancel) { audio.uiCancel(); return; }
+    }
+    audio.uiTick();
+  };
+  // Buttons born outside the factory still click. Factory buttons carry
+  // __fwClickCue and bring their own pointerdown listener, so skipping them here
+  // is what keeps one press to one sound.
+  document.addEventListener('pointerdown', (event) => {
+    const target = event.target;
+    const btn = target && target.closest ? target.closest('button') : null;
+    if (btn && !btn.__fwClickCue) window.__fwUiClick(btn);
+  }, true);
+}
 const TOOL_AUDIO_LOOP = {
   fungicide: 'hose',
   spreader: 'divot',
@@ -1219,17 +1262,15 @@ function startGameNow(
   };
   // E1: the button-factory click sink. The laptop subtree is excluded here
   // (its dispatcher already ticks every press centrally in laptop.js).
-  window.__fwUiClick = (node) => {
-    if (!audio.ready) return;
-    if (node && node.closest && node.closest('.laptop-screen')) return;
-    audio.uiTick();
-  };
-  // buttons born outside the factory still click
-  document.addEventListener('pointerdown', (event) => {
-    const target = event.target;
-    const btn = target && target.closest ? target.closest('button') : null;
-    if (btn && !btn.__fwClickCue) window.__fwUiClick(btn);
-  }, true);
+  // 1.4 — "Cancel and destructive actions get their own variant. Disabled
+  // controls stay silent."
+  //
+  // Routed here rather than at each call site because there is one sink and
+  // dozens of call sites, and a per-site rule would be wrong at whichever site
+  // somebody forgot. The classification reads what the button IS -- its class,
+  // its type, its accessible name -- so a dialog's Cancel sounds like a cancel
+  // without every dialog having to know it.
+  installUiClickSink();
   // Task-4 cleaning cadence hooks, routed through the generic audio surface: a stroke turnaround
   // fires a velocity-scaled accent (rate-limited in audio), a spray squeeze fires a trigger puff.
   app.scene3d.walk.hooks.onStrokeReversal = (toolId, intensity) => {
@@ -4631,6 +4672,26 @@ function boot() {
     el('div', { class: 'hint-bar', style: 'display:none', text: 'Course overview · drag to pan · right-drag to rotate · wheel to zoom · V data view · Tab returns on foot · P pause' }));
 
   uiRoot.append(menu.root, gameUi);
+
+  // 1.4 — ONE CLICK SINK, INSTALLED AT CONSTRUCTION.
+  //
+  // This used to live inside startGameNow(), which meant window.__fwUiClick did
+  // not exist until the player had already started a game. Measured at the menu:
+  // `sinkExists: false`. Menu presses were therefore served by a SECOND,
+  // independent handler in menu.js -- two populations answering one question
+  // (shape 1), with the menu's copy covering only what it happens to see. The
+  // trace showed the consequence plainly: the first press of a session called
+  // uiTick once, and the second press called it ZERO times, because the menu's
+  // own listener is removed and re-added around visibility changes and the
+  // global sink that should have covered the gap was not there yet.
+  //
+  // Installing here makes the sink exist for the whole session -- menu, every
+  // dialog, and the game -- so 1.4's "every clickable control, including controls
+  // inside dialogs" has one rule instead of a per-screen one. The menu's own
+  // handler stays: it is what calls audio.init() on the very first gesture, which
+  // is the only moment a context can legally be created, and the debounce inside
+  // uiTick means the overlap costs one sound rather than two.
+  installUiClickSink();
   // X3 (Goal 21) — THE LINE THAT MADE THE OBJECTIVES CARD INVISIBLE.
   //
   // `document.body.append(objectivesPanel.root)` used to sit here, one line

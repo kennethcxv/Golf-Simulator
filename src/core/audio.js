@@ -51,6 +51,7 @@ export function makeAudio(preferences = null) {
   let sfxBus = null;
   let capture = null;
   let uiBus = null;
+  let musicBus = null;
   let sampleBank = null;
 
   // Ask the bank first. `true` means a recording played and the caller must
@@ -85,6 +86,13 @@ export function makeAudio(preferences = null) {
     if (ambientBus) ambientBus.gain.value = value.ambience * (paused ? 0.18 : 1);
     if (sfxBus) sfxBus.gain.value = value.effects * (paused ? 0.35 : 1);
     if (uiBus) uiBus.gain.value = value.ui;
+    // 1.5 — "sitting below UI and customer sounds, respecting volume and mute".
+    // Music rides the ambience slider (there is no separate music preference to
+    // read, and inventing one would strand every existing save with it unset) at
+    // a fixed 0.34 of it, which is what puts it UNDER the effects and UI buses
+    // rather than merely quiet in absolute terms. Because it hangs off the same
+    // master as everything else, mute is already handled one level up.
+    if (musicBus) musicBus.gain.value = value.ambience * 0.34 * (paused ? 0.5 : 1);
   }
 
   // must be called from a user gesture
@@ -138,6 +146,8 @@ export function makeAudio(preferences = null) {
     sfxBus.connect(master);
     uiBus = ctx.createGain();
     uiBus.connect(master);
+    musicBus = ctx.createGain();
+    musicBus.connect(master);
     applyVolume();
 
     // G3 (Goal 23) — THE SAMPLE PLAYER, BESIDE THE SYNTH.
@@ -170,7 +180,24 @@ export function makeAudio(preferences = null) {
       fetch(new URL('Assets/audio/manifest.json', document.baseURI).href)
         .then((r) => (r.ok ? r.json() : { samples: [] }))
         .then((m) => sampleBank.loadAll(m.samples || []))
-        .catch(() => { /* no manifest is the normal case today; the synth covers it */ });
+        .then(() => {
+          // 1.5 — THE MUSIC'S ONE AND ONLY CALL SITE.
+          //
+          // Started here, from the moment the bank finishes decoding, for the
+          // reason 1.5 asks for: "not restarting on scene transitions". Anything
+          // that starts music from a SCREEN restarts it every time the screen
+          // changes, and this codebase has already shipped one audio fix that
+          // was attached to setVisible(true) on a menu that is born visible, so
+          // the listener was never installed at all (FOUND_FALSE, main menu
+          // sound, appearance 2). One call, at the one moment the buffer is
+          // first available, outside every screen's lifecycle.
+          //
+          // It is also the moment that keeps "not decoded on a gameplay-critical
+          // frame" true: this runs at menu time, off the back of the first user
+          // gesture, before any gameplay frame exists.
+          musicStart();
+        })
+        .catch(() => { /* the synth covers every cue the bank cannot serve */ });
     }
 
     // rain: looped noise through a low-pass, gain driven by weather
@@ -474,14 +501,21 @@ export function makeAudio(preferences = null) {
 
   let lastUiTickAt = -1;
   function uiTick() {
-    if (sampled('uiTick', uiBus)) return;
     if (!ctx) return;
     const t0 = ctx.currentTime;
     // E1: one click per press. The button factory speaks on pointerdown and
     // several surfaces still fire their own tick on click a few ms later;
     // within one press-window only the first speaks.
+    //
+    // THE GUARD RUNS BEFORE THE BANK, and that ordering is the whole point. When
+    // the sample lookup came first it RETURNED first, so the recorded click
+    // skipped this window entirely and fell back on the bank's own 20 ms gap --
+    // which is short enough for one press to speak twice. Adopting a sample
+    // silently weakened the double-fire protection E1 exists to provide, and
+    // 1.4 asks for exactly one event per control.
     if (t0 - lastUiTickAt < 0.12) return;
     lastUiTickAt = t0;
+    if (sampled('uiTick', uiBus)) return;
     const osc = ctx.createOscillator();
     osc.frequency.value = 520;
     const g = ctx.createGain();
@@ -525,6 +559,27 @@ export function makeAudio(preferences = null) {
       osc.start(t0 + offset);
       osc.stop(t0 + offset + 0.14);
     }
+  }
+
+  // 1.4's cancel/destructive variant. Shares uiTick's press window, because a
+  // cancel button is still a button and "exactly one event per press" does not
+  // stop applying because the sound is different.
+  function uiCancel() {
+    if (!ctx) return;
+    const t0 = ctx.currentTime;
+    if (t0 - lastUiTickAt < 0.12) return;
+    lastUiTickAt = t0;
+    if (sampled('uiCancel', uiBus)) return;
+    // synth fallback: uiTick's click, dropped a fourth, so it reads as a step back
+    const osc = ctx.createOscillator();
+    osc.frequency.setValueAtTime(390, t0);
+    osc.frequency.exponentialRampToValueAtTime(300, t0 + 0.06);
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.16, t0);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.07);
+    osc.connect(g).connect(uiBus);
+    osc.start(t0);
+    osc.stop(t0 + 0.08);
   }
 
   function uiError() {
@@ -1488,6 +1543,65 @@ export function makeAudio(preferences = null) {
   }
 
   const cashRunActive = () => !!cashRunVoice;
+
+  // --- 1.5 BACKGROUND MUSIC -----------------------------------------------------
+  //
+  // "Quiet, loopable, unobtrusive... Seamless loop with no click at the boundary,
+  // sitting below UI and customer sounds, respecting volume and mute, not
+  // restarting on scene transitions, not decoded on a gameplay-critical frame."
+  //
+  // Every clause there is a lifetime requirement rather than a sound-design one,
+  // so this is deliberately ONE voice created ONCE. "Not restarting on scene
+  // transitions" is the clause that decides the shape: if music were started by
+  // whatever screen is showing, every transition would restart it, so nothing
+  // outside these three functions may touch it, and start() on an already-running
+  // voice is a no-op rather than a restart.
+  //
+  // The buffer is decoded with the rest of the bank at context creation -- menu
+  // time, before any gameplay frame exists -- which is what keeps 1.5's last
+  // clause and 1.7 true without a special case.
+  let musicVoice = null;
+
+  function musicStart() {
+    if (!ctx || !musicBus) return false;
+    if (musicVoice) return true; // already playing: NOT a restart
+    const buffer = sampleBank?.buffer?.('music');
+    if (!buffer) return false; // no synth fallback: silence beats a synthetic drone
+    const t0 = ctx.currentTime;
+    const source = ctx.createBufferSource();
+    source.buffer = buffer;
+    source.loop = true;
+    // The recording is already an authored loop, so the seam is the file's own
+    // start and end and looping the WHOLE buffer is what keeps it seamless.
+    // Trimming edges here — right for the cash run, where the seam is arbitrary —
+    // would cut the musical phrase and put a click where there is none.
+    source.loopStart = 0;
+    source.loopEnd = buffer.duration;
+    const gain = ctx.createGain();
+    gain.gain.setValueAtTime(0.0001, t0);
+    gain.gain.linearRampToValueAtTime(1, t0 + 2.5); // fade in, never a hard entry
+    source.connect(gain).connect(musicBus);
+    source.start(t0);
+    musicVoice = { source, gain, startedAt: t0 };
+    return true;
+  }
+
+  function musicStop({ fade = 1.2 } = {}) {
+    const voice = musicVoice;
+    if (!voice || !ctx) return false;
+    musicVoice = null;
+    const t0 = ctx.currentTime;
+    try {
+      voice.gain.gain.cancelScheduledValues(t0);
+      voice.gain.gain.setValueAtTime(Math.max(0.0001, voice.gain.gain.value), t0);
+      voice.gain.gain.exponentialRampToValueAtTime(0.0001, t0 + fade);
+      voice.source.stop(t0 + fade + 0.05);
+    } catch { /* already gone */ }
+    return true;
+  }
+
+  const musicActive = () => !!musicVoice;
+  const musicElapsed = () => (musicVoice && ctx ? +(ctx.currentTime - musicVoice.startedAt).toFixed(2) : null);
 
   // 1.2's "settling — the little rattle of a coin against its neighbours". A real
   // recording of coins moving against each other; the synth fallback is the
@@ -2527,6 +2641,10 @@ export function makeAudio(preferences = null) {
     cashRunStop,
     cashRunActive,
     coinSettle,
+    musicStart,
+    musicStop,
+    musicActive,
+    musicElapsed,
     // QA handles. A gate that cannot reach the live context has to build a second
     // one, and two contexts measure two different signals — which is how an audio
     // check ends up certifying a graph the player never hears.
@@ -2549,6 +2667,7 @@ export function makeAudio(preferences = null) {
     phoneRing,
     uiTick,
     uiConfirm,
+    uiCancel,
     uiError,
     // E (Full_Goal_16): the walking body and the rooms it works in
     qaMasterTap,
