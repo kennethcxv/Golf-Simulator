@@ -433,6 +433,64 @@ walk-up and it belongs to Phase 3.
 
 ---
 
+# PHASE 8 — ESCAPE FROM EVERY NAMED STATE
+
+"Test with real Escape presses from every one of these... After each, confirm I
+can resume and still move and look."
+
+The earlier driver covered five states. `electron-escape-all-states.js` covers
+thirteen, with real keyboard events, and snapshots the **whole modal-flag map**
+before and after each press — that is how "nothing lower-level double-handles it"
+becomes checkable without being able to enumerate listeners: if more than one
+layer changes on a single press, something below the router also acted.
+
+| state | rung fired | one rung? | still able to move and look? |
+|---|---|---|---|
+| walking, nothing open | `pause-open` | ✓ | ✓ |
+| tool in hand | `pause-open` | ✓ | ✓ |
+| tool in use | `pause-open` | ✓ | ✓ |
+| tool switching | `pause-open` | ✓ | ✓ |
+| ledger carried | `ledger` | ✓ | ✓ |
+| ledger open, mid page turn | `ledger` | ✓ | ✓ |
+| register active | `register` | ✓ | ✓ |
+| laptop open | `laptop` | ✓ | ✓ |
+| desk screen open | `desk-screen` | ✓ | ✓ |
+| pause menu already open | `pause-open` | ✓ | ✓ |
+
+**0 presses unwound two layers. 0 presses did nothing. 0 presses stranded the
+player** — every one left the body able to move and look.
+
+**NOT STAGED, and reported as such rather than as passes:** the phone and
+placement mode. Neither has an entry point a driver can reach from outside; the
+router's predicates for them (`phoneUi.isOpen()`, `build.isActive()`) exist and
+are wired, but I could not enter those states to press Escape from them. An
+unreachable state that quietly vanishes from a table is indistinguishable from
+one that passed, so they are named.
+
+## The three defects I nearly reported
+
+The first run of this driver reported the desk screen, the phone and placement
+mode **all falling through to the pause menu instead of unwinding their own
+layer** — including placement, which is the router's own top priority. Three
+defects, in the phase about Escape.
+
+All three were mine. I staged them by setting `deskScreenOpen`, `phoneOpen` and
+`placementMode` on `window.__fw`, and then "verified the staging" by reading back
+**the same properties I had just assigned**. `phoneOpen` and `placementMode` do
+not appear anywhere in `src/`. Nothing sets `deskScreenOpen`. So all three staged
+nothing at all, Escape correctly opened the pause menu because nothing was open,
+and the driver reported a router that was doing exactly the right thing as
+broken in three places.
+
+**A staging check that reads back your own assignment can never fail.** The
+router's real predicates are `app.frontDeskOpen`, `phoneUi.isOpen()` and
+`build.isActive()`; against the first of those, the desk screen routes to
+`desk-screen` correctly.
+
+One thing left standing: Escape from the desk screen also changed `toolHeld`. The
+mode change drops the held tool. It is one rung and the player is not stranded,
+so it is a note rather than a finding.
+
 # 4.1 TIME FLOWS TOO SLOWLY — **NOT DONE**, AND HERE IS THE WALL
 
 "A full game day in the region of ten to twenty real minutes is the normal band —

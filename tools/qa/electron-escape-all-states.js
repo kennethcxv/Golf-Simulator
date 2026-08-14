@@ -69,12 +69,13 @@ async (page) => {
     return {
       pause: q('.pause-panel'),
       laptop: app.laptopOpen === true,
-      deskScreen: app.deskScreenOpen === true,
-      phone: app.phoneOpen === true,
+      // THE ROUTER'S OWN PREDICATES, read the way the router reads them
+      frontDesk: app.frontDeskOpen === true,
+      phone: !!(app.phoneUi?.isOpen?.() ?? app.phone?.isOpen?.()),
       registerActive: !!reg?.isActive?.(),
       ledgerOpen: !!book?.isOpen?.(),
       ledgerCarried: !!book?.isCarried?.(),
-      placement: app.placementMode === true || q('.placement-hud'),
+      placement: !!((app.build || app.scene3d?.build)?.isActive?.()),
       anyModal: q('.modal, .dialog, .confirm-panel'),
       toolHeld: app.scene3d?.walk?.getTool?.() || null,
     };
@@ -97,9 +98,9 @@ async (page) => {
       const app = window.__fw;
       const ch = app.scene3d?.clubhouse?.();
       try { app.laptopOpen = false; } catch { /* ignore */ }
-      try { app.deskScreenOpen = false; } catch { /* ignore */ }
-      try { app.phoneOpen = false; } catch { /* ignore */ }
-      try { app.placementMode = false; } catch { /* ignore */ }
+      try { app.frontDeskOpen = false; } catch { /* ignore */ }
+      try { app.phoneUi?.close?.(); } catch { /* ignore */ }
+      try { (app.build || app.scene3d?.build)?.cancel?.(); } catch { /* ignore */ }
       try { ch?.register?.leave?.({ restorePointer: false }); } catch { /* ignore */ }
       try { ch?.ledgerBook?.setOpen?.(false); } catch { /* ignore */ }
       try { ch?.ledgerBook?.setCarried?.(false); } catch { /* ignore */ }
@@ -145,7 +146,6 @@ async (page) => {
     console.log('ESC', JSON.stringify(row));
   };
 
-  const ch = 'window.__fw.scene3d.clubhouse()';
   await press('walking (nothing open)', null, () => true);
   await press('tool in hand', () => {
     window.__fw.scene3d.walk.setTool('mop');
@@ -187,12 +187,35 @@ async (page) => {
   }, (L) => L.registerActive === true);
   await press('laptop open', () => { window.__fw.laptopOpen = true; return { ok: true }; },
     (L) => L.laptop === true);
-  await press('desk screen open', () => { window.__fw.deskScreenOpen = true; return { ok: true }; },
-    (L) => L.deskScreen === true);
-  await press('phone open', () => { window.__fw.phoneOpen = true; return { ok: true }; },
-    (L) => L.phone === true);
-  await press('placement mode', () => { window.__fw.placementMode = true; return { ok: true }; },
-    (L) => L.placement === true);
+  // THE REAL STATE, NOT A FLAG I INVENTED. The first version of these three set
+  // `deskScreenOpen`, `phoneOpen` and `placementMode` on window.__fw and then
+  // "verified" the staging by reading back the same properties. `phoneOpen` and
+  // `placementMode` do not exist anywhere in src/ and nothing sets
+  // `deskScreenOpen`, so all three staged nothing, Escape correctly fell through
+  // to the pause menu, and the driver reported three defects in a router that
+  // was doing exactly the right thing. A staging check that reads back your own
+  // assignment can never fail.
+  //
+  // The router's real predicates are `app.frontDeskOpen`, `phoneUi.isOpen()` and
+  // `build.isActive()`; the first is a plain app flag and the other two live
+  // behind UI objects, so those two are staged through the game's own entry
+  // points where they are reachable and reported NOT STAGED where they are not.
+  await press('desk screen open', () => {
+    window.__fw.frontDeskOpen = true;
+    return { ok: true };
+  }, (L) => L.frontDesk === true);
+  await press('phone open', () => {
+    const app = window.__fw;
+    if (app.scene3d?.walk?.hooks?.openPhone) { app.scene3d.walk.hooks.openPhone(); return { ok: true }; }
+    return { ok: false, why: 'no reachable phone entry point from the driver' };
+  }, (L) => L.phone === true);
+  await press('placement mode', () => {
+    const app = window.__fw;
+    const build = app.build || app.scene3d?.build;
+    if (build?.begin) { build.begin(); return { ok: true }; }
+    if (build?.start) { build.start(); return { ok: true }; }
+    return { ok: false, why: 'no reachable build/placement entry point from the driver' };
+  }, (L) => L.placement === true);
   await press('pause menu already open', async () => {
     // the only honest way in is the same key a player uses
     return { ok: true, note: 'staged by the previous press leaving pause open' };
