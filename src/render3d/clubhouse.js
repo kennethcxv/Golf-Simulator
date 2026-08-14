@@ -11009,6 +11009,52 @@ export function makeClubhouse(ctx) {
   const steerStats = {
     calls: 0, engaged: 0, tooShort: 0, steered: 0, trapped: 0, travelSum: 0, travelMax: 0,
   };
+
+  // 2.1 (Goal 26) — WHILE I AM AT THE TILL, MY BODY IS NOT AN OBSTACLE.
+  //
+  // "I finish a transaction. The second person walks up, gets blocked by
+  // something, sidesteps right to left, then walks in place without moving, then
+  // leaves... It happens when I am standing in the middle of the cash register
+  // from the opposite side. THAT IS ME."
+  //
+  // He is right, and it is not one test: the player's body enters the customer
+  // simulation in THREE separate places -- the look-ahead's blocked-point query
+  // (_customerBlockedAt), the reciprocal-avoidance neighbour list
+  // (crowdNeighbours), and the settle pass's hard clamp (crowdClamp). Fixing any
+  // one and leaving the others is precisely the two-populations shape that has
+  // bitten this repository repeatedly, and it would present as "mostly fixed",
+  // which is worse than untouched because it is harder to see.
+  //
+  // Three, not four: the queue-slot occupancy test (queueSlotIsClear) builds its
+  // body list from OTHER CUSTOMERS ONLY and never had the player in it, so there
+  // is nothing to clear there. Checked rather than assumed, because "I fixed the
+  // occupancy test" would otherwise be a claim about a test that does not
+  // consider the thing being cleared.
+  //
+  // So there is ONE predicate and all four ask it. When the player is parked at a
+  // station -- operating the till, reading the ledger, on the laptop or the desk
+  // screen -- they are not standing in the room in any sense the crowd should
+  // care about: the camera is elsewhere, they cannot move, and they are behind
+  // the counter rather than in the customer lane. It restores itself the moment
+  // the station lets go, because it is derived every frame rather than latched.
+  function playerBlocksCustomers() {
+    if (!walk.active) return false;
+    // register mode owns the camera for the whole transaction
+    try { if (register && register.isActive && register.isActive()) return false; } catch { /* not built yet */ }
+    // the book has the player: carried, or open and being read
+    try {
+      if (ledgerBook && ((ledgerBook.isCarried && ledgerBook.isCarried())
+        || (ledgerBook.isOpen && ledgerBook.isOpen()))) return false;
+    } catch { /* not built yet */ }
+    // the laptop and the desk screen are full-screen surfaces owned by main.js;
+    // it publishes them on the app object, which is the only handle this module
+    // has to them. Read defensively: an undefined flag must mean "not parked",
+    // never "parked", or a missing accessor would phase the player out for good.
+    const app = (typeof window !== 'undefined' && window.__fw) ? window.__fw : null;
+    if (app && (app.laptopOpen === true || app.deskScreenOpen === true)) return false;
+    return true;
+  }
+
   let _steerCustomer = null;
   function _customerBlockedAt(px, pz) {
     const r = 0.3;
@@ -11016,7 +11062,7 @@ export function makeClubhouse(ctx) {
       if (col.door) continue; // a doorway is a way through, not a wall
       if (px + r > col.minX && px - r < col.maxX && pz + r > col.minZ && pz - r < col.maxZ) return true;
     }
-    if (walk.active && Math.hypot(px - walk.x, pz - walk.z) < 0.72) return true;
+    if (playerBlocksCustomers() && Math.hypot(px - walk.x, pz - walk.z) < 0.72) return true;
     for (const o of customers) {
       if (o === _steerCustomer || !o.mesh) continue;
       if (Math.hypot(px - o.mesh.position.x, pz - o.mesh.position.z) < 0.6) return true;
@@ -11101,7 +11147,11 @@ export function makeClubhouse(ctx) {
     // velocity, so a walker crossing the player's path swerves EARLY the way it
     // does for another walker. Pinned, because the avoidance must never assume
     // the player will take the other half of the correction.
-    if (walk.active
+    // 2.1: ...but not while the player is parked at a station. See
+    // playerBlocksCustomers -- this is one of the four places the body enters the
+    // simulation and they must agree, or a walker steers around a phantom the
+    // resolver would have let it walk straight through.
+    if (playerBlocksCustomers()
         && Math.abs(walk.x - px) <= CROWD_RANGE && Math.abs(walk.z - pz) <= CROWD_RANGE) {
       const record = crowdRecord(_crowdNear.length);
       record.x = walk.x;
@@ -11139,7 +11189,10 @@ export function makeClubhouse(ctx) {
         else nz = col.maxZ + radius;
       }
     }
-    if (walk.active) {
+    // 2.1: the hard shove-away. This is the one the owner actually SEES -- it is
+    // what pushes a queuer sideways out of the lane and leaves them treading air
+    // against a body that, from their point of view, is not there.
+    if (playerBlocksCustomers()) {
       const pd = Math.hypot(nx - walk.x, nz - walk.z);
       if (pd > 0.01 && pd < 0.72) {
         nx = walk.x + ((nx - walk.x) / pd) * 0.72;
@@ -12893,6 +12946,25 @@ export function makeClubhouse(ctx) {
     ledgerHasThePlayer: () => !!(ledgerBook
       && ((ledgerBook.isCarried && ledgerBook.isCarried())
         || (ledgerBook.isOpen && ledgerBook.isOpen()))),
+    // 2.1 QA. Both exist so the walk-up driver reads the SIMULATION rather than
+    // inferring from the scene graph. `qaPlayerBlocksCustomers` is the same
+    // predicate the three crowd tests ask, so a driver cannot be told one thing
+    // while the crowd is told another; `qaCustomerTrack` reports each customer's
+    // live position, intended velocity and queue state, which is what makes
+    // "walking in place" (intent high, travel zero) expressible at all.
+    qaPlayerBlocksCustomers: () => playerBlocksCustomers(),
+    qaCustomerTrack: () => customers
+      .filter((c) => c && c.mesh && c.mesh.visible !== false)
+      .map((c, i) => ({
+        id: c.id ?? c.uid ?? `c${i}`,
+        x: +c.mesh.position.x.toFixed(4),
+        z: +c.mesh.position.z.toFixed(4),
+        vx: +(c.vx || 0).toFixed(4),
+        vz: +(c.vz || 0).toFixed(4),
+        queued: c.queued === true,
+        slot: c.queueSlotHeld ?? null,
+        served: c.served === true,
+      })),
     carryCollisionRadius: () => {
       const box = carriedBox(state);
       if (!box || box.flat) return 0;
