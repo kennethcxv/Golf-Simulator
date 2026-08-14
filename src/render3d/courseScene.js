@@ -12040,7 +12040,42 @@ export function makeCourseScene(canvas, state) {
       });
       if (forced.length) {
         renderer.compile(scene, camera);
-        for (const object of forced) object.visible = false;
+        // ...AND THEN DRAW THEM, which is the half this phase was missing.
+        //
+        // compile() builds PROGRAMS. It does not upload geometry: a buffer
+        // reaches the GPU on its first real draw, and these objects are hidden
+        // again the moment the compile returns, so their first draw is still the
+        // frame the player triggers. Measured on the ledger, which is the loudest
+        // instance: with this phase reporting 'ledger-first-visibility' done and
+        // compile() run over the revealed subtree, the first OPEN still uploaded
+        // +25 geometries and the first PAGE TURN +2 with a fresh `basic`
+        // program, at 33.7 ms against a 6 ms median. That is the owner's "lag
+        // whenever I turn the page for the first time", and it survived three
+        // rounds of warms because every one of them compiled without drawing.
+        //
+        // One composer frame with everything revealed pays both halves at once:
+        // the geometry uploads, and the program that compiles is the one the
+        // real frame will ask for, because it is the real pipeline drawing it.
+        // Lights stay excluded above for the reason given there.
+        //
+        // FRUSTUM CULLING OFF FOR THE WARM DRAW. A revealed object still has to
+        // be IN FRAME to be drawn, and the prewarm camera is not looking at the
+        // reading desk -- so the ledger's leaf uploaded its geometry from a
+        // later full-scene pass but never compiled its own program here. One
+        // `basic` shader was still arriving on the first page turn because of
+        // it. Submitting everything regardless of frame is what the
+        // forced-full-draw phase below already does for the same reason.
+        for (const object of forced) {
+          object.userData.__warmCulled = object.frustumCulled;
+          object.frustumCulled = false;
+        }
+        guardCourseWaterReflection.beginFrame();
+        try { composer.render(); } catch { renderer.render(scene, camera); }
+        for (const object of forced) {
+          object.visible = false;
+          object.frustumCulled = object.userData.__warmCulled !== false;
+          delete object.userData.__warmCulled;
+        }
       }
       prewarmTimings.push({ label: 'hidden-objects-revealed', ms: forced.length });
       phaseAt = markPrewarm('compile-hidden', phaseAt);

@@ -44,26 +44,43 @@ async (page) => {
     requestAnimationFrame(tick);
   });
   const stop = () => page.evaluate(() => { window.__tStop = true; return window.__t; });
-  const programs = () => page.evaluate(() => window.__fw?.scene3d?.renderer?.info?.programs?.length ?? null);
+  // Programs alone cannot tell a shader compile from a texture upload, and the
+  // two need different warms. renderer.info.memory counts what has been
+  // REALIZED on the GPU, so a first-use spike that moves `textures` is an
+  // upload and one that moves `programs` is a compile.
+  const counters = () => page.evaluate(() => {
+    const info = window.__fw?.scene3d?.renderer?.info;
+    return {
+      programs: info?.programs?.length ?? null,
+      textures: info?.memory?.textures ?? null,
+      geometries: info?.memory?.geometries ?? null,
+    };
+  });
 
   const gesture = async (label, run, settleMs = 2500) => {
     await start();
     await page.waitForTimeout(200);
-    const before = await programs();
+    const before = await counters();
     await run();
     await page.waitForTimeout(settleMs);
     const dts = (await stop()).slice(1);
-    const after = await programs();
+    const after = await counters();
     const row = {
       label,
       maxMs: dts.length ? +Math.max(...dts).toFixed(1) : null,
-      programDelta: (after ?? 0) - (before ?? 0),
-      programsAfter: after,
+      programDelta: (after.programs ?? 0) - (before.programs ?? 0),
+      textureDelta: (after.textures ?? 0) - (before.textures ?? 0),
+      geometryDelta: (after.geometries ?? 0) - (before.geometries ?? 0),
     };
     out[label] = row;
     console.log('PRESS', JSON.stringify(row));
     return row;
   };
+
+  // Did the deferred warm actually run, and how far did it get? Without this a
+  // green run cannot be told from a run where the warm silently skipped.
+  out.warmState = await page.evaluate(() => window.__fwWarm ?? null);
+  console.log('WARM', JSON.stringify(out.warmState));
 
   // ---- bottle -> dustpan (the withdrawn warm's territory) ------------------
   await gesture('equipSpray', () => page.evaluate(() => window.__fw.scene3d.walk.setTool('spray')), 2000);
@@ -112,13 +129,19 @@ async (page) => {
   await gesture('pageTurn_first', () => page.keyboard.press('e'), 2200);
   await gesture('pageTurn_second', () => page.keyboard.press('e'), 2000);
 
+  const brief = (row) => (row ? {
+    maxMs: row.maxMs, prog: row.programDelta, tex: row.textureDelta, geo: row.geometryDelta,
+  } : null);
   out.summary = {
     label: out.label,
-    dustpanFirst: { maxMs: out.equipDustpan_first?.maxMs, programs: out.equipDustpan_first?.programDelta },
-    cashierFirst: { maxMs: out.cashierEnter_first?.maxMs, programs: out.cashierEnter_first?.programDelta },
-    cashierSecond: { maxMs: out.cashierEnter_second?.maxMs, programs: out.cashierEnter_second?.programDelta },
-    pageTurnFirst: { maxMs: out.pageTurn_first?.maxMs, programs: out.pageTurn_first?.programDelta },
-    pageTurnSecond: { maxMs: out.pageTurn_second?.maxMs, programs: out.pageTurn_second?.programDelta },
+    warmState: out.warmState,
+    dustpanFirst: brief(out.equipDustpan_first),
+    cashierFirst: brief(out.cashierEnter_first),
+    cashierSecond: brief(out.cashierEnter_second),
+    ledgerRaise: brief(out.ledgerRaise),
+    ledgerOpen: brief(out.ledgerOpen),
+    pageTurnFirst: brief(out.pageTurn_first),
+    pageTurnSecond: brief(out.pageTurn_second),
   };
   fs.writeFileSync(path.join(OUT, `press-${out.label}.json`), `${JSON.stringify(out, null, 2)}\n`);
   console.log('FIRST-PRESS', JSON.stringify(out.summary, null, 2));
