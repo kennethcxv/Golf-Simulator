@@ -1311,64 +1311,63 @@ sweep, and consistent page-turn direction.
 Committed and pushed to `goal25/phase0-inherited-tree`.
 Suite **3642/3642**, lint ratchet **323**.
 
-| Phase | Item | Status |
-|---|---|---|
-| **1** | 1.0 – 1.8, every item | **DONE** |
-| **1** | **GATE** | **PASSED** — 50 CC0 files, every cue in dBFS, both controls hold |
-| **2** | 2.1 player blocks the queue | **DONE** — 110 → 0 walk-in-place frames; 4 stations phase out and restore |
-| **2** | 2.2 counter items overlap | **DONE** — 3 overlapping pairs → 0 |
-| **2** | **GATE** | **PASSED** — clip recorded, frames viewed (`tiles-14`) |
-| 3 | 3.1 recast in production | **DIAGNOSED** — zero production call sites proven; not integrated |
-| 3 | 3.2 / 3.3 | **NOT DONE** — stall rate **unmeasured**; detector failed its own control |
-| 4 | 4.1 time flows too slowly | **NOT DONE** — ceiling measured at 4×; blocker is the golf day |
-| **4** | 4.2 / 4.3 / 4.4 / 4.5 | **DONE** |
-| **4** | **GATE** | **RUN** — full week, every figure reported |
-| **5** | 5.1 the mop | **DONE** — all three named faults fixed at their causes |
-| 5 | 5.2 mop weight / 5.3 the hands | **NOT DONE** |
-| 6 | ledger UI | **6 of 10 clauses DONE and measured**; type/hover/mouse not done |
-| 7 | 7.1 measure first | **DONE** — every baseline in the brief is stale |
-| 7 | 7.1 merge / 7.2 – 7.7 | **NOT DONE** |
-| **8** | Escape router | **DONE and measured** — one layer per press, never stranded |
-| **8** | pause menu | **DONE** — "Restart the current day" added with a real snapshot |
-| 8 | sweep the 18 dead handlers | **NOT DONE** — unreachable, but still in the files |
-| 9 | 9.2 sticky prompt | **IMPROVED** 40.4 % → 26.7 %; residual remains |
-| 9 | 9.3 dark interior | **MEASURED**; decision made; ineffective fix reverted |
-| 9 | 9.4 bunker rake | **REPRODUCED and PHOTOGRAPHED** — not fixed |
-| 9 | 9.1, 9.5, 9.6 | **NOT STARTED** |
-| 10 | final verification | **NOT STARTED** |
+| Phase | Status |
+|---|---|
+| **1 — Audio** | **CLOSED. Gate passed.** 50 CC0 files, every cue measured in dBFS, both controls hold |
+| **2 — The walk-up** | **CLOSED.** Both items fixed and measured; clip recorded, frames viewed |
+| 3 — NPC navigation | 3.1 **proven** (zero production call sites); stall rate **unmeasured** — detector failed its control |
+| 4 — Time and bookings | **4.2–4.5 DONE, gate run.** 4.1 measured and blocked on the golf day |
+| 5 — Mop and hands | **5.1 DONE** (all three faults). 5.2, 5.3 not done |
+| 6 — Ledger UI | **6 of 10 clauses DONE and measured** |
+| 7 — Performance | **7.1 measured** — every baseline in the brief is stale. Merge not started |
+| **8 — Global Escape** | **CLOSED.** Router measured; "Restart the current day" added |
+| 9 — The remainder | 9.2 improved (40.4 % → 26.7 %), 9.3 measured, **9.4 reproduced**. 9.1/9.5/9.6 not started |
+| 10 — Final verification | **NOT STARTED** |
 
-## Five things worth knowing
+## What actually got fixed
 
-1. **The cash is audible.** Phase 1 closed for the first time in four goals.
-2. **Customer staging needs three facts and two are invisible** — the owner's
-   save, trading hours, and **the sign open**. Without the sign the game routes
-   every customer to the exit: correct behaviour that reads exactly like a
-   pathing catastrophe. `FOUND_FALSE` shape 15.
-3. **The rake bug is real and now has a photograph.** The previous session
-   couldn't reproduce it because the rake isn't drawn indoors.
-4. **Phase 7's baselines are stale and the worst frame is outdoors** — 4404 draw
-   calls at `inside: false`, against a recorded peak of 942.
-5. **I reverted two of my own changes and withdrew three findings.** The 9.3 bulb
-   could not be distinguished from no bulb; the 5.3 % stall rate came from a
-   detector that failed its own negative control.
+- **The cash is audible** — first time in four goals.
+- **Your body no longer blocks the queue** — 110 walk-in-place frames → 0.
+- **Counter items stop interpenetrating** — 3 overlapping pairs → 0.
+- **The mop's three faults**, each at its real cause: a repeating bulge every
+  segment, no collar at all, and a quarter-covered disc.
+- **Walk-ins ask only for the next hour** — 0 outside it across a simulated week.
+- **Email can book same-day** — it never could before.
+- **One Escape router** replacing eighteen scattered handlers, unwinding exactly
+  one layer per press.
+- **The ledger** now says where you are, reaches all 7 sections from anywhere,
+  has working back/forward, and reopens where you left it.
 
-## Where to pick up, in order
+## What I found but did not fix
 
-1. **Phase 3** — build a stuck detector that passes the pinned-customer control
-   *before* measuring anything. All of 3.2/3.3 depends on being able to see a stall.
-2. **Phase 6** — untouched. The ledger UI rebuild is a clean, self-contained slice.
-3. **Phase 7** — read `tools/gltf-census.mjs` for what dedup would remove before
-   writing a merger; 817 materials is the ceiling on what merging can buy.
-4. **9.4** — the exploded rake. Hands are ruled out by measurement.
-5. **9.3** — get the practicals' positions; light the one nearest interior offset
-   (3,3), not index 0.
+- **The bunker rake is exploded** — photographed. The previous session couldn't
+  reproduce it because the rake isn't drawn indoors.
+- **Phase 7's peak is 4404 draw calls, outdoors** — against a recorded 942.
+- **The dark interior reproduces in corners** — 2 of 28 views at median luma 20.
+
+## What I took back out
+
+- **The 9.3 emergency bulb** — could not be distinguished from no bulb.
+- **The 5.3 % stall rate** — its detector failed a pinned-customer control.
+- **Three findings withdrawn outright**, all traced to staging that made a
+  correct game look broken.
+
+## Where to pick up
+
+1. **Phase 3** — a stuck detector that passes the pinned-customer control, before
+   measuring anything.
+2. **Phase 10** — the three verifiers.
+3. **Phase 7** — read `tools/gltf-census.mjs` for what dedup would remove; 817
+   materials is the ceiling on what merging can buy.
+4. **9.4** — the exploded rake. Hands ruled out by measurement.
+5. **Phase 6's remaining four** — type at the reading camera, hover/selected
+   states, mouse usability, page-turn direction.
 
 ## Standing caveats
 
 - **I have never heard any of the 50 audio files.** Every claim is a measurement
   plus acoustic classification. If a cue sounds *wrong* rather than *absent*,
   that is the gap between what I can measure and what you can hear.
-- **Probe-lie count 22.** One passed on the broken build; one made me publish a
-  number I later corrected in place; three findings were withdrawn outright. The
-  count is high because I went looking, and this report would be worth less if it
-  were lower.
+- **Probe-lie count 25.** Three of my own checks reported a clean pass over
+  nothing; one passed on the broken build; one made me publish a number I later
+  corrected. The count is high because I went looking.
