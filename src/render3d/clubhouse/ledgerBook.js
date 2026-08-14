@@ -975,6 +975,41 @@ export function createLedgerBook({ THREE, state, anchor, counterTop, camera = nu
   // variable, which is the signal to stop hoisting and let the call be
   // optional instead. Before there is a book there is no section to name, and the
   // foot simply measures without one.
+  // PHASE 6 (Goal 26) — "SELECTED AND HOVER STATES."
+  //
+  // The contents page drew all seven rows identically, so the one page in the
+  // book whose whole job is "where am I and how do I get elsewhere" was the one
+  // page that never said where you were. This is the id of the section the open
+  // spread belongs to, guarded the same way safeSectionTitle is: paint can run
+  // before the model exists (footCells does, during construction, and reading a
+  // later `let` from there threw and took out four unrelated tests).
+  //
+  // AND IT MARKS THE SECTION YOU WERE LAST READING, not the one the open spread
+  // is. That distinction is the whole thing: the contents page IS its own
+  // section, so asking `currentSection()` while looking at the contents answers
+  // "contents", and the marker would point at the word Contents inside the
+  // contents list. True, useless, and confusing. What a reader wants from that
+  // page is "you were in Guests" -- so the last non-contents section the book
+  // resolved to is remembered, and that is what gets the marker.
+  // AND IT IS THE SECTION THE READER ASKED FOR, not one derived from the spread.
+  //
+  // Deriving it caught me twice. `currentSection()` on the contents spread does
+  // not answer "contents" -- the spread rule is "the last section that has BEGUN
+  // by the end of the spread", and Guest Register begins on the contents
+  // spread's own right-hand page. So a marker fed from currentSection() reads
+  // "Guest Register" no matter where the reader came from, permanently. The
+  // control caught it: photographed after visiting Complaints and after visiting
+  // The Deed, the two contents pages differed by 0.2 % -- antialiasing, not a
+  // moved marker.
+  //
+  // goToSection is the reader saying where they want to be, which is the only
+  // unambiguous source, and it is recorded here at the call rather than inferred
+  // from the page afterwards.
+  let lastReadSectionId = null;
+  function safeSectionId() {
+    return lastReadSectionId;
+  }
+
   function safeSectionTitle() {
     try {
       const here = currentSection();
@@ -1197,7 +1232,7 @@ export function createLedgerBook({ THREE, state, anchor, counterTop, camera = nu
   const money = (value) => `$${(Number(value) || 0).toFixed(2)}`;
 
   // ---- the page painters ---------------------------------------------------
-  function paintContents(face, clubName, sections, pageOfSection) {
+  function paintContents(face, clubName, sections, pageOfSection, hereId = null) {
     const ctx = face.canvas.getContext('2d');
     paperGround(ctx);
     ctx.textAlign = 'center';
@@ -1226,10 +1261,39 @@ export function createLedgerBook({ THREE, state, anchor, counterTop, camera = nu
     const rowPx = Math.min(T(25), Math.floor(step * 0.68));
     let y = tocTop;
     for (const section of sections) {
+      // THE SELECTED ROW. A pencil rule under the title and a hand-inked marker
+      // in the margin -- both drawn in the ledger's own ink rather than added as
+      // a UI highlight, because this is a book and a coloured selection bar
+      // would read as a menu pasted onto a page. The row is also set in a
+      // heavier weight, so it survives being photographed at the reading camera
+      // where a 3 px rule may not.
+      // never mark the contents row itself: "you are here" pointing at the page
+      // you are looking at is not information
+      const isHere = !!hereId && section.id === hereId && section.id !== 'contents';
       ctx.textAlign = 'left';
-      ctx.fillStyle = section.locked ? '#8a8272' : '#3f4a42';
-      ctx.font = section.locked ? `italic 400 ${rowPx}px Georgia, serif` : `400 ${rowPx}px Georgia, serif`;
+      ctx.fillStyle = section.locked ? '#8a8272' : (isHere ? '#2b3a31' : '#3f4a42');
+      ctx.font = section.locked
+        ? `italic 400 ${rowPx}px Georgia, serif`
+        : `${isHere ? 700 : 400} ${rowPx}px Georgia, serif`;
       ctx.fillText(section.title, 92, y);
+      if (isHere) {
+        const w = ctx.measureText(section.title).width;
+        ctx.strokeStyle = '#b58a42';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(92, y + Math.round(rowPx * 0.22));
+        ctx.lineTo(92 + w, y + Math.round(rowPx * 0.22));
+        ctx.stroke();
+        // the margin marker, at the same left edge the rule starts from
+        ctx.beginPath();
+        ctx.moveTo(70, y - Math.round(rowPx * 0.3));
+        ctx.lineTo(82, y - Math.round(rowPx * 0.62));
+        ctx.lineTo(82, y + Math.round(rowPx * 0.02));
+        ctx.closePath();
+        ctx.fillStyle = '#b58a42';
+        ctx.fill();
+        ctx.fillStyle = '#2b3a31';
+      }
       ctx.textAlign = 'right';
       if (section.locked) {
         // C4: a small drawn padlock, RIGHT-ALIGNED to the same column edge
@@ -2020,7 +2084,8 @@ export function createLedgerBook({ THREE, state, anchor, counterTop, camera = nu
     const page = model.pages[index];
     if (!page) return paintBlank(face);
     switch (page.kind) {
-      case 'contents': return paintContents(face, clubName, model.sections, model.pageOfSection);
+      case 'contents':
+        return paintContents(face, clubName, model.sections, model.pageOfSection, safeSectionId());
       case 'guests': return paintGuests(face, model.entries, page.guestPage, index + 1);
       case 'notes': return paintNotes(face, model.notes, page.notesPage, index + 1);
       case 'day': return paintDaySheet(face, model.day || {}, index + 1);
@@ -2628,6 +2693,10 @@ export function createLedgerBook({ THREE, state, anchor, counterTop, camera = nu
   }
 
   function goToSection(sectionId) {
+
+    // PHASE 6: the reader asked for this one; the contents page marks it.
+
+    if (sectionId) lastReadSectionId = sectionId;
     if (!isOpen() || !model) return false;
     const pageNumber = model.pageOfSection[sectionId];
     if (!Number.isFinite(pageNumber)) return false;
