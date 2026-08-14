@@ -60,6 +60,29 @@ async (page) => {
   await page.waitForTimeout(2500);
   console.log('STAGED', JSON.stringify(out.staged), 'EQUIPPED', JSON.stringify(out.equipped));
 
+  // ARE THOSE THE HANDS? The lumps in the sky look like capsules -- and a finger
+  // in fpHands.js IS a capsule in tan skin. Before blaming the rake's own
+  // geometry, ask where the first-person hands actually are while it is equipped.
+  out.handPose = await page.evaluate(() => {
+    const s3 = window.__fw.scene3d;
+    const cam = s3.camera;
+    const found = [];
+    s3.scene.traverse((o) => {
+      if (!/FirstPerson(Right|Left)Hand|FPHands/i.test(o.name || '')) return;
+      o.updateWorldMatrix(true, false);
+      const e = o.matrixWorld.elements;
+      found.push({
+        name: o.name,
+        visible: o.visible,
+        world: [+e[12].toFixed(2), +e[13].toFixed(2), +e[14].toFixed(2)],
+        // how far above the camera, which is what "in the sky" means
+        aboveCameraY: +(e[13] - cam.position.y).toFixed(2),
+      });
+    });
+    return { camY: +cam.position.y.toFixed(2), hands: found };
+  });
+  console.log('HAND-POSE', JSON.stringify(out.handPose));
+
   const shots = {};
   for (const [name, pitch] of [['level', 0], ['down', -0.5], ['up', 0.25]]) {
     await page.evaluate((p) => { window.__fw.scene3d.walk.state.pitch = p; }, pitch);
