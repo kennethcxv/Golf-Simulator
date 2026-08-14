@@ -792,7 +792,7 @@ export function openingReadiness(state) {
     && finite(state.shop.reno.pan) <= 0.001
     && finite(state.shop.reno.bag) <= 0.001;
   const requirements = [
-    { id: 'furnished', label: 'Furnished workstations and displays available', ok: furnished, reason: 'Recover any missing authored workstation or display from storage.' },
+    { id: 'furnished', label: 'Furnished workstations and displays available', ok: furnished, reason: 'Bring any missing workstation or display back out of storage.' },
     { id: 'laptop', label: 'Pine Hills front-desk tee-sheet usable', ok: laptopReadiness(state).ready, reason: laptopReadiness(state).requirements.find((item) => !item.ok)?.reason || '' },
     { id: 'cleanup-details', label: 'Neglected clubhouse details cleaned', ok: !!restoration?.complete.discreteCleanup, reason: 'Clear each marked mess, scuff, cobweb, and disordered furnishing.' },
     { id: 'cleanup-systems', label: 'Floors, windows, clutter, and debris cleaned', ok: !!restoration?.complete.existingCleanupSystems, reason: 'Finish the floor, windows, general clutter, and loose-debris cleanup.' },
@@ -1322,5 +1322,5 @@ export function recoverOpeningLayout(state) {
   layout.moved = {};
   return routesIntact(state)
     ? { ok: true, reset }
-    : { ok: false, reset, reason: 'A non-movable object still blocks the authored safe layout. Move delivery cartons out of the marked clearways.' };
+    : { ok: false, reset, reason: 'Something that cannot be moved is still blocking a walkway. Move delivery cartons out of the marked clearways.' };
 }

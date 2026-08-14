@@ -269,7 +269,13 @@ export function buildFixtures(B) {
       return `${sku.name} ${line.shelf}/${capacityOf(id)}`;
     }).join(' · ');
     if (back > 0) return `${f.title} - ${facing} - ${back} in back - [E] restock`;
-    return `${f.title} - ${facing} - backroom empty`;
+    // THE STRANGER'S FINDING 3: "an object is named with no verb... same prompt
+    // styling as actionable prompts, no key at all." They were right, and the
+    // reason there is no key is that there is nothing to restock -- which the
+    // prompt never said. It read as an offer the game then refused to honour.
+    // Naming the unavailable action and why is the voice the game already uses
+    // for its refusals, and it is the voice they praised elsewhere.
+    return `${f.title} - ${facing} - restock: nothing in the back`;
   }
 
   // stock this fixture from what is in the player's hands: tap = one, hold = a flow
