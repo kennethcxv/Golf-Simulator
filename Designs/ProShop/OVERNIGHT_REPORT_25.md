@@ -1583,3 +1583,73 @@ cannot see a broken mouse.
 
 Commits: `2a39e8b` (P0 repro), `7891d57` (P0 fix), `e9f46be` (3.3), `7b8f2c1`
 (queue), `d9b2d60` (Tab). All pushed. Suite 3614/3614.
+
+
+## P2 — PERFORMANCE — **MEASURED, one fix recommended and not applied**
+
+Numbers before any change, per gesture, on the real frame clock. Idle median
+**9.7 ms** anchors all of it.
+
+| gesture | max ms | p95 | median |
+|---|---|---|---|
+| idle baseline | 15.3 | 11.4 | 9.7 |
+| **equip broom — FIRST** | **332.3** | 17.2 | 14.3 |
+| equip mop — first | 19.7 | 16.9 | 13.6 |
+| equip broom — again | 27.0 | 15.4 | 13.5 |
+| equip mop — again | 18.8 | 15.9 | 13.5 |
+| ledger raise | 13.9 | 8.2 | 6.1 |
+| ledger open — first | 11.5 | 7.7 | 6.0 |
+| **page turn — FIRST** | **32.2** | 8.0 | 6.0 |
+| page turn — second | 17.8 | 7.6 | 5.8 |
+| page turn — third | 14.1 | 7.3 | 5.8 |
+
+**It is not the broom and it is not the mop.** It is whichever tool is equipped
+**first in a session**. The broom went first here and paid 332.3 ms; the mop,
+equipped seconds later, paid 19.7. One tool per session pays, whichever it is.
+Broom and mop are stick tools, which carry the hands —
+spray/cloth/sponge/washer/trashbag draw with none and never pay it.
+
+**Not attempted, deliberately.** The project note records **sixteen**
+`renderer.compile()` configurations measured, every one leaving the shader delta
+at +9, with an explicit instruction not to try a seventeenth. I did not spend
+this item re-running a search that has already been run.
+
+**What is actually untried**, and it follows from that same diagnosis: the
+programs compile on first **DRAW**, and all sixteen attempts were `compile()`
+variants. A real render of the hands in their real configuration behind the
+loading veil is a different mechanism, not a seventeenth flavour of the same one.
+**Recommended, not done** — it needs a full boot verification I could not finish
+and prove inside this item.
+
+**The ledger lag is real, small, and first-turn-only:** 32.2 ms on the first
+turn against a 6 ms median. Under the 33 ms bar, but a single frame 5× the
+median is exactly the shape of hitch a player feels.
+
+## P2 — THE MOP — **NOT STARTED**
+
+Not reached. You asked me to look at House Flipper's mop and match it, and that
+is mesh work against a reference I have not opened. Nothing about the mop was
+changed, and no parameter was swept — which is what you asked me not to do.
+
+The one thing I can add is an observation from the golden rebaseline earlier
+tonight: the `tool-mop` reference frame shows the head as a pale flat fan, and
+the current capture shows distinct dark strands with daylight between them. That
+is your "comb of pale rods" visible in the gate's own images
+(`tests/goldens/tool-mop.png` vs `qa/golden/current/tool-mop.png`), if the next
+session wants a starting point.
+
+---
+
+# WHERE THIS LEAVES THE PLAYTEST LIST
+
+| item | state |
+|---|---|
+| **P0 checkout** | **REPRODUCED AND FIXED** — interlock keeps its teeth, gains a key. 9/9 in game, 5/5 in Node |
+| **P1 3.3 outline** | **FIXED** — was riding the loose prop scan; 9/9 on two runs |
+| **P1 queue** | **FIXED** both halves — reach 0.80→0.45, lineSlots 3→6; frame viewed |
+| **P1 Tab** | **REPRODUCED AND FIXED** — pointer lock never came back; look 0.000→0.378 |
+| **P2 performance** | **MEASURED**, root cause named, one untried fix recommended |
+| **P2 mop** | **NOT STARTED** |
+
+Suite 3614/3614 throughout. Lint ratchet 325 vs 324 — the inherited red,
+unchanged by any of tonight's work. Every item pushed as it completed.
