@@ -14,6 +14,30 @@ export const DEFAULT_PREFERENCES = Object.freeze({
     ambience: 0.65,
     ui: 0.8,
     muted: false,
+    // PLAYTEST 3 — the audition switcher's answer, family -> option id. An empty
+    // map means "no pin", which is the shipped default set: the manifest's own
+    // default option wins until the owner picks otherwise. Stored as a free-form
+    // map rather than a fixed set of keys because the families come from the
+    // audio manifest, and pinning the schema here would mean a new sound family
+    // silently failing to persist.
+    // PROVISIONAL DEFAULTS, PENDING THE OWNER'S AUDITION. Without a pin the bank
+    // draws at random across every option in a family — and these options are
+    // COMPETING RECORDINGS, not variants of one sound, so an unpinned menu would
+    // click like a typewriter, then a felt pad, then a latch. That is worse than
+    // any single choice. Each pick below is the most literal reading of the
+    // brief ("a real button, a felt key, a wooden switch. Quiet and relaxing")
+    // and is expected to be overruled by ear.
+    sfx: Object.freeze({
+      menuButton: 'wooden-button',
+      drawerOpen: 'wood-deep',
+      cashLand: 'coins-bright',
+      ledgerTurn: 'crisp',
+      ledgerPickup: 'grab',
+      ledgerClose: 'setdown',
+    }),
+    // ITEM 4 — the background track, chosen in PLAYER settings. '' is the
+    // shipped default track; 'off' is the off switch the brief asks for.
+    musicTrack: '',
   }),
   camera: Object.freeze({
     sensitivity: 1,
@@ -82,6 +106,21 @@ export function normalizePreferences(raw = {}) {
       ambience: clamp(audio.ambience, 0, 1, DEFAULT_PREFERENCES.audio.ambience),
       ui: clamp(audio.ui, 0, 1, DEFAULT_PREFERENCES.audio.ui),
       muted: bool(audio.muted, DEFAULT_PREFERENCES.audio.muted),
+      // Keep only string->string pairs. A saved pin naming an option that no
+      // longer exists is harmless -- setFamilyOption refuses it and the family
+      // goes back to drawing from everything -- but a nested object or a number
+      // in here would reach the bank and be compared against an option id.
+      sfx: (() => {
+        const out = {};
+        const raw2 = audio.sfx;
+        if (raw2 && typeof raw2 === 'object' && !Array.isArray(raw2)) {
+          for (const [k, v] of Object.entries(raw2)) {
+            if (typeof k === 'string' && typeof v === 'string' && k && v) out[k] = v;
+          }
+        }
+        return out;
+      })(),
+      musicTrack: typeof audio.musicTrack === 'string' ? audio.musicTrack : DEFAULT_PREFERENCES.audio.musicTrack,
     },
     camera: {
       sensitivity: clamp(camera.sensitivity, 0.35, 2.5, DEFAULT_PREFERENCES.camera.sensitivity),

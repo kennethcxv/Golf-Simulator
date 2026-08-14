@@ -3119,6 +3119,12 @@ export function createLedgerBook({ THREE, state, anchor, counterTop, camera = nu
       spread,
       spreadCount: spreadCount(),
       pageCount: model ? model.pages.length : null,
+      // WHICH PAINTER IS ON WHICH PAGE. "The screen froze on page 6" is only
+      // actionable once page 6 has a name: the player counts from 1 and the
+      // model indexes from 0, and the page list is BUILT, not fixed -- the guest
+      // register and the notes both paginate, so the same folio is a different
+      // painter on a busy save than on a starter.
+      pageKinds: model ? model.pages.map((p, i) => ({ folio: i + 1, kind: p.kind })) : null,
       sections: model ? model.sections.map((s) => ({ id: s.id, locked: !!s.locked })) : [],
       turning: !!leaf,
       // R2's solve, exposed so a driver reads the same numbers the pose used

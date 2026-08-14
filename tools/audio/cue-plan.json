@@ -1,34 +1,341 @@
 {
   "_comment": "PHASE 1 (Goal 26). Which real recording serves which cue. Every id was found by tools/audio/freesound-fetch.mjs --search and its licence is re-verified on the sound's own page at download time, so this file is a shopping list and NOT the licence record — Assets/audio/manifest.json is. Several entries are deliberately compilation recordings ('various', 'open close'): one file yields several variants once sliced, which is how a cue stops sounding machine-stamped.",
   "sounds": [
-    { "cue": "drawerSlide",   "id": 217173, "basename": "till-metal-slide-in-out",   "note": "Metal Till Cash Drawer Slide In And Out — the slide and the stop at the end of travel" },
-    { "cue": "drawerBell",    "id": 452572, "basename": "register-antique-various",  "note": "antique register: open, close, drawer, bell — sliced into unlock/open/close/bell" },
-    { "cue": "drawerTill",    "id": 191436, "basename": "till-open-close",           "note": "Till Open and Close — second drawer voice so repeats vary" },
-    { "cue": "drawerSlide2",  "id": 83874,  "basename": "cashier-slide",             "note": "cashierslidesnd — a third slide" },
-
-    { "cue": "cashRun",       "id": 40952,  "basename": "bills-flip-count",          "note": "dollar bills flipping counting — THE continuous tchhhhh" },
-    { "cue": "cashRun",       "id": 18623,  "basename": "money-count",               "note": "money count — second riffle voice" },
-    { "cue": "cashRun",       "id": 861806, "basename": "counting-paper-money",      "note": "counting_paper_money — third riffle" },
-    { "cue": "billHandle",    "id": 271341, "basename": "cash-money-fieldtapes",     "note": "note handling, single movements" },
-    { "cue": "billDeposit",   "id": 379888, "basename": "paper-placed-on-bench",     "note": "paper placed on a surface — the note landing" },
-    { "cue": "billDeposit",   "id": 461890, "basename": "money-counting-b",          "note": "paper money — sliced for single-note landings" },
-
-    { "cue": "coinDeposit",   "id": 788073, "basename": "coin-drop-with-coins",      "note": "Coin_Drop_With_Coins — a coin landing ON coins, exactly what 1.2 asks for" },
-    { "cue": "coinDeposit",   "id": 391951, "basename": "coins-dropped-on-wood",     "note": "coins on wood — the FIRST coin, hitting the empty well" },
-    { "cue": "coinDeposit",   "id": 510735, "basename": "coin-on-table",             "note": "single coin on a table" },
-    { "cue": "coinDeposit",   "id": 608793, "basename": "coins-drop-on-table",       "note": "more coin landings to slice" },
-    { "cue": "coinSettle",    "id": 391818, "basename": "coins-handled-rattled",     "note": "coins shaken and rattled in hands — the settle" },
-    { "cue": "coinHandle",    "id": 444257, "basename": "coins-handful",             "note": "a handful of coins moving" },
-
-    { "cue": "ledgerTurn",    "id": 450803, "basename": "pages-flip-various",        "note": "paper sheets flip through turn page various — many turns in one file" },
-    { "cue": "ledgerTurn",    "id": 856497, "basename": "page-turn-heavy",           "note": "Turning page (heavy paper) — a ledger is heavy paper" },
-    { "cue": "ledgerTurn",    "id": 382651, "basename": "page-turn-plain",           "note": "Paper Page Turn" },
-    { "cue": "ledgerTurn",    "id": 656546, "basename": "page-turn-ienba",           "note": "Page Turn — a fourth turn voice" },
-    { "cue": "ledgerClose",   "id": 862315, "basename": "book-close-1",              "note": "Close Book 1 — hardback shutting" },
-    { "cue": "ledgerClose",   "id": 862316, "basename": "book-close-2",              "note": "Close Book 2" },
-    { "cue": "ledgerOpen",    "id": 263120, "basename": "pages-sounds",              "note": "PagesSounds — cover and leaves for the open" },
-
-    { "cue": "music",         "id": 826622, "basename": "music-sweet-summer-loop",   "note": "Memories of a sweet summer (music) (loop) — calm, already a loop" },
-    { "cue": "music",         "id": 852235, "basename": "music-lofi-loop",           "note": "Zambian Lo-fi Loop 70 BPM — second candidate, unobtrusive" }
+    {
+      "cue": "drawerSlide",
+      "id": 217173,
+      "basename": "till-metal-slide-in-out",
+      "note": "Metal Till Cash Drawer Slide In And Out — the slide and the stop at the end of travel"
+    },
+    {
+      "cue": "drawerBell",
+      "id": 452572,
+      "basename": "register-antique-various",
+      "note": "antique register: open, close, drawer, bell — sliced into unlock/open/close/bell"
+    },
+    {
+      "cue": "drawerTill",
+      "id": 191436,
+      "basename": "till-open-close",
+      "note": "Till Open and Close — second drawer voice so repeats vary"
+    },
+    {
+      "cue": "drawerSlide2",
+      "id": 83874,
+      "basename": "cashier-slide",
+      "note": "cashierslidesnd — a third slide"
+    },
+    {
+      "cue": "cashRun",
+      "id": 40952,
+      "basename": "bills-flip-count",
+      "note": "dollar bills flipping counting — THE continuous tchhhhh"
+    },
+    {
+      "cue": "cashRun",
+      "id": 18623,
+      "basename": "money-count",
+      "note": "money count — second riffle voice"
+    },
+    {
+      "cue": "cashRun",
+      "id": 861806,
+      "basename": "counting-paper-money",
+      "note": "counting_paper_money — third riffle"
+    },
+    {
+      "cue": "billHandle",
+      "id": 271341,
+      "basename": "cash-money-fieldtapes",
+      "note": "note handling, single movements"
+    },
+    {
+      "cue": "billDeposit",
+      "id": 379888,
+      "basename": "paper-placed-on-bench",
+      "note": "paper placed on a surface — the note landing"
+    },
+    {
+      "cue": "billDeposit",
+      "id": 461890,
+      "basename": "money-counting-b",
+      "note": "paper money — sliced for single-note landings"
+    },
+    {
+      "cue": "coinDeposit",
+      "id": 788073,
+      "basename": "coin-drop-with-coins",
+      "note": "Coin_Drop_With_Coins — a coin landing ON coins, exactly what 1.2 asks for"
+    },
+    {
+      "cue": "coinDeposit",
+      "id": 391951,
+      "basename": "coins-dropped-on-wood",
+      "note": "coins on wood — the FIRST coin, hitting the empty well"
+    },
+    {
+      "cue": "coinDeposit",
+      "id": 510735,
+      "basename": "coin-on-table",
+      "note": "single coin on a table"
+    },
+    {
+      "cue": "coinDeposit",
+      "id": 608793,
+      "basename": "coins-drop-on-table",
+      "note": "more coin landings to slice"
+    },
+    {
+      "cue": "coinSettle",
+      "id": 391818,
+      "basename": "coins-handled-rattled",
+      "note": "coins shaken and rattled in hands — the settle"
+    },
+    {
+      "cue": "coinHandle",
+      "id": 444257,
+      "basename": "coins-handful",
+      "note": "a handful of coins moving"
+    },
+    {
+      "cue": "ledgerTurn",
+      "id": 450803,
+      "basename": "pages-flip-various",
+      "note": "paper sheets flip through turn page various — many turns in one file"
+    },
+    {
+      "cue": "ledgerTurn",
+      "id": 856497,
+      "basename": "page-turn-heavy",
+      "note": "Turning page (heavy paper) — a ledger is heavy paper"
+    },
+    {
+      "cue": "ledgerTurn",
+      "id": 382651,
+      "basename": "page-turn-plain",
+      "note": "Paper Page Turn"
+    },
+    {
+      "cue": "ledgerTurn",
+      "id": 656546,
+      "basename": "page-turn-ienba",
+      "note": "Page Turn — a fourth turn voice"
+    },
+    {
+      "cue": "ledgerClose",
+      "id": 862315,
+      "basename": "book-close-1",
+      "note": "Close Book 1 — hardback shutting"
+    },
+    {
+      "cue": "ledgerClose",
+      "id": 862316,
+      "basename": "book-close-2",
+      "note": "Close Book 2"
+    },
+    {
+      "cue": "ledgerOpen",
+      "id": 263120,
+      "basename": "pages-sounds",
+      "note": "PagesSounds — cover and leaves for the open"
+    },
+    {
+      "cue": "music",
+      "id": 826622,
+      "basename": "music-sweet-summer-loop",
+      "note": "Memories of a sweet summer (music) (loop) — calm, already a loop"
+    },
+    {
+      "cue": "music",
+      "id": 852235,
+      "basename": "music-lofi-loop",
+      "note": "Zambian Lo-fi Loop 70 BPM — second candidate, unobtrusive"
+    },
+    {
+      "cue": "optMenu",
+      "id": 686544,
+      "basename": "opt-menu-wooden-button",
+      "note": "wooden button by Troube — a real wooden button being pressed"
+    },
+    {
+      "cue": "optMenu",
+      "id": 848748,
+      "basename": "opt-menu-felt-tap",
+      "note": "tap on felt by emapuree — softest option, almost no attack"
+    },
+    {
+      "cue": "optMenu",
+      "id": 669468,
+      "basename": "opt-menu-low-click",
+      "note": "Low Click 1 by CJspellsfish — muted, low, no ring"
+    },
+    {
+      "cue": "optMenu",
+      "id": 321083,
+      "basename": "opt-menu-wood-click",
+      "note": "Wooden Click by BenjaminNelan"
+    },
+    {
+      "cue": "optMenu",
+      "id": 335898,
+      "basename": "opt-menu-typewriter",
+      "note": "Typewriter Key by PerMagnusLindborg — mechanical but wooden-boxed"
+    },
+    {
+      "cue": "optMenu",
+      "id": 815493,
+      "basename": "opt-menu-latch",
+      "note": "Mechanical switch (latch) 02 by xkeril"
+    },
+    {
+      "cue": "optDrawer",
+      "id": 756424,
+      "basename": "opt-drawer-wood-a",
+      "note": "Wooden Drawer Open Close by FishPlinko"
+    },
+    {
+      "cue": "optDrawer",
+      "id": 364105,
+      "basename": "opt-drawer-wood-b",
+      "note": "Wooden_Drawer_open_close_2 by Rudmer_Rotteveel"
+    },
+    {
+      "cue": "optDrawer",
+      "id": 502771,
+      "basename": "opt-drawer-small",
+      "note": "drawer_wooden_small_sliding by keus92"
+    },
+    {
+      "cue": "optDrawer",
+      "id": 614895,
+      "basename": "opt-drawer-old",
+      "note": "open and close old wooden drawer by Garuda1982"
+    },
+    {
+      "cue": "optDrawer",
+      "id": 455854,
+      "basename": "opt-drawer-slide",
+      "note": "wood drawer slide open close pull push by kyles"
+    },
+    {
+      "cue": "optCash",
+      "id": 458399,
+      "basename": "opt-cash-coins-bright",
+      "note": "Coin sounds by Breviceps"
+    },
+    {
+      "cue": "optCash",
+      "id": 447458,
+      "basename": "opt-cash-paper",
+      "note": "paper money sound by florianreichelt"
+    },
+    {
+      "cue": "optCash",
+      "id": 419942,
+      "basename": "opt-cash-banknotes",
+      "note": "05_banknotes by 14FPanskaKaiprova_Johana"
+    },
+    {
+      "cue": "optCash",
+      "id": 336585,
+      "basename": "opt-cash-bowl",
+      "note": "coins in paper bowl by Anthousai"
+    },
+    {
+      "cue": "optTurn",
+      "id": 537872,
+      "basename": "opt-turn-crisp",
+      "note": "Page Turning by XanTheRock"
+    },
+    {
+      "cue": "optTurn",
+      "id": 698636,
+      "basename": "opt-turn-soft",
+      "note": "Page Turning by ominous_studios"
+    },
+    {
+      "cue": "optTurn",
+      "id": 119126,
+      "basename": "opt-turn-close",
+      "note": "Book Turn Page 1 by esperri"
+    },
+    {
+      "cue": "optTurn",
+      "id": 641757,
+      "basename": "opt-turn-airy",
+      "note": "Book page turning by eZZin"
+    },
+    {
+      "cue": "optPickup",
+      "id": 573200,
+      "basename": "opt-pickup-grab",
+      "note": "book_grabs by j1987"
+    },
+    {
+      "cue": "optPickup",
+      "id": 382231,
+      "basename": "opt-pickup-handling",
+      "note": "Book Sounds by kevinpro"
+    },
+    {
+      "cue": "optPickup",
+      "id": 426383,
+      "basename": "opt-pickup-open",
+      "note": "Book Open by Jbricker1997"
+    },
+    {
+      "cue": "optPickup",
+      "id": 393844,
+      "basename": "opt-pickup-open-soft",
+      "note": "Book_open by envirOmaniac2"
+    },
+    {
+      "cue": "optClose",
+      "id": 399669,
+      "basename": "opt-close-book",
+      "note": "Close book by SoundsForHim"
+    },
+    {
+      "cue": "optClose",
+      "id": 195795,
+      "basename": "opt-close-soft",
+      "note": "Closing book by ondondvo"
+    },
+    {
+      "cue": "optClose",
+      "id": 123819,
+      "basename": "opt-close-board",
+      "note": "cm_samples_book_close by assrel"
+    },
+    {
+      "cue": "optClose",
+      "id": 436502,
+      "basename": "opt-close-setdown",
+      "note": "Book drop by micronmark"
+    },
+    {
+      "cue": "optMusic",
+      "id": 746329,
+      "basename": "opt-music-lofi",
+      "note": "Calm Lofi Ambient by FortHell0"
+    },
+    {
+      "cue": "optMusic",
+      "id": 239045,
+      "basename": "opt-music-piano-sparse",
+      "note": "piano loop 1212 by arseniiv"
+    },
+    {
+      "cue": "optMusic",
+      "id": 259946,
+      "basename": "opt-music-piano-warm",
+      "note": "s piano loop 3 by arseniiv"
+    },
+    {
+      "cue": "optMusic",
+      "id": 629178,
+      "basename": "opt-music-epiano",
+      "note": "Simple Lofi Vinyl E-Piano Loop 95 BPM by holizna"
+    }
   ]
 }

@@ -181,6 +181,21 @@ export function makeAudio(preferences = null) {
         .then((r) => (r.ok ? r.json() : { samples: [] }))
         .then((m) => sampleBank.loadAll(m.samples || []))
         .then(() => {
+          // PLAYTEST 3, ITEM 1 — RE-APPLY THE OWNER'S AUDITION PICKS.
+          //
+          // The pins live in preferences and the bank is rebuilt on every boot,
+          // so without this the picker works beautifully for one session and
+          // forgets the winner overnight. Applied here, at the one moment the
+          // options exist, rather than from the settings panel -- the panel may
+          // never be opened, and the pick has to hold anyway.
+          try {
+            const pins = settings()?.sfx || {};
+            for (const [family, option] of Object.entries(pins)) {
+              if (option) sampleBank.setFamilyOption(family, option);
+            }
+            const track = settings()?.musicTrack;
+            if (track && track !== 'off') sampleBank.setFamilyOption('music', track);
+          } catch { /* a bad pin must never stop the bank from finishing */ }
           // 1.5 — THE MUSIC'S ONE AND ONLY CALL SITE.
           //
           // Started here, from the moment the bank finishes decoding, for the
@@ -2650,6 +2665,41 @@ export function makeAudio(preferences = null) {
     // check ends up certifying a graph the player never hears.
     qaContext: () => ctx,
     qaSampleBankDiagnostics: () => (sampleBank?.diagnostics ? sampleBank.diagnostics() : null),
+
+    // PLAYTEST 3, ITEM 1 — THE AUDITION SWITCHER, from the settings panel's side.
+    //
+    // The panel must not reach into the bank directly: the bank is created lazily
+    // when the context unlocks, so a panel holding a reference from construction
+    // would be holding null on every fresh boot. These three go through the live
+    // binding each call.
+    sfxFamilies: () => (sampleBank?.families ? sampleBank.families() : []),
+    sfxSetFamilyOption: (family, optionId) => (
+      sampleBank?.setFamilyOption ? sampleBank.setFamilyOption(family, optionId) : false
+    ),
+    /**
+     * Play one option ONCE so the owner can hear it, without pinning it.
+     *
+     * Auditioning has to be audible on the spot -- a picker you have to close,
+     * go and click a button, and come back to is one nobody uses past the third
+     * comparison. So the pin is applied, the cue fired, and the pin put back,
+     * all inside the call. It routes through the ordinary sfx bus, which means
+     * what is heard here is what will be heard in the game, at the same level.
+     */
+    sfxPreview: (family, optionId, cue) => {
+      if (!sampleBank || !ctx) return false;
+      const was = sampleBank.familyOption(family);
+      if (!sampleBank.setFamilyOption(family, optionId)) return false;
+      try {
+        // minGapSec 0: an audition is deliberate repetition, and the retrigger
+        // guard exists to stop a handful of coins machine-gunning one file --
+        // applying it here would silently swallow the second press of Preview.
+        return sampleBank.play(cue, { ctx, destination: sfxBus, minGapSec: 0 });
+      } finally {
+        // Restored even when play throws: an audition that leaves the family
+        // pinned to whatever was last hovered would silently change the game.
+        sampleBank.setFamilyOption(family, was);
+      }
+    },
     // The ambient gains as they actually stand, plus the inputs that set them.
     // Reading the node closes the gap between "the gate should be shut" and "the
     // player hears nothing".

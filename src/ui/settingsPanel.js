@@ -109,6 +109,38 @@ export function makeSettingsPanel({
     );
   }
 
+  // PLAYTEST 3, ITEM 4 — THE BACKGROUND TRACK, IN *PLAYER* SETTINGS.
+  //
+  // "Several options changeable in SETTINGS — player settings, not dev — plus an
+  // off switch." The sound-effect auditions are a development question and live
+  // on the Developer tab; which music plays is a taste a player has every time
+  // they sit down, so it belongs here beside the volume sliders.
+  function musicTrackRow() {
+    const fam = (audio?.sfxFamilies?.() || []).find((f) => f.family === 'music');
+    if (!fam || !fam.options.length) return null;
+    const path = 'audio.musicTrack';
+    const applyTrack = (value) => {
+      set(path, value);
+      if (value === 'off') { audio?.musicStop?.(); return; }
+      audio?.sfxSetFamilyOption?.('music', value || null);
+      // Restart so the change is heard NOW rather than at the end of a loop that
+      // may be two minutes long -- a music picker you have to wait out is one the
+      // player assumes is broken.
+      audio?.musicStop?.();
+      audio?.musicStart?.();
+    };
+    const select = el('select', {
+      'aria-label': t('settings.audio.music') || 'Background music',
+      onchange: (event) => applyTrack(event.currentTarget.value),
+    },
+    el('option', { value: '', text: 'Default', selected: preferences.get(path) ? null : true }),
+    ...fam.options.map((o) => el('option', {
+      value: o.id, text: o.label, selected: preferences.get(path) === o.id ? true : null,
+    })),
+    el('option', { value: 'off', text: 'Off', selected: preferences.get(path) === 'off' ? true : null }));
+    return row('Background music', 'Which track loops while you play, or none at all.', select);
+  }
+
   function audioPage() {
     const mute = toggle(t('settings.audio.mute'), t('settings.audio.mute.detail'), 'audio.muted', { on: t('settings.audio.mute.on'), off: t('settings.audio.mute.off') });
     return section(t('settings.audio.title'), t('settings.audio.intro'),
@@ -117,6 +149,7 @@ export function makeSettingsPanel({
       slider(t('settings.audio.effects'), t('settings.audio.effects.detail'), 'audio.effects'),
       slider(t('settings.audio.ambience'), t('settings.audio.ambience.detail'), 'audio.ambience'),
       slider(t('settings.audio.ui'), t('settings.audio.ui.detail'), 'audio.ui'),
+      musicTrackRow(),
     );
   }
 
@@ -466,6 +499,100 @@ export function makeSettingsPanel({
     default: 'the default (no room was requested)',
   };
 
+  // PLAYTEST 3, ITEM 1 — THE SFX AUDITION SWITCHER.
+  //
+  // "You cannot hear and I can." Everything below exists so a taste call can be
+  // made by the person with ears instead of guessed at by the person with a peak
+  // meter. Each family offers several genuinely different recordings; the owner
+  // switches while the game runs, hears the change immediately, and names the
+  // winner by its label.
+  const SFX_FAMILY_LABELS = {
+    menuButton: 'Menu buttons',
+    drawerOpen: 'Cash drawer',
+    cashLand: 'Cash landing',
+    ledgerTurn: 'Ledger page turn',
+    ledgerPickup: 'Ledger pickup',
+    ledgerClose: 'Ledger close / set down',
+    music: 'Background music',
+  };
+  // Which cue to fire when Preview is pressed. A family covers several cues and
+  // they are not equally representative -- previewing `uiError` to judge a menu
+  // click would have the owner rejecting a sound they will rarely hear.
+  const SFX_PREVIEW_CUE = {
+    menuButton: 'uiTick',
+    drawerOpen: 'drawerOpen',
+    cashLand: 'coinDeposit',
+    ledgerTurn: 'ledgerTurn',
+    ledgerPickup: 'ledgerPickup',
+    ledgerClose: 'ledgerClose',
+  };
+
+  function sfxAuditionRows() {
+    const families = (audio?.sfxFamilies?.() || []).filter((f) => f.family !== 'music');
+    if (!families.length) {
+      // Said out loud rather than rendered as an empty panel. The bank is built
+      // when the audio context unlocks, so before the first click there is
+      // genuinely nothing to list -- and a blank picker looks like a broken one.
+      return [el('div', { class: 'setting-native-status', role: 'status' },
+        description('No sample families are loaded yet. Click anything once to start the audio engine, then reopen this tab.'))];
+    }
+    const saved = preferences.get('audio.sfx') || {};
+    return families.map((fam) => {
+      const label = SFX_FAMILY_LABELS[fam.family] || fam.family;
+      let pending = saved[fam.family] || fam.current || '';
+      // Cue preference, then whatever the option actually covers -- an option
+      // that does not include the preferred cue must still be auditionable.
+      const cueFor = (optionId) => {
+        const opt = fam.options.find((o) => o.id === optionId);
+        const want = SFX_PREVIEW_CUE[fam.family];
+        if (opt && want && opt.cues.includes(want)) return want;
+        return opt?.cues?.[0] || want || null;
+      };
+      const applyPin = (optionId) => {
+        // Persisted AND applied. Persisting without applying is a picker that
+        // works after a restart; applying without persisting is one that forgets
+        // the winner overnight. Both have shipped in this repo before.
+        const ok = audio?.sfxSetFamilyOption?.(fam.family, optionId || null);
+        set('audio.sfx', { ...(preferences.get('audio.sfx') || {}), [fam.family]: optionId || '' });
+        return ok;
+      };
+      const select = el('select', {
+        'aria-label': `${label} sound`,
+        onchange: (event) => {
+          pending = event.currentTarget.value;
+          applyPin(pending);
+          // Hear it the instant it changes: the whole point is comparison, and
+          // a switch you have to press a second button to hear is one nobody
+          // A/Bs more than twice.
+          const cue = cueFor(pending);
+          if (cue) audio?.sfxPreview?.(fam.family, pending, cue);
+        },
+      },
+      el('option', { value: '', text: 'Default (all variants)', selected: pending ? null : true }),
+      ...fam.options.map((o) => el('option', {
+        value: o.id,
+        text: `${o.label}${o.files > 1 ? ` (${o.files})` : ''}`,
+        selected: pending === o.id ? true : null,
+      })));
+      const preview = el('button', {
+        type: 'button',
+        class: 'setting-toggle',
+        text: 'Play',
+        onclick: () => {
+          const cue = cueFor(pending);
+          if (!cue) return;
+          const heard = audio?.sfxPreview?.(fam.family, pending || fam.options[0]?.id, cue);
+          // Report rather than shrug: a Play button that does nothing when the
+          // bank has not loaded the file is indistinguishable from a sound the
+          // owner simply cannot hear over the ambience.
+          if (!heard) notify({ message: `No recording loaded for ${label}.`, category: 'invalid' });
+        },
+      });
+      return row(label, `${fam.options.length} recordings. Switching plays it straight away.`,
+        el('div', { class: 'setting-inline' }, select, preview));
+    });
+  }
+
   function developerPage() {
     const active = CLUBHOUSE_VARIANT_REQUEST.variant;
     const source = CLUBHOUSE_VARIANT_REQUEST.source;
@@ -499,11 +626,16 @@ export function makeSettingsPanel({
       globalThis.location?.reload?.();
     };
 
-    return section('Developer', t('settings.developer.intro'),
-      status,
-      row(t('settings.developer.room'), t('settings.developer.room.detail'), select),
-      row(t('settings.developer.apply'), t('settings.developer.apply.detail'),
-        el('button', { type: 'button', class: 'primary', text: t('settings.developer.save'), onclick: applyRoom })),
+    return el('div', {},
+      section('Developer', t('settings.developer.intro'),
+        status,
+        row(t('settings.developer.room'), t('settings.developer.room.detail'), select),
+        row(t('settings.developer.apply'), t('settings.developer.apply.detail'),
+          el('button', { type: 'button', class: 'primary', text: t('settings.developer.save'), onclick: applyRoom })),
+      ),
+      section('Sound auditions',
+        'Every family below offers several genuinely different recordings. Switch one and you hear it immediately — tell me which wins by its name and it becomes the default.',
+        ...sfxAuditionRows()),
     );
   }
 

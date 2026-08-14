@@ -64,12 +64,25 @@ function cut(spec, source, outFile) {
 
   const args = ['-hide_banner', '-v', 'error', '-y'];
   if (spec.start) args.push('-ss', String(spec.start));
-  if (spec.dur) args.push('-t', String(spec.dur));
+  // `-t` BEFORE `-i` limits the INPUT, so it takes its window from the raw file
+  // and the silence trim then runs on whatever that window happened to contain.
+  // When the sound of interest starts after the window, the whole slice is below
+  // the -50 dB threshold, silenceremove deletes all of it, and the second pass
+  // opens an empty file: "End of file" on five options, from five downloads that
+  // were perfectly fine.
+  //
+  // `durAfterTrim` moves the limit to the OUTPUT, so the head silence is removed
+  // FIRST and the duration is then counted from the first real sound. Opt-in
+  // rather than the default because the fifty already-built files had their
+  // spans tuned against the old behaviour and their peaks are in the report.
+  if (spec.dur && !spec.durAfterTrim) args.push('-t', String(spec.dur));
   args.push('-i', source);
   const af = [...chain];
   // fade-out has to be placed against the FINAL length, so it is applied in a
   // second pass below once the trimmed length is known.
-  args.push('-af', af.join(','), '-ac', String(spec.channels || 1), '-ar', '44100',
+  args.push('-af', af.join(','));
+  if (spec.dur && spec.durAfterTrim) args.push('-t', String(spec.dur));
+  args.push('-ac', String(spec.channels || 1), '-ar', '44100',
     '-c:a', 'libvorbis', '-q:a', String(spec.quality ?? 5), `${outFile}.tmp.ogg`);
   const first = spawnSync(ffmpeg, args, { encoding: 'utf8' });
   if (first.status !== 0) return { ok: false, why: (first.stderr || '').slice(0, 300) };
@@ -124,6 +137,14 @@ function main() {
     const entry = {
       cue: spec.cue,
       file: `Assets/audio/${spec.file}`,
+      // PLAYTEST 3, ITEM 1 — the audition switcher's wiring. `family` groups the
+      // cues that must change together (pinning a menu click has to move uiTick,
+      // uiConfirm AND uiCancel or the menu ends up half wooden and half sci-fi);
+      // `option` is the competing recording; `optionLabel` is what the owner
+      // names the winner by, so it is written in plain words, not an id.
+      ...(spec.family ? { family: spec.family } : {}),
+      ...(spec.option ? { option: spec.option } : {}),
+      ...(spec.optionLabel ? { optionLabel: spec.optionLabel } : {}),
       seconds: result.seconds,
       peakDb: result.peakDb,
       bytes: result.bytes,
