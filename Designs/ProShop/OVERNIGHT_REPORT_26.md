@@ -433,6 +433,80 @@ walk-up and it belongs to Phase 3.
 
 ---
 
+# 4.1 TIME FLOWS TOO SLOWLY — **NOT DONE**, AND HERE IS THE WALL
+
+"A full game day in the region of ten to twenty real minutes is the normal band —
+pick a rate, say why you picked it, and make sure nothing that depends on
+wall-clock time breaks when the clock runs faster."
+
+I did not pick a rate, because the measurement says the rate is not the thing in
+the way and changing it alone would make the game worse, not faster.
+
+## Where the day actually stands
+
+| compression | full day | trading hours |
+|---|---|---|
+| ×1 (NPC authoring baseline) | 720 real min | 420 |
+| **×4 (shipped)** | **180 real min** | **105** |
+| ×16 | 45 | 26 |
+| ×36 | **20** | 11.7 |
+| ×48 | **15** | 8.8 |
+| ×72 | **10** | 5.8 |
+
+So his band needs **36× to 72×**, against a shipped 4×.
+
+## What breaks, and it is not what the handoff said
+
+My own handoff asked whether `golfDayProduction.test.js` is calibrated to ×4 or
+whether the golf day genuinely breaks above it. **Neither.**
+
+Eight tests fail identically at ×8, ×12 and ×16 — a step, not a slope, which
+looks exactly like calibration. It is not. Tracing a checked-in party through a
+×16 day, every single state transition fires in order: preparing →
+traveling-to-practice → practicing → traveling-to-starter → waiting-for-starter →
+called-to-tee → at-tee → preparing-shot → ball-in-play. **Nothing is broken.**
+
+What changed is the clock on the wall of the round. The walk from the clubhouse
+to the practice range took **128 game-minutes** — over two game-hours to walk to
+a driving range. That number is not an accident, it is `8 * pace` exactly, the
+ceiling in `routeDuration`:
+
+```js
+const pace = golferPaceScale(state?.golfDay?.speedRung ?? 1);
+return clamp(routeDistance(route) / speed * multiplier * pace, 0.12, 8 * pace);
+```
+
+**Golfers move at a fixed WALL speed by design** — the D1 clock split, the same
+ruling the shoppers got. A golfer covering 100 yards takes the same number of
+real seconds whatever the day length, so the number of GAME-minutes it costs
+scales with the compression. Compress the day and the round stretches to match:
+the day gets shorter and the round gets longer, from both ends at once. At ×36
+that same walk to the range costs about 288 game-minutes; at ×72, about 576. A
+round cannot fit inside trading hours long before the clock reaches his band.
+
+## What I am not going to do
+
+Raise the number. It would produce a shorter day full of golfers who take five
+game-hours to reach the first tee, and the shipped ×4 already fails eight tests
+the moment it moves — not because they are calibrated, but because the round they
+describe no longer fits.
+
+## The two ways through, both yours to pick
+
+1. **Let golfers move faster in wall time on the course.** The A3 ruling — "sped
+   up customers look absurd and I do not want the feature" — was about SHOPPERS,
+   in the clubhouse, at arm's length. Golfers are seen across a fairway at
+   distance, where the same speed-up is far less visible. If that reading is
+   right, the cap can be lifted for the course population only and the clock can
+   go where you want it. **If it is wrong, say so and option 2 is the answer.**
+2. **Shorten the authored route distances.** Same effect on the game clock
+   without anyone moving faster: the course a golfer walks becomes smaller in
+   yards rather than the golfer becoming quicker.
+
+Either one unblocks the ten-to-twenty-minute day. **Neither is a decision I
+should make for you**, which is why 4.1 is NOT DONE rather than shipped at a
+number I picked.
+
 # PHASE 3 — NPC NAVIGATION
 
 ## 3.1 Recast in production — **CONFIRMED ZERO CALL SITES, not yet integrated**
