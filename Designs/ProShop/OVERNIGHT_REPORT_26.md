@@ -535,3 +535,63 @@ Three of my earlier runs waited on organic traffic that was never going to arriv
 at 06:01. Any Phase 3 verifier can stage its own scenario now — including the
 gate's "three queuers blocking the corridor plus a shopper whose item is behind
 them".
+
+
+---
+
+# HANDOFF — WHERE THIS SESSION GOT TO
+
+Context exhausted, not blocked. Everything below is committed and pushed to
+`goal25/phase0-inherited-tree`. Suite **3640/3640**, lint ratchet **323**
+(unchanged).
+
+## DONE / PARTIAL / NOT DONE
+
+| Phase | Item | Status |
+|---|---|---|
+| 1 | 1.0 source CC0 files | **DONE** — 50 files, 24 cues, all CC0, licence gate fails closed |
+| 1 | 1.2 the money | **DONE** — drawer, per-piece landings, pile-depth via two recordings, continuous run |
+| 1 | 1.3 ledger | **DONE** (cue-level; gesture-level belongs to Phase 6) |
+| 1 | 1.4 menu | **DONE** — 7/7 exactly one voice, disabled silent, keyboard matches, cancel variant |
+| 1 | 1.5 music | **DONE** — one voice, verified it does not restart |
+| 1 | 1.6 startup noise | **DONE** — duty cycle 1.000 → 0.247, volume untouched |
+| 1 | 1.7 audio performance | **DONE** — one context, 50 decoded once, 0 failed |
+| 1 | 1.8 paperwork | **DONE** — generated from the manifest |
+| **1** | **GATE** | **PASSED** |
+| 2 | 2.1 player blocks the queue | **FIXED + MEASURED** (110 → 0 walk-in-place frames); **clip NOT DONE** |
+| 2 | 2.2 counter items overlap | **FIXED + MEASURED** (3 pairs → 0); **clip NOT DONE** |
+| **2** | **GATE** | **OPEN** — no clip recorded, no frames viewed |
+| 3 | 3.1 recast in production | **DIAGNOSED, NOT INTEGRATED** — zero production call sites proven |
+| 3 | 3.2 / 3.3 | **NOT STARTED** |
+| 4–10 | everything | **NOT STARTED** |
+
+## The one thing to know before resuming
+
+**Phase 1 is genuinely finished and the cash is audible.** That was the whole
+point of putting it first, and it is the first time in four goals it has been
+reached. `npm test` and
+`node tools/qa/run-electron.cjs tools/qa/electron-phase1-audio-gate.js --clubhouse=pine-hills-v2`
+will reproduce the table in §4 on demand.
+
+## Where to pick up
+
+1. **Phase 2's clips.** No longer blocked. `debugSpawn(false)` puts retail
+   shoppers on the floor; record with
+   `VIDEO_DIR=qa/clips/walkup node tools/qa/run-electron.cjs tools/qa/electron-walkup-blocked.js --clubhouse=pine-hills-v2`
+   and extract with `tools/qa/clip-frames.mjs`. Then **look at the frames.**
+2. **Fix the max-cart probe gap** (first task of Phase 3, see above) — it decides
+   whether the residual 3.78 % walk-in-place is a fault or correct behaviour.
+3. **Phase 3.1 integration.** Recast is vendored, boots, and has zero production
+   callers; the inline loop in `clubhouse.js` is what actually routes customers.
+
+## Standing caveats
+
+- I have **never heard** any of the 50 audio files. Every claim about them is a
+  measurement — peak dBFS on the master bus, which file played, whether it
+  looped, whether it stopped — plus acoustic classification of each slice by
+  attack, decay, sustain and spectral centroid. If a cue sounds *wrong* rather
+  than *absent*, that is the gap between what I can measure and what you can
+  hear, and I would want to know.
+- **Probe-lie count 10.** One of them (#7) passed on the broken build. One (#10)
+  made me publish a wrong number that I have since corrected in place. One
+  finding was withdrawn entirely.
