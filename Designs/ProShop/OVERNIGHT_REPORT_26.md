@@ -972,7 +972,13 @@ establish why 432 authored strands photograph as a dozen.
 
 ---
 
-# 5.1 THE MOP — ALL THREE FAULTS FIXED
+# 5.1 THE MOP — TWO OF THREE FIXED, AND I HAD THE THIRD WRONG
+
+> **Correction to this section's own heading.** It read "ALL THREE FAULTS FIXED"
+> until I photographed the head at the player camera. Two were fixed. The third
+> — "each strand looks like four connected pieces" — I diagnosed as a bulge at
+> every node, fixed that bulge, and the fault was still on screen because it was
+> never the bulge. See ROUND 2 at the end of this section.
 
 Each had a specific, findable cause rather than needing a tuning pass.
 
@@ -1008,7 +1014,167 @@ Before/after at the default camera: `Designs/ProShop/Images/Goal_26/after/`.
 disc; this is a fuller skirt of countable strands. Goal 25's "16–24 countable
 bunches" ruling and Goal 26's near-solid reference pull in opposite directions, and
 I kept the Goal 25 contract because it is a written owner ruling with a test behind
-it. **5.2 (mop weight) and 5.3 (the hands) are NOT DONE.**
+it.
+
+## 5.1 ROUND 2 — the photograph, and what it showed
+
+I stopped trusting the numbers and put the head on screen at the default player
+camera (`tools/qa/electron-mop-portrait.js`). Three things were wrong, and only
+one of them was the one I had been fixing.
+
+**THE PROPORTIONS WERE A BALL.** The head was 0.256 across with 0.335 of yarn
+hanging off it — the yarn was LONGER than the head was wide. No density could
+make that anything but a sphere of spikes, and that is exactly what it
+photographed as. His reference is roughly twice as wide as it is deep. Now 0.336
+across with a 0.20 drop, 1.7:1, and the flare raised 0.32 → 0.52 because the
+outward push is what makes a disc instead of a column.
+
+**THE DAYLIGHT WAS THE WHOLE SILHOUETTE.** `clumpGather` 0.42 pulls each bunch to
+42 % of the gap to its neighbour, leaving black all the way round all eighteen.
+At 0.80 neighbours meet at the collar. **Goal 25's daylight rule is untouched** —
+`mop-verlet-strands.test.js`'s bunch-gap assertion passes unchanged and I did not
+edit it.
+
+**THE FISH-HOOKS, WHICH I GOT WRONG FIRST.** A ring of curled shells around the
+collar looked exactly like a corner at every simulation node, so I raised
+`segments` 4 → 8, re-photographed, and **the two pictures were
+indistinguishable.** They were the open MOUTHS of the strand tubes: an open-ended
+five-sided cylinder seen near end-on shows its own far wall through the opening,
+and 972 of them read as curled paper. Capping the tubes removed the artifact
+entirely, and `segments` went back to 4 — half the draws and half the triangles
+of the change that had done nothing.
+
+That 4 → 8 excursion is worth naming as a method failure, not just a wrong guess:
+I changed a number, and if I had reported it without re-photographing I would
+have shipped "smoother strands, segments doubled" as a fix for a fault it did not
+touch.
+
+**`assert.equal(rig.drawCalls, 4)`** now reads `SHIPPED_MOP_YARN.segments`. The
+literal was a snapshot of the segment count; the contract is the message printed
+beside it, "one instanced call per segment index". A separate `<= 8` ceiling
+carries the draw-call budget the literal was implicitly guarding.
+
+# 5.2 THE MOP'S WEIGHT — **DONE**, TWO TUNINGS, MEASURED IN THE GAME
+
+"Separate carry and active parameters — one solver tuning cannot do both." He is
+right about the reason, too: the two states want opposite things from the same
+numbers, so a single table tuned between them flails when carried AND feels stiff
+when mopping, which is the complaint.
+
+`CARRY_FEEL` and `ACTIVE_FEEL` sit over the existing parameters as deltas — not
+two full tables, so a change to the shared physics cannot drift between them —
+and blend over 0.3 s, because "settles smoothly when the stroke stops" is a claim
+about the transition itself. `toolViewmodel.setUsing` flips the mode from the
+tool's own use flag, the same signal that drives the animation.
+
+**I had `damping` backwards on the first pass**, and the sweep that corrected it
+is now in the file. `damping` is velocity KEPT, so a node that keeps the velocity
+it inherited from the head travels WITH the head. High damping is the tight
+carried mop; low damping is the one that trails. Measured tip lag at a 1 yd/s
+draw:
+
+| damping | 0.20 | 0.50 | 0.74 | 0.865 | 0.90 | 0.96 |
+|---|---|---|---|---|---|---|
+| lag (yd) | 0.240 | 0.230 | 0.196 | 0.135 | 0.106 | 0.033 |
+
+**IN ELECTRON** (`qa/electron/mop-weight/mop-weight.json`), not hand-stepped —
+D1 is on the ledger precisely because this solver was perfect in unit tests and
+had zero call sites in the game:
+
+| | measured |
+|---|---|
+| mode reached the solver | carried 0.92 → stroke 0.78 → back to 0.92, `isActive` true |
+| jitter at rest | 0.00004 yd/frame |
+| sharp turn, carried | peak lag 0.247 yd, back to 0.014 |
+| stroke, active | peak lag 0.281 yd |
+| settled after the stroke | 0.013 yd |
+
+**Watched fail, twice, by file copy** (revert asserted to have changed the file):
+against HEAD the test file will not import; and with **one tuning under two
+names** — the build the brief says cannot work — 3 of 4 assertions fail with
+`mop 0.1243 vs carry 0.1230`, exactly the indistinguishability he predicted.
+
+**Clip:** `qa/mop-weight`, 365 frames extracted and viewed. The first recording
+was taken at pitch −0.35 and **the mop head was below the bottom edge of the
+frame for all 61 seconds of it** — a clip of the gesture, with the gesture
+off-screen. Re-recorded at −0.72, where a player mopping actually looks.
+
+# 5.3 THE HANDS — the thumb tip was still on the wrong material
+
+The three-phalanx rebuild landed earlier (`02bbb4f`): prox / knuckle→mid /
+tip→dist, all on one per-finger skin, a nail on every finger, curl distributed
+0.85 / 1.05 / 0.75.
+
+Photographing them for the gate turned up one thing that rebuild missed. 5.3 asks
+for a **consistent skin material**; the fingers were moved onto per-finger skins,
+and the **thumb tip was left on the shared darker `mats.shade`** — the one part
+of the hand closest to the camera on a shaft grip was the one part still a
+different colour from the hand it belongs to.
+
+`tests/hand-skin-consistency.test.js` now asserts it, and the first version of
+that test **could not tell a nail from a mis-materialled knuckle**, because the
+nail and cuff meshes had no names. Naming them (`FingerNail`, `Palm`,
+`ThumbProx`, `ThumbDist`, `Forearm`, `HandCuff*`) is part of the fix: an
+unnamed mesh is one a probe has to guess about. Watched fail on the unfixed
+thumb: both assertions red, `ThumbProx`/`ThumbDist` named in the diagnostic.
+
+One thing I want to be clear I did **not** change: the forearms photograph paler
+than the hands, and I went looking for a second material. There isn't one — the
+forearm and the palm are the same `mats.skin`. It is lighting: a smooth cylinder
+catches more of the interior light than a cluster of self-shadowing spheres.
+
+# PHASE 5 GATE — PHOTOGRAPHED, AND HOW CLOSE IT IS
+
+`tools/qa/electron-phase5-gate.js` equips each stick tool, stands still, walks,
+turns sharply, and uses it, photographing all four states at the default player
+camera. It verifies two things that are not judgements — that the tool actually
+equipped (`getTool()` after the set, not the request) and that its group is drawn
+through an unbroken visible chain — and refuses to judge the rest, because "how
+close is it" is a sentence a person writes after looking.
+
+Both tools: equipped ✓, drawn ✓, 8 photographs in `qa/electron/phase5-gate/`.
+
+## The mop, beside `MopRefrenceImage.png`
+
+`Designs/ProShop/Images/Goal_26/after/mop-vs-reference.png`
+
+**About half way.** The silhouette is now the right family — a red collar with a
+skirt disc under it — where before it was a starburst of spikes. What is still
+wrong, plainly:
+
+- His yarn is an **uncountable packed mass**; mine is still **eighteen countable
+  bunches**, and at `clumpGather` 0.80 each bunch merges into a fat rod rather
+  than reading as many fine strands.
+- His red head **sits on top of** the disc and covers its centre. Mine sits
+  inside the ring with the yarn hanging beside it.
+- His is bright white; mine is dull cream — mostly the room, which is dark.
+
+**The unresolved collision is real and I am not going to quietly pick a side.**
+Goal 25's written ruling is "the daylight between bunches is what stops it
+reading as a brush", with a test enforcing it. Goal 26's reference has no
+daylight at all. 0.80 is as dense as I can go with that test passing untouched.
+**If you want the packed disc, the Goal 25 ruling has to be superseded in
+writing** — the same way you superseded the 16–24 ruling in Goal 25.
+
+## The hands, beside `HandsRefrenceImage.png`
+
+`Designs/ProShop/Images/Goal_26/after/hands-vs-reference.png`
+
+**The rear hand is the best they have looked; the forward hand is not there.**
+
+- **Rear hand:** four distinguishable finger rolls wrapping the shaft. The
+  three-phalanx rebuild is visible at viewmodel distance. This is close.
+- **Forward hand:** reads as a mitten. It grips higher up the shaft, further from
+  the camera, and at that size the finger separation disappears entirely.
+- **No thumb is visible on either hand** from the natural carry angle. His
+  reference has the thumb running up the near side of the shaft, and it is one of
+  the two things that makes his read as a hand at a glance.
+- His forearm has a **wrist**. Mine is a smooth cone into the hand.
+
+**NOT DONE for 5.3's "both hands":** one of the two hands still fails the
+"fingers that read as fingers at viewmodel distance" clause. I have not fixed it
+because the forward grip's position is tuned for shaft contact, which is another
+of 5.3's clauses, and I was not willing to trade one for the other blind.
 
 # 9.2 THE STICKY PROMPT — THREE POPULATIONS, 40.4 % → 26.7 %
 

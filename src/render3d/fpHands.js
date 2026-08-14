@@ -251,6 +251,7 @@ function makeFinger(mats, len, thick, skinMat, withNail) {
   // sort of saving that reads as two fingers being a different kind of object.
   if (withNail !== false) {
     const nail = new THREE.Mesh(new THREE.BoxGeometry(thick * 0.58, 0.0026, len * 0.15), mats.nail);
+    nail.name = 'FingerNail';
     nail.position.set(0, thick * 0.36, -len * 0.17);
     tipJoint.add(nail);
   }
@@ -266,6 +267,7 @@ function makeHand(mats, mirror = 1) {
   // straight through the near plane and fill the screen with a tan cylinder — which is exactly
   // what the first draft did. Slightly tapered so it reads as an arm, not a pipe.
   const forearm = new THREE.Mesh(new THREE.CylinderGeometry(0.033, 0.037, 0.11, 12), mats.skin);
+  forearm.name = 'Forearm';
   forearm.rotation.x = Math.PI / 2;
   forearm.position.z = 0.072;
   g.add(forearm);
@@ -277,12 +279,15 @@ function makeHand(mats, mirror = 1) {
   const sleeve = new THREE.Group();
   sleeve.position.z = 0.138;
   const sleeveBody = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.038, 0.05, 12), mats.cuff);
+  sleeveBody.name = 'HandCuffBody';
   sleeveBody.rotation.x = Math.PI / 2;
   sleeve.add(sleeveBody);
   const cuffRoll = new THREE.Mesh(new THREE.TorusGeometry(0.043, 0.012, 8, 18), mats.cuff);
+  cuffRoll.name = 'HandCuffRoll';
   cuffRoll.position.z = 0.024; // at the opening rim, toward the camera; torus axis already faces +Z
   sleeve.add(cuffRoll);
   const cuffInner = new THREE.Mesh(new THREE.CircleGeometry(0.036, 18), mats.cuffDark);
+  cuffInner.name = 'HandCuffInner';
   cuffInner.position.z = 0.020;
   sleeve.add(cuffInner);
   g.add(sleeve);
@@ -302,6 +307,7 @@ function makeHand(mats, mirror = 1) {
   // than round, the metacarpals run as ridges from wrist to knuckles, and the
   // knuckle line breaks the silhouette. All three below.
   const palm = new THREE.Mesh(new THREE.SphereGeometry(0.05, 14, 10), mats.skin);
+  palm.name = 'Palm';
   palm.scale.set(0.96, 0.44, 1.06); // flatter and a touch wider — a slab, not an egg
   palm.position.set(0, 0, 0.012);
   g.add(palm);
@@ -365,13 +371,20 @@ function makeHand(mats, mirror = 1) {
 
   const thumb = new THREE.Group();
   const thumbProx = new THREE.Mesh(new THREE.CapsuleGeometry(0.010, 0.022, 4, 12), mats.skin);
+  thumbProx.name = 'ThumbProx';
   thumbProx.rotation.x = Math.PI / 2;
   thumbProx.position.z = -0.021;
   thumb.add(thumbProx);
   const thumbKnuckle = new THREE.Group();
   thumbKnuckle.position.z = -0.042;
   thumb.add(thumbKnuckle);
-  const thumbDist = new THREE.Mesh(new THREE.CapsuleGeometry(0.009, 0.016, 4, 12), mats.shade);
+  // THE THUMB WAS MISSED. 5.3's "consistent skin material" was applied to the
+  // four fingers -- each got its own per-finger skin instead of a shared darker
+  // one for every distal -- and the thumb tip was left on `mats.shade`, so the
+  // one part of the hand nearest the camera on a shaft grip was the one part
+  // still a different colour from the hand it belongs to.
+  const thumbDist = new THREE.Mesh(new THREE.CapsuleGeometry(0.009, 0.016, 4, 12), mats.skin);
+  thumbDist.name = 'ThumbDist';
   thumbDist.rotation.x = Math.PI / 2;
   thumbDist.position.z = -0.017;
   thumbKnuckle.add(thumbDist);
