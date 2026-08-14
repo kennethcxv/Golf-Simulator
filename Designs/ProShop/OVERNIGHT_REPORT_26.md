@@ -433,6 +433,75 @@ walk-up and it belongs to Phase 3.
 
 ---
 
+# PHASE 6 — THREE MORE CLAUSES CLOSED
+
+**Two were already done and I checked rather than rebuilt them.**
+
+- **Keyboard and mouse usable.** `ledgerClickHandler` already handles both cases:
+  under pointer lock a locked cursor has no meaningful clientX, so the mouse
+  BUTTONS are the directions (left = next, right = back); unlocked, the
+  screen-half rule applies. Nothing needed.
+- **Consistent page-turn direction.** E and Right turn forward, A and Left turn
+  back, left-click and right-half turn forward, right-click and left-half turn
+  back. Every input agrees with a real book. Nothing needed.
+
+## Selected state — **DONE**, and the control caught two wrong versions first
+
+The contents page drew all seven rows identically. The one page in the book whose
+entire job is *where am I and how do I get anywhere else* was the one page that
+never said where you were. The row is now set heavier with a gold rule under it
+and a small inked marker in the margin — drawn in the book's own ink, because a
+coloured selection bar would read as a menu pasted onto a page.
+
+**The control:** photograph the contents page after visiting two different
+sections. If the marker is real, the two pictures must differ.
+
+**Wrong version 1** — fed from `currentSection()`. On the contents page that
+answers "contents", so the marker pointed at the word *Contents* inside the
+contents list. True, useless, confusing.
+
+**Wrong version 2** — fed from "the last non-contents section resolved", and this
+one is worth writing down. `currentSection()`'s rule is *the last section that has
+BEGUN by the end of the spread*, and **Guest Register begins on the contents
+spread's own right-hand page.** So the marker read "Guest Register" permanently,
+wherever the reader had come from. The control measured **0.2 %** between the two
+photographs — antialiasing, not a moved marker.
+
+**Shipped version** — fed from `goToSection`, the reader saying where they want to
+be. The only unambiguous source, recorded at the call rather than inferred from
+the page afterwards. Photographed: after Complaints, *Complaints and Fixes* is
+bold, ruled and marked; after The Deed, no row in that band is marked, because
+The Deed is further down the list.
+
+`qa/electron/ledger-selected/`
+
+**And the driver lied once too**, in the same shape as everything else tonight:
+`goToPage(0)` is not the contents page — spread *i* is page *i*×2+1 — so the first
+run photographed **The Deed twice** and reported the 2.6 % difference between two
+*different section pages* as proof that a marker on the contents page was drawing.
+
+**Hover** is not shipped and I am not going to claim it: under pointer lock there
+is no cursor to hover with, and the book is a canvas in the world rather than a
+DOM element. The clause as written does not map onto this interface, and the
+honest half of it — a selected state — is what is here.
+
+**Phase 6 now stands at 9 of 10 clauses.** The one left is *readable hierarchy,
+spacing and type at the reading camera*, which is a judgement about a picture and
+belongs to the Phase 6 gate verifier.
+
+# THE GOLDEN GATE
+
+`tool-mop` failed at **0.7557 %** against a 0.75 % threshold, and I accepted the
+baseline — **after** looking at the diff image, not to make a red row green. The
+changed pixels are confined to the bottom-centre of the frame where the yarn and
+the hands are; `shop-floor` and `stockroom-wall` are both **0.0000**. That is the
+5.1 mop geometry change and nothing else.
+
+**Still red and not mine:** `bag-packed` does not capture at all — the manifest
+says `SKIP bag-packed: only 1 goods packed`. Its diff file predates tonight, and
+nothing I touched goes near bag packing. **It is a real open item for whoever
+takes the next session.**
+
 # PHASE 8 — ESCAPE FROM EVERY NAMED STATE
 
 "Test with real Escape presses from every one of these... After each, confirm I
@@ -1779,10 +1848,10 @@ Suite **3648/3648**, lint ratchet **323** throughout.
 | **3 — NPC navigation** | **3.1 DONE** — recast serves **20 of 26** real routes, one bake, proven at the call site. **3.3 jitter DONE** — peak ladders/frame **5 → 2** against a control. **Gate verifier two PASSES: zero sustained contacts in ten minutes.** Gate verifier one (staged queue block + clip) NOT DONE |
 | 4 — Time and bookings | **4.2–4.5 DONE, gate run.** **4.1 NOT DONE — blocked on a decision only you can make** (see the section; it is not the clock) |
 | **5 — Mop and hands** | **5.1 round 2** (proportions, density, capped tubes) and **5.2 DONE** (two tunings, measured in-game, clip viewed). **5.3 NOT DONE for "both hands"** — forward hand is a mitten at viewmodel distance. **Gate photographed, both side-by-sides in the report** |
-| 6 — Ledger UI | **6 of 10 clauses DONE and measured.** Four remain: type at the reading camera, hover/selected, mouse usability, page-turn direction |
+| **6 — Ledger UI** | **9 of 10 clauses DONE and measured.** Mouse and page-turn direction were already right and I checked rather than rebuilt them; the selected state is new and photographed. Hover is NOT SHIPPED and I say why — under pointer lock there is no cursor. One left: type at the reading camera, which is the gate verifier's judgement |
 | 7 — Performance | **7.1 measured** — every baseline in the brief is stale. Merge NOT STARTED |
 | **8 — Global Escape** | **CLOSED.** Router now measured from **13 states**: one rung each, none stranding the player. Phone and placement NOT STAGED (no driver-reachable entry point) |
-| 9 — The remainder | 9.2 improved (40.4 % → 26.7 %), 9.3 measured, **9.4 reproduced, not fixed**. 9.1/9.5/9.6 NOT STARTED |
+| 9 — The remainder | 9.2 improved (40.4 % → 26.7 %), 9.3 measured, **9.4 reproduced, not fixed**. **9.5: three of the stranger's findings closed** (3 verb-less prompt, 14 dev jargon ×2, 5 already fixed). 9.1/9.6 NOT STARTED |
 | 10 — Final verification | **NOT STARTED** |
 
 ## The two things I need from you before the next session can finish a phase
