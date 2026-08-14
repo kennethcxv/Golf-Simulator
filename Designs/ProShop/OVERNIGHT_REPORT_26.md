@@ -1113,10 +1113,27 @@ The probe now uses r = 0.30 and ignores penetrations below 0.05 yd, and the
 depth distribution is recorded alongside the durations so "sustained contact" can
 never again mean "flush against a shelf for a long time".
 
-**The other three rows stand**, and they are good news: two single-frame
-body-to-body brushes in ten minutes, **zero** contacts with the player, and two
-run-in-place episodes totalling three quarters of a second. Person-versus-person
-navigation is in good shape.
+## The corrected ten-minute watch — **ZERO SUSTAINED CONTACTS**
+
+Re-run with the probe radius matched to the resolver (0.30) and a 0.05 yd depth
+floor, 600 s, **58,514 frames, 0 sample errors**, twelve customers in the shop
+throughout:
+
+| kind | contacts | longest | sustained > 1 s |
+|---|---|---|---|
+| body → body | 1 | 0.0 s (one frame) | **0** |
+| body → fixture | **0** | — | **0** |
+| body → player | **0** | — | **0** |
+| runs in place | 7 | 0.72 s | **0** |
+
+**Sustained contacts, all kinds: 0.** "Any sustained contact is a finding" — there
+are none. And the instrument is not blind: its control fires at 0.07 yd, stays
+silent at 7 yd, and caught a staged 0.36 yd fixture penetration in the same
+session.
+
+The seven run-in-place episodes total 1.99 s across ten minutes and none reaches
+a second — that is a walker turning on the spot at a waypoint, not a customer
+jogging against a wall.
 
 # 5.1 THE MOP — TWO OF THREE FIXED, AND I HAD THE THIRD WRONG
 
