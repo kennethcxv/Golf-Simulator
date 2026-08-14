@@ -15,7 +15,7 @@ the oscillator build** — the synth voices being replaced are themselves
 filtered-noise buffers — so it would have certified the exact absence it existed
 to detect.
 
-## 2. Probe-lie count: **18**
+## 2. Probe-lie count: **22**
 
 Checks I wrote that scored the same before and after, or measured the wrong
 object. Every one was caught by a number that disagreed with something else I
@@ -48,7 +48,7 @@ not painted" manufactured a false negative about a click.
 | 6 — Ledger UI | not started |
 | 7 — Performance | not started |
 | 8 — Global Escape | not started |
-| 9 — The remainder | **9.2 sticky prompt: 40.4% -> 26.7%**, residual remains |
+| 9 — The remainder | **9.2 improved, 9.3 measured, 9.4 REPRODUCED**; none closed |
 | 10 — Final verification | not started |
 
 ## 4. Audio table
@@ -1102,3 +1102,70 @@ about the tee desk. Probe lie 18.
 
 **NOT FINISHED**, and the number says so: 26.7 % remains and the tee desk still
 claims the prompt from 90° away. There is a fourth path I have not found.
+
+
+---
+
+# 9.3 THE DARK INTERIOR — MEASURED, DECISION MADE, FIX REVERTED
+
+**His two options, and which I picked:** the game **does** start at 6 am
+(`newClock()` returns `DAY_START_MIN`; a live boot measured 360.45), and moving
+the start time would drag the tee sheet, the arrival planner and every authored
+morning beat with it to fix a lighting problem. So: **the lobby should keep one
+working bulb.**
+
+**His report reproduces, in corners rather than everywhere.** 28 sampled views
+(7 interior positions × 4 headings, HUD cropped out, campaign on, ceiling
+unrepaired):
+
+| | value |
+|---|---|
+| median-of-medians | 50 / 255 |
+| **unreadable views** | **2 of 28** |
+| darkest | median luma **20**, **56 %** of frame indistinguishable from black |
+| where | interior offset (3,3), looking back at 180° |
+
+**I tried the bulb and it did nothing, so it is not in the tree.** Forcing
+practical index 0 to a third brightness while unpowered moved median-of-medians
+50 → 50, unreadable count 2 → 2, darkest 20 → 21. That fitting is nowhere near
+the corner that is dark. Shipping a light that cannot be told apart from no light
+is exactly what the brief forbids, so the code is reverted and only the finding
+stays, written beside the lighting it concerns.
+
+**Next attempt needs** the practicals' own positions, so the fitting nearest
+offset (3,3) becomes the emergency bulb instead of index 0.
+
+# 9.4 THE BUNKER RAKE — **REPRODUCED**
+
+He asked for a photograph and what I see. Both are here:
+`Designs/ProShop/Images/Goal_26/findings/rake-exploded-viewmodel.png`
+
+**The rake viewmodel is exploded.** In the upper third, floating in the sky well
+above the horizon and detached from the player, there is a cluster of tan capsule
+lumps — eight or nine sausage shapes — with **two flat wooden planks driven
+through them** at an angle and two curved ribbons trailing below. A separate dark
+shaft with a green head sits at the right edge, which appears to be the tool
+proper. Top-third median luma 146 against sky: bright and unmissable, not subtle.
+
+**Why the previous session could not reproduce it:** the rake is on the **outdoor
+belt** and is not drawn indoors. `FOUND_FALSE` already records four photographs
+failing that exact way in Goal 23. A session that photographed it inside got a
+picture of a wall.
+
+**The hands are ruled out by measurement.** The capsules look like fingers, and a
+finger in `fpHands.js` *is* a tan capsule — but with the rake equipped the hands
+measure at world y 1.48 and 1.59 against a camera at 1.52. They are where hands
+belong. The exploded geometry is something else, and the next attempt should not
+start where I did.
+
+**NOT FIXED** — 9.4 asked for the photograph and the diagnosis, and that is what
+this is.
+
+## Probe lies 19-22
+
+| # | The probe | What it reported | What was wrong |
+|---|---|---|---|
+| 19 | `electron-dawn-readability` v1 | one spot, one heading | enough to claim either "it is fine" or "my fix did nothing" from a single view direction |
+| 20 | same, v2 | measured a **lit** room | `ceilingCircuitPowered` returns TRUE for free play; a non-campaign run answers a question nobody asked |
+| 21 | `electron-mop-anatomy` | the **broom's** rig | searched by the name `MopStrandRig`, which both tools carry |
+| 22 | `electron-rake-viewmodel` | the rake **unequipped** | read `walk.tool?.()`; the accessor is `getTool()`. It would have reported the rake missing while it was equipped |
