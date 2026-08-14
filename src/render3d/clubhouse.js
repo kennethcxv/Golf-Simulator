@@ -12983,6 +12983,13 @@ export function makeClubhouse(ctx) {
         queued: c.queued === true,
         slot: c.queueSlotHeld ?? null,
         served: c.served === true,
+        // WHICH STOP ARE THEY ON? "They never reached the queue" is a symptom
+        // with several causes -- no counter stop was planned, they were still
+        // browsing, or they walked past it -- and the route index separates them.
+        stopIdx: c.stopIdx ?? null,
+        stopKind: (c.stops && c.stops[c.stopIdx]) ? c.stops[c.stopIdx].kind : null,
+        stopKinds: Array.isArray(c.stops) ? c.stops.map((x) => x && x.kind).join('>') : null,
+        cart: Array.isArray(c.cart) ? c.cart.length : null,
       })),
     carryCollisionRadius: () => {
       const box = carriedBox(state);

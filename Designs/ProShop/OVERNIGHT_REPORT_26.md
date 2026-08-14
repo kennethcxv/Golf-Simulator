@@ -464,17 +464,36 @@ line. That is the code Phase 3 has to either replace or feed.
 frame, production routing queries, and the call-site proof). This is the largest
 item in the brief and it is untouched.
 
-## A live finding this phase inherits
+## A finding I reported and then WITHDREW
 
-With four customers spawned to the counter and the player at the till, **all four
-left without ever joining the queue** (`reachedQueue: 0`) — on **both** the fixed
-and unfixed builds, so it is not caused by the 2.1 change. A customer joins the
-line only when their route hands them a `stop.kind === 'counter'`; these never
-got one.
+I recorded in `5b49d12` that "all four customers left without ever joining the
+queue" and flagged it as a real walk-up defect for this phase. **It is not a
+defect. It was my staging, and I am withdrawing it.**
 
-Recorded rather than chased, because it sits squarely inside 3.2's behaviour list
-("the second person advances after a sale completes, every time") and should be
-fixed with that work rather than patched ahead of it.
+Tracking each customer's actual route settles it:
+
+```
+walk>enter>counter>exit>gone
+walk>enter>fixture>fixture>counter>exit>gone
+walk>enter>fixture>fixture>fixture>fixture>counter>exit>gone
+```
+
+Every one of them **had** a `counter` stop — my first guess, that they never got
+one, was wrong. What they did not have was anything to buy: `cart: 0` for all
+four. `clubhouse.js:11639` arms the checkout approach only on
+`checkoutTarget?.kind === 'counter' && c.cart.length`, so a customer with an
+empty cart walks the route, passes the till with no reason to stop, and leaves.
+That is correct behaviour.
+
+`debugSpawn(true)` produces a customer bound for the counter but does not fill a
+cart, so my "four customers back to back" scenario was four people with nothing
+to purchase. Travel of 20–23 yd each over ~19 s confirms they walked the route
+normally and were not stuck.
+
+**What this changes for Phase 3:** the gate's scenarios need customers with
+carts, not just customers. That is a staging requirement to solve before any
+queue behaviour can be measured at all — and it would have produced a confident,
+completely false finding about the queue if the route had not been recorded.
 
 ## What is now unblocked
 

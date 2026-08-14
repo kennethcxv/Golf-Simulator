@@ -192,12 +192,17 @@ async (page) => {
             stats.set(c.id, {
               id: c.id, frames: 0, walkInPlace: 0, moved: 0, travel: 0,
               maxSpeedIntent: 0, reachedQueue: false, served: false, left: false,
+              reachedCounterStop: false, lastStopKind: null, route: null, cart: null,
             });
           }
           const s = stats.get(c.id);
           s.frames += 1;
           if (c.queued) s.reachedQueue = true;
           if (c.served) s.served = true;
+          s.lastStopKind = c.stopKind;
+          s.route = c.stopKinds;
+          s.cart = c.cart;
+          if (c.stopKind === 'counter') s.reachedCounterStop = true;
           const intent = Math.hypot(c.vx || 0, c.vz || 0);
           s.maxSpeedIntent = Math.max(s.maxSpeedIntent, intent);
           if (p) {
@@ -238,6 +243,9 @@ async (page) => {
     })(),
     worstCustomer: withMotion.slice().sort((a, b) => b.walkInPlace - a.walkInPlace)[0] || null,
     reachedQueue: withMotion.filter((c) => c.reachedQueue).length,
+    reachedCounterStop: withMotion.filter((c) => c.reachedCounterStop).length,
+    routes: [...new Set(withMotion.map((c) => c.route))],
+    lastStops: withMotion.map((c) => c.lastStopKind),
     leftWithoutQueueing: withMotion.filter((c) => c.left && !c.reachedQueue).length,
   };
   fs.writeFileSync(path.join(OUT, 'walkup.json'), `${JSON.stringify(out, null, 2)}\n`);
