@@ -11047,12 +11047,27 @@ export function makeClubhouse(ctx) {
   // Only the people who could matter this frame. Scanning the whole floor per
   // customer is the sort of n-squared that becomes a stall once a room is busy.
   const CROWD_RANGE = 2.4;
+  // A person merely WALKING gets the standard body; a person standing their
+  // ground in the queue gets a wider one, because the owner's complaint is not
+  // "they touched" but "they ran into the LINE" -- a queue deserves a berth, not
+  // a graze. The player is wider still: brushing the player reads worse than
+  // brushing anyone, and the player cannot be relied on to dodge.
+  const QUEUE_BERTH = 0.12;
+  const PLAYER_RADIUS = 0.4;
   // POOLED. The first version allocated a fresh record per neighbour per
   // customer per frame -- O(n^2) short-lived objects at 60 Hz, which is GC
   // pressure for no reason and the sort of thing that turns into stutter on a
   // busy floor. The records never outlive the call, so they are reused.
   const _crowdNear = [];
   const _crowdPool = [];
+  function crowdRecord(slot) {
+    let record = _crowdPool[slot];
+    if (!record) {
+      record = { x: 0, z: 0, vx: 0, vz: 0, pinned: false, radius: BODY_RADIUS };
+      _crowdPool[slot] = record;
+    }
+    return record;
+  }
   function customerNeighbours(c) {
     _crowdNear.length = 0;
     const px = c.mesh.position.x;
@@ -11062,14 +11077,31 @@ export function makeClubhouse(ctx) {
       const ox = other.mesh.position.x;
       const oz = other.mesh.position.z;
       if (Math.abs(ox - px) > CROWD_RANGE || Math.abs(oz - pz) > CROWD_RANGE) continue;
-      const slot = _crowdNear.length;
-      let record = _crowdPool[slot];
-      if (!record) { record = { x: 0, z: 0, vx: 0, vz: 0, pinned: false }; _crowdPool[slot] = record; }
+      const record = crowdRecord(_crowdNear.length);
       record.x = ox;
       record.z = oz;
       record.vx = other.vx || 0;
       record.vz = other.vz || 0;
       record.pinned = customerIsPinned(other);
+      record.radius = record.pinned ? BODY_RADIUS + QUEUE_BERTH : BODY_RADIUS;
+      _crowdNear.push(record);
+    }
+    // THE PLAYER IS A NEIGHBOUR TOO. Before this, walkers reasoned about every
+    // customer and treated the player as nothing but a hard clamp at the last
+    // half-yard -- which is exactly "running into myself in general". The player
+    // enters the same reciprocal math as everyone else, with their real
+    // velocity, so a walker crossing the player's path swerves EARLY the way it
+    // does for another walker. Pinned, because the avoidance must never assume
+    // the player will take the other half of the correction.
+    if (walk.active
+        && Math.abs(walk.x - px) <= CROWD_RANGE && Math.abs(walk.z - pz) <= CROWD_RANGE) {
+      const record = crowdRecord(_crowdNear.length);
+      record.x = walk.x;
+      record.z = walk.z;
+      record.vx = walk.vx || 0;
+      record.vz = walk.vz || 0;
+      record.pinned = true;
+      record.radius = PLAYER_RADIUS;
       _crowdNear.push(record);
     }
     return _crowdNear;
@@ -11986,12 +12018,25 @@ export function makeClubhouse(ctx) {
         // same frame and each takes half the correction -- which is what makes
         // them step past one another instead of both dodging the same way.
         const crowdNear = customerNeighbours(c);
+        let crowdSlow = 1;
         if (crowdNear.length) {
           const avoid = avoidanceHeading(
             { x: c.mesh.position.x, z: c.mesh.position.z, vx: c.vx || 0, vz: c.vz || 0 },
             crowdNear, heading.x, heading.z, Math.max(0.2, step / Math.max(dt, 1e-4)),
           );
-          if (avoid.avoided) heading = { ...heading, x: avoid.x, z: avoid.z, steered: true };
+          if (avoid.avoided) {
+            heading = { ...heading, x: avoid.x, z: avoid.z, steered: true };
+            // YIELD, do not just swerve. A sidestep at full stride through a
+            // tight gap still reads as barging; people slow down when a
+            // collision is imminent. Urgency > 2 is the overlapping band in
+            // avoidanceHeading; above ~1.2 the closest approach is inside half
+            // a second. Scaling the step is what makes two crossing walkers
+            // resolve as one yielding to the other rather than both wedging
+            // into the same gap at speed.
+            const urgency = avoid.threat?.urgency ?? 0;
+            if (urgency >= 2) crowdSlow = 0.35;
+            else if (urgency > 1.2) crowdSlow = 0.6;
+          }
         }
         steerStats.calls += 1;
         if (wdist > STEER_DEFAULTS.minTravel) steerStats.engaged += 1; else steerStats.tooShort += 1;
@@ -11999,7 +12044,11 @@ export function makeClubhouse(ctx) {
         if (heading.trapped) steerStats.trapped += 1;
         steerStats.travelSum += wdist;
         if (wdist > steerStats.travelMax) steerStats.travelMax = wdist;
-        const res = resolveCustomer(c, c.mesh.position.x + heading.x * step, c.mesh.position.z + heading.z * step);
+        const res = resolveCustomer(
+          c,
+          c.mesh.position.x + heading.x * step * crowdSlow,
+          c.mesh.position.z + heading.z * step * crowdSlow,
+        );
         const moved = Math.hypot(res.nx - c.mesh.position.x, res.nz - c.mesh.position.z);
         // Velocity, so the people around this one can see where it is GOING
         // rather than only where it is standing. Without it two walkers each

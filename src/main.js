@@ -1498,29 +1498,11 @@ function startGameNow(
       app.speedIdx = startupCompletion.intendedSpeedIdx;
       lastTs = performance.now();
       app.prewarming = false;
-      // P2 (round 3) — PAY THE HANDS' SHADER BILL WHILE THE VEIL IS STILL UP.
-      //
-      // Measured cause, twice over: the first frame that draws the first-person
-      // hands compiles 8-9 GL programs and stalls 280-360 ms, and the bill lands
-      // on whichever tool draws hands first. The bottle compiles NOTHING (it is
-      // `hands: false`) and hands the whole bill to the next tool, which is the
-      // owner's "bottle to dustpan freezes the first time". Holding the broom's
-      // trigger and sweeping costs nothing extra (0 programs, 27 ms) -- it is
-      // entirely the equip.
-      //
-      // An earlier attempt did this inside courseScene's prewarm and FAILED: it
-      // compiled one program instead of eight, because prewarm deliberately does
-      // not run the normal update loop and the viewmodel is never positioned or
-      // made visible by a forced composer.render() alone. That attempt is kept
-      // in the report as a negative result.
-      //
-      // Here the game is fully live -- prewarming is already false, so the real
-      // update loop is running and the hands go through exactly the path a
-      // player's equip takes -- and the opaque veil is still covering the screen.
-      // Not a seventeenth renderer.compile() configuration: nothing is described
-      // to the renderer, a real tool is equipped and really drawn.
-      // HANDS WARM DISABLED, 2026-08-13. See warmFirstPersonHands below.
       veil.hide();
+      // ROUND 4: the first-press stalls come back warm, DEFERRED -- seconds
+      // after the game is interactive, never at this boundary. The full story
+      // is on scheduleDeferredGpuWarm below.
+      scheduleDeferredGpuWarm(sceneRef);
       const notices = [degradedPrewarmNotice, loadNotice].filter(Boolean);
       if (notices.length) {
         setTimeout(() => {
@@ -1558,8 +1540,60 @@ let loadVeil = null;
 // can come back spread over several frames well after the veil has lifted rather
 // than in a burst at the boundary.
 //
-// The implementation is in git at commit adb9ef2 if it is wanted back; it is
-// not carried here as dead code.
+// ROUND 4: IT IS WANTED BACK. The owner, with the warm withdrawn: "I lag
+// whenever I move from the white bottle to the dusk cleaner... I also lagged
+// really hard the first time I clicked on the button to be the cashier...
+// glitchy with first time button presses." Every one of those is the first
+// draw of a material set compiling its GL programs on a player-facing frame.
+//
+// The placement is the difference from the withdrawn version. That one ran AT
+// the veil boundary, while prewarm's uploads were still settling -- the one
+// moment a burst of compiles could plausibly aggravate a wobbly driver. This
+// one runs SECONDS AFTER the game is interactive, from a timeout, in two
+// stages: the hands warm first (a real draw -- the only mechanism measured to
+// actually compile the 8 hand programs; 16 renderer.compile() configurations
+// and one forced-prewarm draw all failed), then compileAsync over the whole
+// scene, which uses KHR_parallel_shader_compile to build every remaining
+// program off the render thread -- the register mode's, the ledger's -- without
+// blocking a single frame. A player equipping a tool inside the first two
+// seconds simply beats the warm and pays what they always paid; the warm skips
+// itself rather than fight them for the hands.
+function scheduleDeferredGpuWarm(sceneRef) {
+  setTimeout(async () => {
+    try {
+      if (app.scene3d !== sceneRef || app.prewarming) return;
+      const walk = sceneRef?.walk;
+      if (!walk || typeof walk.setTool !== 'function') return;
+      const frame = () => new Promise((resolve) => requestAnimationFrame(resolve));
+      const held = typeof walk.tool === 'function' ? walk.tool() : null;
+      window.__fwWarm = { hands: 'skipped', sweep: 'pending' };
+      if (!held) {
+        walk.setTool('dustpan');
+        await frame();
+        await frame();
+        await frame();
+        if (app.scene3d !== sceneRef) return;
+        walk.setTool(null);
+        await frame();
+        window.__fwWarm.hands = 'done';
+      }
+      // The sweep is fire-and-forget: parallel compile finishes whenever it
+      // finishes, and anything it misses just pays its old first-use cost.
+      const renderer = sceneRef.renderer;
+      const compiled = renderer?.compileAsync?.(sceneRef.scene, sceneRef.camera);
+      if (compiled?.then) {
+        compiled.then(
+          () => { window.__fwWarm.sweep = 'done'; },
+          () => { window.__fwWarm.sweep = 'failed'; },
+        );
+      } else {
+        window.__fwWarm.sweep = 'unavailable';
+      }
+    } catch (error) {
+      reportFault('scene.deferred-warm', error);
+    }
+  }, 1600);
+}
 
 function ensureLoadVeil() {
   if (loadVeil) return loadVeil;
