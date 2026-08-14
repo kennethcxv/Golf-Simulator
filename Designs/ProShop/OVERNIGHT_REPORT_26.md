@@ -1253,9 +1253,36 @@ four pages into the Restoration Record paid for the trip again every time.
 opening it, and `setOpen` refuses while held ("a book in your arms is not a book
 to read").
 
-**NOT CLAIMED:** type, hierarchy and spacing at the reading camera are judgements
-about a picture. Back/forward history, hover states and the no-dead-end sweep are
-**NOT DONE**.
+## Back and forward — **DONE**
+
+```
+visited        guests -> restoration -> takings
+back           -> restoration -> guests
+forward        -> restoration
+backBehaves    true
+forwardBehaves true
+```
+
+**A history over jumps, not over page turns**, and that distinction is the whole
+design. Turning a page is reading; jumping to a section is navigating. If page
+turns went into the history, Back after reading four pages would walk you back
+through all four — which is not what anyone means by Back. The forward stack is
+discarded on a new jump, exactly as a browser does.
+
+Bound to Backspace (shift+Backspace forward), deliberately **not** the arrows —
+those turn pages, and conflating "back a page" with "back to where I was" is what
+makes a Back control untrustworthy. Left **unhandled** when there is nowhere to
+go rather than swallowed, because a key that silently does nothing teaches the
+player it is broken.
+
+## Phase 6 status: **5 of 10 clauses** measured and passing
+
+Section identity · navigation to every section from anywhere · back and forward ·
+state persistence · keyboard usability.
+
+**NOT DONE:** type and hierarchy at the reading camera (a judgement about a
+picture), hover and selected states, mouse usability, the no-dead-end-pages
+sweep, and consistent page-turn direction.
 
 ---
 
@@ -1278,7 +1305,7 @@ Suite **3642/3642**, lint ratchet **323**.
 | **4** | **GATE** | **RUN** — full week, every figure reported |
 | **5** | 5.1 the mop | **DONE** — all three named faults fixed at their causes |
 | 5 | 5.2 mop weight / 5.3 the hands | **NOT DONE** |
-| 6 | ledger UI | **3 measurable clauses DONE**; type/history/hover not done |
+| 6 | ledger UI | **5 of 10 clauses DONE and measured**; type/hover/dead-ends not done |
 | 7 | 7.1 measure first | **DONE** — every baseline in the brief is stale |
 | 7 | 7.1 merge / 7.2 – 7.7 | **NOT DONE** |
 | **8** | Escape router | **DONE and measured** — one layer per press, never stranded |
