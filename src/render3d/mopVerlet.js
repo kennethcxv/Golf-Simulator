@@ -152,15 +152,46 @@ export const COLLAR_INNER = 0.52;
 // making the test green would have been weakening a gate to hide a real
 // disagreement. Left at the values the owner ruled on; the conflict is in the
 // report for him to settle.
+// GOAL 25 ROUND 2 — THE RULING THAT SUPERSEDES 16-24 STRANDS.
+//
+// The owner, resolving the collision I reported between his own two rulings:
+//
+//   "The 16-24 ruling was about THICK BANDS. House Flipper's is MANY FINE
+//    STRANDS THAT SPLAY AND CLUMP. Your own screenshot shows why 380 read as a
+//    brush: it was a straight-sided barrel. A string mop is not a cylinder -- it
+//    flares into a skirt and the strands clump in groups. So: density AND splay
+//    together."
+//
+// The two rulings were never about the same number. What a person counts when
+// they look at a mop is BUNCHES, and 16-24 was always the right count of those.
+// The mistake in both directions was making the bunch and the strand the same
+// object: at 22 strands each bunch was one 13 mm rod (a comb of pale pipes), and
+// at 380 evenly-spread strands there were no bunches at all (a brush).
+//
+//   count 252 fine strands       4.4 mm across, so a strand reads as yarn, not
+//                                as the 13 mm length of pipe that shipped
+//   clumps 18                    inside the 16-24 a person can still count
+//   splay 0.32                   the hem sits ~32% of a head-radius proud of
+//                                the collar: a skirt, not a cylinder
+//
+// Draw calls are UNCHANGED at 4 -- one InstancedMesh per segment index, so
+// density costs geometry and no submissions. That is why "many fine strands"
+// is affordable here at all.
 export const SHIPPED_MOP_YARN = Object.freeze({
-  count: 22,
+  // 252 = 18 x 14 exactly. An uneven split would give some bunches more strands
+  // than others, and since the splay force is per-strand that imbalance is the
+  // same off-axis drift the even angles above exist to remove.
+  count: 252,
   radius: 0.105,
   length: 0.30,
   segments: 4,
-  strandRadiusTop: 0.013,
-  strandRadiusBottom: 0.010,
-  radialSegments: 8,
+  strandRadiusTop: 0.0022,
+  strandRadiusBottom: 0.0016,
+  radialSegments: 5,
   lengthVariation: 0.24,
+  clumps: 18,
+  clumpGather: 0.42,
+  splay: 0.32,
 });
 
 export function createVerletMopStrands({
@@ -175,6 +206,23 @@ export function createVerletMopStrands({
   // B3: real mop yarn is not cut to one length. +/-18% around the nominal, so
   // the hem of the bundle is ragged instead of a machined disc.
   lengthVariation = 0.18,
+  // GOAL 25 ROUND 2 — CLUMPS AND SPLAY, together, by the owner's ruling:
+  // "The 16-24 ruling was about THICK BANDS. House Flipper's is MANY FINE
+  // STRANDS THAT SPLAY AND CLUMP... A string mop is not a cylinder -- it flares
+  // into a skirt and the strands clump in groups."
+  //
+  // So the 16-24 the last two goals argued over is not the strand count at all.
+  // It is the count of BUNCHES a person can pick out by eye, and each bunch is
+  // now made of many fine strands instead of being one fat rod. That is what
+  // reconciles the two rulings: the reading he wanted was always the clumping.
+  clumps = 18,
+  // how tightly a bunch gathers at the collar, as a fraction of the gap between
+  // neighbouring bunches. Below 1 the bunches do not touch, which IS the point:
+  // the daylight between them is what stops it reading as a brush.
+  clumpGather = 0.42,
+  // outward flare at the hem, as a fraction of the head radius. This is the
+  // skirt: 0 is the straight-sided barrel that photographed as a brush.
+  splay = 0.55,
   params = {},
 }) {
   const live = { ...DEFAULT_PARAMS, ...params };
@@ -188,6 +236,10 @@ export function createVerletMopStrands({
   // Geometry is authored at the NOMINAL segment length with its origin at the
   // top, so a segment scales about the joint it hangs from.
   const nominalSeg = length / S;
+  // Chosen so the hem sits about `splay * radius` further out than the collar
+  // at rest under this gravity: the flare is expressed in the same units the
+  // owner sees (a fraction of the head) rather than as a tuned acceleration.
+  const splayAccel = Math.max(0, splay) * radius * DEFAULT_PARAMS.gravity * 2.4;
   const RADIAL = Math.max(3, Math.round(radialSegments));
   const geometry = new THREE.CylinderGeometry(
     strandRadiusTop, strandRadiusBottom, nominalSeg, RADIAL, 1, true,
@@ -213,7 +265,21 @@ export function createVerletMopStrands({
   const anchorZ = new Float32Array(N);
   const outX = new Float32Array(N); // buckling direction: away from the centre
   const outZ = new Float32Array(N);
+  // The SPLAY direction is the buckle direction with the bundle's mean removed
+  // (see below). Buckling keeps the raw azimuth: it only acts on strands the
+  // floor is compressing, so it has no resting state to bias.
+  const splayX = new Float32Array(N);
+  const splayZ = new Float32Array(N);
   const segLen = new Float32Array(N);
+  const CLUMPS = Math.max(1, Math.min(Math.round(clumps), N));
+  const clumpOutX = new Float32Array(CLUMPS);
+  const clumpOutZ = new Float32Array(CLUMPS);
+  const clumpOf = new Int32Array(N);
+  // Bunch centres ride the collar annulus. Spacing between neighbours sets how
+  // far a strand may wander from its own centre, so the gaps survive whatever
+  // count is asked for.
+  const COLLAR_RADIUS = radius * (COLLAR_INNER + (1 - COLLAR_INNER) * 0.78);
+  const clumpGap = (2 * Math.PI * COLLAR_RADIUS) / CLUMPS;
   for (let i = 0; i < N; i += 1) {
     // D (Goal 23) — THE BANDS HANG FROM A COLLAR, NOT FROM A POINT.
     //
@@ -227,16 +293,93 @@ export function createVerletMopStrands({
     // from there: no strand originates on the axis, the outer edge is still
     // reached, and the ring of anchors is wide enough that neighbouring bands
     // touch and mat instead of fanning apart.
-    const t = Math.sqrt((i + 0.5) / N);
-    const r = radius * (COLLAR_INNER + (1 - COLLAR_INNER) * t);
-    const theta = i * GOLDEN;
-    anchorX[i] = Math.cos(theta) * r;
-    anchorZ[i] = Math.sin(theta) * r;
-    outX[i] = Math.cos(theta);
-    outZ[i] = Math.sin(theta);
-    // deterministic ragged hem
-    const v = ((i * 0.6180339887) % 1) * 2 - 1;
+    //
+    // AND THEY HANG IN BUNCHES. The strand's anchor is its BUNCH's place on the
+    // collar plus a small deterministic offset inside that bunch, rather than
+    // its own place in a sunflower fill. A sunflower spreads points as evenly as
+    // a disc can be covered -- which is precisely the even, gapless, straight
+    // sided barrel that photographed as a brush at 380 strands. Even coverage
+    // was never the goal; countable bunches with daylight between them were.
+    const c = i % CLUMPS;
+    clumpOf[i] = c;
+    // ONE COLLAR RING, one radius for every bunch. Letting the radius grow with
+    // the bunch index makes a spiral, and a spiral's anchor centroid is not on
+    // the axis -- which showed up immediately as the resting tip cloud sitting
+    // 10.6 mm off centre. A string mop's bunches are clamped in a single band
+    // across the head, so the ring is also what the reference actually is.
+    // EVENLY SPACED IN ANGLE, not golden-angle, and this is a physics
+    // requirement rather than a taste one. The splay force points along each
+    // bunch's own azimuth, so the bunches' directions have to sum to zero or the
+    // whole head drifts off-axis at rest. On a golden-angle layout they did not,
+    // and the resting tip centroid sat 4.74 mm off centre against this file's
+    // own 4 mm bar. Even spacing cancels the radial forces exactly, and a real
+    // mop's bunches are gathered evenly around the band anyway.
+    const ctheta = (c / CLUMPS) * Math.PI * 2;
+    const cx = Math.cos(ctheta) * COLLAR_RADIUS;
+    const cz = Math.sin(ctheta) * COLLAR_RADIUS;
+    clumpOutX[c] = Math.cos(ctheta);
+    clumpOutZ[c] = Math.sin(ctheta);
+    // where this strand sits inside its own bunch: a deterministic little disc,
+    // golden-angle again so a bunch is not a line of strands
+    const perClump = Math.max(1, Math.ceil(N / CLUMPS));
+    const within = Math.floor(i / CLUMPS);
+    const wt = Math.sqrt((within + 0.5) / perClump);
+    // even angles inside the bunch as well, for the same reason as the ring: a
+    // golden-angle scatter of 14 strands does not balance, and each bunch's
+    // residual becomes another few millimetres of drift at rest
+    const wtheta = (within / perClump) * Math.PI * 2 + c * GOLDEN;
+    const wr = clumpGap * clumpGather * 0.5 * wt;
+    anchorX[i] = cx + Math.cos(wtheta) * wr;
+    anchorZ[i] = cz + Math.sin(wtheta) * wr;
+    // A BUNCH FLARES AS ONE. The outward direction is the BUNCH's, not the
+    // strand's own azimuth, so a bunch leans and buckles together instead of
+    // every strand in it splaying away from its neighbours -- which would undo
+    // the clumping the moment the head touched the floor.
+    outX[i] = clumpOutX[c];
+    outZ[i] = clumpOutZ[c];
+    // Deterministic ragged hem -- keyed on the strand's place WITHIN its bunch,
+    // not on its global index. Keyed on `i`, the length pattern beats against
+    // the bunch period (i % CLUMPS) and some bunches come out longer than
+    // others; longer strands splay further, so that imbalance walks the resting
+    // tip cloud off the axis. Measured: 13.8 mm of drift against this file's own
+    // 4 mm bar, with the anchors and the splay forces both already balanced to
+    // 1e-5. Every bunch now carries the same set of lengths.
+    const v = ((within * 0.6180339887) % 1) * 2 - 1;
     segLen[i] = (length * (1 + v * lengthVariation)) / S;
+  }
+
+  // THE SPLAY FORCES MUST SUM TO ZERO, FOR ANY STRAND COUNT.
+  //
+  // Splay pushes every strand along its bunch's azimuth on every step, so if the
+  // bunches are not equally populated the leftover is a constant sideways force
+  // on the whole head and the yarn hangs off-axis at rest. That is not
+  // hypothetical: this file's own test builds its rig with count 48 against 18
+  // bunches -- 3 strands in some, 2 in others -- and the resting tip cloud sat
+  // 13.8 mm off centre against a 4 mm bar. The shipped 252/18 divides exactly
+  // and hid it completely, which is the worst way for it to be wrong.
+  //
+  // Subtracting the mean makes the sum identically zero whatever the counts are,
+  // and costs nothing when they already balance (the shipped mop's mean is 1e-8).
+  // And the COLLAR ITSELF must be centred on the head for the same reason. A
+  // strand count that does not divide by the bunch count leaves the last bunch
+  // short, so the ring of anchors has more yarn on one side and the whole bundle
+  // hangs off-axis before splay is even considered. Centring costs nothing when
+  // it already divides (the shipped 252/18 moves by 1e-5).
+  let meanAnchorX = 0;
+  let meanAnchorZ = 0;
+  for (let i = 0; i < N; i += 1) { meanAnchorX += anchorX[i]; meanAnchorZ += anchorZ[i]; }
+  meanAnchorX /= N;
+  meanAnchorZ /= N;
+  for (let i = 0; i < N; i += 1) { anchorX[i] -= meanAnchorX; anchorZ[i] -= meanAnchorZ; }
+
+  let meanOutX = 0;
+  let meanOutZ = 0;
+  for (let i = 0; i < N; i += 1) { meanOutX += outX[i]; meanOutZ += outZ[i]; }
+  meanOutX /= N;
+  meanOutZ /= N;
+  for (let i = 0; i < N; i += 1) {
+    splayX[i] = outX[i] - meanOutX;
+    splayZ[i] = outZ[i] - meanOutZ;
   }
 
   // World-space node state. Flat arrays: this runs 2,560 nodes a frame.
@@ -321,9 +464,18 @@ export function createVerletMopStrands({
           const vy = (py[k] - qy[k]) * damp;
           const vz = (pz[k] - qz[k]) * lat;
           qx[k] = px[k]; qy[k] = py[k]; qz[k] = pz[k];
-          px[k] += vx;
+          // THE SKIRT IS A FORCE, NOT A POSE. Seeding the strands flared and
+          // leaving it there does nothing: the very first constraint pass pulls
+          // each chain back to a plumb line and the head is a straight-sided
+          // barrel again by frame two. A real string mop flares because the
+          // bundle is thick at the collar and the strands have nowhere to go but
+          // outward, so the outward push has to be applied every step alongside
+          // gravity. It scales down the chain (n / S) so the collar stays
+          // gathered and only the hem opens out -- a cone, not a tube.
+          const flare = splayAccel * (n / S) * h * h;
+          px[k] += vx + splayX[i] * flare;
           py[k] += vy - gdt;
-          pz[k] += vz;
+          pz[k] += vz + splayZ[i] * flare;
         }
       }
 
@@ -410,6 +562,12 @@ export function createVerletMopStrands({
     },
     defaults: () => ({ ...DEFAULT_PARAMS }),
     strandCount: N,
+    clumpCount: CLUMPS,
+    // the anchors, so a test can measure the gaps between bunches rather than
+    // trusting the count alone
+    anchors: () => Array.from({ length: N }, (_, i) => ({
+      x: anchorX[i], z: anchorZ[i], clump: clumpOf[i],
+    })),
     tipCount: N,
     drawCalls: S,
     // For a driver: where the tips ACTUALLY are, in world space, read out of the

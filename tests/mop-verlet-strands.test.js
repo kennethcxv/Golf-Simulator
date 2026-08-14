@@ -209,21 +209,67 @@ test('D (Goal 23): the bands hang from a COLLAR, not from a point', () => {
     `bands ${(bandDiameter * 1000).toFixed(0)} mm across must not rattle around in ${(spacing * 1000).toFixed(0)} mm of spacing`);
 });
 
-test('B (Goal 22): a string mop is a few thick bands, not a thousand hairs', () => {
-  // This assertion used to read `strandCount === 820`, "denser than the old
-  // 480", and it was the fifth pass in a row to move this number UP because the
-  // disc did not look filled. Filling the disc was the wrong goal: a real string
-  // mop is 15-30 thick ropes with visible daylight between them, and the gaps
-  // are most of what distinguishes it from a brush. The owner asked for 10-20.
+test('B (Goal 25): 16-24 countable BUNCHES of many fine strands, not 16-24 rods', () => {
+  // THE 16-24 RULING IS SUPERSEDED, BY THE OWNER, and this test is rewritten to
+  // the ruling that replaces it rather than reverted to the one it replaces.
   //
-  // The count is asserted as a RANGE rather than a value, because the point is
-  // the reading ("a person can count the bands"), not any one number in it.
-  // Goal 23 widened the range to the 16-24 the owner asked for: 16 was right in
-  // direction and read as spikes, and closing the gaps needs a few more.
+  // The history, because this number has moved five times. It read
+  // `strandCount === 820`, then 480, each pass raising it because the disc did
+  // not look filled. Goal 22 cut it to 16 thick bands: filling a disc was the
+  // wrong goal, and the daylight between bands is most of what separates a mop
+  // from a brush. Goal 23 widened that to the 16-24 the owner asked for.
+  //
+  // Then Goal 25 shipped 22 bands at 13 mm, the owner said it still looked
+  // wrong, and asked for House Flipper's mop. Built at 380 fine strands it
+  // photographed as a BRUSH, and I reported the two rulings as colliding. They
+  // do not. His resolution:
+  //
+  //   "The 16-24 ruling was about THICK BANDS. House Flipper's is MANY FINE
+  //    STRANDS THAT SPLAY AND CLUMP. Your own screenshot shows why 380 read as a
+  //    brush: it was a straight-sided barrel. A string mop is not a cylinder --
+  //    it flares into a skirt and the strands clump in groups. So: density AND
+  //    splay together. Update the test to the new band rather than reverting to
+  //    the old one -- that ruling is superseded by this one."
+  //
+  // So 16-24 was never the strand count. It is the count of BUNCHES a person can
+  // pick out by eye, which is what both earlier rulings were reaching for, and
+  // the error in both directions was making the bunch and the strand the same
+  // object. 22 strands meant each bunch was one 13 mm rod; 380 evenly-spread
+  // strands meant there were no bunches at all. The band below is therefore on
+  // clumpCount, and the strand count is asserted to be MANY per bunch.
   const material = new THREE.MeshBasicMaterial();
   const rig = createVerletMopStrands({ THREE, material, ...SHIPPED_MOP_YARN });
-  assert.ok(rig.strandCount >= 16 && rig.strandCount <= 24,
-    `a string mop has 16-24 bands of yarn, got ${rig.strandCount}`);
+  assert.ok(rig.clumpCount >= 16 && rig.clumpCount <= 24,
+    `a string mop reads as 16-24 bunches, got ${rig.clumpCount}`);
+  assert.ok(rig.strandCount / rig.clumpCount >= 8,
+    `and each bunch is many fine strands, got ${(rig.strandCount / rig.clumpCount).toFixed(1)} per bunch`);
+  // The fineness is the other half of "many fine strands": at 13 mm a strand
+  // reads as a length of pipe however many of them there are.
+  assert.ok(SHIPPED_MOP_YARN.strandRadiusTop * 2 < 0.008,
+    `a strand is yarn, not pipe: ${(SHIPPED_MOP_YARN.strandRadiusTop * 2 * 1000).toFixed(1)} mm across`);
+  // AND THE GAPS SURVIVE THE DENSITY. This is what stops "many fine strands"
+  // sliding back into the brush: bunches must stay separated at the collar.
+  const anchors = rig.anchors();
+  const centres = new Map();
+  for (const a of anchors) {
+    const c = centres.get(a.clump) || { x: 0, z: 0, n: 0 };
+    c.x += a.x; c.z += a.z; c.n += 1;
+    centres.set(a.clump, c);
+  }
+  const pts = [...centres.values()].map((c) => ({ x: c.x / c.n, z: c.z / c.n }));
+  let closest = Infinity;
+  let widest = 0;
+  for (let i = 0; i < pts.length; i += 1) {
+    for (let j = i + 1; j < pts.length; j += 1) {
+      closest = Math.min(closest, Math.hypot(pts[i].x - pts[j].x, pts[i].z - pts[j].z));
+    }
+    for (const a of anchors) {
+      if (a.clump !== i) continue;
+      widest = Math.max(widest, Math.hypot(a.x - pts[i].x, a.z - pts[i].z));
+    }
+  }
+  assert.ok(widest * 2 < closest,
+    `a bunch (${(widest * 2 * 1000).toFixed(1)} mm wide) must not close the gap to its neighbour (${(closest * 1000).toFixed(1)} mm)`);
   assert.equal(rig.drawCalls, 4, 'still one instanced call per segment index');
   const head = new THREE.Group();
   head.add(rig.root);
