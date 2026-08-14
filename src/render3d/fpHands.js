@@ -189,35 +189,73 @@ export const GRIPS = buildGripTable();
 
 // A finger is two segments hinged at the knuckle, so it can actually close around something
 // instead of being a single rotated slab.
+// 5.3 (Goal 26) — "FINGERS THAT READ AS FINGERS AT VIEWMODEL DISTANCE...
+// CONSISTENT SKIN MATERIAL."
+//
+// Two faults, and the second is named in the brief:
+//
+//   TWO SEGMENTS, NOT THREE. A finger was a proximal capsule and a distal one.
+//   A real finger curls on THREE phalanges, and around a shaft that middle joint
+//   is the one doing the wrapping -- with two, the fingertip swings out on a long
+//   arc instead of closing onto the pole, which is what makes a two-bone finger
+//   read as a sausage. The reference image shows four fingers whose middle
+//   knuckles are the widest part of the grip.
+//
+//   THE MATERIAL CHANGED HALFWAY ALONG. The proximal segment used the per-finger
+//   skin variant (four subtly different tones, so adjacent fingers separate) and
+//   the distal used ONE shared `mats.shade` -- so every fingertip in both hands
+//   was the same colour while every base was not. 5.3 asks for "consistent skin
+//   material" in as many words. The whole finger is now one material, and the
+//   knuckles read from geometry and lighting instead of from a colour break.
+//
+// Cost: three capsules and a nail per finger, so four draw calls -- well inside
+// 5.3's "not dozens of draw calls per finger", and unchanged in material count
+// because the nail and skin were already shared.
 function makeFinger(mats, len, thick, skinMat, withNail) {
   const skin = skinMat || mats.skin;
   const root = new THREE.Group();
+
+  // proximal: base to first knuckle, the thickest segment
   const prox = new THREE.Mesh(
-    new THREE.CapsuleGeometry(thick * 0.47, Math.max(0.002, len * 0.56 - thick), 4, 12), skin,
+    new THREE.CapsuleGeometry(thick * 0.47, Math.max(0.002, len * 0.40 - thick * 0.5), 4, 12), skin,
   );
   prox.rotation.x = Math.PI / 2;
-  prox.position.z = -len * 0.28;
+  prox.position.z = -len * 0.20;
   root.add(prox);
 
+  // THE MIDDLE JOINT — the one that actually wraps a shaft.
   const knuckle = new THREE.Group();
-  knuckle.position.z = -len * 0.56;
+  knuckle.position.z = -len * 0.40;
   root.add(knuckle);
 
+  const mid = new THREE.Mesh(
+    new THREE.CapsuleGeometry(thick * 0.44, Math.max(0.002, len * 0.34 - thick * 0.5), 4, 12), skin,
+  );
+  mid.rotation.x = Math.PI / 2;
+  mid.position.z = -len * 0.17;
+  knuckle.add(mid);
+
+  // distal: the fingertip, on its own joint so it can flatten against the pole
+  const tipJoint = new THREE.Group();
+  tipJoint.position.z = -len * 0.34;
+  knuckle.add(tipJoint);
+
   const dist = new THREE.Mesh(
-    new THREE.CapsuleGeometry(thick * 0.43, Math.max(0.002, len * 0.44 - thick), 4, 12), mats.shade,
+    new THREE.CapsuleGeometry(thick * 0.40, Math.max(0.002, len * 0.26 - thick * 0.5), 4, 12), skin,
   );
   dist.rotation.x = Math.PI / 2;
-  dist.position.z = -len * 0.22;
-  knuckle.add(dist);
+  dist.position.z = -len * 0.13;
+  tipJoint.add(dist);
 
-  // A lighter flattened nail on the back of the fingertip separates index/middle from the rest.
-  if (withNail) {
-    const nail = new THREE.Mesh(new THREE.BoxGeometry(thick * 0.62, 0.0028, len * 0.20), mats.nail);
-    nail.position.set(0, thick * 0.40, -len * 0.34);
-    knuckle.add(nail);
+  // A nail on EVERY finger. It used to be index and middle only, which is the
+  // sort of saving that reads as two fingers being a different kind of object.
+  if (withNail !== false) {
+    const nail = new THREE.Mesh(new THREE.BoxGeometry(thick * 0.58, 0.0026, len * 0.15), mats.nail);
+    nail.position.set(0, thick * 0.36, -len * 0.17);
+    tipJoint.add(nail);
   }
 
-  return { root, knuckle };
+  return { root, knuckle, tip: tipJoint };
 }
 
 function makeHand(mats, mirror = 1) {
@@ -296,7 +334,7 @@ function makeHand(mats, mirror = 1) {
   for (let i = 0; i < 4; i++) {
     const kx = (0.0285 - i * 0.019) * mirror;
     const kz = KNUCKLE_Z + knuckleArc[i];
-    const f = makeFinger(mats, lens[i], 0.019, fingerSkins[i], i === 0 || i === 1);
+    const f = makeFinger(mats, lens[i], 0.019, fingerSkins[i], true);
     f.root.position.set(kx, -0.004, kz - 0.007);
     g.add(f.root);
     fingers.push(f);
@@ -350,8 +388,13 @@ function makeHand(mats, mirror = 1) {
       const amount = i === 0 ? p.index : p.curl;
       // the outer fingers close a touch harder — a real hand does not curl as one plate
       const bias = 1 + (i - 1.5) * 0.045;
-      f.root.rotation.x = 1.05 * amount * bias;
-      f.knuckle.rotation.x = 1.25 * amount * bias;
+      // THREE JOINTS NOW, and the curl is distributed across them the way a hand
+      // closes: the middle knuckle leads, the base follows, the tip finishes. A
+      // single big rotation at two joints is what made the old fingertip swing
+      // wide of the shaft instead of closing onto it.
+      f.root.rotation.x = 0.85 * amount * bias;
+      f.knuckle.rotation.x = 1.05 * amount * bias;
+      if (f.tip) f.tip.rotation.x = 0.75 * amount * bias;
       f.root.rotation.y = (i - 1.5) * p.spread * mirror;
     }
     thumb.rotation.set(0.55 * p.thumb, -0.95 * p.thumb * mirror, -0.35 * mirror);
