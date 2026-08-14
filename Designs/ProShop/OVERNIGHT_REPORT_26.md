@@ -15,7 +15,7 @@ the oscillator build** — the synth voices being replaced are themselves
 filtered-noise buffers — so it would have certified the exact absence it existed
 to detect.
 
-## 2. Probe-lie count: **15**
+## 2. Probe-lie count: **17**
 
 Checks I wrote that scored the same before and after, or measured the wrong
 object. Every one was caught by a number that disagreed with something else I
@@ -44,7 +44,7 @@ not painted" manufactured a false negative about a click.
 | **2 — The walk-up** | **BOTH ITEMS FIXED, MEASURED AND FILMED**; residual handed to Phase 3 |
 | 3 — NPC navigation | **3.1 proven**; stall rate UNMEASURED (the detector failed its control) |
 | 4 — Time and bookings | **4.2-4.5 DONE, gate run**; 4.1 measured and blocked |
-| 5 — Mop and hands | not started |
+| 5 — Mop and hands | **references viewed, faults confirmed on camera**; not fixed |
 | 6 — Ledger UI | not started |
 | 7 — Performance | not started |
 | 8 — Global Escape | not started |
@@ -956,3 +956,71 @@ so those are the game's numbers. The walk-in *arrival rate* is my own 0.02/minut
 approximation and the 0.18 purpose weight is re-stated in the driver rather than
 imported — so "1.6 asks per day" is an estimate of frequency, while "0 outside
 the hour" and "4.5 % share" rest on the real rule.
+
+
+---
+
+# PHASE 5 — THE MOP AND THE HANDS
+
+**Looked at both references at full size before touching anything**, as the brief
+instructs, and then photographed the current state at the default player camera
+before proposing any change.
+
+## The references
+
+**`MopRefrenceImage.png`** is a **spin mop**: a dense, uniform white microfibre
+disc, strands reading as continuous loops, and a **red triangular plastic hub**
+that clamps the yarn and meets the handle with no gap at all.
+
+**`HandsRefrenceImage.png`** is a first-person hand on a red shaft: four fingers
+distinctly wrapped around the pole, thumb opposing on the near side, visible
+knuckles and nails, smooth non-faceted geometry, forearm running out of frame.
+
+## The current state, photographed
+
+`qa/electron/b-tool-photos/mop-idle.png` and `mop-planted.png`, default camera,
+indoors. **All three of his faults are visible in the frames:**
+
+1. **"Too thin."** The head is a sparse spray of thin spikes — closer to a worn
+   shaving brush than the reference's full disc.
+2. **"It does not connect to the stem."** There is a clear gap in `mop-planted`
+   between the end of the black shaft and where the yarn begins. No collar, no
+   band.
+3. **"Four connected pieces."** The strands are built from stacked cylinder
+   segments (`segments: 4`) and the direction changes at the nodes are visible.
+
+## What the code says, which does not match the picture
+
+`SHIPPED_MOP_YARN` in `mopVerlet.js`: **432 strands**, radius 0.128, length 0.335,
+strand radius 3.2 → 2.3 mm, 18 clumps, splay 0.32. That should be dense. The
+photograph is not. **Those two cannot both be right, and I did not resolve it.**
+
+## The probe that nearly became a false finding
+
+I asked the running game and it reported 1440 instances across two layers with
+`visible: true` but **`chainVisible: false`** — and a parent named
+**`LOD0_BroomHeld`** whose siblings are all `MESH_Broom*`.
+
+It had found **the broom's strand rig, not the mop's**. Both are built by
+`mopStrands.js` and both are named `MopStrandRig`, so a scene search by name
+returns whichever comes first. Had I not checked the parent chain I would have
+reported "the mop's 1440 strand instances are not drawing" — a confident,
+completely wrong finding about the wrong tool.
+
+## Status: **NOT FIXED**
+
+The references are viewed, the faults are confirmed on camera at the default
+player camera, and the parameters are located. The mesh work itself — density,
+a real collar meeting the handle, and continuous tube geometry instead of stacked
+cylinders — is not done.
+
+The first task for whoever picks this up is the discrepancy above: find the mop's
+own rig (**not** by the `MopStrandRig` name, which the broom shares) and
+establish why 432 authored strands photograph as a dozen.
+
+## Probe lies 16-17
+
+| # | The probe | What it reported | What was wrong |
+|---|---|---|---|
+| 16 | `electron-mop-anatomy` v1 | `foundRig: false` | reached for `s3.toolRigs.mop`, which is not the handle — while its own fallback search found `MopStrandRig` in the same breath |
+| 17 | `electron-mop-anatomy` v2 | 1440 instances not drawing | found **the broom's** rig; both tools name theirs `MopStrandRig`. Caught only by the parent-chain check |
