@@ -539,64 +539,6 @@ them".
 
 ---
 
-# HANDOFF — WHERE THIS SESSION GOT TO
-
-Context exhausted, not blocked. Everything below is committed and pushed to
-`goal25/phase0-inherited-tree`. Suite **3640/3640**, lint ratchet **323**
-(unchanged).
-
-## DONE / PARTIAL / NOT DONE
-
-| Phase | Item | Status |
-|---|---|---|
-| 1 | 1.0 source CC0 files | **DONE** — 50 files, 24 cues, all CC0, licence gate fails closed |
-| 1 | 1.2 the money | **DONE** — drawer, per-piece landings, pile-depth via two recordings, continuous run |
-| 1 | 1.3 ledger | **DONE** (cue-level; gesture-level belongs to Phase 6) |
-| 1 | 1.4 menu | **DONE** — 7/7 exactly one voice, disabled silent, keyboard matches, cancel variant |
-| 1 | 1.5 music | **DONE** — one voice, verified it does not restart |
-| 1 | 1.6 startup noise | **DONE** — duty cycle 1.000 → 0.247, volume untouched |
-| 1 | 1.7 audio performance | **DONE** — one context, 50 decoded once, 0 failed |
-| 1 | 1.8 paperwork | **DONE** — generated from the manifest |
-| **1** | **GATE** | **PASSED** |
-| 2 | 2.1 player blocks the queue | **FIXED + MEASURED** (110 → 0 walk-in-place frames); **clip NOT DONE** |
-| 2 | 2.2 counter items overlap | **FIXED + MEASURED** (3 pairs → 0); **clip NOT DONE** |
-| **2** | **GATE** | **OPEN** — no clip recorded, no frames viewed |
-| 3 | 3.1 recast in production | **DIAGNOSED, NOT INTEGRATED** — zero production call sites proven |
-| 3 | 3.2 / 3.3 | **NOT STARTED** |
-| 4–10 | everything | **NOT STARTED** |
-
-## The one thing to know before resuming
-
-**Phase 1 is genuinely finished and the cash is audible.** That was the whole
-point of putting it first, and it is the first time in four goals it has been
-reached. `npm test` and
-`node tools/qa/run-electron.cjs tools/qa/electron-phase1-audio-gate.js --clubhouse=pine-hills-v2`
-will reproduce the table in §4 on demand.
-
-## Where to pick up
-
-1. **Phase 2's clips.** No longer blocked. `debugSpawn(false)` puts retail
-   shoppers on the floor; record with
-   `VIDEO_DIR=qa/clips/walkup node tools/qa/run-electron.cjs tools/qa/electron-walkup-blocked.js --clubhouse=pine-hills-v2`
-   and extract with `tools/qa/clip-frames.mjs`. Then **look at the frames.**
-2. **Fix the max-cart probe gap** (first task of Phase 3, see above) — it decides
-   whether the residual 3.78 % walk-in-place is a fault or correct behaviour.
-3. **Phase 3.1 integration.** Recast is vendored, boots, and has zero production
-   callers; the inline loop in `clubhouse.js` is what actually routes customers.
-
-## Standing caveats
-
-- I have **never heard** any of the 50 audio files. Every claim about them is a
-  measurement — peak dBFS on the master bus, which file played, whether it
-  looped, whether it stopped — plus acoustic classification of each slice by
-  attack, decay, sustain and spectral centroid. If a cue sounds *wrong* rather
-  than *absent*, that is the gap between what I can measure and what you can
-  hear, and I would want to know.
-- **Probe-lie count 10.** One of them (#7) passed on the broken build. One (#10)
-  made me publish a wrong number that I have since corrected in place. One
-  finding was withdrawn entirely.
-
-
 ---
 
 # PHASE 2 — REVISITED WITH WORKING STAGING
@@ -1024,3 +966,72 @@ establish why 432 authored strands photograph as a dozen.
 |---|---|---|---|
 | 16 | `electron-mop-anatomy` v1 | `foundRig: false` | reached for `s3.toolRigs.mop`, which is not the handle — while its own fallback search found `MopStrandRig` in the same breath |
 | 17 | `electron-mop-anatomy` v2 | 1440 instances not drawing | found **the broom's** rig; both tools name theirs `MopStrandRig`. Caught only by the parent-chain check |
+
+
+---
+
+# HANDOFF
+
+Context exhausted, not blocked. Everything is committed and pushed to
+`goal25/phase0-inherited-tree`. Suite **3640/3640**, lint ratchet **323**.
+
+## DONE / PARTIAL / NOT DONE
+
+| Phase | Item | Status |
+|---|---|---|
+| **1** | 1.0 source CC0 files | **DONE** — 50 files, 24 cues, licence gate fails closed |
+| **1** | 1.2 the money | **DONE** — drawer, per-piece landings, two-recording pile depth, continuous run |
+| **1** | 1.3 ledger / 1.4 menu / 1.5 music | **DONE** |
+| **1** | 1.6 startup noise | **DONE** — duty cycle 1.000 → 0.247, volume untouched |
+| **1** | 1.7 perf / 1.8 paperwork | **DONE** |
+| **1** | **GATE** | **PASSED** |
+| **2** | 2.1 player blocks the queue | **DONE** — 4 stations phase out and restore; clip frames viewed |
+| **2** | 2.2 counter items overlap | **DONE** — 3 overlapping pairs → 0, red/green |
+| **2** | **GATE** | **PASSED for the counter and the queue**; the approach path is not filmable from register mode |
+| 3 | 3.1 recast in production | **DIAGNOSED** — zero production call sites proven; **not integrated** |
+| 3 | 3.2 / 3.3 | **NOT DONE** — stall rate **unmeasured**, detector failed its control |
+| **4** | 4.1 time flows too slowly | **NOT DONE** — measured; ceiling is 4×, blocker is the golf day |
+| **4** | 4.2 walk-in next hour | **DONE** — 0 asks outside the hour over a week |
+| **4** | 4.3 walk-ins rare | **DONE** — 4.5 % of demand |
+| **4** | 4.4 phone/inbox book anything | **DONE** — same-day email now possible, spread 0–6 days |
+| **4** | 4.5 more of them | **DONE** — 33.1 contacts/day measured |
+| **4** | **GATE** | **RUN** — full week, all figures reported |
+| 5 | 5.1–5.3 mop and hands | **NOT DONE** — references viewed, faults confirmed on camera |
+| 6–10 | everything | **NOT STARTED** |
+
+## The three things worth knowing
+
+1. **Phase 1 is genuinely finished and the cash is audible.** First time in four
+   goals. Reproduce with `electron-phase1-audio-gate.js`.
+
+2. **Customer staging needs three facts, and two are invisible.** The owner's
+   save, trading hours on the clock, and **`state.shop.signOpen = true`**. Without
+   the sign the game routes every customer straight to the exit — correct
+   behaviour that reads exactly like a catastrophic pathing fault. This cost me
+   three withdrawn findings before I found it; it is now `FOUND_FALSE` shape 15.
+
+3. **I retracted more than I shipped in Phase 3, deliberately.** The stall rate is
+   *unmeasured*, not zero. The detector that reported zero failed a negative
+   control in which I pinned a customer in place on purpose.
+
+## Where to pick up
+
+1. **Phase 3**: build a stuck detector that passes the pinned-customer control,
+   *then* measure. Everything else in 3.2/3.3 depends on being able to see a stall.
+2. **Phase 5**: resolve why 432 authored mop strands photograph as a dozen — and
+   do not find the rig by the name `MopStrandRig`, which the broom shares.
+3. **Phase 4.1**: decide whether `golfDayProduction.test.js` is calibrated to 4×
+   or the golf day genuinely breaks at 5×. That is the difference between a
+   one-line change and a subsystem rework.
+
+## Standing caveats
+
+- **I have never heard any of the 50 audio files.** Every claim about them is a
+  measurement — peak dBFS on the master bus, which file played, whether it looped,
+  whether it stopped — plus acoustic classification by attack, decay, sustain and
+  spectral centroid. If a cue sounds *wrong* rather than *absent*, that is the gap
+  between what I can measure and what you can hear.
+- **Probe-lie count 17.** One passed on the broken build. One made me publish a
+  wrong number I have since corrected in place. Three separate findings were
+  withdrawn outright. The count is high because I went looking, and the report
+  would be worth less if it were lower.
