@@ -226,6 +226,99 @@ function presentationMode() {
   return 'walk';
 }
 
+// PHASE 8 (Goal 26) — ONE ESCAPE ROUTER, WITH EXPLICIT PRIORITY.
+//
+// "One top-level capture-phase Escape router with explicit priority. Nothing
+// lower-level double-handles it."
+//
+// Before this there were EIGHTEEN Escape handlers across nine files -- main.js,
+// simplifiedRegisterMode, courseEditor, laptop, phone, toolWheel and ui.js --
+// each deciding for itself, in whatever order the listeners happened to be
+// registered. That is why Escape could unwind two layers at once, or none.
+//
+// The router runs in the CAPTURE phase on window, so it sees the key before any
+// of them, and it calls stopImmediatePropagation() whenever it acts. A layer
+// therefore either gets handled here or is not reached at all -- which is the
+// literal meaning of "nothing lower-level double-handles it".
+//
+// THE ORDER IS THE BRIEF'S, verbatim:
+//   1. cancel an active drag or placement
+//   2. the ledger open or animating -> close it, restore camera and input
+//   3. the laptop, register, desk screen, phone or any modal -> unwind ONE layer
+//   4. otherwise the pause menu
+//
+// Each step returns a string when it acted, so escapeRouterLog records WHICH rung
+// fired. A router that silently does nothing and a router that unwound the wrong
+// layer are indistinguishable from outside without that.
+const escapeRouterLog = [];
+
+function escapeRouteOnce() {
+  // 1 — AN ACTIVE DRAG OR PLACEMENT. First because it is the most local thing
+  // the player is holding, and because abandoning it must never also close the
+  // screen it is being performed on.
+  try {
+    const build = buildApi();
+    if (build?.isActive?.()) { build.cancel?.(); return 'placement'; }
+  } catch { /* the build API is absent outside the editor */ }
+  try {
+    const boxes = boxPlacementApi();
+    if (boxes?.isActive?.()) { boxes.cancel?.(); return 'box-placement'; }
+  } catch { /* no carried box */ }
+  try {
+    if (toolWheel?.isOpen?.()) { toolWheel.close?.(); return 'tool-wheel'; }
+  } catch { /* ditto */ }
+
+  // 2 — THE LEDGER, including while it is still animating. The brief calls it
+  // out separately from the other modals because it owns the camera and the
+  // movement lock, and leaving either behind is the failure it is guarding.
+  try {
+    const ch = app.scene3d?.clubhouse?.();
+    if (ch?.ledgerHasThePlayer?.()) {
+      ch.ledgerBook?.setCarried?.(false);
+      ch.ledgerBook?.setOpen?.(false);
+      return 'ledger';
+    }
+  } catch { /* no clubhouse yet */ }
+
+  // 3 — ONE LAYER OF WHATEVER ELSE IS OPEN. Exactly one: the brief says "unwind
+  // one layer", so each of these returns immediately rather than falling
+  // through and closing the thing behind it too.
+  try {
+    const reg = app.scene3d?.clubhouse?.()?.register;
+    if (reg?.isActive?.()) { reg.leave?.({ restorePointer: false }); return 'register'; }
+  } catch { /* no register */ }
+  if (app.laptopOpen) { exitLaptop(); return 'laptop'; }
+  if (app.frontDeskOpen) { exitFrontDesk(); return 'desk-screen'; }
+  try {
+    if (phoneUi?.isOpen?.()) { phoneUi.close?.(); return 'phone'; }
+  } catch { /* no phone */ }
+
+  // 4 — OTHERWISE THE PAUSE MENU, and Escape closes it again when it is up.
+  if (isPauseOpen()) { closePauseMenu(); return 'pause-close'; }
+  openPauseMenu();
+  return 'pause-open';
+}
+
+function installEscapeRouter() {
+  window.addEventListener('keydown', (event) => {
+    if (event.key !== 'Escape') return;
+    // A text field owns its own Escape (clearing a search box), and stealing it
+    // would make the laptop's own search unusable.
+    const tag = event.target?.tagName;
+    if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+    if (app.screen !== 'game') return;
+    const rung = escapeRouteOnce();
+    escapeRouterLog.push({ at: Date.now(), rung });
+    if (escapeRouterLog.length > 64) escapeRouterLog.shift();
+    event.preventDefault();
+    // THE LINE THAT MAKES IT A ROUTER rather than a nineteenth handler.
+    event.stopImmediatePropagation();
+  }, true);
+  if (typeof window !== 'undefined') {
+    window.__fwEscapeLog = () => escapeRouterLog.slice();
+  }
+}
+
 function requestLook() {
   try {
     const p = canvas.requestPointerLock?.();
@@ -4672,6 +4765,11 @@ function boot() {
     el('div', { class: 'hint-bar', style: 'display:none', text: 'Course overview · drag to pan · right-drag to rotate · wheel to zoom · V data view · Tab returns on foot · P pause' }));
 
   uiRoot.append(menu.root, gameUi);
+
+  // PHASE 8: the single Escape router, installed at construction so it is the
+  // FIRST capture-phase listener on window and therefore sees Escape before the
+  // eighteen handlers it supersedes.
+  installEscapeRouter();
 
   // 1.4 — ONE CLICK SINK, INSTALLED AT CONSTRUCTION.
   //
