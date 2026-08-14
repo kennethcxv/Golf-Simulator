@@ -7,7 +7,11 @@ by two full captures measured against each other, the two legibility lines by
 reading the live DOM and the live register accessors and then LOOKING at the
 frames, and the ledger outline by shell spans plus a viewed frame.
 
-**PROBE-LIE COUNT: 15.** Every one mine. Five are new tonight and four of those
+**PROBE-LIE COUNT: 21.** (Six more from the playtest block — see PLAYTEST
+FINDINGS at the end. The worst: a Tab driver made entirely of keyboard probes
+scored nine green about a game whose mouse was dead.)
+
+**PROBE-LIE COUNT WAS 15 BEFORE THE PLAYTEST BLOCK.** Every one mine. Five are new tonight and four of those
 came out of a single item -- 3.3, whose check was written before the feature and
 was one glance from being believed:
 
@@ -1426,3 +1430,156 @@ the book and not the desk.
 Commits: `d7256d5` (goldens), `8f74975` (L1/L2), `b7d18e9` (3.3). All pushed.
 Suite 3606/3606 before each. Lint ratchet 325 vs 324 throughout — the inherited
 red, unchanged by any of tonight's work.
+
+
+---
+
+# PLAYTEST FINDINGS — the owner's list, in his order
+
+## P0 — THE CHECKOUT — **REPRODUCED AND FIXED**
+
+**"Checkout records unavailable right now. Try again." The customer I charged
+never left the register.**
+
+Reproduced with a negative control in `tools/qa/node/p0-wal-quarantine-repro.mjs`.
+The same finished sale, built with the shipped register calls:
+
+| | result | cash |
+|---|---|---|
+| latch clear | `ok:true`, banked | +15.00 |
+| latch set | `ok:false` — *"Checkout records are unavailable right now. Try again."* | +0.00 |
+
+**The chain.** `quarantineCheckoutWal` sets a flag → `pendingCheckoutCount()`
+returns a hard-coded **1** (`checkoutSettlement.js:1416`) → `completeSale` refuses
+on `pendingCheckoutCount(state) > 0` (`register.js:1941`) → the player is told to
+resolve a pending settlement **that does not exist**, because the same load-time
+repair that set the latch already emptied `shop.pendingCheckouts` to `{}`.
+`reconcilePendingCheckouts` refuses outright. **Nothing in `src/` ever cleared
+it**, and it lives in `state.shop`, so it survived every save. A dead save file.
+
+**What I expected and did not find.** I assumed the hard-coded `1` was a slip. It
+is pinned deliberately by `checkout-settlement-recovery.test.js:998` — *"an
+unknown quarantined WAL is represented as unresolved work, never an empty
+journal."* That reasoning is sound and is not weakened.
+
+### Your question: inside, or out? **INSIDE. It stays.**
+
+Ripping the WAL out trades a stuck save for a double-banking bug — its refusal is
+what stops a distrusted journal banking twice. The interlock was correct and had
+no key.
+
+`releaseCheckoutWalQuarantine(state, { acknowledgedBy })`: deliberate, never
+automatic (an auto-release on an empty journal defeats the interlock in exactly
+the case it exists for — the journal is empty *because* the repair emptied it);
+it empties the journal it could not understand rather than trusting it again;
+and the incident **outlives** the release, reason and evidence kept.
+
+Wired into the laptop beside clear-counter, offered **only** while the till is
+actually refusing, behind a confirm that says it writes off the unaccounted
+amount. **9/9 in the running game** including the negative control that the key
+is hidden when nothing is wrong. **5/5** in Node. Watched failing on the reverted
+file (0 pass / 1 fail).
+
+> **Still open, and worth your attention:** the two load-time trip sites
+> (`state.js:1948`, `1973-76`) **discard the suspect data and then latch** — the
+> coherence branch wipes receipts, receipt keys and projection ids too. The
+> quarantine is guarding records already thrown away. That is a change to when
+> the latch is SET; this item was about being unable to unset it.
+
+## P1 — 3.3 FOUND-FALSE — **FIXED**
+
+Your diagnosis was right in every particular. `walkFindFocus` has two paths that
+set `kind:'prop'`: the strict crosshair test (cos 12°, 0.6 yd cross-track) and
+the general scan at `courseScene.js:7917`, which admits `facing > 0.3` — about
+72° — anywhere inside the prop's radius, and the ledger's radius is 2.2 yd. The
+hook read `walkFocus.prop`, so it rode both.
+
+**Measured before changing anything:** 1.2 yd from the desk, 55° off the book —
+`active: true`, 16 shells, prompt naming the ledger.
+
+`walkPropUnderCrosshair` now stamps `viaCrosshair: true` and the outline requires
+it. A prompt may be generous about what you are near; a highlight must not be.
+
+**And the driver had never once exercised the strict path.** After the fix every
+"aimed" sample went dark while `theGameAgreesIAmAimedAtIt` stayed true — the
+prompt was answering from the loose scan. The original 3.3 green certified a
+requirement written about a path it never touched.
+
+**The aim math was wrong too, and I nearly shipped a flaky green over it.** Pitch
+was `atan2(aimY - 1.62, h)`, mixing the prop's WORLD y with a LOCAL eye height —
+it aimed 46° into the ground, and the strict test then passed or failed on where
+the camera settled. One run 9/9, the next 7/9, no code change between. Pitch is
+now solved from the live camera. Green on two consecutive runs.
+
+> **Carried did NOT reproduce.** With `setCarried(true)` the outline is already
+> dark before and after this fix. If you can still see it lit in hand, the path
+> into carry is something other than `setCarried` and I want to know what you
+> pressed.
+
+## P1 — THE QUEUE — **FIXED, both halves**
+
+**Through-body handoff.** `customerIsAtTheDesk` accepts anyone within
+`QUEUE_HEAD_REACH_YD` of slot 0. That was **0.80**. The distance between
+consecutive slots is `hypot(0.18, 0.66)` = **0.684**. The reach was longer than
+the gap between people, so a customer in **slot 1** already counted as at the
+desk and placed goods over the shoulder of whoever was still being served.
+0.80 → 0.45.
+
+**Four deep.** `lineSlots` was 3, so the fourth person fell into the overflow
+pocket's golden-angle packing — left of the third and behind, exactly as you saw.
+The cap's stated reason belongs to the superseded 2026-07-28 east re-pitch; B1
+re-pitched the line south into open floor and the cap was never re-derived.
+Slots 0–8 all clear walls, fixtures, slab and exit lane by ≥0.30 yd. Set to
+**6** (slots 6–8 come within 0.42 yd of putting_demo).
+
+**FRAME VIEWED:** `qa/electron/p1-queue/four-deep.png` — four people in single
+file, one behind another, evenly spaced, facing the desk.
+
+> **Caveat:** `minGapToBodyInFront` came back null — no body was ever on another
+> customer's corridor during the window, so the through-body clause passed
+> without having an obstacle to reject.
+
+## P1 — TAB — **REPRODUCED AND FIXED**
+
+Not a crash. Nothing throws, frames keep arriving, the mode returns, WASD moves
+2.11 yd. **Looking dies:**
+
+| | pointer lock | move | look |
+|---|---|---|---|
+| before any Tab | **true** | 2.111 | **0.378** |
+| back on foot | **false** | 2.111 | **0.000** |
+| second round trip | **false** | 2.096 | **0.000** |
+
+Pointer lock is released entering the overview and never re-acquired. A player
+who can walk and cannot turn sees a game that has stopped responding to the
+mouse, with nothing on screen at that moment saying to click.
+
+`requestLook()` now runs in `toggleCourseMode`'s walk branch **only** — arrival
+behaviour is untouched, because there the HUD should be clickable. Watched
+failing on the reverted file: `look 0.000`. Fixed: `0.378` on both round trips.
+
+**I nearly reported "does not reproduce."** The first pass scored nine green
+because every probe used the keyboard. A driver made entirely of keyboard probes
+cannot see a broken mouse.
+
+## THE SIX NEW PROBE LIES
+
+16. **`completeSale` imported from the wrong module** — "not a function" in all
+    three arms. A constant error across both arms of an experiment is not
+    evidence about either.
+17. **Reading the owner's save from a fresh temp profile.** The runner boots
+    `--user-data-dir=…-qa-profiles/<scope>-<rand>` per run, so an empty slot list
+    meant I could not SEE his save, not that it was clean. **I still have not
+    read it.**
+18. **The 3.3 driver never exercised the strict path** — every "aimed" sample it
+    ever took rode the general prop scan.
+19. **Pitch mixing world and local frames**, producing a green that flipped
+    between runs with no code change.
+20. **The queue clearance check measured against the BASE fixture table**, whose
+    first entry sits four yards outside this room. No fixture was ever near a
+    slot, so it happily reported nine fit.
+21. **A Tab driver made entirely of keyboard probes** scored nine green about a
+    game whose mouse was dead.
+
+Commits: `2a39e8b` (P0 repro), `7891d57` (P0 fix), `e9f46be` (3.3), `7b8f2c1`
+(queue), `d9b2d60` (Tab). All pushed. Suite 3614/3614.
