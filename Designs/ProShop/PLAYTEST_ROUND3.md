@@ -418,3 +418,99 @@ own subtree, found it unchanged, and so could report what had NOT changed while
 saying nothing about what had. Widening it to the whole scene is what showed the
 mesh count identical either side and turned the search toward the renderer's
 own bookkeeping.
+
+---
+
+# ROUND 6 — "diff the two cacheKeys, then do the gesture"
+
+The owner's framing was the one that broke it open, and the previous section's
+last paragraph was wrong to stop where it did. **"A frame-state term in the cache
+key"** was one of the two candidates left standing there. It was that one.
+
+## The answer, one field wide
+
+`renderer.properties.get(material).programs` is a **Map of every cache key that
+material has ever compiled** — so when the turn adds a second one, the first is
+still sitting on the same material. Decoding both and diffing them field by
+field names the condition instead of inferring it. The decoder already existed
+(`tools/qa/lib/goal24-program-ownership.mjs`, Goal 24); this session only
+supplied the two moments to compare
+(`tools/qa/electron-firstuse-cachekey-diff.js`).
+
+```
+pageTurn_1st   LedgerTurningLeafBack · MeshBasicMaterial · BackSide
+               same material, distance 1
+               * parameter.shadowMapType  2 -> 1
+```
+
+**Three deprecated `PCFSoftShadowMap`.** The first shadow bake warns and rewrites
+the field to `PCFShadowMap` (`vendor/three.module.js:9148`), so the renderer has
+been drawing PCF for as long as this vendored three has been in the tree — the
+request at `courseScene.js:716` was already a no-op **on screen**.
+
+It was not a no-op for the shader cache. `shadowMapType` is part of every
+program's cache key, and `autoUpdate` is off, so the rewrite does not happen at
+construction — it happens at **prewarm's first bake, hundreds of compiles in**.
+Everything compiled before that instant is stale the moment it flips, and
+anything still HIDDEN at the flip keeps its dead program until the player reveals
+it. The ledger's leaf is the last survivor: `prewarmVisual` and the
+hidden-objects warm both run *before* the bake, and the closed book hides the
+leaf until the turn.
+
+The golden gate tests the no-op claim rather than taking it on trust:
+**`shop-floor` and `stockroom-wall` both diff 0.0000%.**
+
+## And the blunt fix, which found two more things
+
+A last prewarm phase that **does the gestures**: the ledger really opens and
+turns a page (forward and back), every belt tool is really equipped, real
+composer frames drawn on each, state restored in a `finally`. It runs LAST, after
+the bake and the settling frames — `prewarmVisual` running *before* the bake is
+the mistake in miniature.
+
+- **A real frame here is TWO passes.** A rig tool draws through its own lens on
+  the viewmodel layer in the pass at the bottom of the frame loop
+  (`courseScene.js:10958`). With only the composer call, the mop's first equip
+  still cost +1 program and +8 geometries — its strand meshes had never been
+  submitted by anything, because the only camera that can see their layer is one
+  the warm never used.
+- **The passes do not all run every frame.** Shadow bake is throttled, AO history
+  builds across frames, so one warm frame per tool lands in that cadence by luck.
+  Two runs of the *identical* build disagreed: one clean, one with the vacuum
+  compiling five `depth` shaders. Two frames per tool, bake asked for explicitly.
+
+## Measured
+
+| gesture | before | after |
+|---|---|---|
+| `pageTurn_1st` | **+1 program** | **+0** |
+| `equip_mop` | +1 program / +8 geo | **+0** / +8 geo |
+| `equip_washer` (2nd equip) | +1 program / +2 geo | **+0 / +0** |
+| every other belt tool | +0 | +0 |
+
+**First-use gestures compiling a program: 3 → 0.** Controls held in every run: an
+idle window of the same length, and a second page turn, both +0. Runs 3 and 4 of
+the fixed build are both clean; the intermittent vacuum failure appeared in 1 of
+the 2 runs taken before the two-frame change.
+
+**NOT FIXED, and not a compile:** the mop still uploads **+8 geometries** on its
+first equip. Its strand meshes exist before the equip, so a buffer is arriving
+late rather than a shader compiling. Named, not chased.
+
+**COST:** ~1.5–1.8 s added to a ~10 s prewarm (`gesture-ledger` ~330 ms,
+`gesture-tools` 1.2–1.5 s).
+
+**TRIED AND REMOVED:** an eager `ensure()` prefetch over the belt.
+`HELD_TOOL_ASSET_MANIFEST` holds only hose/divot/rake, so it warmed nothing while
+breaking the one-ensure-call contract in
+`course-held-tool-lazy-loading.test.js`.
+
+**TEST RE-PINNED, NOT RELAXED:** `pine-hills-atmosphere-contract.test.js`
+asserted `PCFSoftShadowMap` — a value true of the source and false of the
+picture. It now pins `PCFShadowMap` and additionally bans the deprecated
+constant, so it protects the shader cache as well as the look.
+
+**PROBE-LIE COUNT: 33.** #33: the round-5 driver measured the dustpan and
+reported the tools warm — while `scheduleDeferredGpuWarm` equips **`dustpan` and
+nothing else**. The instrument was measuring the intervention's own target. The
+belt-wide sweep is what found the mop.
