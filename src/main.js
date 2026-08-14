@@ -889,6 +889,21 @@ function enterLedger() {
         const turned = held.turnPage(1);
         if (turned && audio.ready) audio.ledgerTurn();
       }
+    } else if (key === 'backspace') {
+      // PHASE 6 — "BACK AND FORWARD THAT BEHAVE." Backspace steps back through
+      // JUMPS, shift+Backspace forward. Deliberately not the arrow keys: those
+      // already turn pages, and conflating "go back a page" with "go back to
+      // where I was" is what makes a Back button untrustworthy.
+      //
+      // Unhandled when there is nowhere to go, rather than swallowed -- a key
+      // that silently does nothing teaches the player it is broken.
+      const book = ledgerBookApi();
+      const moved = event.shiftKey ? book?.navigateForward() : book?.navigateBack();
+      if (moved) {
+        event.preventDefault();
+        event.stopPropagation();
+        audio.ledgerTurn?.();
+      }
     } else if (/^[1-9]$/.test(key)) {
       // I3 (Goal 23): the contents list prints page numbers and now they work.
       // Reaching The Deed on page 9 from the index was seven presses of E.

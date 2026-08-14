@@ -92,6 +92,47 @@ async (page) => {
     await page.waitForTimeout(220);
   }
 
+  // BACK AND FORWARD. Jump three times, then walk back and forward again, and
+  // check the book lands where it was rather than merely moving.
+  out.history = await page.evaluate(async () => {
+    const book = window.__fw.scene3d.clubhouse()?.ledgerBook;
+    const list = book.sections?.() || [];
+    if (list.length < 3) return { ok: false, why: 'not enough sections' };
+    const visited = [];
+    for (const id of [list[0].id, list[2].id, list[4] ? list[4].id : list[1].id]) {
+      book.goToSection?.(id);
+      // eslint-disable-next-line no-await-in-loop
+      await new Promise((done) => setTimeout(done, 180));
+      visited.push(book.currentSection?.()?.id ?? null);
+    }
+    const depthAfterJumps = book.navDepth?.();
+    const back1 = book.navigateBack?.();
+    await new Promise((done) => setTimeout(done, 160));
+    const afterBack1 = book.currentSection?.()?.id ?? null;
+    const back2 = book.navigateBack?.();
+    await new Promise((done) => setTimeout(done, 160));
+    const afterBack2 = book.currentSection?.()?.id ?? null;
+    const fwd = book.navigateForward?.();
+    await new Promise((done) => setTimeout(done, 160));
+    const afterForward = book.currentSection?.()?.id ?? null;
+    return {
+      ok: true,
+      visited,
+      depthAfterJumps,
+      back1: !!back1,
+      back2: !!back2,
+      forward: !!fwd,
+      afterBack1,
+      afterBack2,
+      afterForward,
+      // back twice from the third stop should be the first stop; forward once
+      // from there should be the second
+      backBehaves: afterBack2 === visited[0],
+      forwardBehaves: afterForward === visited[1],
+    };
+  });
+  console.log('HISTORY', JSON.stringify(out.history));
+
   // PERSISTENCE: land somewhere that is not the contents page, close, reopen.
   out.persistence = await page.evaluate(async () => {
     const ch = window.__fw.scene3d.clubhouse();
@@ -126,6 +167,8 @@ async (page) => {
     jumpsAttempted: jumps.length,
     jumpsCorrect: jumps.filter((j) => j.correct).length,
     failedJumps: jumps.filter((j) => !j.correct).map((j) => `${j.from || '?'} -> ${j.target} landed ${j.landedOn}`),
+    backBehaves: out.history?.backBehaves ?? null,
+    forwardBehaves: out.history?.forwardBehaves ?? null,
     persistedAcrossClose: out.persistence.persisted,
     closedOn: out.persistence.closedOn,
     reopenedOn: out.persistence.reopenedOn,

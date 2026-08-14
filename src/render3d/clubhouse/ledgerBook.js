@@ -951,6 +951,17 @@ export function createLedgerBook({ THREE, state, anchor, counterTop, camera = nu
   // PHASE 6: the section the reader last asked for, used by currentSection when
   // that section is still on the open spread. Cleared by any page turn.
   let lastJumpedSection = null;
+  // PHASE 6 — "BACK AND FORWARD THAT BEHAVE."
+  //
+  // A browser history over SPREADS, not over page turns: turning a page is
+  // reading, jumping to a section is navigating, and only the second belongs in
+  // a history. Otherwise Back after reading four pages walks you back through
+  // all four, which is not what anyone means by Back.
+  //
+  // The forward stack is discarded on a NEW jump, exactly as a browser does --
+  // a fresh navigation invalidates the branch you had gone forward into.
+  const navBack = [];
+  const navForward = [];
 
   // THE SECTION NAME, SAFE TO ASK FOR AT CONSTRUCTION TIME.
   //
@@ -2620,8 +2631,36 @@ export function createLedgerBook({ THREE, state, anchor, counterTop, camera = nu
     if (!isOpen() || !model) return false;
     const pageNumber = model.pageOfSection[sectionId];
     if (!Number.isFinite(pageNumber)) return false;
+    const nextSpread = Math.floor((pageNumber - 1) / 2);
+    if (nextSpread !== spread) {
+      navBack.push({ spread, section: lastJumpedSection });
+      if (navBack.length > 32) navBack.shift();
+      navForward.length = 0; // a new navigation invalidates the forward branch
+    }
     lastJumpedSection = sectionId;
-    spread = Math.floor((pageNumber - 1) / 2);
+    spread = nextSpread;
+    paintSpread();
+    return true;
+  }
+
+  /** PHASE 6: step back through JUMPS. Returns false when there is nowhere to go,
+   *  so a caller can leave the key unhandled rather than pretend it worked. */
+  function navigateBack() {
+    if (!isOpen() || !model || !navBack.length) return false;
+    const entry = navBack.pop();
+    navForward.push({ spread, section: lastJumpedSection });
+    spread = entry.spread;
+    lastJumpedSection = entry.section;
+    paintSpread();
+    return true;
+  }
+
+  function navigateForward() {
+    if (!isOpen() || !model || !navForward.length) return false;
+    const entry = navForward.pop();
+    navBack.push({ spread, section: lastJumpedSection });
+    spread = entry.spread;
+    lastJumpedSection = entry.section;
     paintSpread();
     return true;
   }
@@ -2974,6 +3013,9 @@ export function createLedgerBook({ THREE, state, anchor, counterTop, camera = nu
     turnPage,
     goToPage,
     goToSection,
+    navigateBack,
+    navigateForward,
+    navDepth: () => ({ back: navBack.length, forward: navForward.length }),
     // PHASE 6: what a reader can jump TO, and where they are now. goToSection
     // shipped exported with ZERO call sites -- nothing in the game ever called
     // it, so "navigation to every section" existed only as a function. These two
