@@ -2,7 +2,7 @@
 
 Working `Designs/ProShop/Goal_26_Playtest_3.md` in the order written.
 
-## 1. Probe-lie count this round: **8** (running total **30**)
+## 1. Probe-lie count this round: **9** (running total **31**)
 
 Checks I wrote that measured the wrong thing. Every one was caught by a number
 disagreeing with something I already knew, never by re-reading the code.
@@ -17,6 +17,7 @@ disagreeing with something I already knew, never by re-reading the code.
 | 28 | the checkout routing gate, against my own edit | "missing normal-play routes: coinHandle" | I had written `sfx(handleCue)` with the cue in a variable. The gate greps the source for a literal inside an `sfx()` call and cannot see through an indirection — the cue WAS routed. Defeating the instrument is not satisfying it |
 | 29 | the bag-clearance test | "no footprints to measure" | it drew items from `SHOP_CATALOG.slice(0, 3)`, which is all `separateHandoff` goods. Those take the OVERSIZE branch, which poses by hand and reports no footprint — so it graded the wrong path entirely. Same shape as probe lie 8 |
 | 30 | the same test, next version | the fix "pushed goods TOWARD the bag" | `frontDeskPose` is MIRRORED with respect to the local x the packer works in (measured: local −0.9 → world +0.10, local −0.5 → world −0.30). Reading `pose.x - w/2` as the bag-side edge reads the FAR edge, so a correct fix reported as a regression |
+| 31 | `electron-rake-explode-id` (last session's, re-run) | 74 meshes near the camera, all hands and distant terrain, no rake | its staging left the camera at world Y **−1.181**, under the ground. "Nothing near the camera" was a fact about where it put the player |
 
 Two of these (23, 28) are worth their own line because they are the same shape
 from opposite directions: an instrument that cannot perceive the thing it is
@@ -36,8 +37,8 @@ asked about will report its own blindness as a fact about the world.
 | **6 — items must not touch the bag** | **DONE.** 0.127 yd of overlap measured and removed |
 | 7 — Phase 3 verifier one | **SETTLED: it was my staging.** The clause itself is still unmeasured |
 | 8 — Phase 10 verifier 3, the stranger | NOT STARTED |
-| 9 — the exploded rake | IN PROGRESS |
-| 10 — Phase 7's merge | NOT STARTED |
+| 9 — the exploded rake | **IDENTIFIED, NOT FIXED.** It is a HAND, and last session ruled that out wrongly |
+| 10 — Phase 7's merge | **MEASURED, NOT STARTED.** Dedup is NOT required: 47.6% without it |
 
 ## 3. P0 — THE CLICK
 
@@ -319,3 +320,74 @@ zero**, not an overlap of zero: a flush rest passes an overlap test and is
 exactly the state you are complaining about.
 
 Suite 3659 pass / 0 fail. Lint ratchet 323.
+
+
+## 11. ITEM 9 — THE EXPLODED RAKE IS A HAND, AND THAT WAS RULED OUT IN ERROR
+
+**I am overturning last session's own conclusion, and the photograph is why.**
+
+`Designs/ProShop/Images/Goal_26/findings/rake-exploded-viewmodel.png`, viewed at
+full size rather than described: the cluster floating in the sky is
+**unmistakably a first-person hand**. Four finger capsules in a row, a palm mass
+behind them, a thumb capsule off to the right, two flat plates driven through it
+at an angle, and a curved ribbon trailing below. That is the exact part list in
+`fpHands.js` — fingers, `Palm`, `ThumbProx`/`ThumbDist`, `HandCuffBody` (the
+plates) and `HandCuffRoll` (the ribbon).
+
+And the bottom-right of the same frame shows a hand gripping the shaft
+**correctly**. So it is not "the hands"; it is **one of the two hands**.
+
+Last session wrote: *"The hands are ruled out by measurement... with the rake
+equipped the hands measure at world y 1.48 and 1.59 against a camera at 1.52.
+They are where hands belong."* Two plausible numbers for two hands is exactly
+what you get if the probe read the hand ROOTS, or the good hand twice, while the
+displaced thing is a hand's MESHES under a mis-transformed node. The picture and
+the numbers disagree, and the picture wins.
+
+**Why today's re-run found nothing.** `walk.setTool('rake')` returns `'rake'`
+happily, but there is **no `Tool_rake` in the scene at all** — the tool roots
+present are vacuum, mop, broom, dustpan, spray, cloth, sponge, trashbag. The rake
+is on the outdoor belt and the run stood indoors. Worth a line of its own: the
+tool API accepts an id it has no viewmodel for and reports success.
+
+**NOT FIXED.** The next attempt needs the player outdoors and ON GROUND — the old
+driver's teleport put the camera at world Y −1.181, under the terrain — and then
+`electron-rake-parts.js` names the parts against the tool's own origin rather
+than against the camera. My expectation from the picture is that it will name one
+hand's meshes, and that the fault is a socket or parent transform on the hand the
+rake's grip resolves to, not the rake.
+
+## 12. ITEM 10 — THE MERGE: DEDUP IS NOT REQUIRED, AND I HAVE NOT STARTED
+
+Measured in Electron at a standing indoor frame
+(`tools/qa/electron-merge-headroom.js`, `qa/electron/merge-headroom/`):
+
+| | |
+|---|---|
+| standing draw calls | **1446** |
+| mergeable meshes | 1037 |
+| distinct materials among them | 349 |
+| meshes per material | **2.97** — your three-per-material figure, confirmed |
+| best case after merge | **758 calls, −47.6%** |
+| materials dedup would remove | 100 (349 → 249) |
+| best case after dedup THEN merge | 658 calls, −54.5% |
+
+**So: dedup does NOT have to come first.** The 30% target is reachable on the
+merge alone with 17 points of headroom to spare. Dedup would add roughly a
+further 7 points and is worth doing, but it is not a blocker and I would not
+sequence it first.
+
+Two honest caveats, because "best case" is doing real work in that sentence:
+
+- It assumes a PERFECT merge — every mergeable mesh of one material becomes one
+  draw. A real merge gives some of that back to frustum culling, because a merged
+  buffer cannot be culled per-part. Indoors, where most of these meshes share a
+  room, that loss should be small; on the course it would not be.
+- My counts differ from the 817/2482 in your brief because I counted only what
+  actually DRAWS at a standing frame: single-material, non-instanced,
+  non-skinned, and not already batched away behind `layers.mask = 0`. 1265
+  meshes were excluded on that last ground alone, and a target derived from
+  scene-graph mesh counts would be promising to remove draw calls that nobody is
+  making.
+
+**I have not started the merge**, per your instruction to measure first.
