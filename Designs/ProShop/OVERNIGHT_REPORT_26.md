@@ -14,7 +14,7 @@ the oscillator build** — the synth voices being replaced are themselves
 filtered-noise buffers — so it would have certified the exact absence it existed
 to detect.
 
-## 2. Probe-lie count: **6**
+## 2. Probe-lie count: **9**
 
 Checks I wrote that scored the same before and after, or measured the wrong
 object. All six were caught by looking at a number that disagreed with something
@@ -40,7 +40,7 @@ not painted" manufactured a false negative about a click.
 | Phase | Status |
 |---|---|
 | **1 — Audio** | **GATE PASSED** — see §4 |
-| 2 — The walk-up | not started |
+| **2 — The walk-up** | **BOTH ITEMS FIXED AND MEASURED**; clips outstanding |
 | 3 — NPC navigation | not started |
 | 4 — Time and bookings | not started |
 | 5 — Mop and hands | not started |
@@ -323,3 +323,97 @@ file peaks above −1.0 dBFS.
 through the production audio surface rather than by running a customer through a
 complete cash transaction. That end-to-end check is Phase 2 work and is listed
 there, not claimed here.
+
+
+---
+
+# PHASE 2 — THE WALK-UP
+
+## 2.1 My body blocks the queue — **FIXED AND MEASURED** (clip outstanding)
+
+**Root cause:** the player's body enters the customer simulation in **three**
+separate places — the look-ahead's blocked-point query (`_customerBlockedAt`),
+the reciprocal-avoidance neighbour list (`crowdNeighbours`), and the settle
+pass's hard 0.72 yd shove-away (`crowdClamp`). Fixing one and leaving the others
+is the two-populations shape, and it would have presented as "mostly fixed" —
+worse than untouched, because it is harder to see. One predicate,
+`playerBlocksCustomers()`, and all three ask it.
+
+**Three, not four, and I checked rather than assumed:** the queue-slot occupancy
+test (`queueSlotIsClear`) builds its body list from other customers only and
+never had the player in it.
+
+**The symptom itself, measured** — same staging, same four spawned customers,
+one line different:
+
+| build | walk-in-place frames | ratio | moved frames |
+|---|---|---|---|
+| unfixed (player blocks) | **326** | **9.64 %** | 3056 |
+| fixed (player phased out) | **0** | **0.00 %** | 751 |
+
+"Walks in place" is computed per customer per 100 ms sample as intent-versus-
+travel: the sim wants above 0.35 yd/s and the body covers under 0.004 yd. That is
+the owner's phrase turned into something countable, not a proxy for it.
+
+**And the restore half**, which is the one a hasty check skips — phasing out is
+easy; failing to restore leaves the player permanently walk-through-able:
+
+| station | blocks before | during | after | phased out | restored |
+|---|---|---|---|---|---|
+| register (the till) | true | false | true | yes | yes |
+| ledger (in hand) | true | false | true | yes | yes |
+| laptop | true | false | true | yes | yes |
+| desk screen | true | false | true | yes | yes |
+
+**Commits:** `7a965af` (fix), `5b49d12` (evidence) · pushed.
+
+## 2.2 Items on the counter interpenetrate — **FIXED AND MEASURED** (clip outstanding)
+
+**The cause was not physics.** `catalogCheckoutLayout` used a **fixed grid** —
+three columns at a fixed 0.14 pitch — with no reference to any item's size. Every
+descriptor carries a real `size: [x, y, z]` and the grid ignored all of it, so a
+0.31 yd shoe carton and a 0.13 yd tee pouch got identical slots.
+
+| build | overlapping pairs | worst overlap |
+|---|---|---|
+| old fixed grid | **3** | **0.041 yd²** |
+| new layout | **0** | — |
+
+Also checked one item at a time, 2 → 6, because the counter fills incrementally.
+
+**The measurements forced two rewrites.** The staging strip is **0.640 wide ×
+0.150 deep** while a cap is 0.210 deep — *the strip is shallower than the goods*.
+A 0.06 inset left 0.03 yd of usable depth and stacked everything; edge-to-edge
+packing declared three ordinary items unable to share a counter. The shipped
+version distributes **centres** across the full span and lets outer items
+overhang, which is what real objects do and what the staging contract already
+permits (it constrains centres, not extents).
+
+**Commit:** `72eb8fc` · pushed. Suite 3640/3640, lint 323.
+
+## Probe lies 7-9 (this phase)
+
+| # | The probe | What it reported | What was wrong |
+|---|---|---|---|
+| 7 | `counter-item-overlap` v1 | **passed on the broken build** | read `pose.footprintW`, a field only the NEW layout emits; fell back to a default 0.16×0.12 box, and defaults at 0.41 spacing do not overlap. It was grading its own fallback |
+| 8 | `counter-item-overlap` v2 | passed, but on the wrong scenario | sorting the catalogue by area puts shop DECOR first (a 0.56 yd poster on a 0.64 yd counter); it measured the stacking path and never the side-by-side packing 2.2 is about |
+| 9 | `electron-walkup-blocked` v1-v3 | "nobody walks in place" | **the room was empty.** The save resumes at 06:01 and moving the clock does not drive arrivals. `walk.stations()[0]` on a clean profile is a weed patch at x −356.9, outdoors, and `register.enter()` returned true from there anyway; standing at `station.z + 1.15` put the player through the wall |
+
+Probe 9 was resolved by `clubhouse.debugSpawn` — a hook the module already
+exposed for exactly this. Three runs waited for organic traffic that was never
+going to arrive.
+
+## PHASE 2 GATE — **NOT RUN**
+
+The gate asks for a verifier that serves four customers back to back and
+photographs the counter after each. Both items are fixed and each is red/green on
+the measurement its clause names, but **no clip has been recorded and no frames
+viewed**, so the gate is open, not passed.
+
+It is no longer blocked, which is the change: `debugSpawn` puts four customers on
+the floor on demand, and the walk-up driver now uses it.
+
+**Also observed, not explained:** on **both** builds all four customers left
+without ever joining the queue (`reachedQueue: 0`). Identical before and after,
+so it is not caused by the phasing change — but it is a real finding about the
+walk-up and it belongs to Phase 3.
