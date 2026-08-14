@@ -188,12 +188,32 @@ export const SHIPPED_MOP_YARN = Object.freeze({
   // 432 = 18 x 24 exactly. An uneven split would give some bunches more strands
   // than others, and since the splay force is per-strand that imbalance is the
   // same off-axis drift the even angles above exist to remove.
-  count: 432,
+  // GOAL 26 5.1: "Too thin. It needs more body." The reference he supplied is a
+  // SPIN MOP -- a dense uniform microfibre disc, not a string mop with daylight
+  // between the bunches. Measured against the old numbers, 432 strands at 3.2 mm
+  // covered roughly a quarter of the disc, which is why it photographed as a
+  // spray of spikes.
+  //
+  // 756 = 18 x 42, keeping the clump structure exactly (an uneven split would
+  // give some bunches more strands than others, and the splay force is
+  // per-strand). With the radius lift that is about 2.4x the fill of the version
+  // he called too thin, while the 18 countable bunches the Goal 25 ruling settled
+  // on are untouched.
+  // 972 = 18 x 54, keeping the clump structure exactly (an uneven split gives
+  // some bunches more strands than others, and the splay force is per-strand).
+  //
+  // THE BODY COMES FROM COUNT, NOT THICKNESS, and that is a constraint rather
+  // than a preference: the Goal 25 ruling caps a strand under 8 mm across
+  // ("a strand is yarn, not pipe"), and mop-verlet-strands.test.js enforces it.
+  // My first attempt at "more body" went to 4.5 mm radius -- 9 mm across -- and
+  // was correctly refused. 2.25x the strands at the same fineness is 2.25x the
+  // fill without turning the yarn back into the pipes Goal 25 threw out.
+  count: 972,
   radius: 0.128,
   length: 0.335,
   segments: 4,
-  strandRadiusTop: 0.0032,
-  strandRadiusBottom: 0.0023,
+  strandRadiusTop: 0.0038,
+  strandRadiusBottom: 0.0027,
   radialSegments: 5,
   lengthVariation: 0.24,
   clumps: 18,
@@ -248,14 +268,35 @@ export function createVerletMopStrands({
   // owner sees (a fraction of the head) rather than as a tuned acceleration.
   const splayAccel = Math.max(0, splay) * radius * DEFAULT_PARAMS.gravity * 2.4;
   const RADIAL = Math.max(3, Math.round(radialSegments));
-  const geometry = new THREE.CylinderGeometry(
-    strandRadiusTop, strandRadiusBottom, nominalSeg, RADIAL, 1, true,
-  );
-  geometry.translate(0, -nominalSeg / 2, 0);
+
+  // 5.1 (Goal 26) — "EACH STRAND LOOKS LIKE FOUR CONNECTED PIECES INSTEAD OF ONE
+  // COHERENT PIECE", and this is exactly where that came from.
+  //
+  // ONE geometry used to be shared by all four segment layers, tapering
+  // strandRadiusTop -> strandRadiusBottom. So every segment ran 3.2 mm down to
+  // 2.3 mm and then THE NEXT ONE JUMPED BACK TO 3.2 mm: a repeating bulge at
+  // every node, four times down each strand. The solver was never the problem --
+  // the owner is describing a silhouette, and the silhouette had four waists in
+  // it by construction.
+  //
+  // Now each segment index gets its own geometry whose radii are interpolated
+  // along the WHOLE strand, so segment s runs r(s/S) -> r((s+1)/S) and meets its
+  // neighbour at exactly the same width. One continuous tapered rope, with the
+  // four simulation nodes still doing the bending. That is 5.1's "the solver can
+  // keep four simulation nodes; the GEOMETRY must not show them", done as stated.
+  const radiusAt = (t) => strandRadiusTop + (strandRadiusBottom - strandRadiusTop) * t;
+  const segmentGeometries = [];
+  for (let s = 0; s < S; s += 1) {
+    const g = new THREE.CylinderGeometry(
+      radiusAt(s / S), radiusAt((s + 1) / S), nominalSeg, RADIAL, 1, true,
+    );
+    g.translate(0, -nominalSeg / 2, 0);
+    segmentGeometries.push(g);
+  }
 
   const layers = [];
   for (let s = 0; s < S; s += 1) {
-    const mesh = new THREE.InstancedMesh(geometry, material, N);
+    const mesh = new THREE.InstancedMesh(segmentGeometries[s], material, N);
     mesh.name = `MopVerletLayer_${s}`;
     mesh.castShadow = false;
     mesh.receiveShadow = false;
@@ -549,7 +590,10 @@ export function createVerletMopStrands({
   }
 
   function dispose() {
-    geometry.dispose();
+    // One geometry PER SEGMENT now (see the continuous-taper note above), so all
+    // of them have to go. Disposing only the first would leak three per rebuild,
+    // and rebuildYarn exists precisely to be called repeatedly.
+    for (const g of segmentGeometries) g.dispose();
     for (const layer of layers) layer.dispose();
   }
 

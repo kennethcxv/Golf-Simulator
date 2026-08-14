@@ -473,6 +473,53 @@ export function buildToolViewmodels() {
                   ...SHIPPED_MOP_YARN,
                 });
                 collar.add(rig.root);
+
+                // 5.1 (Goal 26) — "IT DOES NOT CONNECT TO THE STEM. There is a
+                // gap between the yarn and the shaft. On a real mop the yarn is
+                // clamped into a BAND that meets the handle."
+                //
+                // Photographed at the default camera (mop-planted.png): the
+                // shaft simply ends and the yarn begins somewhere below it, with
+                // daylight in between. There was no band at all -- the strands
+                // hang from an invisible anchor, so the eye has nothing joining
+                // the two halves of the object.
+                //
+                // His reference is a SPIN MOP, whose hub is a hard plastic disc
+                // that clamps the yarn and swallows the end of the handle. That
+                // is what this is: a short tapered ferrule sitting where the
+                // strands start, wide enough to cover the collar circle they
+                // hang from, plus a rim ring so it reads as a clamp rather than
+                // a blob. Two meshes, no texture, no new material family.
+                const bandMat = new THREE.MeshStandardMaterial({
+                  color: 0xb5322a, roughness: 0.42, metalness: 0.05,
+                });
+                const HEAD_R = SHIPPED_MOP_YARN.radius;
+                // SIZED AGAINST THE REFERENCE, AND MY FIRST TRY WAS WRONG.
+                // At 0.86 of the head radius the hub was as wide as the whole
+                // head: it read as a red disc with a fringe under it, and it
+                // HID the yarn I had just doubled. In his reference the hub is a
+                // small clamp at the centre of a large white disc -- the yarn is
+                // the object and the hub is the fitting. 0.52 leaves the outer
+                // two thirds of the head as yarn.
+                const hub = new THREE.Mesh(
+                  new THREE.CylinderGeometry(HEAD_R * 0.30, HEAD_R * 0.52, 0.038, 20, 1, false),
+                  bandMat,
+                );
+                hub.name = 'MESH_MopHub';
+                // Sits just ABOVE where the yarn starts, so the strand tops
+                // disappear into it instead of floating below it.
+                hub.position.y = 0.026;
+                collar.add(hub);
+                const hubRim = new THREE.Mesh(
+                  new THREE.TorusGeometry(HEAD_R * 0.51, 0.008, 8, 22),
+                  bandMat,
+                );
+                hubRim.name = 'MESH_MopHubRim';
+                hubRim.rotation.x = Math.PI / 2;
+                hubRim.position.y = 0.008;
+                collar.add(hubRim);
+                entry.mopHub = hub;
+
                 entry.strandRig = rig;
                 entry.strandMaterial = yarn;
                 group.userData.strandRig = rig;
