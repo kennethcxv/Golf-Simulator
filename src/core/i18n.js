@@ -111,6 +111,16 @@ const EN = Object.freeze({
   'shop.customerSays': "{name}: {line}",
   'shop.putBackCarried': "{name} put back what they were carrying.",
   'shop.tiredOfWaiting': "{name} got tired of waiting, put everything back, and left a bad review.",
+  // PHASE 8 (Goal 26): the pause menu's restart-the-day control, added through
+  // t() rather than as a bare literal so it does not reach every locale in
+  // English and raise the strings ratchet.
+  //
+  // Worth a note: my first version of THIS COMMENT quoted the scanned property
+  // name followed by a backtick, and the ratchet's own regex matched the comment
+  // explaining it -- the file gained a "raw player-facing string" that was a
+  // sentence about raw player-facing strings. Hence the paraphrase.
+  'pause.restartDay': "Restart the current day",
+  'pause.restartDayConfirm': "Restart the day",
   // The laptop back office.
   'laptop.clubhouseOpen': "The clubhouse is open. Your first guests are on the way.",
   'laptop.needsName': "The club needs a name.",
@@ -639,6 +649,8 @@ const ES = Object.freeze({
   'shop.openBayDoorFirst': "Abre primero una puerta del armario de la bahía {bay}.",
   'shop.placedComingTogether': "{name} colocado - la tienda va tomando forma.",
   'shop.customerSays': "{name}: {line}",
+  'pause.restartDay': "Reiniciar el día actual",
+  'pause.restartDayConfirm': "Reiniciar el día",
   'shop.putBackCarried': "{name} ha devuelto lo que llevaba.",
   'shop.tiredOfWaiting': "{name} se cansó de esperar, lo devolvió todo y dejó una mala reseña.",
   'laptop.clubhouseOpen': "La casa club está abierta. Tus primeros clientes están de camino.",
@@ -965,6 +977,8 @@ const FR = Object.freeze({
   'shop.openBayDoorFirst': "Ouvrez d'abord une porte d'armoire de la baie {bay}.",
   'shop.placedComingTogether': "{name} en place - la boutique prend forme.",
   'shop.customerSays': "{name} : {line}",
+  'pause.restartDay': "Recommencer la journée en cours",
+  'pause.restartDayConfirm': "Recommencer la journée",
   'shop.putBackCarried': "{name} a reposé ses articles.",
   'shop.tiredOfWaiting': "{name} en a eu assez d'attendre, a tout reposé et a laissé un mauvais avis.",
   'laptop.clubhouseOpen': "Le club-house est ouvert. Vos premiers clients sont en route.",
@@ -1291,6 +1305,8 @@ const DE = Object.freeze({
   'shop.openBayDoorFirst': "Öffne zuerst eine Schranktür in Bucht {bay}.",
   'shop.placedComingTogether': "{name} platziert - der Shop nimmt Form an.",
   'shop.customerSays': "{name}: {line}",
+  'pause.restartDay': "Aktuellen Tag neu starten",
+  'pause.restartDayConfirm': "Tag neu starten",
   'shop.putBackCarried': "{name} hat die Sachen wieder zurückgelegt.",
   'shop.tiredOfWaiting': "{name} hatte genug vom Warten, legte alles zurück und ließ eine schlechte Bewertung da.",
   'laptop.clubhouseOpen': "Das Clubhaus ist offen. Deine ersten Gäste sind unterwegs.",
@@ -1602,6 +1618,8 @@ const PT_BR = Object.freeze({
   'shop.openBayDoorFirst': "Abra primeiro um armário da baia {bay}.",
   'shop.placedComingTogether': "{name} no lugar - a loja está tomando forma.",
   'shop.customerSays': "{name}: {line}",
+  'pause.restartDay': "Reiniciar o dia atual",
+  'pause.restartDayConfirm': "Reiniciar o dia",
   'shop.putBackCarried': "{name} devolveu o que estava carregando.",
   'shop.tiredOfWaiting': "{name} cansou de esperar, devolveu tudo e deixou uma avaliação ruim.",
   'laptop.clubhouseOpen': "O clubhouse está aberto. Seus primeiros visitantes estão a caminho.",
@@ -1913,6 +1931,8 @@ const RU = Object.freeze({
   'shop.openBayDoorFirst': "Сначала откройте дверцу шкафа в отсеке {bay}.",
   'shop.placedComingTogether': "{name} на месте - магазин обретает форму.",
   'shop.customerSays': "{name}: {line}",
+  'pause.restartDay': "Начать текущий день заново",
+  'pause.restartDayConfirm': "Начать день заново",
   'shop.putBackCarried': "{name} возвращает вещи на место.",
   'shop.tiredOfWaiting': "{name} больше не ждёт: всё возвращено, а отзыв вышел плохим.",
   'laptop.clubhouseOpen': "Клубный дом открыт. Первые гости уже в пути.",
@@ -2225,6 +2245,8 @@ const ZH_HANS = Object.freeze({
   'shop.openBayDoorFirst': "请先打开{bay}号仓位的柜门。",
   'shop.placedComingTogether': "{name}已就位，店里越来越像样了。",
   'shop.customerSays': "{name}：{line}",
+  'pause.restartDay': "重新开始今天",
+  'pause.restartDayConfirm': "重新开始",
   'shop.putBackCarried': "{name}把拿着的商品放回去了。",
   'shop.tiredOfWaiting': "{name}等得不耐烦，把东西全放回去，还留了个差评。",
   'laptop.clubhouseOpen': "会所开业了。第一批客人正在路上。",
@@ -2536,6 +2558,8 @@ const JA = Object.freeze({
   'shop.openBayDoorFirst': "先にベイ{bay}のキャビネット扉を開けてください。",
   'shop.placedComingTogether': "{name}を設置しました。店が形になってきました。",
   'shop.customerSays': "{name}：{line}",
+  'pause.restartDay': "今日をやり直す",
+  'pause.restartDayConfirm': "やり直す",
   'shop.putBackCarried': "{name}さんが持っていた商品を戻しました。",
   'shop.tiredOfWaiting': "{name}さんは待ちきれず、商品を全部戻して悪いレビューを残しました。",
   'laptop.clubhouseOpen': "クラブハウスがオープンしました。最初のお客様がこちらへ向かっています。",
@@ -2847,6 +2871,8 @@ const KO = Object.freeze({
   'shop.openBayDoorFirst': "먼저 {bay} 구역의 캐비닛 문을 여세요.",
   'shop.placedComingTogether': "{name} 배치 완료. 매장이 점점 모습을 갖춰 가요.",
   'shop.customerSays': "{name}: {line}",
+  'pause.restartDay': "현재 날짜 다시 시작",
+  'pause.restartDayConfirm': "다시 시작",
   'shop.putBackCarried': "{name}님이 들고 있던 물건을 제자리에 놓았어요.",
   'shop.tiredOfWaiting': "{name}님이 기다리다 지쳐 물건을 다 돌려놓고 나쁜 리뷰를 남겼어요.",
   'laptop.clubhouseOpen': "클럽하우스가 문을 열었어요. 첫 손님들이 오고 있어요.",
@@ -3158,6 +3184,8 @@ const TR = Object.freeze({
   'shop.openBayDoorFirst': "Önce {bay} bölmesindeki dolap kapağını açın.",
   'shop.placedComingTogether': "{name} yerleştirildi - dükkân şekilleniyor.",
   'shop.customerSays': "{name}: {line}",
+  'pause.restartDay': "Bugünü yeniden başlat",
+  'pause.restartDayConfirm': "Yeniden başlat",
   'shop.putBackCarried': "{name} taşıdıklarını geri bıraktı.",
   'shop.tiredOfWaiting': "{name} beklemekten sıkıldı, her şeyi geri koydu ve kötü bir yorum bıraktı.",
   'laptop.clubhouseOpen': "Kulüp binası açık. İlk misafirleriniz yolda.",

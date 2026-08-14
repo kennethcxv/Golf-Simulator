@@ -2066,8 +2066,21 @@ async function autosave(reason = 'mutation') {
         console.warn('autosave rotation skipped', error);
       }
     }
-    await saveData(scopedKey('autosave'), empireSnapshot(app.empire));
+    const snapshot = empireSnapshot(app.empire);
+    await saveData(scopedKey('autosave'), snapshot);
     await saveData(scopedKey('autosave-meta'), { ...currentSaveMetadata(), trigger: reason });
+    // PHASE 8: the day-start snapshot that "Restart the current day" restores.
+    // Written ONLY on rollover -- the interval trigger would make it drift into
+    // "a few minutes ago", which is what already disqualified autosave-prev for
+    // this job. Failing to write it must not fail the autosave that matters.
+    if (reason === 'rollover') {
+      try {
+        await saveData(scopedKey('daystart'), snapshot);
+        await saveData(scopedKey('daystart-meta'), { ...currentSaveMetadata(), trigger: 'daystart' });
+      } catch (error) {
+        console.warn('day-start snapshot skipped', error);
+      }
+    }
     showAutosaveChip();
     return { ok: true };
   } catch (error) {
@@ -2725,6 +2738,51 @@ function openPauseMenu() {
             toast(how ? 'Freed you up - back on solid ground.' : 'Nowhere clear to move you to.', how ? 'good' : 'warn');
           },
         }),
+        // PHASE 8 (Goal 26): "The pause menu offers: Resume, RESTART THE CURRENT
+        // DAY, Return to main menu, Quit -- with confirmation on the destructive
+        // ones." The other three already existed; this is the one that did not.
+        //
+        // It restores the `daystart` snapshot, written once per rollover. The
+        // button is created DISABLED and only enables once that snapshot is
+        // confirmed present, because a restart that silently does nothing (or
+        // worse, loads a save from some other moment) is a destructive action
+        // failing quietly -- and on the very first day of a new game there is no
+        // rollover behind you and so nothing to restart to.
+        (() => {
+          const restart = el('button', {
+            class: 'pause-wide danger',
+            text: t('pause.restartDay'),
+            disabled: true,
+            title: 'Checking for this morning’s snapshot...',
+          });
+          loadDataWithStatus(scopedKey('daystart'), { repair: false })
+            .then((found) => {
+              if (found.value == null) {
+                restart.title = 'No snapshot from the start of this day yet - available from tomorrow.';
+                return;
+              }
+              restart.disabled = false;
+              restart.title = '';
+              restart.onclick = () => confirmDialog({
+                title: 'Restart the current day?',
+                message: 'Go back to the start of today.',
+                detail: 'Everything you have done since this morning is discarded. This cannot be undone.',
+                confirmLabel: t('pause.restartDayConfirm'),
+                danger: true,
+                onConfirm: async () => {
+                  const empire = await loadEmpireSave(scopedKey('daystart'), 'Start of day');
+                  if (!empire) return false;
+                  closePauseMenu({ resume: false });
+                  bootEmpire(empire);
+                  return true;
+                },
+              });
+            })
+            .catch(() => {
+              restart.title = 'The start-of-day snapshot could not be read.';
+            });
+          return restart;
+        })(),
         el('button', {
           class: 'pause-wide danger',
           text: 'Return to main menu',
