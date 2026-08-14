@@ -323,6 +323,25 @@ that is one number and I will not sweep it.
 
 ---
 
+---
+
+## THE GATE
+
+| piece | result |
+|---|---|
+| `npm test` | **3614 / 3614** |
+| golden capture + diff | **13 / 13 ok** |
+| golden one-pixel control | **OK** — a single flipped pixel still fails the strict diff |
+| vendor-models `--check` | 126 up to date, 0 problems |
+| lint ratchet | **325 vs 324** — the inherited red, unchanged by this block |
+
+**The mop needed no rebaseline.** `tool-mop` moved 0.392% against its 0.75%
+budget, so the new yarn is inside the gate's own tolerance and nothing was
+accepted to keep the row green. `bag-packed` also captured this run (0.1276%)
+after being NOT CAPTURED last round.
+
+---
+
 ## WHAT IS NOT DONE
 
 - **The 277-cause error message.** The real P0 defect and the reason your next
