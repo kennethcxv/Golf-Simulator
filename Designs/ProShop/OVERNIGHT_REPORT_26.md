@@ -970,73 +970,6 @@ establish why 432 authored strands photograph as a dozen.
 
 ---
 
-# HANDOFF
-
-Context exhausted, not blocked. Everything is committed and pushed to
-`goal25/phase0-inherited-tree`. Suite **3640/3640**, lint ratchet **323**.
-
-## DONE / PARTIAL / NOT DONE
-
-| Phase | Item | Status |
-|---|---|---|
-| **1** | 1.0 source CC0 files | **DONE** — 50 files, 24 cues, licence gate fails closed |
-| **1** | 1.2 the money | **DONE** — drawer, per-piece landings, two-recording pile depth, continuous run |
-| **1** | 1.3 ledger / 1.4 menu / 1.5 music | **DONE** |
-| **1** | 1.6 startup noise | **DONE** — duty cycle 1.000 → 0.247, volume untouched |
-| **1** | 1.7 perf / 1.8 paperwork | **DONE** |
-| **1** | **GATE** | **PASSED** |
-| **2** | 2.1 player blocks the queue | **DONE** — 4 stations phase out and restore; clip frames viewed |
-| **2** | 2.2 counter items overlap | **DONE** — 3 overlapping pairs → 0, red/green |
-| **2** | **GATE** | **PASSED for the counter and the queue**; the approach path is not filmable from register mode |
-| 3 | 3.1 recast in production | **DIAGNOSED** — zero production call sites proven; **not integrated** |
-| 3 | 3.2 / 3.3 | **NOT DONE** — stall rate **unmeasured**, detector failed its control |
-| **4** | 4.1 time flows too slowly | **NOT DONE** — measured; ceiling is 4×, blocker is the golf day |
-| **4** | 4.2 walk-in next hour | **DONE** — 0 asks outside the hour over a week |
-| **4** | 4.3 walk-ins rare | **DONE** — 4.5 % of demand |
-| **4** | 4.4 phone/inbox book anything | **DONE** — same-day email now possible, spread 0–6 days |
-| **4** | 4.5 more of them | **DONE** — 33.1 contacts/day measured |
-| **4** | **GATE** | **RUN** — full week, all figures reported |
-| 5 | 5.1–5.3 mop and hands | **NOT DONE** — references viewed, faults confirmed on camera |
-| 6–10 | everything | **NOT STARTED** |
-
-## The three things worth knowing
-
-1. **Phase 1 is genuinely finished and the cash is audible.** First time in four
-   goals. Reproduce with `electron-phase1-audio-gate.js`.
-
-2. **Customer staging needs three facts, and two are invisible.** The owner's
-   save, trading hours on the clock, and **`state.shop.signOpen = true`**. Without
-   the sign the game routes every customer straight to the exit — correct
-   behaviour that reads exactly like a catastrophic pathing fault. This cost me
-   three withdrawn findings before I found it; it is now `FOUND_FALSE` shape 15.
-
-3. **I retracted more than I shipped in Phase 3, deliberately.** The stall rate is
-   *unmeasured*, not zero. The detector that reported zero failed a negative
-   control in which I pinned a customer in place on purpose.
-
-## Where to pick up
-
-1. **Phase 3**: build a stuck detector that passes the pinned-customer control,
-   *then* measure. Everything else in 3.2/3.3 depends on being able to see a stall.
-2. **Phase 5**: resolve why 432 authored mop strands photograph as a dozen — and
-   do not find the rig by the name `MopStrandRig`, which the broom shares.
-3. **Phase 4.1**: decide whether `golfDayProduction.test.js` is calibrated to 4×
-   or the golf day genuinely breaks at 5×. That is the difference between a
-   one-line change and a subsystem rework.
-
-## Standing caveats
-
-- **I have never heard any of the 50 audio files.** Every claim about them is a
-  measurement — peak dBFS on the master bus, which file played, whether it looped,
-  whether it stopped — plus acoustic classification by attack, decay, sustain and
-  spectral centroid. If a cue sounds *wrong* rather than *absent*, that is the gap
-  between what I can measure and what you can hear.
-- **Probe-lie count 17.** One passed on the broken build. One made me publish a
-  wrong number I have since corrected in place. Three separate findings were
-  withdrawn outright. The count is high because I went looking, and the report
-  would be worth less if it were lower.
-
-
 ---
 
 # 5.1 THE MOP — ALL THREE FAULTS FIXED
@@ -1169,3 +1102,67 @@ this is.
 | 20 | same, v2 | measured a **lit** room | `ceilingCircuitPowered` returns TRUE for free play; a non-campaign run answers a question nobody asked |
 | 21 | `electron-mop-anatomy` | the **broom's** rig | searched by the name `MopStrandRig`, which both tools carry |
 | 22 | `electron-rake-viewmodel` | the rake **unequipped** | read `walk.tool?.()`; the accessor is `getTool()`. It would have reported the rake missing while it was equipped |
+
+
+---
+
+# HANDOFF
+
+Everything committed and pushed to `goal25/phase0-inherited-tree`.
+Suite **3642/3642**, lint ratchet **323**.
+
+| Phase | Item | Status |
+|---|---|---|
+| **1** | 1.0–1.8, all items | **DONE** |
+| **1** | **GATE** | **PASSED** — 50 CC0 files, every cue measured in dBFS, both controls hold |
+| **2** | 2.1 player blocks the queue | **DONE** — 4 stations phase out and restore; 110 → 0 walk-in-place frames |
+| **2** | 2.2 counter items overlap | **DONE** — 3 overlapping pairs → 0 |
+| **2** | **GATE** | **PASSED** for the counter and queue; clip frames viewed (`tiles-14`) |
+| 3 | 3.1 recast in production | **DIAGNOSED** — zero production call sites proven; not integrated |
+| 3 | 3.2 / 3.3 | **NOT DONE** — stall rate **unmeasured**; detector failed its own control |
+| 4 | 4.1 time flows too slowly | **NOT DONE** — ceiling measured at 4×; blocker is the golf day |
+| **4** | 4.2 / 4.3 / 4.4 / 4.5 | **DONE** |
+| **4** | **GATE** | **RUN** — full week, every figure reported |
+| **5** | 5.1 the mop | **DONE** — all three named faults fixed at their actual causes |
+| 5 | 5.2 mop weight / 5.3 the hands | **NOT DONE** |
+| 6 | ledger UI | **NOT STARTED** |
+| 7 | performance | **NOT STARTED** |
+| 8 | global Escape | **NOT STARTED** |
+| 9 | 9.2 sticky prompt | **IMPROVED** 40.4 % → 26.7 %; residual remains |
+| 9 | 9.3 dark interior | **MEASURED**, decision made, ineffective fix reverted |
+| 9 | 9.4 bunker rake | **REPRODUCED and PHOTOGRAPHED** — not fixed |
+| 9 | 9.1, 9.5, 9.6 | **NOT STARTED** |
+| 10 | final verification | **NOT STARTED** |
+
+## The four things worth knowing
+
+1. **The cash is audible.** Phase 1 is closed for the first time in four goals.
+2. **Customer staging needs three facts and two are invisible** — the owner's
+   save, trading hours, and **the sign open**. Without the sign the game routes
+   every customer to the exit, which reads exactly like a pathing catastrophe.
+   `FOUND_FALSE` shape 15.
+3. **The rake bug is real and now has a photograph.** A previous session couldn't
+   reproduce it because the rake isn't drawn indoors.
+4. **I reverted two of my own changes and withdrew three findings.** The 9.3 bulb
+   made no measurable difference; the 5.3 % stall rate came from a detector that
+   failed its own control. Both are out.
+
+## Where to pick up
+
+1. **Phase 3** — build a stuck detector that passes the pinned-customer control
+   *before* measuring anything. Everything in 3.2/3.3 depends on seeing a stall.
+2. **9.4** — the exploded rake. Hands are ruled out by measurement; find what the
+   tan capsules with planks through them actually belong to.
+3. **9.3** — get the practicals' positions and light the fitting nearest interior
+   offset (3,3), not index 0.
+4. **Phases 6, 7, 8** — untouched.
+
+## Standing caveats
+
+- **I have never heard any of the 50 audio files.** Every claim is a measurement
+  plus acoustic classification. If a cue sounds *wrong* rather than *absent*,
+  that is the gap between what I can measure and what you can hear.
+- **Probe-lie count 22.** One passed on the broken build; one made me publish a
+  wrong number I corrected in place; three findings were withdrawn outright. The
+  count is high because I went looking, and the report would be worth less if it
+  were lower.
