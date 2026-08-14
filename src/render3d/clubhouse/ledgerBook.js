@@ -58,12 +58,31 @@ const LEAF_SECONDS = 0.55;
 // "the left side appears already open and then swings" the brief describes -
 // the shell swap fired partway through a rise the player read as the opening.
 const RAISE_SECONDS = 0.34;
-const COVER_SECONDS = 0.34;
+// 3.4 (Goal 25): 0.34 -> 0.62, and ONLY the cover swing. The rise stays brisk
+// because the brisk rise was a deliberate, defended decision (see above) and it
+// is not what snaps.
+//
+// FILMED IT, EXTRACTED THE FRAMES, LOOKED AT THEM. At 20 fps the whole open was
+// three intermediate frames: shut and face-on, then a hard tilt, then a blur of
+// cover-edge, then the flat open spread. ~150 ms of visible motion. The easing
+// itself was never the problem — sampling the cover node at full precision
+// showed a textbook smoothstep, steps rising 0.016 -> 0.115 -> 0.003 rad with no
+// discontinuity anywhere. It was SMOOTH AND TOO FAST, which is what "the motion
+// snaps" feels like from the other side of the screen. A hardback cover falling
+// open does not take a third of a second.
+const COVER_SECONDS = 0.62;
 const OPEN_SECONDS = 0.4;
 // D3 (Goal 19): closing is now ONLY the in-place cover shut (the descent
 // belongs to 'lowering' alone). 0.65 was sized for swing+fall together; the
 // shut half of that gesture ran ~0.39 s, and that is what this is now.
-const CLOSE_SECONDS = 0.42;
+// 3.4 (Goal 25): 0.42 -> 0.58. Slowing the OPEN moved the sharpest motion in the
+// whole gesture onto the CLOSE — measured on the cover node at full precision,
+// the worst frame-to-frame step went from 0.1154 rad (opening, before) to
+// 0.0635 (opening, after) to 0.1390 rad in `closing`, which was then the largest
+// step anywhere in the sequence. Fixing half a gesture and filming only that
+// half is how the other half gets shipped. A shut still reads slightly brisker
+// than an open, which is what a cover falling closed actually does.
+const CLOSE_SECONDS = 0.58;
 // 2026-08-06 ruling: "closer to the user so its more visible... up and on an
 // angle". FACE_TILT is measured from VERTICAL: PI/2 lies the spread flat on
 // its back, 0 stands it straight up. 0.60 rad is a lectern angle - the pages
@@ -2474,8 +2493,22 @@ export function createLedgerBook({ THREE, state, anchor, counterTop, camera = nu
       // the cover swings through the middle of the rise; the closed block
       // exchanges for the arched open spread behind it at the swap point
       const swing = smoothstep(stateT);
-      // the half turn unwinds as the cover opens: the book turns to face you
-      applyShutPresentation(1 - swing);
+      // 3.4 — THE TWO ROTATIONS NO LONGER PEAK TOGETHER.
+      //
+      // The half turn unwinds as the cover opens: the book turns to face you.
+      // Both used to ride `swing`, so the un-turn and the cover swing hit peak
+      // angular velocity in the same frame and compounded into one tumble — in
+      // the extracted frames that middle frame is unreadable, the book neither
+      // shut nor open but somewhere diagonal. A real book is turned to face you
+      // FIRST and then falls open.
+      //
+      // The unwind now completes in the first 60% of the swing, so the two
+      // gestures overlap without colliding. The shell swap is untouched: it
+      // still fires against `swing` at SWAP_POINT, so the "left side appears
+      // already open and then swings" fault that comment above warns about
+      // cannot come back through this change.
+      const unwind = smoothstep(Math.min(1, stateT / 0.6));
+      applyShutPresentation(1 - unwind);
       setCoverSwing(swing);
       if (swing > SWAP_POINT && !openShell.visible) {
         openShell.visible = true;
