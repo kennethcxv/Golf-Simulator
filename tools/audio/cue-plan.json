@@ -1,0 +1,34 @@
+{
+  "_comment": "PHASE 1 (Goal 26). Which real recording serves which cue. Every id was found by tools/audio/freesound-fetch.mjs --search and its licence is re-verified on the sound's own page at download time, so this file is a shopping list and NOT the licence record — Assets/audio/manifest.json is. Several entries are deliberately compilation recordings ('various', 'open close'): one file yields several variants once sliced, which is how a cue stops sounding machine-stamped.",
+  "sounds": [
+    { "cue": "drawerSlide",   "id": 217173, "basename": "till-metal-slide-in-out",   "note": "Metal Till Cash Drawer Slide In And Out — the slide and the stop at the end of travel" },
+    { "cue": "drawerBell",    "id": 452572, "basename": "register-antique-various",  "note": "antique register: open, close, drawer, bell — sliced into unlock/open/close/bell" },
+    { "cue": "drawerTill",    "id": 191436, "basename": "till-open-close",           "note": "Till Open and Close — second drawer voice so repeats vary" },
+    { "cue": "drawerSlide2",  "id": 83874,  "basename": "cashier-slide",             "note": "cashierslidesnd — a third slide" },
+
+    { "cue": "cashRun",       "id": 40952,  "basename": "bills-flip-count",          "note": "dollar bills flipping counting — THE continuous tchhhhh" },
+    { "cue": "cashRun",       "id": 18623,  "basename": "money-count",               "note": "money count — second riffle voice" },
+    { "cue": "cashRun",       "id": 861806, "basename": "counting-paper-money",      "note": "counting_paper_money — third riffle" },
+    { "cue": "billHandle",    "id": 271341, "basename": "cash-money-fieldtapes",     "note": "note handling, single movements" },
+    { "cue": "billDeposit",   "id": 379888, "basename": "paper-placed-on-bench",     "note": "paper placed on a surface — the note landing" },
+    { "cue": "billDeposit",   "id": 461890, "basename": "money-counting-b",          "note": "paper money — sliced for single-note landings" },
+
+    { "cue": "coinDeposit",   "id": 788073, "basename": "coin-drop-with-coins",      "note": "Coin_Drop_With_Coins — a coin landing ON coins, exactly what 1.2 asks for" },
+    { "cue": "coinDeposit",   "id": 391951, "basename": "coins-dropped-on-wood",     "note": "coins on wood — the FIRST coin, hitting the empty well" },
+    { "cue": "coinDeposit",   "id": 510735, "basename": "coin-on-table",             "note": "single coin on a table" },
+    { "cue": "coinDeposit",   "id": 608793, "basename": "coins-drop-on-table",       "note": "more coin landings to slice" },
+    { "cue": "coinSettle",    "id": 391818, "basename": "coins-handled-rattled",     "note": "coins shaken and rattled in hands — the settle" },
+    { "cue": "coinHandle",    "id": 444257, "basename": "coins-handful",             "note": "a handful of coins moving" },
+
+    { "cue": "ledgerTurn",    "id": 450803, "basename": "pages-flip-various",        "note": "paper sheets flip through turn page various — many turns in one file" },
+    { "cue": "ledgerTurn",    "id": 856497, "basename": "page-turn-heavy",           "note": "Turning page (heavy paper) — a ledger is heavy paper" },
+    { "cue": "ledgerTurn",    "id": 382651, "basename": "page-turn-plain",           "note": "Paper Page Turn" },
+    { "cue": "ledgerTurn",    "id": 656546, "basename": "page-turn-ienba",           "note": "Page Turn — a fourth turn voice" },
+    { "cue": "ledgerClose",   "id": 862315, "basename": "book-close-1",              "note": "Close Book 1 — hardback shutting" },
+    { "cue": "ledgerClose",   "id": 862316, "basename": "book-close-2",              "note": "Close Book 2" },
+    { "cue": "ledgerOpen",    "id": 263120, "basename": "pages-sounds",              "note": "PagesSounds — cover and leaves for the open" },
+
+    { "cue": "music",         "id": 826622, "basename": "music-sweet-summer-loop",   "note": "Memories of a sweet summer (music) (loop) — calm, already a loop" },
+    { "cue": "music",         "id": 852235, "basename": "music-lofi-loop",           "note": "Zambian Lo-fi Loop 70 BPM — second candidate, unobtrusive" }
+  ]
+}
