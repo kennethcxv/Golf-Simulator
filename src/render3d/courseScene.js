@@ -713,33 +713,44 @@ export function makeCourseScene(canvas, state) {
   // at gameplay distance — a 4K/200% desktop was rendering 78% more pixels than this.
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
   renderer.shadowMap.enabled = true;
-  // ROUND 7 — THE SHADOW TYPE MUST NOT CHANGE AFTER THE FIRST PROGRAM COMPILES.
+  // DO NOT "FIX" THIS TO PCFShadowMap. IT WAS TRIED, AND IT FLOODS THE DRIVER.
   //
-  // This asked for PCFSoftShadowMap. Three DEPRECATED it: the first shadow bake
-  // warns and silently rewrites the field (vendor/three.module.js:9148),
+  // Three DEPRECATED PCFSoftShadowMap: the first shadow bake warns and rewrites
+  // the field (vendor/three.module.js:9148),
   //   if ( this.type === PCFSoftShadowMap ) { warn(...); this.type = PCFShadowMap; }
-  // so the renderer has been drawing PCF all along. The request was already a
-  // no-op on screen -- which is why this line changes no pixel.
+  // so the renderer draws PCF either way and this line looks like a no-op that
+  // only costs shader-cache churn. shadowMapType is part of a program's cache
+  // key (vendor/three.module.js:7733, :7856) and autoUpdate is false below, so
+  // the rewrite lands at PREWARM'S FIRST BAKE, hundreds of compiles in: every
+  // program built before it is keyed to type 2 and everything after to type 1,
+  // and an object still HIDDEN at the flip keeps its stale program until the
+  // player reveals it. That is real, and it was measured -- the ledger's first
+  // page turn compiled exactly one program, and the two keys on that one
+  // material differed by `parameter.shadowMapType 2 -> 1` and nothing else
+  // (qa/electron/firstuse-cachekey/, 2026-08-14).
   //
-  // What it was NOT a no-op for is the shader cache. shadowMapType is part of a
-  // program's cache key (vendor/three.module.js:7733, :7856), and autoUpdate is
-  // false below, so the rewrite does not happen at construction: it happens at
-  // the first bake with needsUpdate set, which is prewarm's, hundreds of
-  // compiles later. Every program built before that moment is keyed to type 2
-  // and every program built after it to type 1, so the early ones are dead the
-  // instant the flip lands, and any object still HIDDEN at the flip keeps its
-  // dead program until the player reveals it -- and pays for a compile then.
+  // Declaring PCFShadowMap here removes the flip and fixes that. It also breaks
+  // the renderer. A/B on this single line, everything else identical, both
+  // ending with shadowMap.type === 1 at runtime
+  // (tools/qa/electron-gl-error-count.js):
   //
-  // Measured, on the gesture the owner reported (qa/electron/firstuse-cachekey/
-  // cachekey-diff.json, 2026-08-14): the first ledger page turn compiled exactly
-  // one program, LedgerTurningLeafBack's, and renderer.properties held BOTH of
-  // that one material's keys with a single field between them --
-  //   parameter.shadowMapType 2 -> 1
-  // The leaf is the last survivor of the flip because prewarmVisual and the
-  // hidden-objects warm both run before the bake, and the leaf is hidden by the
-  // closed book until the turn. Naming the type three actually uses removes the
-  // flip, and with it that whole class of first-reveal compile.
-  renderer.shadowMap.type = THREE.PCFShadowMap;
+  //   PCFSoftShadowMap  ->    0 GL errors
+  //   PCFShadowMap      ->  256 GL errors, then Chromium stops reporting
+  //     GL_INVALID_OPERATION: glDrawElements: Mismatch between texture format
+  //     and sampler type (signed/unsigned/float/shadow)
+  //
+  // The flip is doing work. It invalidates every program compiled before the
+  // shadow maps were real and forces them to rebuild once the maps exist.
+  // Without it those early programs SURVIVE, declaring shadow samplers against
+  // textures that were never set up for compare sampling, and every draw that
+  // uses one is rejected. A per-draw GL_INVALID_OPERATION storm is not a trade
+  // for one 15 ms compile -- least of all in a game that has already lost a GPU
+  // process once in this owner's hands.
+  //
+  // The first-reveal compiles are handled instead by the gesture warm at the end
+  // of prewarm, which runs AFTER the bake and so builds the programs the player's
+  // gesture will actually ask for. Same result, no flood.
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   renderer.shadowMap.autoUpdate = false; // baked on the throttle in render(), not per frame
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -12514,6 +12525,20 @@ export function makeCourseScene(canvas, state) {
         try { composer.render(); } catch { renderer.render(scene, camera); }
         try { for (const rig of Object.values(toolRigs)) rig.render(); } catch { /* rig pays its own */ }
       };
+      // SETTLE THE SHADOW STATE BEFORE ANY GESTURE COMPILES AGAINST IT.
+      //
+      // three's deprecation rewrite of PCFSoftShadowMap (see the shadowMap.type
+      // note where the renderer is built) happens inside a shadow bake, and
+      // shadowMapType is part of every program's cache key -- so a gesture warmed
+      // before the first bake of this phase builds programs the player's frame
+      // will not ask for. Measured exactly that way: with the ledger gesture
+      // first, the first page turn STILL compiled one program and the two keys on
+      // that material differed by `shadowMapType 2 -> 1` alone. The tools came out
+      // clean only because their own loop bakes before it draws.
+      //
+      // One bake and one frame here puts the whole phase on the settled side.
+      renderer.shadowMap.needsUpdate = true;
+      drawWarmFrame();
       // The ledger: open, turn forward, turn back, close. It restores its own
       // pose and suppresses its paper cue; see prewarmGesture in ledgerBook.js.
       try {
