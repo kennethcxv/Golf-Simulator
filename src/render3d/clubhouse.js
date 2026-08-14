@@ -174,6 +174,7 @@ import { buildExterior } from './clubhouse/exterior.js';
 import { buildWashing } from './clubhouse/washing.js';
 import { buildCampaignWorld } from './clubhouse/campaignWorld.js';
 import { makeNav } from './clubhouse/nav.js';
+import { createRecastNav } from './clubhouse/recastNav.js';
 import {
   createMountainLodge,
   MOUNTAIN_LODGE_BUILDING_DEPTH_METERS,
@@ -11416,6 +11417,51 @@ export function makeClubhouse(ctx) {
   let navRebuildMaximumDurationMs = 0;
   let navLastRebuildDurationMs = null;
   let navLastRebuildAtMs = null;
+  // 3.1 (Goal 26) — RECAST, IN PRODUCTION. Baked once from the static interior
+  // during loading (see the bake kick below), queried first by the real customer
+  // routing call, and falling straight through to the grid router above when it
+  // is not ready or cannot answer. The counters are the proof of the call site:
+  // "recast is enabled" is not evidence that a customer ever asked it anything.
+  const recastNav = createRecastNav();
+  let recastRoutesServed = 0;
+  let recastRoutesFallenBack = 0;
+  let recastBakeResult = null;
+
+  // ONE BAKE, OFF THE GAMEPLAY FRAME. requestIdleCallback where it exists, a
+  // timeout where it does not -- either way this runs after the frame that asked
+  // for it, never inside it. It returns the same promise on every call, so a QA
+  // driver awaiting it and the loader kicking it cannot produce two bakes.
+  let recastBakePromise = null;
+  function bakeRecastOnce() {
+    if (recastBakePromise) return recastBakePromise;
+    recastBakePromise = new Promise((resolve) => {
+      const run = () => {
+        // BOTH ROOTS. `group` (shell, porch, threshold) and `interior` (floor,
+        // fixtures, stock) are SIBLINGS, not parent and child -- baking `group`
+        // alone found 324 meshes where `interior` alone found 1502, which is how
+        // I noticed. Measured: with the interior alone,
+        // every one of the 24 refusals was the FROM end, clustered at dz +18..20
+        // and +7.6..8.4 from the interior origin -- customers walking IN from
+        // outside and standing on the threshold. The doorway apron they start on
+        // is part of the building's group, not its interior, so an interior-only
+        // navmesh cannot place them and the route falls to the grid. The floor
+        // height still comes from `interior`, which is the room's own plane.
+        interior.updateWorldMatrix(true, false);
+        const floorY = interior.matrixWorld.elements[13];
+        recastNav.bake([group, interior], {}, { floorY }).then((r) => {
+          recastBakeResult = r;
+          resolve(r);
+        }).catch((e) => {
+          recastBakeResult = { ok: false, why: String((e && e.message) || e).slice(0, 200) };
+          resolve(recastBakeResult);
+        });
+      };
+      if (typeof requestIdleCallback === 'function') requestIdleCallback(run, { timeout: 4000 });
+      else setTimeout(run, 0);
+    });
+    return recastBakePromise;
+  }
+
   function navFresh() {
     navFreshCallCount += 1;
     if (navVersion !== colVersion) {
@@ -12062,7 +12108,18 @@ export function makeClubhouse(ctx) {
         if (!c.pathGoal || Math.hypot(c.pathGoal.x - tx, c.pathGoal.z - tz) > 0.22) {
           const requestedAtMs = performance.now();
           const requestId = `${c.customerId}:${++customerRouteSequence}`;
-          c.path = navFresh().path(c.mesh.position.x, c.mesh.position.z, tx, tz) || [{ x: tx, z: tz }];
+          // RECAST FIRST, GRID SECOND. Both return the same {x,z} waypoint
+          // array, so this is a substitution rather than a rewrite -- and if
+          // the navmesh is not ready, or the pair of points does not snap onto
+          // it, the shipping grid router answers exactly as it did before.
+          const recastPath = recastNav.path(
+            c.mesh.position.x, c.mesh.position.z, tx, tz, c.mesh.position.y,
+          );
+          if (recastPath) recastRoutesServed += 1; else if (recastNav.isReady()) recastRoutesFallenBack += 1;
+          c.path = recastPath
+            || navFresh().path(c.mesh.position.x, c.mesh.position.z, tx, tz)
+            || [{ x: tx, z: tz }];
+          c.pathSource = recastPath ? 'recast' : 'grid';
           // Goal 24 evidence must describe THIS request, not whatever the
           // process-wide counter says when an asynchronous observer happens to
           // poll later. A second customer can legitimately request a route in
@@ -12783,6 +12840,13 @@ export function makeClubhouse(ctx) {
     return disposalSummary;
   }
 
+  // 3.1: kick the ONE bake now that the interior is fully built. This is the
+  // last statement before the API is returned, which is the latest point in
+  // LOADING and the earliest point at which the geometry it reads is complete.
+  // bakeRecastOnce defers to an idle callback, so the work itself lands after
+  // this frame -- "never on a gameplay frame", as written.
+  bakeRecastOnce();
+
   return {
     group, interior,
     // The building-local origin. Every coordinate in shopLayout is expressed
@@ -13005,6 +13069,18 @@ export function makeClubhouse(ctx) {
       for (const c of customers) if (c && c.mesh && qaTrackId(c) === id) return c.mesh;
       return null;
     },
+    // 3.1: prove the call site. `routesServed` is incremented inside the real
+    // customer routing call and nowhere else, so a non-zero value here cannot be
+    // produced by anything except a production customer asking recast for a path.
+    qaRecastNav: () => ({
+      ...recastNav.diagnostics(),
+      bakeResult: recastBakeResult,
+      routesServed: recastRoutesServed,
+      routesFallenBack: recastRoutesFallenBack,
+    }),
+    // 3.1: the bake must never happen on a gameplay frame, so it is exposed for
+    // a driver to await rather than being polled for.
+    qaRecastBake: () => bakeRecastOnce(),
     qaPickStats: () => ({ ...pickStats }),
     qaPlayerBlocksCustomers: () => playerBlocksCustomers(),
     qaCustomerTrack: () => customers
