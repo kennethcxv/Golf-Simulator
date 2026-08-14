@@ -15,7 +15,7 @@ the oscillator build** — the synth voices being replaced are themselves
 filtered-noise buffers — so it would have certified the exact absence it existed
 to detect.
 
-## 2. Probe-lie count: **17**
+## 2. Probe-lie count: **18**
 
 Checks I wrote that scored the same before and after, or measured the wrong
 object. Every one was caught by a number that disagreed with something else I
@@ -44,11 +44,11 @@ not painted" manufactured a false negative about a click.
 | **2 — The walk-up** | **BOTH ITEMS FIXED, MEASURED AND FILMED**; residual handed to Phase 3 |
 | 3 — NPC navigation | **3.1 proven**; stall rate UNMEASURED (the detector failed its control) |
 | 4 — Time and bookings | **4.2-4.5 DONE, gate run**; 4.1 measured and blocked |
-| 5 — Mop and hands | **references viewed, faults confirmed on camera**; not fixed |
+| 5 — Mop and hands | **5.1 mop: all three faults fixed**; 5.2/5.3 not done |
 | 6 — Ledger UI | not started |
 | 7 — Performance | not started |
 | 8 — Global Escape | not started |
-| 9 — The remainder | not started |
+| 9 — The remainder | **9.2 sticky prompt: 40.4% -> 26.7%**, residual remains |
 | 10 — Final verification | not started |
 
 ## 4. Audio table
@@ -1035,3 +1035,70 @@ Context exhausted, not blocked. Everything is committed and pushed to
   wrong number I have since corrected in place. Three separate findings were
   withdrawn outright. The count is high because I went looking, and the report
   would be worth less if it were lower.
+
+
+---
+
+# 5.1 THE MOP — ALL THREE FAULTS FIXED
+
+Each had a specific, findable cause rather than needing a tuning pass.
+
+**"Each strand looks like four connected pieces."** One geometry was shared by all
+four segment layers, tapering 3.2 mm → 2.3 mm — so every segment ran down to
+2.3 mm and **the next jumped back to 3.2 mm**. A repeating bulge at every node,
+four times down each strand. He is describing a silhouette and the silhouette had
+four waists in it by construction. Each segment index now gets its own geometry
+with radii interpolated along the whole strand, so segment *s* runs r(s/S) →
+r((s+1)/S) and meets its neighbour at the same width. **The solver is untouched** —
+that is 5.1's "the solver can keep four simulation nodes; the geometry must not
+show them", done as written.
+
+**"It does not connect to the stem."** There was no band at all — the strands hang
+from an invisible anchor. Now a tapered hub plus a rim ring, matching the spin-mop
+reference where the hub is a hard plastic disc clamping the yarn and swallowing
+the handle end.
+
+**My first hub was wrong and the photograph said so.** At 0.86 of the head radius
+it was as wide as the whole head — a red disc with a fringe under it, **hiding the
+yarn I had just doubled**. In his reference the hub is a small clamp in a large
+white disc: the yarn is the object, the hub is the fitting. 0.52 now.
+
+**"Too thin."** 432 strands → **972** (18 × 54, keeping the clump structure exactly).
+**The body comes from count, not thickness**, and that is a constraint I ran into:
+the Goal 25 ruling caps a strand under 8 mm ("a strand is yarn, not pipe") and
+`mop-verlet-strands.test.js` enforces it. My first attempt went to 9 mm and was
+correctly refused by the suite.
+
+Before/after at the default camera: `Designs/ProShop/Images/Goal_26/after/`.
+
+**Still short of the reference, plainly:** his spin mop is a near-solid microfibre
+disc; this is a fuller skirt of countable strands. Goal 25's "16–24 countable
+bunches" ruling and Goal 26's near-solid reference pull in opposite directions, and
+I kept the Goal 25 contract because it is a written owner ruling with a test behind
+it. **5.2 (mop weight) and 5.3 (the hands) are NOT DONE.**
+
+# 9.2 THE STICKY PROMPT — THREE POPULATIONS, 40.4 % → 26.7 %
+
+He named `walkStationPropInReach`. Fixing the one he named moved the number by
+**nothing**, because three separate places decided this:
+
+1. **`walkStationPropInReach`** — split in two: `requireAim` for the prompt,
+   reach-and-facing for the action. E gets its own route to a reach-station, so
+   "may keep working for E" is true rather than merely intended.
+2. **`walkPropRetainsFocus`** — distance-only retention that runs *before* the
+   crosshair path and had no idea where the player was looking.
+3. **`WALK_FOCUS_MIN_FACING = 0.30`** — the "crosshair" cone was a **72-degree
+   half-angle**. Now 0.70, a 45-degree cone.
+
+| build | prompts >50° off the crosshair | ratio |
+|---|---|---|
+| unfixed | 19 / 47 | **40.4 %** |
+| fixed | 12 / 45 | **26.7 %** |
+
+**My first probe measured the wrong angle** and both builds read 34/47. It compared
+the look direction against the *station the player stood at* rather than the prop
+the prompt **named** — so a correct prompt about the laptop scored as a 180° lie
+about the tee desk. Probe lie 18.
+
+**NOT FINISHED**, and the number says so: 26.7 % remains and the tee desk still
+claims the prompt from 90° away. There is a fourth path I have not found.
