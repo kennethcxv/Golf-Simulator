@@ -188,3 +188,63 @@ meaningful unless it can show the room had people in it.
   material). Small, and the same warm trick would cover it if it turns out to be
   felt.
 - Inherited lint ratchet red: 325 vs baseline 324, untouched by any of this.
+
+
+---
+
+# ADDENDUM — "ABSOLUTELY UNPLAYABLE, LIKE 3 FPS"
+
+Reported after the round-3 build, with
+`GPU state invalid after WaitForGetOffsetInRange` in the log. That message is a
+GPU process loss; after one, Chromium falls back to software rendering, and
+software rendering is what 3 fps looks like.
+
+## Measured, quiet machine, same driver, walking out of the clubhouse
+
+| | standing | walking | **after walking** |
+|---|---|---|---|
+| pre-tonight (`1ea5da4`) | 62.9 | 58.5 | **6.7 fps** — 148 ms median, 559 ms worst |
+| tonight + the fixes below | 69.4 | 69.4 | **69.9 fps** — 0 frames over 100 ms |
+
+### 1. The outdoor collapse is PRE-EXISTING, and it is severe
+
+The build from **before** this session drops to **6.7 fps** walking away from the
+clubhouse: 2,745 draw calls and 8.6M triangles out there, individual frames of
+559 ms. That is the course vegetation, it is not a regression from this session,
+and "3 fps" is entirely consistent with it.
+
+**This is the largest performance problem in the game and nothing has been asked
+about it yet.** It is worth its own item.
+
+### 2. What WAS mine: allocation churn, now fixed
+
+`customerNeighbours` allocated a record per neighbour per customer per frame —
+O(n²) short-lived objects at 60 Hz — and `separate()` allocated two Float64Arrays
+per iteration per frame. Both are pooled now, and the settle pass early-outs on
+the overwhelmingly common frame where nobody is near anybody.
+
+I should have caught this myself. I wrote an O(n²) per-frame allocation into the
+hot path and shipped it without once measuring frame cost.
+
+### 3. The hands warm is WITHDRAWN — on risk, not on evidence
+
+Stated plainly because the distinction matters: **I could not reproduce the GPU
+loss**, and every measurement says the current build is faster than the
+pre-change one on every axis. But the warm is the only thing this session that
+asks the driver to compile shader programs at a *new* moment — the veil boundary,
+while prewarm's uploads are still settling — and a driver reset under exactly
+that load is a known hazard.
+
+**The cost of withdrawing it:** the first tool equip goes back to ~282 ms and +8
+GL programs. That is the bottle-to-dustpan lag, and it is back.
+
+If the next session is healthy with it off, that is the evidence, and the warm
+can return spread over several frames well after the veil has lifted rather than
+in a burst at the boundary. The implementation is at `adb9ef2`.
+
+## Still outstanding
+
+- **The golden gate has not passed since these changes.** Its capture crashed on
+  the sponge pose with the same "page closed" signature, which may be the same
+  GPU loss. Re-running on a quiet machine.
+- The pre-existing outdoor collapse (item 1 above).
