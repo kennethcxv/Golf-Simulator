@@ -9,6 +9,9 @@ import * as THREE from 'three';
 import { characterYawToward, makeCharacter } from '../characterAsset.js';
 import { makeNav } from './nav.js';
 import { steerAround, STEER_DEFAULTS } from './steerAhead.js';
+import {
+  BODY_RADIUS, avoidanceHeading, separate, makeStuckWatch, STUCK_ACTION,
+} from './crowd.js';
 import { skuById } from '../../data/shopItems.js';
 import { REGISTER } from '../../data/shopLayout.js';
 import { placedFixtures } from '../../sim/layout.js';
@@ -427,6 +430,126 @@ export function createCustomerView(B, options) {
     return _isBlockedAt;
   }
 
+  // WHO COUNTS AS STANDING THEIR GROUND. A person holding a place in a queue, at
+  // the desk, or paying is not an obstacle that can be shouldered aside: they
+  // have a reason to be exactly where they are, and letting a passer-by shove
+  // them is how the line stopped being a line. Everyone else is pushable.
+  const PINNED_STATES = new Set([
+    CUSTOMER_STATE.WAITING_IN_QUEUE,
+    CUSTOMER_STATE.STAGING_PRODUCTS,
+    CUSTOMER_STATE.WAITING_FOR_CASHIER,
+    CUSTOMER_STATE.PAYING,
+    CUSTOMER_STATE.RECEIVING_BAG_AND_RECEIPT,
+    CUSTOMER_STATE.FRONT_DESK_INQUIRY,
+    CUSTOMER_STATE.CHECK_IN,
+    CUSTOMER_STATE.INSPECTING_PRODUCT,
+    CUSTOMER_STATE.SELECTING_PRODUCT,
+  ]);
+  const actorIsPinned = (actor) => PINNED_STATES.has(actor.entity?.state);
+
+  // Only the people who could plausibly matter this frame. The horizon is a
+  // stride and a half plus two bodies; anyone further cannot be reached before
+  // the next frame recomputes anyway, and scanning the whole pool per actor is
+  // the sort of n-squared that shows up as a stall once a room gets busy.
+  const CROWD_RANGE = 2.4;
+  const _neighbours = [];
+  function crowdNeighbours(actor) {
+    _neighbours.length = 0;
+    const px = actor.mesh.position.x;
+    const pz = actor.mesh.position.z;
+    for (const other of actors) {
+      if (other === actor || !other.mesh.visible) continue;
+      const ox = other.mesh.position.x;
+      const oz = other.mesh.position.z;
+      if (Math.abs(ox - px) > CROWD_RANGE || Math.abs(oz - pz) > CROWD_RANGE) continue;
+      _neighbours.push({
+        x: ox,
+        z: oz,
+        vx: other.vx || 0,
+        vz: other.vz || 0,
+        pinned: actorIsPinned(other),
+      });
+    }
+    return _neighbours;
+  }
+
+  // THE SIMULTANEOUS PASS. Runs once, after every actor has taken its step, so
+  // no pair can be left overlapping because one of them happened to be updated
+  // first. The clamp keeps a body that was pushed out of a neighbour from being
+  // pushed into a wall -- without it, resolving a clump next to the counter is
+  // how someone ends up inside the counter.
+  const _bodies = [];
+  function crowdClamp(x, z, radius) {
+    let nx = x;
+    let nz = z;
+    for (const collider of custCols) {
+      if (collider.door) continue;
+      if (nx + radius <= collider.minX || nx - radius >= collider.maxX
+        || nz + radius <= collider.minZ || nz - radius >= collider.maxZ) continue;
+      const left = nx + radius - collider.minX;
+      const right = collider.maxX - (nx - radius);
+      const up = nz + radius - collider.minZ;
+      const down = collider.maxZ - (nz - radius);
+      const min = Math.min(left, right, up, down);
+      if (min === left) nx = collider.minX - radius;
+      else if (min === right) nx = collider.maxX + radius;
+      else if (min === up) nz = collider.minZ - radius;
+      else nz = collider.maxZ + radius;
+    }
+    if (walk.active) {
+      const d = Math.hypot(nx - walk.x, nz - walk.z);
+      if (d > 0.001 && d < 0.74) {
+        nx = walk.x + ((nx - walk.x) / d) * 0.74;
+        nz = walk.z + ((nz - walk.z) / d) * 0.74;
+      }
+    }
+    return { x: nx, z: nz };
+  }
+  const crowdStats = { pairsOverlapping: 0, settled: 0, unstuck: 0, repathed: 0, nudged: 0 };
+  // Last resort for a body that is genuinely wedged in geometry: a ring search
+  // outward for somewhere it can legally stand. Deterministic, and it gives up
+  // rather than inventing a spot -- teleporting a customer across the room would
+  // be a worse bug than the one it is fixing.
+  function nearestFreeSpot(x, z) {
+    for (let ring = 1; ring <= 6; ring += 1) {
+      const radius = ring * 0.28;
+      for (let step = 0; step < 12; step += 1) {
+        const angle = (step / 12) * Math.PI * 2;
+        const px = x + Math.cos(angle) * radius;
+        const pz = z + Math.sin(angle) * radius;
+        _steerActor = null;
+        if (!_isBlockedAt(px, pz)) return { x: px, z: pz };
+      }
+    }
+    return null;
+  }
+
+  function settleCrowd() {
+    _bodies.length = 0;
+    for (const actor of actors) {
+      if (!actor.mesh.visible) continue;
+      _bodies.push({
+        x: actor.mesh.position.x,
+        z: actor.mesh.position.z,
+        radius: BODY_RADIUS,
+        pinned: actorIsPinned(actor),
+        actor,
+      });
+    }
+    if (_bodies.length < 2) { crowdStats.pairsOverlapping = 0; return; }
+    crowdStats.pairsOverlapping = separate(_bodies, undefined, crowdClamp);
+    crowdStats.settled += 1;
+    for (const body of _bodies) {
+      const root = body.actor.mesh;
+      if (root.position.x === body.x && root.position.z === body.z) continue;
+      root.position.x = body.x;
+      root.position.z = body.z;
+      root.position.y = floorAt(body.x, body.z);
+      const entity = body.actor.entity;
+      if (entity) entity.position = { x: body.x, z: body.z };
+    }
+  }
+
   function resolveMotion(actor, nx, nz) {
     const radius = 0.3;
     for (const collider of custCols) {
@@ -449,16 +572,13 @@ export function createCustomerView(B, options) {
         nz = walk.z + ((nz - walk.z) / distance) * 0.74;
       }
     }
-    for (const other of actors) {
-      if (other === actor || !other.mesh.visible) continue;
-      const dx = nx - other.mesh.position.x;
-      const dz = nz - other.mesh.position.z;
-      const distance = Math.hypot(dx, dz);
-      if (distance > 0.001 && distance < 0.62) {
-        nx = other.mesh.position.x + (dx / distance) * 0.62;
-        nz = other.mesh.position.z + (dz / distance) * 0.62;
-      }
-    }
+    // PERSON-VS-PERSON IS NO LONGER RESOLVED HERE. It used to push this actor
+    // out to 0.62 of every other, one actor at a time, in pool order -- so A
+    // stepped out of B and B, updated next, walked straight back into A. Nobody
+    // yielded and the pair ground together, which is the interpenetration in the
+    // owner's screenshot. It is now one simultaneous symmetric pass over
+    // everybody after all the actors have moved (see settleCrowd), where both
+    // parties give way and the result cannot depend on update order.
     return { x: nx, z: nz };
   }
 
@@ -506,9 +626,23 @@ export function createCustomerView(B, options) {
     // already inside. This turns the heading first, by the smallest angle that
     // clears, so a shopper walks AROUND the shelf end instead of grinding along
     // it until the one-second timer notices.
-    const heading = steerAround(
+    let heading = steerAround(
       root.position.x, root.position.z, dx, dz, distance, isBlockedForActor(actor),
     );
+    // ...and then look at the PEOPLE, with their velocities. steerAround treats
+    // an actor as a static blocked disc and switches off entirely under 0.62 yd
+    // of remaining travel -- which is exactly the range at which two people are
+    // about to walk into each other. This is reciprocal: both parties run it on
+    // the same frame and each takes half the correction, which is what makes
+    // them step past one another instead of both dodging the same way twice.
+    const neighbours = crowdNeighbours(actor);
+    if (neighbours.length) {
+      const avoid = avoidanceHeading(
+        { x: root.position.x, z: root.position.z, vx: actor.vx || 0, vz: actor.vz || 0 },
+        neighbours, heading.x, heading.z, entity.speed,
+      );
+      if (avoid.avoided) heading = { ...heading, x: avoid.x, z: avoid.z, steered: true };
+    }
     // B (Goal 21) — DOES THIS CODE EVER RUN? The look-ahead passed eight
     // headless tests against a hand-drawn room and the owner still watches
     // customers walk into things. Nothing measured whether it EXECUTES here, so
@@ -528,6 +662,12 @@ export function createCustomerView(B, options) {
       root.position.z + heading.z * step,
     );
     const moved = Math.hypot(resolved.x - root.position.x, resolved.z - root.position.z);
+    // Velocity is what makes avoidance reciprocal -- a neighbour has to be able
+    // to see where this actor is GOING, not only where it is standing.
+    if (dt > 1e-6) {
+      actor.vx = (resolved.x - root.position.x) / dt;
+      actor.vz = (resolved.z - root.position.z) / dt;
+    }
     root.position.x = resolved.x;
     root.position.z = resolved.z;
     root.position.y = floorAt(resolved.x, resolved.z);
@@ -545,6 +685,44 @@ export function createCustomerView(B, options) {
     actor.character.setMode(mode);
     if (moved > Math.max(0.002, step * 0.35)) noteCustomerProgress(entity, state.clock.minutes, resolved);
     else noteCustomerBlocked(entity, dt);
+    // ESCALATING RECOVERY. The existing one-second rule reports a customer as
+    // blocked and leaves the sim to decide; that is the right home for
+    // give-up-and-leave, and the wrong one for "walk round the person in front".
+    // These are the three physical remedies, each fired once:
+    //   NUDGE   jammed against a body   -> sidestep and try again
+    //   REPATH  the world moved         -> drop the stale path
+    //   UNSTICK genuinely wedged        -> place them on the nearest free cell
+    actor.stuck ||= makeStuckWatch();
+    const remedy = actor.stuck.tick(moved, dt, true);
+    if (remedy === STUCK_ACTION.NUDGE) {
+      crowdStats.nudged += 1;
+      const side = ((Math.round(root.position.x * 100) + Math.round(root.position.z * 100)) % 2 === 0) ? 1 : -1;
+      const nudged = resolveMotion(
+        actor,
+        root.position.x + -heading.z * 0.22 * side,
+        root.position.z + heading.x * 0.22 * side,
+      );
+      root.position.x = nudged.x;
+      root.position.z = nudged.z;
+      root.position.y = floorAt(nudged.x, nudged.z);
+    } else if (remedy === STUCK_ACTION.REPATH) {
+      crowdStats.repathed += 1;
+      actor.path = [];
+      actor.pathGoal = null;
+      actor.pathVersion = -1;
+    } else if (remedy === STUCK_ACTION.UNSTICK) {
+      crowdStats.unstuck += 1;
+      const free = nearestFreeSpot(root.position.x, root.position.z);
+      if (free) {
+        root.position.x = free.x;
+        root.position.z = free.z;
+        root.position.y = floorAt(free.x, free.z);
+      }
+      actor.path = [];
+      actor.pathGoal = null;
+      actor.pathVersion = -1;
+      actor.stuck.reset();
+    }
     entity.position = { x: root.position.x, z: root.position.z };
     return Math.hypot(target.x - root.position.x, target.z - root.position.z) < 0.19;
   }
@@ -1227,6 +1405,10 @@ export function createCustomerView(B, options) {
     }
     syncActors();
     for (const actor of [...actors]) updateActor(actor, dt);
+    // AFTER everyone has moved, not during. This is the pass that guarantees no
+    // two people are left standing inside each other, whatever order they were
+    // updated in.
+    settleCrowd();
   }
 
   function headFrontDeskActor() {
@@ -1372,6 +1554,31 @@ export function createCustomerView(B, options) {
         travelMean: steerStats.calls
           ? +(steerStats.travelSum / steerStats.calls).toFixed(3) : 0,
         minTravel: STEER_DEFAULTS.minTravel,
+      },
+      // The number that answers the owner's screenshot directly: how many PAIRS
+      // of people were found standing inside one another at the start of the
+      // settle pass. A healthy room reports 0 here on most frames; a room where
+      // people walk through the queue reports a steady non-zero.
+      crowd: {
+        ...crowdStats,
+        bodyRadius: BODY_RADIUS,
+        touching: +(BODY_RADIUS * 2).toFixed(3),
+        // live overlap count, measured fresh rather than from the last pass
+        overlappingNow: (() => {
+          const live = actors.filter((a) => a.mesh.visible);
+          let pairs = 0;
+          let worst = 0;
+          for (let i = 0; i < live.length; i += 1) {
+            for (let j = i + 1; j < live.length; j += 1) {
+              const d = Math.hypot(
+                live[i].mesh.position.x - live[j].mesh.position.x,
+                live[i].mesh.position.z - live[j].mesh.position.z,
+              );
+              if (d < BODY_RADIUS * 2) { pairs += 1; worst = Math.max(worst, BODY_RADIUS * 2 - d); }
+            }
+          }
+          return { pairs, worstOverlap: +worst.toFixed(4), people: live.length };
+        })(),
       },
     };
   }

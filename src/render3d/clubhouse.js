@@ -109,6 +109,7 @@ import {
   walkInAskFrom, queuePositionMayAbandon, queueAdvanceSlot, queueSlotIsClear,
 } from '../sim/customerSimulation.js';
 import { steerAround, STEER_DEFAULTS } from './clubhouse/steerAhead.js';
+import { BODY_RADIUS, avoidanceHeading, separate } from './clubhouse/crowd.js';
 import {
   allocateCustomerIdentity, customerIdentityById, paymentChoiceDialogue,
 } from '../sim/customerIdentity.js';
@@ -11023,6 +11024,132 @@ export function makeClubhouse(ctx) {
     return false;
   }
 
+  // --- CROWD: nobody stands inside anybody ------------------------------------
+  //
+  // WHO STANDS THEIR GROUND. Someone holding a place in the queue, at the desk,
+  // or mid-payment has a reason to be exactly where they are, and letting a
+  // passer-by shoulder them out of position is how the line stopped looking like
+  // a line. They get infinite mass; the mover goes around.
+  // `c.queued` is the real flag -- it is what counterQueue membership is derived
+  // from throughout this file. My first version guessed at stage/phase/mode
+  // strings that do not exist on these objects, and the diagnostic duly reported
+  // `pinned: 0` in a room with a six-deep queue: nobody was standing their
+  // ground, which is precisely the bug it was meant to prevent.
+  function customerIsPinned(c) {
+    if (!c) return false;
+    if (c.pinnedForCrowd === true) return true;
+    // Holding a place in the line, or standing at the till being served.
+    if (c.queued === true) return true;
+    if (c.queueSlotHeld != null) return true;
+    return false;
+  }
+
+  // Only the people who could matter this frame. Scanning the whole floor per
+  // customer is the sort of n-squared that becomes a stall once a room is busy.
+  const CROWD_RANGE = 2.4;
+  const _crowdNear = [];
+  function customerNeighbours(c) {
+    _crowdNear.length = 0;
+    const px = c.mesh.position.x;
+    const pz = c.mesh.position.z;
+    for (const other of customers) {
+      if (other === c || !other.mesh || other.mesh.visible === false) continue;
+      const ox = other.mesh.position.x;
+      const oz = other.mesh.position.z;
+      if (Math.abs(ox - px) > CROWD_RANGE || Math.abs(oz - pz) > CROWD_RANGE) continue;
+      _crowdNear.push({
+        x: ox, z: oz, vx: other.vx || 0, vz: other.vz || 0, pinned: customerIsPinned(other),
+      });
+    }
+    return _crowdNear;
+  }
+
+  // THE SIMULTANEOUS PASS, run once after every customer has taken its step. The
+  // clamp keeps a body that was pushed out of a neighbour from being pushed into
+  // a wall: without it, untangling a clump beside the counter puts somebody
+  // inside the counter.
+  const crowdStats = { passes: 0, pairsOverlapping: 0, worstOverlap: 0 };
+  const _crowdBodies = [];
+  function crowdClamp(x, z, radius) {
+    let nx = x;
+    let nz = z;
+    for (const col of custCols) {
+      if (nx + radius > col.minX && nx - radius < col.maxX
+        && nz + radius > col.minZ && nz - radius < col.maxZ) {
+        const pushLeft = nx + radius - col.minX;
+        const pushRight = col.maxX - (nx - radius);
+        const pushUp = nz + radius - col.minZ;
+        const pushDown = col.maxZ - (nz - radius);
+        const min = Math.min(pushLeft, pushRight, pushUp, pushDown);
+        if (min === pushLeft) nx = col.minX - radius;
+        else if (min === pushRight) nx = col.maxX + radius;
+        else if (min === pushUp) nz = col.minZ - radius;
+        else nz = col.maxZ + radius;
+      }
+    }
+    if (walk.active) {
+      const pd = Math.hypot(nx - walk.x, nz - walk.z);
+      if (pd > 0.01 && pd < 0.72) {
+        nx = walk.x + ((nx - walk.x) / pd) * 0.72;
+        nz = walk.z + ((nz - walk.z) / pd) * 0.72;
+      }
+    }
+    return { x: nx, z: nz };
+  }
+  function settleCustomerCrowd() {
+    _crowdBodies.length = 0;
+    for (const c of customers) {
+      if (!c.mesh || c.mesh.visible === false) continue;
+      _crowdBodies.push({
+        x: c.mesh.position.x,
+        z: c.mesh.position.z,
+        radius: BODY_RADIUS,
+        pinned: customerIsPinned(c),
+        c,
+      });
+    }
+    if (_crowdBodies.length < 2) { crowdStats.pairsOverlapping = 0; return; }
+    crowdStats.pairsOverlapping = separate(_crowdBodies, undefined, crowdClamp);
+    crowdStats.passes += 1;
+    let worst = 0;
+    for (let i = 0; i < _crowdBodies.length; i += 1) {
+      const body = _crowdBodies[i];
+      for (let j = i + 1; j < _crowdBodies.length; j += 1) {
+        const d = Math.hypot(body.x - _crowdBodies[j].x, body.z - _crowdBodies[j].z);
+        if (d < BODY_RADIUS * 2) worst = Math.max(worst, BODY_RADIUS * 2 - d);
+      }
+      const mesh = body.c.mesh;
+      if (mesh.position.x === body.x && mesh.position.z === body.z) continue;
+      mesh.position.x = body.x;
+      mesh.position.z = body.z;
+      mesh.position.y = groundYAt(body.x, body.z) ?? heightAt(body.x, body.z);
+    }
+    crowdStats.worstOverlap = +worst.toFixed(4);
+  }
+
+  function crowdDiagnostics() {
+    let pairs = 0;
+    let worst = 0;
+    const live = customers.filter((c) => c.mesh && c.mesh.visible !== false);
+    for (let i = 0; i < live.length; i += 1) {
+      for (let j = i + 1; j < live.length; j += 1) {
+        const d = Math.hypot(
+          live[i].mesh.position.x - live[j].mesh.position.x,
+          live[i].mesh.position.z - live[j].mesh.position.z,
+        );
+        if (d < BODY_RADIUS * 2) { pairs += 1; worst = Math.max(worst, BODY_RADIUS * 2 - d); }
+      }
+    }
+    return {
+      people: live.length,
+      pairs,
+      worstOverlap: +worst.toFixed(4),
+      touching: +(BODY_RADIUS * 2).toFixed(3),
+      pinned: live.filter(customerIsPinned).length,
+      passes: crowdStats.passes,
+    };
+  }
+
   function resolveCustomer(c, nx, nz) {
     const r = 0.3;
     for (const col of custCols) {
@@ -11045,16 +11172,13 @@ export function makeClubhouse(ctx) {
         nz = walk.z + ((nz - walk.z) / pd) * 0.72;
       }
     }
-    for (const o of customers) {
-      if (o === c) continue;
-      const dx = nx - o.mesh.position.x;
-      const dz = nz - o.mesh.position.z;
-      const d = Math.hypot(dx, dz);
-      if (d > 0.01 && d < 0.6) {
-        nx = o.mesh.position.x + (dx / d) * 0.6;
-        nz = o.mesh.position.z + (dz / d) * 0.6;
-      }
-    }
+    // PERSON-VS-PERSON IS NO LONGER RESOLVED HERE, and this loop is why the
+    // owner kept photographing people standing inside each other. It pushed only
+    // THIS customer out of the others, in array order, once per customer per
+    // frame: A steps out of B, then B is updated and walks straight back into A.
+    // Neither yields, the pair grinds, and which one wins depends on pool order.
+    // settleCustomerCrowd() below replaces it with one simultaneous symmetric
+    // pass over everybody after all of them have moved.
     return { nx, nz };
   }
 
@@ -11823,9 +11947,23 @@ export function makeClubhouse(ctx) {
         // game never loads. That is why the owner still watched customers walk
         // into things. Same code, now on the live path.
         _steerCustomer = c;
-        const heading = steerAround(
+        let heading = steerAround(
           c.mesh.position.x, c.mesh.position.z, wdx, wdz, wdist, _customerBlockedAt,
         );
+        // ...and then the PEOPLE, with their velocities. steerAround treats a
+        // person as a static blocked disc and switches off entirely below
+        // STEER_DEFAULTS.minTravel, which is the exact range at which two people
+        // are about to collide. This is reciprocal -- both parties run it on the
+        // same frame and each takes half the correction -- which is what makes
+        // them step past one another instead of both dodging the same way.
+        const crowdNear = customerNeighbours(c);
+        if (crowdNear.length) {
+          const avoid = avoidanceHeading(
+            { x: c.mesh.position.x, z: c.mesh.position.z, vx: c.vx || 0, vz: c.vz || 0 },
+            crowdNear, heading.x, heading.z, Math.max(0.2, step / Math.max(dt, 1e-4)),
+          );
+          if (avoid.avoided) heading = { ...heading, x: avoid.x, z: avoid.z, steered: true };
+        }
         steerStats.calls += 1;
         if (wdist > STEER_DEFAULTS.minTravel) steerStats.engaged += 1; else steerStats.tooShort += 1;
         if (heading.steered) steerStats.steered += 1;
@@ -11834,6 +11972,13 @@ export function makeClubhouse(ctx) {
         if (wdist > steerStats.travelMax) steerStats.travelMax = wdist;
         const res = resolveCustomer(c, c.mesh.position.x + heading.x * step, c.mesh.position.z + heading.z * step);
         const moved = Math.hypot(res.nx - c.mesh.position.x, res.nz - c.mesh.position.z);
+        // Velocity, so the people around this one can see where it is GOING
+        // rather than only where it is standing. Without it two walkers each
+        // dodge a body that will not be there by the time they arrive.
+        if (dt > 1e-6) {
+          c.vx = (res.nx - c.mesh.position.x) / dt;
+          c.vz = (res.nz - c.mesh.position.z) / dt;
+        }
         c.mesh.position.x = res.nx;
         c.mesh.position.z = res.nz;
         c.mesh.rotation.y = characterYawToward(
@@ -11977,6 +12122,10 @@ export function makeClubhouse(ctx) {
       }
       c.mesh.position.y = groundYAt(c.mesh.position.x, c.mesh.position.z) ?? heightAt(c.mesh.position.x, c.mesh.position.z);
     }
+    // AFTER everyone has moved, not during: this is the pass that guarantees no
+    // two people are left standing inside each other, whatever order the pool
+    // happened to update them in.
+    settleCustomerCrowd();
   }
 
   // --- per-frame update -------------------------------------------------------------------
@@ -12795,6 +12944,7 @@ export function makeClubhouse(ctx) {
     // through it, because waiting on the RNG to produce a two-item cash customer is
     // not a test, it is a lottery.
     customers: () => customers,
+    crowdDiagnostics,
     // Every stuck escalation across the session, with positions, targets and the
     // colliders that boxed the walker in. The live-parity day run reads THIS —
     // the same evidence the live game logs — instead of inventing its own.
