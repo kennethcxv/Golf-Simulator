@@ -15,11 +15,11 @@ the oscillator build** — the synth voices being replaced are themselves
 filtered-noise buffers — so it would have certified the exact absence it existed
 to detect.
 
-## 2. Probe-lie count: **9**
+## 2. Probe-lie count: **10**
 
 Checks I wrote that scored the same before and after, or measured the wrong
 object. Every one was caught by a number that disagreed with something else I
-already knew — never by re-reading the code. Probes 7-9 are listed under Phase 2.
+already knew — never by re-reading the code. Probes 7-10 are listed under Phase 2.
 
 | # | The probe | What it reported | What was actually wrong |
 |---|---|---|---|
@@ -349,8 +349,18 @@ one line different:
 
 | build | walk-in-place frames | ratio | moved frames |
 |---|---|---|---|
-| unfixed (player blocks) | **326** | **9.64 %** | 3056 |
-| fixed (player phased out) | **0** | **0.00 %** | 751 |
+| unfixed (player blocks) | **110** | **8.12 %** | 1245 |
+| fixed (player phased out) | **0** | **0.00 %** | 756 |
+
+> **Corrected.** These first read 326 / 9.64 %. Customers carry no id of their
+> own, so my tracker fell back to the ARRAY INDEX as identity — and an index
+> changes under a walker the moment anyone ahead of them is removed, so the
+> tracker was comparing one person's position against another's and scoring the
+> difference as travel. A stable id (a WeakMap outside the customer objects, so a
+> diagnostic mutates nothing the game owns) gives the numbers above. The
+> conclusion is unchanged and the A/B was always valid — both builds ran the same
+> instrument — but the absolute count was wrong and is restated rather than
+> quietly left standing.
 
 "Walks in place" is computed per customer per 100 ms sample as intent-versus-
 travel: the sim wants above 0.35 yd/s and the body covers under 0.004 yd. That is
@@ -398,6 +408,7 @@ permits (it constrains centres, not extents).
 |---|---|---|---|
 | 7 | `counter-item-overlap` v1 | **passed on the broken build** | read `pose.footprintW`, a field only the NEW layout emits; fell back to a default 0.16×0.12 box, and defaults at 0.41 spacing do not overlap. It was grading its own fallback |
 | 8 | `counter-item-overlap` v2 | passed, but on the wrong scenario | sorting the catalogue by area puts shop DECOR first (a 0.56 yd poster on a 0.64 yd counter); it measured the stacking path and never the side-by-side packing 2.2 is about |
+| 10 | `electron-walkup-blocked` identity | walk-in-place **326**, truly **110** | customers have no id, so the tracker keyed on ARRAY INDEX; an index changes under a walker when anyone ahead is removed, so it compared one person against another and scored the gap as travel |
 | 9 | `electron-walkup-blocked` v1-v3 | "nobody walks in place" | **the room was empty.** The save resumes at 06:01 and moving the clock does not drive arrivals. `walk.stations()[0]` on a clean profile is a weed patch at x −356.9, outdoors, and `register.enter()` returned true from there anyway; standing at `station.z + 1.15` put the player through the wall |
 
 Probe 9 was resolved by `clubhouse.debugSpawn` — a hook the module already

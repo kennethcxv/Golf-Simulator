@@ -11169,6 +11169,16 @@ export function makeClubhouse(ctx) {
   // clamp keeps a body that was pushed out of a neighbour from being pushed into
   // a wall: without it, untangling a clump beside the counter puts somebody
   // inside the counter.
+  // Monotonic QA identities for qaCustomerTrack, held OUTSIDE the customer
+  // objects so nothing the game owns is mutated by a diagnostic. Never read by
+  // the game itself.
+  let qaTrackSeq = 0;
+  const qaTrackIds = new WeakMap();
+  const qaTrackId = (c) => {
+    let id = qaTrackIds.get(c);
+    if (!id) { qaTrackSeq += 1; id = `q${qaTrackSeq}`; qaTrackIds.set(c, id); }
+    return id;
+  };
   const crowdStats = { passes: 0, pairsOverlapping: 0, worstOverlap: 0 };
   const _crowdBodies = [];
   const _crowdBodyPool = [];
@@ -12946,6 +12956,7 @@ export function makeClubhouse(ctx) {
     ledgerHasThePlayer: () => !!(ledgerBook
       && ((ledgerBook.isCarried && ledgerBook.isCarried())
         || (ledgerBook.isOpen && ledgerBook.isOpen()))),
+    // qaCustomerTrack hands out monotonic ids; see the comment on `id` below.
     // 2.1 QA. Both exist so the walk-up driver reads the SIMULATION rather than
     // inferring from the scene graph. `qaPlayerBlocksCustomers` is the same
     // predicate the three crowd tests ask, so a driver cannot be told one thing
@@ -12956,7 +12967,15 @@ export function makeClubhouse(ctx) {
     qaCustomerTrack: () => customers
       .filter((c) => c && c.mesh && c.mesh.visible !== false)
       .map((c, i) => ({
-        id: c.id ?? c.uid ?? `c${i}`,
+        // A STABLE IDENTITY, STAMPED ONCE. Customers carry no id of their own, so
+        // the first version of this fell back to the ARRAY INDEX -- which changes
+        // under a walker the moment anyone ahead of them is removed. A tracker
+        // keyed on that compares one person's position against another's and
+        // reads the difference as travel, so "walking in place" (intent high,
+        // travel zero) gets silently reclassified as movement. It biases toward
+        // UNDER-counting the fault, which is the safer direction but still wrong.
+        id: qaTrackId(c),
+        index: i,
         x: +c.mesh.position.x.toFixed(4),
         z: +c.mesh.position.z.toFixed(4),
         vx: +(c.vx || 0).toFixed(4),
