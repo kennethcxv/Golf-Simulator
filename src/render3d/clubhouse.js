@@ -13119,6 +13119,28 @@ export function makeClubhouse(ctx) {
     // QA ONLY: the mesh behind a qaCustomerTrack id, so a driver can pin a body
     // in place and prove its stuck detector can actually see a stall. A detector
     // that reports zero on every build has proved nothing.
+    // PHASE 3 GATE VERIFIER ONE: give a named shopper a destination. The clause
+    // is "a shopper blocked by the queue routes around it AND REACHES THE ITEM",
+    // and there is no way to test that by watching whoever happens to be in the
+    // room -- my first run measured four shoppers against a "far side" zone none
+    // of them had any reason to walk to and reported the zero as if it meant
+    // something. This inserts a real stop at the customer's CURRENT index, so
+    // the next thing they do is walk to it.
+    qaSendCustomerTo: (id, x, z) => {
+      for (const c of customers) {
+        if (!c || !c.mesh || qaTrackId(c) !== id) continue;
+        if (!Array.isArray(c.stops)) return false;
+        const idx = Math.max(0, Math.min(c.stops.length, c.stopIdx || 0));
+        c.stops.splice(idx, 0, { kind: 'browse', x, z, faceX: x, faceZ: z + 1 });
+        c.stopIdx = idx;
+        c.path = null;
+        c.pathGoal = null;
+        c.bestGoalDist = undefined;
+        c.noProgressT = 0;
+        return true;
+      }
+      return false;
+    },
     qaCustomerMeshById: (id) => {
       for (const c of customers) if (c && c.mesh && qaTrackId(c) === id) return c.mesh;
       return null;

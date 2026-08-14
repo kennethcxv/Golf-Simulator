@@ -1321,6 +1321,39 @@ say they were going around things rather than standing still.
    frames were extracted and viewed, which is the only reason I know — the
    numbers were fine and would have been reported beside a clip of grass.
 
+## Round two: the player is inside, the shopper has a real errand — and the control killed the finding
+
+Both defects above are fixed. The player is placed by probing `isInside` and the
+answer is in the record (`playerInside: true`). A shopper is now **sent** to a
+point beyond the pinned line via a new `qaSendCustomerTo`, and the send is
+verified rather than assumed: the customer's own stop reads `browse`, and it is
+**closing** — 7.36 yd → 6.08 yd in 1.2 s.
+
+It then stalled at **4.31 yd** from the goal and never got closer, without ever
+coming within 3.78 yd of a queuer. Written up on its own that is a finding:
+*a shopper sent past a blockade does not reach the item.*
+
+**It is not a finding.** Remove the blockade entirely, send the same shopper to
+the same point, and it reaches **4.303 yd** — against 4.313 with the blockade in
+place. The goal is not inside a collider (`qaPointBlocked` = 0). The blockade
+made **no difference whatsoever**; the shopper stops four yards short either way,
+because a spliced `browse` stop is not a point a customer walks onto. **My
+instrument does not measure arrival**, so it cannot answer the clause.
+
+**What survives, and it is worth having:**
+
+| | measured |
+|---|---|
+| blockade held, three bodies re-pinned every frame | yes |
+| closest approach to a pinned body, all shoppers | **0.752 yd** (touching is 0.64) |
+| anyone shoved through | **no** |
+| errand runner, with blockade vs without | 4.313 yd vs **4.303 yd** — no difference |
+
+So: nothing walks through a wall of people, and the blockade does not disturb the
+runner. **The clause itself — "routes around it AND REACHES THE ITEM" — is still
+unmeasured**, and the next attempt needs a goal the customer's own logic treats
+as an arrival (a real fixture stand point), not a synthetic stop.
+
 The revert half of the gate — "show the old grinding fails the same check" — was
 not reached.
 
