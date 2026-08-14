@@ -7832,12 +7832,19 @@ export function makeCourseScene(canvas, state) {
     // Resolve this before rescoring its moving focus point so the hand-truck
     // handle cannot discard its own prompt midway through the tilt animation.
     const retainedProp = walkFocus?.kind === 'prop' ? walkFocus.prop : null;
+    // carried forward with the retention, so a prop that legitimately held focus
+    // from the crosshair path does not lose the flag for a frame and strobe its
+    // highlight off and on again
+    const retainedViaCrosshair = walkFocus?.viaCrosshair === true;
     if (retainedProp) {
       const retainedDistance = Math.hypot(retainedProp.x - walk.x, retainedProp.z - walk.z);
       if (walkPropRetainsFocus(retainedProp, retainedDistance)) {
         const retainedLabel = retainedProp.label();
         if (retainedLabel) {
-          walkFocus = { kind: 'prop', label: retainedLabel, prop: retainedProp };
+          walkFocus = {
+            kind: 'prop', label: retainedLabel, prop: retainedProp,
+            viaCrosshair: retainedViaCrosshair,
+          };
           return;
         }
       }
@@ -7850,7 +7857,12 @@ export function makeCourseScene(canvas, state) {
     // ledger and the prompt says something else" true with a mop in hand.
     const aimedProp = walkPropUnderCrosshair();
     if (aimedProp) {
-      walkFocus = { kind: 'prop', label: aimedProp.label, prop: aimedProp.prop };
+      // `viaCrosshair` records WHICH path produced this focus. Two paths in this
+      // function set kind:'prop' -- this strict one (cos 12 deg facing AND 0.6 yd
+      // cross-track) and the general scan below, which admits facing > 0.3, about
+      // 72 degrees, anywhere inside the prop's own radius. The prompt is happy
+      // with either; a HIGHLIGHT is not. See the 3.3 note at the call site.
+      walkFocus = { kind: 'prop', label: aimedProp.label, prop: aimedProp.prop, viaCrosshair: true };
       return;
     }
     // F1 (Full_Goal_16): a work station in reach OUTRANKS the equipped
@@ -8760,9 +8772,29 @@ export function makeCourseScene(canvas, state) {
     // walkFocus is the resolved answer after every early return in
     // walkFindFocus, so reading it here means the outline and the prompt are the
     // same decision by construction. onAim is idempotent; this runs every frame.
+    // FOUND-FALSE, one hour after it shipped: "the book highlights from across
+    // the room, not under the crosshair."
+    //
+    // The first version asked `walkFocus.prop === ledgerProp`, which is true for
+    // BOTH paths that set kind:'prop'. The general scan admits facing > 0.3 --
+    // about 72 degrees off axis -- anywhere inside the prop's radius, and the
+    // ledger's radius is 2.2 yd. So standing near the desk and looking well off
+    // the book lit it. Measured on the finished build at 1.2 yd and 55 degrees
+    // off: active true, 16 shells, while the crosshair was nowhere near it.
+    //
+    // The requirement is "when the crosshair GENUINELY aims at the cover", so
+    // `viaCrosshair` is now required. A prompt may be generous about what you are
+    // near; a highlight must not be, because the highlight is the thing that
+    // claims "this exact object is what E will act on".
+    //
+    // My driver could not see this because it only ever sampled AIMED versus
+    // 180-DEGREES-AWAY -- two points so far apart that both paths agree on them.
+    // The whole disagreement lives in between.
     if (clubhouseApi?.setLedgerAimed) {
       clubhouseApi.setLedgerAimed(
-        walkFocus?.kind === 'prop' && walkFocus.prop === clubhouseApi.ledgerProp?.(),
+        walkFocus?.kind === 'prop'
+        && walkFocus.viaCrosshair === true
+        && walkFocus.prop === clubhouseApi.ledgerProp?.(),
       );
     }
     reconcileAutoTool();   // contextual prop tools equip on focus, stow on look-away

@@ -74,16 +74,42 @@ async (page) => {
   // Preferring the book's own world matrix means BOTH builds anchor on the same
   // thing, and the physical truth is the better anchor anyway. ledgerProp stays
   // only as the fallback, and `from` is reported so a mismatch is visible.
+  // AIM AT THE POINT THE GAME SCORES, STAND AT THE POINT THE BOOK IS.
+  //
+  // These are not the same point and that mattered: the prop's x/z come through
+  // L2W() from the layout table, the mesh sits where matrixWorld says. Aiming at
+  // the mesh satisfied the LOOSE gate (facing > 0.3) and missed the strict one
+  // (0.6 yd cross-track), so every "aimed" sample this driver ever took was
+  // riding the general prop scan. That is why it certified an outline that
+  // lights from across the room: it never once exercised the path the
+  // requirement is written about.
   const bookSpot = await page.evaluate(() => {
     const ch = window.__fw.scene3d?.clubhouse?.();
     const r = ch?.ledgerBook?.root;
+    const p = ch?.ledgerProp?.() || null;
+    let stand = null;
     if (r) {
       r.updateWorldMatrix(true, false);
       const e = r.matrixWorld.elements;
-      return { x: e[12], z: e[14], aimY: e[13] + 0.03, from: 'matrixWorld' };
+      stand = { x: e[12], z: e[14], aimY: e[13] + 0.03 };
     }
-    const p = ch?.ledgerProp?.();
-    return p ? { x: p.x, z: p.z, aimY: p.aimY, from: 'ledgerProp' } : null;
+    if (!stand && !p) return null;
+    const aim = p ? { x: p.x, z: p.z, aimY: p.aimY } : stand;
+    const base = stand || aim;
+    return {
+      x: base.x, z: base.z, aimY: base.aimY,
+      aimX: aim.x, aimZ: aim.z, aimAimY: aim.aimY,
+      from: p ? 'prop-aim + mesh-stand' : 'mesh-only',
+      // BOTH heights reported, because the XZ gap turned out to be zero and the
+      // difference that actually mattered was vertical. A prop carrying aimY is
+      // scored against the first-person RAY, so the pitch decides the
+      // cross-track distance, and 0.6 yd of cross-track is a small angle at this
+      // range.
+      aimVsStandYd: +Math.hypot(aim.x - base.x, aim.z - base.z).toFixed(3),
+      standAimY: stand ? +stand.aimY.toFixed(4) : null,
+      propAimY: p ? +p.aimY.toFixed(4) : null,
+      aimYGap: (stand && p) ? +Math.abs(p.aimY - stand.aimY).toFixed(4) : null,
+    };
   });
   if (!bookSpot) {
     out.verdict = 'UNMEASURED — ch.ledgerProp() gave no world spot for the book';
@@ -113,13 +139,27 @@ async (page) => {
       w.x = spot.x + dx * back;
       w.z = spot.z + dz * back;
       w.vx = 0; w.vz = 0;
-      const lookX = spot.x - w.x;
-      const lookZ = spot.z - w.z;
+      // LOOK AT THE SCORED POINT, not at the mesh. walkPropAimScore measures
+      // cross-track distance from the aim ray to the PROP's focus point.
+      const tx = spot.aimX ?? spot.x;
+      const tz = spot.aimZ ?? spot.z;
+      const ty = spot.aimAimY ?? spot.aimY ?? 0;
+      const lookX = tx - w.x;
+      const lookZ = tz - w.z;
       const h = Math.hypot(lookX, lookZ) || 0.001;
       const yaw = Math.atan2(-lookX / h, -lookZ / h);
       w.yaw = facing ? yaw : yaw + Math.PI;
-      // negative pitch is DOWN in this codebase; the book sits below eye height
-      w.pitch = facing ? Math.atan2((spot.aimY ?? 0) - 1.62, h) : 0;
+      // PITCH FROM THE ACTUAL CAMERA, NOT FROM AN ASSUMED EYE HEIGHT.
+      //
+      // This was `atan2(ty - 1.62, h)`, mixing a WORLD y (the prop's aimY, about
+      // -0.65 here) with a LOCAL eye height above the floor. It aimed roughly 46
+      // degrees into the ground. The strict crosshair test then passed or failed
+      // depending on where the camera happened to settle, which is why one run
+      // came back 9/9 and the next 7/9 with no code change between them -- a
+      // flaky green I nearly shipped as a fix.
+      const eyeY = window.__fw.scene3d?.camera?.position?.y;
+      const eye = Number.isFinite(eyeY) ? eyeY : (w.y ?? 0) + 1.62;
+      w.pitch = facing ? Math.atan2(ty - eye, h) : 0;
     }, [bookSpot, on]);
     await page.waitForTimeout(700);
   };
@@ -176,6 +216,56 @@ async (page) => {
   await aimAt(false);
   const away = await readOutline();
 
+  // THE SAMPLE THIS DRIVER WAS MISSING, AND IT IS WHY 3.3 WAS FOUND-FALSE.
+  //
+  // It tested AIMED versus 180-DEGREES-AWAY. Those two are so far apart that
+  // BOTH paths through walkFindFocus agree on them, so the driver could not tell
+  // which path the outline was riding. Everything interesting lives in between:
+  //
+  //   walkPropUnderCrosshair  cos(12 deg) facing AND 0.6 yd cross-track
+  //   the general prop scan   facing > 0.3, about 72 deg, within the prop's own
+  //                           radius -- and the ledger's radius is 2.2 yd
+  //
+  // Standing near the book and looking well off it satisfies the second and not
+  // the first. If the outline lights there, it is riding the loose path: "it
+  // highlights from across the room, not under the crosshair."
+  //
+  // 55 degrees is chosen to sit clearly inside the loose gate (cos 55 = 0.57 >
+  // 0.3) and clearly outside the strict one (0.57 < cos 12 = 0.978), so the
+  // sample cannot be argued either way by a few degrees of camera drift.
+  const aimOffBy = async (degrees) => {
+    await page.evaluate(([spot, deg]) => {
+      const w = window.__fw.scene3d.walk.state;
+      const ch = window.__fw.scene3d.clubhouse();
+      const c = ch.interior.position;
+      let dx = c.x - spot.x; let dz = c.z - spot.z;
+      const d = Math.hypot(dx, dz) || 1; dx /= d; dz /= d;
+      // WELL INSIDE the prop radius, so the loose scan's distance gate passes
+      w.x = spot.x + dx * 1.2; w.z = spot.z + dz * 1.2; w.vx = 0; w.vz = 0;
+      const tx = spot.aimX ?? spot.x;
+      const tz = spot.aimZ ?? spot.z;
+      const lx = tx - w.x; const lz = tz - w.z;
+      const h = Math.hypot(lx, lz) || 0.001;
+      w.yaw = Math.atan2(-lx / h, -lz / h) + (deg * Math.PI / 180);
+      w.pitch = Math.atan2((spot.aimAimY ?? spot.aimY ?? 0) - 1.62, h);
+    }, [bookSpot, degrees]);
+    await page.waitForTimeout(700);
+  };
+  await aimOffBy(55);
+  const inRangeNotAimed = await readOutline();
+  const inRangeNotAimedPrompt = await page.evaluate(() => document.querySelector('.shop-prompt')?.textContent || '');
+  await page.screenshot({ path: path.join(OUT, `${process.env.P3_SHOT || 'aimed-at-the-book'}-inrange-notaimed.png`) });
+
+  // AND THE SECOND HALF OF THE OWNER'S REPORT: "stays lit after I pick it up."
+  // Carrying is a real state with its own key (X); the outline has no business
+  // surviving into it, and nothing in the previous driver ever entered it.
+  await aimAt(true);
+  await page.evaluate(() => window.__fw.scene3d.clubhouse()?.ledgerBook?.setCarried?.(true));
+  await page.waitForTimeout(900);
+  const whileCarried = await readOutline();
+  await page.evaluate(() => window.__fw.scene3d.clubhouse()?.ledgerBook?.setCarried?.(false));
+  await page.waitForTimeout(900);
+
   // material churn: sample twice, several seconds apart, while aimed
   await aimAt(true);
   const m1 = await readOutline();
@@ -190,8 +280,17 @@ async (page) => {
   await aimAt(true);
   const afterCycle = await readOutline();
 
-  out.samples = { aimed, away, m1, m2, afterCycle, promptText };
+  out.samples = {
+    aimed, away, inRangeNotAimed, inRangeNotAimedPrompt, whileCarried,
+    m1, m2, afterCycle, promptText,
+  };
   out.clauses = {
+    // THE OWNER'S TWO FINDINGS, scored as clauses so they can never pass by
+    // being untested again.
+    darkWhenInRangeButNotAimed:
+      inRangeNotAimed.active === false && (inRangeNotAimed.shellCount ?? 0) === 0,
+    darkWhileCarried:
+      whileCarried.active === false && (whileCarried.shellCount ?? 0) === 0,
     // THE INSTRUMENT'S OWN CONTROL, added after the first version scored two
     // clauses green about an outline that was never on. If aimed and away read
     // the same, this driver has measured nothing and no other clause here means
