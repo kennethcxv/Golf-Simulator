@@ -81,7 +81,12 @@ test('a station in reach still beats the equipped tool in the focus order', () =
   // ever moves above the station block, every station goes dead with a tool out
   // and the tags above stop meaning anything.
   const scene = fs.readFileSync(new URL('../src/render3d/courseScene.js', import.meta.url), 'utf8');
-  const station = scene.indexOf('const stationProp = walkStationPropInReach();');
+  // GOAL 26 9.2 gave this call an argument -- walkStationPropInReach({ requireAim:
+  // true }) -- because the owner overruled the prompt half of it: a station in
+  // reach may no longer NAME itself unless the crosshair is on it, though it may
+  // still answer E. The ORDERING this test guards is untouched and still matters,
+  // so the pattern moves to match the call rather than the assertion being cut.
+  const station = scene.indexOf('const stationProp = walkStationPropInReach(');
   const toolOwns = scene.indexOf('if (walkTool && walkTool !== autoTool) {');
   assert.ok(station > 0 && toolOwns > 0, 'both blocks are still in walkFindFocus');
   assert.ok(station < toolOwns,

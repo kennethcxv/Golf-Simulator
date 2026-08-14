@@ -66,8 +66,19 @@ test('loaded hand-truck carton and authored handle remain independently focusabl
 });
 
 test('3D focus scoring rejects props outside the interaction cone', () => {
-  assert.equal(walkPropFocusScore3d(1.5, 0.3, 0), Infinity);
-  assert.ok(Number.isFinite(walkPropFocusScore3d(1.5, 0.31, 0)));
+  // GOAL 26 9.2 TIGHTENED THIS CONE, on the owner's instruction: "the prompt bar
+  // is sticky -- it names objects the crosshair is nowhere near... I am
+  // overruling it: THE CROSSHAIR DECIDES THE PROMPT."
+  //
+  // The floor was 0.30, a SEVENTY-TWO DEGREE half-angle -- a prop that far off
+  // axis is behind your shoulder and was still eligible to claim the prompt. It
+  // is now 0.70, a 45-degree cone. The assertions move with it rather than being
+  // deleted, and they still bracket the boundary from both sides so the cone
+  // cannot quietly widen again.
+  assert.equal(walkPropFocusScore3d(1.5, 0.69, 0), Infinity, 'a prop 46 degrees off axis is not under the crosshair');
+  assert.ok(Number.isFinite(walkPropFocusScore3d(1.5, 0.71, 0)), 'a prop 44 degrees off axis still selects');
+  // and the old 72-degree eligibility is gone for good
+  assert.equal(walkPropFocusScore3d(1.5, 0.31, 0), Infinity, '72 degrees off axis must no longer claim the prompt');
 });
 
 test('an active articulated prop retains focus only inside its authored reach', () => {

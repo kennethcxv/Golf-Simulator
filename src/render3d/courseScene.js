@@ -250,7 +250,22 @@ export const GTAO_CONFIG = Object.freeze({
   pd: Object.freeze({ lumaPhi: 10, depthPhi: 2, normalPhi: 3, radius: 2, radiusExponent: 1, rings: 2, samples: 8 }),
 });
 
-const WALK_FOCUS_MIN_FACING = 0.3;
+// 9.2 (Goal 26): "The prompt bar is sticky -- it names objects the crosshair is
+// nowhere near." 0.3 is a SEVENTY-TWO DEGREE half-angle. A thing 72 degrees off
+// the crosshair is behind your shoulder in any ordinary sense, and it was
+// eligible to claim the prompt.
+//
+// 0.70 is a 45-degree half-angle -- a normal interaction cone, and narrow enough
+// that "under the crosshair" means something. The cross-track weight below
+// already makes the most centred candidate win; this constant is the eligibility
+// floor, so tightening it removes the far-off candidates entirely rather than
+// re-ranking them.
+//
+// Deliberately NOT tuned to the sticky-prompt driver's own 50-degree threshold,
+// which would be circular. 45 is the value a first-person interaction cone
+// usually takes; the driver's 50 stays looser than it on purpose, so the check
+// still has room to catch a regression rather than passing by construction.
+const WALK_FOCUS_MIN_FACING = 0.70;
 const WALK_FOCUS_CROSS_TRACK_WEIGHT = 3.8;
 const WALK_FOCUS_DEPTH_WEIGHT = 0.18;
 // Decision 3 (Goal 24): what counts as "under the crosshair" rather than merely
@@ -295,10 +310,38 @@ export function walkPropFocusScore3d(spatialDistance, facingDot, focusBias = 0) 
 // but only while its prop explicitly requests retention and the player remains
 // inside the same authored reach. This prevents a tilting handle from moving
 // its own focus target out from under the player without creating sticky props.
-export function walkPropRetainsFocus(prop, planarDistance) {
+/**
+ * 9.2 (Goal 26) — THIS IS WHERE THE STICKY PROMPT ACTUALLY LIVED.
+ *
+ * Retention used to be distance-only: inside the prop's radius with retainFocus
+ * set, the prompt held whatever it was already naming. It runs BEFORE the
+ * crosshair path, so it decided first, and it had no idea where the player was
+ * looking. Measured by sweeping the view a full circle at each station:
+ * 34 of 47 labelled samples named a prop the player was looking away from, the
+ * worst at 180 DEGREES -- the prompt naming something directly behind them.
+ *
+ * "I am overruling it: THE CROSSHAIR DECIDES THE PROMPT."
+ *
+ * So retention now needs the player still to be facing the thing. `facing` is
+ * the dot of the look direction against the bearing to the prop, passed in by
+ * the caller because this function is pure and has no view of the camera.
+ * RETAIN_FACING_MIN is deliberately loose -- retention exists to stop the label
+ * strobing off and on at the edge of the cone, and that job still needs slack.
+ * It is a hysteresis band, not a second opinion about what the player is aimed
+ * at: 0.35 is about 70 degrees, so the prompt survives a glance away and dies on
+ * a turn.
+ *
+ * `facing` is optional so the pure-function tests that call this with two
+ * arguments keep meaning what they meant; omitted, only the distance rule
+ * applies, which is the old behaviour and is what those tests assert.
+ */
+export const RETAIN_FACING_MIN = 0.35;
+
+export function walkPropRetainsFocus(prop, planarDistance, facing = null) {
   const distance = Number(planarDistance);
   const radius = Number(prop?.r);
   if (!Number.isFinite(distance) || distance < 0 || !(radius > 0) || distance > radius) return false;
+  if (facing !== null && Number.isFinite(facing) && facing < RETAIN_FACING_MIN) return false;
   try {
     return !!(typeof prop.retainFocus === 'function' ? prop.retainFocus() : prop.retainFocus);
   } catch {
@@ -7802,7 +7845,23 @@ export function makeCourseScene(canvas, state) {
     return best ? { prop: best, label: bestLabel } : null;
   }
 
-  function walkStationPropInReach() {
+  // 9.2 (Goal 26) — "THE PROMPT BAR IS STICKY. It names objects the crosshair is
+  // nowhere near. You have documented that walkStationPropInReach does this
+  // deliberately. I AM OVERRULING IT: THE CROSSHAIR DECIDES THE PROMPT. A station
+  // in reach may keep working for E without claiming the prompt."
+  //
+  // Both halves of that are honoured by splitting the one predicate in two:
+  //
+  //   requireAim: true   what the PROMPT may name -- only a station actually
+  //                      under the crosshair, so standing indoors at the till can
+  //                      no longer read "Weeds - [E] pull them" (observed).
+  //   requireAim: false  what E may ACT on -- unchanged reach-and-facing, so
+  //                      pressing E at the counter without looking squarely at it
+  //                      still works, which is what `station` was always for.
+  //
+  // The forgiving gate therefore survives exactly where the owner said it may,
+  // and stops deciding the thing he says the crosshair decides.
+  function walkStationPropInReach({ requireAim = false } = {}) {
     let best = null;
     let bestScore = Infinity;
     for (const p of walkProps) {
@@ -7823,6 +7882,10 @@ export function makeCourseScene(canvas, state) {
       // it falls back to a bearing-and-distance ranking that always loses to a
       // station under the crosshair. That is the whole fix in one line.
       const aimed = walkPropAimScore(p);
+      // A station that is not under the crosshair scores Infinity here. With
+      // requireAim it is skipped outright; without it, it falls back to a
+      // bearing-and-distance ranking so E still reaches it.
+      if (requireAim && !Number.isFinite(aimed.score)) continue;
       const score = Number.isFinite(aimed.score) ? aimed.score : (dist + 100 - flat);
       if (score < bestScore) { bestScore = score; best = p; }
     }
@@ -7875,7 +7938,14 @@ export function makeCourseScene(canvas, state) {
     const retainedViaCrosshair = walkFocus?.viaCrosshair === true;
     if (retainedProp) {
       const retainedDistance = Math.hypot(retainedProp.x - walk.x, retainedProp.z - walk.z);
-      if (walkPropRetainsFocus(retainedProp, retainedDistance)) {
+      // 9.2: how squarely the player is still facing the retained prop. Standing
+      // ON it (distance ~0) has no meaningful bearing, so that case keeps the old
+      // distance-only rule rather than reading a direction out of noise.
+      const retainedFacing = retainedDistance < 0.35 ? 1 : (
+        (((retainedProp.x - walk.x) / retainedDistance) * -Math.sin(walk.yaw))
+        + (((retainedProp.z - walk.z) / retainedDistance) * -Math.cos(walk.yaw))
+      );
+      if (walkPropRetainsFocus(retainedProp, retainedDistance, retainedFacing)) {
         const retainedLabel = retainedProp.label();
         if (retainedLabel) {
           walkFocus = {
@@ -7906,7 +7976,7 @@ export function makeCourseScene(canvas, state) {
     // tool's prompt — Q+mop at the till must read the till, not the mop.
     // The tool blocks below return early and used to leave E dead at the
     // counter (label hijack, facing gate, hose fallback — all three).
-    const stationProp = walkStationPropInReach();
+    const stationProp = walkStationPropInReach({ requireAim: true });
     if (stationProp) {
       const stationLabel = typeof stationProp.label === 'function' ? stationProp.label() : stationProp.label;
       if (stationLabel) {
@@ -8037,6 +8107,19 @@ export function makeCourseScene(canvas, state) {
     if (cart.mounted) {
       if (!isRepeat) dismountCart();
       return;
+    }
+    // 9.2: the prompt no longer names a station the crosshair is not on, so E
+    // needs its own route to one -- otherwise "may keep working for E" would be
+    // false and pressing E at the counter while looking slightly off would do
+    // nothing. This runs only when the crosshair focus has no action of its own,
+    // so it can never steal a press the player aimed somewhere deliberate.
+    if (!walkFocus || (walkFocus.kind !== 'prop' && walkFocus.kind !== 'cart')) {
+      const reachStation = walkStationPropInReach();
+      if (reachStation && (reachStation.action || reachStation.hold)) {
+        if (isRepeat) return;
+        if (reachStation.action) reachStation.action();
+        return;
+      }
     }
     if (!walkFocus) return;
     if (walkFocus.kind === 'cart') {
@@ -12853,6 +12936,24 @@ export function makeCourseScene(canvas, state) {
       update: walkUpdate,
       interact: walkInteract,
       interactSecondary: walkInteractSecondary,
+      // 9.2 QA: WHAT the prompt names AND WHERE that thing is. The first version
+      // of the sticky-prompt driver measured the angle to the station the player
+      // was standing at rather than to the prop the prompt actually named, so a
+      // correct prompt about the laptop scored as a 180-degree lie about the tee
+      // desk. Reporting the named prop's own position is what makes the angle
+      // mean what the check claims it means.
+      focusInfo: () => {
+        if (!walkFocus) return null;
+        const prop = walkFocus.kind === 'prop' ? walkFocus.prop : null;
+        return {
+          kind: walkFocus.kind,
+          label: typeof walkFocus.label === 'function' ? walkFocus.label() : walkFocus.label,
+          viaCrosshair: walkFocus.viaCrosshair === true,
+          x: prop ? prop.x : null,
+          z: prop ? prop.z : null,
+          r: prop ? prop.r : null,
+        };
+      },
       getFocusLabel: () => {
         if (!walkFocus) return null;
         const secondary = walkFocus.kind === 'prop'
