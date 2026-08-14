@@ -205,6 +205,14 @@ export function buildToolViewmodels() {
   }
 
   function setUsing(toolId, on) {
+    // 5.2 (Goal 26): the yarn solver keeps two tunings and cannot pick between
+    // them on its own -- from inside the solver, "carried" and "mopping" are the
+    // same nodes moving. The tool's own use flag is the only honest source, and
+    // routing it here means there is exactly one place that decides, next to the
+    // animation that decides the same thing. D1 is the warning: a solver whose
+    // switch nobody flips is a solver that only ever runs one of its two modes.
+    const entry = loaded.get(toolId);
+    entry?.strandRig?.setActive?.(!!on);
     return setActive(toolId, !!on);
   }
 

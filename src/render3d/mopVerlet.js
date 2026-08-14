@@ -63,6 +63,53 @@ const DEFAULT_PARAMS = Object.freeze({
   maxStep: 1 / 90,    // fixed sub-step, so feel never depends on frame rate
 });
 
+// 5.2 (Goal 26) — "IT MUST FEEL HEAVY... SEPARATE CARRY AND ACTIVE PARAMETERS --
+// ONE SOLVER TUNING CANNOT DO BOTH."
+//
+// He is right that it cannot, and the reason is that the two states want opposite
+// things from the same numbers:
+//
+//   CARRIED   "they barely move, a sharp turn produces a small slow response, no
+//             flailing, no jitter at rest." That wants heavy damping and stiff
+//             constraints -- the yarn should behave like a hanging weight that
+//             resists being swung.
+//   ACTIVE    "they drag, compress, lag and recover, and settle smoothly when the
+//             stroke stops." That wants the opposite: looser damping so the yarn
+//             can trail, and more give so it can compress against the floor.
+//
+// Tuning one set to sit between them is what produces yarn that flails when
+// carried AND feels stiff when mopping, which is the complaint.
+//
+// These are DELTAS applied over DEFAULT_PARAMS rather than two full tables, so a
+// change to the shared physics does not have to be made twice and cannot drift
+// between the two states.
+// `damping` is the fraction of a node's own velocity it KEEPS each step, and in
+// this solver that runs the opposite way round to the intuition. A node that
+// keeps its velocity keeps travelling with the head it inherited that velocity
+// from, so it hangs tight underneath. A node whose velocity is killed each step
+// is left behind and trails. Measured, at a 1.0 yd/s drag, mean tip lag:
+//
+//     damping   0.20    0.50    0.74    0.865   0.90    0.96
+//     lag (yd)  0.240   0.230   0.196   0.135   0.106   0.033
+//
+// I had these two tables the wrong way round on the first pass for exactly that
+// reason, and the sweep above is why they are now this way round.
+export const CARRY_FEEL = Object.freeze({
+  damping: 0.92,        // tight under the head: ~0.09 yd of lag at walking pace
+  floorFriction: 0.55,
+  iterations: 3,        // stiffer: the bundle holds its shape instead of splaying
+  buckle: 0.16,         // little outward splay when nothing is pressing it
+  stiffness: 1.0,
+});
+
+export const ACTIVE_FEEL = Object.freeze({
+  damping: 0.78,        // sheds velocity, so the yarn TRAILS the stroke ~2x further
+  floorFriction: 0.42,  // catches on the boards rather than sliding with the head
+  iterations: 2,
+  buckle: 0.42,         // compresses and splays where it meets the floor
+  stiffness: 0.92,      // a little give, so the drag reads as weight not as rods
+});
+
 // THE YARN THE PLAYER ACTUALLY SEES, owned in one place.
 //
 // This used to live only as arguments at the single call site in
@@ -474,6 +521,63 @@ export function createVerletMopStrands({
    * No drive signal: the strands read the anchor's own world matrix, so every
    * way the head can move is already accounted for.
    */
+  // 5.2: which tuning is in force. Set by the viewmodel from the tool's own
+  // active flag, so the solver never has to guess and there is one owner.
+  //
+  // The switch is BLENDED, not snapped. "Settle smoothly when the stroke stops"
+  // is a requirement about the transition itself: swapping damping 0.90 -> 0.74
+  // in one frame changes how much velocity every node keeps, and the whole head
+  // visibly stiffens on the frame the button comes up. Easing over ~0.3 s reads
+  // as the yarn losing its momentum, which is what actually happens to a wet mop.
+  const FEEL_KEYS = ['damping', 'floorFriction', 'iterations', 'buckle', 'stiffness'];
+  const FEEL_BLEND_SECONDS = 0.3;
+
+  // AN EXPLICIT OVERRIDE STILL WINS. The look sweep (rebuildYarn) and every unit
+  // test in mop-verlet-strands drive this solver by passing damping/buckle/etc
+  // straight into the constructor. A mode table that overwrote them would make
+  // all of those calls silently inert -- the caller sets damping 0.2, the mop
+  // runs at 0.74, and the sweep reports that damping does not matter. So a key
+  // the caller named is pinned to `live` and the mode never touches it; the mode
+  // only fills in the keys nobody asked about.
+  const pinned = new Set(Object.keys(params || {}).filter((k) => FEEL_KEYS.includes(k)));
+  const tableFor = (mode) => {
+    const t = {};
+    for (const key of FEEL_KEYS) t[key] = pinned.has(key) ? live[key] : mode[key];
+    return t;
+  };
+  let feelTarget = tableFor(CARRY_FEEL);
+  let feel = { ...feelTarget };
+  let activeFlag = false;
+  let blending = false;
+
+  function setActive(on) {
+    const want = !!on;
+    if (want === activeFlag) return false;
+    activeFlag = want;
+    feelTarget = tableFor(want ? ACTIVE_FEEL : CARRY_FEEL);
+    blending = true;
+    return true;
+  }
+
+  // A linear approach at a fixed rate, not an exponential ease: an exponential
+  // never actually arrives, so `feel` would sit a hair off the table forever and
+  // "which mode am I in" would have no exact answer. 0.3 s means 0.3 s.
+  function blendFeel(dt) {
+    if (!blending) return;
+    const k = Math.min(1, dt / FEEL_BLEND_SECONDS);
+    let done = true;
+    for (const key of FEEL_KEYS) {
+      const to = feelTarget[key];
+      const gap = to - feel[key];
+      if (Math.abs(gap) < 1e-6) { feel[key] = to; continue; }
+      const span = Math.abs(ACTIVE_FEEL[key] - CARRY_FEEL[key]) || Math.abs(gap);
+      const stepped = feel[key] + Math.sign(gap) * Math.min(Math.abs(gap), span * k);
+      feel[key] = stepped;
+      if (Math.abs(to - stepped) > 1e-6) done = false; else feel[key] = to;
+    }
+    if (done) blending = false;
+  }
+
   function update(dt, floorY = null) {
     root.updateWorldMatrix(true, false);
     const rootWorld = root.matrixWorld;
@@ -486,6 +590,8 @@ export function createVerletMopStrands({
       + Math.abs(_anchor.z - pz[0]);
     if (jump > 2.0) { seed(rootWorld); return; }
 
+    blendFeel(Math.max(0, Math.min(dt, 0.1)));
+
     // Fixed sub-steps: the yarn must feel the same at 30 fps and 144 fps.
     let remaining = Math.min(Math.max(dt, 0), 0.1);
     const floor = floorY == null ? null : floorY + 0.004;
@@ -493,7 +599,7 @@ export function createVerletMopStrands({
       const h = Math.min(remaining, live.maxStep);
       remaining -= h;
       const gdt = live.gravity * h * h;
-      const damp = live.damping;
+      const damp = feel.damping ?? live.damping;
 
       for (let i = 0; i < N; i += 1) {
         const base = i * NODES;
@@ -507,7 +613,7 @@ export function createVerletMopStrands({
           const onFloor = floor !== null && py[k] <= floor + 1e-4;
           // friction only bites the horizontal, the way a wet strand dragging
           // on boards does; the vertical is free to settle
-          const lat = onFloor ? live.floorFriction : damp;
+          const lat = onFloor ? (feel.floorFriction ?? live.floorFriction) : damp;
           const vx = (px[k] - qx[k]) * lat;
           const vy = (py[k] - qy[k]) * damp;
           const vz = (pz[k] - qz[k]) * lat;
@@ -527,7 +633,8 @@ export function createVerletMopStrands({
         }
       }
 
-      for (let iter = 0; iter < live.iterations; iter += 1) {
+      const passes = Math.max(1, Math.round(feel.iterations ?? live.iterations));
+      for (let iter = 0; iter < passes; iter += 1) {
         for (let i = 0; i < N; i += 1) {
           const base = i * NODES;
           const L = segLen[i];
@@ -544,7 +651,7 @@ export function createVerletMopStrands({
               dx = outX[i] * 1e-3; dy = -1e-3; dz = outZ[i] * 1e-3;
               d = Math.sqrt(dx * dx + dy * dy + dz * dz);
             }
-            const f = ((L - d) / d) * live.stiffness;
+            const f = ((L - d) / d) * (feel.stiffness ?? live.stiffness);
             // the parent is authoritative (the chain hangs from a pinned
             // anchor), so only the child moves — one pass down the chain is
             // stable and needs no mass bookkeeping
@@ -558,8 +665,8 @@ export function createVerletMopStrands({
               // makes a pressed head spread and flatten instead of stacking.
               const bite = floor - py[k];
               py[k] = floor;
-              px[k] += outX[i] * bite * live.buckle;
-              pz[k] += outZ[i] * bite * live.buckle;
+              px[k] += outX[i] * bite * (feel.buckle ?? live.buckle);
+              pz[k] += outZ[i] * bite * (feel.buckle ?? live.buckle);
             }
           }
         }
@@ -612,6 +719,10 @@ export function createVerletMopStrands({
       return { ...live };
     },
     defaults: () => ({ ...DEFAULT_PARAMS }),
+    // 5.2: the viewmodel flips this from the tool's own active flag.
+    setActive,
+    isActive: () => activeFlag,
+    feel: () => ({ ...feel }),
     strandCount: N,
     clumpCount: CLUMPS,
     // the anchors, so a test can measure the gaps between bunches rather than
