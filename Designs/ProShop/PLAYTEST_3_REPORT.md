@@ -36,7 +36,7 @@ asked about will report its own blindness as a fact about the world.
 | **5 — the mop** | **DONE** except the density ruling, which is yours |
 | **6 — items must not touch the bag** | **DONE.** 0.127 yd of overlap measured and removed |
 | 7 — Phase 3 verifier one | **SETTLED: it was my staging.** The clause itself is still unmeasured |
-| 8 — Phase 10 verifier 3, the stranger | NOT STARTED |
+| 8 — Phase 10 verifier 3, the stranger | **HALF ANSWERED.** No stalls, detector proved. The three-customer half did NOT run: the stranger never got inside |
 | 9 — the exploded rake | **IDENTIFIED, NOT FIXED.** It is a HAND, and last session ruled that out wrongly |
 | 10 — Phase 7's merge | **MEASURED, NOT STARTED.** Dedup is NOT required: 47.6% without it |
 
@@ -391,3 +391,45 @@ Two honest caveats, because "best case" is doing real work in that sentence:
   making.
 
 **I have not started the merge**, per your instruction to measure first.
+
+
+## 13. ITEM 8 — THE STRANGER: ONE HALF ANSWERED, ONE HALF NOT RUN
+
+Written with no developer shortcuts, as asked: no `debugSpawn`, no
+`qaSendCustomerTo`, nothing writing sim state. Real keys, real mouse, the game's
+own controls. State is READ freely — that is observation — and never written.
+
+**ANSWERED: there are no stalls.** 23,967 frames drawn, **longest frame gap
+54 ms**. And the number can be believed, because the detector was proved on the
+spot: a deliberate 500 ms block of the main thread took the recorded maximum from
+54 ms to **517 ms**. A stall detector that cannot see a half-second hitch would
+report a smooth session on a stuttering build, and this repo has shipped that
+shape of lie before.
+
+No page errors. No F8 invariant violations. Seven cue starts, all synth voices.
+
+**NOT RUN: the three customers.** `reachedInside: false`. The stranger walked
+forward in six bursts with look-steps between them and never got into the
+building, so the shop sign never opened (`signOpen: false` throughout), no
+customer ever arrived (`customersSeen: 0`) and the register was never active. The
+question you actually asked — one full customer, then a second and a third — was
+therefore never put to the game.
+
+That is partly my driver: "hold W six times" is a crude stand-in for a person
+following "look around, then walk toward the clubhouse". The next attempt should
+follow the tutorial's own prompts rather than guessing a heading.
+
+**TWO THINGS FELL OUT OF IT ANYWAY, and both are real:**
+
+1. **`deskAction('exit')` returned `ok: true` twenty-five times in a row and
+   nothing happened.** The desk screen offers `exit` as a live, hit-testable,
+   non-disabled hotspot while the register is inactive; pressing it reports
+   success and changes no state. An action that always succeeds and never does
+   anything is worse than a disabled one, because a stranger presses it, sees the
+   click register, and concludes the game is broken elsewhere.
+
+2. **Twenty game-minutes from 6:01 AM with the shop shut.** Trading hours start
+   at minute 360 and the clock ran 360 → 380 with `signOpen` false the whole
+   time. Whether a stranger is *supposed* to have to open the shop by hand on Day
+   1 is a design question I cannot answer for you — but if they are, nothing in
+   twenty minutes told them so.
