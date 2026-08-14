@@ -1874,6 +1874,37 @@ sweep, and consistent page-turn direction.
 
 ---
 
+# THE GATE, AT THE END OF THE SESSION
+
+| stage | result |
+|---|---|
+| lint ratchet | **323**, unchanged all session |
+| vendor models | 126 up to date, 0 problems |
+| suite | **3649 pass / 0 fail** |
+| golden, 12 captured poses | **all ok** — mop 0.1132 %, everything else under 0.15 % |
+| golden one-pixel control | **OK** — a single flipped pixel still fails the strict diff, so the gate is not blind |
+| `bag-packed` | **NOT CAPTURED** — `SKIP bag-packed: only 1 goods packed`. Pre-existing, not mine, and a real open item |
+
+# 9.4 — A CORRECTION TO MY OWN EARLIER RULING-OUT
+
+The 9.4 section above says *"the hands are ruled out by measurement... with the
+rake equipped the hands measure at world y 1.48 and 1.59 against a camera at
+1.52. They are where hands belong."*
+
+Re-measured tonight with `electron-rake-explode-id.js`, which reports every mesh
+whose world BOUNDS come near the camera rather than its origin: the nearest
+things to the eye with the rake equipped are **`FirstPersonLeftHand` finger
+meshes at `aboveCameraY` +0.10, twenty centimetres from the camera** — that is,
+*above* the eye line, not level with it, and close enough to fill a large part of
+the frame.
+
+That is consistent with "a cluster of tan capsule lumps in the upper third", and
+it means **my earlier ruling-out was not as solid as I wrote it.** I am not
+replacing one conclusion with another: this run at pitch 0 did not reproduce the
+explosion, so what I have is a measurement that reopens the hands as a candidate,
+not a diagnosis. **The next session should start there rather than where the last
+one told it to.**
+
 # HANDOFF
 
 Committed and pushed to `goal25/phase0-inherited-tree` after every item.
