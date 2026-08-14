@@ -15,7 +15,7 @@ the oscillator build** — the synth voices being replaced are themselves
 filtered-noise buffers — so it would have certified the exact absence it existed
 to detect.
 
-## 2. Probe-lie count: **10**
+## 2. Probe-lie count: **13**
 
 Checks I wrote that scored the same before and after, or measured the wrong
 object. Every one was caught by a number that disagreed with something else I
@@ -41,7 +41,7 @@ not painted" manufactured a false negative about a click.
 | Phase | Status |
 |---|---|
 | **1 — Audio** | **GATE PASSED** — see §4 |
-| **2 — The walk-up** | **BOTH ITEMS FIXED AND MEASURED**; clips outstanding |
+| **2 — The walk-up** | **BOTH ITEMS FIXED, MEASURED AND FILMED**; residual handed to Phase 3 |
 | 3 — NPC navigation | **3.1 diagnosed and proven**; integration not started |
 | 4 — Time and bookings | not started |
 | 5 — Mop and hands | not started |
@@ -595,3 +595,92 @@ will reproduce the table in §4 on demand.
 - **Probe-lie count 10.** One of them (#7) passed on the broken build. One (#10)
   made me publish a wrong number that I have since corrected in place. One
   finding was withdrawn entirely.
+
+
+---
+
+# PHASE 2 — REVISITED WITH WORKING STAGING
+
+Everything in the Phase 2 section above was measured through staging that was
+quietly broken. It took three separate corrections to find out, and the numbers
+below supersede the earlier ones.
+
+## THE THREE FACTS EVERY CUSTOMER VERIFIER NEEDS
+
+Discovered one painful run at a time. Two of the three are invisible in the worst
+way: the game behaves **perfectly correctly** without them and simply does
+nothing, so a driver reports a clean, confident, wrong result.
+
+1. **The owner's save** — a fresh profile has no route network, so there is no
+   traffic and no tee desk.
+2. **Trading hours on the clock** — the save resumes at 06:01.
+3. **`state.shop.signOpen = true`** — and this is the one that cost the most.
+
+`shopAcceptsWalkIns(state, minute) = withinTradingHours(minute) && signIsOpen(state)`.
+When that is false, `clubhouse.js` routes **every customer on the floor straight
+to the exit**. `debugSpawn` does not set `scriptedVisit`, so spawned shoppers get
+no exemption. A 20 Hz trace showed a shopper jumping from stop 0 to stop 6 —
+past `enter`, three fixtures and the counter — in **70 milliseconds**.
+
+## The finding I published and withdrew
+
+I committed (`289abe8`) that **"the shop cannot make a retail sale"**, on the
+evidence that `customerPick` was called 0 times with 110 units on the shelves.
+**That was wrong.** It was the closed sign. With the sign open, one shopper:
+
+```
+t= 0.00s idx=0 walk      t= 9.37s idx=1 enter
+t=12.70s idx=2 fixture   t=15.37s idx=3 fixture
+t=17.67s idx=4 fixture   t=25.07s idx=5 counter
+PICK-STATS  calls:3  took:3  claimed:3  standGivenUp:0  noFixtureRecord:0
+```
+
+Three fixtures browsed, **three items taken**, off to the counter. The arrival
+radius is fine, fixture claims are fine, `planOrganicOrder` was always fine, and
+the shelves were always stocked. Nothing was broken.
+
+## 2.1 re-measured — the number that actually means something
+
+The first pass reported 59.6 % walk-in-place on the **fixed** build, which looked
+terrible. It was almost entirely **customers standing in the queue**, which is
+what a queue is. Counting that as "walking in place" scores correct behaviour as
+the defect. Split by queue state:
+
+| build | approaching WIP | approaching moved | **approach ratio** | queued (correct) |
+|---|---|---|---|---|
+| unfixed (player blocks) | 165 | 1248 | **11.68 %** | 4448 |
+| fixed (player phased out) | 109 | 1321 | **7.62 %** | 2997 |
+
+4/4 customers held goods, 4/4 reached the queue, 12 items taken. The fix removes
+roughly a third of the treading-air while a customer is trying to **reach** the
+counter — real, and **not the whole story**: a **7.62 % residual remains** and it
+is not the player's body.
+
+## The clip — recorded, extracted, and VIEWED
+
+`qa/clips/walkup/` — 210 s, 630 frames at 3 fps, contact sheets `tiles-01..32`.
+
+- **`tiles-08`** (t ≈ 47–53 s): the counter, empty, before anyone arrives.
+- **`tiles-14`** (t ≈ 87–93 s): **a customer at the counter with three queued
+  behind them, single file, every one facing the counter**, and the POS showing
+  real line items. This is the frame that proves the walk-up.
+
+**Honest limitation of this footage:** register mode owns the camera and points
+it at the till, so the clip shows the counter and the queue behind it but **not
+the approach path across the floor**. Sidestepping on the way in would not be
+visible here. The approach is covered by the numeric metric above, not by these
+frames, and I am not claiming otherwise. An overhead clip is not currently
+possible — a QA-parked camera does not hold (`electron-camera-hold-probe.js`:
+the camera is re-driven every frame).
+
+## Probe lies 11-13
+
+| # | The probe | What it reported | What was wrong |
+|---|---|---|---|
+| 11 | `electron-shelf-stock-probe` | **an empty shop** | read `inventory[sku].qty`; the record is `{shelf, back}`, so every SKU scored 0 — the exact answer it was built to detect, made by its own missing accessor |
+| 12 | same probe, same run | **0 fixtures placed** | read `state.shop.fixtures`, which does not exist; fixtures come from `placedFixtures(state)` in `sim/layout.js`. The shop has 12 |
+| 13 | `electron-walkup-blocked` | **59.6 % walk-in-place on a working build** | counted queued customers standing still as "walking in place" — correct behaviour scored as the defect |
+
+Two missing accessors in one file, in one run, both producing a confident false
+negative. An optional chain onto a name that was never there returns `undefined`,
+and `undefined` dressed as a zero is a measurement of nothing.

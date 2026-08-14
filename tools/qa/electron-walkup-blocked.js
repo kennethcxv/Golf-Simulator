@@ -206,7 +206,7 @@ async (page) => {
               id: c.id, frames: 0, walkInPlace: 0, moved: 0, travel: 0,
               maxSpeedIntent: 0, reachedQueue: false, served: false, left: false,
               reachedCounterStop: false, lastStopKind: null, route: null, cart: null, cartMax: 0,
-              minFixtureDist: null,
+              minFixtureDist: null, walkInPlaceQueued: 0, walkInPlaceApproaching: 0, movedApproaching: 0,
             });
           }
           const s = stats.get(c.id);
@@ -236,8 +236,19 @@ async (page) => {
             // body goes essentially nowhere over the interval. The thresholds are
             // in yards per sample: 0.35 yd/s of intent is a purposeful walk, and
             // 0.004 yd over 100 ms is under half a centimetre.
-            if (intent > 0.35 && d < 0.004) s.walkInPlace += 1;
-            else if (d >= 0.004) s.moved += 1;
+            // SPLIT BY QUEUE STATE. A customer holding a place in the line is
+            // MEANT to be standing still, and counting that as "walking in place"
+            // would score correct behaviour as the defect -- which is how a
+            // headline number ends up at 60% on a build that works. What the
+            // owner reported is someone trying to WALK UP and getting nowhere,
+            // so the number that matters is the not-yet-queued one.
+            if (intent > 0.35 && d < 0.004) {
+              s.walkInPlace += 1;
+              if (c.queued) s.walkInPlaceQueued += 1; else s.walkInPlaceApproaching += 1;
+            } else if (d >= 0.004) {
+              s.moved += 1;
+              if (!c.queued) s.movedApproaching += 1;
+            }
           }
           prev.set(c.id, { x: c.x, z: c.z });
         }
@@ -266,6 +277,15 @@ async (page) => {
     // the headline: how many sampled frames had somebody treading air
     walkInPlaceFrames: withMotion.reduce((a, c) => a + c.walkInPlace, 0),
     movedFrames: withMotion.reduce((a, c) => a + c.moved, 0),
+    // THE HEADLINE: treading air while still trying to REACH the counter.
+    approachingWalkInPlace: withMotion.reduce((a, c) => a + (c.walkInPlaceApproaching || 0), 0),
+    approachingMoved: withMotion.reduce((a, c) => a + (c.movedApproaching || 0), 0),
+    approachingRatio: (() => {
+      const w = withMotion.reduce((a, c) => a + (c.walkInPlaceApproaching || 0), 0);
+      const m = withMotion.reduce((a, c) => a + (c.movedApproaching || 0), 0);
+      return (w + m) ? +(w / (w + m)).toFixed(4) : null;
+    })(),
+    queuedWalkInPlace: withMotion.reduce((a, c) => a + (c.walkInPlaceQueued || 0), 0),
     walkInPlaceRatio: (() => {
       const w = withMotion.reduce((a, c) => a + c.walkInPlace, 0);
       const m = withMotion.reduce((a, c) => a + c.moved, 0);
