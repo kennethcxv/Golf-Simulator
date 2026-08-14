@@ -2012,7 +2012,12 @@ export function createLedgerBook({ THREE, state, anchor, counterTop, camera = nu
   // cues fire on the turn and the settle without reaching into the mixer (the
   // sfx reference is captured at construction, so wrapping it later misses).
   const cueLog = [];
+  // ROUND 7: the prewarm gesture below performs a real open and a real page turn
+  // behind the load veil. It must not be AUDIBLE, and it must not pollute the
+  // cue log a driver reads to prove the paper cues fire on the player's turn.
+  let cuesSuppressed = false;
   const play = (name) => {
+    if (cuesSuppressed) return;
     cueLog.push(name);
     if (cueLog.length > 64) cueLog.shift();
     if (sfx) sfx(name);
@@ -2219,6 +2224,98 @@ export function createLedgerBook({ THREE, state, anchor, counterTop, camera = nu
     leafPivot.visible = wasLeaf;
     visualPrewarmed = true;
     return true;
+  }
+
+  // ROUND 7 — DO THE GESTURE, rather than approximate it.
+  //
+  // prewarmVisual above reveals the open subtree and compiles against it, and
+  // that is an APPROXIMATION OF A DRAW: it reproduces the object's visibility
+  // but not the render context the turn actually runs in. The owner's diagnosis
+  // is the one that held up -- "the only thing that compiles the program my turn
+  // needs is my turn."
+  //
+  // So this opens the book and turns a page, for real, through the same
+  // advance()/turnPage()/update() the E key drives, with the caller rendering a
+  // real composer frame at each step. Whatever the turn needs -- programs,
+  // buffers, canvas uploads -- is paid here, behind the veil.
+  //
+  // The three objections prewarmVisual was written to avoid are answered rather
+  // than dodged: the paper cue is suppressed for the duration, the book's pose
+  // is captured and restored, and the restore runs in a `finally` so a throw
+  // mid-gesture cannot leave a half-swung book for the veil to lift on.
+  //
+  // drawFrame() is supplied by the caller because only courseScene knows how a
+  // real frame is submitted (the composer, with the water-reflection guard).
+  let gesturePrewarmed = false;
+  function prewarmGesture(drawFrame) {
+    if (gesturePrewarmed || typeof drawFrame !== 'function') return false;
+    if (carried) return false;
+    gesturePrewarmed = true;
+    const saved = {
+      position: root.position.clone(),
+      quaternion: root.quaternion.clone(),
+      rotationX: root.rotation.x,
+      spread,
+      deskSpot: deskSpot ? { ...deskSpot } : null,
+    };
+    cuesSuppressed = true;
+    // A book at the far end of the room is a book the frustum throws away, and a
+    // draw that never happens warms nothing. Same reason the hidden-objects
+    // phase drops culling for its warm frame.
+    const culled = [];
+    root.traverse((object) => {
+      if (object.isMesh && object.frustumCulled) { culled.push(object); object.frustumCulled = false; }
+    });
+    try {
+      // 1. open it. advance() is the E key's own path: closed -> raising ->
+      //    opening -> open, one press per step.
+      for (let guard = 0; guard < 24 && bookState !== 'open'; guard += 1) {
+        if (bookState !== 'opening' && bookState !== 'closing') advance();
+        update(0.34);
+        drawFrame();
+      }
+      // 2. turn a page, drawn ACROSS the flight. The leaf is only visible while
+      //    it is in the air, and its two faces present at different points of
+      //    the arc (the back face is not on screen until the flip passes 90
+      //    degrees), so one frame at one instant would warm one of them.
+      if (turnPage(1)) {
+        for (let step = 0; step < 5 && leaf; step += 1) {
+          update(LEAF_SECONDS * 0.24);
+          drawFrame();
+        }
+        update(LEAF_SECONDS);
+      }
+      // 3. and back, which is the other rotation direction and the other pair of
+      //    face-to-canvas bindings.
+      if (turnPage(-1)) {
+        for (let step = 0; step < 4 && leaf; step += 1) {
+          update(LEAF_SECONDS * 0.3);
+          drawFrame();
+        }
+        update(LEAF_SECONDS);
+      }
+    } catch {
+      // A book that will not open behind the veil must not stop the load; the
+      // player simply pays the first-open cost they paid before this existed.
+      gesturePrewarmed = 'failed';
+    } finally {
+      // Hard restore, not an unwind: whatever state the gesture reached, the
+      // book is closed, on its desk spot, at spread zero, before the veil lifts.
+      leaf = null;
+      turnDeferred.length = 0;
+      bookState = 'closed';
+      stateT = 0;
+      applyClosedPose();
+      root.position.copy(saved.position);
+      root.quaternion.copy(saved.quaternion);
+      root.rotation.x = saved.rotationX;
+      deskSpot = saved.deskSpot;
+      readingLight.intensity = 0;
+      if (spread !== saved.spread) { spread = saved.spread; paintSpread(); }
+      for (const object of culled) object.frustumCulled = true;
+      cuesSuppressed = false;
+    }
+    return gesturePrewarmed === true;
   }
 
   function setOpen(next) {
@@ -2687,6 +2784,7 @@ export function createLedgerBook({ THREE, state, anchor, counterTop, camera = nu
     advance,
     prewarm,
     prewarmVisual,
+    prewarmGesture,
     isOpen,
     isInHand,
     setCarried,

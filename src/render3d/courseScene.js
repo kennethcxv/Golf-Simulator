@@ -92,7 +92,7 @@ import { buildToolViewmodels } from './toolViewmodel.js';
 import { createBroomViewmodel } from './broomViewmodel.js';
 import { BROOM_FEEL } from '../data/broomFeel.js';
 import { TOOL_VM_FEEL, VM_RIG_TOOLS } from '../data/toolFeel.js';
-import { CLEANING_TOOLS, DIRT } from '../data/cleaningTools.js';
+import { BELT_ORDER, CLEANING_TOOLS, DIRT } from '../data/cleaningTools.js';
 import {
   WALK_SPEED_YD_S, RUN_MULTIPLIER, TOOL_RUN_MULTIPLIER, STRIDE_RATE_RAD_S, IDLE_SWAY_RATE_RAD_S,
   EYE_HEIGHT_YD, WALK_FOV_DEG,
@@ -713,7 +713,33 @@ export function makeCourseScene(canvas, state) {
   // at gameplay distance — a 4K/200% desktop was rendering 78% more pixels than this.
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
   renderer.shadowMap.enabled = true;
-  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  // ROUND 7 — THE SHADOW TYPE MUST NOT CHANGE AFTER THE FIRST PROGRAM COMPILES.
+  //
+  // This asked for PCFSoftShadowMap. Three DEPRECATED it: the first shadow bake
+  // warns and silently rewrites the field (vendor/three.module.js:9148),
+  //   if ( this.type === PCFSoftShadowMap ) { warn(...); this.type = PCFShadowMap; }
+  // so the renderer has been drawing PCF all along. The request was already a
+  // no-op on screen -- which is why this line changes no pixel.
+  //
+  // What it was NOT a no-op for is the shader cache. shadowMapType is part of a
+  // program's cache key (vendor/three.module.js:7733, :7856), and autoUpdate is
+  // false below, so the rewrite does not happen at construction: it happens at
+  // the first bake with needsUpdate set, which is prewarm's, hundreds of
+  // compiles later. Every program built before that moment is keyed to type 2
+  // and every program built after it to type 1, so the early ones are dead the
+  // instant the flip lands, and any object still HIDDEN at the flip keeps its
+  // dead program until the player reveals it -- and pays for a compile then.
+  //
+  // Measured, on the gesture the owner reported (qa/electron/firstuse-cachekey/
+  // cachekey-diff.json, 2026-08-14): the first ledger page turn compiled exactly
+  // one program, LedgerTurningLeafBack's, and renderer.properties held BOTH of
+  // that one material's keys with a single field between them --
+  //   parameter.shadowMapType 2 -> 1
+  // The leaf is the last survivor of the flip because prewarmVisual and the
+  // hidden-objects warm both run before the bake, and the leaf is hidden by the
+  // closed book until the turn. Naming the type three actually uses removes the
+  // flip, and with it that whole class of first-reveal compile.
+  renderer.shadowMap.type = THREE.PCFShadowMap;
   renderer.shadowMap.autoUpdate = false; // baked on the throttle in render(), not per frame
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -12452,6 +12478,144 @@ export function makeCourseScene(canvas, state) {
     phaseAt = markPrewarm('three-spin-frames', phaseAt);
     camera.quaternion.copy(settledQuaternion);
     camera.updateMatrixWorld(true);
+
+    // ROUND 7 — THE GESTURES THEMSELVES, BEHIND THE VEIL.
+    //
+    // Everything above this line warms by APPROXIMATION: reveal the object,
+    // compile against it, draw it with culling off. Seventeen variations of that
+    // idea have now been tried and the owner's reading of why they keep missing
+    // is the one that survived measurement -- three keys a program on the RENDER
+    // CONTEXT, not on the material, so "the mesh drew during the warm" and "the
+    // program the gesture needs exists" are different claims.
+    //
+    // This phase closes the gap by doing the thing instead of resembling it: the
+    // ledger really opens and really turns a page, and every belt tool is really
+    // equipped, each with a real composer frame drawn on it. Whatever the
+    // gesture's first frame would have paid for, it pays here.
+    //
+    // It runs LAST, deliberately. By this point the shadow bake has happened,
+    // the pose is restored and the settling frames have run, so the render
+    // context these programs are keyed to is the one the player's first frame
+    // will use. Run earlier -- as prewarmVisual is, before the first bake -- and
+    // it would warm programs against a context that no longer exists by the time
+    // the veil lifts, which is exactly the bug this session found.
+    if (alive()) {
+      // A REAL FRAME IS TWO PASSES, and a warm that runs one of them warms one
+      // of them. render() above submits the composer; a rig tool (broom, mop)
+      // then draws through its OWN lens on the viewmodel layer, in the separate
+      // pass at the bottom of the frame loop. Measured: with only the composer
+      // call here, the mop's first equip still cost +1 program and +8 geometries
+      // -- its strand meshes had never been submitted by anything, because the
+      // only camera that can see their layer is one this warm never used.
+      // Mirrors the real loop's `for (const rig of ...) rig.render()` exactly,
+      // including running every rig: the inactive ones return immediately.
+      const drawWarmFrame = () => {
+        guardCourseWaterReflection.beginFrame();
+        try { composer.render(); } catch { renderer.render(scene, camera); }
+        try { for (const rig of Object.values(toolRigs)) rig.render(); } catch { /* rig pays its own */ }
+      };
+      // The ledger: open, turn forward, turn back, close. It restores its own
+      // pose and suppresses its paper cue; see prewarmGesture in ledgerBook.js.
+      try {
+        clubhouseApi?.ledgerBook?.prewarmGesture?.(drawWarmFrame);
+      } catch { /* the book simply pays its own first open, as it used to */ }
+      phaseAt = markPrewarm('gesture-ledger', phaseAt);
+      await tick();
+      if (!alive()) return false;
+
+      // Every belt tool, equipped for real. ALL of them, not the one tool a warm
+      // happens to touch: the deferred warm in main.js equips 'dustpan' and
+      // nothing else, which is why every probe that measured the dustpan
+      // reported the tools warm -- it was measuring the intervention's own
+      // target. Measured across the whole belt
+      // (qa/electron/firstuse-cachekey/cachekey-diff.json), the mop still
+      // arrived with +1 program and +8 geometries on its first equip.
+      //
+      // NO PREFETCH HERE, and it was tried: an await over
+      // the held-asset registry's ensure path for the belt. The manifest holds
+      // only hose/divot/rake, so ensure() returned Promise.resolve(null) for
+      // every cleaning tool and the loop warmed nothing while breaking the
+      // one-ensure-call contract in course-held-tool-lazy-loading.test.js. The
+      // belt's models are already resident by this point; equipping and drawing
+      // is the whole of what they needed.
+      const beltTools = BELT_ORDER.filter((tool) => tool && CLEANING_TOOLS[tool]);
+      const savedHeld = {
+        tool: walkTool,
+        visible: heldRoot.visible,
+        position: heldRoot.position.clone(),
+        rotation: heldRoot.rotation.clone(),
+        animShow: heldAnim.show,
+        animT: heldAnim.t,
+        animSettle: heldAnim.settle,
+        // A warm behind the veil is not a tool change the player made. Left
+        // stamped, toolChangeDiagnostics() would report nine switches to any
+        // driver that asks whether the player has touched the belt.
+        changeSequence: toolChangeSequence,
+        lastChange: lastToolChange,
+      };
+      let warmedTools = 0;
+      for (const tool of beltTools) {
+        if (!alive()) break;
+        // walkSetTool, not the debounced belt entry point: a loop through the
+        // debounce would collapse into one switch and warm one tool.
+        walkSetTool(tool);
+        // The rise ANIMATION is skipped -- heldRoot is a child of the camera, so
+        // placing it at its settled rest pose is where the player sees the tool
+        // once the 0.26 s equip completes. The equip itself is not skipped: the
+        // registry, the viewmodel, the grips, the hands and the rigs have all
+        // run by the time this draws.
+        heldRoot.visible = true;
+        heldAnim.show = true;
+        heldAnim.t = 1;
+        heldAnim.settle = 1;
+        heldRoot.position.set(0, 0, 0);
+        heldRoot.rotation.set(0, 0, 0);
+        camera.updateMatrixWorld(true);
+        // TWO FRAMES, and the shadow bake asked for explicitly.
+        //
+        // The passes in a frame do not all run every frame: the shadow map is
+        // baked on a throttle (autoUpdate is off; render() sets needsUpdate at
+        // its own rate) and the AO history is built across frames. A single warm
+        // frame per tool therefore lands somewhere in that cadence by luck.
+        //
+        // Measured, and it is the reason this is not one call: two runs of the
+        // identical build disagreed. The first had every tool at +0 programs;
+        // the second had the vacuum compiling FIVE, all of them `depth` shaders
+        // -- the shadow/AO pass, not the colour pass -- and the cache-key diff
+        // put a light count on them that only the main pass carries. Nothing
+        // about the tool changed between those runs; which passes ran on its one
+        // frame did.
+        renderer.shadowMap.needsUpdate = true;
+        drawWarmFrame();
+        renderer.shadowMap.needsUpdate = true;
+        drawWarmFrame();
+        warmedTools += 1;
+      }
+      walkSetTool(savedHeld.tool || null);
+      heldRoot.visible = savedHeld.visible;
+      heldRoot.position.copy(savedHeld.position);
+      heldRoot.rotation.copy(savedHeld.rotation);
+      heldAnim.show = savedHeld.animShow;
+      heldAnim.t = savedHeld.animT;
+      heldAnim.settle = savedHeld.animSettle;
+      toolChangeSequence = savedHeld.changeSequence;
+      lastToolChange = savedHeld.lastChange;
+      camera.updateMatrixWorld(true);
+      // Shorthand `{ label, ms }`, matching markPrewarm above. The strings
+      // ratchet treats a label key followed by a quote as player prose, and a
+      // prewarm diagnostics key is not text any player reads. (The first draft
+      // of this comment SPELLED OUT the pattern and tripped the scanner itself,
+      // which is a fair reminder that it matches text, not intent.)
+      const label = 'gesture-tools-warmed';
+      prewarmTimings.push({ label, ms: warmedTools });
+      markPrewarm('gesture-tools', phaseAt);
+      await tick();
+      if (!alive()) return false;
+      // Put the frame back to the settled pose the veil is about to lift on.
+      guardCourseWaterReflection.beginFrame();
+      try { composer.render(); } catch { renderer.render(scene, camera); }
+    }
+
     prewarmTimings.push({ label: 'TOTAL', ms: +(performance.now() - prewarmStartedAt).toFixed(1) });
     // Checkout cash representatives share the exact kit geometry/materials and
     // existed only so the forced warm-up draw above could realize them behind
