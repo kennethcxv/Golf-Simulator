@@ -1472,7 +1472,7 @@ function startGameNow(
           : `Course loading failed: ${String(error?.message || error)}`,
       });
     })
-    .finally(() => {
+    .finally(async () => {
       if (!prewarmSucceeded
         || app.scene3d !== sceneRef
         || generation !== sceneStartGeneration) return;
@@ -1502,7 +1502,8 @@ function startGameNow(
       // player's equip takes -- and the opaque veil is still covering the screen.
       // Not a seventeenth renderer.compile() configuration: nothing is described
       // to the renderer, a real tool is equipped and really drawn.
-      warmFirstPersonHands(sceneRef).finally(() => veil.hide());
+      await warmFirstPersonHands(sceneRef);
+      veil.hide();
       const notices = [degradedPrewarmNotice, loadNotice].filter(Boolean);
       if (notices.length) {
         setTimeout(() => {
@@ -1514,6 +1515,8 @@ function startGameNow(
     });
 }
 
+// full-screen loading veil (opaque — it also hides the prewarm camera swings)
+let loadVeil = null;
 // Equip a hands-drawing tool for a few real frames, then put it away. Guarded at
 // every step: a warm that throws must never be the reason the veil stays up.
 async function warmFirstPersonHands(sceneRef) {
@@ -1538,8 +1541,6 @@ async function warmFirstPersonHands(sceneRef) {
   }
 }
 
-// full-screen loading veil (opaque — it also hides the prewarm camera swings)
-let loadVeil = null;
 function ensureLoadVeil() {
   if (loadVeil) return loadVeil;
   const el = document.createElement('div');
