@@ -151,7 +151,27 @@ function reservationSettlementTarget(state, reservation, tx, checkInAmount, refe
   const paymentTotal = round2(reservation.payment?.total ?? reservation.fee ?? 0);
   const totalPaid = round2(details.priorPaid + details.checkInAmount);
   const amountDue = round2(Math.max(0, paymentTotal - totalPaid));
-  const checkedInAt = state.clock ? state.clock.minutes : null;
+  // P0 (Goal 25 round 3) — THE CHECK-IN THAT COULD ALMOST NEVER SUCCEED.
+  //
+  // This was the owner's "Checkout records are unavailable right now", found by
+  // running HIS OWN saved reservation through the shipped check-in:
+  //
+  //   clause 14: checkedInAt was 388.19651999997967, expected 388
+  //
+  // The ticket stamps its minute as `Math.round(state.clock.minutes)`
+  // (register.js:1135 and :1325). This stamped the RAW clock, which carries a
+  // fraction on essentially every frame. checkoutSettlement then requires
+  // `fields.checkedInAt === ticket.minute` exactly, so the settlement plan
+  // disagreed with its own ticket and the till refused the sale -- money taken,
+  // customer never released. It could only ever have succeeded on the vanishing
+  // set of frames where the world clock sat on an exact integer minute, which is
+  // why the suite never caught it: newGame starts on a whole minute and the
+  // tests do not advance time fractionally before checking someone in.
+  //
+  // Rounded the same way the ticket rounds, so the two agree by construction
+  // rather than by luck. These are minute stamps; they were never meant to carry
+  // a fraction of a simulated second.
+  const checkedInAt = state.clock ? Math.round(Number(state.clock.minutes)) : null;
   const checkIn = {
     ...(reservation.checkIn || {}),
     status: 'checked-in',

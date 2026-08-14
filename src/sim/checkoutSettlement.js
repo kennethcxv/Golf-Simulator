@@ -1295,7 +1295,29 @@ function reservationCustomerEventMatchesTicket(plan) {
     && stableSerialize(event.outcomes) === stableSerialize(['check-in']);
 }
 
+// P0 (Goal 25 round 3) — WHICH CLAUSE DISAGREED.
+//
+// The owner's crash.log finally named this refusal ("The pending checkout
+// reservation target disagrees with its ticket"), which is the whole point of
+// routing diagnostics to the log. But this predicate has fourteen ways to say
+// no and the message is the same for all of them, so it moved the problem from
+// 277 candidates to 14 rather than to 1.
+//
+// Each site now records its number. The caller appends it, so the next line in
+// his log reads `... disagrees with its ticket. [clause 7]` and points at one
+// comparison. Module-level and last-write-wins is fine: this is read
+// immediately by the caller on the failing path, single-threaded.
+let lastReservationTargetMismatch = 0;
+export function lastReservationTargetMismatchClause() {
+  return lastReservationTargetMismatch;
+}
+function targetMismatch(clause) {
+  lastReservationTargetMismatch = clause;
+  return false;
+}
+
 function reservationTargetMatchesTicket(plan) {
+  lastReservationTargetMismatch = 0;
   const target = plan.reservationTarget;
   const reservationKeys = [plan.ticketKey, ...(plan.alternateTicketKeys || [])]
     .filter((key) => key.kind === 'service' && key.type === RESERVATION_CHECK_IN_TYPE);
@@ -1303,7 +1325,7 @@ function reservationTargetMatchesTicket(plan) {
   if (!exactRecordKeys(target, [
     'reservationId', 'expected', 'fields', 'paymentExpected', 'paymentFields',
   ]) || typeof target.reservationId !== 'string' || !target.reservationId
-      || !isRecord(target.expected) || !isRecord(target.fields)) return false;
+      || !isRecord(target.expected) || !isRecord(target.fields)) return targetMismatch(1);
   const serviceKey = reservationKeys.length === 1 ? reservationKeys[0] : null;
   const expectedReferenceId = `reservation:${target.reservationId}:check-in`;
   const serviceTotal = ticketItemsTotal(ticketItemsByKind(
@@ -1312,7 +1334,7 @@ function reservationTargetMatchesTicket(plan) {
   ));
   if (!serviceKey || serviceKey.referenceId !== expectedReferenceId
       || serviceTotal == null
-      || !reservationCheckInServiceAuthorityMatchesTicket(plan)) return false;
+      || !reservationCheckInServiceAuthorityMatchesTicket(plan)) return targetMismatch(2);
 
   const fields = target.fields;
   const expected = target.expected;
@@ -1327,12 +1349,12 @@ function reservationTargetMatchesTicket(plan) {
     || hasOwn(expected, 'remainingBalance');
   if (expectedHasBalances
       && (!hasOwn(expected, 'balanceDue') || !hasOwn(expected, 'remainingBalance'))) {
-    return false;
+    return targetMismatch(3);
   }
   const expectedKeys = expectedHasBalances
     ? [...expectedBaseKeys, 'balanceDue', 'remainingBalance'] : expectedBaseKeys;
   if (!exactRecordKeys(expected, expectedKeys)
-      || expectedKeys.some((key) => !snapshotDescriptor(expected, key))) return false;
+      || expectedKeys.some((key) => !snapshotDescriptor(expected, key))) return targetMismatch(4);
 
   const partyExpected = snapshotDescriptor(expected, 'party');
   const fieldKeys = [
@@ -1343,32 +1365,32 @@ function reservationTargetMatchesTicket(plan) {
     ...(partyExpected.present ? ['party'] : []),
     ...(expectedHasBalances ? ['balanceDue', 'remainingBalance'] : []),
   ];
-  if (!exactRecordKeys(fields, fieldKeys)) return false;
+  if (!exactRecordKeys(fields, fieldKeys)) return targetMismatch(5);
 
   const statusExpected = snapshotDescriptor(expected, 'status');
   const feeExpected = snapshotDescriptor(expected, 'fee');
   const depositPaidExpected = snapshotDescriptor(expected, 'depositPaid');
   const depositReferenceExpected = snapshotDescriptor(expected, 'depositReferenceId');
   if (!statusExpected.present || statusExpected.value !== 'booked'
-      || !feeExpected.present || !validMoneyDelta(Number(feeExpected.value))) return false;
+      || !feeExpected.present || !validMoneyDelta(Number(feeExpected.value))) return targetMismatch(6);
   const depositPaid = depositPaidExpected.present
     ? Number(depositPaidExpected.value) : 0;
-  if (!validMoneyDelta(depositPaid)) return false;
+  if (!validMoneyDelta(depositPaid)) return targetMismatch(7);
   const depositReferenceId = depositReferenceExpected.present
     ? depositReferenceExpected.value : null;
   if (depositReferenceId !== null
-      && (typeof depositReferenceId !== 'string' || !depositReferenceId)) return false;
+      && (typeof depositReferenceId !== 'string' || !depositReferenceId)) return targetMismatch(8);
 
   const paymentKeys = ['total', 'amountPaid', 'amountDue', 'status', 'method', 'pending'];
   const hasPayment = target.paymentExpected !== null || target.paymentFields !== null;
-  if ((target.paymentExpected === null) !== (target.paymentFields === null)) return false;
+  if ((target.paymentExpected === null) !== (target.paymentFields === null)) return targetMismatch(9);
   let priorPaid = depositPaid;
   let paymentTotal = Number(feeExpected.value);
   let priorPaymentMethod = null;
   if (hasPayment) {
     if (!exactRecordKeys(target.paymentExpected, paymentKeys)
         || paymentKeys.some((key) => !snapshotDescriptor(target.paymentExpected, key))
-        || !exactRecordKeys(target.paymentFields, paymentKeys)) return false;
+        || !exactRecordKeys(target.paymentFields, paymentKeys)) return targetMismatch(10);
     const totalExpected = snapshotDescriptor(target.paymentExpected, 'total');
     const amountPaidExpected = snapshotDescriptor(target.paymentExpected, 'amountPaid');
     const amountDueExpected = snapshotDescriptor(target.paymentExpected, 'amountDue');
@@ -1380,11 +1402,11 @@ function reservationTargetMatchesTicket(plan) {
       ? Number(amountDueExpected.value) : round2(paymentTotal - canonicalPaid);
     if (!validMoneyDelta(paymentTotal) || !validMoneyDelta(canonicalPaid)
         || !validMoneyDelta(canonicalDue)
-        || round2(canonicalPaid + canonicalDue) !== paymentTotal) return false;
+        || round2(canonicalPaid + canonicalDue) !== paymentTotal) return targetMismatch(11);
     priorPaid = Math.max(priorPaid, canonicalPaid);
     priorPaymentMethod = methodExpected.present ? methodExpected.value : null;
     if (priorPaymentMethod !== null
-        && (typeof priorPaymentMethod !== 'string' || !priorPaymentMethod)) return false;
+        && (typeof priorPaymentMethod !== 'string' || !priorPaymentMethod)) return targetMismatch(12);
   }
   priorPaid = round2(priorPaid);
   const totalPaid = round2(priorPaid + serviceTotal);
@@ -1402,23 +1424,33 @@ function reservationTargetMatchesTicket(plan) {
       || details.depositReferenceId !== depositReferenceId
       || details.priorPaymentMethod !== priorPaymentMethod
       || String(details.reservationId) !== target.reservationId
-      || details.customerId !== (ticket.customerId ?? null)) return false;
+      || details.customerId !== (ticket.customerId ?? null)) return targetMismatch(13);
 
-  if (fields.status !== 'played'
-      || fields.reservationStatus !== 'played'
-      || fields.checkedInAt !== ticket.minute
-      || fields.checkInReferenceId !== expectedReferenceId
-      || fields.paymentMethod !== ticket.method
-      || Number(fields.paidAmount) !== serviceTotal
-      || Number(fields.totalPaid) !== totalPaid
-      || fields.paymentStatus !== 'paid'
-      || fields.currentDestination !== 'course'
-      || fields.arrivalStatus !== 'arrived'
-      || fields.checkInStatus !== 'checked-in'
-      || fields.checkInTransactionNumber !== plan.ticketNumber
-      || (expectedHasBalances
-        && (Number(fields.balanceDue) !== 0 || Number(fields.remainingBalance) !== 0))) {
-    return false;
+  // Clause 14 was one boolean over thirteen comparisons, so "clause 14" narrowed
+  // his failure to a paragraph rather than a line. Named checks cost nothing on
+  // the passing path (the array is only built when one of them is false) and
+  // turn the log line into the field that actually disagreed.
+  const fieldChecks = [
+    ['status', fields.status, 'played'],
+    ['reservationStatus', fields.reservationStatus, 'played'],
+    ['checkedInAt', fields.checkedInAt, ticket.minute],
+    ['checkInReferenceId', fields.checkInReferenceId, expectedReferenceId],
+    ['paymentMethod', fields.paymentMethod, ticket.method],
+    ['paidAmount', Number(fields.paidAmount), serviceTotal],
+    ['totalPaid', Number(fields.totalPaid), totalPaid],
+    ['paymentStatus', fields.paymentStatus, 'paid'],
+    ['currentDestination', fields.currentDestination, 'course'],
+    ['arrivalStatus', fields.arrivalStatus, 'arrived'],
+    ['checkInStatus', fields.checkInStatus, 'checked-in'],
+    ['checkInTransactionNumber', fields.checkInTransactionNumber, plan.ticketNumber],
+    ...(expectedHasBalances ? [
+      ['balanceDue', Number(fields.balanceDue), 0],
+      ['remainingBalance', Number(fields.remainingBalance), 0],
+    ] : []),
+  ];
+  const wrong = fieldChecks.find(([, got, want]) => got !== want);
+  if (wrong) {
+    return targetMismatch(`14:${wrong[0]} was ${JSON.stringify(wrong[1])}, expected ${JSON.stringify(wrong[2])}`);
   }
   if (!hasPayment) return true;
   const paymentMethod = serviceTotal > 0
@@ -1803,7 +1835,11 @@ function validatePlan(
     return { ok: false, reason: t('checkout.integrityUnavailable'), diagnostic: 'The pending reservation service authority is invalid.' };
   }
   if (!reservationTargetMatchesTicket(plan)) {
-    return { ok: false, reason: t('checkout.integrityUnavailable'), diagnostic: 'The pending checkout reservation target disagrees with its ticket.' };
+    return {
+      ok: false,
+      reason: t('checkout.integrityUnavailable'),
+      diagnostic: `The pending checkout reservation target disagrees with its ticket. [clause ${lastReservationTargetMismatchClause()}]`,
+    };
   }
   if (state != null && plan.reservationTarget != null) {
     const liveReservation = preflightReservationTarget(state, plan.reservationTarget);
