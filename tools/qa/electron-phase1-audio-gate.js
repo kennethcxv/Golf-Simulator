@@ -202,6 +202,31 @@ async (page) => {
   // "sampled" above is worthless. It should be AUDIBLE and NOT sampled.
   await cue('CONTROL_synthOnly_doorbell', () => sfx('doorbell'), 900);
 
+  // ---- 1.5: the music, which is a LIFETIME claim, not a loudness one ---------
+  //
+  // "not restarting on scene transitions" cannot be checked by hearing it once.
+  // So: is it up, how long has this ONE voice been running, and does asking it to
+  // start again restart it? A second start that reset the elapsed clock would be
+  // exactly the defect, and it is invisible to a level meter.
+  const musicBefore = await page.evaluate(() => ({
+    active: !!window.__fw?.audio?.musicActive?.(),
+    elapsed: window.__fw?.audio?.musicElapsed?.() ?? null,
+  }));
+  await page.evaluate(() => window.__fw?.audio?.musicStart?.());
+  await page.waitForTimeout(1200);
+  const musicAfter = await page.evaluate(() => ({
+    active: !!window.__fw?.audio?.musicActive?.(),
+    elapsed: window.__fw?.audio?.musicElapsed?.() ?? null,
+  }));
+  out.music = {
+    ...musicBefore,
+    elapsedAfterSecondStart: musicAfter.elapsed,
+    // elapsed must have GROWN across the redundant start, not reset to ~0
+    survivedRedundantStart: musicBefore.elapsed !== null && musicAfter.elapsed !== null
+      && musicAfter.elapsed > musicBefore.elapsed,
+  };
+  console.log('MUSIC', JSON.stringify(out.music));
+
   out.bank = await page.evaluate(() => window.__fw?.audio?.qaSampleBankDiagnostics?.() ?? null);
 
   const silence = out.cues.find((c) => c.label === 'CONTROL_silence');

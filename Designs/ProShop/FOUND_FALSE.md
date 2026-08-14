@@ -276,6 +276,50 @@ produces the same value as the defect it hunts, it cannot distinguish them, and
 a passing OR failing run means the same thing. `footfallDiagnostics().onFloor` —
 the number the arrival loop itself owns — is what it should have read.
 
+## SHAPE 13 — THE SPY ATTACHED TO A THING THAT DID NOT EXIST YET (Goal 26)
+
+Three times in one session, in three different audio probes, and every one
+reported the game as SILENT.
+
+A WebAudio context can only be created from a user gesture, so before the first
+press `audio.qaContext()` returns null. All three probes clicked something, waited
+a fixed number of milliseconds, and then attached their `createBufferSource` /
+`createOscillator` spy to whatever `qaContext()` gave them. It gave them null. The
+spy was never installed, every counter stayed at zero, and the run printed
+"0 sound events" for controls that were in fact making sound.
+
+> A PROBE THAT INSTALLED NOTHING REPORTS THE SAME AS A GAME THAT PLAYED NOTHING.
+> Wait for the thing you are about to instrument to EXIST, and make its absence a
+> loud abort — never a fixed timer and never an optional chain that shrugs.
+
+This is shape 10 wearing new clothes: the failure mode and the finding produce the
+same number, so a passing OR failing run means the same thing. The tell was that
+the bank reported 50 files loaded while every cue reported zero — two numbers from
+the same graph that could not both be true.
+
+## SHAPE 14 — elementFromPoint VOUCHED FOR A CLICK THAT LANDED SOMEWHERE ELSE (Goal 26)
+
+The menu-click inventory pressed each control with
+`page.mouse.click(centreX, centreY)` taken from `getBoundingClientRect`, and every
+enabled control came back silent while keyboard Enter worked. It looked like a
+menu bug and was not: the window runs at **devicePixelRatio 1.5**, the press
+landed off the button, and the `pointerdown` that arrived had target `DIV` with no
+button ancestor — so the menu's own `closest('button')` handler correctly declined
+to speak for it.
+
+`document.elementFromPoint` at those exact coordinates still answered
+`BUTTON.menu-action`.
+
+> elementFromPoint ANSWERS GEOMETRICALLY. It knows what is drawn at a point and
+> nothing whatsoever about where a synthetic press actually went. On a scaled
+> display the two disagree, and the geometric one is the liar.
+
+Note the irony worth remembering: elementFromPoint is the instrument this file
+already recommends for catching shape 6 (visible but not painted). Here it
+manufactured a false negative about a click. Click by ELEMENT HANDLE and let the
+driver compute the hit point; read `event.target` from a real listener when you
+need to know where a press landed.
+
 ## SHAPE 11 — MEASURING THE END OF A PROCESS TO DETECT ITS BEGINNING (Goal 25)
 
 "Did a customer arrive?" was implemented as "are there goods on the counter?"
