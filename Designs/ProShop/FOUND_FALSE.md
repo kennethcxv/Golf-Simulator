@@ -276,6 +276,50 @@ produces the same value as the defect it hunts, it cannot distinguish them, and
 a passing OR failing run means the same thing. `footfallDiagnostics().onFloor` —
 the number the arrival loop itself owns — is what it should have read.
 
+## SHAPE 15 — THE WORLD WAS CORRECT AND DOING NOTHING (Goal 26)
+
+Three findings were published this session about customer behaviour. All three
+were wrong, and all three had the same cause: the scenario was never actually
+running, and the game was behaving PERFECTLY CORRECTLY by doing nothing.
+
+| Claimed | Actually |
+|---|---|
+| "nobody walks in place" | the room was empty — the save resumes at 06:01 and moving the clock does not drive arrivals |
+| "customers never reach the queue" | they had a counter stop all along; `debugSpawn(true)` is a tee-time arrival that plans NO basket, so they had nothing to buy |
+| "the shop cannot make a retail sale" | the OPEN/CLOSED SIGN WAS SHUT. `shopAcceptsWalkIns = withinTradingHours && signIsOpen`, and when false every customer on the floor is routed straight to the exit |
+
+The third is the sharpest. A 20 Hz trace showed a shopper jumping from stop 0 to
+stop 6 — past `enter`, three fixtures and the counter — in **70 milliseconds**.
+Read as navigation, that is a catastrophic pathing fault. It is a closed shop,
+working exactly as designed. With `state.shop.signOpen = true` the same shopper
+browsed three fixtures, took three items and walked to the counter.
+
+> BEFORE CONCLUDING ANYTHING FROM NPC BEHAVIOUR, PROVE THE SCENARIO IS LIVE:
+> the shop is OPEN, the clock is inside trading hours, the population exists, and
+> the customers have a REASON to do the thing being measured. A correct game
+> doing nothing and a broken game produce the same empty numbers.
+
+The three staging facts a customer verifier needs here, none of which is obvious
+and two of which are invisible: **the owner's save** (a fresh profile has no
+route network), **trading hours on the clock**, and **the sign open**. Note also
+that `debugSpawn` does not set `scriptedVisit`, so a spawned shopper gets no
+exemption from the closing-time eviction that scripted visits are granted.
+
+## SHAPE 16 — CORRECT BEHAVIOUR COUNTED AS THE DEFECT (Goal 26)
+
+The walk-up metric counted "intended speed high, actual travel ~zero" as walking
+in place. On a working build it reported **59.6%**, which reads as catastrophic.
+
+Almost all of it was customers **standing in the queue** — which is what a queue
+is. The statistic could not tell a person waiting their turn from a person trying
+to walk and getting nowhere, and those are opposite verdicts on the same numbers.
+Split by queue state, the real figure was 7.62% approaching, against 11.68% on
+the unfixed build.
+
+> ASK OF ANY SYMPTOM METRIC: is there a state in which the thing I am counting is
+> the CORRECT behaviour? If so, the metric must exclude it, or a good build will
+> score worse than a bad one that never gets that far.
+
 ## SHAPE 13 — THE SPY ATTACHED TO A THING THAT DID NOT EXIST YET (Goal 26)
 
 Three times in one session, in three different audio probes, and every one
