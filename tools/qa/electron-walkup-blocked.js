@@ -149,7 +149,12 @@ async (page) => {
     try { ch.clearWalkins?.(); } catch { /* older builds */ }
     const made = [];
     for (let i = 0; i < 4; i += 1) {
-      try { made.push(!!ch.debugSpawn?.(true)); } catch (e) { made.push(String(e.message)); }
+      // debugSpawn(TRUE) is a tee-time arrival and deliberately plans NO basket
+      // (clubhouse.js: `plansBasket = !toCounter && ...`), so those customers pass
+      // the till with nothing to buy and leave -- which is correct behaviour and
+      // which cost me a false finding. A RETAIL shopper is debugSpawn(false):
+      // they browse fixtures, fill a cart and therefore actually queue.
+      try { made.push(!!ch.debugSpawn?.(false)); } catch (e) { made.push(String(e.message)); }
     }
     return { made, onFloor: (ch.qaCustomerTrack?.() || []).length };
   });

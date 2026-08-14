@@ -495,6 +495,38 @@ carts, not just customers. That is a staging requirement to solve before any
 queue behaviour can be measured at all — and it would have produced a confident,
 completely false finding about the queue if the route had not been recorded.
 
+### The staging recipe Phase 3 should start from
+
+`plansBasket = !toCounter && rng.chance(0.62)` in `clubhouse.js` — so:
+
+- **`debugSpawn(true)`** is a tee-time arrival and deliberately plans **no
+  basket**. Correct for desk business; useless for a queue test.
+- **`debugSpawn(false)`** is a retail shopper: browses fixtures, fills a cart,
+  and therefore has a reason to queue. **This is the one a queue verifier wants.**
+- `setCombinedVisitChance(1)` forces the buy-and-book path if both are needed.
+
+### One measured, honestly incomplete observation
+
+Re-run with four **retail** shoppers on the fixed build:
+
+| | value |
+|---|---|
+| routes | `walk>enter>fixture×2-4>counter>exit>gone` |
+| walk-in-place frames | **37** (3.78 %) |
+| reached the queue | **0 of 4** |
+| travel each | 23.7 – 30.7 yd |
+
+So retail shoppers *do* browse fixtures and *do* carry a counter stop, and there
+is **residual walk-in-place that the 2.1 fix does not account for** — 2.1 removed
+the player's body as a cause and this is something else.
+
+**What I cannot yet say** is whether they ever held goods. My probe recorded the
+*last* cart value rather than the maximum, and the cart is surrendered on exit,
+so `cart: 0` at the end is consistent both with "never picked anything up" and
+with "bought nothing and left". That distinction decides whether the residual is
+a navigation fault or correct behaviour, and I am not guessing at it. Fixing the
+probe to record max-cart is the first task of Phase 3.
+
 ## What is now unblocked
 
 `clubhouse.debugSpawn(true)`, `clearWalkins()` and `setOrganicWalkins(false)` are
