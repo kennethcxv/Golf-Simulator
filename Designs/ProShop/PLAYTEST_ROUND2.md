@@ -222,11 +222,30 @@ is cheap but not quite free.
 The program delta is what makes this a cause rather than a symptom: 8 programs
 arrive on that frame and never again.
 
-**No seventeenth `renderer.compile()` configuration was attempted.** The fix this
-measurement points at is a real DRAW of the hands behind the loading veil, in the
-interior light set, using the same save-force-restore pattern the prewarm already
-uses for the shop floor. **Not implemented** — I ran out of session, and a botched
-prewarm breaks boot for everyone.
+**No seventeenth `renderer.compile()` configuration was attempted.** I tried the
+different mechanism instead — a real DRAW of the hands behind the loading veil,
+equipping through the shipped `walkSetTool` inside the interior warm so the light
+layers, grips and viewmodel activation would all be the real ones.
+
+**It did not work, and I reverted it.**
+
+| | dustpan first-equip | programs | broom after |
+|---|---|---|---|
+| before the warm | 282.4 ms | +8 | 101.7 ms |
+| **with the hands warm** | **315.2 ms** | **+8** | **980.9 ms** |
+
+The warm compiled exactly **one** extra program, not eight, so the hands were
+never actually drawn by that forced frame — equipping a tool is not sufficient to
+put them on screen during prewarm, and something about it made the broom's own
+first equip nearly ten times worse. Reverted by file copy with the revert
+asserted to have changed the file.
+
+What that failure narrows down: the hands do not draw from a forced composer
+frame merely because a tool is equipped. The next attempt needs to find what else
+the viewmodel pass requires (a `walk.active` update tick, the rig's own
+`setActive`, or the `BROOM_FEEL.camera.layer` sweep) and prove the hands are on
+screen in that frame **before** measuring whether it helped. The attempt is kept
+at `scratchpad/courseScene-handswarm-attempt.js`.
 
 Your "about 5 seconds" is longer than my 282 ms. On your machine, at 4K, with a
 fuller room, the same eight compiles will cost more than they do here — but I am
@@ -308,7 +327,9 @@ that is one number and I will not sweep it.
 
 - **The 277-cause error message.** The real P0 defect and the reason your next
   report will be as hard to act on as this one.
-- **The hands prewarm.** Diagnosed precisely, mechanism named, not implemented.
+- **The hands prewarm.** Diagnosed precisely; the draw-behind-the-veil attempt
+  failed and was reverted (see P2 above). Still the right direction, but the next
+  attempt must prove the hands are actually on screen in the warm frame first.
 - **Tab.** Not reproduced; needs one datum from you about whether the green
   scatter overview is what you are calling the test map.
 - Inherited lint ratchet red: 325 vs baseline 324, untouched by this block.
