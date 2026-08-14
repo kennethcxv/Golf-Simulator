@@ -143,12 +143,13 @@ async (page) => {
   // module already exposes for exactly this ("QA: force a walk-in"), and
   // setOrganicWalkins(false) keeps the population to the four being watched
   // instead of letting random traffic wander through the measurement.
+  await page.evaluate((n) => { window.__spawnCount = n; }, Number(process.env.WALKUP_SPAWN || 4));
   out.spawned = await page.evaluate(() => {
     const ch = window.__fw.scene3d.clubhouse();
     try { ch.setOrganicWalkins?.(false); } catch { /* older builds */ }
     try { ch.clearWalkins?.(); } catch { /* older builds */ }
     const made = [];
-    for (let i = 0; i < 4; i += 1) {
+    for (let i = 0; i < (window.__spawnCount || 4); i += 1) {
       // debugSpawn(TRUE) is a tee-time arrival and deliberately plans NO basket
       // (clubhouse.js: `plansBasket = !toCounter && ...`), so those customers pass
       // the till with nothing to buy and leave -- which is correct behaviour and
@@ -197,7 +198,8 @@ async (page) => {
             stats.set(c.id, {
               id: c.id, frames: 0, walkInPlace: 0, moved: 0, travel: 0,
               maxSpeedIntent: 0, reachedQueue: false, served: false, left: false,
-              reachedCounterStop: false, lastStopKind: null, route: null, cart: null,
+              reachedCounterStop: false, lastStopKind: null, route: null, cart: null, cartMax: 0,
+              minFixtureDist: null,
             });
           }
           const s = stats.get(c.id);
@@ -206,8 +208,18 @@ async (page) => {
           if (c.served) s.served = true;
           s.lastStopKind = c.stopKind;
           s.route = c.stopKinds;
+          // MAX, NOT LAST. The cart is surrendered on exit, so the final value is
+          // 0 for a shopper who bought nothing AND for one who never picked
+          // anything up -- and those are different findings. Recording the peak
+          // separates "never had goods" from "had goods and left with none".
           s.cart = c.cart;
+          s.cartMax = Math.max(s.cartMax || 0, c.cart || 0);
           if (c.stopKind === 'counter') s.reachedCounterStop = true;
+          if (c.stopKind === 'fixture' && Number.isFinite(c.targetDist)) {
+            s.minFixtureDist = Math.min(
+              s.minFixtureDist == null ? Infinity : s.minFixtureDist, c.targetDist,
+            );
+          }
           const intent = Math.hypot(c.vx || 0, c.vz || 0);
           s.maxSpeedIntent = Math.max(s.maxSpeedIntent, intent);
           if (p) {
@@ -234,6 +246,12 @@ async (page) => {
 
   const cs = out.track.customers || [];
   const withMotion = cs.filter((c) => c.frames > 20);
+  out.pickStats = await page.evaluate(() => {
+    const ch = window.__fw.scene3d.clubhouse();
+    return ch.qaPickStats ? ch.qaPickStats() : null;
+  });
+  console.log('PICK-STATS', JSON.stringify(out.pickStats));
+
   out.verdict = {
     samples: out.track.samples,
     customersSeen: out.track.seen,
@@ -249,6 +267,11 @@ async (page) => {
     worstCustomer: withMotion.slice().sort((a, b) => b.walkInPlace - a.walkInPlace)[0] || null,
     reachedQueue: withMotion.filter((c) => c.reachedQueue).length,
     reachedCounterStop: withMotion.filter((c) => c.reachedCounterStop).length,
+    everHeldGoods: withMotion.filter((c) => (c.cartMax || 0) > 0).length,
+    minFixtureDists: withMotion.map((c) => c.minFixtureDist),
+    arrivalRadius: 0.18,
+    gotWithinArrivalRadius: withMotion.filter((c) => (c.minFixtureDist ?? 99) < 0.18).length,
+    cartMaxes: withMotion.map((c) => c.cartMax || 0),
     routes: [...new Set(withMotion.map((c) => c.route))],
     lastStops: withMotion.map((c) => c.lastStopKind),
     leftWithoutQueueing: withMotion.filter((c) => c.left && !c.reachedQueue).length,

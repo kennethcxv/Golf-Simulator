@@ -10268,8 +10268,21 @@ export function makeClubhouse(ctx) {
     return true;
   }
 
+  // WHY DOES A SHOPPER LEAVE A STOCKED SHELF EMPTY-HANDED?
+  //
+  // Ten retail shoppers produced zero carts in a shop measured to hold 110 units
+  // across four browsable fixtures, and planOrganicOrder returned 2 picks on
+  // 12/12 live trials -- so the plan is sound and the EXECUTION is not. This
+  // function has five ways to decline and from outside they are indistinguishable;
+  // the counter names which one fired. Diagnostic only, never read by the game.
+  const pickStats = {
+    calls: 0, noSkus: 0, cartFull: 0, nothingStocked: 0, browseOnlyRoll: 0,
+    browseOnlyReplace: 0, shelfRefused: 0, took: 0,
+  };
   function customerPick(c, stop) {
-    if (!stop.skus || (c.targetCartSize && c.cart.length >= c.targetCartSize)) return;
+    pickStats.calls += 1;
+    if (!stop.skus) { pickStats.noSkus += 1; return; }
+    if (c.targetCartSize && c.cart.length >= c.targetCartSize) { pickStats.cartFull += 1; return; }
     const rng = rngOf(state);
     const stocked = stop.skus.filter((id) => {
       if (!state.shop.inventory[id] || state.shop.inventory[id].shelf <= 0) return false;
@@ -10277,6 +10290,7 @@ export function makeClubhouse(ctx) {
       return !c.hasBasket || basketCompatible(sku);
     });
     if (!stocked.length) {
+      pickStats.nothingStocked += 1;
       // bare display: they glance and move on — and someone occasionally says so
       c.emptyStops = (c.emptyStops || 0) + 1;
       if (rng.chance(0.18) && hooks.toast && walk.active && isInside(walk.x, walk.z)) {
@@ -10284,10 +10298,11 @@ export function makeClubhouse(ctx) {
       }
       return;
     }
-    if (stop.browseOnly && !rng.chance(0.55)) return;
+    if (stop.browseOnly && !rng.chance(0.55)) { pickStats.browseOnlyRoll += 1; return; }
     // Browse-only visitors may inspect and replace a unit: a visible shelf-count
     // beat with no sale. Planned buyers take exactly one unit at each stop.
     if (stop.browseOnly) {
+      pickStats.browseOnlyReplace += 1;
       const skuId = stocked[rng.int(stocked.length)];
       if (pickFromShelf(state, skuId).ok) {
         rebuildStock(); // the unit leaves the display while they look it over
@@ -10305,7 +10320,8 @@ export function makeClubhouse(ctx) {
     // journal does. Let the persisted held-unit allocator mint it; a local
     // renderer counter would restart and replay an old lot movement.
     const picked = pickFromShelf(state, skuId);
-    if (!picked.ok) return;
+    if (!picked.ok) { pickStats.shelfRefused += 1; return; }
+    pickStats.took += 1;
     const uid = picked.uid;
     const sku = SHOP_CATALOG.find((s) => s.id === skuId);
     c.cart.push({
@@ -12963,6 +12979,7 @@ export function makeClubhouse(ctx) {
     // while the crowd is told another; `qaCustomerTrack` reports each customer's
     // live position, intended velocity and queue state, which is what makes
     // "walking in place" (intent high, travel zero) expressible at all.
+    qaPickStats: () => ({ ...pickStats }),
     qaPlayerBlocksCustomers: () => playerBlocksCustomers(),
     qaCustomerTrack: () => customers
       .filter((c) => c && c.mesh && c.mesh.visible !== false)
@@ -12988,6 +13005,12 @@ export function makeClubhouse(ctx) {
         // browsing, or they walked past it -- and the route index separates them.
         stopIdx: c.stopIdx ?? null,
         stopKind: (c.stops && c.stops[c.stopIdx]) ? c.stops[c.stopIdx].kind : null,
+        // Distance to the CURRENT stop. The arrival test is `dist < 0.18`, and
+        // "they never arrived" is only meaningful next to how close they got.
+        targetDist: (c.stops && c.stops[c.stopIdx] && c.mesh)
+          ? +Math.hypot(c.stops[c.stopIdx].x - c.mesh.position.x,
+            c.stops[c.stopIdx].z - c.mesh.position.z).toFixed(3)
+          : null,
         stopKinds: Array.isArray(c.stops) ? c.stops.map((x) => x && x.kind).join('>') : null,
         cart: Array.isArray(c.cart) ? c.cart.length : null,
       })),
