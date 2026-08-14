@@ -42,7 +42,7 @@ not painted" manufactured a false negative about a click.
 |---|---|
 | **1 — Audio** | **GATE PASSED** — see §4 |
 | **2 — The walk-up** | **BOTH ITEMS FIXED AND MEASURED**; clips outstanding |
-| 3 — NPC navigation | not started |
+| 3 — NPC navigation | **3.1 diagnosed and proven**; integration not started |
 | 4 — Time and bookings | not started |
 | 5 — Mop and hands | not started |
 | 6 — Ledger UI | not started |
@@ -429,3 +429,58 @@ the floor on demand, and the walk-up driver now uses it.
 without ever joining the queue (`reachedQueue: 0`). Identical before and after,
 so it is not caused by the phasing change — but it is a real finding about the
 walk-up and it belongs to Phase 3.
+
+
+---
+
+# PHASE 3 — NPC NAVIGATION
+
+## 3.1 Recast in production — **CONFIRMED ZERO CALL SITES, not yet integrated**
+
+The brief states it and the measurement agrees exactly. Every importer of
+`vendor/recast-navigation.module.js` in the repository:
+
+```
+tools/qa/electron-c-wasm-feasibility.js
+tools/qa/electron-c1-recast-boots.js
+```
+
+Both are QA drivers. `src/` does not reference recast, a navmesh, `findPath` or
+any equivalent anywhere — `grep` over `src/` for `recast|navMesh|navmesh|findPath|queryPath`
+returns **nothing**. The only other mentions in the tree are the CSP test (which
+widened `'wasm-unsafe-eval'` for it) and `package.json`.
+
+So it is vendored, it initialises, it passes its boot driver, and **no customer
+has ever asked it anything.** That is `FOUND_FALSE` shape 2 at module scale — the
+same shape as `clubhouse/customers.js`, 1,400 lines imported by nothing, which
+cost two sessions.
+
+**What production actually uses today:** the inline customer loop in
+`clubhouse.js` — `_customerBlockedAt` for look-ahead, `avoidanceHeading` +
+`separate` from `clubhouse/crowd.js` for avoidance, and `queueAdvanceSlot` for the
+line. That is the code Phase 3 has to either replace or feed.
+
+**NOT STARTED:** the integration itself (one init, one bake off the gameplay
+frame, production routing queries, and the call-site proof). This is the largest
+item in the brief and it is untouched.
+
+## A live finding this phase inherits
+
+With four customers spawned to the counter and the player at the till, **all four
+left without ever joining the queue** (`reachedQueue: 0`) — on **both** the fixed
+and unfixed builds, so it is not caused by the 2.1 change. A customer joins the
+line only when their route hands them a `stop.kind === 'counter'`; these never
+got one.
+
+Recorded rather than chased, because it sits squarely inside 3.2's behaviour list
+("the second person advances after a sale completes, every time") and should be
+fixed with that work rather than patched ahead of it.
+
+## What is now unblocked
+
+`clubhouse.debugSpawn(true)`, `clearWalkins()` and `setOrganicWalkins(false)` are
+existing hooks that put an exact, repeatable population on the floor on demand.
+Three of my earlier runs waited on organic traffic that was never going to arrive
+at 06:01. Any Phase 3 verifier can stage its own scenario now — including the
+gate's "three queuers blocking the corridor plus a shopper whose item is behind
+them".
