@@ -11424,6 +11424,12 @@ export function makeClubhouse(ctx) {
   // "recast is enabled" is not evidence that a customer ever asked it anything.
   const recastNav = createRecastNav();
   let recastRoutesServed = 0;
+  // 3.3: how many agents took a ladder rung on ONE frame. The peak is the whole
+  // point -- a total says nothing about whether they were spread out.
+  let navRepathsThisFrame = 0;
+  let navRepathPeakPerFrame = 0;
+  let navRepathFramesWithAny = 0;
+  let navRepathTotal = 0;
   let recastRoutesFallenBack = 0;
   let recastBakeResult = null;
 
@@ -11661,6 +11667,11 @@ export function makeClubhouse(ctx) {
         }
       }
     }
+
+    // 3.3: one frame's worth of ladder rungs. Reset here, read after the loop,
+    // so the peak is a real per-frame number rather than a running total that
+    // any spread of repaths would produce.
+    navRepathsThisFrame = 0;
 
     for (let i = customers.length - 1; i >= 0; i--) {
       const c = customers[i];
@@ -12274,8 +12285,41 @@ export function makeClubhouse(ctx) {
           // F2: a wrong ROUTE gets acted on within ~a beat of the 1 s verdict;
           // a displacement scrape keeps the patient 3 s gate (its sidesteps
           // are cheap but jittery when too eager).
-          const ladderGate = verdict.reason === 'no-progress' ? 0.35 : 3.0;
+          let ladderGate = verdict.reason === 'no-progress' ? 0.35 : 3.0;
+          // 3.3 (Goal 26) — "BOUNDED REPATH TIMING WITH JITTER SO AGENTS DO NOT
+          // ALL REPATH ON ONE FRAME."
+          //
+          // Without this they do, and the case is not hypothetical: when the
+          // player stands in the corridor, every shopper behind them stops
+          // making progress within a few frames of each other, so every one of
+          // them crosses the same 0.35 s gate on the same frame and the whole
+          // queue repaths at once. One recast query is 0.135 ms; eight on one
+          // frame is a visible hitch on the frame a player is already annoyed.
+          //
+          // The offset is DERIVED FROM THE CUSTOMER ID, not random: a random
+          // offset re-rolled per frame would smear the gate rather than stagger
+          // it, and two runs of the same scenario would not be comparable.
+          if (c.repathJitter === undefined) {
+            // A MIXING hash, not `h * 31 + ch`. Customer ids here are sequential,
+            // and the classic string hash maps sequential inputs to sequential
+            // outputs: measured, seven customers came out at 0.120, 0.121, 0.121,
+            // 0.122, 0.122, 0.122, 0.123 -- a three-millisecond spread wearing
+            // the name "jitter". The avalanche step is what makes ids that
+            // differ by one character land far apart.
+            let h = 2166136261;
+            const id = String(c.customerId || '');
+            for (let i = 0; i < id.length; i += 1) {
+              h ^= id.charCodeAt(i);
+              h = Math.imul(h, 16777619);
+            }
+            h ^= h >>> 15; h = Math.imul(h, 2246822507);
+            h ^= h >>> 13; h = Math.imul(h, 3266489909);
+            h ^= h >>> 16;
+            c.repathJitter = ((h >>> 0) / 4294967296) * 0.4;
+          }
+          ladderGate += c.repathJitter;
           if (c.stuckT > ladderGate) {
+            navRepathsThisFrame += 1;
             c.stuckEscalation = (c.stuckEscalation || 0) + 1;
             // G10: "Not a nudge, not a repath along the same line: a genuinely
             // different path, and if none exists, they abandon that stop."
@@ -12362,6 +12406,16 @@ export function makeClubhouse(ctx) {
         }
       }
       c.mesh.position.y = groundYAt(c.mesh.position.x, c.mesh.position.z) ?? heightAt(c.mesh.position.x, c.mesh.position.z);
+    }
+
+    // 3.3: roll the frame up. navRepathPeakPerFrame is the number that says
+    // whether the jitter works -- eight agents each taking a rung on their own
+    // frame and eight taking one together produce the same total and very
+    // different frames.
+    if (navRepathsThisFrame > 0) {
+      navRepathFramesWithAny += 1;
+      navRepathTotal += navRepathsThisFrame;
+      if (navRepathsThisFrame > navRepathPeakPerFrame) navRepathPeakPerFrame = navRepathsThisFrame;
     }
     // AFTER everyone has moved, not during: this is the pass that guarantees no
     // two people are left standing inside each other, whatever order the pool
@@ -13081,6 +13135,26 @@ export function makeClubhouse(ctx) {
     // 3.1: the bake must never happen on a gameplay frame, so it is exposed for
     // a driver to await rather than being polled for.
     qaRecastBake: () => bakeRecastOnce(),
+    // 3.3: the repath spread. Reset so a driver can measure one staged scenario
+    // rather than everything since boot.
+    qaNavRepath: () => ({
+      peakPerFrame: navRepathPeakPerFrame,
+      framesWithAny: navRepathFramesWithAny,
+      total: navRepathTotal,
+      meanPerActiveFrame: navRepathFramesWithAny
+        ? +(navRepathTotal / navRepathFramesWithAny).toFixed(2) : 0,
+      // keyed by customer, because the LIST changes between two reads as people
+      // arrive and leave -- comparing two arrays positionally reported the jitter
+      // as unstable when it was the population that had moved, not the values.
+      jitters: customers
+        .filter((c) => c.repathJitter !== undefined)
+        .map((c) => ({ id: String(c.customerId), j: +c.repathJitter.toFixed(4) })),
+    }),
+    qaNavRepathReset: () => {
+      navRepathPeakPerFrame = 0;
+      navRepathFramesWithAny = 0;
+      navRepathTotal = 0;
+    },
     qaPickStats: () => ({ ...pickStats }),
     qaPlayerBlocksCustomers: () => playerBlocksCustomers(),
     qaCustomerTrack: () => customers
