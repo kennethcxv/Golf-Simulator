@@ -35,10 +35,12 @@ TINES = 15
 TINE_LEN = 0.038
 TINE_ROOT = 0.013
 SHAFT_ANGLE = 42.0               # off vertical, as the reference shows
-SHAFT_LEN = 0.520                # a stub: the rest is out of frame in the viewmodel
+# A FULL shaft, not a viewmodel stub. Two hands have to land on this tool and
+# the sockets have to be somewhere real, so the shaft runs its whole length.
+SHAFT_LEN = 1.150
 
 
-def build(broken=False):
+def build(broken=""):
     parts = {}
 
     # ---- the head: a bar with a smoothing blade sweeping back off it. The blade
@@ -73,7 +75,7 @@ def build(broken=False):
         u = (i + 0.5) / TINES
         x = (u - 0.5) * (HEAD[0] - 0.028)
         top = Vector((x, -0.004, -HEAD[2] * 0.5 + TINE_ROOT))
-        if broken:
+        if broken == "tines":
             # THE DELIBERATELY BROKEN VARIANT: every tine dropped clear of the
             # head. This is the fault that is in the game right now, and the
             # rooting assertion has to catch it. Note the sign -- the head is
@@ -96,9 +98,32 @@ def build(broken=False):
     ], "RakeFerrule")
     parts["ferrule"] = ferrule
 
-    shaft = HS.cylinder("RakeShaft", root + axis * (0.062 + SHAFT_LEN * 0.5),
-                        0.0138, SHAFT_LEN, verts=16, rotation=rot)
+    # TAPERED, thick at the ferrule and thinner at the grip, which is how a
+    # rake shaft is actually turned
+    shaft = HS.prism("RakeShaft", root + axis * 0.062, axis, SHAFT_LEN,
+                     0.0150, 0.0118, sides=16)
     parts["shaft"] = shaft
+
+    # ---- the moulded end grip
+    top = root + axis * (0.062 + SHAFT_LEN)
+    grip = HS.join([
+        HS.cylinder("GripBody", top - axis * 0.088, 0.0172, 0.176,
+                    verts=14, rotation=rot),
+        HS.cylinder("GripFlare", top - axis * 0.008, 0.0196, 0.020,
+                    verts=14, rotation=rot),
+        HS.cylinder("GripCollar", top - axis * 0.174, 0.0158, 0.014,
+                    verts=14, rotation=rot),
+    ], "RakeGrip")
+    parts["grip"] = grip
+
+    # ---- THE SOCKETS. 0.81 is the measured distance the rake's hands sit from
+    # the rake today, when gripsFor() falls through to LEGACY_GRIPS. The control
+    # reproduces that exact fault rather than inventing one.
+    stray = Vector((0.81, 0, 0)) if broken == "socket" else Vector((0, 0, 0))
+    parts["sock_primary"] = H.socket("SOCKET_GripPrimary",
+                                     top - axis * 0.070 + stray)
+    parts["sock_support"] = H.socket("SOCKET_GripSupport",
+                                     root + axis * (0.062 + SHAFT_LEN * 0.44))
 
     # Much rougher. The blade is a broad flat face and at 0.44 it caught the key
     # as a chrome strip along the top of the head, so a black plastic rake read
@@ -107,6 +132,7 @@ def build(broken=False):
     metal = HS.pbr("RakeFerrule", (0.018, 0.018, 0.020), roughness=0.52, metallic=0.5)
     wood = HS.pbr("RakeShaft", (0.098, 0.030, 0.014), roughness=0.66)
     head.data.materials.append(poly)
+    grip.data.materials.append(poly)
     for t in tines:
         t.data.materials.append(poly)
     ferrule.data.materials.append(metal)
@@ -117,8 +143,9 @@ def build(broken=False):
 def main():
     args = H.argv_after_dashes()
     engine = "CYCLES" if "cycles" in args else "EEVEE"
-    broken = "break-tines" in args
-    suffix = "-BROKEN" if broken else ("-eevee" if engine == "EEVEE" else "")
+    broken = next((x.split("=", 1)[1] for x in args if x.startswith("break=")),
+                  "tines" if "break-tines" in args else "")
+    suffix = f"-BROKEN-{broken}" if broken else ("-eevee" if engine == "EEVEE" else "")
 
     H.reset_scene()
     H.set_engine(engine, samples=160 if engine == "CYCLES" else 96)
@@ -130,7 +157,18 @@ def main():
     HS.assert_touching(p["shaft"], p["ferrule"],
                        "the shaft must be seated in the ferrule", max_gap=0.0015)
 
-    subject = [p["head"], p["ferrule"], p["shaft"]] + p["tines"]
+    # shaft-INTO-grip, not grip-into-shaft: the grip is a sleeve AROUND the
+    # shaft, so it is wider than its host and not one of its vertices lands
+    # inside. Fourth part on this project with that shape. The shaft's top end
+    # DOES land inside the grip, so that is the direction that measures it.
+    HS.assert_touching(p["shaft"], p["grip"], "the end grip must be on the shaft",
+                       max_gap=0.0025)
+    HS.assert_socket_at(p["grip"], p["sock_primary"],
+                        "the top hand closes on the end grip")
+    HS.assert_socket_at(p["shaft"], p["sock_support"],
+                        "the lower hand closes on the shaft")
+
+    subject = [p["head"], p["ferrule"], p["shaft"], p["grip"]] + p["tines"]
     print(f"TRIS {H.triangles(subject)} ({len(subject)} objects, 3 materials) "
           f"— the hand is 5,179")
     lo, hi = H.bounds(subject)
@@ -165,10 +203,12 @@ def main():
 
     if not broken and engine == "CYCLES":
         merged = HS.join(p["tines"], "RakeTines")
-        exportable = [p["head"], p["ferrule"], p["shaft"], merged]
-        H.bake_gltf_axis(exportable)
-        H.export_glb(exportable, OUT_GLB)
+        exportable = [p["head"], p["ferrule"], p["shaft"], p["grip"], merged]
+        socks = [p["sock_primary"], p["sock_support"]]
+        H.bake_gltf_axis(exportable + socks)
+        H.export_glb(exportable + socks, OUT_GLB)
         print(f"FINAL TRIS {H.triangles(exportable)}")
+        H.verify_sockets(OUT_GLB, ["SOCKET_GripPrimary", "SOCKET_GripSupport"])
 
 
 main()
