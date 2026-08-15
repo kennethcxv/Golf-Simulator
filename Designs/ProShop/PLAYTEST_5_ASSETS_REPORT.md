@@ -104,10 +104,33 @@ judging a new asset.** Modelling starts next.
 
 ---
 
-## 1. The hands — I CANNOT CONFIRM THE AUTHORED MODEL EVER REACHED THE GAME
+## 1. The hands — WIRED AND ADOPTED. (And the panic two sections down was wrong.)
 
-**Read this before the section below it, which was written on an assumption I have
-since disproved.**
+**RESOLVED: `contextIsolation: true`.** `main.cjs:170`. The renderer's app modules
+run in the ISOLATED world; `page.evaluate` runs in the MAIN world. `window.__fw`
+crosses because it is bridged deliberately. **A global set by module code does
+not.**
+
+So `__fwHandBuild`, `__fwHandLoad` and `__fwHandAdopt` reading null says nothing
+about whether that code ran — it says a module-set global is invisible from a
+driver, which is a harness fact and not a finding about the hand.
+
+I wrote a correction below saying I could not confirm the authored model reached
+the game. **That correction was itself wrong**, and I am leaving it in place rather
+than deleting it, because the reasoning is the useful part: an unconditional write
+reading null looked like proof the code never ran, and it was proof of a world
+boundary instead.
+
+**The adoption evidence stands.** Walking `FirstPersonRightHand` and reading what
+each mesh actually draws: **15 BufferGeometry against 4 CapsuleGeometry.** A purely
+procedural hand is capsules, spheres and cylinders — fifteen buffer geometries in
+it is the authored parts, arrived and drawing.
+
+**The harness rule this leaves behind:** a driver can only see globals it sets
+ITSELF, inside `page.evaluate`. Everything in this session that worked —
+`__st`, `__rt`, `__mop`, `__aud`, `__toolMeshes`, `__paintTool` — was set that way
+and is unaffected. To observe module state, read it off `window.__fw` or off the
+scene graph, never off a global the module wrote.
 
 I instrumented the loader to keep its error instead of discarding it, and to
 publish the outcome on `window` either way — loaded, threw, or failed. The probe
