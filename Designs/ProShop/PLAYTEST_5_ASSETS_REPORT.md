@@ -593,3 +593,37 @@ about the model rather than about the harness.
 
 Never suppress a command's output and then read a file it was supposed to write.
 Check the artefact's timestamp, or do not treat it as evidence.
+
+---
+
+## THE EXHIBIT, AND WHY THE FRAME IS STILL NOT GOOD ENOUGH TO JUDGE ON
+
+Took the acceptance shot at the default camera and two magnified exhibits at
+FOV 30 and FOV 18 — lens only, no transform touched, FOV restored and verified
+back at 66 afterwards. All three held the broom with 72 drawable meshes.
+
+Looking at the FOV 18 frame: the structure is right. Fingers wrapped round the
+shaft, thumb across, forearm running back and down. Nothing splayed, nothing
+detached, no capsule seams.
+
+**But it is still not a frame anyone can judge a model on, and the reason is the
+STAGE, not the lens.** Every shot in this report is taken at **6:01 AM on Day 1 in
+an unlit, "filthy" clubhouse.** The hand is in near-darkness at the bottom of the
+frame. Magnifying a dark subject gives a bigger dark subject.
+
+That is a fixable mistake and it is mine: earlier drivers in this session set the
+clock to 13:00 and called `applyTimeWeather` before shooting. `tool-photo.mjs`
+does not. It should — the acceptance camera can stay exactly as it is while the
+ROOM is lit, and then the comparison against a reference photographed in daylight
+is a fair one.
+
+### So the state of item 1, honestly
+
+- **Technically complete**: 16/16 parts adopted on both hands, verified by the
+  swap's own report, with the marker proving edits reach the build.
+- **Visually unjudged**: not because the model is unknown, but because every frame
+  of it was taken in the dark.
+
+The next step is one line in `tool-photo.mjs` — pin the clock to midday before the
+shutter — and then the question "does it look right" can finally be asked properly,
+of the hand and of the mop and broom after it.
