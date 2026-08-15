@@ -86,7 +86,32 @@ async (page) => {
     }
     const shapes = [...shapeCount.entries()].sort((a, b) => b[1] - a[1]);
 
+    // UV audit for the untextured Standards: they can join the unified slot
+    // shape only if every geometry that uses them carries a uv attribute
+    const untexturedUsers = new Map(); // material uuid -> { withUv, withoutUv }
+    for (const root of [ch.group, ch.interior, s3.scene].filter(Boolean)) {
+      root.traverse((o) => {
+        if (!o.isMesh || !o.material || !o.geometry) return;
+        for (const m of (Array.isArray(o.material) ? o.material : [o.material])) {
+          if (!m?.isMeshStandardMaterial) continue;
+          if (m.map || m.normalMap || m.roughnessMap || m.metalnessMap) continue;
+          const row = untexturedUsers.get(m.uuid) || { withUv: 0, withoutUv: 0 };
+          if (o.geometry.attributes?.uv) row.withUv += 1; else row.withoutUv += 1;
+          untexturedUsers.set(m.uuid, row);
+        }
+      });
+    }
+    let allUsersHaveUv = 0;
+    let someUserLacksUv = 0;
+    for (const row of untexturedUsers.values()) {
+      if (row.withoutUv === 0 && row.withUv > 0) allUsersHaveUv += 1;
+      else if (row.withoutUv > 0) someUserLacksUv += 1;
+    }
+
     return {
+      untexturedStandardMaterials: untexturedUsers.size,
+      untexturedAllUsersHaveUv: allUsersHaveUv,
+      untexturedSomeUserLacksUv: someUserLacksUv,
       programCount: programs.length,
       programsByFamilyTop: families.map(([k, n]) => ({ family: String(k).slice(0, 40), programs: n })),
       keyFieldSpreadTop: fieldSpread.slice(0, 12),

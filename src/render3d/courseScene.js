@@ -12164,13 +12164,27 @@ export function makeCourseScene(canvas, state) {
       const idNormal = identity(128, 128, 255);
       const idRough = identity(255, 255, 255);
       const idMetal = identity(255, 255, 255);
+      // Untextured Standards may join the unified shape ONLY when every mesh
+      // using them carries a uv attribute (a map on uv-less geometry samples
+      // undefined attributes). Census-audited: 433 of 465 qualify.
+      const untexturedUvOk = new Map();
+      scene.traverse((o) => {
+        if (!o.isMesh || !o.material || !o.geometry) return;
+        for (const m of (Array.isArray(o.material) ? o.material : [o.material])) {
+          if (!m || !m.isMeshStandardMaterial) continue;
+          if (m.map || m.normalMap || m.roughnessMap || m.metalnessMap) continue;
+          const has = !!o.geometry.attributes?.uv;
+          const prev = untexturedUvOk.get(m.uuid);
+          untexturedUvOk.set(m.uuid, prev === undefined ? has : (prev && has));
+        }
+      });
       let unified = 0;
       scene.traverse((o) => {
         if (!o.material) return;
         for (const m of (Array.isArray(o.material) ? o.material : [o.material])) {
           if (!m || !m.isMeshStandardMaterial || m.userData.__slotUnified) continue;
           const hasAny = !!(m.map || m.normalMap || m.roughnessMap || m.metalnessMap);
-          if (!hasAny) continue;
+          if (!hasAny && untexturedUvOk.get(m.uuid) !== true) continue;
           const hasAll = !!(m.map && m.normalMap && m.roughnessMap && m.metalnessMap);
           if (hasAll) continue;
           if (!m.map) m.map = idMap;

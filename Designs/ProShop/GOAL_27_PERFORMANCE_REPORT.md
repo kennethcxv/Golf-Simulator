@@ -275,10 +275,18 @@ stay untouched.
 - Golden gate: all 13 poses within budget, the world poses at literal 0.0
   diff. Pixels agree it changed nothing.
 
-The remaining physical-family spread (125) is side/alphaTest/vertexColors/
-geometry-shape driven; the next cuts there need per-case judgment
-(double-sided is semantic, alphaTest is semantic). The untextured 370
-could join the unified shape only after a UV audit of their geometry.
+**Round two — the untextured join.** The census gained a per-material UV
+audit: 433 of 465 untextured Standards have a uv attribute on every mesh
+that uses them, so they join the unified shape too (the 32 with a UV-less
+user stay out). Verified the same two ways: **programs 214 → 193, physical
+family 125 → 107**; goldens 13/13 with world poses at literal zero;
+one-pixel control alive.
+
+**Tonight's cumulative program cut: 256 → 193 (−25%); the physical family
+167 → 107 (−36%)** — at the measured per-program rates that is ≈4.4 s off
+a true first-ever boot and ≈2.4 s off a driver-warm cold boot, before any
+scheduling change. The remaining spread is side/alphaTest/vertexColors/
+geometry-shape driven — semantic, per-case judgment territory.
 
 ## THE MEASUREMENT ENVIRONMENT DEGRADED — later numbers are contaminated
 
