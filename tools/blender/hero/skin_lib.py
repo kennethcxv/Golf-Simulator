@@ -142,6 +142,257 @@ def assert_digits_do_not_interpenetrate(sk, groups, tolerance=0.25):
     print(f"  interpenetration assertion passed across {len(names)} digits")
 
 
+def conform_to_cylinder(obj, origin, direction, radius, epsilon=0.00012):
+    """Press the grip onto the handle: any vertex inside the cylinder moves out
+    to its surface.
+
+    A single solve margin cannot give both zero penetration and zero daylight,
+    because the skinned surface bulges past the skeleton segment by different
+    amounts at different joints -- back it off enough to clear the shaft
+    everywhere and the middle and ring fingers sit 3 mm off it.
+
+    Flesh does not have that problem. A real grip flattens the finger pads
+    against the handle, so the fingers are solved slightly CLOSED and the skin is
+    then conformed to the cylinder. The result is contact patches where the pads
+    press, which is what the reference photograph shows, and it satisfies both
+    assertions by construction rather than by tuning between them.
+    """
+    direction = direction.normalized()
+    moved = 0
+    for v in obj.data.vertices:
+        d = v.co - origin
+        along = direction * d.dot(direction)
+        radial = d - along
+        r = radial.length
+        if 1e-6 < r < radius + epsilon:
+            v.co = origin + along + radial * ((radius + epsilon) / r)
+            moved += 1
+    obj.data.update()
+    return moved
+
+
+def relax(obj, factor=0.42, iterations=2):
+    """Even out a surface that has just been pushed around.
+
+    conform_to_cylinder moves every vertex inside the handle out to its surface
+    and leaves the ones just outside where they were, so the boundary of each
+    contact patch becomes a step -- which reads as a jagged, chipped silhouette
+    edge exactly where the hand meets the pole. Relaxing afterwards blends the
+    patch into the surrounding skin; the conform is then run a second time,
+    because relaxing can push a vertex back inside.
+    """
+    bpy.context.view_layer.objects.active = obj
+    bpy.ops.object.select_all(action="DESELECT")
+    obj.select_set(True)
+    mod = obj.modifiers.new("Relax", "SMOOTH")
+    mod.factor = factor
+    mod.iterations = iterations
+    bpy.ops.object.convert(target="MESH")
+    obj = bpy.context.view_layer.objects.active
+    bpy.ops.object.shade_smooth()
+    return obj
+
+
+def clean_loose(obj):
+    """Drop vertices and edges that carry no face.
+
+    The Skin modifier leaves a handful of these at failed junctions -- the build
+    that shipped had three single-vertex "pieces" in it. OpenVDB will not take a
+    mesh with loose geometry and fragments the result instead of unioning it,
+    which is how a remesh turned five islands into seventy-six.
+    """
+    bm = bmesh.new()
+    bm.from_mesh(obj.data)
+    loose_v = [v for v in bm.verts if not v.link_faces]
+    loose_e = [e for e in bm.edges if not e.link_faces]
+    bmesh.ops.delete(bm, geom=loose_e, context="EDGES")
+    bmesh.ops.delete(bm, geom=[v for v in loose_v if v.is_valid], context="VERTS")
+    bm.to_mesh(obj.data)
+    bm.free()
+    obj.data.update()
+    return len(loose_v), len(loose_e)
+
+
+def union_shells(obj, name="Hand"):
+    """Merge every island into one connected surface with a Boolean union.
+
+    The Skin modifier emits a SECOND CLOSED HULL instead of a junction at some
+    branches. Moving the branch to its own vertex, and out far enough that parent
+    and child radii no longer overlap, did not fix it -- the thumb stayed a
+    546-vertex island. A voxel remesh made it worse, turning two shells into
+    seventy-three, because it shatters on inconsistent normals.
+
+    A Boolean union does not care why the hulls are separate. They overlap in
+    space -- the thumb root is buried in the palm, which is what caused the
+    problem in the first place -- so unioning them produces exactly one connected
+    watertight surface, and the geometry stays where the solver put it.
+    """
+    bpy.context.view_layer.objects.active = obj
+    bpy.ops.object.select_all(action="DESELECT")
+    obj.select_set(True)
+    bpy.ops.object.mode_set(mode="EDIT")
+    bpy.ops.mesh.select_all(action="SELECT")
+    bpy.ops.mesh.separate(type="LOOSE")
+    bpy.ops.object.mode_set(mode="OBJECT")
+
+    pieces = [o for o in bpy.context.selected_objects if o.type == "MESH"]
+    pieces.sort(key=lambda o: len(o.data.vertices), reverse=True)
+    base, rest = pieces[0], pieces[1:]
+    base.name = name
+    for other in rest:
+        mod = base.modifiers.new(f"U_{other.name}", "BOOLEAN")
+        mod.operation = "UNION"
+        mod.solver = "EXACT"
+        mod.object = other
+    bpy.context.view_layer.objects.active = base
+    bpy.ops.object.select_all(action="DESELECT")
+    base.select_set(True)
+    bpy.ops.object.convert(target="MESH")
+    base = bpy.context.view_layer.objects.active
+    for other in rest:
+        bpy.data.objects.remove(other, do_unlink=True)
+    bpy.context.view_layer.objects.active = base
+    base.select_set(True)
+    bpy.ops.object.shade_smooth()
+    print(f"  union: {len(pieces)} skin hulls -> {len(base.data.polygons)} faces")
+    return base
+
+
+def unify(obj, voxel=0.0010, smooth_shade=True):
+    """Force the whole thing into ONE watertight surface.
+
+    The Skin modifier fails at high-valence branches: where four or five bones
+    meet, or where a child bone sits inside its parent's tube, it quietly emits a
+    second closed hull instead of a junction. That is what made the thumb a
+    354-vertex island sitting on the back of the hand -- clear of every other
+    part, passing every part-versus-part check, and not attached to anything.
+
+    Chasing branch radii fixes one instance and leaves the class. A voxel remesh
+    fixes the class: overlapping hulls become one surface by definition, stray
+    vertices disappear, and self-intersections are resolved rather than hidden.
+    The cost is uniform topology, which the decimate pass was going to impose
+    anyway.
+
+    The voxel size has to stay well under the gap between adjacent fingers or
+    they fuse into a mitten -- 1 mm against roughly 1.4 mm of clearance here.
+    """
+    bpy.context.view_layer.objects.active = obj
+    bpy.ops.object.select_all(action="DESELECT")
+    obj.select_set(True)
+    rem = obj.modifiers.new("Unify", "REMESH")
+    rem.mode = "VOXEL"
+    rem.voxel_size = voxel
+    rem.adaptivity = 0.0
+    bpy.ops.object.convert(target="MESH")
+    obj = bpy.context.view_layer.objects.active
+    if smooth_shade:
+        bpy.ops.object.shade_smooth()
+    return obj
+
+
+def count_shells(obj):
+    """How many disconnected pieces is this mesh actually made of?
+
+    "Clear of every other part" and "attached to the thing it grows out of" are
+    different claims, and the interpenetration assertion only ever tested the
+    first. A thumb can pass every part-versus-part check and still be a separate
+    island sitting on the back of the hand, which is what shipped.
+    """
+    bm = bmesh.new()
+    bm.from_mesh(obj.data)
+    bm.verts.ensure_lookup_table()
+    seen = set()
+    shells = []
+    for v in bm.verts:
+        if v.index in seen:
+            continue
+        stack = [v]
+        seen.add(v.index)
+        size = 0
+        while stack:
+            cur = stack.pop()
+            size += 1
+            for e in cur.link_edges:
+                other = e.other_vert(cur)
+                if other.index not in seen:
+                    seen.add(other.index)
+                    stack.append(other)
+        shells.append(size)
+    bm.free()
+    shells.sort(reverse=True)
+    return shells
+
+
+def assert_single_shell(obj, label="mesh"):
+    shells = count_shells(obj)
+    if len(shells) != 1:
+        raise SystemExit(
+            f"BUILD FAILED: {label} is {len(shells)} separate pieces "
+            f"(vertex counts {shells[:8]}). Every digit must be continuous with "
+            f"the palm -- a part clear of every other part can still be floating.")
+    print(f"  single-shell assertion passed: {label} is one piece, {shells[0]} verts")
+
+
+def axis_distance(p, origin, direction):
+    """Distance from a point to an infinite line."""
+    d = p - origin
+    return (d - direction * d.dot(direction)).length
+
+
+def assert_clear_of_cylinder(obj, origin, direction, radius, label="the hand",
+                             tolerance=0.0006):
+    """No part of the mesh may be inside the thing it is holding.
+
+    The earlier assertion compared parts of the HAND to each other and passed,
+    while the thumb ran straight through the shaft in turntable frame 3 -- the
+    pole's own colour was visible inside the thumb's silhouette. Nothing was
+    checking the hand against the object at all.
+    """
+    direction = direction.normalized()
+    worst = 0.0
+    inside = 0
+    for v in obj.data.vertices:
+        pen = radius - axis_distance(v.co, origin, direction)
+        if pen > tolerance:
+            inside += 1
+            worst = max(worst, pen)
+    if inside:
+        raise SystemExit(
+            f"BUILD FAILED: {inside} vertices of {label} are inside the shaft, "
+            f"worst {worst * 1000:.1f} mm deep. The hand cannot pass through the "
+            f"thing it is gripping.")
+    print("  shaft-clearance assertion passed: no vertex inside the handle")
+
+
+def assert_grip_contacts(obj, origin, direction, radius, regions, max_gap=0.0030):
+    """Every digit has to actually TOUCH the handle.
+
+    Clearing the shaft and gripping it are different claims. A build passes "no
+    intersection" trivially by holding the pole at arm's length, and that is what
+    the turntable showed: daylight between the fingers and the pole on the ulnar
+    side, a hole you could see the background through.
+
+    `regions` maps a name to a predicate over vertex position, so each digit is
+    judged on its own -- one finger touching is not a grip.
+    """
+    direction = direction.normalized()
+    gaps = {}
+    for name, predicate in regions.items():
+        best = 1e9
+        for v in obj.data.vertices:
+            if predicate(v.co):
+                best = min(best, axis_distance(v.co, origin, direction) - radius)
+        gaps[name] = best
+    pretty = "  ".join(f"{n} {g * 1000:+.1f}mm" for n, g in sorted(gaps.items()))
+    bad = {n: g for n, g in gaps.items() if g > max_gap}
+    if bad:
+        raise SystemExit(
+            "BUILD FAILED: not touching the handle: "
+            + ", ".join(f"{n} {g * 1000:+.1f} mm away" for n, g in sorted(bad.items()))
+            + f"\n  all gaps: {pretty}")
+    print(f"  grip-contact assertion passed: {pretty}")
+
+
 def apply_modifiers(obj):
     bpy.context.view_layer.objects.active = obj
     bpy.ops.object.select_all(action="DESELECT")

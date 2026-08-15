@@ -149,6 +149,76 @@ instrument that returns a number is not thereby measuring the thing. Both broken
 versions returned numbers that moved when I changed the model, which is exactly
 what makes a broken instrument convincing.
 
+### ROUND 2 — THREE FAULTS I SHIPPED, AND WHAT THEY EXPOSED
+
+The owner found three faults in the shipped turntable that I had not:
+
+1. **The thumb was detached** — a separate lump on the back of the hand.
+2. **The thumb phased through the shaft**, visibly, in frame 3.
+3. **A hole on the ulnar side** you could see the background through.
+
+I had reviewed off the hero shot, which hides all three, and off the contact
+sheet, which renders each view at about 500 px. Looking at the eight frames
+INDIVIDUALLY at full size, every one is unmistakable.
+
+**Why the assertions passed anyway.** `assert_digits_do_not_interpenetrate`
+compares parts of the hand to each other. That is one claim, and there are three:
+
+| claim | what it catches | did it exist? |
+|---|---|---|
+| clear of every other part | thumb buried in the index knuckle | yes |
+| ATTACHED to the mass it grows out of | a floating thumb | **no** |
+| TOUCHING the thing it holds | daylight in the grip | **no** |
+
+A part can be clear of every other part and still be floating, and a hand can
+clear a shaft perfectly by holding it at arm's length. Both new assertions were
+watched failing on the shipped build:
+
+```
+BUILD FAILED: the hand is 3 separate pieces (vertex counts [2735, 354, 1])
+```
+
+The 354-vertex island was the thumb. It was never attached — the Skin modifier
+emits a second closed hull instead of a junction when a child bone sits inside
+its parent's tube, and the whole thumb root was inside the palm.
+
+**The deeper fault was that the pose was authored and the shaft was fitted to
+it.** Pick flexion angles, then drop a cylinder into whatever void the fingers
+leave, and call the void a grip. That is backwards, and no amount of angle-tuning
+fixes it. The shaft is now an INPUT — a 30 mm handle resting against the palm —
+and every phalanx rotates until it touches and no further, so contact is a
+consequence of the solve and penetration is impossible by construction.
+
+Getting both zero penetration and zero daylight needed one more idea: a single
+solve margin cannot do it, because the skinned surface bulges past the skeleton
+segment by different amounts at different joints — back it off enough to clear
+everywhere and the middle and ring fingers sit 3 mm off. So the fingers are
+solved slightly CLOSED and the skin is then conformed to the cylinder, which is
+what flesh does. All five digits now report **+0.1 mm**.
+
+### Round 2 fault log, by frame
+
+| round | frame | fault | fix |
+|---|---|---|---|
+| 14 | all | thumb a separate island (546 v) | Boolean-union the skin hulls; voxel remesh made it worse (2 shells → 73) |
+| 14 | — | 11 vertices 1.7 mm inside the shaft | solve margin, then conform-to-cylinder |
+| 15 | 1, 6 | thumb a 77 mm blade pointing along the forearm | its flexion axis is now the SHAFT itself, so it wraps like a finger |
+| 16 | 5 | daylight between adjacent fingers | convergence signs were inverted — positive yaw carries a finger ulnar, so the index was fanning away from the middle |
+| 17 | 7 | jagged stepped silhouette where hand meets pole | relax the contact patches, then re-conform |
+| 18 | 7 | serrated fingertip edge | nails were flat cards standing proud; set into the nail bed |
+| 19 | 3, 7 | forearm read as a noodle | 41–49 mm wide where a real one at that length is 58–65 |
+
+### What I can still name across the eight frames
+
+- **Frame 1** (down the arm): the hand is an undifferentiated blob. Partly
+  inherent to the angle — in game this view never occurs.
+- **Frame 7**: the fingertips clump into a slightly ragged lump at the ulnar
+  edge. Real geometry, reads awkwardly.
+- **Frame 4**: small dark slots between the ring and little knuckles.
+- **All frames**: the skin reads waxy. No tendons, no creases, no pores. This is
+  a normal-map pass, not a modelling one, and it is the honest ceiling for
+  geometry alone.
+
 ### Finishing notes — what a hostile reviewer would still say
 
 1. **The skin reads waxy at close framing** — no tendons, no creases, no pores.
