@@ -20,20 +20,22 @@ export const DEFAULT_PREFERENCES = Object.freeze({
     // map rather than a fixed set of keys because the families come from the
     // audio manifest, and pinning the schema here would mean a new sound family
     // silently failing to persist.
-    // PROVISIONAL DEFAULTS, PENDING THE OWNER'S AUDITION. Without a pin the bank
-    // draws at random across every option in a family — and these options are
-    // COMPETING RECORDINGS, not variants of one sound, so an unpinned menu would
-    // click like a typewriter, then a felt pad, then a latch. That is worse than
-    // any single choice. Each pick below is the most literal reading of the
-    // brief ("a real button, a felt key, a wooden switch. Quiet and relaxing")
-    // and is expected to be overruled by ear.
+    // THE OWNER'S AUDITION RESULTS (Playtest 4, item 1). These are no longer
+    // provisional: he listened and named a winner in four families, and the
+    // losing recordings have been deleted from the recipe, the shopping list and
+    // the disk, so nothing else in these four families exists to pin.
+    //
+    // ledgerTurn and ledgerPickup are DELIBERATELY ABSENT. He rejected every
+    // candidate in both, so the round-2 recordings in the picker have not been
+    // heard by anyone and picking one for him would be exactly the guess this
+    // switcher exists to avoid. Unpinned, those two cues fall back to the base
+    // ledger-turn-*/ledger-pickup-* recordings — the status quo — until he
+    // chooses.
     sfx: Object.freeze({
-      menuButton: 'wooden-button',
+      menuButton: 'felt-tap',
       drawerOpen: 'wood-deep',
-      cashLand: 'coins-bright',
-      ledgerTurn: 'crisp',
-      ledgerPickup: 'grab',
-      ledgerClose: 'setdown',
+      cashLand: 'paper',
+      ledgerClose: 'book',
     }),
     // ITEM 4 — the background track, chosen in PLAYER settings. '' is the
     // shipped default track; 'off' is the off switch the brief asks for.
@@ -110,12 +112,29 @@ export function normalizePreferences(raw = {}) {
       // longer exists is harmless -- setFamilyOption refuses it and the family
       // goes back to drawing from everything -- but a nested object or a number
       // in here would reach the bank and be compared against an option id.
+      //
+      // PLAYTEST 4, ITEM 1 — THE SHIPPED DEFAULTS HAVE TO SURVIVE THIS FUNCTION.
+      //
+      // This was the one field in the file that built its result from the INCOMING
+      // object alone, with no fallback to DEFAULT_PREFERENCES. Every fresh profile
+      // therefore normalised to `{}`, no pin was ever applied at boot, and each
+      // cue drew at RANDOM across its whole family. Measured in Electron before
+      // the fix: every family reported `current: NONE`, and firing `drawerOpen`
+      // played `drawer-open-2.ogg` — not the recording the owner chose. The
+      // audition defaults have been decorative since they shipped.
+      //
+      // The empty string is kept rather than dropped, because it is the only way
+      // to say "deliberately unpinned": the settings panel writes `''` when the
+      // owner clears a family, and if `''` were dropped the default would flood
+      // straight back in and clearing would be impossible. So: defaults first,
+      // stored values over the top, `''` beating a default and reaching the bank
+      // as a falsy option it declines to pin.
       sfx: (() => {
-        const out = {};
+        const out = { ...DEFAULT_PREFERENCES.audio.sfx };
         const raw2 = audio.sfx;
         if (raw2 && typeof raw2 === 'object' && !Array.isArray(raw2)) {
           for (const [k, v] of Object.entries(raw2)) {
-            if (typeof k === 'string' && typeof v === 'string' && k && v) out[k] = v;
+            if (typeof k === 'string' && typeof v === 'string' && k) out[k] = v;
           }
         }
         return out;

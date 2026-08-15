@@ -601,6 +601,14 @@ export function makeAudio(preferences = null) {
 
   function uiError() {
     if (!ctx) return;
+    // PLAYTEST 4, ITEM 1 — this was the last synth beep left in the menu.
+    //
+    // uiTick, uiConfirm and uiCancel all ask the bank first; uiError never did,
+    // so `ui-error-warm-1.ogg` was fetched, decoded and shipped while the player
+    // heard two triangle oscillators at 260 and 220 Hz. Measured in Electron:
+    // firing uiError started ZERO buffer sources. A pair of detuned triangles is
+    // the exact character the P0 asked to be replaced rather than tuned.
+    if (sampled('uiError', uiBus)) return;
     const t0 = ctx.currentTime;
     for (const [frequency, offset] of [[260, 0], [220, 0.08]]) {
       const osc = ctx.createOscillator();

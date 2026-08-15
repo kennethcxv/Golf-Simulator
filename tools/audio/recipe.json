@@ -314,39 +314,6 @@
     },
     {
       "cue": "uiTick",
-      "file": "opt-wooden-button-tick.ogg",
-      "source": "opt-menu-wooden-button",
-      "family": "menuButton",
-      "option": "wooden-button",
-      "optionLabel": "Wooden button",
-      "dur": 0.45,
-      "targetDb": -14,
-      "durAfterTrim": true
-    },
-    {
-      "cue": "uiConfirm",
-      "file": "opt-wooden-button-confirm.ogg",
-      "source": "opt-menu-wooden-button",
-      "family": "menuButton",
-      "option": "wooden-button",
-      "optionLabel": "Wooden button",
-      "dur": 0.55,
-      "targetDb": -11,
-      "durAfterTrim": true
-    },
-    {
-      "cue": "uiCancel",
-      "file": "opt-wooden-button-cancel.ogg",
-      "source": "opt-menu-wooden-button",
-      "family": "menuButton",
-      "option": "wooden-button",
-      "optionLabel": "Wooden button",
-      "dur": 0.45,
-      "targetDb": -16,
-      "durAfterTrim": true
-    },
-    {
-      "cue": "uiTick",
       "file": "opt-felt-tap-tick.ogg",
       "source": "opt-menu-felt-tap",
       "family": "menuButton",
@@ -379,149 +346,6 @@
       "durAfterTrim": true
     },
     {
-      "cue": "uiTick",
-      "file": "opt-low-click-tick.ogg",
-      "source": "opt-menu-low-click",
-      "family": "menuButton",
-      "option": "low-click",
-      "optionLabel": "Low muted click",
-      "dur": 0.45,
-      "targetDb": -14,
-      "durAfterTrim": true
-    },
-    {
-      "cue": "uiConfirm",
-      "file": "opt-low-click-confirm.ogg",
-      "source": "opt-menu-low-click",
-      "family": "menuButton",
-      "option": "low-click",
-      "optionLabel": "Low muted click",
-      "dur": 0.55,
-      "targetDb": -11,
-      "durAfterTrim": true
-    },
-    {
-      "cue": "uiCancel",
-      "file": "opt-low-click-cancel.ogg",
-      "source": "opt-menu-low-click",
-      "family": "menuButton",
-      "option": "low-click",
-      "optionLabel": "Low muted click",
-      "dur": 0.45,
-      "targetDb": -16,
-      "durAfterTrim": true
-    },
-    {
-      "cue": "uiTick",
-      "file": "opt-soft-wood-tick.ogg",
-      "source": "opt-menu-wood-click",
-      "family": "menuButton",
-      "option": "soft-wood",
-      "optionLabel": "Soft wooden click",
-      "dur": 0.45,
-      "targetDb": -14,
-      "durAfterTrim": true
-    },
-    {
-      "cue": "uiConfirm",
-      "file": "opt-soft-wood-confirm.ogg",
-      "source": "opt-menu-wood-click",
-      "family": "menuButton",
-      "option": "soft-wood",
-      "optionLabel": "Soft wooden click",
-      "dur": 0.55,
-      "targetDb": -11,
-      "durAfterTrim": true
-    },
-    {
-      "cue": "uiCancel",
-      "file": "opt-soft-wood-cancel.ogg",
-      "source": "opt-menu-wood-click",
-      "family": "menuButton",
-      "option": "soft-wood",
-      "optionLabel": "Soft wooden click",
-      "dur": 0.45,
-      "targetDb": -16,
-      "durAfterTrim": true
-    },
-    {
-      "cue": "uiTick",
-      "file": "opt-typewriter-tick.ogg",
-      "source": "opt-menu-typewriter",
-      "family": "menuButton",
-      "option": "typewriter",
-      "optionLabel": "Typewriter key",
-      "dur": 0.45,
-      "targetDb": -14,
-      "durAfterTrim": true
-    },
-    {
-      "cue": "uiConfirm",
-      "file": "opt-typewriter-confirm.ogg",
-      "source": "opt-menu-typewriter",
-      "family": "menuButton",
-      "option": "typewriter",
-      "optionLabel": "Typewriter key",
-      "dur": 0.55,
-      "targetDb": -11,
-      "durAfterTrim": true
-    },
-    {
-      "cue": "uiCancel",
-      "file": "opt-typewriter-cancel.ogg",
-      "source": "opt-menu-typewriter",
-      "family": "menuButton",
-      "option": "typewriter",
-      "optionLabel": "Typewriter key",
-      "dur": 0.45,
-      "targetDb": -16,
-      "durAfterTrim": true
-    },
-    {
-      "cue": "uiTick",
-      "file": "opt-latch-tick.ogg",
-      "source": "opt-menu-latch",
-      "family": "menuButton",
-      "option": "latch",
-      "optionLabel": "Wooden latch",
-      "dur": 0.45,
-      "targetDb": -14,
-      "durAfterTrim": true
-    },
-    {
-      "cue": "uiConfirm",
-      "file": "opt-latch-confirm.ogg",
-      "source": "opt-menu-latch",
-      "family": "menuButton",
-      "option": "latch",
-      "optionLabel": "Wooden latch",
-      "dur": 0.55,
-      "targetDb": -11,
-      "durAfterTrim": true
-    },
-    {
-      "cue": "uiCancel",
-      "file": "opt-latch-cancel.ogg",
-      "source": "opt-menu-latch",
-      "family": "menuButton",
-      "option": "latch",
-      "optionLabel": "Wooden latch",
-      "dur": 0.45,
-      "targetDb": -16,
-      "durAfterTrim": true
-    },
-    {
-      "cue": "drawerOpen",
-      "file": "opt-drawer-wood-light.ogg",
-      "source": "opt-drawer-wood-a",
-      "family": "drawerOpen",
-      "option": "wood-light",
-      "optionLabel": "Wooden drawer, light",
-      "dur": 1.3,
-      "targetDb": -8,
-      "durAfterTrim": true
-    },
-    {
       "cue": "drawerOpen",
       "file": "opt-drawer-wood-deep.ogg",
       "source": "opt-drawer-wood-b",
@@ -530,50 +354,6 @@
       "optionLabel": "Wooden drawer, deep",
       "dur": 1.3,
       "targetDb": -8,
-      "durAfterTrim": true
-    },
-    {
-      "cue": "drawerOpen",
-      "file": "opt-drawer-wood-small.ogg",
-      "source": "opt-drawer-small",
-      "family": "drawerOpen",
-      "option": "wood-small",
-      "optionLabel": "Small wooden drawer",
-      "dur": 1.3,
-      "targetDb": -8,
-      "durAfterTrim": true
-    },
-    {
-      "cue": "drawerOpen",
-      "file": "opt-drawer-wood-old.ogg",
-      "source": "opt-drawer-old",
-      "family": "drawerOpen",
-      "option": "wood-old",
-      "optionLabel": "Old wooden drawer",
-      "dur": 1.3,
-      "targetDb": -8,
-      "durAfterTrim": true
-    },
-    {
-      "cue": "drawerOpen",
-      "file": "opt-drawer-wood-slide.ogg",
-      "source": "opt-drawer-slide",
-      "family": "drawerOpen",
-      "option": "wood-slide",
-      "optionLabel": "Wooden slide, long",
-      "dur": 1.3,
-      "targetDb": -8,
-      "durAfterTrim": true
-    },
-    {
-      "cue": "coinDeposit",
-      "file": "opt-cash-coins-bright.ogg",
-      "source": "opt-cash-coins-bright",
-      "family": "cashLand",
-      "option": "coins-bright",
-      "optionLabel": "Coins, bright",
-      "dur": 1,
-      "targetDb": -10,
       "durAfterTrim": true
     },
     {
@@ -588,155 +368,12 @@
       "durAfterTrim": true
     },
     {
-      "cue": "coinDeposit",
-      "file": "opt-cash-banknotes.ogg",
-      "source": "opt-cash-banknotes",
-      "family": "cashLand",
-      "option": "banknotes",
-      "optionLabel": "Banknotes",
-      "dur": 1,
-      "targetDb": -10,
-      "durAfterTrim": true
-    },
-    {
-      "cue": "coinDeposit",
-      "file": "opt-cash-coins-bowl.ogg",
-      "source": "opt-cash-bowl",
-      "family": "cashLand",
-      "option": "coins-bowl",
-      "optionLabel": "Coins into a bowl",
-      "dur": 1,
-      "targetDb": -10,
-      "durAfterTrim": true
-    },
-    {
-      "cue": "ledgerTurn",
-      "file": "opt-turn-crisp.ogg",
-      "source": "opt-turn-crisp",
-      "family": "ledgerTurn",
-      "option": "crisp",
-      "optionLabel": "Single page, crisp",
-      "dur": 0.8,
-      "targetDb": -9,
-      "durAfterTrim": true
-    },
-    {
-      "cue": "ledgerTurn",
-      "file": "opt-turn-soft.ogg",
-      "source": "opt-turn-soft",
-      "family": "ledgerTurn",
-      "option": "soft",
-      "optionLabel": "Single page, soft",
-      "dur": 0.8,
-      "targetDb": -9,
-      "durAfterTrim": true
-    },
-    {
-      "cue": "ledgerTurn",
-      "file": "opt-turn-close.ogg",
-      "source": "opt-turn-close",
-      "family": "ledgerTurn",
-      "option": "close",
-      "optionLabel": "Book page, close",
-      "dur": 0.8,
-      "targetDb": -9,
-      "durAfterTrim": true
-    },
-    {
-      "cue": "ledgerTurn",
-      "file": "opt-turn-airy.ogg",
-      "source": "opt-turn-airy",
-      "family": "ledgerTurn",
-      "option": "airy",
-      "optionLabel": "Book page, airy",
-      "dur": 0.8,
-      "targetDb": -9,
-      "durAfterTrim": true
-    },
-    {
-      "cue": "ledgerPickup",
-      "file": "opt-pickup-grab.ogg",
-      "source": "opt-pickup-grab",
-      "family": "ledgerPickup",
-      "option": "grab",
-      "optionLabel": "Book grab",
-      "dur": 1.1,
-      "targetDb": -11,
-      "durAfterTrim": true
-    },
-    {
-      "cue": "ledgerPickup",
-      "file": "opt-pickup-handling.ogg",
-      "source": "opt-pickup-handling",
-      "family": "ledgerPickup",
-      "option": "handling",
-      "optionLabel": "Book handling",
-      "dur": 1.1,
-      "targetDb": -11,
-      "durAfterTrim": true
-    },
-    {
-      "cue": "ledgerPickup",
-      "file": "opt-pickup-open.ogg",
-      "source": "opt-pickup-open",
-      "family": "ledgerPickup",
-      "option": "open",
-      "optionLabel": "Book open",
-      "dur": 1.1,
-      "targetDb": -11,
-      "durAfterTrim": true
-    },
-    {
-      "cue": "ledgerPickup",
-      "file": "opt-pickup-open-soft.ogg",
-      "source": "opt-pickup-open-soft",
-      "family": "ledgerPickup",
-      "option": "open-soft",
-      "optionLabel": "Book open, soft",
-      "dur": 1.1,
-      "targetDb": -11,
-      "durAfterTrim": true
-    },
-    {
       "cue": "ledgerClose",
       "file": "opt-close-book.ogg",
       "source": "opt-close-book",
       "family": "ledgerClose",
       "option": "book",
       "optionLabel": "Book close",
-      "dur": 1.1,
-      "targetDb": -11,
-      "durAfterTrim": true
-    },
-    {
-      "cue": "ledgerClose",
-      "file": "opt-close-soft.ogg",
-      "source": "opt-close-soft",
-      "family": "ledgerClose",
-      "option": "soft",
-      "optionLabel": "Book close, soft",
-      "dur": 1.1,
-      "targetDb": -11,
-      "durAfterTrim": true
-    },
-    {
-      "cue": "ledgerClose",
-      "file": "opt-close-board.ogg",
-      "source": "opt-close-board",
-      "family": "ledgerClose",
-      "option": "board",
-      "optionLabel": "Board close, heavy",
-      "dur": 1.1,
-      "targetDb": -11,
-      "durAfterTrim": true
-    },
-    {
-      "cue": "ledgerClose",
-      "file": "opt-close-setdown.ogg",
-      "source": "opt-close-setdown",
-      "family": "ledgerClose",
-      "option": "setdown",
-      "optionLabel": "Set down on the desk",
       "dur": 1.1,
       "targetDb": -11,
       "durAfterTrim": true
@@ -792,28 +429,31 @@
     {
       "cue": "uiOpen",
       "file": "ui-open-warm-1.ogg",
-      "source": "opt-drawer-small",
+      "source": "opt-drawer-wood-b",
       "dur": 0.7,
       "durAfterTrim": true,
       "targetDb": -15,
-      "note": "a small wooden drawer sliding = a panel opening"
+      "note": "the OPEN half of the drawer the owner picked = a panel opening",
+      "start": 0
     },
     {
       "cue": "uiClose",
       "file": "ui-close-warm-1.ogg",
-      "source": "opt-menu-low-click",
-      "dur": 0.5,
+      "source": "opt-drawer-wood-b",
+      "dur": 0.55,
       "durAfterTrim": true,
-      "targetDb": -15
+      "targetDb": -15,
+      "start": 2.512,
+      "note": "the CLOSE half of the same drawer"
     },
     {
       "cue": "uiError",
       "file": "ui-error-warm-1.ogg",
-      "source": "opt-menu-latch",
-      "dur": 0.55,
+      "source": "book-close-2",
+      "dur": 0.35,
       "durAfterTrim": true,
       "targetDb": -15,
-      "note": "a latch refusing to seat"
+      "note": "a flat board slap = a refusal with no ring to it"
     },
     {
       "cue": "checkoutComplete",
@@ -847,6 +487,123 @@
       "start": 14,
       "dur": 0.8,
       "targetDb": -14
+    },
+    {
+      "cue": "ledgerTurn",
+      "file": "opt-turn2-in-book.ogg",
+      "source": "opt-turn2-in-book",
+      "family": "ledgerTurn",
+      "option": "in-book",
+      "optionLabel": "Page inside a bound book",
+      "dur": 1,
+      "targetDb": -9,
+      "durAfterTrim": true
+    },
+    {
+      "cue": "ledgerTurn",
+      "file": "opt-turn2-quiet.ogg",
+      "source": "opt-turn2-quiet",
+      "family": "ledgerTurn",
+      "option": "quiet",
+      "optionLabel": "Quiet page turn",
+      "dur": 0.48,
+      "targetDb": -9,
+      "durAfterTrim": true
+    },
+    {
+      "cue": "ledgerTurn",
+      "file": "opt-turn2-board.ogg",
+      "source": "opt-turn2-book-pages",
+      "family": "ledgerTurn",
+      "option": "board",
+      "optionLabel": "Heavy board-backed page",
+      "start": 4.75,
+      "dur": 1,
+      "targetDb": -9,
+      "durAfterTrim": true
+    },
+    {
+      "cue": "ledgerTurn",
+      "file": "opt-turn2-single.ogg",
+      "source": "opt-turn2-single",
+      "family": "ledgerTurn",
+      "option": "single",
+      "optionLabel": "One clean turn",
+      "dur": 0.68,
+      "targetDb": -9,
+      "durAfterTrim": true
+    },
+    {
+      "cue": "ledgerTurn",
+      "file": "opt-turn2-leather.ogg",
+      "source": "opt-turn2-leather",
+      "family": "ledgerTurn",
+      "option": "leather",
+      "optionLabel": "Leather-bound, flipping through",
+      "start": 16.9,
+      "dur": 0.85,
+      "targetDb": -9,
+      "durAfterTrim": true
+    },
+    {
+      "cue": "ledgerPickup",
+      "file": "opt-pick2-lift.ogg",
+      "source": "opt-pick2-lift",
+      "family": "ledgerPickup",
+      "option": "lift",
+      "optionLabel": "Lifted off the desk",
+      "start": 25.05,
+      "dur": 1,
+      "targetDb": -11,
+      "durAfterTrim": true
+    },
+    {
+      "cue": "ledgerPickup",
+      "file": "opt-pick2-stack.ogg",
+      "source": "opt-pick2-pack",
+      "family": "ledgerPickup",
+      "option": "stack",
+      "optionLabel": "Off a stack of books",
+      "start": 23.4,
+      "dur": 1,
+      "targetDb": -11,
+      "durAfterTrim": true
+    },
+    {
+      "cue": "ledgerPickup",
+      "file": "opt-pick2-board.ogg",
+      "source": "opt-pick2-backpack",
+      "family": "ledgerPickup",
+      "option": "board",
+      "optionLabel": "Board and canvas",
+      "start": 6.75,
+      "dur": 1,
+      "targetDb": -11,
+      "durAfterTrim": true
+    },
+    {
+      "cue": "ledgerPickup",
+      "file": "opt-pick2-hands.ogg",
+      "source": "opt-pick2-handling",
+      "family": "ledgerPickup",
+      "option": "hands",
+      "optionLabel": "Handled in the hands",
+      "start": 41.2,
+      "dur": 1.1,
+      "targetDb": -11,
+      "durAfterTrim": true
+    },
+    {
+      "cue": "ledgerPickup",
+      "file": "opt-pick2-paper.ogg",
+      "source": "opt-pick2-paper",
+      "family": "ledgerPickup",
+      "option": "paper",
+      "optionLabel": "Paper lifted",
+      "start": 9.2,
+      "dur": 1,
+      "targetDb": -11,
+      "durAfterTrim": true
     }
   ]
 }

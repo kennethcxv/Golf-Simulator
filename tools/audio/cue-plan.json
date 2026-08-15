@@ -153,45 +153,9 @@
     },
     {
       "cue": "optMenu",
-      "id": 686544,
-      "basename": "opt-menu-wooden-button",
-      "note": "wooden button by Troube — a real wooden button being pressed"
-    },
-    {
-      "cue": "optMenu",
       "id": 848748,
       "basename": "opt-menu-felt-tap",
       "note": "tap on felt by emapuree — softest option, almost no attack"
-    },
-    {
-      "cue": "optMenu",
-      "id": 669468,
-      "basename": "opt-menu-low-click",
-      "note": "Low Click 1 by CJspellsfish — muted, low, no ring"
-    },
-    {
-      "cue": "optMenu",
-      "id": 321083,
-      "basename": "opt-menu-wood-click",
-      "note": "Wooden Click by BenjaminNelan"
-    },
-    {
-      "cue": "optMenu",
-      "id": 335898,
-      "basename": "opt-menu-typewriter",
-      "note": "Typewriter Key by PerMagnusLindborg — mechanical but wooden-boxed"
-    },
-    {
-      "cue": "optMenu",
-      "id": 815493,
-      "basename": "opt-menu-latch",
-      "note": "Mechanical switch (latch) 02 by xkeril"
-    },
-    {
-      "cue": "optDrawer",
-      "id": 756424,
-      "basename": "opt-drawer-wood-a",
-      "note": "Wooden Drawer Open Close by FishPlinko"
     },
     {
       "cue": "optDrawer",
@@ -200,118 +164,16 @@
       "note": "Wooden_Drawer_open_close_2 by Rudmer_Rotteveel"
     },
     {
-      "cue": "optDrawer",
-      "id": 502771,
-      "basename": "opt-drawer-small",
-      "note": "drawer_wooden_small_sliding by keus92"
-    },
-    {
-      "cue": "optDrawer",
-      "id": 614895,
-      "basename": "opt-drawer-old",
-      "note": "open and close old wooden drawer by Garuda1982"
-    },
-    {
-      "cue": "optDrawer",
-      "id": 455854,
-      "basename": "opt-drawer-slide",
-      "note": "wood drawer slide open close pull push by kyles"
-    },
-    {
-      "cue": "optCash",
-      "id": 458399,
-      "basename": "opt-cash-coins-bright",
-      "note": "Coin sounds by Breviceps"
-    },
-    {
       "cue": "optCash",
       "id": 447458,
       "basename": "opt-cash-paper",
       "note": "paper money sound by florianreichelt"
     },
     {
-      "cue": "optCash",
-      "id": 419942,
-      "basename": "opt-cash-banknotes",
-      "note": "05_banknotes by 14FPanskaKaiprova_Johana"
-    },
-    {
-      "cue": "optCash",
-      "id": 336585,
-      "basename": "opt-cash-bowl",
-      "note": "coins in paper bowl by Anthousai"
-    },
-    {
-      "cue": "optTurn",
-      "id": 537872,
-      "basename": "opt-turn-crisp",
-      "note": "Page Turning by XanTheRock"
-    },
-    {
-      "cue": "optTurn",
-      "id": 698636,
-      "basename": "opt-turn-soft",
-      "note": "Page Turning by ominous_studios"
-    },
-    {
-      "cue": "optTurn",
-      "id": 119126,
-      "basename": "opt-turn-close",
-      "note": "Book Turn Page 1 by esperri"
-    },
-    {
-      "cue": "optTurn",
-      "id": 641757,
-      "basename": "opt-turn-airy",
-      "note": "Book page turning by eZZin"
-    },
-    {
-      "cue": "optPickup",
-      "id": 573200,
-      "basename": "opt-pickup-grab",
-      "note": "book_grabs by j1987"
-    },
-    {
-      "cue": "optPickup",
-      "id": 382231,
-      "basename": "opt-pickup-handling",
-      "note": "Book Sounds by kevinpro"
-    },
-    {
-      "cue": "optPickup",
-      "id": 426383,
-      "basename": "opt-pickup-open",
-      "note": "Book Open by Jbricker1997"
-    },
-    {
-      "cue": "optPickup",
-      "id": 393844,
-      "basename": "opt-pickup-open-soft",
-      "note": "Book_open by envirOmaniac2"
-    },
-    {
       "cue": "optClose",
       "id": 399669,
       "basename": "opt-close-book",
       "note": "Close book by SoundsForHim"
-    },
-    {
-      "cue": "optClose",
-      "id": 195795,
-      "basename": "opt-close-soft",
-      "note": "Closing book by ondondvo"
-    },
-    {
-      "cue": "optClose",
-      "id": 123819,
-      "basename": "opt-close-board",
-      "note": "cm_samples_book_close by assrel"
-    },
-    {
-      "cue": "optClose",
-      "id": 436502,
-      "basename": "opt-close-setdown",
-      "note": "Book drop by micronmark"
     },
     {
       "cue": "optMusic",
@@ -336,6 +198,206 @@
       "id": 629178,
       "basename": "opt-music-epiano",
       "note": "Simple Lofi Vinyl E-Piano Loop 95 BPM by holizna"
+    },
+    {
+      "cue": "optTurn2",
+      "id": 840192,
+      "basename": "opt-turn2-in-book",
+      "note": "Turning a page in a book by pierreluclandry — one page, inside a bound book"
+    },
+    {
+      "cue": "optTurn2",
+      "id": 484968,
+      "basename": "opt-turn2-quiet",
+      "note": "Quiet Page Turn - 8 by SpaceJoe — the soft end of the range"
+    },
+    {
+      "cue": "optTurn2",
+      "id": 336373,
+      "basename": "opt-turn2-book-pages",
+      "note": "Book_Turning_Pages_02 by moai15 — heavier board-backed leaves"
+    },
+    {
+      "cue": "optTurn2",
+      "id": 749880,
+      "basename": "opt-turn2-single",
+      "note": "Page turned by Beussa — a single clean turn"
+    },
+    {
+      "cue": "optTurn2",
+      "id": 433862,
+      "basename": "opt-turn2-leather",
+      "note": "medium leather-covered book, flipping through by Nakhas — the flip section"
+    },
+    {
+      "cue": "optPick2",
+      "id": 584867,
+      "basename": "opt-pick2-pack",
+      "note": "Book Pack by Kawgrim — books lifted and set"
+    },
+    {
+      "cue": "optPick2",
+      "id": 319153,
+      "basename": "opt-pick2-lift",
+      "note": "Toss book (set down, land, pick up) by cmorris035 — the pick-up"
+    },
+    {
+      "cue": "optPick2",
+      "id": 542570,
+      "basename": "opt-pick2-handling",
+      "note": "book handling noises by sidequesting — a person handling a book"
+    },
+    {
+      "cue": "optPick2",
+      "id": 584864,
+      "basename": "opt-pick2-backpack",
+      "note": "Book Put into Old Backpack by Kawgrim — board and canvas"
+    },
+    {
+      "cue": "optPick2",
+      "id": 479348,
+      "basename": "opt-pick2-paper",
+      "note": "Paper handling - Paper movement by khenshom — pure paper"
+    }
+  ],
+  "_rejected": [
+    {
+      "basename": "opt-menu-wooden-button",
+      "family": "menuButton",
+      "why": "lost the audition to felt tap",
+      "id": 686544
+    },
+    {
+      "basename": "opt-menu-low-click",
+      "family": "menuButton",
+      "why": "lost the audition to felt tap",
+      "id": 669468
+    },
+    {
+      "basename": "opt-menu-wood-click",
+      "family": "menuButton",
+      "why": "lost the audition to felt tap",
+      "id": 321083
+    },
+    {
+      "basename": "opt-menu-typewriter",
+      "family": "menuButton",
+      "why": "lost the audition to felt tap",
+      "id": 335898
+    },
+    {
+      "basename": "opt-menu-latch",
+      "family": "menuButton",
+      "why": "lost the audition to felt tap",
+      "id": 815493
+    },
+    {
+      "basename": "opt-drawer-wood-a",
+      "family": "drawerOpen",
+      "why": "lost the audition to wood-deep",
+      "id": 756424
+    },
+    {
+      "basename": "opt-drawer-small",
+      "family": "drawerOpen",
+      "why": "lost the audition to wood-deep",
+      "id": 502771
+    },
+    {
+      "basename": "opt-drawer-old",
+      "family": "drawerOpen",
+      "why": "lost the audition to wood-deep",
+      "id": 614895
+    },
+    {
+      "basename": "opt-drawer-slide",
+      "family": "drawerOpen",
+      "why": "lost the audition to wood-deep",
+      "id": 455854
+    },
+    {
+      "basename": "opt-cash-coins-bright",
+      "family": "cashLand",
+      "why": "lost the audition to paper money",
+      "id": 458399
+    },
+    {
+      "basename": "opt-cash-banknotes",
+      "family": "cashLand",
+      "why": "lost the audition to paper money",
+      "id": 419942
+    },
+    {
+      "basename": "opt-cash-bowl",
+      "family": "cashLand",
+      "why": "lost the audition to paper money",
+      "id": 336585
+    },
+    {
+      "basename": "opt-close-soft",
+      "family": "ledgerClose",
+      "why": "lost the audition to book close",
+      "id": 195795
+    },
+    {
+      "basename": "opt-close-board",
+      "family": "ledgerClose",
+      "why": "lost the audition to book close",
+      "id": 123819
+    },
+    {
+      "basename": "opt-close-setdown",
+      "family": "ledgerClose",
+      "why": "lost the audition to book close",
+      "id": 436502
+    },
+    {
+      "basename": "opt-turn-crisp",
+      "family": "ledgerTurn",
+      "why": "rejected: none of this round was liked",
+      "id": 537872
+    },
+    {
+      "basename": "opt-turn-soft",
+      "family": "ledgerTurn",
+      "why": "rejected: none of this round was liked",
+      "id": 698636
+    },
+    {
+      "basename": "opt-turn-close",
+      "family": "ledgerTurn",
+      "why": "rejected: none of this round was liked",
+      "id": 119126
+    },
+    {
+      "basename": "opt-turn-airy",
+      "family": "ledgerTurn",
+      "why": "rejected: none of this round was liked",
+      "id": 641757
+    },
+    {
+      "basename": "opt-pickup-grab",
+      "family": "ledgerPickup",
+      "why": "rejected: none of this round was liked",
+      "id": 573200
+    },
+    {
+      "basename": "opt-pickup-handling",
+      "family": "ledgerPickup",
+      "why": "rejected: none of this round was liked",
+      "id": 382231
+    },
+    {
+      "basename": "opt-pickup-open",
+      "family": "ledgerPickup",
+      "why": "rejected: none of this round was liked",
+      "id": 426383
+    },
+    {
+      "basename": "opt-pickup-open-soft",
+      "family": "ledgerPickup",
+      "why": "rejected: none of this round was liked",
+      "id": 393844
     }
   ]
 }
