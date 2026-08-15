@@ -87,14 +87,15 @@ def page_surface(name, side, drop, lift=0.0, curl=0.0, z0=0.0):
     return HS.apply_mods(ob)
 
 
-def block(name, side, top_z, thickness, broken=False):
+def block(name, side, top_z, thickness, broken=False, gutter=None,
+          layers=13, smooth=False):
     """The page block: a wedge whose FORE-EDGE is uneven.
 
     A clean-cut block reads as a plastic slab. Real paper stacks are ragged at
     the fore-edge and that ragged line is most of what says "paper" at a glance.
     """
     verts, faces = [], []
-    LAYERS = 13
+    LAYERS = layers
     for k in range(LAYERS):
         t = k / (LAYERS - 1)
         z = top_z - thickness * t
@@ -104,7 +105,7 @@ def block(name, side, top_z, thickness, broken=False):
             # the fore-edge wobbles per layer and along the page
             wob = 0.0016 * math.sin(k * 2.3 + v * 5.1) + 0.0011 * math.sin(v * 11.0 + k)
             w = PAGE_W - 0.0012 + wob
-            g = GUTTER_DROP * (1 - t) * 0.35
+            g = (GUTTER_DROP if gutter is None else gutter) * (1 - t) * 0.35
             verts.append(Vector((side * (w), y, z - g)))
             verts.append(Vector((side * 0.0020, y, z - g * 1.6)))
     per = ROWS * 2
@@ -125,7 +126,7 @@ def block(name, side, top_z, thickness, broken=False):
         base = (LAYERS - 1) * per
         faces.append((base + j * 2, base + (j + 1) * 2,
                       base + (j + 1) * 2 + 1, base + j * 2 + 1))
-    return HS.mesh_from(name, verts, faces, smooth=False)
+    return HS.mesh_from(name, verts, faces, smooth=smooth)
 
 
 def build(opened=True, broken=False):
@@ -228,6 +229,114 @@ def build(opened=True, broken=False):
     return parts
 
 
+def spine_arc(y0, y1, r_extra=0.0, seg=13, name="LedgerSpine", thick=BOARD_T):
+    """The spine as a half-round wrapping from the back board to the front one."""
+    verts, faces = [], []
+    r = SPINE_R * 0.34
+    hgt = BLOCK_T + BOARD_T * 0.5
+    for k in range(seg):
+        a = math.pi * (k / (seg - 1)) - math.pi / 2
+        x = -math.cos(a) * r
+        z = math.sin(a) * hgt
+        if r_extra:
+            # Offset along the arc's OUTWARD NORMAL, not by growing the radius.
+            # The spine is an ellipse (r across, hgt tall), so adding to r moves
+            # the curve only in x -- and cos(a) is zero at both ends, so a band
+            # built that way tapered to nothing at the boards and read as four
+            # recessed squares punched into the middle of the spine instead of
+            # four ridges running across it.
+            n = Vector((-hgt * math.cos(a), 0.0, r * math.sin(a)))
+            if n.length > 1e-9:
+                n.normalize()
+                x += n.x * r_extra
+                z += n.z * r_extra
+        for j in (0, 1):
+            verts.append(Vector((x, y0 + (y1 - y0) * j, z)))
+    for k in range(seg - 1):
+        a = k * 2
+        faces.append((a, a + 1, a + 3, a + 2))
+    ob = HS.mesh_from(name, verts, faces, smooth=True)
+    sol = ob.modifiers.new("Board", "SOLIDIFY")
+    sol.thickness, sol.offset, sol.use_rim = thick, 1.0, True
+    return HS.apply_mods(ob)
+
+
+def build_closed(broken=""):
+    """THE CLOSED BOOK. This state was never built -- build() took an `opened`
+    parameter that nothing in it ever read, so every frame ever rendered of this
+    asset was the open book. Cover, spine with raised bands, and the ragged
+    fore-edge of the block, which is the whole read of a closed ledger.
+    """
+    parts = {}
+    TB = BLOCK_T * 2.0
+    half_y = (PAGE_D + SQUARE * 2) * 0.5
+
+    # the page block: one stack, no gutter, fore-edge still ragged
+    # 21 layers and smooth-shaded. At 13 flat-shaded layers the whole fore-edge
+    # is on camera at once when the book is shut, and each layer read as a hard
+    # tonal band -- a stack of cards rather than a stack of paper. The wobble
+    # still shows in the silhouette, which is the part that says "paper".
+    parts["blocks"] = [block("Block_Closed", 1, TB * 0.5, TB, gutter=0.0,
+                             layers=21, smooth=True)]
+
+    # boards, overhanging the block by the SQUARE on three sides
+    sq = SQUARE * (0.15 if broken == "square" else 1.0)
+    boards = []
+    for k, sz in enumerate((-1, 1)):
+        boards.append(HS.apply_mods(HS.box(
+            f"Board_{'Back' if sz < 0 else 'Front'}",
+            ((PAGE_W + sq) * 0.5, 0, sz * (TB * 0.5 + BOARD_T * 0.5)),
+            (PAGE_W + sq, PAGE_D + sq * 2, BOARD_T), bevel=0.0016, segments=2)))
+    parts["boards"] = boards
+    parts["spine"] = spine_arc(-half_y, half_y)
+
+    # raised bands: four ridges across the spine, which is what a bound ledger
+    # has and what stops the spine reading as a bent card
+    parts["bands"] = [spine_arc(-half_y + (0.22 + i * 0.19) * half_y * 2,
+                                -half_y + (0.30 + i * 0.19) * half_y * 2,
+                                r_extra=0.0026, seg=11,
+                                name=f"SpineBand_{i}", thick=BOARD_T * 0.55)
+                      for i in range(4)]
+
+    # a pasted title label on the front board
+    parts["frame"] = HS.apply_mods(HS.box(
+        "CoverLabelFrame", ((PAGE_W + sq) * 0.5, PAGE_D * 0.14,
+                            TB * 0.5 + BOARD_T + 0.0002),
+        (PAGE_W * 0.60, PAGE_D * 0.30, 0.0012), bevel=0.0006, segments=1))
+    parts["label"] = HS.apply_mods(HS.box(
+        "CoverLabel", ((PAGE_W + sq) * 0.5, PAGE_D * 0.14,
+                       TB * 0.5 + BOARD_T + 0.0009),
+        (PAGE_W * 0.52, PAGE_D * 0.24, 0.0014), bevel=0.0006, segments=1))
+
+    # the ribbon out of the tail, lying over the board
+    rv, rf = [], []
+    for k in range(9):
+        t = k / 8
+        y = -PAGE_D * 0.34 - t * 0.115
+        z = TB * 0.5 * (1 - t) - t * (TB * 0.5 + BOARD_T + 0.0010)
+        x = PAGE_W * 0.62 + 0.018 * math.sin(t * 3.1)
+        for sx in (-1, 1):
+            rv.append(Vector((x + sx * 0.0090, y, z)))
+    for k in range(8):
+        a = k * 2
+        rf.append((a, a + 1, a + 3, a + 2))
+    rib = HS.mesh_from("LedgerRibbon", rv, rf, smooth=True)
+    sol = rib.modifiers.new("Cloth", "SOLIDIFY")
+    sol.thickness, sol.offset = 0.0006, 0.0
+    parts["ribbon"] = HS.apply_mods(rib)
+
+    cloth = HS.pbr("LedgerCloth", (0.042, 0.021, 0.016), roughness=0.88)
+    board_paper = HS.pbr("LedgerBlockEdge", (0.480, 0.452, 0.386), roughness=0.95)
+    silk = HS.pbr("LedgerRibbon", (0.185, 0.032, 0.030), roughness=0.62)
+    for o in boards + [parts["spine"]] + parts["bands"] + [parts["frame"]]:
+        o.data.materials.append(cloth)
+    parts["blocks"][0].data.materials.append(board_paper)
+    parts["label"].data.materials.append(board_paper)
+    parts["ribbon"].data.materials.append(silk)
+    parts["square"] = sq
+    return parts
+
+
 def gutter_depth(leaf):
     """Measure the gutter off the LEAF, not off the constant that drew it."""
     vs = [v.co for v in leaf.data.vertices]
@@ -241,12 +350,69 @@ def gutter_depth(leaf):
 def main():
     args = H.argv_after_dashes()
     engine = "CYCLES" if "cycles" in args else "EEVEE"
-    broken = "break-gutter" in args
-    suffix = "-BROKEN" if broken else ("-eevee" if engine == "EEVEE" else "")
+    broken = next((x.split("=", 1)[1] for x in args if x.startswith("break=")),
+                  "gutter" if "break-gutter" in args else "")
+    closed = "closed" in args
+    state = "-closed" if closed else ""
+    suffix = (f"-BROKEN-{broken}" if broken else
+              ("-eevee" if engine == "EEVEE" else "")) + state
 
     H.reset_scene()
     H.set_engine(engine, samples=180 if engine == "CYCLES" else 112)
-    p = build(broken=broken)
+
+    if closed:
+        p = build_closed(broken=broken)
+        for b in p["boards"]:
+            HS.assert_touching(b, p["spine"], "a board must meet the spine", 0.0030)
+        HS.assert_rooted(p["bands"], p["spine"], "the raised spine bands",
+                         min_verts=3, min_depth=0.0004)
+        HS.assert_touching(p["label"], p["boards"][1],
+                           "the cover label must be on the front board", 0.0020)
+        # THE SQUARE: a hardback's boards overhang its block, and a block that
+        # pokes past its cover is the single thing that says "this is not a
+        # bound book". Measured off both meshes, not off the constant.
+        bx = max((p["blocks"][0].matrix_world @ v.co).x
+                 for v in p["blocks"][0].data.vertices)
+        cx = max((p["boards"][1].matrix_world @ v.co).x
+                 for v in p["boards"][1].data.vertices)
+        if cx - bx < SQUARE * 0.45:
+            raise SystemExit(
+                f"BUILD FAILED: the board overhangs the block by only "
+                f"{(cx - bx) * 1000:.2f} mm at the fore-edge — the page block is "
+                f"proud of its cover and the book does not read as bound")
+        print(f"  square assertion passed: the board overhangs the block by "
+              f"{(cx - bx) * 1000:.2f} mm at the fore-edge")
+        subject = (p["boards"] + [p["spine"]] + p["bands"] + p["blocks"]
+                   + [p["frame"], p["label"], p["ribbon"]])
+        print(f"TRIS {H.triangles(subject)} ({len(subject)} objects, 3 materials) "
+              f"— the hand is 5,179")
+        lo, hi = H.bounds(subject)
+        print(f"  overall {hi.x - lo.x:.4f} x {hi.y - lo.y:.4f} x "
+              f"{hi.z - lo.z:.4f} yd   (CLOSED)")
+        centre, radius = H.subject_sphere(subject)
+        LENS = 74.0
+        dist = H.fit_distance(radius, LENS, res=(1100, 1100), margin=1.20)
+        H.studio(center=centre, scale=radius)
+        H.backdrop(center=centre, scale=radius)
+        tt = H.turntable(centre, dist, OUT_RENDER, f"ledger{suffix}", views=8,
+                         elevation=28.0, lens=LENS, res=(900, 900))
+        H.contact_sheet(tt, os.path.join(OUT_RENDER,
+                                         f"ledger{suffix}-turntable.png"), cols=4)
+        # az=-90 looks from the front. The spine is at -x so it needs az=180,
+        # and the fore-edge at +x needs az=0. These were the wrong way round
+        # and the frame labelled "spine" was a picture of the fore-edge.
+        for label, az, el in (("cover", -104, 40), ("spine", 180, 14),
+                              ("foredge", 0, 14), ("head", -90, 66)):
+            cam = H.camera(label, H.orbit_position(centre, dist, az, el),
+                           centre, lens=LENS)
+            H.render(cam, os.path.join(OUT_RENDER, f"ledger{suffix}-{label}.png"),
+                     res=(1100, 1100))
+            if label == "cover":
+                H.silhouette(subject, cam, os.path.join(
+                    OUT_RENDER, f"ledger{suffix}-silhouette.png"), res=(900, 900))
+        return
+
+    p = build(broken=bool(broken))
 
     # ---- the assertions
     for leaf in p["leaves"]:
