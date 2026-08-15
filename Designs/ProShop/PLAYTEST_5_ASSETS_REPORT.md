@@ -838,3 +838,34 @@ flares rather than hangs.
 
 **That is now a bisection between two photographed endpoints rather than a guess,**
 which is the first time this head has been in that position across nine passes.
+
+## MOP ROUND 3 — splay 0.78, the bisection lands on a skirt
+
+`mop-v3-lit.png`. Between the two photographed endpoints:
+
+| splay | what the frame shows |
+|---|---|
+| 1.30 | **shuttlecock** — straight spikes radiating off a red disc |
+| 0.42 | **narrow barrel** — gathered, correct in character, too tight |
+| **0.78** | **a flared skirt** — gathered at the collar, opening toward the hem |
+
+0.78 is the best of the three by a clear margin: the head has a waist and a hem,
+which is what a spin mop does, and neither the spikes nor the barrel is present.
+75/92 drawable, mop held, no page errors, no geometry rebuilt.
+
+**Against the reference it is still taller than it is wide.** The reference disc is
+roughly 2:1 wide-to-deep; this is nearer 1:1. The remaining lever is not splay — it
+is the strand LENGTH against the head radius (`length 0.20`, `radius 0.168`), and a
+shorter strand on the same radius is what turns a skirt into a disc.
+
+## Where the three assets stand at the end of this session
+
+| asset | state |
+|---|---|
+| hands | modelled, wired as a true replacement, **16/16 adopted both hands**, photographed, six measured rounds. Warm flesh, distinct digits, thumb across the grip. **Close, not matching** — the silhouette is softer than the photograph. |
+| mop head | **diagnosed from the first lit frame ever taken of it** and improved across three rounds from a shuttlecock to a flared skirt. **Not yet the disc** — one lever left, named. |
+| broom head | **untouched.** |
+
+None of the three is finished to the owner's bar. Both live ones are now in a
+bisection between photographed endpoints with a working loop, which is the first
+time either has been in that position.

@@ -367,7 +367,7 @@ export const SHIPPED_MOP_YARN = Object.freeze({
   // every tip of a STRAIGHT strand to the rim is what makes a starburst. The
   // reference's disc is strands HANGING and gathering, with gravity winning over
   // the outward push, not strands fanned to their maximum radius.
-  splay: 0.42,
+  splay: 0.78,
 });
 
 export function createVerletMopStrands({
