@@ -257,6 +257,29 @@ debt. **The remaining levers that genuinely shrink it: fewer programs
 overlap (start scene+warm while the player reads the menu).** The slice is
 REVERTED (hash-asserted); the committed build is the 16-17 s-warm state.
 
+## Slot-shape unification — landed, proven by counts and pixels
+
+The first fewer-programs lever is in (`courseScene.js`, top of prewarm):
+every ALREADY-TEXTURED MeshStandardMaterial gets its absent
+map/normalMap/roughnessMap/metalnessMap slots filled with shared 1×1
+identity textures — white multiplies the factors unchanged, 0x8080ff is
+the tangent-space identity normal, so it is a visual no-op by
+construction. Untextured materials (no UVs guaranteed) and aoMap/bumpMap
+stay untouched.
+
+**Verified by the two environment-proof instruments:**
+- Program census: **256 → 214 live programs; the physical family 167 →
+  125** — 42 compiles removed from every tier of every boot (~1.6 s off
+  tonight-cold, ~3 s off a true first-ever boot, at the measured
+  per-program rates).
+- Golden gate: all 13 poses within budget, the world poses at literal 0.0
+  diff. Pixels agree it changed nothing.
+
+The remaining physical-family spread (125) is side/alphaTest/vertexColors/
+geometry-shape driven; the next cuts there need per-case judgment
+(double-sided is semantic, alphaTest is semantic). The untextured 370
+could join the unified shape only after a UV audit of their geometry.
+
 ## THE MEASUREMENT ENVIRONMENT DEGRADED — later numbers are contaminated
 
 The revert was verified byte-identical to the committed build that measured

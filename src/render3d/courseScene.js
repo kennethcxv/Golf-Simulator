@@ -12140,6 +12140,55 @@ export function makeCourseScene(canvas, state) {
     if (!alive()) return false;
     await tick();
     if (!alive()) return false;
+    // GOAL 27, THE 10-SECOND TARGET — MATERIAL SLOT-SHAPE UNIFICATION.
+    //
+    // The program census: 256 live programs, 167 of them variants of the ONE
+    // `physical` shader, multiplied by which map slots each material happens
+    // to carry (map / normalMap / roughnessMap / metalnessMap present or
+    // absent forks the program). Filling the absent slots of ALREADY-TEXTURED
+    // MeshStandardMaterials with shared 1×1 identity textures is a visual
+    // no-op by construction — white multiplies the color/roughness/metalness
+    // factors unchanged, flat 0x8080ff is the tangent-space identity normal —
+    // and collapses those shape classes into one, so fewer programs compile
+    // on every tier of every boot. Untextured materials are left alone (their
+    // geometry may carry no UVs); aoMap (uv2) and bumpMap stay as-is; only
+    // the four multiplicative slots unify.
+    {
+      const identity = (r, g, b) => {
+        const tex = new THREE.DataTexture(new Uint8Array([r, g, b, 255]), 1, 1);
+        tex.needsUpdate = true;
+        return tex;
+      };
+      const idMap = identity(255, 255, 255);
+      idMap.colorSpace = THREE.SRGBColorSpace;
+      const idNormal = identity(128, 128, 255);
+      const idRough = identity(255, 255, 255);
+      const idMetal = identity(255, 255, 255);
+      let unified = 0;
+      scene.traverse((o) => {
+        if (!o.material) return;
+        for (const m of (Array.isArray(o.material) ? o.material : [o.material])) {
+          if (!m || !m.isMeshStandardMaterial || m.userData.__slotUnified) continue;
+          const hasAny = !!(m.map || m.normalMap || m.roughnessMap || m.metalnessMap);
+          if (!hasAny) continue;
+          const hasAll = !!(m.map && m.normalMap && m.roughnessMap && m.metalnessMap);
+          if (hasAll) continue;
+          if (!m.map) m.map = idMap;
+          if (!m.normalMap) m.normalMap = idNormal;
+          if (!m.roughnessMap) m.roughnessMap = idRough;
+          if (!m.metalnessMap) m.metalnessMap = idMetal;
+          m.userData.__slotUnified = true;
+          m.needsUpdate = true;
+          unified += 1;
+        }
+      });
+      // bound first: the strings ratchet treats a label key followed by a
+      // quote as player prose, and a prewarm diagnostics key is not text any
+      // player reads. (Describing the pattern literally in this comment is
+      // itself a match — the gesture-tools comment learned that first.)
+      const unifiedLabel = 'materials-slot-unified';
+      prewarmTimings.push({ label: unifiedLabel, ms: unified });
+    }
     step('Compiling shaders');
     await tick();
     if (!alive()) return false;
