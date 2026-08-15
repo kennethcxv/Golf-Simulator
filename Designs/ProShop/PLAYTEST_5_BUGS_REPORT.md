@@ -44,6 +44,8 @@ verdict must read that assertion — not just the measurement downstream of it.
 | 5 — audio | **ALL FOUR ADDRESSED, measured on the graph.** The sale-end sound existed on disk and was unreachable; the crossover is a random pick between a coin take and two paper ones. One half of the probe failed its control and is called out |
 | 6 — Blender assets | SKIPPED, second session owns it |
 
+**Three things are waiting on you, and I did not guess any of them:** which reading of item 2 you meant, whether the dead starter desk gets wired or its promise deleted (item 4), and whether the clamp should stop moving customers so your own step can happen (item 3). The overview's 4096 shadow allocation in item 1 trades memory or shadow quality, so that one is yours too.
+
 ---
 
 ## P0 — THE COURSE EDITOR IS UNUSABLE
