@@ -59,9 +59,17 @@ SUFFIX = ""
 BREADTH = 0.088
 
 MCP = {
-    "index":  Vector((0.0310, 0.0885, 0.0098)),
+    # Knuckle spacing has to be less than the two fingers that meet there, or
+    # daylight shows between them. Ring-to-little was 22.5 mm of gap for 18 mm of
+    # finger, and the turntable showed the background straight through it.
+    "index":  Vector((0.0300, 0.0885, 0.0098)),
     "middle": Vector((0.0100, 0.0940, 0.0116)),
-    "ring":   Vector((-0.0125, 0.0890, 0.0098)),
+    "ring":   Vector((-0.0122, 0.0890, 0.0098)),
+    # Do NOT bring this knuckle in to close the gap beside the ring finger.
+    # Anything inside -0.0350 makes the two hulls overlap at the five-way palm
+    # branch and the Skin modifier answers with a flat torn sheet -- traded a
+    # hole for a worse hole, three times, before the archived round-19 frame
+    # showed which change had introduced it.
     "little": Vector((-0.0350, 0.0795, 0.0056)),
 }
 PHALANX = {
@@ -77,13 +85,20 @@ JOINT_R = {
     "index":  (0.0098, 0.0088, 0.0078, 0.0059),
     "middle": (0.0101, 0.0090, 0.0080, 0.0061),
     "ring":   (0.0095, 0.0085, 0.0076, 0.0057),
-    "little": (0.0085, 0.0076, 0.0068, 0.0051),
+    # Left at the smaller value deliberately. Enlarging the little finger's
+    # knuckle to close the gap beside the ring finger made its hull overlap the
+    # ring's at the five-way palm branch, and the Skin modifier answered with a
+    # flat torn sheet between them -- traded a hole for a worse hole.
+    "little": (0.0085, 0.0087, 0.0076, 0.0055),
 }
 # Positive yaw about +Z carries a finger ULNAR. The index sits radial of the
 # midline so it converges with a POSITIVE angle and the little finger with a
 # negative one; the signs were the other way round, which fanned the fingers
 # apart as they closed and left daylight between them in every palmar frame.
-CONVERGE = {"index": 6.0, "middle": 1.5, "ring": -2.5, "little": -7.0}
+# The gap beside the little finger closes along its LENGTH instead: more yaw
+# toward the ring finger leaves the knuckles where the solver can build them and
+# still shuts the daylight the turntable was showing.
+CONVERGE = {"index": 6.0, "middle": 1.5, "ring": -8.5, "little": -15.0}
 # Anatomical limits. A finger that cannot reach the handle stops here rather than
 # folding through itself, and the build says which joint ran out.
 JOINT_LIMIT = (95.0, 115.0, 85.0)
@@ -290,7 +305,14 @@ def nail(name, hand_obj, base_inside, tip_dir, axis, width, length):
     which is how a nail once ended up on the back of the hand.
     """
     dorsal = axis.cross(tip_dir).normalized()
-    if dorsal.dot(base_inside - SHAFT_POINT) < 0:
+    # "Away from the handle" means away from its AXIS, which is the radial
+    # component only. Using the raw difference from a point on the axis includes
+    # a large along-axis term -- for the outer fingers, sitting 30 mm off the
+    # shaft's midpoint, that term dominates and flips the sign, and the nail gets
+    # built on the wrong side of the finger as a flat flap.
+    off = base_inside - SHAFT_POINT
+    radial = off - SHAFT_DIR * off.dot(SHAFT_DIR)
+    if radial.length > 1e-6 and dorsal.dot(radial) < 0:
         dorsal = -dorsal
     reach = max(0.010, width * 1.7)
     hit, location, normal, _ = hand_obj.ray_cast(base_inside + dorsal * reach,
@@ -376,7 +398,7 @@ def main():
     args = H.argv_after_dashes()
     engine = "CYCLES" if "cycles" in args else "EEVEE"
     global SUFFIX
-    for flag in ("no-taper", "no-weld"):
+    for flag in ("no-taper", "no-weld", "no-nails"):
         if flag in args:
             SUFFIX += "-" + flag
 
@@ -452,13 +474,16 @@ def main():
     NAIL = {"index": (0.0078, 0.0112), "middle": (0.0081, 0.0118),
             "ring": (0.0076, 0.0109), "little": (0.0066, 0.0091)}
     for name, f in fingers.items():
+        if "no-nails" in args:
+            break
         w, l = NAIL[name]
         j = f["joints"]
         nails.append(nail(f"Nail_{name}", hand, j[2].lerp(j[3], 0.45),
                           f["dir"], f["axis"], w, l))
     tj = thumb["joints"]
-    nails.append(nail("Nail_thumb", hand, tj[2].lerp(tj[3], 0.34), thumb["dir"],
-                      thumb["axis"], 0.0082, 0.0100))
+    if "no-nails" not in args:
+        nails.append(nail("Nail_thumb", hand, tj[2].lerp(tj[3], 0.34), thumb["dir"],
+                          thumb["axis"], 0.0082, 0.0100))
     print(f"  {len(nails)} nails raycast onto the skin (none floating)")
 
     skin, nailmat = skin_material(), nail_material()
@@ -500,7 +525,7 @@ def main():
     H.studio(center=centre_view, scale=sphere_r)
     H.backdrop(center=centre_view, scale=sphere_r)
 
-    tt = H.turntable(centre_view, dist, OUT_RENDER, "hand", views=8, elevation=16.0,
+    tt = H.turntable(centre_view, dist, OUT_RENDER, f"hand{SUFFIX}", views=8, elevation=16.0,
                      lens=LENS, res=(760, 760))
     H.contact_sheet(tt, os.path.join(OUT_RENDER, "hand-turntable.png"), cols=4)
 

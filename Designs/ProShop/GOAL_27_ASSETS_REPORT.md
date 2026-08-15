@@ -208,16 +208,96 @@ what flesh does. All five digits now report **+0.1 mm**.
 | 18 | 7 | serrated fingertip edge | nails were flat cards standing proud; set into the nail bed |
 | 19 | 3, 7 | forearm read as a noodle | 41–49 mm wide where a real one at that length is 58–65 |
 
-### What I can still name across the eight frames
+### Rounds 20-24: a hole, and three attempts that made it worse
 
-- **Frame 1** (down the arm): the hand is an undifferentiated blob. Partly
-  inherent to the angle — in game this view never occurs.
+Putting the reference beside frames 4 and 6 showed a fault neither the
+assertions nor I had caught: **a black through-hole between the ring and little
+fingers**, above the pole, with the background visible through it. The
+grip-contact assertion cannot see it — it measures each digit against the SHAFT
+and says nothing about daylight BETWEEN digits.
+
+Closing it took four attempts, three of which traded the hole for something
+worse. Each time the fix produced a flat torn sheet between those two fingers:
+
+| attempt | change | result |
+|---|---|---|
+| 20 | little knuckle in 3.8 mm, fatter, less shaft tilt | flap appears |
+| 21 | suspected the nail's dorsal direction; fixed a real bug there | flap unchanged |
+| 22 | reverted knuckle positions | flap unchanged |
+| 23 | reverted little-finger radii | flap unchanged |
+| 24 | reverted knuckle position to -0.0350, closed the gap with CONVERGENCE instead | **flap gone, hole gone** |
+
+The mechanism: the Skin modifier's five-way branch at the distal palm cannot
+take two knuckle hulls that overlap. Anything that brings the little finger's
+knuckle inside -0.0350 — position or radius — makes it emit a torn face instead
+of a junction. The gap therefore has to close along the finger's LENGTH, with
+more yaw toward the ring finger, leaving the knuckles where the solver can build
+them.
+
+Two controls did the diagnostic work: a render with the nails removed entirely
+(the flap was identical, so it was skin, not a nail), and the archived round-19
+frame (clean, so the flap was introduced by a specific later change rather than
+having always been there). Without the archived frame I would have kept
+attributing it to whatever I had touched most recently — which is exactly what
+attempts 21 through 23 were.
+
+### The bar, and how the reference was used
+
+The brief sets House Flipper's first-person hands as the bar. I could not fetch
+a House Flipper screenshot as an image I can actually LOOK at — web search
+returns text, and a reference I cannot see is a reference I would only be
+pretending to use. What I used instead is the reference already in the repo:
+`HandsRefrenceImage.png`, a first-person hand gripping a mop shaft with a "Hold
+and switch to Move objects" prompt on screen — House-Flipper class, very
+probably House Flipper itself. `tools/blender/hero/side_by_side.mjs` writes it
+into one strip beside the render so the comparison is unavoidable rather than
+optional, and `hand-vs-reference.png` is that strip.
+
+Putting them side by side is what found the through-hole. It is also what shows
+the two differences that remain: the reference's fingers are noticeably more
+slender than mine, and its knuckles read as a soft row where mine are smooth.
+
+### NOT DONE: the ring/little gap, and why I stopped trading it
+
+**Frame 4 still shows a narrow slot between the ring and little fingers with the
+pole visible through it.** It is smaller than it was — the convergence work in
+rounds 24 and 26 more than halved it — but it is still a hole, and I am
+reporting it as outstanding rather than claiming it closed.
+
+I attempted it six times. The pattern is consistent and worth writing down,
+because it is a property of the tool rather than of this asset:
+
+> Anything that brings the little finger's knuckle nearer the ring finger's —
+> its POSITION or its RADIUS — makes the two hulls overlap at the Skin
+> modifier's five-way palm branch, and it emits a flat torn sheet between them
+> instead of a junction. Closing a hole that way produces a worse hole.
+
+What does work is closing the gap along the fingers' LENGTH with convergence
+yaw, which leaves the knuckles where the solver can build them. That took the
+slot from a wide black hole showing the background to a narrow one showing the
+pole, and further yaw starts to read as a claw.
+
+The real fix is a topology change: an explicit interdigital web, or splitting
+the five-way branch so no two knuckle hulls share a vertex. Both are larger than
+a tuning pass and both risk reintroducing the shard class that the fan topology
+was adopted to remove, so it is the right place to stop and say so.
+
+### What else I can still name across the eight frames
+
+- **Frame 1** (down the arm): the hand is an undifferentiated blob, and there is
+  a single-pixel nail speck visible at the top of the fist. Partly inherent —
+  in game this view never occurs.
 - **Frame 7**: the fingertips clump into a slightly ragged lump at the ulnar
   edge. Real geometry, reads awkwardly.
-- **Frame 4**: small dark slots between the ring and little knuckles.
-- **All frames**: the skin reads waxy. No tendons, no creases, no pores. This is
+- **Against the reference**: my fingers are chunkier and my knuckle row is
+  smooth where the reference's reads as a soft row of four.
+- **All frames**: the skin reads waxy. No tendons, no creases, no pores. That is
   a normal-map pass, not a modelling one, and it is the honest ceiling for
   geometry alone.
+
+**So this is not a SHIP.** The three faults the owner named are fixed and each
+is now held by an assertion that was watched failing first. One fault he did not
+name is still open, and four cosmetic ones are listed above.
 
 ### Finishing notes — what a hostile reviewer would still say
 
