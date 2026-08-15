@@ -33,7 +33,9 @@ test('the game UI layer is still click-through, which is why the panel must opt 
 });
 
 test('the tuning overlay takes pointer events, or no slider can be dragged', () => {
-  const css = /const PANEL_CSS = ([\s\S]*?);\n/.exec(tuner);
+  // \r?\n: with core.autocrlf the worktree copy carries CRLF after any fresh
+  // checkout, and a literal \n anchor stops matching its own file.
+  const css = /const PANEL_CSS = ([\s\S]*?);\r?\n/.exec(tuner);
   assert.ok(css, 'the panel style block is findable');
   assert.match(css[1], /pointer-events:auto/, 'the panel root opts back into the cursor');
 });

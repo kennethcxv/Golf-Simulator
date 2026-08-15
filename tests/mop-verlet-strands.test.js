@@ -236,8 +236,32 @@ test('D (Goal 23): the bands hang from a COLLAR, not from a point', () => {
 
   assert.ok(nearest > R * 0.35,
     `no band may hang off the axis: nearest sits at ${nearest.toFixed(4)} of a ${R} head`);
-  assert.ok(furthest > R * 0.75,
-    `and the collar must still reach the rim: furthest ${furthest.toFixed(4)}`);
+
+  // GOAL 27 PHASE 0 — THE BAR MOVES 0.75 -> 0.70; THE CLAIM IS UNCHANGED.
+  //
+  // The Goal 26 5.1 rebuild (owner-approved from the photographed bisection:
+  // "point c ships", splay 0.95) deliberately anchors the collar INSIDE the
+  // hub at 0.50 R and reaches the rim with the splayed SKIRT instead. Its own
+  // sweep table (mopVerlet.js) shows the settled hem is not linear in splay;
+  // at the shipped 0.95 the tips settle at 0.742 R — 1.4 mm inside the old
+  // bar, which was written against a collar that sat at 0.80 R. Per the
+  // owner's recorded method for this very test ("update the test to the new
+  // ruling rather than reverting"), the bar records the shipped design and
+  // the barrel control below keeps it refusing the shape it was born against.
+  assert.ok(furthest > R * 0.70,
+    `and the skirt must still reach toward the rim: furthest ${furthest.toFixed(4)} of a ${R} head`);
+
+  // CONTROL: with the splay removed the same yarn is the straight-sided
+  // barrel Goal 25 threw out — its tips stay at the 0.50 R collar and MUST
+  // fail the skirt bar, or the bar has stopped measuring anything.
+  const barrel = createVerletMopStrands({ THREE, material, ...SHIPPED_MOP_YARN, splay: 0 });
+  const barrelHead = new THREE.Group();
+  barrelHead.add(barrel.root);
+  barrelHead.position.set(0, 1, 0);
+  run(barrel, barrelHead, 240, 1 / 60);
+  const barrelFurthest = Math.max(...barrel.tipsWorld().map((t) => Math.hypot(t.x, t.z)));
+  assert.ok(barrelFurthest < R * 0.70,
+    `control: a splayless barrel must fail the skirt bar; sat at ${barrelFurthest.toFixed(4)}`);
 
   // ...and they are thick enough to mat rather than fan. Neighbouring anchors
   // around the collar are about this far apart; a band whose diameter is a
@@ -340,6 +364,26 @@ test('B (Goal 25): 16-24 countable BUNCHES of many fine strands, not 16-24 rods'
   run(rig, head, 240, 1 / 60);
   const drops = rig.tipsWorld().map((t) => 1 - t.y);
   const spread = Math.max(...drops) - Math.min(...drops);
-  assert.ok(spread > LENGTH * 0.2,
-    `the hem must be ragged, not machined: length spread was ${spread.toFixed(4)}`);
+  // GOAL 27 PHASE 0 — THE DENOMINATOR WAS THE WRONG RIG'S. This rig is built
+  // from SHIPPED_MOP_YARN, but the bar divided by the synthetic makeRig()
+  // LENGTH (0.30). They agreed when this line was written; the Goal 26
+  // bisection cut the shipped drop to 0.108 and the bar silently became 56%
+  // of the strand length. 20% stays the claim — asked of the strands actually
+  // simulated. Shipped settle: 0.049, which is 45% of the shipped length.
+  assert.ok(spread > SHIPPED_MOP_YARN.length * 0.2,
+    `the hem must be ragged, not machined: length spread was ${spread.toFixed(4)} of ${SHIPPED_MOP_YARN.length}`);
+
+  // CONTROL: cut every strand to one length and the hem is machined — the
+  // same bar MUST refuse it. (lengthVariation is the raggedness source; the
+  // splay geometry alone lifts rim tips a little, and this proves that lift
+  // stays under the bar.)
+  const machined = createVerletMopStrands({ THREE, material, ...SHIPPED_MOP_YARN, lengthVariation: 0 });
+  const machinedHead = new THREE.Group();
+  machinedHead.add(machined.root);
+  machinedHead.position.set(0, 1, 0);
+  run(machined, machinedHead, 240, 1 / 60);
+  const machinedDrops = machined.tipsWorld().map((t) => 1 - t.y);
+  const machinedSpread = Math.max(...machinedDrops) - Math.min(...machinedDrops);
+  assert.ok(machinedSpread < SHIPPED_MOP_YARN.length * 0.2,
+    `control: a uniform cut must read machined; spread ${machinedSpread.toFixed(4)}`);
 });

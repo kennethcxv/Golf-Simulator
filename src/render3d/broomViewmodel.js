@@ -40,7 +40,7 @@
 import * as THREE from 'three';
 import { BROOM_FEEL } from '../data/broomFeel.js';
 
-const SKIN = 0xd9a97e;
+const SKIN = 0xc4875c; // matches fpHands.js — the Goal 26 hand rounds retuned it there, and the shared-set test pins the fallback to it
 const CUFF = 0x2f4a35;
 
 // C2 — the last 0.10 yd of the up-look grip cap is eased, so the hands
