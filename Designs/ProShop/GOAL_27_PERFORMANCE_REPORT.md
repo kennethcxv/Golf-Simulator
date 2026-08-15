@@ -15,7 +15,7 @@
 | 2 — first-press stalls | **DONE with two named residuals** — general mechanism shipped, every reachable surface ≤27 ms both tiers; course editor (823-1051 ms) open with one fix shape tried+reverted; page-turn instrument gap named |
 | 3 — mesh merge | **MEASURED, NOT MERGED** — headroom re-derived with an honest classifier; the naive estimate was blind to pivot articulation; top target has a named verification gap; no geometry touched |
 | 4 — outdoor collapse | **DOES NOT REPRODUCE** on the merged tree at owner resolution — walking out: 8.6 ms median / 116 fps, max 18.9 ms; historic 6.7 fps attributed to the cold-tier outdoor compile storm the deferred sweep now covers; 7.7M outdoor triangles named as the top Phase-5 risk |
-| 5 — low-end target | NOT STARTED |
+| 5 — low-end target | **MEASURED** — target defined (1080p / integrated class / 33 ms); at 1080p full-hardware every scenario passes except the editor entry (10.7 s outlier); at CPU ×6.6 everything fails — the game is CPU-bound on weak CPUs; levers named |
 | 6 — resolution follows monitor | NOT STARTED |
 
 ## Before/after table
@@ -230,6 +230,67 @@ build.
 heavy meal an RTX 5080 hides. On the low-end target it will not be hidden;
 distance-culling/LOD on the instanced vegetation is the ready lever if
 Phase 5's measurements say so.
+
+---
+
+## Phase 5 — the low-end target, defined and measured
+
+**The target, chosen:** 1920×1080, integrated-graphics class (Iris Xe /
+Vega 8 — about an eighth of this RTX 5080), 60 fps sustained, no frame over
+33 ms.
+
+**The method** (`tools/qa/electron-lowend-matrix.js`), the brief's three
+levers: a real un-maximised 1920×1080 window (the maximised-setContentSize
+trap dodged explicitly); `Emulation.setCPUThrottlingRate` ×6 with an
+in-run calibration (a fixed busy-loop measured 11.2 → 74.3 ms — factor
+6.63, the throttle provably bit); and tonight's owner-4K numbers as the
+fill-rate comparison column. A SwiftShader software-GL floor is NOT
+included — the launcher has no GL-flag path — named as a gap, not faked.
+Caveat: the app's DPR policy kept dpr 1.5, so "1080p" renders a 2880×1621
+buffer — the condition OVERSTATES the target's pixel load, making its
+passes conservative.
+
+**Condition A — 1080p window, full hardware:**
+
+| scenario | median | p95 | max | verdict |
+|---|---|---|---|---|
+| standing | 11.5 | 13.5 | 18.9 | PASS |
+| door walk | 11.4 | 16.9 | 24.4 | PASS |
+| register enter | 8.1 | 10.8 | 23.3 | PASS |
+| ledger open | 11.3 | 14.6 | 17.1 | PASS |
+| tool cycle ×9 | 14.0 | 17.7 | 21.8 | PASS |
+| Tab round trip | 5.6 | 15.7 | 20.1 | PASS |
+| **editor entry** | 5.9 | — | **10,723** | **FAIL** |
+| outdoor walk 20 s | 5.5 | 6.4 | 11.8 | PASS |
+
+The editor's first entry — Phase 2's named residual — measured 823 ms,
+1,051 ms, and now 10.7 s across three boots: the migratory compile debt
+amplifies it unpredictably. It is the game's ONE failure at target
+resolution on capable hardware.
+
+**Condition B — same scenarios, CPU ×6.63 (calibrated):**
+
+| scenario | median | max | frames >33 | verdict |
+|---|---|---|---|---|
+| standing | 46.5 | 97.5 | 85 | FAIL |
+| door walk | 27.3 | 96.8 | 77 | FAIL |
+| register enter | — | **3,669** | 1 | FAIL |
+| ledger open | 48.2 | 94.3 | 45 | FAIL |
+| tool cycle | 56.4 | 2,752 | 84 | FAIL |
+| Tab round trip | 30.7 | 100.8 | 36 | FAIL |
+| editor entry (2nd of boot) | 27.6 | 88.1 | 29 | FAIL |
+| outdoor walk | 28.0 | 90.8 | 370 | FAIL |
+
+**Everything fails under the ×6.6 CPU: the game is CPU-bound on weak
+CPUs.** Standing costs ~46.5/6.63 ≈ 7 ms of main-thread CPU per frame on
+this machine; linear scaling puts a half-speed CPU at ~14 ms standing
+(workable) and a third-speed CPU at ~21 ms (fragile, fails on any spike).
+The single frames — register 3.7 s, tool 2.8 s — are the CPU-side entry
+costs that the GPU hides here. The named lever, already on file from the
+perf-pipeline work: freezing the 2,208-object clubhouse subtree's
+matrix/visibility churn, plus splitting entry-cost work off the enter
+frame. Both are next-session items, now with the numbers that justify
+them.
 
 ---
 
