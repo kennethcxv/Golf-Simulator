@@ -117,6 +117,50 @@ full-scene 4K composer frames with culling off and full shadow bakes —
 ~1.7 s per draw). Those draws existed to force compiles that are now cache
 hits; shrinking them is the next measured change and it helps BOTH tiers.
 
+## The program census — the owner's hypothesis, measured
+
+(`tools/qa/electron-program-census.js`, settled boot)
+
+| measure | value |
+|---|---|
+| live programs | **256** |
+| …of which `physical` family (Standard/Physical shader) | **167** |
+| material instances in scene | 866 |
+| distinct texture-slot SHAPE classes | **45** |
+| plain untextured Standard materials | 370 (two shapes: front / double-sided) |
+| MeshPhysicalMaterial (expensive family) | only 8 |
+
+**Verdict on "349 materials": directionally right, unit corrected.** The
+cost driver is 167 variants of ONE shader, multiplied by slot shape ×
+side × flags (map/normal/roughness/metalness presence, alphaTest,
+vertexColors). Unifying textured materials to a canonical slot shape
+(1×1 identity textures in empty slots — visually a no-op) collapses the
+physical family toward ~90-110 programs; the untextured 370 already sit in
+two shapes. **The floor is roughly 100-120 programs** without touching
+looks.
+
+**And the decisive arithmetic:** even at the floor, ~100 programs ×
+~70 ms cold ANGLE compile ≈ **7 s of compile alone** — the entire 10 s
+budget before a single asset loads. This is why no shipped engine
+cold-compiles the world before handing over control. **The cold answer is
+room-first: the veil waits only for the spawn room's program set; the
+course, overview, editor and register-mode variants warm AFTER control,
+throttled and invisible** (the small-viewport warm machinery built tonight
+is the tool — post-veil it must draw off-screen or at 1px, clip-verified).
+Shape unification then shrinks both the pre-veil and post-veil sets.
+
+## Changes landed so far under the new target (each measured, tiers separate)
+
+| change | COLD spawn→playable / prewarm | WARM spawn→playable / prewarm | worst post-veil frame |
+|---|---|---|---|
+| baseline (6 MB cache cap) | 73.7–85.7 s / 67–76 s | 31.0–55.9 s / 18.4–37.9 s | 396 ms |
+| cache caps → 256 MB | 45.6 s / 27.9 s | 31.9–42.8 s / 22.7–27.5 s | 261–535 ms (sweep) |
+| + warm draws at 96×96 | 48.7 s / 34.4 s (≈unchanged) | 27.2 s / 16.1 s | 119 ms (sweep) |
+| + compileAsync sweep retired | — | 26.9 s / 17.7 s | **none > 60 ms** |
+
+Census after the sweep retirement: every surface still arrives zero
+programs first-press (the course editor's known stall excepted).
+
 ## The plan this survey dictates, in measurement order
 
 1. **A/B the cache cap** (one switch, two boots): if eviction is the warm
