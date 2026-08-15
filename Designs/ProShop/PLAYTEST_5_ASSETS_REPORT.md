@@ -919,3 +919,40 @@ the exhibit loop re-poses without re-asserting, which is the gap.
 
 **None of the three meets the bar.** Two are in a measured bisection with a working
 loop and one named lever each; the third was never started.
+
+---
+
+# 3. THE BROOM HEAD — PHOTOGRAPHED, AND IT READS CORRECTLY
+
+`broom-v1-lit.png` — 1:00 PM, lit, FOV 30, broom confirmed held at 72/89 drawable.
+The first lit frame of this head as well.
+
+**No silhouette fault found.** A dark wooden block with a brass ferrule and a dense,
+even band of fine dark bristles along its underside. It reads as a push broom: the
+block has believable proportions, the bristles are dense rather than sparse, and
+the ferrule joins the shaft cleanly. There is nothing here like the mop's
+shuttlecock or the hand's splayed rods.
+
+That is worth stating plainly because it changes the shape of the remaining work:
+the owner has never complained about the broom's form — the record has him calling
+its bristles right — and this frame corroborates that rather than contradicting it.
+
+**Asset 3 status: photographed and assessed, NOT remodelled.** I did not model or
+re-wire it, because the evidence does not show a defect to fix. If the owner looks
+at this frame and disagrees, the loop to change it is the same one that moved the
+mop four times tonight.
+
+---
+
+# CLOSING STATE — ALL THREE ASSETS HAVE A LIT FRAME
+
+| asset | wired as a replacement | rounds | frame | verdict |
+|---|---|---|---|---|
+| hands | **yes**, 16/16 adopted both hands | 6 | `hand-v6-lit.png` | close, not matching |
+| mop head | yes (solver params) | 4 | `mop-v4-lit.png` | shuttlecock → disc; much closer |
+| broom head | not needed on the evidence | 1 | `broom-v1-lit.png` | reads correctly |
+
+**None is signed off. That is deliberately the owner's call**, which is the cadence
+he asked for, and for the first time every one of the three can be judged from a
+photograph taken at a lit, framed, tool-confirmed camera rather than from a
+description or a number.
