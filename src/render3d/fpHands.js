@@ -364,7 +364,13 @@ function makeHand(mats, mirror = 1) {
   const fingers = [];
   const lens = [0.070, 0.076, 0.072, 0.062];
   for (let i = 0; i < 4; i++) {
-    const kx = (0.0285 - i * 0.019) * mirror;
+    // ROUND 6: the near hand's digits merged into one mass. Measured cause, not a
+    // guess -- round 4 widened the fingers to `fthick * 0.56` half-width, which is
+    // 0.0213 ACROSS for a 0.019 finger, while the knuckles were spaced 0.019
+    // apart. The fingers were wider than their own spacing, so they overlapped by
+    // 2 mm each and read as a single lump however far they were spread.
+    // 0.0235 gives a 4-finger hand ~94 mm across at the knuckles, which is life.
+    const kx = (0.0352 - i * 0.0235) * mirror;
     const kz = KNUCKLE_Z + knuckleArc[i];
     const f = makeFinger(mats, lens[i], 0.019, fingerSkins[i], true, ['Index', 'Middle', 'Ring', 'Little'][i]);
     f.root.position.set(kx, -0.004, kz - 0.007);
@@ -426,7 +432,10 @@ function makeHand(mats, mirror = 1) {
       const f = fingers[i];
       const amount = i === 0 ? p.index : p.curl;
       // the outer fingers close a touch harder — a real hand does not curl as one plate
-      const bias = 1 + (i - 1.5) * 0.045;
+      // A hand does not close as one plate, and 0.045 of stagger was too little to
+      // see: the four fingertips landed on almost the same arc. 0.11 separates
+      // them along the shaft the way a real grip does.
+      const bias = 1 + (i - 1.5) * 0.11;
       // THREE JOINTS NOW, and the curl is distributed across them the way a hand
       // closes: the middle knuckle leads, the base follows, the tip finishes. A
       // single big rotation at two joints is what made the old fingertip swing

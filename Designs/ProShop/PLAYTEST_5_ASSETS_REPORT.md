@@ -737,3 +737,33 @@ angles, and in the overall silhouette being softer than the photograph's.
 missing: change a number, rebuild if the change is geometry, re-shoot lit at a
 judgeable framing, and look. Both rounds took minutes. The first three quarters of
 this session produced four retractions precisely because that loop did not exist.
+
+## ROUND 6 — the merge had an arithmetic cause
+
+`hand-v6-lit.png`, acceptance at `hand-v6-acceptance.png`.
+
+The near hand's digits merging was not a lighting or an angle problem. Round 4
+widened the fingers to `fthick * 0.56` half-width — **0.0213 across** for a 0.019
+finger — while the knuckles were spaced **0.019** apart. *The fingers were wider
+than their own spacing*, overlapping by about 2 mm each, so they read as one lump
+however far they were spread.
+
+| | was | now |
+|---|---|---|
+| knuckle spacing | 0.019 | **0.0235** — a four-finger hand ~94 mm across, which is life-sized |
+| curl stagger | `1 + (i − 1.5) * 0.045` | **`* 0.11`** — the four fingertips were landing on almost the same arc |
+
+**The digits separate now.** Distinct fingers wrap the shaft with visible gaps, and
+the staggered curl lands the fingertips at different points along it rather than in
+a line. 72/89 drawable, broom held, no page errors, geometry unchanged.
+
+### Where the hand stands after six rounds
+
+Warm flesh tone, distinct fingers wrapping the shaft, thumb across the grip, a palm
+with mass behind it, forearm tapering back. Against the capsule build it is not the
+same object; against the four splayed rods of round 1 it is unrecognisable.
+
+**It is still not a photograph.** The silhouette stays softer and rounder than the
+reference, which is the honest limit of shapes built from lofted elliptical rings
+without a sculpt. Whether that gap matters is the owner's call, and it is now a
+call he can make from a frame rather than from a description.
