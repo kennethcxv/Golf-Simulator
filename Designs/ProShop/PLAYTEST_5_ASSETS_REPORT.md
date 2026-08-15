@@ -627,3 +627,45 @@ is a fair one.
 The next step is one line in `tool-photo.mjs` — pin the clock to midday before the
 shutter — and then the question "does it look right" can finally be asked properly,
 of the hand and of the mop and broom after it.
+
+---
+
+# THE HAND, IN A FRAME THAT CAN BE JUDGED
+
+`Designs/ProShop/Images/Goal_26/playtest5/hand-lit-fov18.png` — 1:00 PM, lit room,
+FOV 18. Acceptance shot beside it at the default camera and default FOV:
+`hand-acceptance-lit.png`. Both at 72/89 drawable with the broom confirmed held.
+
+One more trap on the way: calling `lightTheRoom` between equipping and shooting
+**took the tool out of the player's hands** — acceptance fell to 22 drawable and the
+magnified exhibits to ZERO with `tool: null`. The clock jump does it. Lighting now
+runs ONCE at boot, before anything is equipped, and never again.
+
+## What the frame shows, now that it can be seen
+
+**Right:** both hands are ON the shaft with fingers genuinely wrapped round it, the
+segments articulate as fingers rather than beads, the forearms taper away
+correctly, and there is not a capsule seam anywhere. Against the splayed rods of
+the first attempt this is a different object.
+
+**Wrong, and specific:**
+
+1. **The fingers are too thin and too pale.** They read as pale sticks. The
+   reference is fuller and warmer — flesh, not bone. This is `SKIN` (0xd9a97e) plus
+   my thickness values, and the thinness is mine: I taper `fthick * 0.50` down to
+   `* 0.30` and the reference does not narrow like that.
+2. **The palm has no mass.** The hand reads as mostly fingers with nothing behind
+   them. My palm is 0.0335 × 0.0165 — too shallow against a 0.019 finger.
+3. **The thumb does not cross over.** In the reference the thumb lies across the
+   fingers on the near side. Here it is tucked and barely visible.
+
+None of that is a plumbing problem. It is three numbers and a pose, and every one
+of them is now measurable against a frame that shows them.
+
+## Item 1 verdict
+
+**Wired and adopted 16/16 on both hands. Photographed fairly. NOT yet a match.**
+It is closer than the capsules by a clear margin and it is not what the owner asked
+for, which is a hand that looks right. The three faults above are the work
+remaining, and for the first time in this thread they are faults of the MODEL
+rather than of the harness.

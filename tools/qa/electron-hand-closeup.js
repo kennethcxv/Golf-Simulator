@@ -19,7 +19,7 @@ async (page) => {
   const OUT = path.resolve('qa/electron/hand-closeup');
   fs.mkdirSync(OUT, { recursive: true });
   const libPath = `${process.cwd()}/tools/qa/lib/tool-photo.mjs`.replace(/\\/g, '/');
-  const { photographTool, drawableCount, setToolPose } = await import(`file:///${libPath}`);
+  const { photographTool, drawableCount, setToolPose, lightTheRoom } = await import(`file:///${libPath}`);
   const out = { errs: [] };
   page.on('pageerror', (e) => out.errs.push(String(e.message || e)));
 
@@ -29,6 +29,10 @@ async (page) => {
   await page.waitForFunction(() => window.__fw?.scene3d?.walk?.isActive?.(), null, { timeout: 300000 });
   await page.waitForFunction(() => window.__fw?.scene3d?.clubhouse?.(), null, { timeout: 90000 });
   await page.waitForTimeout(2000);
+  // Light the room ONCE, before anything is equipped. The acceptance CAMERA is
+  // untouched -- default FOV, default pose. It is the room that changes.
+  await lightTheRoom(page);
+  await page.waitForTimeout(1500);
 
   // ACCEPTANCE first, at the default camera, unmodified.
   out.acceptance = await photographTool(page, 'broom', path.join(OUT, 'acceptance-default-camera.png'));

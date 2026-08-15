@@ -36,6 +36,26 @@
 // natural downward glance, not a contrived angle. Measured across the pitch
 // range with the tool actually held: 62,824 magenta pixels of mop at -0.15
 // against 29,531 at +0.05, where the head falls below the bottom edge.
+/**
+ * Light the room before the shutter.
+ *
+ * Every frame of the hand in Playtest 5 was shot at 6:01 AM on Day 1, in an unlit
+ * "filthy" clubhouse, and then compared against a reference photographed in
+ * daylight. Magnifying a dark subject only gives a bigger dark subject. The
+ * ACCEPTANCE CAMERA is untouched by this -- default FOV, default pose; it is the
+ * ROOM that changes, which is the difference between staging a shot and faking one.
+ */
+export async function lightTheRoom(page, hour = 13) {
+  await page.evaluate((h) => {
+    const app = window.__fw;
+    app.speedIdx = 0;
+    const day = Math.floor(app.state.clock.minutes / 1440) * 1440;
+    app.state.clock.minutes = day + h * 60;
+    app.state.weather.today = { tempHiF: 72, tempLoF: 54, rainIn: 0, humidity: 0.45, windMph: 4 };
+    app.scene3d.applyTimeWeather(h * 60, app.state.weather);
+  }, hour);
+}
+
 export async function setToolPose(page, { dx = -5.6, dz = 4.4, yaw = -Math.PI / 2, pitch = -0.15 } = {}) {
   await page.evaluate(([a, b, c, d]) => {
     const w = window.__fw.scene3d.walk;
@@ -104,6 +124,10 @@ export async function equipAndSettle(page, tool, { settleSamples = 4, timeoutMs 
  * Returns the drawable count the frame was taken at, so a report can state it.
  */
 export async function photographTool(page, tool, file, pose = {}) {
+  // NOT lightTheRoom() here. Jumping the clock mid-session takes the tool out of
+  // the player's hands -- measured: acceptance fell to 22 drawable meshes and the
+  // magnified exhibits to ZERO with `tool: null`. Light the room ONCE at boot,
+  // before anything is equipped, and never touch the clock again after.
   await setToolPose(page, pose);
   const before = await equipAndSettle(page, tool);
   // Re-assert immediately before the shutter: the warm-up window is ~15 s wide
