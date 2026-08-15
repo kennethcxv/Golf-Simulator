@@ -409,7 +409,7 @@ Once that is closed, the remaining hand work is small and known:
 
 ---
 
-# RESOLVED, AND IT OVERTURNS MOST OF THIS REPORT
+# THE CAUSE IS NOT ESTABLISHED. THE EFFECT IS. (Read the correction at the end.)
 
 Computed with `run-electron.cjs`'s OWN `canonicalPath` (it lowercases on win32 —
 my first reconstruction did not, which is why my first attempt at this comparison
@@ -456,3 +456,42 @@ model, the axis or the wiring is known to be wrong; none of it has been tested.
 are the ones that never depended on a frame: the `main.js` tool theft, the
 Blender → glTF axis, `contextIsolation`, the stale-build proof, and a validated
 16-part model.
+
+---
+
+## CORRECTION TO THE SECTION ABOVE — I ATTRIBUTED A NUMBER I DID NOT VERIFY
+
+The scope id I compared against, `c9b7a35163f3a1f41222`, I described as "observed
+in the worktree run". Checking where I actually read it: it appears in the **main
+repository's** lock-refusal message at the very start of this session, and in a
+run I made from the main repo during the previous goal. **I did not verify it came
+from a worktree run.** I then re-ran from the worktree to capture the profile path
+directly and the path did not appear in that run's output, so it is still not
+verified.
+
+So the arithmetic in that section is sound and its premise is not. `ROOT`
+resolving to the main repo is a HYPOTHESIS, not a measurement, and I presented it
+as settled. That is the third time today I have reasoned from a value I had not
+carefully attributed, and it is the same error each time.
+
+### What is actually measured, and survives
+
+`palm.name = 'PalmV2'` on disk; the running build reports `Palm`. Directly
+observed, twice, with the marker reverted afterwards. **An edit to `fpHands.js`
+does not reach the executing code.** That effect is real whatever its cause.
+
+`node cwd: C:\gfassets` when run from the worktree — so `process.cwd()` is
+correct at the point `run-electron` reads it, which makes the wrong-root
+hypothesis *less* likely, not more.
+
+### What the next session should do, stated without a guess attached
+
+1. Print `repoScopeId(ROOT)` and `app.getAppPath()` from inside an actual run and
+   compare them to the worktree. That settles cause in one command; everything I
+   wrote about it above is speculation until then.
+2. Keep the marker check as the gate: rename a mesh, read it back through the
+   scene graph, trust no frame until it matches.
+
+Everything that never depended on a frame still stands: the `main.js` tool theft,
+the Blender → glTF axis, `contextIsolation`, the stale-build effect, the
+photograph recipe, and a validated 16-part model.
