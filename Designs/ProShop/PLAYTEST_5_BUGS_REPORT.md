@@ -1,6 +1,6 @@
 # PLAYTEST 5 — WHAT I FOUND, WHAT I FIXED, AND WHAT I DID NOT FINISH
 
-## Probe-lie count this round: **5** (running total **42**)
+## Probe-lie count this round: **6** (running total **43**)
 
 | # | the instrument | what it claimed | what was actually true |
 |---|---|---|---|
@@ -17,6 +17,8 @@ only proves the probe can SEE the thing — it says nothing about whether the pr
 looks OFTEN ENOUGH. Sample rate is a second axis of blindness and this file has
 no prior entry for it.
 
+| 43 | `electron-queue-speaks-too-early` v1 | **PASS — every line came from slot 0**, from a run its own fields called conclusive (queue 3 deep, highest slot 2) | The two predicates it was meant to tell apart AGREE until somebody LEAVES the line — the splice is the whole divergence. Nobody was served and nobody gave up in that run, so the window never opened and it graded a bug that could not have appeared. Its control asked "did a queue form"; the question was "did a queue form AND lose someone". Rewritten to require a removal from a non-empty line before it will call a run conclusive at all |
+
 The shape shared by 39 and 40 is worth naming, because it is not on the list in
 `FOUND_FALSE.md`: **a step that fails to happen reports the same green as a step
 that happened and was clean.** Both drivers printed a pass while their own
@@ -32,8 +34,8 @@ verdict must read that assertion — not just the measurement downstream of it.
 |---|---|
 | P0 — course editor unusable | **ROOT-CAUSED FROM YOUR OWN CRASH LOG, FIXED, NOT VERIFIED IN PLAY** — see below |
 | P0 — loading in (dustpan, map flash) | **DUSTPAN REPRODUCED AND FIXED.** Map flash NOT reproduced; the ordering race behind it is closed |
-| 1 — first-press lag | not started |
-| 2 — customers announce from the back | not started |
+| 1 — first-press lag | **DIAGNOSED, NOT FIXED.** The warm runs (+76 programs); the surfaces you named compile ZERO. The overview costs 433 ms and is the one camera prewarm misses |
+| 2 — customers announce from the back | **NOT REPRODUCED.** The array-vs-floor confusion C3 fixed for the hands is corrected for the mouth; one question for you at the end of the section |
 | 3 — my body is still solid | **THE LEAD IS TRUE.** Audit done, predicate fixed, source test red→green; not yet verified in play |
 | 4 — walk-in tee time needs two attempts | not started |
 | 5 — audio | not started |
@@ -360,3 +362,72 @@ surfaces you named, and the real cost is a 4096 shadow allocation on a key you
 press constantly. The obvious remedies for that — keeping both shadow targets
 resident, or giving the overview the same 2048 map as walk and the editor — trade
 memory or shadow quality, so they are yours to call, not mine.
+
+---
+
+## 2 — CUSTOMERS ANNOUNCE THEMSELVES FROM THE BACK OF THE LINE
+
+**NOT REPRODUCED.** I have to say that first, because the fix below is a
+source-level correction and not a repair of something I watched happen.
+
+### What the code does, and why it looked like the answer
+
+The three desk greetings — the reservation line, the walk-in tee-time ask, and
+"these are all for me" — were all gated on:
+
+```js
+if (!c.deskGreetingSpoken && counterQueue.indexOf(c) === 0)
+```
+
+That is a position in an **array**. Forty lines above it, in the same file, is
+`customerIsAtTheDesk` and this comment, from Goal 24:
+
+> **C3 — NOTHING IS HANDED OVER UNTIL THEY ARE AT THE DESK.** *"They hand goods
+> THROUGH the body of the person being served, before their turn."* The gate on
+> placing goods was `counterQueue.indexOf(c) === 0`, which is a position in an
+> ARRAY, not a position on the floor. […] the moment the served customer is
+> spliced out, the next person is index 0 while still standing several yards
+> back, with the person ahead of them physically in the way.
+
+**C3 fixed the hands and left the mouth on the old predicate.** Two populations
+inside one function: a placement rule that asks where the body is, and three
+greetings that ask where the name is in a list.
+
+### What I measured, and why it is not a reproduction
+
+`tools/qa/electron-queue-speaks-too-early.js` watches every customer-dialogue
+toast and records the **speaker's own `queueSlotHeld`** — the slot their body
+holds, which the queue code advances only when the floor is clear. A greeting
+from anyone with `queueSlotHeld > 0` is a greeting from the back, by the game's
+own bookkeeping.
+
+Four minutes on the unfixed build, shop open, five spawned toward the counter:
+queue **4 deep**, highest slot **3**, one removal from a non-empty line at
++198 s — and **one line, from slot 0.** Nobody spoke from the back.
+
+The first version of this driver said **PASS** after sixty seconds, and it was
+wrong to: the two predicates AGREE for as long as nobody leaves the line, and
+that run never served or lost anybody, so the divergence window never opened. It
+is probe lie 43 below. The rewritten control requires a **removal from a
+non-empty queue** before it will call a run conclusive at all.
+
+### The fix, and what it is worth
+
+`customerHasReachedTheCounter(c)` — body within `QUEUE_HEAD_REACH_YD` of the head
+slot — now gates all three greetings. Deliberately NOT `customerIsAtTheDesk`,
+which also demands the corridor from the hand to the staging mat be clear: that
+is right for putting a product down and wrong for saying hello, and somebody
+walking past should not silence a customer who has arrived.
+
+It is strictly more correct and it makes the mouth agree with the hands. It is
+**not** proof that it fixes what you saw.
+
+### One thing I want to check with you rather than guess
+
+Your words were *"while someone is still standing in the queue, I get a
+notification"*. I read that as **the speaker is at the back**, and that is what I
+went looking for. There is a second reading — **the speaker is at the front, but
+it is not their turn because you are still mid-sale with the person before
+them** — and my run is consistent with it: Emmett Morris spoke from slot 0 while
+the line was 1 deep, which under that reading is the defect and under mine is
+correct behaviour. The two need different fixes. Which one were you looking at?

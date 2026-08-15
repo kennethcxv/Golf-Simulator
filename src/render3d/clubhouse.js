@@ -9333,6 +9333,33 @@ export function makeClubhouse(ctx) {
     return deskApproachIsClear(c);
   }
 
+  // ITEM 2 (Playtest 5) — NOBODY SPEAKS UNTIL THEY HAVE REACHED THE COUNTER.
+  //
+  // "While someone is still standing in the queue, I get a notification saying
+  // 'hey I'm X and these are for me' ... They must reach the counter first,
+  // then ask."
+  //
+  // The three desk greetings were gated on `counterQueue.indexOf(c) === 0`,
+  // which is the SAME array-position test C3 above had to replace for handing
+  // goods over, for the same reason it gives in full: the line advances when the
+  // floor is clear, not when the array is, so the head of the array is routinely
+  // still standing several slots back with somebody physically in front of them.
+  //
+  // C3 fixed the hands and left the mouth on the old predicate — the
+  // two-populations shape inside one function, three greetings and a placement
+  // rule reading two different answers to "is it their turn".
+  //
+  // Speaking is looser than reaching, so this is not customerIsAtTheDesk: that
+  // also requires the corridor from the hand to the staging mat to be clear,
+  // which is right for putting a product down and wrong for saying hello.
+  // Somebody walking past should not silence a customer who has arrived.
+  function customerHasReachedTheCounter(c) {
+    if (!c || !c.mesh) return false;
+    const slot = queueSlotW(0);
+    return Math.hypot(c.mesh.position.x - slot.x, c.mesh.position.z - slot.z)
+      <= QUEUE_HEAD_REACH_YD;
+  }
+
   // ...AND NOBODY IS STANDING IN THE WAY OF THE HAND.
   //
   // Standing at the head slot is not sufficient, which the measurement found
@@ -11084,17 +11111,42 @@ export function makeClubhouse(ctx) {
     if (!walk.active) return false;
     // register mode owns the camera for the whole transaction
     try { if (register && register.isActive && register.isActive()) return false; } catch { /* not built yet */ }
-    // the book has the player: carried, or open and being read
+    // THE BOOK HAS THE PLAYER — and "reading it" is not the same as "it is open".
+    //
+    // PLAYTEST 5, ITEM 3, third report: "I am still being walked into while
+    // reading the ledger." This asked isCarried() and isOpen(), which are both
+    // real methods answering the wrong question. isCarried is `carried`, set by
+    // setCarried — the book being TRANSPORTED across the room. isOpen is
+    // `bookState === 'open' || 'opening'`. And main.js's enterLedger records in
+    // as many words that "the FIRST press only brings the book up, SHUT", then
+    // gates app.ledgerOpen on book.isInHand(). So the ordinary act of raising
+    // the ledger to read it produced carried=false, open=false, and a player
+    // who was solid. isInHand's own comment is the giveaway: "In your hands at
+    // all, shut or not: what the E key and the HUD care about."
     try {
       if (ledgerBook && ((ledgerBook.isCarried && ledgerBook.isCarried())
+        || (ledgerBook.isInHand && ledgerBook.isInHand())
         || (ledgerBook.isOpen && ledgerBook.isOpen()))) return false;
     } catch { /* not built yet */ }
-    // the laptop and the desk screen are full-screen surfaces owned by main.js;
-    // it publishes them on the app object, which is the only handle this module
-    // has to them. Read defensively: an undefined flag must mean "not parked",
-    // never "parked", or a missing accessor would phase the player out for good.
+    // the laptop, the ledger and the desk screen are full-screen surfaces owned
+    // by main.js; it publishes them on the app object, which is the only handle
+    // this module has to them. Read defensively: an undefined flag must mean
+    // "not parked", never "parked", or a missing accessor would phase the player
+    // out for good.
+    //
+    // app.deskScreenOpen USED TO BE READ HERE AND IS WRITTEN NOWHERE IN src/.
+    // It was the owner's own lead and it was right: the identifier appeared in
+    // exactly one place in the entire tree — this line — so the comparison was
+    // `undefined === true` on every frame since it was written, the desk screen
+    // never phased the player out at all, and the desk screen is exactly where
+    // he gives walk-in tee times. The flag main.js actually writes is
+    // frontDeskOpen (set in enterFrontDesk, cleared in exitFrontDesk).
+    // tests/player-blocks-customers-flags.test.js now fails on any app flag this
+    // predicate reads that nothing in src/ assigns.
     const app = (typeof window !== 'undefined' && window.__fw) ? window.__fw : null;
-    if (app && (app.laptopOpen === true || app.deskScreenOpen === true)) return false;
+    if (app && (app.laptopOpen === true
+      || app.frontDeskOpen === true
+      || app.ledgerOpen === true)) return false;
     return true;
   }
 
@@ -12006,7 +12058,7 @@ export function makeClubhouse(ctx) {
           c.patience = PATIENCE_FULL;
           setPatience(c);
           if (char) char.setMode('Idle');
-          if (!c.deskGreetingSpoken && counterQueue.indexOf(c) === 0) {
+          if (!c.deskGreetingSpoken && customerHasReachedTheCounter(c)) {
             c.deskGreetingSpoken = true;
             c.dialogue = reservation && (reservation.partySize || 1) > 1
               ? `Hi, we have the ${fmtSlot(reservation.minute)} tee time under ${c.fullName}.`
@@ -12020,7 +12072,7 @@ export function makeClubhouse(ctx) {
           c.patience = PATIENCE_FULL;
           setPatience(c);
           if (char) char.setMode('Idle');
-          if (!c.deskGreetingSpoken && counterQueue.indexOf(c) === 0) {
+          if (!c.deskGreetingSpoken && customerHasReachedTheCounter(c)) {
             c.deskGreetingSpoken = true;
             // L1: the ask is SPOKEN — the monitor row then corroborates it
             c.dialogue = Number.isFinite(c.requestedTeeMinute)
@@ -12032,7 +12084,7 @@ export function makeClubhouse(ctx) {
           }
         // the head of the line with a basket waits for the PLAYER to ring
         // them up — patience runs out eventually and the pick goes back
-        } else if (stop.kind === 'counter' && c.cart.length && counterQueue.indexOf(c) === 0) {
+        } else if (stop.kind === 'counter' && c.cart.length && customerHasReachedTheCounter(c)) {
           if (!c.deskGreetingSpoken) {
             c.deskGreetingSpoken = true;
             c.dialogue = `Hi, I'm ${c.fullName}. These are all for me.`;
