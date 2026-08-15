@@ -1,5 +1,92 @@
 # GOAL 27 — PERFORMANCE REPORT
 
+---
+
+# THE 10-SECOND TARGET (goal revision, 2026-08-15)
+
+New bars, replacing everything above: **load ≤ 10 s spawn-to-controllable;
+no frame over 16.7 ms, ever.** Per instruction, the outward survey came
+before any change.
+
+## How shipped games do it — and which of it applies here
+
+**1. The engines' answer to shader stutter is DISK-CACHED PIPELINE STATE,
+collected ahead of time.** Unreal's PSO precaching/bundled caches and
+Unity's Graphics State Collection both: record every pipeline state real
+gameplay uses, compile them asynchronously on background threads, and
+persist the compiled result on disk keyed to the driver — so the cost is
+paid once per machine, not per boot. The entire mechanism this game is
+missing is not the *collection* (the prewarm is exactly that) — it is the
+*persistence*.
+
+**2. Chromium HAS that persistence, and its default is too small for this
+game.** Chromium caches ANGLE program binaries on disk (GPUCache, keyed to
+driver+vendor+build), but `kDefaultMaxProgramCacheMemoryBytes` is **6 MB on
+desktop** — and the design doc says the disk cache gets the SAME cap. Our
+measured GPUCache after one boot: **6.5 MB — sitting at the cap.** A game
+with 330+ three.js PBR programs (binaries tens of KB each) overflows it, the
+LRU/MRU eviction throws programs away every boot, and the "warm" tier still
+recompiles the overflow — which is exactly the shape of our 24 s warm
+prewarm and the migratory per-stage debt. The switches
+`--gpu-program-cache-size-kb` and `--gpu-disk-cache-size-kb` exist and an
+Electron app may set them at startup. **This is the single highest-leverage
+candidate and it is testable in one A/B.**
+
+**3. Practitioners confirm the material-count lever, with numbers.** The
+canonical three.js thread (scene-init compile time): value-deduplicating
+materials, giving every material the SAME texture-slot shape (1-px
+placeholder textures in unused slots so one program serves many materials),
+and using MeshStandard instead of MeshPhysical cut a real scene's compile
+from 3.5 s to 0.85 s. Program count is a function of (material feature
+flags × geometry shape × light state), NOT of color/roughness values — so
+349 materials need not mean 349+ programs if their SHAPES are unified.
+The owner's 349-materials hypothesis is directionally right, with the
+refinement that the unit of cost is the PROGRAM, and programs are killed by
+unifying material shapes, not only by deleting materials.
+
+**4. Async compile is NOT the lever in this stack.**
+KHR_parallel_shader_compile is effectively absent on Chrome/ANGLE
+(practitioners report Safari-only); this matches the repo's own 2026-08-03
+measurement that compileAsync cost more than it saved. Engines get async
+compile from real threads; WebGL-on-ANGLE does not offer it. Disk cache +
+fewer programs is the path, not parallelism.
+
+**5. Ten-second loads in shipped web/Electron 3D games come from
+ROOM-FIRST PROGRESSIVE LOADING.** The pattern everywhere (Needle's
+gltf-progressive, Babylon streaming, production WebGL titles): a tiny
+first payload makes the player controllable in seconds, and everything
+else — far geometry, full-res textures, the rest of the world — streams
+behind the first playable frame. Perceived-load reductions of 70-95% are
+reported. Applied here: the player spawns INSIDE one room; the course, the
+editor content, and most of the clubhouse's far side do not need to exist
+until after control is handed over. "Must the whole course be built before
+I can walk one room" — the industry answer is no.
+
+**Sources:**
+[Unreal PSO precaching](https://dev.epicgames.com/documentation/unreal-engine/pso-precaching-for-unreal-engine) ·
+[Unreal tech blog on shader stutter](https://www.unrealengine.com/tech-blog/game-engines-and-shader-stuttering-unreal-engines-solution-to-the-problem) ·
+[Unity PSO caching](https://discussions.unity.com/t/pso-caching-improvements-in-unity-6-5/1719264) ·
+[three.js compile-time thread](https://discourse.threejs.org/t/reducing-shader-compile-time-on-scene-initialization/56572) ·
+[Chromium GPU program caching design](https://docs.google.com/document/d/1Vceem-nF4TCICoeGSh7OMXxfGuJEJYblGXRgN9V9hcE/mobilebasic) ·
+[gpu_preferences.h (6 MB default)](https://cocalc.com/github/chromium/chromium/blob/main/gpu/config/gpu_preferences.h) ·
+[shader_disk_cache.cc](https://chromium.googlesource.com/chromium/chromium/+/trunk/content/browser/gpu/shader_disk_cache.cc) ·
+[ANGLE program binary caching](https://github.com/MSOpenTech/angle/wiki/Caching-compiled-program-binaries) ·
+[Electron shader-cache corruption issue](https://github.com/electron/electron/issues/40475) ·
+[Needle gltf-progressive](https://engine.needle.tools/docs/gltf-progressive/) ·
+[Babylon progressive streaming](https://forum.babylonjs.com/t/how-to-do-progressive-mesh-loading-streaming-on-babylon-with-gltf-or-any-3d-model/9692)
+
+## The plan this survey dictates, in measurement order
+
+1. **A/B the cache cap** (one switch, two boots): if eviction is the warm
+   tier's cost, prewarm collapses on the second boot. Decisive either way.
+2. **Census programs-by-shape**: how many PROGRAMS the 349 materials
+   actually generate, and how few they could generate with unified slot
+   shapes. Then unify.
+3. **Reduce what the veil waits for**: room-first — hand over control when
+   the ROOM is warm, stream the course/editor behind play.
+4. The enumerated stalls (click→veil 12 s, page-turn, editor entry), each
+   before/after.
+
 **Probe lies this session: 2** (running total across sessions: 47)
 
 | # | The lie | What it cost |
