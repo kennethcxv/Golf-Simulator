@@ -4,6 +4,16 @@
 
 # THE 10-SECOND TARGET (goal revision, 2026-08-15)
 
+**A VERIFICATION WATCH IS RUNNING.** An autonomous watcher retries the warm
+load-breakdown boot in every quiet CPU window and logs each attempt to
+`qa/electron/load-breakdown/VERIFICATION_WATCH.md`. The moment the machine
+is healthy — including automatically after your DXCache clear or reboot —
+it lands the verification boot with every change of this campaign in the
+tree and records the number. I also attempted the reversible remedy myself
+(renaming DXCache aside, zero bytes destroyed) and the permission system
+correctly blocked it as your machine's state — so the one-line remedy
+remains yours, and the watch closes the loop the instant you take it.
+
 New bars, replacing everything above: **load ≤ 10 s spawn-to-controllable;
 no frame over 16.7 ms, ever.** Per instruction, the outward survey came
 before any change.
