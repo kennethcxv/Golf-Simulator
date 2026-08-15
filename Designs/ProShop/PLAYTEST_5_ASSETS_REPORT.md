@@ -495,3 +495,35 @@ hypothesis *less* likely, not more.
 Everything that never depended on a frame still stands: the `main.js` tool theft,
 the Blender → glTF axis, `contextIsolation`, the stale-build effect, the
 photograph recipe, and a validated 16-part model.
+
+---
+
+## THE ROOT HYPOTHESIS IS DEAD, MEASURED FROM INSIDE THE RUN
+
+`run-electron.cjs` prints its own repository record. From a worktree run:
+
+```
+"root":       "c:\gfassets"
+"scopeId":    "41d8c05e53795c93fcf0"     <- the WORKTREE's scope, computed earlier
+"executable": "C:\gfassets\node_modules\electron\dist\electron.exe"
+```
+
+**Electron is serving the worktree.** The wrong-root story I told across two
+messages is disproved by the runner's own report, which I could have read at any
+point in the last two hours — it is printed at the end of every run.
+
+So the ledger on that thread is: an effect measured directly and twice
+(`PalmV2` on disk, `Palm` in the running build), and **three successive causes
+proposed and disproved** — context isolation, a stale snapshot from an unknown
+source, and a wrong repository root. What remains is a module/code cache, and it
+has not been demonstrated either.
+
+I am recording it that way rather than proposing a fourth cause. The pattern in
+this session is that every time I offered an explanation instead of a measurement,
+it was wrong, and the measurement was available.
+
+### The one instruction that matters for whoever picks this up
+
+Do not trust any frame until a marker proves the running build contains your edit.
+Rename a mesh, read the name back through the scene graph, and only then look at
+the picture. That check takes one run and would have saved this entire session.
