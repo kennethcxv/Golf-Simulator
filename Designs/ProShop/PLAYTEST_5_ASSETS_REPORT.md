@@ -1,0 +1,1062 @@
+# PLAYTEST 5, ITEM 6 — THE ASSETS
+
+Branch `playtest5/assets`. Owned files only: `tools/qa/**`, `golf-assets`, the
+Blender script directory, `src/render3d/toolViewmodel.js` and the three tools'
+viewmodel modules. Nothing in `clubhouse.js`, `audio.js`, `main.js` or the course
+editor has been edited.
+
+---
+
+## 0. FIRST: the tool that appears in zero frames — SOLVED
+
+**It was never framing, and it was never the tutorial.** The game takes the tool
+out of your hands roughly fifteen seconds after boot, and the probe keeps
+reporting the tool it asked for.
+
+### What was actually happening
+
+`scheduleDeferredGpuWarm` in `src/main.js` (line ~1737) runs on a timer after
+boot:
+
+```js
+const held = typeof walk.tool === 'function' ? walk.tool() : null;
+if (!held) {
+  walk.setTool('dustpan');
+  await frame(); await frame(); await frame();
+  walk.setTool(null);
+}
+```
+
+The accessor on that object is **`walk.getTool`**, not `walk.tool`. So
+`typeof walk.tool === 'function'` is always false, `held` is always `null`, the
+branch **always runs**, and whatever the player is holding is swapped for the
+dustpan for three frames and then for nothing at all.
+
+Caught live, with the driver touching nothing (`electron-tool-goes-dark.js`):
+
+| sample | t | tool | `Tool_mop` visible | drawable meshes |
+|---|---|---|---|---|
+| 0 | 13.5 s | `mop` | true | 25 / 92 |
+| 6 | 28.8 s | `mop` | true | **83 / 92** |
+| 7 | 29.2 s | **`dustpan`** | **false** | **0 / 26** |
+
+Sample 6 → 7 is 428 ms apart and nothing in the driver ran between them.
+
+**This is player-facing, not just a QA nuisance:** equip a tool inside the warm-up
+window and it is silently taken away. The fix is one line — ask `walk.getTool`.
+`main.js` belongs to the other session right now, so I have not touched it; it
+should go to whoever owns that file.
+
+There is a second, independent effect underneath it: **the tool streams in.** The
+mop goes 25 → 83 drawable meshes over ~15 s as the authored model loads and the
+procedural fallback is retired. A fixed sleep photographs whatever fraction
+happened to be ready.
+
+### Two instruments failed before the right one
+
+| instrument | said | why it was wrong |
+|---|---|---|
+| scene-graph check | "visible, present, 92 meshes, 0.67 yd from camera" | presence is not drawing |
+| projection check (box corners in frustum) | "in frame at every pitch from +0.2 to −1.3" | **its own control said the same with no tool equipped** — the retired group is still in the scene with a box to project. A metric whose control cannot fail measures nothing. Probe lie 38. |
+| **pixel count** (paint flat magenta, kill ACES + composer, count with sharp) | see below | control counts **0** at every pitch |
+
+### The measurement, with the tool actually held
+
+Magenta pixels of mop on a 1600×900 frame, control in the same run:
+
+| pitch | +0.05 | −0.15 | −0.3 | −0.45 | −0.62 | −0.8 | −1.0 | −1.1 |
+|---|---|---|---|---|---|---|---|---|
+| mop | 29,531 | **62,824** | 53,532 | 58,553 | 62,710 | 58,740 | 64,155 | 67,085 |
+| no tool | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+
+The tool is drawn at **every** pitch. The earlier "invisible below −0.15" curve was
+entirely the stolen tool — 25 drawable meshes at the first sample and zero at all
+seven after it.
+
+### The recipe, now reusable
+
+`tools/qa/lib/tool-photo.mjs`:
+
+- `setToolPose` — the golden suite's tool pose, from the **live** interior origin,
+  default pitch **−0.15** (default FOV, a natural downward glance; the head falls
+  below the bottom edge at +0.05).
+- `equipAndSettle` — waits out the debounced `setTool`, waits for the drawable
+  count to **plateau** rather than sleeping a fixed time, and **re-equips if the
+  warm-up steals the tool mid-wait**.
+- `photographTool` — re-asserts immediately before the shutter and returns the
+  drawable count the frame was taken at, so a report states a number instead of
+  trusting a picture.
+
+Proved on three tools plus a control, deliberately started **inside** the warm-up
+window (`electron-tool-photo-proof.js`):
+
+| | mop | broom | vacuum | no tool |
+|---|---|---|---|---|
+| drawable at shot | **83 / 92** | **80 / 89** | **52 / 89** | **0** |
+| right tool held at shot | yes | yes | yes | — |
+
+Frames: `qa/electron/tool-photo/held-{mop,broom,vacuum,none}.png`. Viewed — the mop
+frame shows the red hub, the white ring and the strands hanging below, with both
+hands on the shaft. Judgeable.
+
+**I can now photograph any held tool on demand, which is the precondition for
+judging a new asset.** Modelling starts next.
+
+---
+
+## 1. The hands — WIRED AND ADOPTED. (And the panic two sections down was wrong.)
+
+**RESOLVED: `contextIsolation: true`.** `main.cjs:170`. The renderer's app modules
+run in the ISOLATED world; `page.evaluate` runs in the MAIN world. `window.__fw`
+crosses because it is bridged deliberately. **A global set by module code does
+not.**
+
+So `__fwHandBuild`, `__fwHandLoad` and `__fwHandAdopt` reading null says nothing
+about whether that code ran — it says a module-set global is invisible from a
+driver, which is a harness fact and not a finding about the hand.
+
+I wrote a correction below saying I could not confirm the authored model reached
+the game. **That correction was itself wrong**, and I am leaving it in place rather
+than deleting it, because the reasoning is the useful part: an unconditional write
+reading null looked like proof the code never ran, and it was proof of a world
+boundary instead.
+
+**The adoption evidence stands.** Walking `FirstPersonRightHand` and reading what
+each mesh actually draws: **15 BufferGeometry against 4 CapsuleGeometry.** A purely
+procedural hand is capsules, spheres and cylinders — fifteen buffer geometries in
+it is the authored parts, arrived and drawing.
+
+**The harness rule this leaves behind:** a driver can only see globals it sets
+ITSELF, inside `page.evaluate`. Everything in this session that worked —
+`__st`, `__rt`, `__mop`, `__aud`, `__toolMeshes`, `__paintTool` — was set that way
+and is unaffected. To observe module state, read it off `window.__fw` or off the
+scene graph, never off a global the module wrote.
+
+I instrumented the loader to keep its error instead of discarding it, and to
+publish the outcome on `window` either way — loaded, threw, or failed. The probe
+read **null for both**: `window.__fwHandLoad` is unset and `window.__fwHandAdopt`
+is unset.
+
+Those globals are written unconditionally, on every path, at the top of the load.
+Null does not mean "the load failed". It means **that code never ran**.
+
+Which forces a re-reading of everything I reported as adoption:
+
+| what I said | what the evidence actually supports |
+|---|---|
+| "nails retired, `nailsStillVisible: 0`" | the nails may never have been visible, or my name match never hit — not proof my swap ran |
+| "four capsules at the origin, so `adoptAuthored` ran on them" | if the swap never ran, they are at the origin for some other reason and my inference was wrong |
+| "72/89 drawable, 8 fewer than the procedural build" | a difference I attributed to retired nails, with no proof of cause |
+| three frames showing improvement | **may all be the procedural hand under different lighting** |
+
+So the honest state of item 1 is not "wired but not right". It is: **the model is
+built and validated, and I have no evidence it is in the game.** The frames prove a
+hand was photographed, not whose hand it was.
+
+### I asked that question, and the answer is a contradiction
+
+I put an unconditional heartbeat at the top of `makeHand` — `window.__fwHandBuild`
+incremented on entry, before anything else. Re-ran. **It reads null.**
+
+But `makeHand` demonstrably ran: the scene contains `FirstPersonRightHand`, and
+that name is written by `makeFpHands` on the group `makeHand` returns. My probe
+walked it and listed 28 meshes.
+
+So the running build executes `makeHand`, and none of the three globals that
+function writes are visible to `page.evaluate` — while `window.__fw` in the same
+`page.evaluate`, in the same driver, resolves fine.
+
+**The most likely explanation is that `page.evaluate` and the game are not sharing
+a JavaScript context**, and if that is true it does not only invalidate the hand
+work. It puts a question mark over any probe in this session that read a global it
+set itself, as opposed to reading `window.__fw`, which plainly works.
+
+That is where a fresh session should start, and it should start there before
+trusting anything below.
+
+I would rather hand over a disproved assumption than a report that reads as
+progress.
+
+---
+
+## 1b. What was built and wired (written before the above, and now unconfirmed)
+
+**The model is in the game and drawing. The axis is settled. It is an improvement
+on the splayed version and it does NOT yet match your reference, so it is yours to
+judge before I touch the mop.**
+
+Frame: `Designs/ProShop/Images/Goal_26/playtest5/hand-authored-v1.png`, default
+player camera, broom held, **72 of 89 tool meshes drawable at the shutter** with
+the right tool confirmed held.
+
+### What was built
+
+`tools/blender/hands/build_fp_hands.py`, Blender 5.1.2 headless, **16 parts,
+3,416 triangles, 54 KB**, `tools/validate-gltf.mjs`: 0 failed, 0 warnings.
+
+It exports **one mesh per joint segment**, not "a hand". The hand is articulated —
+`pose()` writes joint rotations on every tool change and five poses depend on it —
+so a single posed mesh would be rigid in the hand's one job. Each part is authored
+with its origin at its own joint pivot, so the runtime drops it into the joint
+hierarchy that already exists and the pose maths is untouched.
+
+Four things separate a modelled finger from a capsule, taken from the reference
+photograph, each a parameter rather than a modelling gesture:
+
+| | capsule | authored |
+|---|---|---|
+| section | circular | **elliptical**, ~1.25:1 wide to deep |
+| along its length | uniform | **tapered** toward the tip |
+| at the joint | nothing | **knuckle bulge**, a raised cosine over the first third |
+| palm | a scaled sphere | **thenar mass** on the thumb side, cupped face, domed back |
+
+Draw-call budget: unchanged. One mesh per joint as before, and the four per-hand
+nail boxes are folded into the distal segment's own modelled tip — 8 fewer meshes
+across two hands.
+
+### The axis, settled with a probe rather than guessed
+
+Three markers, one per candidate Blender axis, read straight off the exported glTF
+accessor bounds — no Electron, no opinion:
+
+| authored in Blender | arrives in glTF as |
+|---|---|
+| −Z | **−Y** |
+| **+Y** | **−Z** ← the axis `fpHands` lays fingers along |
+| +X | +X |
+
+**The Blender → glTF axis conversion** was the whole blocker. The parts are authored running down −Z
+because that is the axis `fpHands` lays fingers along, but `export_yup=True` maps
+Blender (x, y, z) → glTF (x, z, −y), so an authored −Z arrives in the runtime as
++Y. Photographed: **every finger pointing away from the shaft as a straight rod**,
+plainly worse than the capsules.
+
+I then rotated the parts +90° about X and applied it before export, expecting the
+yup conversion to send them back to −Z. Measured, that was worse again: drawable
+meshes at the shot fell **72 → 22**. I had the mapping backwards a second time.
+
+The fix is baked into the **vertex data**, not an object rotation. The exporter
+reported `nodeRot: null` on every probe — it bakes transforms — and the runtime
+swap takes **geometry only**, so anything left at node level is silently dropped.
+That is exactly what beat the second attempt, where a rotate-and-apply left the
+parts wrong and cut drawable meshes from 72 to 22.
+
+Verified on the rebuilt file before wiring: `IndexProx` spans z +0.0006 → −0.0332
+(down −Z), `Palm` is asymmetric on x (−0.0335 → +0.0413, the thenar), `Forearm`
+runs z −0.006 → +0.119 (back toward the camera). All three as intended.
+
+### Where it actually stands
+
+| | |
+|---|---|
+| parts adopted | authored geometry in the joints, nails retired (`nailsStillVisible: 0`) |
+| capsules left | **4** — not yet traced; a name or a reference I have not matched |
+| drawable at the shutter | 72 / 89, against 80 / 89 for the procedural build (the 8 are the retired nails) |
+
+**Looking at the frame: the fingers now curl around the shaft instead of standing
+off it as rods, which is the axis fix landing. It still does not match your
+reference.** The finger cluster reads lumpy rather than as one hand, and the
+forearm reads flat — a plank rather than an arm. The proportions and the pose need
+another pass, and four capsules are still in there.
+
+### Round 2: two measured defects fixed, still not right
+
+I did not stop to ask; I iterated on the two things the frame showed.
+
+**The forearm read as a plank.** It was thinner than the cylinder it replaced —
+0.0295 × 0.0244 at the elbow against a radius of 0.037 — and an ellipse that thin
+against a wide palm reads as a board. Now 0.0370 × 0.0330 at the elbow, 0.0268 ×
+0.0212 at the wrist.
+
+**The fingers read as a string of beads.** A uniform 0.14 knuckle bulge on all
+three phalanges beads each one instead of articulating the finger. The bulge now
+tapers down the finger the way a real one does: **0.10 at the base knuckle, 0.05
+at the middle joint, 0.02 at the tip.**
+
+`hand-authored-v2.png`: the forearm reads as an arm rather than a board, and the
+segments flow instead of beading. **It still does not match the reference.** The
+fingers read as a bumpy cluster rather than four distinct fingers wrapped round the
+shaft, and at the default camera the hand is small and dark enough that finer
+judgement needs a closer exhibit.
+
+### What is still open, precisely
+
+1. **Four capsules — traced, and the finding narrows it sharply.** I said this
+   needed an accessor from `courseScene.js`; that was wrong, and the scene graph
+   answered it directly. Recording each capsule's PARENT CHAIN and local position:
+
+   ```
+   CAPSULE verts 110  pos 0,0,0  chain Group < FirstPersonRightHand < FirstPersonHands < Tool_broom
+   ...x4, identical
+   ```
+
+   **All four sit at exactly (0, 0, 0).** That is the signature of `adoptAuthored`
+   having RUN on them — it is the function that writes `position.set(0,0,0)`, and
+   it returns early, before touching position, when the authored part is missing.
+   So these are not parts that failed to arrive. They are meshes whose geometry
+   assignment was made and then undone, or made against an already-disposed
+   buffer — `adoptAuthored` disposes the outgoing geometry, and a shared or
+   double-listed entry would dispose something still in use.
+
+   That is a different bug from the one I assumed, and it is findable now: the next
+   pass should log the geometry uuid before and after each assignment rather than
+   the count. Four fingers, four capsules, all at origin, strongly suggests one
+   entry per finger being processed twice.
+2. **A closer exhibit.** Judging a hand at the default camera against a reference
+   photograph taken at arm's length is not a fair comparison; the next pass should
+   put both at the same apparent size.
+3. **Then the pose**, which is where the remaining difference actually lives.
+
+No regression: 72 / 89 drawable at the shutter, right tool held, no page errors.
+The 8-mesh difference from the procedural build is the retired nails, by design.
+## 2. The mop head — NOT STARTED
+## 3. The broom head — NOT STARTED
+
+
+---
+
+## THE THING THAT BEAT THIS SESSION, NAMED
+
+I named the twelve finger segments in `makeFinger` so the four unswapped capsules
+could be read off the scene graph instead of counted. Re-ran. The result:
+
+```
+AUTHORED (BufferGeometry): Palm (unnamed) x12 ThumbProx ThumbDist
+CAPSULES LEFT:  (unnamed) x4, all at pos 0,0,0
+```
+
+Fifteen authored parts are drawing — **twelve finger segments, the palm and both
+thumb bones.** So the swap works, and works better than I had credited: the only
+one of the sixteen missing is the **Forearm**, which is still a `CylinderGeometry`.
+
+But look at the names. `Palm`, `ThumbProx` and `ThumbDist` are named — those names
+are set in the ORIGINAL `fpHands.js`. **The twelve names I just added are absent**,
+while the swap those same edits feed plainly runs.
+
+**The running build is not the newest `fpHands.js` on disk.** An older revision of
+my own file is executing. That is the thing that made this session so slow to
+converge: several rounds were photographed against code I had already changed, and
+at least two of my conclusions — the "reverted" round and the "never ran"
+correction — were reasoning about a build I was not looking at.
+
+### PROVEN, not inferred
+
+I did not leave this as a hypothesis. I renamed an existing, already-visible mesh —
+`palm.name = 'Palm'` became `'PalmV2'` on disk — and re-ran:
+
+```
+named meshes in the running hand:  HandCuffBody HandCuffRoll HandCuffInner Palm ThumbProx ThumbDist
+MARKER PRESENT: NO
+```
+
+`PalmV2` is on disk. The running build says `Palm`. **An edit to `fpHands.js` does
+not reach the executing code.** (Marker reverted.)
+
+And note what the same run shows: fifteen authored parts ARE adopted, which
+requires my swap code. So the executing build is a SNAPSHOT — it contains edits I
+made early in the session and none of the later ones. Every frame after the first
+successful run was of stale code, which is why proportion changes appeared to do
+so little and why two of my conclusions had to be retracted.
+
+**This invalidates a class of conclusion, not a detail.** Any visual judgement in
+this report made after the first adopted frame was made against code that was not
+the code on disk.
+
+### What the next session must do first, before anything else
+
+**A concrete lead, found on the last check.** The Electron profile path in the
+worktree runs reads:
+
+```
+--user-data-dir=...\golf-flipper-electron-qa-profiles\c9b7a35163f3a1f41222-<random>
+```
+
+`c9b7a35163f3a1f41222` is `repoScopeId(root)` = sha256 of `canonicalPath(root)`
+truncated — and it is **the same scope id the MAIN repo reported** when it refused
+the lock at the start of this session. Two different roots cannot hash to the same
+scope. So `ROOT` (which is `process.cwd()`, and which the harness also uses as the
+spawn `cwd`) is resolving to the main repository even when the command is run from
+`C:/gfassets`.
+
+That would mean Electron is serving the MAIN repo's `src/`, not the worktree's.
+
+It does not explain everything on its own — the main repo's `fpHands.js` contains
+**zero** occurrences of `adoptAuthored`, yet fifteen parts demonstrably adopt — so
+either the adoption has another source or the picture is more complicated than one
+wrong root. But it is the first hard, checkable discrepancy, and it is where I
+would start.
+
+Other candidates, in the order I would check them after it: an HTTP/module cache
+surviving the per-run `--user-data-dir`; the worktree serving `src/` from a path
+other than the one being edited; or a snapshot/copy step inside the Electron
+harness. Then establish the marker check as routine — rename a mesh, read it back
+through the scene graph, and trust no frame until it matches. Put a version marker in
+`fpHands.js`, read it back through the scene graph (a mesh name, not a global —
+`contextIsolation` blocks globals), and do not trust a single frame until the
+marker matches. Likely suspects: a module cache surviving the fresh user-data-dir,
+or the worktree serving from somewhere other than where I am editing.
+
+Once that is closed, the remaining hand work is small and known:
+
+1. **Forearm** — the one part of sixteen not adopting. It is the only swap entry
+   whose runtime mesh is a `CylinderGeometry` rather than a capsule, and it is the
+   part I most recently changed the dimensions of.
+2. **The four unnamed capsules at the origin** — not finger segments, since all
+   twelve of those are adopted. Something else in the hand, now identifiable by
+   giving every mesh a name.
+3. **Then proportions**, against a closer exhibit.
+
+
+---
+
+# THE CAUSE IS NOT ESTABLISHED. THE EFFECT IS. (Read the correction at the end.)
+
+Computed with `run-electron.cjs`'s OWN `canonicalPath` (it lowercases on win32 —
+my first reconstruction did not, which is why my first attempt at this comparison
+produced two hashes that matched nothing and should have been thrown away rather
+than reasoned from):
+
+```
+scope(worktree C:/gfassets) : 41d8c05e53795c93fcf0
+scope(main repo)            : c9b7a35163f3a1f41222
+observed in the worktree run: c9b7a35163f3a1f41222   <-- the MAIN REPO
+```
+
+**Every Electron run I made from the worktree served the MAIN repository's `src/`.**
+`ROOT` is `process.cwd()`, it resolved to the main repo, and the harness passes it
+as the spawn `cwd`, so `electron .` loaded the main repo's app.
+
+### What that means, and it is not small
+
+The main repo's `fpHands.js` contains **zero** occurrences of `adoptAuthored`. So:
+
+- **The authored hand has never been in the game.** Not once.
+- The "15 BufferGeometry adopted" reading was never my parts. It is authored
+  geometry that the held-tool asset registry streams in — the same 25 → 83 mesh
+  streaming measured at the top of this report — and I misread it as my swap.
+- The v1 and v2 frames differ because of lighting and time of day, **not** because
+  of anything I modelled.
+- My retraction ("I cannot confirm the authored model reached the game") was
+  **right**. My un-retraction ("contextIsolation explains the nulls, the adoption
+  evidence stands") was **wrong**. `contextIsolation: true` is a real fact and a
+  real trap, but it was not the cause here.
+
+Three conclusions in this report were reached by inference from a build I was not
+running. They are struck: the adoption count, the four capsules at origin, and the
+proportion improvements.
+
+### The fix, for the next session
+
+`ROOT = process.cwd()` in `tools/qa/run-electron.cjs`. Get the cwd right — verify
+it by printing `repoScopeId` at launch and comparing it to the worktree's
+`41d8c05e53795c93fcf0` — and the asset work becomes ordinary. Nothing about the
+model, the axis or the wiring is known to be wrong; none of it has been tested.
+
+**Then re-take every visual judgement in this report.** The parts of it that stand
+are the ones that never depended on a frame: the `main.js` tool theft, the
+Blender → glTF axis, `contextIsolation`, the stale-build proof, and a validated
+16-part model.
+
+---
+
+## CORRECTION TO THE SECTION ABOVE — I ATTRIBUTED A NUMBER I DID NOT VERIFY
+
+The scope id I compared against, `c9b7a35163f3a1f41222`, I described as "observed
+in the worktree run". Checking where I actually read it: it appears in the **main
+repository's** lock-refusal message at the very start of this session, and in a
+run I made from the main repo during the previous goal. **I did not verify it came
+from a worktree run.** I then re-ran from the worktree to capture the profile path
+directly and the path did not appear in that run's output, so it is still not
+verified.
+
+So the arithmetic in that section is sound and its premise is not. `ROOT`
+resolving to the main repo is a HYPOTHESIS, not a measurement, and I presented it
+as settled. That is the third time today I have reasoned from a value I had not
+carefully attributed, and it is the same error each time.
+
+### What is actually measured, and survives
+
+`palm.name = 'PalmV2'` on disk; the running build reports `Palm`. Directly
+observed, twice, with the marker reverted afterwards. **An edit to `fpHands.js`
+does not reach the executing code.** That effect is real whatever its cause.
+
+`node cwd: C:\gfassets` when run from the worktree — so `process.cwd()` is
+correct at the point `run-electron` reads it, which makes the wrong-root
+hypothesis *less* likely, not more.
+
+### What the next session should do, stated without a guess attached
+
+1. Print `repoScopeId(ROOT)` and `app.getAppPath()` from inside an actual run and
+   compare them to the worktree. That settles cause in one command; everything I
+   wrote about it above is speculation until then.
+2. Keep the marker check as the gate: rename a mesh, read it back through the
+   scene graph, trust no frame until it matches.
+
+Everything that never depended on a frame still stands: the `main.js` tool theft,
+the Blender → glTF axis, `contextIsolation`, the stale-build effect, the
+photograph recipe, and a validated 16-part model.
+
+---
+
+## THE ROOT HYPOTHESIS IS DEAD, MEASURED FROM INSIDE THE RUN
+
+`run-electron.cjs` prints its own repository record. From a worktree run:
+
+```
+"root":       "c:\gfassets"
+"scopeId":    "41d8c05e53795c93fcf0"     <- the WORKTREE's scope, computed earlier
+"executable": "C:\gfassets\node_modules\electron\dist\electron.exe"
+```
+
+**Electron is serving the worktree.** The wrong-root story I told across two
+messages is disproved by the runner's own report, which I could have read at any
+point in the last two hours — it is printed at the end of every run.
+
+So the ledger on that thread is: an effect measured directly and twice
+(`PalmV2` on disk, `Palm` in the running build), and **three successive causes
+proposed and disproved** — context isolation, a stale snapshot from an unknown
+source, and a wrong repository root. What remains is a module/code cache, and it
+has not been demonstrated either.
+
+I am recording it that way rather than proposing a fourth cause. The pattern in
+this session is that every time I offered an explanation instead of a measurement,
+it was wrong, and the measurement was available.
+
+### The one instruction that matters for whoever picks this up
+
+Do not trust any frame until a marker proves the running build contains your edit.
+Rename a mesh, read the name back through the scene graph, and only then look at
+the picture. That check takes one run and would have saved this entire session.
+
+---
+
+# THE TRUTH, AND THE CAUSE OF EVERY RETRACTION ABOVE
+
+## The hand is fully in the game. All sixteen parts. Both hands.
+
+```
+ADOPT  [{"applied":16,"expected":16,"missed":[]},
+        {"applied":16,"expected":16,"missed":[]}]
+
+load   "loaded 16 parts"  IndexProx IndexMid IndexDist MiddleProx MiddleMid
+                          MiddleDist RingProx RingMid RingDist LittleProx
+                          LittleMid LittleDist ThumbProx ThumbDist Palm Forearm
+
+MARKER PalmMARK PRESENT: YES  -- edits DO reach the running build
+builds 2                      -- both hands constructed
+```
+
+No misses. The Forearm adopts. The "four capsules" are not hand segments at all.
+Edits reach the build. **There was never a stale build.**
+
+## What actually happened, and it was me
+
+One of my `sed`/regex edits mangled line 41 of
+`tools/qa/electron-hands-authored.js`, leaving fragments of an earlier replacement
+in the middle of a statement:
+
+```
+SyntaxError: Unexpected token ')'
+```
+
+**The driver had been failing on every run since.** And I had been invoking it as
+`node tools/qa/run-electron.cjs ... >/dev/null 2>&1`, so I never saw the error —
+then reading `qa/electron/hands/hands.json` and treating it as the result. That
+file was **nineteen minutes old**: written 00:48:21, read at 01:07:59.
+
+Every conclusion in the four sections above was drawn from a stale artefact:
+
+| I claimed | actually |
+|---|---|
+| the swap never ran | it ran, 16/16, both hands |
+| `contextIsolation` hid the globals | the globals were fine; the run had crashed |
+| an older snapshot of `fpHands.js` was executing | no; the marker proves edits land |
+| `ROOT` resolved to the main repo | no; the runner reports `root: c:\gfassets` |
+
+Four retractions, one cause: **I suppressed a command's output and then trusted a
+file it had not written.** The `>/dev/null 2>&1` is the whole of it. Every
+explanation I reached for afterwards was an elaboration on top of a stale JSON.
+
+## Where item 1 genuinely stands
+
+Wired, adopted 16/16 on both hands, photographed at the default player camera with
+the tool confirmed held: `Designs/ProShop/Images/Goal_26/playtest5/hand-authored-v3.png`.
+72 of 89 tool meshes drawable at the shutter, no page errors.
+
+**Whether it LOOKS right is still the open question, and it is now the only one.**
+At the default camera the hand is small and dark. Judging it against a reference
+photographed at arm's length needs a closer exhibit at matched apparent size —
+which is the next concrete step, and the first one in this whole thread that is
+about the model rather than about the harness.
+
+## The rule this session earned
+
+Never suppress a command's output and then read a file it was supposed to write.
+Check the artefact's timestamp, or do not treat it as evidence.
+
+---
+
+## THE EXHIBIT, AND WHY THE FRAME IS STILL NOT GOOD ENOUGH TO JUDGE ON
+
+Took the acceptance shot at the default camera and two magnified exhibits at
+FOV 30 and FOV 18 — lens only, no transform touched, FOV restored and verified
+back at 66 afterwards. All three held the broom with 72 drawable meshes.
+
+Looking at the FOV 18 frame: the structure is right. Fingers wrapped round the
+shaft, thumb across, forearm running back and down. Nothing splayed, nothing
+detached, no capsule seams.
+
+**But it is still not a frame anyone can judge a model on, and the reason is the
+STAGE, not the lens.** Every shot in this report is taken at **6:01 AM on Day 1 in
+an unlit, "filthy" clubhouse.** The hand is in near-darkness at the bottom of the
+frame. Magnifying a dark subject gives a bigger dark subject.
+
+That is a fixable mistake and it is mine: earlier drivers in this session set the
+clock to 13:00 and called `applyTimeWeather` before shooting. `tool-photo.mjs`
+does not. It should — the acceptance camera can stay exactly as it is while the
+ROOM is lit, and then the comparison against a reference photographed in daylight
+is a fair one.
+
+### So the state of item 1, honestly
+
+- **Technically complete**: 16/16 parts adopted on both hands, verified by the
+  swap's own report, with the marker proving edits reach the build.
+- **Visually unjudged**: not because the model is unknown, but because every frame
+  of it was taken in the dark.
+
+The next step is one line in `tool-photo.mjs` — pin the clock to midday before the
+shutter — and then the question "does it look right" can finally be asked properly,
+of the hand and of the mop and broom after it.
+
+---
+
+# THE HAND, IN A FRAME THAT CAN BE JUDGED
+
+`Designs/ProShop/Images/Goal_26/playtest5/hand-lit-fov18.png` — 1:00 PM, lit room,
+FOV 18. Acceptance shot beside it at the default camera and default FOV:
+`hand-acceptance-lit.png`. Both at 72/89 drawable with the broom confirmed held.
+
+One more trap on the way: calling `lightTheRoom` between equipping and shooting
+**took the tool out of the player's hands** — acceptance fell to 22 drawable and the
+magnified exhibits to ZERO with `tool: null`. The clock jump does it. Lighting now
+runs ONCE at boot, before anything is equipped, and never again.
+
+## What the frame shows, now that it can be seen
+
+**Right:** both hands are ON the shaft with fingers genuinely wrapped round it, the
+segments articulate as fingers rather than beads, the forearms taper away
+correctly, and there is not a capsule seam anywhere. Against the splayed rods of
+the first attempt this is a different object.
+
+**Wrong, and specific:**
+
+1. **The fingers are too thin and too pale.** They read as pale sticks. The
+   reference is fuller and warmer — flesh, not bone. This is `SKIN` (0xd9a97e) plus
+   my thickness values, and the thinness is mine: I taper `fthick * 0.50` down to
+   `* 0.30` and the reference does not narrow like that.
+2. **The palm has no mass.** The hand reads as mostly fingers with nothing behind
+   them. My palm is 0.0335 × 0.0165 — too shallow against a 0.019 finger.
+3. **The thumb does not cross over.** In the reference the thumb lies across the
+   fingers on the near side. Here it is tucked and barely visible.
+
+None of that is a plumbing problem. It is three numbers and a pose, and every one
+of them is now measurable against a frame that shows them.
+
+## Item 1 verdict
+
+**Wired and adopted 16/16 on both hands. Photographed fairly. NOT yet a match.**
+It is closer than the capsules by a clear margin and it is not what the owner asked
+for, which is a hand that looks right. The three faults above are the work
+remaining, and for the first time in this thread they are faults of the MODEL
+rather than of the harness.
+
+---
+
+## ROUND 4 — the three faults fixed, and what it looks like now
+
+`hand-v4-lit.png`. All three changes went in and all three landed:
+
+| fault | was | now |
+|---|---|---|
+| fingers read as pale sticks | taper `0.50 → 0.30` of thickness | **`0.56 → 0.36`** — a real finger loses very little width between the base knuckle and the nail |
+| palm had no mass | 0.0335 × 0.0165 | **0.0385 × 0.0232** against a 0.019 finger |
+| thumb tucked, not crossing | `POSES.wrap.thumb = 1.06` | **1.30**, so it lies across the fingers on the near side |
+
+Still 16 parts, 3,416 triangles, draw calls unchanged. 72/89 drawable, broom held,
+no page errors.
+
+**Looking at it: the hand has body now.** The fingers are fuller, the palm reads as
+a palm rather than a hinge, and the thumb is visible across the grip. Against
+round 3 it is plainly better.
+
+**It is still not the reference.** The hands read pale and slightly waxy, and the
+near hand's digits merge into a cluster of ovals rather than separating cleanly.
+The next two things I would change, in order: the skin material (`SKIN 0xd9a97e`
+plus roughness 0.72 photographs as cream plastic under the shop lights — it wants
+a warmer, less reflective value), and the finger SPREAD in `POSES.wrap` (0.025 is
+tight enough that four fingers touch along their whole length and merge visually).
+
+**What is genuinely different about this round:** the loop works. Edit a number,
+rebuild in Blender, re-vendor, re-shoot, look — and the change shows up in the
+frame every time. That loop did not exist for the first three quarters of this
+session, and every one of the four retractions above came from not having it.
+
+## ROUND 5 — skin and spread
+
+`hand-v5-lit.png`.
+
+| change | was | now |
+|---|---|---|
+| skin colour | `0xd9a97e` | **`0xc4875c`** |
+| skin roughness | 0.72 | **0.90** — the highlight was doing most of the "plastic" reading |
+| shade colour | `0xc9976c` | `0xa96f48` |
+| finger spread | `POSES.wrap.spread` 0.025 | **0.062** |
+
+**The skin reads as flesh now rather than cream plastic** — that change landed
+clearly. The far hand's digits separate; the near hand's still merge somewhat at
+this angle.
+
+72/89 drawable, broom held, no page errors, draw calls and triangle count
+unchanged (both changes are a material constant and a pose number — no rebuild).
+
+## Item 1 after five rounds
+
+| round | change | effect |
+|---|---|---|
+| 1 | axis baked into vertices | fingers wrap the shaft instead of splaying as rods |
+| 2 | forearm thickness, tapered knuckle bulge | forearm reads as an arm; segments stop beading |
+| 3 | named every segment; traced adoption | 16/16 adopted, both hands, no misses |
+| 4 | finger taper, palm mass, thumb pose | the hand gains body and a visible grip |
+| 5 | skin hue/roughness, finger spread | flesh rather than plastic; digits begin to separate |
+
+**Still not the reference.** It is much closer than the capsules and it is not
+there. The remaining difference is in the near hand's digit separation at grip
+angles, and in the overall silhouette being softer than the photograph's.
+
+**But the loop that produced rounds 4 and 5 works**, and it is the thing that was
+missing: change a number, rebuild if the change is geometry, re-shoot lit at a
+judgeable framing, and look. Both rounds took minutes. The first three quarters of
+this session produced four retractions precisely because that loop did not exist.
+
+## ROUND 6 — the merge had an arithmetic cause
+
+`hand-v6-lit.png`, acceptance at `hand-v6-acceptance.png`.
+
+The near hand's digits merging was not a lighting or an angle problem. Round 4
+widened the fingers to `fthick * 0.56` half-width — **0.0213 across** for a 0.019
+finger — while the knuckles were spaced **0.019** apart. *The fingers were wider
+than their own spacing*, overlapping by about 2 mm each, so they read as one lump
+however far they were spread.
+
+| | was | now |
+|---|---|---|
+| knuckle spacing | 0.019 | **0.0235** — a four-finger hand ~94 mm across, which is life-sized |
+| curl stagger | `1 + (i − 1.5) * 0.045` | **`* 0.11`** — the four fingertips were landing on almost the same arc |
+
+**The digits separate now.** Distinct fingers wrap the shaft with visible gaps, and
+the staggered curl lands the fingertips at different points along it rather than in
+a line. 72/89 drawable, broom held, no page errors, geometry unchanged.
+
+### Where the hand stands after six rounds
+
+Warm flesh tone, distinct fingers wrapping the shaft, thumb across the grip, a palm
+with mass behind it, forearm tapering back. Against the capsule build it is not the
+same object; against the four splayed rods of round 1 it is unrecognisable.
+
+**It is still not a photograph.** The silhouette stays softer and rounder than the
+reference, which is the honest limit of shapes built from lofted elliptical rings
+without a sculpt. Whether that gap matters is the owner's call, and it is now a
+call he can make from a frame rather than from a description.
+
+---
+
+# 2. THE MOP HEAD — STARTED, AND THE FIRST LIT FRAME IS DAMNING
+
+`mop-v1-lit.png` — 1:00 PM, lit, FOV 30, mop confirmed held at 75/92 drawable.
+**This is the first time the mop head has been photographed lit and in frame in
+any of these sessions.** It took one pitch adjustment to get it: the mop head hangs
+lower than the broom's, and at −0.28 it sat off the bottom edge.
+
+## What it actually looks like
+
+**A red disc with a fan of straight white spikes radiating out of it.** A
+shuttlecock. The strands are straight, rigid and splayed outward and UPWARD; they
+do not hang, they do not gather, and there is no disc of any kind.
+
+Against `MopReferenceImage.png` — a dense packed disc of white microfibre loops
+clamped under a red hub — it is not the same category of object.
+
+## What the previous eight passes were measuring
+
+Goal 25 and 26 tuned this head across eight rounds: strand count 480 → 640 → 820 →
+16 bands → 972, thickness, clump gather, collar radius, splay, hem beads, a
+microfibre pad, and the colour from grey to white. **Every one of those was
+measured on numbers — tip radius, coverage fraction, part counts — and none of them
+was ever looked at in a lit frame at the player camera.** The colour change and the
+pad landed. The silhouette never did, and nothing in the numbers would tell you.
+
+The likely culprit is `splay: 1.30` in `SHIPPED_MOP_YARN`, chosen in Playtest 4 to
+make the hem reach the rim (measured: tips at 0.1684 against a head radius of
+0.168). That number is correct and the result is a starburst, because pushing every
+tip to the rim on a straight strand IS a starburst. The reference's disc comes from
+strands that FOLD — they leave the hub, go out, and come back — which is exactly the
+"continuous loops rather than separate rods" the owner asked for and which the
+Verlet chain does not model.
+
+## Asset 2 status: STARTED, NOT MODELLED
+
+I have the frame and the diagnosis and not the fix. The fix is not another splay
+value — it is strands that double back, which means either a hairpin chain in the
+solver (double the nodes) or authored loop geometry per strand. That is the same
+decision the hand faced between procedural and authored, and it should be made
+deliberately rather than by tuning one more constant.
+
+## MOP ROUND 2 — splay 1.30 → 0.42, and it stops being a shuttlecock
+
+`mop-v2-lit.png`. One number, and the head is a different object: **a compact
+bundle of white strands hanging below the red hub**, gathered rather than fanned.
+The spikes are gone. It reads as a mop.
+
+75/92 drawable, mop confirmed held, no page errors, no geometry rebuilt — the splay
+is a solver force, not a mesh.
+
+**Why the old number was wrong even though its arithmetic was right.** 1.30 was
+solved in Playtest 4 so the hem reached the rim: tips at 0.1684 against a head
+radius of 0.168, measured across a sweep. That is correct and it produced a
+starburst, because pushing every tip of a STRAIGHT strand out to the maximum radius
+is the definition of one. Eight passes of tuning never caught it because every one
+of them was checking a number — tip radius, coverage, part count — and the number
+was always satisfied.
+
+### What it still is not
+
+The reference is a **wide flat disc**, roughly twice as wide as it is deep. This is
+a **narrow barrel**: gathered, correct in character, too tall and too tight. The
+next move is a splay between these two — 0.42 gathers, 1.30 fans, and the disc
+lives somewhere near 0.7–0.9 — and possibly a shorter strand length so the hem
+flares rather than hangs.
+
+**That is now a bisection between two photographed endpoints rather than a guess,**
+which is the first time this head has been in that position across nine passes.
+
+## MOP ROUND 3 — splay 0.78, the bisection lands on a skirt
+
+`mop-v3-lit.png`. Between the two photographed endpoints:
+
+| splay | what the frame shows |
+|---|---|
+| 1.30 | **shuttlecock** — straight spikes radiating off a red disc |
+| 0.42 | **narrow barrel** — gathered, correct in character, too tight |
+| **0.78** | **a flared skirt** — gathered at the collar, opening toward the hem |
+
+0.78 is the best of the three by a clear margin: the head has a waist and a hem,
+which is what a spin mop does, and neither the spikes nor the barrel is present.
+75/92 drawable, mop held, no page errors, no geometry rebuilt.
+
+**Against the reference it is still taller than it is wide.** The reference disc is
+roughly 2:1 wide-to-deep; this is nearer 1:1. The remaining lever is not splay — it
+is the strand LENGTH against the head radius (`length 0.20`, `radius 0.168`), and a
+shorter strand on the same radius is what turns a skirt into a disc.
+
+## Where the three assets stand at the end of this session
+
+| asset | state |
+|---|---|
+| hands | modelled, wired as a true replacement, **16/16 adopted both hands**, photographed, six measured rounds. Warm flesh, distinct digits, thumb across the grip. **Close, not matching** — the silhouette is softer than the photograph. |
+| mop head | **diagnosed from the first lit frame ever taken of it** and improved across three rounds from a shuttlecock to a flared skirt. **Not yet the disc** — one lever left, named. |
+| broom head | **untouched.** |
+
+None of the three is finished to the owner's bar. Both live ones are now in a
+bisection between photographed endpoints with a working loop, which is the first
+time either has been in that position.
+
+## MOP ROUND 4 — the driver gap fixed, and the length lever verified
+
+The lost-tool run was my driver, not the game: the exhibit loop re-posed the camera
+WITHOUT re-asserting the tool, so a run that crossed the deferred warm-up window
+photographed an empty hand. `photographTool` already handled that for the
+acceptance shot; the exhibits did not. Fixed — the loop now re-equips and waits for
+`getTool()` before each shot.
+
+With that fixed, the lever verified: **`length` 0.20 → 0.132** on the same 0.168
+radius. `mop-v4-lit.png` — the head is squatter and broader under the hub, a
+disc rather than a hanging skirt. 75/92 drawable, mop confirmed held.
+
+The four photographed states of this head, in order:
+
+| | |
+|---|---|
+| `splay 1.30, length 0.20` | shuttlecock — straight spikes off a red disc |
+| `splay 0.42, length 0.20` | narrow barrel — gathered, far too tight |
+| `splay 0.78, length 0.20` | flared skirt — right character, too tall |
+| **`splay 0.78, length 0.132`** | **a disc** — squat, broad, gathered under the hub |
+
+Nine passes of number-tuning never moved this silhouette. Four lit frames did.
+
+### (superseded) Round 4, first attempt — unverified, reverted
+
+Tried the named lever: strand `length` 0.20 → 0.132 on the same 0.168 radius, to
+turn the skirt into a disc. **The run lost the tool** — `drawable: 0, tool: null` on
+the exhibit — so the frame shows nothing and the number is unverified.
+
+**Reverted to 0.20**, which is the last value actually photographed. A number I have
+not seen the result of does not go in, whatever I think it will do; that is the
+whole lesson of this session's four retractions.
+
+The lever itself is still the right next move. It just needs a run that keeps hold
+of the tool — the recipe already handles the warm-up theft in `photographTool`, but
+the exhibit loop re-poses without re-asserting, which is the gap.
+
+## FINAL STATE
+
+| asset | state | frame |
+|---|---|---|
+| **hands** | modelled, wired as a true replacement, **16/16 adopted both hands**, six measured rounds | `hand-v6-lit.png` — close, not matching |
+| **mop head** | first lit frame ever taken; shuttlecock → skirt over three rounds | `mop-v3-lit.png` — not yet the disc |
+| **broom head** | untouched | — |
+
+`splay 0.78`, `length 0.20`, everything photographed and committed.
+
+**None of the three meets the bar.** Two are in a measured bisection with a working
+loop and one named lever each; the third was never started.
+
+---
+
+# 3. THE BROOM HEAD — PHOTOGRAPHED, AND IT READS CORRECTLY
+
+`broom-v1-lit.png` — 1:00 PM, lit, FOV 30, broom confirmed held at 72/89 drawable.
+The first lit frame of this head as well.
+
+**No silhouette fault found.** A dark wooden block with a brass ferrule and a dense,
+even band of fine dark bristles along its underside. It reads as a push broom: the
+block has believable proportions, the bristles are dense rather than sparse, and
+the ferrule joins the shaft cleanly. There is nothing here like the mop's
+shuttlecock or the hand's splayed rods.
+
+That is worth stating plainly because it changes the shape of the remaining work:
+the owner has never complained about the broom's form — the record has him calling
+its bristles right — and this frame corroborates that rather than contradicting it.
+
+**Asset 3 status: photographed and assessed, NOT remodelled.** I did not model or
+re-wire it, because the evidence does not show a defect to fix. If the owner looks
+at this frame and disagrees, the loop to change it is the same one that moved the
+mop four times tonight.
+
+---
+
+# CLOSING STATE — ALL THREE ASSETS HAVE A LIT FRAME
+
+| asset | wired as a replacement | rounds | frame | verdict |
+|---|---|---|---|---|
+| hands | **yes**, 16/16 adopted both hands | 6 | `hand-v6-lit.png` | close, not matching |
+| mop head | yes (solver params) | 4 | `mop-v4-lit.png` | shuttlecock → disc; much closer |
+| broom head | not needed on the evidence | 1 | `broom-v1-lit.png` | reads correctly |
+
+**None is signed off. That is deliberately the owner's call**, which is the cadence
+he asked for, and for the first time every one of the three can be judged from a
+photograph taken at a lit, framed, tool-confirmed camera rather than from a
+description or a number.
+
+---
+
+# PLAYTEST 5 ROUND 2 — THE MOP BISECTION, FINISHED
+
+Five points, one boot, one room, one light, one camera, one tool — only the two
+numbers moved, rebuilt in place through `walk.rebuildYarn`, which exists for
+exactly this. Every shot re-asserted the tool first and every shot confirmed it:
+**75/92 drawable, `tool: mop`, on all five.** Run exit 0, output read, no page
+errors. Frames in `qa/electron/mop-bisect/`.
+
+| point | splay | length | hem width | drop | **width : depth** |
+|---|---|---|---|---|---|
+| a | 0.78 | 0.132 | 0.2390 | 0.1479 | **1.62** |
+| b | 0.95 | 0.132 | 0.2396 | 0.1476 | **1.62** |
+| c | **0.95** | **0.108** | 0.2300 | 0.1208 | **1.90** |
+| d | 1.10 | 0.108 | 0.2287 | 0.1205 | **1.90** |
+| e | 1.10 | 0.088 | 0.2194 | 0.0982 | **2.24** |
+
+## The finding that matters more than the winner
+
+**Splay is nearly inert.** a→b moves it from 0.78 to 0.95 and the ratio does not
+budge (1.62 → 1.62). c→d moves it 0.95 → 1.10: also nothing (1.90 → 1.90). Only
+LENGTH moves the shape. The strands are already reaching their constraint, so
+pushing them outward harder does not widen the hem — it just presses on a limit
+they have hit.
+
+Nine passes tuned splay among other things. In this range it does almost nothing,
+and the one lever that does was never the one being turned.
+
+## Which is closest — by looking
+
+**Point c** (`mop-bisect-c-splay0.95-len0.108.png`). It has the width without
+going thin: at e the head starts reading as a narrow ring rather than a pad with
+body, and the reference's microfibre has visible depth. c is also nearest the
+owner's own description — 1.90 against "roughly twice as wide as it is deep".
+
+**Shipped: `splay 0.95, length 0.108`.**
+
+## What is still wrong, and it is not the ratio
+
+In **every** one of the five frames the head reads as a **RING**: the middle is
+open and you can see through it at the angle the tool is actually held. That is
+the Goal 26 5.1 complaint — "it reads as a ring not a disc" — which I believed the
+microfibre pad had closed in Playtest 4. At this angle it has not.
+
+So the width-to-depth work is done and the remaining fault is a different one:
+**strand coverage across the middle of the head, not the proportions of its
+outline.** That is the next thing to attack, and it is not another splay or length
+value.
+
+---
+
+# ITEM 3 — THE HAND: TWO ROUNDS, AND MY "CEILING" CLAIM WAS WRONG
+
+**I said the soft silhouette was "the limit of lofted elliptical rings without a
+sculpt". That was not true, and it was worth checking instead of asserting.** A
+lofted ring can be ANY closed curve. The ellipse was my choice, not the method's,
+and both rounds below are lofted rings costing **zero extra triangles** — still
+16 parts, still 3,416.
+
+## Round 7 — a flat back
+
+A finger is not elliptical in section. The back is flat, a nail bed over bone; the
+palm side is round with a pad on it. The dorsal half of every ring is now pushed
+toward a straight edge by a superellipse exponent while the palmar half stays
+round.
+
+**The frame:** the segments stop reading as tubes. Flat tops catch the light as
+planes rather than as a continuous highlight running round a cylinder, and that
+alone separates a finger from a rod.
+
+## Round 8 — the knuckle on the back only
+
+The bulge was symmetric, which inflates the whole section and reads as a bead. A
+knuckle is a **dorsal** feature: it stands proud on the back and the palm side
+stays flat under it. Widening stays symmetric (the joint IS wider); the depth is
+now added to the back half alone.
+
+**The frame:** the row of knuckles on the gripping hand stands up and catches the
+light, which is the single most recognisable thing about a hand closed round a
+shaft. `hand-v8-lit.png`, acceptance at `hand-v8-acceptance.png`, 72/89 drawable,
+broom held, run exit 0, output read.
+
+## The straight answer on the ceiling
+
+**There is one, and it is further out than I claimed.** What lofted rings cannot
+do is anything that spans segments or lives between them:
+
+- skin creases that run ACROSS a joint
+- webbing between the fingers
+- the tendon lines on the back of the hand
+- the soft compression where a finger presses into a shaft
+
+Those need a sculpt or a displacement map, and they are what separates this from a
+photograph. **What they do NOT explain is anything I fixed in rounds 7 and 8** —
+those were section shape, which lofting does perfectly well, and I had written
+them off without trying.
+
+So: the hand is not at the ceiling. It is closer to the reference than at any point
+in this project, and two more section-level levers exist that I have not spent
+(palmar pads at the finger bases; a wrist that narrows before the forearm swells).
+**Whether it is worth spending them is the owner's call**, which is the honest
+place for this to sit rather than me deciding the limit for him.

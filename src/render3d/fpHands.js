@@ -15,10 +15,15 @@
 // recoil now comes out as an offset the caller applies to the whole held rig.
 
 import * as THREE from 'three';
+import { CachedGLTFLoader } from './gltfCache.js';
 import { CLEANING_TOOLS } from '../data/cleaningTools.js';
 
-const SKIN = 0xd9a97e;
-const SKIN_SHADE = 0xc9976c; // the underside of the fingers, so knuckles read against the palm
+// ROUND 5, from the lit frame: 0xd9a97e at roughness 0.72 photographs as CREAM
+// PLASTIC under the shop lights -- pale and slightly waxy, which is a specular
+// problem as much as a hue one. Warmer and matter: skin has almost no gloss at
+// this scale, and the highlight was doing most of the "plastic" reading.
+const SKIN = 0xc4875c;
+const SKIN_SHADE = 0xa96f48; // the underside of the fingers, so knuckles read against the palm
 const CUFF = 0x2f4a35; // the club's own polo green, at the wrist
 const CUFF_DARK = 0x21351f; // the sleeve's rolled interior, so the opening reads as depth not a disc
 const NAIL = 0xe6c39c; // a lighter flattened hint on the index and middle nails
@@ -120,7 +125,10 @@ export const POSES = {
   // in front of the fingertips and the hand read as resting on the pole, not gripping it.
   // The reference the player supplied has the fingers meeting the palm on the far side
   // with the thumb crossing over them. ~177 deg does that, and the thumb comes up to match.
-  wrap: { curl: 1.34, thumb: 1.06, spread: 0.025, index: 1.30 }, // a shaft or a handle
+  // FAULT 3 from the lit frame: the thumb was tucked and barely visible. In the
+  // reference it lies ACROSS the fingers on the near side, which is most of what
+  // reads as "gripping" rather than "resting against". 1.06 -> 1.30.
+  wrap: { curl: 1.34, thumb: 1.30, spread: 0.062, index: 1.30 }, // a shaft or a handle; spread 0.025 merged the four digits into one mass
   trigger: { curl: 1.08, thumb: 0.78, spread: 0.022, index: 0.30 }, // finger on the trigger
   // ITEM 9: at curl 0.46 the fingers barely bend, so once the palm was lifted
   // clear of the sponge they stood straight up off it and the hand read as
@@ -211,7 +219,7 @@ export const GRIPS = buildGripTable();
 // Cost: three capsules and a nail per finger, so four draw calls -- well inside
 // 5.3's "not dozens of draw calls per finger", and unchanged in material count
 // because the nail and skin were already shared.
-function makeFinger(mats, len, thick, skinMat, withNail) {
+function makeFinger(mats, len, thick, skinMat, withNail, partPrefix) {
   const skin = skinMat || mats.skin;
   const root = new THREE.Group();
 
@@ -256,10 +264,28 @@ function makeFinger(mats, len, thick, skinMat, withNail) {
     tipJoint.add(nail);
   }
 
-  return { root, knuckle, tip: tipJoint };
+  // NAME THE SEGMENTS. They were anonymous, so "4 capsules left" could only be
+  // reported as a count -- the parent chain says `Group < FirstPersonRightHand`
+  // for all sixteen. Naming them costs nothing and turns the question into a
+  // reading. contextIsolation means a driver cannot see a global the module sets,
+  // but it can always read the scene graph, so the name is the durable channel.
+  if (partPrefix) {
+    prox.name = `${partPrefix}Prox`;
+    mid.name = `${partPrefix}Mid`;
+    dist.name = `${partPrefix}Dist`;
+  }
+  return { root, knuckle, tip: tipJoint, meshes: { prox, mid, dist }, partPrefix };
 }
 
 function makeHand(mats, mirror = 1) {
+  // A HEARTBEAT AT THE TOP OF THE BUILD. The loader instrumentation read null on
+  // every path, which does not mean "the load failed" -- those globals are written
+  // unconditionally -- it means the code never ran. This says whether THIS file is
+  // the one the running build is executing, before any conclusion is drawn from a
+  // frame again.
+  if (typeof window !== 'undefined') {
+    window.__fwHandBuild = (window.__fwHandBuild || 0) + 1;
+  }
   const g = new THREE.Group();
   const fingerSkins = mats.fingerSkins || [mats.skin, mats.skin, mats.skin, mats.skin];
 
@@ -338,9 +364,15 @@ function makeHand(mats, mirror = 1) {
   const fingers = [];
   const lens = [0.070, 0.076, 0.072, 0.062];
   for (let i = 0; i < 4; i++) {
-    const kx = (0.0285 - i * 0.019) * mirror;
+    // ROUND 6: the near hand's digits merged into one mass. Measured cause, not a
+    // guess -- round 4 widened the fingers to `fthick * 0.56` half-width, which is
+    // 0.0213 ACROSS for a 0.019 finger, while the knuckles were spaced 0.019
+    // apart. The fingers were wider than their own spacing, so they overlapped by
+    // 2 mm each and read as a single lump however far they were spread.
+    // 0.0235 gives a 4-finger hand ~94 mm across at the knuckles, which is life.
+    const kx = (0.0352 - i * 0.0235) * mirror;
     const kz = KNUCKLE_Z + knuckleArc[i];
-    const f = makeFinger(mats, lens[i], 0.019, fingerSkins[i], true);
+    const f = makeFinger(mats, lens[i], 0.019, fingerSkins[i], true, ['Index', 'Middle', 'Ring', 'Little'][i]);
     f.root.position.set(kx, -0.004, kz - 0.007);
     g.add(f.root);
     fingers.push(f);
@@ -400,7 +432,10 @@ function makeHand(mats, mirror = 1) {
       const f = fingers[i];
       const amount = i === 0 ? p.index : p.curl;
       // the outer fingers close a touch harder — a real hand does not curl as one plate
-      const bias = 1 + (i - 1.5) * 0.045;
+      // A hand does not close as one plate, and 0.045 of stagger was too little to
+      // see: the four fingertips landed on almost the same arc. 0.11 separates
+      // them along the shaft the way a real grip does.
+      const bias = 1 + (i - 1.5) * 0.11;
       // THREE JOINTS NOW, and the curl is distributed across them the way a hand
       // closes: the middle knuckle leads, the base follows, the tip finishes. A
       // single big rotation at two joints is what made the old fingertip swing
@@ -415,12 +450,135 @@ function makeHand(mats, mirror = 1) {
   }
 
   pose('wrap');
-  return { group: g, pose, forearm, sleeve };
+
+  // PLAYTEST 5, ITEM 6.1 — adopt the authored geometry when it arrives.
+  //
+  // Every capsule that has an authored counterpart is listed here by the part
+  // name in the GLB. The list is explicit rather than derived from mesh names so
+  // that a part MISSING from the model is visible as a count, not as a silently
+  // unswapped capsule sitting among authored ones -- half a hand is worse than
+  // none, and it is exactly the failure that would be hard to see in a frame.
+  const swappable = [];
+  for (const f of fingers) {
+    swappable.push([f.meshes.prox, `${f.partPrefix}Prox`]);
+    swappable.push([f.meshes.mid, `${f.partPrefix}Mid`]);
+    swappable.push([f.meshes.dist, `${f.partPrefix}Dist`]);
+  }
+  swappable.push([thumbProx, 'ThumbProx']);
+  swappable.push([thumbDist, 'ThumbDist']);
+  if (palm) { palm.userData.fpAsymmetric = true; swappable.push([palm, 'Palm']); }
+  swappable.push([forearm, 'Forearm']);
+
+  const authored = { applied: 0, expected: swappable.length, missed: [] };
+  loadAuthoredHand().then((parts) => {
+    if (!parts) return;
+    for (const [mesh, name] of swappable) {
+      const want = parts.get(name);
+      const beforeType = mesh?.geometry?.type ?? '(none)';
+      const ok = adoptAuthored(mesh, want, mirror);
+      const afterType = mesh?.geometry?.type ?? '(none)';
+      if (ok) authored.applied += 1;
+      // Named, not counted. "4 capsules left" cost a whole round of guessing;
+      // which four is a one-line answer if the miss says its own name -- and the
+      // geometry type either side of the assignment says whether the swap took,
+      // which is the thing four capsules sitting at the origin were hiding.
+      if (!ok || /Capsule/.test(afterType)) {
+        authored.missed.push(`${name}: had=${beforeType} part=${want ? 'yes' : 'MISSING'} now=${afterType}`);
+      }
+    }
+    // The nails were a separate box per finger placed against a capsule. The
+    // authored distal segment ends in a modelled tip, so they are retired rather
+    // than left floating a millimetre off a shape that no longer matches them.
+    // Published on window so a driver can read it without an accessor being
+    // threaded through courseScene, which this session does not own.
+    if (typeof window !== 'undefined') {
+      window.__fwHandAdopt = window.__fwHandAdopt || [];
+      window.__fwHandAdopt.push({ applied: authored.applied, expected: authored.expected, missed: [...authored.missed] });
+    }
+    if (authored.applied > 0) {
+      g.traverse((o) => { if (o.name === 'FingerNail') o.visible = false; });
+    }
+  });
+
+  return { group: g, pose, forearm, sleeve, authored };
+}
+
+// PLAYTEST 5, ITEM 6.1 — THE AUTHORED HAND REPLACES THE CAPSULES.
+//
+// The hand is ARTICULATED: `pose()` writes joint rotations every time a tool
+// changes, and five poses depend on it. So the authored model does not replace
+// the hand -- it replaces the GEOMETRY INSIDE the joints that already exist. Each
+// part in Assets/hands/fp_hand.glb is authored with its origin at its own joint
+// pivot, running down -Z, which is the axis fpHands already lays fingers along,
+// so a swap is `geometry = authored; position.set(0,0,0); rotation.set(0,0,0)`
+// and the pose maths is untouched.
+//
+// It is a REPLACEMENT, not an addition: the capsule geometry is disposed as it is
+// swapped out, so nothing ends up drawing twice, and the mesh count is unchanged
+// (the nails are folded into the distal segment's own form).
+//
+// Loaded async with the procedural build as the synchronous fallback, because
+// fpHands is constructed during scene setup and cannot await. If the file is
+// missing or fails to parse, the hands are exactly what they were.
+const AUTHORED_HAND_URL = 'vendor/models/hands/fp_hand.glb';
+let authoredHandParts = null;
+let authoredHandPending = null;
+
+function loadAuthoredHand() {
+  if (authoredHandParts) return Promise.resolve(authoredHandParts);
+  if (authoredHandPending) return authoredHandPending;
+  if (typeof document === 'undefined') return Promise.resolve(null);
+  const url = new URL(AUTHORED_HAND_URL, document.baseURI).href;
+  authoredHandPending = new Promise((resolve) => {
+    // THE ERROR IS KEPT. The first version discarded it -- `() => resolve(null)`
+    // -- and when the parts stopped arriving the run reported "no parts" with no
+    // way to tell a 404 from a parse failure from a loader that was never called.
+    // A silent failure path in the one place the asset can go missing is how this
+    // swap became untraceable.
+    const note = (why) => {
+      if (typeof window !== 'undefined') window.__fwHandLoad = { url, why };
+      resolve(null);
+    };
+    try {
+      new CachedGLTFLoader().load(url, (gltf) => {
+        const parts = new Map();
+        gltf.scene.traverse((o) => {
+          if (o.isMesh && o.geometry && o.name) parts.set(o.name, o.geometry);
+        });
+        authoredHandParts = parts.size ? parts : null;
+        if (typeof window !== 'undefined') {
+          window.__fwHandLoad = { url, why: `loaded ${parts.size} parts`, names: [...parts.keys()] };
+        }
+        resolve(authoredHandParts);
+      }, undefined, (err) => note(`loader error: ${err?.message || err?.type || String(err)}`));
+    } catch (err) { note(`threw: ${err?.message || String(err)}`); }
+  });
+  return authoredHandPending;
+}
+
+/** Swap one capsule for its authored part. Returns true if it happened. */
+function adoptAuthored(mesh, geometry, mirror) {
+  if (!mesh || !geometry) return false;
+  const old = mesh.geometry;
+  mesh.geometry = geometry;
+  mesh.position.set(0, 0, 0);
+  mesh.rotation.set(0, 0, 0);
+  // Radially symmetric parts need no mirroring; the palm is deliberately
+  // asymmetric (the thenar mass on the thumb side), so the left hand scales it
+  // and takes DoubleSide with it -- a negative scale reverses winding, and
+  // without this the left palm shows its inside.
+  if (mesh.userData.fpAsymmetric && mirror < 0) {
+    mesh.scale.x = -1;
+    if (mesh.material) mesh.material = mesh.material.clone();
+    if (mesh.material) mesh.material.side = THREE.DoubleSide;
+  }
+  if (old && old !== geometry && typeof old.dispose === 'function') old.dispose();
+  return true;
 }
 
 export function makeFpHands() {
   const mats = {
-    skin: new THREE.MeshStandardMaterial({ color: SKIN, roughness: 0.72 }),
+    skin: new THREE.MeshStandardMaterial({ color: SKIN, roughness: 0.9 }),
     shade: new THREE.MeshStandardMaterial({ color: SKIN_SHADE, roughness: 0.78 }),
     cuff: new THREE.MeshStandardMaterial({ color: CUFF, roughness: 0.78 }),
     cuffDark: new THREE.MeshStandardMaterial({ color: CUFF_DARK, roughness: 0.85 }),
@@ -510,6 +668,12 @@ export function makeFpHands() {
   return {
     root,
     rigOffset,
+    // PLAYTEST 5, ITEM 6.1: which authored parts landed and which did not, by
+    // name. A count alone sent me hunting the scene graph for "the 4 capsules".
+    authoredHandDiagnostics: () => ({
+      right: right.authored ? { ...right.authored, missed: [...right.authored.missed] } : null,
+      left: left.authored ? { ...left.authored, missed: [...left.authored.missed] } : null,
+    }),
 
     // THE HAND MATERIALS, SHARED RATHER THAN REBUILT.
     //

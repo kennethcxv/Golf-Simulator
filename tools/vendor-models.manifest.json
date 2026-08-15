@@ -628,5 +628,10 @@
     "from": "Assets/shed/glb/shed_window.glb",
     "to": "vendor/models/shed/shed_window.glb",
     "sha1": "e8bcbb31f15f52f98c84b78c8e3858bb26ba71ad"
+  },
+  {
+    "from": "Assets/hands/fp_hand.glb",
+    "to": "vendor/models/hands/fp_hand.glb",
+    "sha1": "e8ef10e673d12770b42270c8481b43a7638a38d7"
   }
 ]
