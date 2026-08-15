@@ -334,10 +334,17 @@ the flip's 90°, landing spread at settle) and A/B'd on the same
 instrument — **29.5 ms median worst (25–45.4) against the batch's
 25.6/20.1**. Same verdict as the 2026-08-06 chain: uploads in one frame
 share their fixed overhead; spreading them raises the worst frame. The
-batch stays, with two eras of evidence beside it in source. What remains
-between 20-26 ms and the 16.7 bar is the per-upload overhead itself — the
-honest paths under it are the pre-authored bitmap atlas or accepting the
-one 20-26 ms frame per turn.
+batch stays, with two eras of evidence beside it in source. A THIRD path
+was then designed and killed at an invariant: sharing the right face's
+resident texture with the leaf (the leaf's front IS the old right page —
+zero paint, zero upload) fails because the leaf canvases are deliberately
+HALF-RESOLUTION (`makePageCanvas(0.5)`), so texture pairs cannot rotate,
+and plain sharing breaks against the same-frame repaint of the shared
+texture. What remains between 20-26 ms and the 16.7 bar is the per-upload
+overhead itself — the honest paths under it are a pre-uploaded
+spread-texture cache (uploads moved to idle frames after settle; full
+design, next session scale) or accepting the one 20-26 ms frame per turn.
+Three dead-ends now stand documented around this number.
 
 ## The stall bailout — the afflicted machine becomes the test rig
 
