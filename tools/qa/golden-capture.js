@@ -73,6 +73,17 @@ async (page) => {
   const boot = await (await import(`file:///${process.cwd().replace(/\\/g, '/')}/tools/qa/lib/qa-boot.mjs`))
     .clickThroughMenu(page, { forceNew: true, pinSeed: 0.4242 });
   await page.waitForFunction(() => window.__fw?.scene3d?.walk?.isActive?.(), null, { timeout: 300000 });
+  // THE VEIL, EXPLICITLY (Goal 27). walk.isActive is true from enterWalk —
+  // long before the prewarm ends — so this capture never actually waited for
+  // the load to finish; its first shot raced the veil's 420 ms fade and won
+  // by main-thread contention luck for its whole life. The under-veil belt
+  // warm added one second to the pre-lift path and the race finally lost:
+  // shop-floor shot through the fading veil at 12.8% diff, "Warming the
+  // view" still legible in the frame. The barrier every other driver uses:
+  await page.waitForFunction(() => {
+    const v = document.querySelector('.load-veil');
+    return !v || getComputedStyle(v).opacity === '0';
+  }, null, { timeout: 300000 });
   // Compatibility no-op: qa-boot now restores real randomness inside the
   // exact onNewGame seed draw, before any scene/runtime construction begins.
   await page.evaluate(() => window.__qaRestoreRandom?.());
