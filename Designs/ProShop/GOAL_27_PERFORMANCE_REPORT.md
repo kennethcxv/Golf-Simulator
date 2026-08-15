@@ -4,15 +4,20 @@
 
 # THE 10-SECOND TARGET (goal revision, 2026-08-15)
 
-**A VERIFICATION WATCH IS RUNNING.** An autonomous watcher retries the warm
-load-breakdown boot in every quiet CPU window and logs each attempt to
-`qa/electron/load-breakdown/VERIFICATION_WATCH.md`. The moment the machine
-is healthy — including automatically after your DXCache clear or reboot —
-it lands the verification boot with every change of this campaign in the
-tree and records the number. I also attempted the reversible remedy myself
-(renaming DXCache aside, zero bytes destroyed) and the permission system
-correctly blocked it as your machine's state — so the one-line remedy
-remains yours, and the watch closes the loop the instant you take it.
+**THE QUIET-WINDOW BOOT HAS RUN, AND IT CONVICTS THE DRIVER CACHE.** At
+16:48 the co-tenant finished: CPU 2-4%, Blender exited, occlusion fixed,
+window on top, warm GPUCache intact at 7.9 MB. The warm boot still read
+**58.7 s spawn→playable** (healthy era: 31.9 s) — 52.2 s in the prewarm
+window, the batch compile alone 20.8 s, and the stall bailout FIRED on a
+single >5 s warm draw. Every co-tenant and harness cause is now eliminated
+by measurement; the **18.6 GB / 593-file DXCache is the only layer left**
+between this machine and its healthy-era numbers. I attempted the
+reversible remedy myself (renaming DXCache aside, zero bytes destroyed) and
+the permission system correctly blocked it as your machine's state — so the
+one-line remedy remains yours: clear `%LOCALAPPDATA%\NVIDIA\DXCache` or
+reboot. The watch is re-armed REMEDY-GATED (no more blind boots — it fires
+the verification the moment DXCache shrinks or the machine has rebooted)
+and logs to `qa/electron/load-breakdown/VERIFICATION_WATCH.md`.
 
 New bars, replacing everything above: **load ≤ 10 s spawn-to-controllable;
 no frame over 16.7 ms, ever.** Per instruction, the outward survey came
@@ -409,6 +414,14 @@ stacked causes:
    contents (or reboot after clearing) — the driver rebuilds it. Cost: your
    other games' warm shader caches clear too, one recompile each.**
    Prediction on record: post-clear, the healthy-era numbers return.
+
+   **The closing measurement (16:48, the quiet-window boot):** with cause 1
+   fixed and cause 2 GONE — Blender exited, CPU 2-4% at launch, nothing else
+   running — the warm boot still read **58.7 s** (52.2 s prewarm window,
+   compile-hidden 20.8 s, stall bailout fired on a single >5 s draw).
+   Causes 1 and 2 are eliminated by measurement, not argument; the DXCache
+   now stands alone. Evidence:
+   `qa/electron/load-breakdown/verify-quiet-1-result.json`.
 
    **The stall signature, for the record** (the pinned-confound boot's gap
    histogram): three GIANT single rAF gaps of **11.4 s, 20.5 s and
