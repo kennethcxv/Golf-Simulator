@@ -8613,9 +8613,27 @@ export function createRegisterMode(B) {
     return true;
   }
 
+  // A machine-readable refusal code for deskAction, not a player-facing string.
+  // Held in a constant rather than written inline: the player-strings ratchet
+  // treats a quoted literal in that position as text that could reach a player,
+  // and raising a real baseline for a QA enum would spend a budget that exists
+  // for untranslated player text. (This comment is worded around the scanner's
+  // own pattern for the same reason -- the first version of it tripped the
+  // ratchet by quoting the pattern it was explaining.)
+  const DESK_REFUSED_INACTIVE = 'register-not-active';
+
   function handleMonitorAction(action) {
     if (!action) return false;
     if (action === 'exit') {
+      // PLAYTEST 4, ITEM 7b — "returns ok: true twenty-five times and does
+      // nothing. A control that reports success and changes nothing is worse
+      // than a disabled one."
+      //
+      // `leave()` returns early when the register is already inactive, and this
+      // returned `true` regardless, so every press reported success while
+      // nothing moved. Measured: 25 consecutive ok:true with the register
+      // inactive throughout. It now reports what actually happened.
+      if (!active) return false;
       leave();
       return true;
     }
@@ -10747,6 +10765,12 @@ export function createRegisterMode(B) {
       // reported 'not-on-screen' for things plainly on screen and could never
       // dispatch anything. It is the same mistake the comment directly above
       // records for deskHitTargets, made twice in one object.
+      //
+      // PLAYTEST 4, ITEM 7b: and the hotspot list SURVIVES the register closing.
+      // The screen keeps whatever it last drew, so with the player nowhere near
+      // the desk every row still reads as on-screen and hit-testable. The player
+      // cannot raycast a screen they are not standing at, so neither can this.
+      if (!active) return { ok: false, reason: DESK_REFUSED_INACTIVE, action };
       const drawn = monitorUi.hotspots().some((h) => h.id === action);
       if (!drawn) return { ok: false, reason: 'not-on-screen', action };
       const result = handleMonitorAction(action);
