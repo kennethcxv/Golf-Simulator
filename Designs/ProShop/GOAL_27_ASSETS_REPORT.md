@@ -669,3 +669,76 @@ the copper material.
 
 Everything is generic by construction — invented marks, no issuer names, no real
 note reproduced.
+
+---
+
+## 5. THE PRESSURE WASHER WAND — SHIP
+
+`tools/blender/hero/build_wand.py` → `Assets/models/hero/pressure_wand.glb`
+Renders: `Designs/ProShop/Images/Goal_27/wand/` (Cycles `wand-*`, EEVEE `wand-eevee-*`)
+
+**788 triangles, 9 objects, 3 materials.** Against the hand's 5,179 this is the
+cheapest hero asset in the set — it is a belt tool at the lowest frequency, and
+it is priced like one. Overall 0.043 × 0.737 × 0.113 yd, of which the lance is
+0.540. Grip 0.030 across after being squashed to 0.78 in X: a round section
+reads as a broom handle, an oval one reads as something a hand closes on.
+
+Three materials on real part boundaries — the moulded shell, the plumbing steel,
+the rubber. The steel is the specular event. Rendered in BOTH engines because it
+is glossy; Cycles and EEVEE differ only in the softness of the specular
+roll-off on the lance, with no engine-specific surprise (there is nothing
+transmissive here, which is where the two engines actually part company).
+
+### The joins, and the controls that prove the instruments work
+
+Six small things on one big thing — the class that shipped the rake's floating
+bristles and the register's drawer face. Each join is asserted, and each
+assertion was watched failing on a variant that breaks that join and nothing
+else, with the other assertions still passing in the same run:
+
+| join | measured | control fired at |
+|---|---|---|
+| lance → body | embedded 11.17 mm | — |
+| collar → body | embedded 4.00 mm | 26.00 mm clear |
+| nozzle → lance | meets at 0.60 mm | 7.81 mm clear |
+| trigger → body | embedded 8.53 mm | 9.00 mm clear |
+| guard → body | embedded 9.35 mm | — |
+| grip → body | embedded 20.26 mm | — |
+| fitting → grip | embedded 5.95 mm | 25.50 mm clear |
+| trigger ∦ guard | clears by 10.30 mm | — |
+
+**Two instrument faults caught here, both worth carrying forward:**
+
+1. **The hose fitting's flange is WIDER than the grip it bolts to**, so not one
+   of its vertices landed inside the grip and the surface test correctly called
+   it detached — the same shape as the register's drawer face. The fix was not
+   to loosen the tolerance until it passed. A real fitting has a *shank* up
+   inside the butt, so I modelled the shank; now the instrument measures the
+   join instead of being weakened to accept a bad one.
+
+2. **The `break=fitting` control did not fire the first time.** A 30 mm shove
+   did not detach a 30 mm shank — it still overlapped, so the "broken" variant
+   was still attached and passed. Third instance of this on the project (the
+   broom's bristles lifted deeper into their block; the spray's trigger moved
+   along the head's 74 mm depth). **A break must exceed the overlap it is meant
+   to undo, or the control proves nothing.** Widened to 60 mm; it fires.
+
+### The four rounds
+
+- **R1** — the trigger was effectively invisible: the guard read as an empty
+  hoop because the blade swept *backwards* and sat against the grip. The hose
+  fitting read as a second barrel firing out of the handle. The grip was a plain
+  round cone. The body was a featureless brick.
+- **R2** — trigger rebuilt to hang forward into the guard; grip squashed oval
+  with a palm swell; fitting shortened to a hex nut; a clamshell parting seam
+  added in the existing rubber (a material break on a real part boundary at zero
+  new material cost). Then: the trigger sat at the *rear* of the loop with the
+  whole front half empty, and the body was still a perfect rectangular slab.
+- **R3** — body tapered toward the muzzle; guard re-centred over the trigger.
+  The seam overhung the body's bevelled ends and showed as a flat fin sticking
+  out past the nose; the steel had a hard black-underside/white-top facet split.
+- **R4** — seam inset inside both ends; round walls smooth-shaded with the end
+  caps left flat; trigger given a real curl. Side-on it reads unambiguously as a
+  pressure washer wand. SHIP.
+
+glTF validated: 0 failed, 0 warnings.
