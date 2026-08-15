@@ -1693,6 +1693,16 @@ function startGameNow(
       // view was decided by which of those two won a race, and on that boot the
       // frame won by 287 ms.
       //
+      // GOAL 27 PHASE 2, ATTEMPTED AND REVERTED — the editor's first entry
+      // (875-1051 ms, +38-46 programs, BOTH disk-cache tiers) was warmed here
+      // as a real enter/exit round trip under the opaque veil. The census then
+      // measured the player's first entry at NINE AND A HALF SECONDS (+12p):
+      // the under-veil exit leaves state (rebuildSectionIndex / layer refresh
+      // territory) that makes the next real entry rebuild far more than the
+      // lazy build it replaced. Do not retry this shape without understanding
+      // what exitEditor invalidates. The stall itself is still open, and the
+      // warm-tier fact stands: ANGLE translation/link do not disk-cache, so
+      // the owner pays ~1 s on his first editor open of every session.
       // Yield through two animation frames instead — the same paint-yield idiom
       // startGame uses. The startup hold is released above, so the first of
       // those is a real production frame drawn from the walk camera, and the

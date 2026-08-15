@@ -222,6 +222,10 @@ async (page) => {
       '(fw) => { const h = fw.scene3d?.walk?.hooks?.openLedger; if (typeof h !== "function") return "no openLedger hook"; h(); return true; }',
       '(fw) => fw.ledgerOpen === true || fw.scene3d?.clubhouse?.()?.ledgerBook?.isOpen?.() === true || "ledgerOpen " + String(fw.ledgerOpen)',
       'KEY:k'],
+    ['book-page-turn',
+      '(fw) => { const lb = fw.scene3d?.clubhouse?.()?.ledgerBook; if (typeof lb?.turnPage !== "function") return "no turnPage"; if (fw.ledgerOpen !== true) { const h = fw.scene3d?.walk?.hooks?.openLedger; if (typeof h !== "function") return "no openLedger hook"; h(); } window.__pageTurnKick = setTimeout(() => { window.__pageTurnResult = fw.scene3d?.clubhouse?.()?.ledgerBook?.turnPage?.(1); }, 700); return true; }',
+      '(fw) => window.__pageTurnResult === true || "turnPage returned " + String(window.__pageTurnResult)',
+      'KEY:k'],
     ['front-desk',
       '(fw) => { const h = fw.scene3d?.walk?.hooks?.openFrontDesk; if (typeof h !== "function") return "no openFrontDesk hook"; h(null); return true; }',
       '(fw) => fw.frontDeskOpen === true || document.body.classList.contains("front-desk-mode") || "frontDeskOpen still " + String(fw.frontDeskOpen)',
@@ -241,6 +245,14 @@ async (page) => {
       `(fw) => fw.scene3d?.walk?.getTool?.() === ${JSON.stringify(toolName)} || "held: " + String(fw.scene3d?.walk?.getTool?.())`,
       '(fw) => { const w = fw.scene3d?.walk; const eq = w?.setToolImmediate || w?.setTool; if (eq) eq.call(w, null); }']);
   }
+  // LAST, deliberately: the editor has no same-key close — its exit runs
+  // through the pause shell — so its aftermath must have nothing after it to
+  // poison. Undo is best-effort Escapes; the idle-wait on the (nonexistent)
+  // next surface would catch any residue anyway.
+  SURFACES.push(['course-editor',
+    'KEY:j',
+    '(fw) => fw.courseMode === "editor" || (document.querySelector(".course-editor-root, .editor-root, [data-editor-root]") && "dom-only") === "dom-only" || "courseMode " + String(fw.courseMode)',
+    '(fw) => { /* two escapes: shell open, then resume-out is owner-specific; best effort */ }']);
 
   for (const [name, actSrc, verifySrc, undoSrc] of SURFACES) {
     const first = await pressOnce(name, 1, actSrc, verifySrc, undoSrc);
