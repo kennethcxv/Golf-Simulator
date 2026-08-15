@@ -9,7 +9,7 @@ breaks exactly that join and nothing else.
 UNITS ARE YARDS.
 
     blender --factory-startup -b --python tools/blender/hero/build_wand.py -- \
-        [cycles] [break=nozzle|trigger|collar]
+        [cycles] [break=nozzle|trigger|collar|fitting|qc]
 """
 
 import math
@@ -19,7 +19,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import bpy  # noqa: E402
-from mathutils import Vector  # noqa: E402
+from mathutils import Matrix, Vector  # noqa: E402
 import hero_lib as H  # noqa: E402
 import hardsurface_lib as HS  # noqa: E402
 
@@ -103,10 +103,22 @@ def build(broken=""):
     a = math.radians(GRIP_ANGLE)
     axis = Vector((0, -math.sin(a), -math.cos(a)))
     rot_g = axis.to_track_quat("Z", "Y")
+    swivel = (Matrix.Rotation(math.radians(30), 3, "X") @ axis).normalized()
 
     # ---- the gun body: the one big thing everything else hangs on
     p["body"] = tapered_box("GunBody", BODY_Y[0], BODY_Y[1],
                             BODY_REAR, BODY_NOSE, bevel=0.0060)
+
+    # ---- the GRIP SOCKET. The grip used to run straight into the body as two
+    # solids crossing, and the intersection curve is what reads as phasing: on a
+    # moulded tool the grip meets the shell at a part boundary, not at an
+    # arbitrary line where a cylinder happens to cut a box.
+    p["socket"] = HS.join([
+        HS.cylinder("SockA", GRIP_ROOT + axis * 0.006, 0.0250, 0.0170,
+                    verts=14, rotation=rot_g),
+        HS.cylinder("SockB", GRIP_ROOT + axis * 0.019, 0.0212, 0.0130,
+                    verts=14, rotation=rot_g),
+    ], "GripSocket")
 
     # ---- pistol grip. Squashed in X afterwards because a round section reads
     # as a broom handle -- a grip is oval, deeper than it is wide, and that one
@@ -117,6 +129,13 @@ def build(broken=""):
         HS.cylinder("GripSwell", GRIP_ROOT + axis * 0.046, 0.0196, 0.0300,
                     verts=14, rotation=rot_g),
         HS.cylinder("GripButt", GRIP_ROOT + axis * 0.083, 0.0184, 0.0130,
+                    verts=14, rotation=rot_g),
+        # moulded finger relief: three ridges where the fingers close
+        HS.cylinder("GripRib0", GRIP_ROOT + axis * 0.034, 0.0188, 0.0055,
+                    verts=14, rotation=rot_g),
+        HS.cylinder("GripRib1", GRIP_ROOT + axis * 0.049, 0.0196, 0.0055,
+                    verts=14, rotation=rot_g),
+        HS.cylinder("GripRib2", GRIP_ROOT + axis * 0.064, 0.0192, 0.0055,
                     verts=14, rotation=rot_g),
     ], "GunGrip")
     grip.scale.x = 0.78
@@ -172,6 +191,11 @@ def build(broken=""):
     collar_y = 0.0900 + (0.030 if broken == "collar" else 0.0)
     p["collar"] = HS.cylinder("LanceCollar", (0, collar_y, 0), 0.0138, 0.0220,
                               verts=12, rotation=rot_y)
+    # quick-connect pull collar at the lance tip: knurled, and the thing you
+    # actually pull back to swap a nozzle
+    qc_y = 0.0600 + LANCE_LEN - 0.0330 + (0.060 if broken == "qc" else 0.0)
+    p["qc"] = HS.cylinder("QuickConnect", (0, qc_y, 0),
+                          0.0180, 0.0180, verts=10, rotation=rot_y)
     nose_y = 0.0600 + LANCE_LEN + (0.030 if broken == "nozzle" else 0.0)
     p["nozzle"] = HS.join([
         HS.cylinder("NozA", (0, nose_y - 0.0110, 0), 0.0148, 0.0260,
@@ -179,6 +203,16 @@ def build(broken=""):
         HS.cylinder("NozB", (0, nose_y + 0.0070, 0), 0.0104, 0.0160,
                     verts=14, rotation=rot_y),
     ], "NozzleHead")
+
+    # ---- safety catch: the lever you flick before the trigger will move
+    p["safety"] = HS.join([
+        # PROUD of the flank, not flush with it: at 1 mm clear the catch read
+        # as a dark slot cut into the shell rather than a lever you flick
+        HS.box("SafeBar", (0.0215, -0.0060, -0.0090), (0.0110, 0.0300, 0.0080),
+               bevel=0.0020, segments=1),
+        HS.box("SafeTab", (0.0250, -0.0200, -0.0090), (0.0080, 0.0100, 0.0150),
+               bevel=0.0020, segments=1),
+    ], "SafetyCatch")
 
     # ---- hose fitting in the butt of the grip. Short and HEXAGONAL: the long
     # stepped version read as a second barrel firing out of the handle.
@@ -195,8 +229,15 @@ def build(broken=""):
                     verts=10, rotation=rot_g),
         HS.cylinder("FitNut", GRIP_ROOT + axis * (0.088 + fit_d), 0.0216, 0.0140,
                     verts=6, rotation=rot_g),
-        HS.cylinder("FitStub", GRIP_ROOT + axis * (0.100 + fit_d), 0.0088, 0.0130,
-                    verts=10, rotation=rot_g),
+        # SWIVEL: the hose leaves at an angle to the grip rather than straight
+        # down its axis, which is what a real inlet does and what stops the
+        # fitting reading as a continuation of the handle.
+        HS.cylinder("FitSwivel", GRIP_ROOT + axis * (0.094 + fit_d)
+                    + swivel * 0.0110, 0.0104, 0.0150,
+                    verts=10, rotation=swivel.to_track_quat("Z", "Y")),
+        HS.cylinder("FitStub", GRIP_ROOT + axis * (0.094 + fit_d)
+                    + swivel * 0.0240, 0.0086, 0.0140,
+                    verts=10, rotation=swivel.to_track_quat("Z", "Y")),
     ], "HoseFitting")
 
     # Three materials on real part boundaries: the moulded shell, the plumbing,
@@ -204,9 +245,10 @@ def build(broken=""):
     shell = HS.pbr("WandShell", (0.021, 0.049, 0.088), roughness=0.42)
     steel = HS.pbr("WandSteel", (0.158, 0.163, 0.172), roughness=0.27, metallic=0.9)
     rubber = HS.pbr("WandRubber", (0.014, 0.015, 0.017), roughness=0.84)
-    for key, mat in (("body", shell), ("guard", shell), ("grip", rubber),
-                     ("trigger", rubber), ("seam", rubber), ("lance", steel),
-                     ("collar", steel), ("nozzle", steel), ("fitting", steel)):
+    for key, mat in (("body", shell), ("guard", shell), ("socket", shell),
+                     ("grip", rubber), ("trigger", rubber), ("seam", rubber),
+                     ("safety", rubber), ("lance", steel), ("collar", steel),
+                     ("qc", steel), ("nozzle", steel), ("fitting", steel)):
         p[key].data.materials.append(mat)
     p["materials"] = [shell, steel, rubber]
     for key in ("lance", "collar", "nozzle", "grip", "fitting"):
@@ -214,8 +256,8 @@ def build(broken=""):
     return p
 
 
-ORDER = ["body", "seam", "grip", "trigger", "guard", "lance", "collar",
-         "nozzle", "fitting"]
+ORDER = ["body", "seam", "socket", "grip", "trigger", "guard", "safety",
+         "lance", "collar", "qc", "nozzle", "fitting"]
 
 
 def main():
@@ -233,7 +275,14 @@ def main():
     HS.assert_touching(p["nozzle"], p["lance"], "the nozzle must be on the lance", 0.0025)
     HS.assert_touching(p["trigger"], p["body"], "the trigger must hang off the body", 0.0030)
     HS.assert_touching(p["guard"], p["body"], "the guard must root in the body", 0.0035)
-    HS.assert_touching(p["grip"], p["body"], "the grip must meet the body", 0.0030)
+    HS.assert_touching(p["socket"], p["body"], "the grip socket must be on the body", 0.0030)
+    HS.assert_touching(p["grip"], p["socket"], "the grip must seat in its socket", 0.0030)
+    HS.assert_touching(p["safety"], p["body"], "the safety catch must be on the body", 0.0030)
+    # boxes_overlap, not touching: the collar goes AROUND the lance so it is
+    # wider than its host and not one of its vertices lands inside -- the
+    # drawer-face shape, and this is the instrument that exists for it.
+    HS.assert_boxes_overlap(p["qc"], p["lance"],
+                            "the quick-connect must be on the lance")
     HS.assert_touching(p["fitting"], p["grip"], "the hose fitting must be in the butt", 0.0030)
     HS.assert_no_overlap(p["trigger"], p["guard"], "the trigger must swing inside its guard",
                          min_gap=0.0008)
