@@ -1822,23 +1822,23 @@ async function warmBeltThroughLiveLoop(sceneRef, generationAtStart, generationNo
   window.__fwWarm.hands = walk.getTool?.() == null ? 'done' : 'left-a-tool-behind';
 }
 
+// GOAL 27, THE 10-SECOND TARGET — THE DEFERRED SWEEP IS GONE, MEASURED OFF.
+//
+// The compileAsync sweep at +1.6 s landed a 119-535 ms frame on the first
+// minute of every boot (rAF-gap-measured on both tiers) — the exact hitch
+// class this session exists to kill. Its coverage is redundant today: the
+// veil prewarm already runs renderer.compile() over the same scene+camera,
+// the ledger/register/belt states it was added for are warmed pre-veil, and
+// program binaries disk-cache across boots. The census
+// (tools/qa/electron-first-press-census.js) is the regression guard: if a
+// surface starts arriving programs first-press, the coverage claim here is
+// the first suspect. `sweep: 'retired'` keeps drivers that wait on
+// `sweep !== 'pending'` moving.
 function scheduleDeferredGpuWarm(sceneRef) {
-  setTimeout(async () => {
+  setTimeout(() => {
     try {
       if (app.scene3d !== sceneRef || app.prewarming) return;
-      window.__fwWarm = { ...(window.__fwWarm || { hands: 'skipped', belt: 'skipped' }), sweep: 'pending' };
-      // The sweep is fire-and-forget: parallel compile finishes whenever it
-      // finishes, and anything it misses just pays its old first-use cost.
-      const renderer = sceneRef.renderer;
-      const compiled = renderer?.compileAsync?.(sceneRef.scene, sceneRef.camera);
-      if (compiled?.then) {
-        compiled.then(
-          () => { window.__fwWarm.sweep = 'done'; },
-          () => { window.__fwWarm.sweep = 'failed'; },
-        );
-      } else {
-        window.__fwWarm.sweep = 'unavailable';
-      }
+      window.__fwWarm = { ...(window.__fwWarm || { hands: 'skipped', belt: 'skipped' }), sweep: 'retired' };
     } catch (error) {
       reportFault('scene.deferred-warm', error);
     }
