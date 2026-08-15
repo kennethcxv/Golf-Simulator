@@ -340,6 +340,18 @@ stacked causes:
    other games' warm shader caches clear too, one recompile each.**
    Prediction on record: post-clear, the healthy-era numbers return.
 
+   **The stall signature, for the record** (the pinned-confound boot's gap
+   histogram): three GIANT single rAF gaps of **11.4 s, 20.5 s and
+   52.7 s** — single blocked calls inside warm draws, not many slow
+   frames. That is a synchronous driver-level stall (the same family as
+   the logged `WaitForGetOffsetInRange` GPU incident in the warm's own
+   history), landing intermittently on whichever submission is unlucky —
+   which is why the per-program compile probe stayed at 0.7-1.1 ms through
+   the slow boots (a different driver path) and why profiles, src reverts,
+   window state and CPU quiet all changed nothing. The Windows session
+   checked ACTIVE and unlocked; occlusion throttling was separately proven
+   (the 1,004 ms metronome) and separately fixed.
+
 Every conclusion in this report built on healthy-era measurements stands;
 every late-night reading is labeled with its poison.
 
