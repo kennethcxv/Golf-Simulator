@@ -98,24 +98,156 @@ const CARDS = [
 ];
 
 // Green first. Then a per-denomination accent so a 100 does not read as a 1.
+// Each note carries an ENGRAVED VIGNETTE, not the same blank bust. Every one
+// is a scene from the course this money is spent on, drawn as line work the way
+// an intaglio plate would carry it. Round shapes are ellipses rather than
+// circles so the interlocking-rings sweep below stays strict.
+const SCENES = {
+  flag: (cx, cy, R, k) => `
+    <path d="M${cx - R * 0.72} ${cy + R * 0.44} q ${R * 0.72} ${-R * 0.26} ${R * 1.44} 0"
+          fill="none" stroke="${k}" stroke-width="${R * 0.045}"/>
+    <ellipse cx="${cx + R * 0.10}" cy="${cy + R * 0.40}" rx="${R * 0.34}" ry="${R * 0.10}"
+             fill="none" stroke="${k}" stroke-width="${R * 0.035}"/>
+    <path d="M${cx - R * 0.06} ${cy + R * 0.40} V${cy - R * 0.62}"
+          stroke="${k}" stroke-width="${R * 0.055}"/>
+    <path d="M${cx - R * 0.06} ${cy - R * 0.60} L${cx + R * 0.52} ${cy - R * 0.40}
+             L${cx - R * 0.06} ${cy - R * 0.18} Z" fill="${k}"/>
+    ${lines(cx, cy, R, k, 0.30)}`,
+  clubhouse: (cx, cy, R, k) => `
+    <path d="M${cx - R * 0.62} ${cy + R * 0.46} V${cy - R * 0.06} L${cx} ${cy - R * 0.52}
+             L${cx + R * 0.62} ${cy - R * 0.06} V${cy + R * 0.46} Z"
+          fill="none" stroke="${k}" stroke-width="${R * 0.050}"/>
+    <path d="M${cx - R * 0.16} ${cy + R * 0.46} V${cy + R * 0.02} H${cx + R * 0.16}
+             V${cy + R * 0.46}" fill="none" stroke="${k}" stroke-width="${R * 0.042}"/>
+    <path d="M${cx - R * 0.44} ${cy + R * 0.10} h ${R * 0.18} M${cx + R * 0.26} ${cy + R * 0.10}
+             h ${R * 0.18}" stroke="${k}" stroke-width="${R * 0.045}"/>
+    ${lines(cx, cy, R, k, 0.34)}`,
+  bridge: (cx, cy, R, k) => `
+    <path d="M${cx - R * 0.78} ${cy + R * 0.10} q ${R * 0.78} ${-R * 0.72} ${R * 1.56} 0"
+          fill="none" stroke="${k}" stroke-width="${R * 0.060}"/>
+    <path d="M${cx - R * 0.78} ${cy + R * 0.10} V${cy + R * 0.42}
+             M${cx + R * 0.78} ${cy + R * 0.10} V${cy + R * 0.42}
+             M${cx - R * 0.34} ${cy - R * 0.18} V${cy + R * 0.42}
+             M${cx + R * 0.34} ${cy - R * 0.18} V${cy + R * 0.42}"
+          stroke="${k}" stroke-width="${R * 0.038}"/>
+    <path d="M${cx - R * 0.86} ${cy + R * 0.46} h ${R * 1.72}
+             M${cx - R * 0.70} ${cy + R * 0.60} h ${R * 1.40}"
+          stroke="${k}" stroke-width="${R * 0.030}" opacity="0.65"/>`,
+  tree: (cx, cy, R, k) => `
+    <path d="M${cx - R * 0.08} ${cy + R * 0.56} V${cy - R * 0.10}"
+          stroke="${k}" stroke-width="${R * 0.090}"/>
+    <ellipse cx="${cx}" cy="${cy - R * 0.30}" rx="${R * 0.62}" ry="${R * 0.50}"
+             fill="none" stroke="${k}" stroke-width="${R * 0.050}"/>
+    <ellipse cx="${cx - R * 0.30}" cy="${cy - R * 0.08}" rx="${R * 0.30}" ry="${R * 0.24}"
+             fill="none" stroke="${k}" stroke-width="${R * 0.040}"/>
+    <ellipse cx="${cx + R * 0.32}" cy="${cy - R * 0.10}" rx="${R * 0.28}" ry="${R * 0.22}"
+             fill="none" stroke="${k}" stroke-width="${R * 0.040}"/>
+    ${lines(cx, cy, R, k, 0.62)}`,
+  fountain: (cx, cy, R, k) => `
+    <ellipse cx="${cx}" cy="${cy + R * 0.44}" rx="${R * 0.72}" ry="${R * 0.18}"
+             fill="none" stroke="${k}" stroke-width="${R * 0.050}"/>
+    <path d="M${cx - R * 0.14} ${cy + R * 0.42} V${cy - R * 0.16}
+             M${cx + R * 0.14} ${cy + R * 0.42} V${cy - R * 0.16}"
+          stroke="${k}" stroke-width="${R * 0.040}"/>
+    <ellipse cx="${cx}" cy="${cy - R * 0.18}" rx="${R * 0.40}" ry="${R * 0.11}"
+             fill="none" stroke="${k}" stroke-width="${R * 0.045}"/>
+    <path d="M${cx} ${cy - R * 0.24} V${cy - R * 0.66}
+             M${cx} ${cy - R * 0.62} q ${-R * 0.30} ${R * 0.14} ${-R * 0.34} ${R * 0.42}
+             M${cx} ${cy - R * 0.62} q ${R * 0.30} ${R * 0.14} ${R * 0.34} ${R * 0.42}"
+          fill="none" stroke="${k}" stroke-width="${R * 0.034}"/>`,
+  trophy: (cx, cy, R, k) => `
+    <path d="M${cx - R * 0.44} ${cy - R * 0.52} h ${R * 0.88} v ${R * 0.30}
+             q 0 ${R * 0.46} ${-R * 0.44} ${R * 0.46}
+             q ${-R * 0.44} 0 ${-R * 0.44} ${-R * 0.46} Z"
+          fill="none" stroke="${k}" stroke-width="${R * 0.052}"/>
+    <path d="M${cx - R * 0.44} ${cy - R * 0.40} q ${-R * 0.32} ${R * 0.06} ${-R * 0.26} ${R * 0.26}
+             q ${R * 0.05} ${R * 0.16} ${R * 0.28} ${R * 0.12}
+             M${cx + R * 0.44} ${cy - R * 0.40} q ${R * 0.32} ${R * 0.06} ${R * 0.26} ${R * 0.26}
+             q ${-R * 0.05} ${R * 0.16} ${-R * 0.28} ${R * 0.12}"
+          fill="none" stroke="${k}" stroke-width="${R * 0.040}"/>
+    <path d="M${cx} ${cy + R * 0.24} V${cy + R * 0.44}" stroke="${k}" stroke-width="${R * 0.070}"/>
+    <path d="M${cx - R * 0.36} ${cy + R * 0.58} h ${R * 0.72}" stroke="${k}"
+          stroke-width="${R * 0.090}"/>`,
+};
+
+// engraved hatching under a scene -- the horizon lines an intaglio plate uses
+function lines(cx, cy, R, k, y0) {
+  return Array.from({ length: 5 }, (_, i) =>
+    `<path d="M${cx - R * (0.80 - i * 0.09)} ${cy + R * (y0 + 0.06 + i * 0.07)}
+              h ${R * (1.60 - i * 0.18)}" stroke="${k}" stroke-width="${R * 0.026}"
+          opacity="${0.55 - i * 0.08}"/>`).join('');
+}
+
 const NOTES = [
-  { v: '1', word: 'ONE', accent: '#4a7c4e' },
-  { v: '5', word: 'FIVE', accent: '#7a6a43' },
-  { v: '10', word: 'TEN', accent: '#456b86' },
-  { v: '20', word: 'TWENTY', accent: '#6a5386' },
-  { v: '50', word: 'FIFTY', accent: '#8a4f45' },
-  { v: '100', word: 'HUNDRED', accent: '#2f6f66' },
+  { v: '1', word: 'ONE', accent: '#4a7c4e', scene: 'flag' },
+  { v: '5', word: 'FIVE', accent: '#7a6a43', scene: 'clubhouse' },
+  { v: '10', word: 'TEN', accent: '#456b86', scene: 'bridge' },
+  { v: '20', word: 'TWENTY', accent: '#6a5386', scene: 'tree' },
+  { v: '50', word: 'FIFTY', accent: '#8a4f45', scene: 'fountain' },
+  { v: '100', word: 'HUNDRED', accent: '#2f6f66', scene: 'trophy' },
 ];
 const INK = '#1b5230';           // the green everything is printed in
 const PAPER = '#bfcc9c';   // deliberately greener than real paper: under the
                            // studio key the previous value washed to near-white
                            // and the one cue that says 'money' was gone
 
+// Real coinage colours: the quarter and dime are clad cupronickel and read
+// brightest; the five-piece is solid cupronickel and is noticeably duller and
+// warmer; the one-piece is copper. Reeding follows the real coins too -- the
+// quarter and dime have it, the five and the one do not. Each carries its own
+// device rather than four copies of the same flag.
+const DEVICES = {
+  wreath: (cx, cy, r) => `
+    <g fill="none" stroke="#000" stroke-width="${r * 0.055}" opacity="0.42"
+       stroke-linecap="round">
+      <path d="M${cx - r * 0.34} ${cy + r * 0.34} q ${-r * 0.26} ${-r * 0.42} 0 ${-r * 0.76}
+               M${cx + r * 0.34} ${cy + r * 0.34} q ${r * 0.26} ${-r * 0.42} 0 ${-r * 0.76}"/>
+      ${Array.from({ length: 4 }, (_, i) => `
+        <path d="M${cx - r * 0.40} ${cy + r * (0.20 - i * 0.16)} l ${-r * 0.20} ${-r * 0.10}
+                 M${cx + r * 0.40} ${cy + r * (0.20 - i * 0.16)} l ${r * 0.20} ${-r * 0.10}"/>`).join('')}
+      <path d="M${cx} ${cy + r * 0.30} V${cy - r * 0.44}" stroke-width="${r * 0.070}"/>
+      <path d="M${cx} ${cy - r * 0.42} L${cx + r * 0.30} ${cy - r * 0.28}
+               L${cx} ${cy - r * 0.14} Z" fill="#000" stroke-width="${r * 0.03}"/>
+    </g>`,
+  torch: (cx, cy, r) => `
+    <g fill="none" stroke="#000" stroke-width="${r * 0.060}" opacity="0.42"
+       stroke-linecap="round">
+      <path d="M${cx} ${cy + r * 0.46} V${cy - r * 0.10}"/>
+      <path d="M${cx - r * 0.16} ${cy - r * 0.10} h ${r * 0.32}"/>
+      <path d="M${cx} ${cy - r * 0.14} q ${-r * 0.22} ${-r * 0.18} ${-r * 0.06} ${-r * 0.44}
+               q ${r * 0.10} ${r * 0.14} ${r * 0.06} ${-r * 0.06}
+               q ${r * 0.20} ${r * 0.20} ${r * 0.02} ${r * 0.50}" stroke-width="${r * 0.045}"/>
+      <path d="M${cx - r * 0.46} ${cy + r * 0.40} q ${r * 0.20} ${-r * 0.24} ${r * 0.34} ${-r * 0.06}
+               M${cx + r * 0.46} ${cy + r * 0.40} q ${-r * 0.20} ${-r * 0.24} ${-r * 0.34} ${-r * 0.06}"
+            stroke-width="${r * 0.040}"/>
+    </g>`,
+  hall: (cx, cy, r) => `
+    <g fill="none" stroke="#000" stroke-width="${r * 0.055}" opacity="0.42">
+      <path d="M${cx - r * 0.52} ${cy + r * 0.40} V${cy - r * 0.06} L${cx} ${cy - r * 0.44}
+               L${cx + r * 0.52} ${cy - r * 0.06} V${cy + r * 0.40} Z"/>
+      <path d="M${cx - r * 0.52} ${cy + r * 0.40} h ${r * 1.04}" stroke-width="${r * 0.070}"/>
+      ${Array.from({ length: 3 }, (_, i) => `
+        <path d="M${cx + r * (-0.30 + i * 0.30)} ${cy + r * 0.40} V${cy + r * 0.02}"/>`).join('')}
+    </g>`,
+  shield: (cx, cy, r) => `
+    <g fill="none" stroke="#000" stroke-width="${r * 0.060}" opacity="0.44">
+      <path d="M${cx - r * 0.40} ${cy - r * 0.44} h ${r * 0.80} v ${r * 0.36}
+               q 0 ${r * 0.42} ${-r * 0.40} ${r * 0.60}
+               q ${-r * 0.40} ${-r * 0.18} ${-r * 0.40} ${-r * 0.60} Z"/>
+      <path d="M${cx - r * 0.40} ${cy - r * 0.18} h ${r * 0.80}"
+            stroke-width="${r * 0.045}"/>
+      <path d="M${cx - r * 0.26} ${cy + r * 0.10} L${cx} ${cy - r * 0.06}
+               L${cx + r * 0.26} ${cy + r * 0.10}" stroke-width="${r * 0.050}"/>
+      <path d="M${cx - r * 0.26} ${cy + r * 0.30} L${cx} ${cy + r * 0.14}
+               L${cx + r * 0.26} ${cy + r * 0.30}" stroke-width="${r * 0.050}"/>
+    </g>`,
+};
+
 const COINS = [
-  { v: '25', word: 'QUARTER', tone: '#c9ccd2', reeded: true },
-  { v: '10', word: 'DIME', tone: '#c9ccd2', reeded: true },
-  { v: '5', word: 'NICKEL', tone: '#c3c6cc', reeded: false },
-  { v: '1', word: 'PENNY', tone: '#b0763f', reeded: false },
+  { v: '25', word: 'QUARTER', tone: '#cdd1d7', reeded: true, device: 'wreath' },
+  { v: '10', word: 'DIME', tone: '#c7cbd1', reeded: true, device: 'torch' },
+  { v: '5', word: 'NICKEL', tone: '#b6b8b1', reeded: false, device: 'hall' },
+  { v: '1', word: 'PENNY', tone: '#b06a35', reeded: false, device: 'shield' },
 ];
 
 // ----------------------------------------------------------------- cards ----
@@ -159,16 +291,14 @@ function cardCell(w, h, spec, i) {
       <text x="${w * 0.075}" y="${h * 0.20}" font-size="${h * 0.088}"
             letter-spacing="${h * 0.030}" opacity="0.9">${spec.cat}</text>
       <!-- embossed pass: a dark offset copy under the light numerals -->
-      <text x="${w * 0.072}" y="${h * 0.712}" font-size="${h * 0.104}"
+      <text x="${w * 0.072}" y="${h * 0.772}" font-size="${h * 0.112}"
             letter-spacing="${h * 0.007}" fill="${spec.b}" opacity="0.7">${num}</text>
-      <text x="${w * 0.070}" y="${h * 0.705}" font-size="${h * 0.104}"
+      <text x="${w * 0.070}" y="${h * 0.765}" font-size="${h * 0.112}"
             letter-spacing="${h * 0.007}">${num}</text>
-      <text x="${w * 0.070}" y="${h * 0.845}" font-size="${h * 0.048}"
+      <text x="${w * 0.070}" y="${h * 0.912}" font-size="${h * 0.050}"
             letter-spacing="${h * 0.010}" opacity="0.62">VALID THRU</text>
-      <text x="${w * 0.345}" y="${h * 0.845}" font-size="${h * 0.058}"
+      <text x="${w * 0.352}" y="${h * 0.912}" font-size="${h * 0.058}"
             opacity="0.9">${String(1 + (i % 12)).padStart(2, '0')}/3${i % 9}</text>
-      <text x="${w * 0.075}" y="${h * 0.945}" font-size="${h * 0.068}"
-            letter-spacing="${h * 0.020}" opacity="0.85">CARDHOLDER NAME</text>
     </g>
   </g>`;
 }
@@ -199,13 +329,10 @@ function noteCell(w, h, spec, wear) {
     ${border}${lathe}${guilloche}
     <!-- portrait oval: a plate, not a person -->
     <ellipse cx="${w * 0.255}" cy="${h * 0.50}" rx="${R * 0.70}" ry="${R * 0.95}"
-             fill="${INK}" opacity="0.13"/>
+             fill="#f2f4e2" opacity="0.42"/>
     <ellipse cx="${w * 0.255}" cy="${h * 0.50}" rx="${R * 0.70}" ry="${R * 0.95}"
              fill="none" stroke="${INK}" stroke-width="${h * 0.012}" opacity="0.8"/>
-    <path d="M${w * 0.255 - R * 0.34} ${h * 0.50 + R * 0.52}
-             q ${R * 0.34} ${-R * 0.66} ${R * 0.68} 0 Z" fill="${INK}" opacity="0.42"/>
-    <ellipse cx="${w * 0.255}" cy="${h * 0.50 - R * 0.22}" rx="${R * 0.26}" ry="${R * 0.28}"
-            fill="${INK}" opacity="0.42"/>
+    <g opacity="0.95">${SCENES[spec.scene](w * 0.255, h * 0.50, R * 0.62, INK)}</g>
     <g font-family="Georgia, serif" fill="${INK}">
       <text x="${w * 0.635}" y="${h * 0.395}" font-size="${h * 0.150}"
             text-anchor="middle" letter-spacing="${h * 0.028}">UNITS</text>
@@ -239,16 +366,7 @@ function coinCell(w, h, spec) {
                   x2="${cx + Math.cos(a) * r}" y2="${cy + Math.sin(a) * r}"
                   stroke="#000" stroke-width="1.3" opacity="0.26"/>`;
   }).join('') : '';
-  // a device: an abstract flag-and-pin, which is this game's own object and
-  // nobody's coinage
-  const device = `
-    <g stroke="#000" fill="none" opacity="0.40" stroke-linecap="round">
-      <path d="M${cx} ${cy - r * 0.44} V${cy + r * 0.40}" stroke-width="${r * 0.075}"/>
-      <path d="M${cx} ${cy - r * 0.42} L${cx + r * 0.34} ${cy - r * 0.26}
-               L${cx} ${cy - r * 0.10} Z" fill="#000" stroke-width="${r * 0.03}"/>
-      <ellipse cx="${cx}" cy="${cy + r * 0.44}" rx="${r * 0.30}" ry="${r * 0.09}"
-               stroke-width="${r * 0.05}"/>
-    </g>`;
+  const device = DEVICES[spec.device](cx, cy, r);
   const legend = Array.from({ length: 26 }, (_, k) => {
     const a = (k / 26) * Math.PI * 2 - Math.PI / 2;
     return `<circle cx="${cx + Math.cos(a) * r * 0.74}" cy="${cy + Math.sin(a) * r * 0.74}"

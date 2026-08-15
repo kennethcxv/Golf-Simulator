@@ -30,7 +30,7 @@ The monitor is EMISSIVE, so this renders in both Cycles and EEVEE.
 UNITS ARE YARDS.
 
     blender --factory-startup -b --python tools/blender/hero/build_register.py -- \
-        [cycles] [break=insert|dividers|platform|notebay|keys]
+        [cycles] [break=insert|dividers|notebay|keys]
 """
 
 import math
@@ -49,25 +49,30 @@ OUT_RENDER = os.path.join(REPO, "qa", "hero", "register")
 OUT_GLB = os.path.join(REPO, "Assets", "models", "hero", "cash_register.glb")
 
 # ---- the shell, in three bands: carcass (moves nothing), recessed band, deck
-BODY_W, BODY_D = 0.4400, 0.4600
+# WIDER than it was. Six note bays each need a note's 0.0725 across, so
+# 6 x 0.0725 + 5 dividers = 0.4625 of usable width minimum -- a 0.4400 body
+# gave 0.3940 and the bays came out 0.0611, narrower than the money that goes
+# in them. The layout the drawer owes decides the box, not the other way round.
+BODY_W, BODY_D = 0.5400, 0.4600
 CARCASS_H = 0.1280
 BAND_H = 0.0080
 DECK_H = 0.0600
 BODY_H = CARCASS_H + BAND_H + DECK_H          # 0.196
 
 # ---- the drawer
-DRAWER_W, DRAWER_D, DRAWER_H = 0.4060, 0.3900, 0.1080
+DRAWER_W, DRAWER_D, DRAWER_H = 0.5060, 0.3900, 0.0880
 WALL = 0.0060
 OPEN = 0.3200                 # 82% out: at 0.26 most of the note platform
                               # was still inside the machine and the whole point
                               # of the two-level revision could not be seen
 DRAWER_Z = 0.0110
 
-COIN_BAYS = 5                 # channels front-to-back on the floor
-NOTE_BAYS = 4                 # bays on the raised platform
-COIN_WALL_H = 0.0420          # channel wall height; also the platform's support
-PLATFORM_T = 0.0050
-NOTE_WALL_H = 0.0220
+# ONE LEVEL, TWO BANKS. Six note bays -- one per denomination -- and four coin
+# wells, one per coin. Every divider is the same height and stands on the same
+# floor: there is no raised platform any more.
+NOTE_BAYS = 6                 # 1, 5, 10, 20, 50, 100
+COIN_BAYS = 4                 # quarter, dime, nickel, penny
+BANK_WALL_H = 0.0380
 # WHY THERE IS A SEPARATE INSERT SLAB, and not dividers sunk into the drawer.
 # The tray is built by SOLIDIFY with a rim, and its inner floor surface lands at
 # z = 0.0035, NOT at the 6 mm the wall thickness implies -- so the floor is
@@ -84,7 +89,7 @@ NOTE_WALL_H = 0.0220
 INSERT_Z0 = 0.0020
 INSERT_T = 0.0120
 SINK = 0.0060                 # foot depth into the 12 mm insert slab
-NOTE_SHARE = 0.52             # share of the drawer's depth the platform covers
+NOTE_SHARE = 0.64             # share of the depth given to the note bank
 DIV_T = 0.0055
 
 # What has to fit, from build_money.py. These are the numbers the layout owes.
@@ -144,76 +149,39 @@ def wall_strip(name, x, y0, y1, z0, z1, t, segs=6, along="y"):
 
 
 def insert(broken=""):
-    """Two levels. Coin channels on the floor running the FULL depth; a note
-    platform resting on their walls over the rear share. That is what makes
-    "coins beneath notes" true of the geometry and not just of the words."""
+    """One level, two banks. Notes at the back, coins at the front, one cross
+    wall between them and every divider standing on the same floor."""
     hw = DRAWER_W * 0.5 - WALL
     hd = DRAWER_D * 0.5 - WALL
-    # The TILL INSERT's base slab. A real cash drawer holds a lift-out insert
-    # and the dividers are moulded into THAT, not sunk into the drawer floor --
-    # which is also the only structure that can be asserted here. See INSERT_T.
     ins_z = INSERT_Z0 + (0.020 if broken == "insert" else 0.0)
     insert_base = HS.apply_mods(HS.box(
         "TillInsert", (0, 0, ins_z + INSERT_T * 0.5),
         (hw * 2 + 0.0080, hd * 2 + 0.0080, INSERT_T)))
     top = ins_z + INSERT_T
-
     if broken == "dividers":
         # every divider lifted off the insert. It still looks like a divided
         # drawer from above, which is why it ships.
         top += 0.020
+    z0, z1 = top - SINK, top + BANK_WALL_H
 
-    coin_divs = []
-    for i in range(1, COIN_BAYS):
-        x = -hw + (hw * 2) * i / COIN_BAYS
-        coin_divs.append(wall_strip(
-            f"Div_Coin_{i}", x, -hd - 0.0020, hd + 0.0020,
-            top - SINK, top + COIN_WALL_H, DIV_T, segs=6))
-
-    # A cross wall through the OPEN front section. Without it the coin section
-    # is five long troughs, which is what note bays look like in a real till --
-    # coins live in short wells, and the wells are what makes the two levels
-    # read as two different jobs rather than one tray at two heights.
     split_y = hd - (hd * 2) * NOTE_SHARE
-    coin_divs.append(wall_strip(
-        "Div_CoinCross", (-hd + split_y) * 0.5, -hw - 0.0020, hw + 0.0020,
-        top - SINK, top + COIN_WALL_H, DIV_T, segs=6, along="x"))
-    plat_z = ins_z + INSERT_T + COIN_WALL_H - 0.0020   # 2 mm into the wall tops
-    if broken == "platform":
-        # 20 mm, not 2: the platform overlaps its walls by 2 mm, so a small
-        # shove leaves it still seated and the control proves nothing.
-        plat_z += 0.020
-    plat_d = hd - split_y
-    platform = HS.apply_mods(HS.box(
-        "NotePlatform", (0, split_y + plat_d * 0.5, plat_z + PLATFORM_T * 0.5),
-        (hw * 2, plat_d, PLATFORM_T)))
+    cross = wall_strip("Div_Bank", split_y, -hw - 0.0020, hw + 0.0020,
+                       z0, z1, DIV_T, segs=8, along="x")
 
-    bays = 6 if broken == "notebay" else NOTE_BAYS
-    note_divs = []
-    for i in range(1, bays):
-        x = -hw + (hw * 2) * i / bays
-        b = HS.box(f"Div_Note_{i}",
-                   (x, split_y + plat_d * 0.5,
-                    plat_z + PLATFORM_T + NOTE_WALL_H * 0.5 - 0.0010),
-                   (DIV_T, plat_d - 0.0040, NOTE_WALL_H + 0.0020))
-        note_divs.append(HS.apply_mods(b))
-
-    # A retaining lip along the platform's front edge. Without it the note bays
-    # end in a 5 mm cliff over the coin wells and a bill laid flat would slide
-    # straight off the front -- the tray would measure correctly and still not
-    # hold anything.
-    note_divs.append(HS.apply_mods(HS.box(
-        "NoteLip", (0, split_y + 0.0035, plat_z + PLATFORM_T + 0.0060),
-        (hw * 2 - 0.0040, 0.0050, 0.0160))))
-    return insert_base, coin_divs, platform, note_divs, split_y
+    bays = 9 if broken == "notebay" else NOTE_BAYS
+    note_divs = [wall_strip(f"Div_Note_{i}", -hw + (hw * 2) * i / bays,
+                            split_y, hd + 0.0020, z0, z1, DIV_T, segs=5)
+                 for i in range(1, bays)]
+    coin_divs = [wall_strip(f"Div_Coin_{i}", -hw + (hw * 2) * i / COIN_BAYS,
+                            -hd - 0.0020, split_y, z0, z1, DIV_T, segs=5)
+                 for i in range(1, COIN_BAYS)]
+    return insert_base, cross, note_divs, coin_divs, split_y
 
 
-def bay_sizes(divs, host, axis):
+def bay_sizes(divs, lo, hi, axis):
     """Bay widths read off the GEOMETRY -- the gaps between the dividers that
     are actually there, bounded by the host that is actually there. Reading the
     authoring constant back would pass on a drawer whose dividers had moved."""
-    hv = [host.matrix_world @ v.co for v in host.data.vertices]
-    lo, hi = min(v[axis] for v in hv), max(v[axis] for v in hv)
     spans = sorted((min(v[axis] for v in dv), max(v[axis] for v in dv))
                    for dv in ([d.matrix_world @ v.co for v in d.data.vertices]
                               for d in divs))
@@ -311,8 +279,8 @@ def build(broken=""):
 
     # ---- drawer, insert, face, pull
     p["drawer"] = tray()
-    ins, coin_divs, platform, note_divs, split_y = insert(broken=broken)
-    moving = [p["drawer"], ins, platform] + coin_divs + note_divs
+    ins, cross, note_divs, coin_divs, split_y = insert(broken=broken)
+    moving = [p["drawer"], ins, cross] + coin_divs + note_divs
     for o in moving:
         o.location += Vector((0, -OPEN, DRAWER_Z))
     bpy.context.view_layer.update()
@@ -321,7 +289,7 @@ def build(broken=""):
         o.select_set(True)
     bpy.context.view_layer.objects.active = moving[0]
     bpy.ops.object.transform_apply(location=True, rotation=False, scale=False)
-    p["insert"], p["platform"] = ins, platform
+    p["insert"], p["cross"] = ins, cross
     p["coin_divs"], p["note_divs"] = coin_divs, note_divs
     p["split_y"] = split_y - OPEN
 
@@ -374,31 +342,47 @@ def build(broken=""):
                                      -gh / 2 - BEZEL - CHIN / 2)))
     p["dot"] = dot
 
-    # ---- four materials, on real part boundaries. No fifth: the brand plate
-    # and the coin lip use the trim, which is the same break the band uses.
-    shellmat = HS.pbr("TillShell", (0.052, 0.056, 0.062), roughness=0.46)
-    trim = HS.pbr("TillTrim", (0.022, 0.024, 0.028), roughness=0.38)
-    inner = HS.pbr("TillDrawer", (0.030, 0.033, 0.038), roughness=0.72)
+    # ---- FIVE materials now, and the fifth earns it. The machine was four
+    # tones of grey with one green screen and no specular event anywhere on it;
+    # the golf-assets rule is that every asset needs at least one thing that
+    # catches light. Brass does that AND carries the colour onto the brand
+    # plate, the change-tray mat, the pull and the monitor's home dot, which is
+    # a real part family rather than a tint sprinkled about.
+    shellmat = HS.pbr("TillShell", (0.021, 0.058, 0.040), roughness=0.44)
+    trim = HS.pbr("TillTrim", (0.020, 0.023, 0.026), roughness=0.38)
+    # a WARM SAND drawer, not another grey: notes and coins are what goes in it
+    # and they have to read against the tray rather than into it
+    inner = HS.pbr("TillDrawer", (0.168, 0.148, 0.118), roughness=0.74)
+    brass = HS.pbr("TillBrass", (0.402, 0.276, 0.092), roughness=0.28,
+                   metallic=0.88)
     glow = HS.pbr("TillScreen", (0.030, 0.120, 0.075), roughness=0.22)
     em = glow.node_tree.nodes["Principled BSDF"]
     if "Emission Color" in em.inputs:
         em.inputs["Emission Color"].default_value = (0.075, 0.520, 0.330, 1.0)
         em.inputs["Emission Strength"].default_value = 2.4
 
-    for key in ("carcass", "deck", "face", "printer", "bez_top", "bez_bot",
-                "bez_l", "bez_r", "chin", "rear"):
+    # the monitor head stays CHARCOAL, like the kit's does in game -- a bezel
+    # painted the same green as the machine reads as a screen glued to a box
+    for key in ("carcass", "deck", "face", "printer"):
         p[key].data.materials.append(shellmat)
-    for key in ("band", "bezel", "keypad", "slot", "pull", "stalk", "brand",
-                "coin_lip", "coin_cup", "backing", "dot", "glass"):
+    for key in ("bez_top", "bez_bot", "bez_l", "bez_r", "chin", "rear"):
         p[key].data.materials.append(trim)
+    for key in ("band", "bezel", "keypad", "slot", "stalk", "coin_cup",
+                "backing", "glass", "brand"):
+        p[key].data.materials.append(trim)
+    # the pull is the only brass on the drawer face. Brass on the brand plate
+    # too made the two read as a matched pair of bars rather than a recessed
+    # panel above a handle.
+    for key in ("pull", "coin_lip", "dot"):
+        p[key].data.materials.append(brass)
     for o in p["keys"]:
         o.data.materials.append(trim)
     for o in p["vents"] + p["mon_vents"]:
         o.data.materials.append(trim)
-    for o in [p["drawer"], p["insert"], p["platform"]] + coin_divs + note_divs:
+    for o in [p["drawer"], p["insert"], p["cross"]] + coin_divs + note_divs:
         o.data.materials.append(inner)
     p["screen"].data.materials.append(glow)
-    p["materials"] = [shellmat, trim, inner, glow]
+    p["materials"] = [shellmat, trim, inner, glow, brass]
     return p
 
 
@@ -436,17 +420,8 @@ def main():
             f"its underside reads {seat * 1000:.2f} mm (negative is open air)")
     print(f"  connection assertion passed: the till insert rests on the drawer "
           f"floor ({seat * 1000:.2f} mm into it)")
-    HS.assert_rooted(p["coin_divs"], p["insert"], "coin channel walls",
-                     min_verts=3, min_depth=0.0015)
-    # Tested wall-INTO-platform, not platform-into-wall: the platform spans the
-    # full width so none of its vertices land inside a 5.5 mm divider, which is
-    # the wand's flange fault exactly. The wall's top corners DO land in the
-    # platform, so that is the direction that measures the join.
-    HS.assert_touching(p["coin_divs"][0], p["platform"],
-                       "the note platform must rest on the coin channel walls",
-                       max_gap=0.0020)
-    HS.assert_rooted(p["note_divs"], p["platform"], "note bay dividers",
-                     min_verts=3, min_depth=0.0008)
+    HS.assert_rooted(p["coin_divs"] + p["note_divs"] + [p["cross"]], p["insert"],
+                     "the two banks' dividers", min_verts=3, min_depth=0.0015)
     HS.assert_rooted(p["keys"], p["keypad"], "keypad keys",
                      min_verts=3, min_depth=0.0010)
     HS.assert_boxes_overlap(p["face"], p["drawer"],
@@ -460,22 +435,19 @@ def main():
     HS.assert_touching(p["glass"], p["bez_top"], "the glass must fill its bezel", 0.0025)
     HS.assert_touching(p["screen"], p["glass"], "the live canvas must lie on the glass", 0.0025)
 
-    # ---- THE LAYOUT THE REVISION ASKS FOR, measured off the geometry
-    # the retaining lip runs the full width, so it is not a bay boundary --
-    # leaving it in made the measured bay -296 mm wide
-    uprights = [d for d in p["note_divs"] if "Lip" not in d.name]
-    note_w = min(bay_sizes(uprights, p["platform"], 0))
-    py0, py1 = extent(p["platform"], 1)
-    note_d = py1 - py0
-    runners = [d for d in p["coin_divs"] if "Cross" not in d.name]
-    coin_w = min(bay_sizes(runners, p["insert"], 0))
+    # ---- THE LAYOUT, measured off the geometry. HW is the true usable width;
+    # the insert slab is 4 mm proud of it each side to press-fit into the walls,
+    # and measuring against the slab would have read the two end bays 4 mm wider
+    # than they are.
+    HW = DRAWER_W * 0.5 - WALL
+    note_w = min(bay_sizes(p["note_divs"], -HW, HW, 0))
+    coin_w = min(bay_sizes(p["coin_divs"], -HW, HW, 0))
     cy0, cy1 = extent(p["drawer"], 1)
-    coin_open_d = py0 - (cy0 + WALL)
+    xy0, xy1 = extent(p["cross"], 1)
+    note_d = (cy1 - WALL) - xy1
+    coin_d = xy0 - (cy0 + WALL)
     dz0, dz1 = extent(p["drawer"], 2)
-    pz0, pz1 = extent(p["platform"], 2)
-    clear_above_note = dz1 - pz1
-    nz = extent(p["note_divs"][0], 2)
-    clear_above_walls = dz1 - nz[1]
+    wz = extent(p["note_divs"][0], 2)
 
     if note_w < NOTE_FLAT[1] or note_d < NOTE_FLAT[0]:
         raise SystemExit(
@@ -485,24 +457,25 @@ def main():
     if coin_w < COIN_MAX_D:
         raise SystemExit(
             f"BUILD FAILED: a quarter is {COIN_MAX_D * 1000:.1f} mm across and "
-            f"the coin channel is {coin_w * 1000:.1f} mm wide")
+            f"the coin well is {coin_w * 1000:.1f} mm wide")
 
     print("")
-    print("  === THE DRAWER, TWO LEVELS, measured off the geometry (YARDS) ===")
-    print(f"  TOP — {NOTE_BAYS} note bays   {note_d:.4f} deep x {note_w:.4f} wide "
-          f"x {NOTE_WALL_H:.4f} walls")
-    print(f"        a note is        {NOTE_FLAT[0]:.4f} x {NOTE_FLAT[1]:.4f} — "
-          f"lies flat with {(note_d - NOTE_FLAT[0]) * 1000:.0f} mm to spare")
-    print(f"        clearance above  {clear_above_note:.4f} to the rim "
-          f"({clear_above_walls:.4f} above the bay walls)")
-    print(f"  BOTTOM — {COIN_BAYS} coin channels  {coin_w:.4f} wide x "
-          f"{COIN_WALL_H:.4f} deep, running the full floor")
-    print(f"        open in front of the platform for {coin_open_d:.4f}")
-    print(f"        a quarter is     {COIN_MAX_D:.4f} across")
-    print(f"  platform sits {(pz0 - dz0) * 1000:.1f} mm above the drawer floor")
+    print("  === THE DRAWER: ONE LEVEL, TWO BANKS (YARDS) ===")
+    print(f"  BACK  — {NOTE_BAYS} note bays, one per denomination "
+          f"(1 5 10 20 50 100)")
+    print(f"          each {note_d:.4f} deep x {note_w:.4f} wide")
+    print(f"          a note is {NOTE_FLAT[0]:.4f} x {NOTE_FLAT[1]:.4f} — "
+          f"{(note_d - NOTE_FLAT[0]) * 1000:.0f} mm and "
+          f"{(note_w - NOTE_FLAT[1]) * 1000:.1f} mm to spare")
+    print(f"  FRONT — {COIN_BAYS} coin wells, one per coin "
+          f"(quarter dime nickel penny)")
+    print(f"          each {coin_d:.4f} deep x {coin_w:.4f} wide")
+    print(f"          the largest coin is {COIN_MAX_D:.4f} across")
+    print(f"  every divider {BANK_WALL_H:.4f} high on one floor; "
+          f"{dz1 - wz[1]:.4f} clear to the rim")
     print("")
     print(f"  MONITOR  glass {GLASS[0]:.4f} x {GLASS[1]:.4f} "
-          f"({GLASS[0] / GLASS[1]:.3f} — the game's canvas is 1024x640 = 1.600), "
+          f"(the game's canvas is 1024x640 = 1.600), "
           f"bezel {BEZEL:.4f}, chin {CHIN:.4f}, tilt {math.degrees(TILT):.0f} deg")
     print("")
 
@@ -520,8 +493,8 @@ def main():
                      elevation=24.0, lens=LENS, res=(900, 900))
     H.contact_sheet(tt, os.path.join(OUT_RENDER, f"register{suffix}-turntable.png"), cols=4)
 
-    dc, dr = H.subject_sphere([p["drawer"], p["insert"], p["platform"]] + p["coin_divs"]
-                              + p["note_divs"])
+    dc, dr = H.subject_sphere([p["drawer"], p["insert"], p["cross"]]
+                              + p["coin_divs"] + p["note_divs"])
     dd = H.fit_distance(dr, LENS, res=(1100, 1100), margin=1.12)
     for label, az, el, c, d in (("hero", -118, 28, centre, dist),
                                 ("front", -90, 10, centre, dist),
