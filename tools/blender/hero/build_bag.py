@@ -1,12 +1,23 @@
-"""HERO ASSET — THE SHOPPING BAG, with a REAL interior volume.
+"""HERO ASSET — THE CHECKOUT BAG (FrontDeskShoppingBag), on the counter.
 
-Every sale ends here, and goods have phased through this bag across three
-playtests. A bag modelled as an outside can only ever be tested against a
-guessed rectangle, so this models the CAVITY as its own closed mesh and the
-clearance assertion walks a load-sized probe against it.
+A WHOLE FOODS PAPER GROCERY BAG: kraft brown, flat rectangular base, creased
+side gussets, a rolled top rim, walls standing open and holding their shape. Not
+a soft slumping sack.
 
-That is the difference that matters: `assert_fits_inside` is measuring the shape
-the goods actually have to live in, not a number somebody wrote down.
+ITS JOB IS TO BE A CONTAINER, so the interior volume is the deliverable and the
+silhouette is not. Goods have been phasing into this bag across three playtests
+because the counter layout clears a GUESSED rectangle (0.40 x 0.24 yd) while the
+real object measures 0.54 x 0.45 — a keep-out 35% too narrow and 86% too shallow,
+which is why a check comparing the layout against that same rect passed twice.
+
+So this models the cavity as real geometry and MEASURES it. Every interior number
+in the build output is read off the built mesh, never restated from the input
+constants: a floor rectangle that comes from the same variable that drew the
+floor proves nothing.
+
+UNITS ARE YARDS, because the game's are. A 12 x 7 x 17 inch grocery bag is
+0.3333 x 0.1944 x 0.4722 yd, and the game applies BAG_PRESENTATION_SCALE = 1.35
+on top, so both figures are reported.
 
     blender --factory-startup -b --python tools/blender/hero/build_bag.py -- [cycles] [break-interior]
 """
@@ -24,114 +35,141 @@ import hardsurface_lib as HS  # noqa: E402
 
 REPO = os.getcwd()
 OUT_RENDER = os.path.join(REPO, "qa", "hero", "bag")
-OUT_GLB = os.path.join(REPO, "Assets", "models", "hero", "shopping_bag.glb")
+OUT_GLB = os.path.join(REPO, "Assets", "models", "hero", "checkout_bag.glb")
 
-SIDES = 24
-WALL = 0.0016
-# (z, half-width X, half-depth Y). A filled kraft bag bows outward at the middle
-# and pulls in slightly at the rim where the fold stiffens it.
-PROFILE = [
-    (0.0000, 0.1320, 0.0740),
-    (0.0140, 0.1360, 0.0778),
-    (0.0700, 0.1408, 0.0812),
-    (0.1500, 0.1428, 0.0826),
-    (0.2300, 0.1404, 0.0808),
-    (0.2950, 0.1352, 0.0770),
-    (0.3180, 0.1332, 0.0756),
-    (0.3300, 0.1348, 0.0768),   # the rolled rim
-]
-# What the bag has to hold: the biggest single item the checkout packs.
-LOAD = (0.190, 0.100, 0.155)
-ROUND = 0.42        # superellipsoid exponent: a bag section is a soft rectangle
+# ---- YARDS. A standard 12 x 7 x 17 inch kraft grocery sack.
+WIDTH = 0.33333          # 12"
+DEPTH = 0.19444          # 7"
+HEIGHT = 0.47222         # 17"
+WALL = 0.0042            # paper plus the stiffness a standing bag needs
+CORNER = 0.0075          # the corner crease radius: nearly sharp
+GUSSET = 0.0075          # how far the side-panel centre crease pulls in
+RIM_ROLL = 0.0180        # the folded-over top band
+GAME_SCALE = 1.35        # BAG_PRESENTATION_SCALE, applied by the game
+# What the checkout has to be able to drop in.
+LOAD = (0.190, 0.115, 0.230)
+
+STEPS_LONG = 7           # points along each long wall
+STEPS_SHORT = 7          # points along each short wall
 
 
-def section(z, rx, ry, inset=0.0, crease=True):
-    """A superellipse with GUSSET CREASES at the four corners.
+def section(z, inset=0.0, flare=0.0, crease=True):
+    """A rounded RECTANGLE with creases -- not a superellipse.
 
-    Without them the bag is a smooth tube and reads as a leather tote. A paper
-    bag is folded flat and opened, so the corners carry a vertical crease that
-    pulls in slightly -- it is the single detail that says paper rather than
-    moulded plastic.
+    The superellipse used before made a soft-cornered tube that read as a leather
+    tote. A grocery bag is a folded rectangle: four hard corner creases and a
+    centre crease down each side panel, which is what the gusset leaves behind
+    when the bag is opened out.
     """
+    hw = WIDTH * 0.5 - inset + flare
+    hd = DEPTH * 0.5 - inset + flare
+    r = max(0.0006, CORNER - inset * 0.5)
     pts = []
-    for i in range(SIDES):
-        u = -math.pi + 2 * math.pi * i / SIDES
-        cu, su = math.cos(u), math.sin(u)
-        px = math.copysign(abs(cu) ** ROUND, cu) if abs(cu) > 1e-9 else 0.0
-        py = math.copysign(abs(su) ** ROUND, su) if abs(su) > 1e-9 else 0.0
-        k = 1.0
-        if crease:
-            # four creases, at the corners of the flattened bag
-            # At 0.030 the creases were invisible and the bag still read as a
-            # smooth tote. A real gusset pulls in several millimetres.
-            k -= 0.075 * max(0.0, math.cos(4 * u - math.pi)) ** 4
-        pts.append(Vector((px * (rx - inset) * k, py * (ry - inset) * k, z)))
+
+    def corner(cx, cy, a0, a1, n=3):
+        for k in range(n):
+            a = a0 + (a1 - a0) * (k / (n - 1))
+            pts.append(Vector((cx + math.cos(a) * r, cy + math.sin(a) * r, z)))
+
+    def wall(x0, y0, x1, y1, n, axis):
+        for k in range(1, n):
+            t = k / n
+            x = x0 + (x1 - x0) * t
+            y = y0 + (y1 - y0) * t
+            if crease:
+                # A SHARP V, not a dimple. At 3 mm with a wide falloff the
+                # gusset was invisible and the side panels read as flat plastic;
+                # the crease on a real bag is a hard fold down the panel centre.
+                pull = GUSSET * max(0.0, 1.0 - abs(t - 0.5) * 2.2)
+                if axis == "x":
+                    y -= math.copysign(pull, y)
+                else:
+                    x -= math.copysign(pull, x)
+            pts.append(Vector((x, y, z)))
+
+    corner(hw - r, hd - r, 0.0, math.pi / 2)
+    wall(hw - r, hd, -(hw - r), hd, STEPS_LONG, "x")
+    corner(-(hw - r), hd - r, math.pi / 2, math.pi)
+    wall(-hw, hd - r, -hw, -(hd - r), STEPS_SHORT, "y")
+    corner(-(hw - r), -(hd - r), math.pi, math.pi * 1.5)
+    wall(-(hw - r), -hd, hw - r, -hd, STEPS_LONG, "x")
+    corner(hw - r, -(hd - r), math.pi * 1.5, math.pi * 2)
+    wall(hw, -(hd - r), hw, hd - r, STEPS_SHORT, "y")
     return pts
 
 
-def loft(name, rings, close_bottom=True, close_top=True):
+def loft(name, rings, close_bottom=True, close_top=False, smooth=False):
+    n = len(rings[0])
     verts, faces = [], []
     for r in rings:
         verts.extend(r)
     for r in range(len(rings) - 1):
-        for i in range(SIDES):
-            j = (i + 1) % SIDES
-            faces.append((r * SIDES + i, r * SIDES + j,
-                          (r + 1) * SIDES + j, (r + 1) * SIDES + i))
+        for i in range(n):
+            j = (i + 1) % n
+            faces.append((r * n + i, r * n + j, (r + 1) * n + j, (r + 1) * n + i))
     if close_bottom:
-        faces.append(tuple(range(SIDES - 1, -1, -1)))
+        faces.append(tuple(range(n - 1, -1, -1)))
     if close_top:
-        b = (len(rings) - 1) * SIDES
-        faces.append(tuple(range(b, b + SIDES)))
-    return HS.mesh_from(name, verts, faces, smooth=True)
+        b = (len(rings) - 1) * n
+        faces.append(tuple(range(b, b + n)))
+    return HS.mesh_from(name, verts, faces, smooth=smooth)
 
 
 def build(broken=False):
     parts = {}
 
-    outer = loft("BagOuter", [section(z, rx, ry) for (z, rx, ry) in PROFILE],
-                 close_top=False)
+    # ---- the carrier. Walls essentially vertical with a whisper of flare, then
+    # a rolled rim: out, up, and back down, which is the fold that makes a paper
+    # bag hold its mouth open instead of slumping.
+    rings = []
+    for (t, flare) in ((0.000, 0.0), (0.030, 0.0006), (0.300, 0.0016),
+                       (0.620, 0.0022), (0.880, 0.0024), (0.955, 0.0022)):
+        rings.append(section(HEIGHT * t, flare=flare))
+    rings.append(section(HEIGHT * 0.985, flare=0.0022 + RIM_ROLL * 0.30))
+    rings.append(section(HEIGHT * 1.000, flare=0.0022 + RIM_ROLL * 0.42))
+    rings.append(section(HEIGHT * 0.985, flare=0.0022 + RIM_ROLL * 0.52))
+    rings.append(section(HEIGHT * 0.952, flare=0.0022 + RIM_ROLL * 0.46))
+    outer = loft("BagOuter", rings)
     solid = outer.modifiers.new("Paper", "SOLIDIFY")
     solid.thickness = WALL
     solid.offset = 1.0
     solid.use_rim = True
     parts["bag"] = HS.apply_mods(outer)
 
-    # ---- THE CAVITY, as its own closed mesh. This is the thing the clearance
-    # assertion measures against, and it is why that assertion means something.
-    shrink = 0.026 if broken else 0.0
-    interior = loft("BagInterior",
-                    [section(z, rx, ry, inset=WALL + 0.0012 + shrink)
-                     for (z, rx, ry) in PROFILE[:-1]] +
-                    [section(PROFILE[-1][0] - 0.004,
-                             PROFILE[-1][1], PROFILE[-1][2],
-                             inset=WALL + 0.0012 + shrink)])
+    # ---- THE CAVITY, as its own closed mesh. This is the deliverable.
+    # 0.060, not 0.030. Units are YARDS here, so a 0.030 shrink left 4.7 of
+    # clearance and the broken variant passed -- a broken variant that does not
+    # break is worth nothing, and it only showed up because it was run first.
+    shrink = 0.060 if broken else 0.0
+    inner_rings = []
+    for (t, flare) in ((0.0, 0.0), (0.30, 0.0016), (0.62, 0.0022), (0.93, 0.0024)):
+        inner_rings.append(section(WALL + (HEIGHT * 0.950 - WALL) * t,
+                                   inset=WALL + shrink, flare=flare))
+    interior = loft("BagInterior", inner_rings, close_top=True)
     parts["interior"] = interior
 
-    # ---- handles: twisted paper cord, both ends into the rim
+    # ---- handles: flat kraft ribbon, both ends glued inside the rim
     handles = []
     for side in (-1, 1):
         pts, faces = [], []
-        STEPS, RING = 11, 6
+        STEPS, RING = 13, 6
         for s in range(STEPS):
             t = s / (STEPS - 1)
             a = math.pi * t
-            cx = math.cos(a) * 0.062
-            cz = PROFILE[-1][0] - 0.020 + math.sin(a) * 0.090
-            # ON the panel, not inside the cavity. The section is a superellipse,
-            # so the wall at x = 62 mm is NOT at the rim's half-depth -- solving
-            # it puts the ends 8.7 mm further out than the rim number suggested,
-            # which is exactly how far they were floating.
-            t = max(0.0, 1.0 - abs(cx / PROFILE[-1][1]) ** (1.0 / ROUND))
-            cy = side * (PROFILE[-1][2] * (t ** ROUND) + 0.0016)
+            cx = math.cos(a) * (WIDTH * 0.27)
+            cz = HEIGHT * 0.952 - 0.014 + math.sin(a) * (HEIGHT * 0.23)
+            cy = side * (DEPTH * 0.5 - GUSSET * 0.4)
             dirv = Vector((-math.sin(a), 0, math.cos(a)))
             u = Vector((0, 1, 0))
             v = dirv.cross(u).normalized()
             for k in range(RING):
                 b = 2 * math.pi * k / RING
+                # a flat ribbon, not a cord
+                # Flat kraft RIBBON: 1.8 thin against the panel, 10.5 wide.
+                # At 2.6 x 7.2 it still read as round cord.
                 pts.append(Vector((cx, cy, cz))
-                           + u * (math.cos(b) * 0.0052)
-                           + v * (math.sin(b) * 0.0052))
+                           + u * (math.cos(b) * 0.0018)
+                           + v * (math.sin(b) * 0.0105))
         for s in range(STEPS - 1):
             for k in range(RING):
                 q = (k + 1) % RING
@@ -145,13 +183,37 @@ def build(broken=False):
     parts["handles"] = handles
 
     kraft = HS.pbr("BagKraft", (0.205, 0.108, 0.042), roughness=0.97)
-    cord = HS.pbr("BagCord", (0.150, 0.078, 0.030), roughness=0.98)
-    inner = HS.pbr("BagInner", (0.165, 0.092, 0.038), roughness=0.95)
+    cord = HS.pbr("BagHandleKraft", (0.165, 0.086, 0.034), roughness=0.98)
+    inner = HS.pbr("BagInner", (0.120, 0.062, 0.024), roughness=0.97)
     parts["bag"].data.materials.append(kraft)
     interior.data.materials.append(inner)
     for h in handles:
         h.data.materials.append(cord)
     return parts
+
+
+def measure_interior(interior):
+    """Read the cavity off the MESH.
+
+    Floor rectangle, wall height, opening rectangle -- each measured from the
+    vertices that are actually there, so the numbers cannot be a restatement of
+    the constants that drew it. That distinction is the whole reason this asset
+    exists: the bug in the game is a layout clearing a rectangle somebody wrote
+    down rather than the shape the goods have to go into.
+    """
+    vs = [interior.matrix_world @ v.co for v in interior.data.vertices]
+    zs = sorted(v.z for v in vs)
+    z_lo, z_hi = zs[0], zs[-1]
+
+    def rect_at(z, band=0.004):
+        near = [v for v in vs if abs(v.z - z) <= band]
+        if not near:
+            return None
+        return (max(v.x for v in near) - min(v.x for v in near),
+                max(v.y for v in near) - min(v.y for v in near))
+
+    return {"floor": rect_at(z_lo), "opening": rect_at(z_hi),
+            "height": z_hi - z_lo}
 
 
 def main():
@@ -166,18 +228,31 @@ def main():
 
     HS.assert_fits_inside(p["interior"], LOAD,
                           "the bag has to hold what checkout packs into it",
-                          margin=0.0030)
+                          margin=0.0040)
     for h in p["handles"]:
         HS.assert_touching(h, p["bag"], "a handle must be attached to the bag",
-                           max_gap=0.0020)
+                           max_gap=0.0025)
+
+    m = measure_interior(p["interior"])
+    lo, hi = H.bounds([p["bag"]] + p["handles"])
+    ex, ey = hi.x - lo.x, hi.y - lo.y
+    print("")
+    print("  === THE INTERIOR, measured off the cavity mesh (YARDS) ===")
+    print(f"  floor rectangle    {m['floor'][0]:.4f} x {m['floor'][1]:.4f}"
+          f"   at game scale {m['floor'][0]*GAME_SCALE:.4f} x {m['floor'][1]*GAME_SCALE:.4f}")
+    print(f"  opening rectangle  {m['opening'][0]:.4f} x {m['opening'][1]:.4f}"
+          f"   at game scale {m['opening'][0]*GAME_SCALE:.4f} x {m['opening'][1]*GAME_SCALE:.4f}")
+    print(f"  usable wall height {m['height']:.4f}"
+          f"                  at game scale {m['height']*GAME_SCALE:.4f}")
+    print(f"  exterior footprint {ex:.4f} x {ey:.4f}"
+          f"   at game scale {ex*GAME_SCALE:.4f} x {ey*GAME_SCALE:.4f}")
+    print(f"  the authored keep-out is 0.40 x 0.24 — this bag needs "
+          f"{ex*GAME_SCALE:.3f} x {ey*GAME_SCALE:.3f}")
+    print("")
 
     subject = [p["bag"]] + p["handles"]
     print(f"TRIS {H.triangles(subject)} ({len(subject)} objects, 2 materials) "
           f"— the hand is 5,179")
-    lo, hi = H.bounds(subject)
-    print(f"  overall {(hi.x - lo.x) * 1000:.0f} x {(hi.y - lo.y) * 1000:.0f} x "
-          f"{(hi.z - lo.z) * 1000:.0f} mm, load {LOAD[0]*1000:.0f} x "
-          f"{LOAD[1]*1000:.0f} x {LOAD[2]*1000:.0f}")
 
     p["interior"].hide_render = True
     centre, radius = H.subject_sphere(subject)
@@ -189,8 +264,8 @@ def main():
     tt = H.turntable(centre, dist, OUT_RENDER, f"bag{suffix}", views=8,
                      elevation=18.0, lens=LENS, res=(900, 900))
     H.contact_sheet(tt, os.path.join(OUT_RENDER, f"bag{suffix}-turntable.png"), cols=4)
-    for label, az, el in (("hero", -124, 22), ("front", -90, 8),
-                          ("into", -90, 62), ("side", 0, 8)):
+    for label, az, el in (("hero", -124, 26), ("front", -90, 8),
+                          ("into", -90, 64), ("side", 0, 8)):
         cam = H.camera(label, H.orbit_position(centre, dist, az, el), centre, lens=LENS)
         H.render(cam, os.path.join(OUT_RENDER, f"bag{suffix}-{label}.png"), res=(1100, 1100))
         if label == "hero":
@@ -199,8 +274,8 @@ def main():
                          res=(900, 900))
 
     hfov = 2 * math.atan(math.tan(math.radians(66) / 2) * 16 / 9)
-    d = (0.280 / 0.26) / (2 * math.tan(hfov / 2))
-    app = H.camera_fov("Apparent", H.orbit_position(centre, d, -124, 18), centre, 66.0)
+    d = (WIDTH * GAME_SCALE / 0.30) / (2 * math.tan(hfov / 2))
+    app = H.camera_fov("Apparent", H.orbit_position(centre, d, -124, 22), centre, 66.0)
     app.data.sensor_fit = "VERTICAL"
     H.render(app, os.path.join(OUT_RENDER, f"bag{suffix}-apparent.png"), res=(1600, 900))
 

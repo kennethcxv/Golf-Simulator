@@ -38,6 +38,12 @@ if forced to (below). Working order is by damage, not by the brief's numbering:
 | 8 | **The shopping bag** | the object the whole checkout gesture ends on | not started |
 | 9 | **The credit card in the customer's fingers** | reported flat and phasing through | not started |
 | 10 | **The cash register / till** — drawer, monitor, body | stared at during every sale | not started |
+| 11 | **The customer basket** — Publix-style hand-carry, moulded plastic, two folding handles, open top, stackable taper | what shoppers carry round the floor; a SEPARATE object from the checkout bag | added to the list, **not built** |
+
+**The bag is two objects, not one.** #8 is the CHECKOUT BAG
+(`FrontDeskShoppingBag`) that sits on the counter and that goods have been
+phasing into. #11 is the customer basket shoppers carry. They are different
+assets and only the first is built.
 
 **The substitution I would make.** If one of these could be dropped I would drop
 the till *body* and put the **card payment terminal** in its place. The terminal
@@ -461,18 +467,48 @@ scour pad was a stacked second solid whose rim overhung the body and read as a
 lid with a seam; it is now one block with the material split by height, so the
 boundary is a change of surface and nothing else.
 
-### SHOPPING BAG — 3 rounds
+### THE CHECKOUT BAG — respecified and rebuilt
 
-The cavity is **real geometry**, not a number: `BagInterior` is its own closed
-mesh and the clearance assertion walks a 190 × 100 × 155 mm load against it. That
-is the whole point, given goods have phased through this bag across three
-playtests.
+The first version was the wrong object: a soft-cornered tote from a superellipse
+section. The brief is a **Whole Foods paper grocery bag** — flat rectangular
+base, creased side gussets, rolled top rim, walls standing open and holding
+their shape — and its job is to be a CONTAINER, so the interior is the
+deliverable and the silhouette is not.
 
-Faults: the handle ends floated 8.7 mm inside the cavity, because the section is
-a superellipse and the wall at x = 62 mm is not at the rim's half-depth — solving
-the curve put them where the paper actually is. And the bag read as a smooth
-leather tote until the gusset creases were deep enough to see; at 3 mm they were
-invisible, at 7.5 mm it reads as paper.
+**Units are YARDS**, because the game's are: `BAG_PRESENTATION_SCALE = 1.35`,
+`BAG_PRESENTATION_FLATTEN = 0.55`, and the current in-game "interior" is
+`BoxGeometry(0.24, 0.33, 0.15 × 0.55)` — a plain box. Modelled at true grocery
+sack size, 12 × 7 × 17 inches.
+
+#### The interior, MEASURED off the cavity mesh
+
+| | authored (yd) | at game scale ×1.35 |
+|---|---|---|
+| **floor rectangle** | 0.3249 × 0.1860 | **0.4387 × 0.2512** |
+| **opening rectangle** | 0.3297 × 0.1908 | **0.4451 × 0.2576** |
+| **usable wall height** | 0.4133 | **0.5580** |
+| exterior footprint | 0.3647 × 0.2258 | **0.4923 × 0.3048** |
+
+**The authored keep-out is 0.40 × 0.24. This bag needs 0.492 × 0.305** — 23%
+wider and 27% deeper than the rectangle the counter layout currently clears
+against. That is the shape of the bug, and it is now a measured number rather
+than a guessed one.
+
+Every figure above is read off the built cavity by `measure_interior`, not
+restated from the constants that drew it. A floor rectangle that comes from the
+same variable that drew the floor proves nothing, and that is exactly the failure
+mode the in-game bug is made of.
+
+Faults found: the section was a superellipse and read as a leather tote until it
+became a rounded rectangle with four corner creases; the gusset was invisible at
+3 mm and reads as paper at 7.5 mm with a sharp V falloff; the handles were round
+cord until flattened to an 1.8 × 10.5 kraft ribbon.
+
+**And the broken variant did not break.** Units changed from metres to yards, so
+the 0.030 interior shrink that used to fail left 4.7 of clearance and passed.
+A broken variant that does not break is worth nothing — it only surfaced because
+the broken build runs first. The shrink is now 0.060. The clearance assertion
+also stopped printing "mm" on numbers that are yards.
 
 ### BUNKER RAKE — 2 rounds
 

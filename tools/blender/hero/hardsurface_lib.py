@@ -182,13 +182,15 @@ def assert_fits_inside(interior, size, label, margin=0.0030, samples=5):
     worst = best
     if worst < margin:
         raise SystemExit(
-            f"BUILD FAILED: {label} -- a {size[0]*1000:.0f} x {size[1]*1000:.0f} x "
-            f"{size[2]*1000:.0f} mm load does not fit in {interior.name}: the "
-            f"tightest corner has {worst * 1000:+.2f} mm of clearance, "
-            f"{margin * 1000:.1f} required")
-    print(f"  clearance assertion passed: a {size[0]*1000:.0f} x {size[1]*1000:.0f} x "
-          f"{size[2]*1000:.0f} mm load clears {interior.name} by "
-          f"{worst * 1000:.1f} mm at its tightest ({label})")
+            f"BUILD FAILED: {label} -- a {size[0]:.4f} x {size[1]:.4f} x "
+            f"{size[2]:.4f} load does not fit in {interior.name}: the tightest "
+            f"corner has {worst:+.5f} of clearance, {margin:.5f} required")
+    # Units are whatever the asset is authored in -- metres for the tools, YARDS
+    # for the checkout bag, because the game's are. Printing "mm" regardless was
+    # a label that would have been believed.
+    print(f"  clearance assertion passed: a {size[0]:.4f} x {size[1]:.4f} x "
+          f"{size[2]:.4f} load clears {interior.name} by {worst:.5f} at its "
+          f"tightest ({label})")
 
 
 def shells(obj):
