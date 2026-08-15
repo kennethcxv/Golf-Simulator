@@ -15,6 +15,7 @@
 // recoil now comes out as an offset the caller applies to the whole held rig.
 
 import * as THREE from 'three';
+import { CachedGLTFLoader } from './gltfCache.js';
 import { CLEANING_TOOLS } from '../data/cleaningTools.js';
 
 const SKIN = 0xd9a97e;
@@ -211,7 +212,7 @@ export const GRIPS = buildGripTable();
 // Cost: three capsules and a nail per finger, so four draw calls -- well inside
 // 5.3's "not dozens of draw calls per finger", and unchanged in material count
 // because the nail and skin were already shared.
-function makeFinger(mats, len, thick, skinMat, withNail) {
+function makeFinger(mats, len, thick, skinMat, withNail, partPrefix) {
   const skin = skinMat || mats.skin;
   const root = new THREE.Group();
 
@@ -256,7 +257,7 @@ function makeFinger(mats, len, thick, skinMat, withNail) {
     tipJoint.add(nail);
   }
 
-  return { root, knuckle, tip: tipJoint };
+  return { root, knuckle, tip: tipJoint, meshes: { prox, mid, dist }, partPrefix };
 }
 
 function makeHand(mats, mirror = 1) {
@@ -340,7 +341,7 @@ function makeHand(mats, mirror = 1) {
   for (let i = 0; i < 4; i++) {
     const kx = (0.0285 - i * 0.019) * mirror;
     const kz = KNUCKLE_Z + knuckleArc[i];
-    const f = makeFinger(mats, lens[i], 0.019, fingerSkins[i], true);
+    const f = makeFinger(mats, lens[i], 0.019, fingerSkins[i], true, ['Index', 'Middle', 'Ring', 'Little'][i]);
     f.root.position.set(kx, -0.004, kz - 0.007);
     g.add(f.root);
     fingers.push(f);
@@ -415,7 +416,101 @@ function makeHand(mats, mirror = 1) {
   }
 
   pose('wrap');
-  return { group: g, pose, forearm, sleeve };
+
+  // PLAYTEST 5, ITEM 6.1 — adopt the authored geometry when it arrives.
+  //
+  // Every capsule that has an authored counterpart is listed here by the part
+  // name in the GLB. The list is explicit rather than derived from mesh names so
+  // that a part MISSING from the model is visible as a count, not as a silently
+  // unswapped capsule sitting among authored ones -- half a hand is worse than
+  // none, and it is exactly the failure that would be hard to see in a frame.
+  const swappable = [];
+  for (const f of fingers) {
+    swappable.push([f.meshes.prox, `${f.partPrefix}Prox`]);
+    swappable.push([f.meshes.mid, `${f.partPrefix}Mid`]);
+    swappable.push([f.meshes.dist, `${f.partPrefix}Dist`]);
+  }
+  swappable.push([thumbProx, 'ThumbProx']);
+  swappable.push([thumbDist, 'ThumbDist']);
+  if (palm) { palm.userData.fpAsymmetric = true; swappable.push([palm, 'Palm']); }
+  swappable.push([forearm, 'Forearm']);
+
+  const authored = { applied: 0, expected: swappable.length };
+  loadAuthoredHand().then((parts) => {
+    if (!parts) return;
+    for (const [mesh, name] of swappable) {
+      if (adoptAuthored(mesh, parts.get(name), mirror)) authored.applied += 1;
+    }
+    // The nails were a separate box per finger placed against a capsule. The
+    // authored distal segment ends in a modelled tip, so they are retired rather
+    // than left floating a millimetre off a shape that no longer matches them.
+    if (authored.applied > 0) {
+      g.traverse((o) => { if (o.name === 'FingerNail') o.visible = false; });
+    }
+  });
+
+  return { group: g, pose, forearm, sleeve, authored };
+}
+
+// PLAYTEST 5, ITEM 6.1 — THE AUTHORED HAND REPLACES THE CAPSULES.
+//
+// The hand is ARTICULATED: `pose()` writes joint rotations every time a tool
+// changes, and five poses depend on it. So the authored model does not replace
+// the hand -- it replaces the GEOMETRY INSIDE the joints that already exist. Each
+// part in Assets/hands/fp_hand.glb is authored with its origin at its own joint
+// pivot, running down -Z, which is the axis fpHands already lays fingers along,
+// so a swap is `geometry = authored; position.set(0,0,0); rotation.set(0,0,0)`
+// and the pose maths is untouched.
+//
+// It is a REPLACEMENT, not an addition: the capsule geometry is disposed as it is
+// swapped out, so nothing ends up drawing twice, and the mesh count is unchanged
+// (the nails are folded into the distal segment's own form).
+//
+// Loaded async with the procedural build as the synchronous fallback, because
+// fpHands is constructed during scene setup and cannot await. If the file is
+// missing or fails to parse, the hands are exactly what they were.
+const AUTHORED_HAND_URL = 'vendor/models/hands/fp_hand.glb';
+let authoredHandParts = null;
+let authoredHandPending = null;
+
+function loadAuthoredHand() {
+  if (authoredHandParts) return Promise.resolve(authoredHandParts);
+  if (authoredHandPending) return authoredHandPending;
+  if (typeof document === 'undefined') return Promise.resolve(null);
+  const url = new URL(AUTHORED_HAND_URL, document.baseURI).href;
+  authoredHandPending = new Promise((resolve) => {
+    try {
+      new CachedGLTFLoader().load(url, (gltf) => {
+        const parts = new Map();
+        gltf.scene.traverse((o) => {
+          if (o.isMesh && o.geometry && o.name) parts.set(o.name, o.geometry);
+        });
+        authoredHandParts = parts.size ? parts : null;
+        resolve(authoredHandParts);
+      }, undefined, () => resolve(null));
+    } catch { resolve(null); }
+  });
+  return authoredHandPending;
+}
+
+/** Swap one capsule for its authored part. Returns true if it happened. */
+function adoptAuthored(mesh, geometry, mirror) {
+  if (!mesh || !geometry) return false;
+  const old = mesh.geometry;
+  mesh.geometry = geometry;
+  mesh.position.set(0, 0, 0);
+  mesh.rotation.set(0, 0, 0);
+  // Radially symmetric parts need no mirroring; the palm is deliberately
+  // asymmetric (the thenar mass on the thumb side), so the left hand scales it
+  // and takes DoubleSide with it -- a negative scale reverses winding, and
+  // without this the left palm shows its inside.
+  if (mesh.userData.fpAsymmetric && mirror < 0) {
+    mesh.scale.x = -1;
+    if (mesh.material) mesh.material = mesh.material.clone();
+    if (mesh.material) mesh.material.side = THREE.DoubleSide;
+  }
+  if (old && old !== geometry && typeof old.dispose === 'function') old.dispose();
+  return true;
 }
 
 export function makeFpHands() {

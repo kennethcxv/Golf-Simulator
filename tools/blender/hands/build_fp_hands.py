@@ -46,6 +46,24 @@ def new_mesh(name):
 
 
 def finish(ob, me, bm, smooth=True):
+    # THE AXIS, BAKED INTO THE VERTICES. Settled with a marker probe rather than
+    # guessed -- three markers, one per candidate Blender axis, read back off the
+    # exported glTF accessor bounds:
+    #
+    #     Blender -Z  ->  glTF -Y      (what the first build did: fingers pointed down)
+    #     Blender +Y  ->  glTF -Z      <- the axis fpHands lays fingers along
+    #     Blender +X  ->  glTF +X
+    #
+    # So the parts are authored along -Z for readability (it matches the runtime's
+    # own axis) and rotated into Blender +Y HERE, in the vertex data. Not as an
+    # object rotation: the exporter reported `nodeRot: null` on every probe, so it
+    # bakes transforms -- and the runtime swap takes GEOMETRY ONLY, so anything
+    # left at node level would be silently dropped. That is what beat the second
+    # attempt, where an object-level rotate-and-apply left the parts wrong and cut
+    # the drawable count from 72 to 22.
+    for v in bm.verts:
+        x, y, z = v.co.x, v.co.y, v.co.z
+        v.co = Vector((x, -z, y))
     bm.to_mesh(me)
     bm.free()
     if smooth:
@@ -216,13 +234,6 @@ built.append(forearm("Forearm", 0.115, 0.0210, 0.0158, 0.0295, 0.0250))
 # Rotating +90 deg about X and APPLYING it before export sends -Z to +Y, which the
 # yup conversion then sends back to -Z. Done here rather than by authoring along
 # +Y so the section functions above still read in the axis the runtime uses.
-bpy.ops.object.select_all(action="DESELECT")
-for ob in built:
-    ob.rotation_euler = (math.pi / 2, 0, 0)
-    ob.select_set(True)
-bpy.context.view_layer.objects.active = built[0]
-bpy.ops.object.transform_apply(location=False, rotation=True, scale=False)
-
 tris = 0
 for ob in built:
     tris += sum(len(p.vertices) - 2 for p in ob.data.polygons)

@@ -104,10 +104,15 @@ judging a new asset.** Modelling starts next.
 
 ---
 
-## 1. The hands — MODELLED, NOT SHIPPED. The wiring is reverted.
+## 1. The hands — WIRED AND DRAWING. Better, and not yet right.
 
-**The model exists and validates. It is not in the game, because the two frames I
-took of it were worse than what is there now, and I am not shipping that.**
+**The model is in the game and drawing. The axis is settled. It is an improvement
+on the splayed version and it does NOT yet match your reference, so it is yours to
+judge before I touch the mop.**
+
+Frame: `Designs/ProShop/Images/Goal_26/playtest5/hand-authored-v1.png`, default
+player camera, broom held, **72 of 89 tool meshes drawable at the shutter** with
+the right tool confirmed held.
 
 ### What was built
 
@@ -134,9 +139,18 @@ Draw-call budget: unchanged. One mesh per joint as before, and the four per-hand
 nail boxes are folded into the distal segment's own modelled tip — 8 fewer meshes
 across two hands.
 
-### Why it is not wired in
+### The axis, settled with a probe rather than guessed
 
-**The Blender → glTF axis conversion.** The parts are authored running down −Z
+Three markers, one per candidate Blender axis, read straight off the exported glTF
+accessor bounds — no Electron, no opinion:
+
+| authored in Blender | arrives in glTF as |
+|---|---|
+| −Z | **−Y** |
+| **+Y** | **−Z** ← the axis `fpHands` lays fingers along |
+| +X | +X |
+
+**The Blender → glTF axis conversion** was the whole blocker. The parts are authored running down −Z
 because that is the axis `fpHands` lays fingers along, but `export_yup=True` maps
 Blender (x, y, z) → glTF (x, z, −y), so an authored −Z arrives in the runtime as
 +Y. Photographed: **every finger pointing away from the shaft as a straight rod**,
@@ -146,19 +160,32 @@ I then rotated the parts +90° about X and applied it before export, expecting t
 yup conversion to send them back to −Z. Measured, that was worse again: drawable
 meshes at the shot fell **72 → 22**. I had the mapping backwards a second time.
 
-So the wiring is **reverted by file copy** and the revert asserted to have changed
-the file (`f2e52d50…` → `e5bedfd4…`), with the hands measured back at **80/89
-drawable** — exactly the procedural build that shipped.
+The fix is baked into the **vertex data**, not an object rotation. The exporter
+reported `nodeRot: null` on every probe — it bakes transforms — and the runtime
+swap takes **geometry only**, so anything left at node level is silently dropped.
+That is exactly what beat the second attempt, where a rotate-and-apply left the
+parts wrong and cut drawable meshes from 72 to 22.
 
-### What the next attempt needs
+Verified on the rebuilt file before wiring: `IndexProx` spans z +0.0006 → −0.0332
+(down −Z), `Palm` is asymmetric on x (−0.0335 → +0.0413, the thenar), `Forearm`
+runs z −0.006 → +0.119 (back toward the camera). All three as intended.
 
-Not more modelling. One decided fact: what axis a part must be authored along in
-Blender so that, after `export_yup=True`, it arrives in three.js running down −Z.
-Establish it with a single one-part probe — export a marker whose long axis is
-unambiguous, read the vertex bounds in the runtime, and fix the convention — then
-the 16 parts drop in unchanged. Guessing it twice has already cost this attempt.
+### Where it actually stands
 
-**The model is good; the seam between two coordinate conventions is what beat me,
-and I would rather hand you a working hand than a fast one.**
+| | |
+|---|---|
+| parts adopted | authored geometry in the joints, nails retired (`nailsStillVisible: 0`) |
+| capsules left | **4** — not yet traced; a name or a reference I have not matched |
+| drawable at the shutter | 72 / 89, against 80 / 89 for the procedural build (the 8 are the retired nails) |
+
+**Looking at the frame: the fingers now curl around the shaft instead of standing
+off it as rods, which is the axis fix landing. It still does not match your
+reference.** The finger cluster reads lumpy rather than as one hand, and the
+forearm reads flat — a plank rather than an arm. The proportions and the pose need
+another pass, and four capsules are still in there.
+
+This is "almost there", which is the thing you said you did not want three of. It
+is wired, it draws, there is no regression, and it is yours to look at before I go
+near the mop.
 ## 2. The mop head — NOT STARTED
 ## 3. The broom head — NOT STARTED
