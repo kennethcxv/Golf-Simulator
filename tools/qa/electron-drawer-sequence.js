@@ -97,9 +97,18 @@ async (page) => {
     gapBetweenLatchAndSlide: (unlock && open) ? +(open.at - unlock.at).toFixed(4) : null,
     slideStartsAfterLatchIsMostlyDone: (unlock && open)
       ? (open.at - unlock.at) >= unlock.seconds * 0.75 : null,
-    // and the total the register uses to hold the cash back
-    totalCoversBothCues: (unlock && open && out.fired.reportedTotalSeconds != null)
-      ? out.fired.reportedTotalSeconds >= (open.at - unlock.at) + open.seconds - 0.02 : null,
+    // PLAYTEST 4: the contract CHANGED and this assertion changed with it, on
+    // purpose. drawerOpenSequence used to return the moment the drawer finished
+    // SPEAKING; the owner heard that as a pause (measured: 1.72 s from the slide
+    // to the first note) and asked for the cash close behind. It now returns the
+    // CASH ENTRY POINT — the slide attack plus a short beat — so the old bar
+    // ("the total covers both cues") is the thing being removed, not a thing
+    // being failed. The new bar is that cash enters AFTER the slide starts and
+    // WELL BEFORE it ends.
+    cashEntersAfterSlideStarts: (unlock && open && out.fired.reportedTotalSeconds != null)
+      ? out.fired.reportedTotalSeconds > (open.at - unlock.at) : null,
+    cashEntersBeforeSlideEnds: (unlock && open && out.fired.reportedTotalSeconds != null)
+      ? out.fired.reportedTotalSeconds < (open.at - unlock.at) + open.seconds : null,
     cuesHeard: [...new Set(out.fired.starts.map((s) => s.cue).filter(Boolean))],
     filesHeard: [...new Set(out.fired.starts.map((s) => s.file).filter(Boolean))],
     // the old build's signature: two attacks inside a few ms of each other

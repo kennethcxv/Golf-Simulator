@@ -1584,13 +1584,27 @@ export function makeAudio(preferences = null) {
   //
   // All three used to fire in the same millisecond -- `drawerUnlock`,
   // `drawerOpen` and `billHandle` on three consecutive lines -- and three
-  // impacts at one instant is not a drawer opening, it is a bang. Each now waits
-  // for the one before it to finish. Returns the total, so the caller can hold
-  // the cash back until the drawer has finished speaking.
+  // impacts at one instant is not a drawer opening, it is a bang. Each waits for
+  // the one before it.
+  //
+  // PLAYTEST 4 — WHAT IT RETURNS CHANGED, DELIBERATELY.
+  //
+  // It used to return `openAt + openSec`: the moment the drawer had finished
+  // SPEAKING, which the register used to hold the cash back. Measured on a real
+  // sale that put the first note in the air 1.72 s after the slide began, and
+  // the owner's verdict was "the sequence is now too generous... the cash should
+  // start close behind the drawer, not after a pause."
+  //
+  // So it returns the CASH ENTRY POINT instead: the slide's attack plus a short
+  // beat. A real till does not wait for the drawer to stop rattling before the
+  // hand moves — the hand is already moving while it travels. 0.20 s is enough
+  // that the two attacks are separate events rather than one bang, which was the
+  // Playtest 3 complaint, and short enough that the money reads as following the
+  // drawer rather than answering it.
+  const CASH_FOLLOWS_SLIDE_BY = 0.2;
   function drawerOpenSequence() {
     if (!ctx) return 0;
     const unlockSec = cueSeconds('drawerUnlock') ?? 0.42;
-    const openSec = cueSeconds('drawerOpen') ?? 1.20;
     drawerUnlock();
     // 0.82 rather than 1.0: a latch's tail is decay, and the slide beginning as
     // the click dies is what a real till does. Nothing OVERLAPS the attack,
@@ -1598,7 +1612,7 @@ export function makeAudio(preferences = null) {
     const openAt = Math.max(0.05, unlockSec * 0.82);
     // `drawer` is the local function; `drawerOpen` is only its exported name.
     setTimeout(() => { drawer(); }, Math.round(openAt * 1000));
-    return openAt + openSec;
+    return openAt + CASH_FOLLOWS_SLIDE_BY;
   }
 
   /** Stop the run. Safe to call when nothing is running, and safe to call twice. */
@@ -1689,6 +1703,17 @@ export function makeAudio(preferences = null) {
   }
 
   function changeSelect() {
+    // PLAYTEST 4, ITEM 2 — "Taking change out of the drawer to hand over is
+    // silent. It needs its own voice, distinct from putting cash in and distinct
+    // from picking it back up."
+    //
+    // It was not quite silent: it was two triangle tones peaking at 0.016, which
+    // is a UI blip and not a hand. Measured on the graph, clicking a drawer slot
+    // started ZERO buffer sources. It now asks the bank first, and the bank has
+    // `changeSelect` recordings of its own — not billDeposit's (money going IN)
+    // and not cashPickup's (money coming back off the counter), because one
+    // gesture in three directions sharing one sound is why none of them read.
+    if (sampled('changeSelect', sfxBus)) return;
     checkoutTone({ freq: 1320, to: 1110, type: 'triangle', dur: 0.052, peak: 0.016 });
     checkoutTone({ at: 0.026, freq: 660, to: 622.25, type: 'sine', dur: 0.07, peak: 0.009 });
   }

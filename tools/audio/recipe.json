@@ -112,24 +112,30 @@
       "file": "bill-deposit-1.ogg",
       "source": "paper-placed-on-bench",
       "start": 0.83,
-      "dur": 1.1,
-      "targetDb": -6
+      "dur": 0.45,
+      "targetDb": -6,
+      "fadeOut": 0.09,
+      "durAfterTrim": true
     },
     {
       "cue": "billDeposit",
       "file": "bill-deposit-2.ogg",
       "source": "money-counting-b",
       "start": 1.3,
-      "dur": 0.55,
-      "targetDb": -6
+      "dur": 0.28,
+      "targetDb": -6,
+      "fadeOut": 0.07,
+      "durAfterTrim": true
     },
     {
       "cue": "billDeposit",
       "file": "bill-deposit-3.ogg",
       "source": "money-counting-b",
-      "start": 3.4,
-      "dur": 0.55,
-      "targetDb": -6
+      "start": 11.95,
+      "dur": 0.28,
+      "targetDb": -6,
+      "fadeOut": 0.07,
+      "durAfterTrim": true
     },
     {
       "cue": "billHandle",
@@ -152,46 +158,59 @@
       "file": "coin-empty-1.ogg",
       "source": "coins-dropped-on-wood",
       "start": 0.19,
-      "dur": 0.8,
-      "targetDb": -3
+      "dur": 0.45,
+      "targetDb": -3,
+      "fadeOut": 0.09,
+      "durAfterTrim": true
     },
     {
       "cue": "coinDepositEmpty",
       "file": "coin-empty-2.ogg",
       "source": "coins-dropped-on-wood",
       "start": 2.78,
-      "dur": 0.85,
-      "targetDb": -3
+      "dur": 0.45,
+      "targetDb": -3,
+      "fadeOut": 0.09,
+      "durAfterTrim": true
     },
     {
       "cue": "coinDepositEmpty",
       "file": "coin-empty-3.ogg",
       "source": "coins-dropped-on-wood",
       "start": 1.45,
-      "dur": 0.95,
-      "targetDb": -3
+      "dur": 0.45,
+      "targetDb": -3,
+      "fadeOut": 0.09,
+      "durAfterTrim": true
     },
     {
       "cue": "coinDeposit",
       "file": "coin-pile-1.ogg",
       "source": "coin-drop-with-coins",
-      "targetDb": -4
+      "targetDb": -4,
+      "dur": 0.3,
+      "fadeOut": 0.06,
+      "durAfterTrim": true
     },
     {
       "cue": "coinDeposit",
       "file": "coin-pile-2.ogg",
-      "source": "coin-on-table",
-      "start": 0.05,
-      "dur": 0.9,
-      "targetDb": -4
+      "source": "coins-dropped-on-wood",
+      "dur": 0.3,
+      "targetDb": -4,
+      "fadeOut": 0.06,
+      "durAfterTrim": true,
+      "start": 2.81
     },
     {
       "cue": "coinDeposit",
       "file": "coin-pile-3.ogg",
       "source": "coins-drop-on-table",
       "start": 6.08,
-      "dur": 1,
-      "targetDb": -4
+      "dur": 0.3,
+      "targetDb": -4,
+      "fadeOut": 0.06,
+      "durAfterTrim": true
     },
     {
       "cue": "coinSettle",
@@ -363,9 +382,10 @@
       "family": "cashLand",
       "option": "paper",
       "optionLabel": "Paper money",
-      "dur": 1,
+      "dur": 0.32,
       "targetDb": -10,
-      "durAfterTrim": true
+      "durAfterTrim": true,
+      "fadeOut": 0.07
     },
     {
       "cue": "ledgerClose",
@@ -603,6 +623,36 @@
       "start": 9.2,
       "dur": 1,
       "targetDb": -11,
+      "durAfterTrim": true
+    },
+    {
+      "cue": "changeSelect",
+      "file": "change-lift-1.ogg",
+      "source": "bills-flip-count",
+      "start": 1.2,
+      "dur": 0.3,
+      "targetDb": -12,
+      "fadeOut": 0.05,
+      "durAfterTrim": true
+    },
+    {
+      "cue": "changeSelect",
+      "file": "change-lift-2.ogg",
+      "source": "counting-paper-money",
+      "start": 2.1,
+      "dur": 0.32,
+      "targetDb": -12,
+      "fadeOut": 0.05,
+      "durAfterTrim": true
+    },
+    {
+      "cue": "changeSelect",
+      "file": "change-lift-3.ogg",
+      "source": "coins-handful",
+      "start": 0.35,
+      "dur": 0.28,
+      "targetDb": -13,
+      "fadeOut": 0.05,
       "durAfterTrim": true
     }
   ]
