@@ -92,7 +92,7 @@ import { buildToolViewmodels } from './toolViewmodel.js';
 import { createBroomViewmodel } from './broomViewmodel.js';
 import { BROOM_FEEL } from '../data/broomFeel.js';
 import { TOOL_VM_FEEL, VM_RIG_TOOLS } from '../data/toolFeel.js';
-import { BELT_ORDER, CLEANING_TOOLS, DIRT } from '../data/cleaningTools.js';
+import { CLEANING_TOOLS, DIRT } from '../data/cleaningTools.js';
 import {
   WALK_SPEED_YD_S, RUN_MULTIPLIER, TOOL_RUN_MULTIPLIER, STRIDE_RATE_RAD_S, IDLE_SWAY_RATE_RAD_S,
   EYE_HEIGHT_YD, WALK_FOV_DEG,
@@ -12646,105 +12646,29 @@ export function makeCourseScene(canvas, state) {
       await tick();
       if (!alive()) return false;
 
-      // Every belt tool, equipped for real. ALL of them, not the one tool a warm
-      // happens to touch: the deferred warm in main.js equips 'dustpan' and
-      // nothing else, which is why every probe that measured the dustpan
-      // reported the tools warm -- it was measuring the intervention's own
-      // target. Measured across the whole belt
-      // (qa/electron/firstuse-cachekey/cachekey-diff.json), the mop still
-      // arrived with +1 program and +8 geometries on its first equip.
+      // GOAL 27 PHASE 2 — THE BELT WARM MOVED TO THE DEFERRED SLOT (main.js).
       //
-      // NO PREFETCH HERE, and it was tried: an await over
-      // the held-asset registry's ensure path for the belt. The manifest holds
-      // only hose/divot/rake, so ensure() returned Promise.resolve(null) for
-      // every cleaning tool and the loop warmed nothing while breaking the
-      // one-ensure-call contract in course-held-tool-lazy-loading.test.js. The
-      // belt's models are already resident by this point; equipping and drawing
-      // is the whole of what they needed.
-      const beltTools = BELT_ORDER.filter((tool) => tool && CLEANING_TOOLS[tool]);
-      const savedHeld = {
-        tool: walkTool,
-        visible: heldRoot.visible,
-        position: heldRoot.position.clone(),
-        rotation: heldRoot.rotation.clone(),
-        animShow: heldAnim.show,
-        animT: heldAnim.t,
-        animSettle: heldAnim.settle,
-        // A warm behind the veil is not a tool change the player made. Left
-        // stamped, toolChangeDiagnostics() would report nine switches to any
-        // driver that asks whether the player has touched the belt.
-        changeSequence: toolChangeSequence,
-        lastChange: lastToolChange,
-      };
-      let warmedTools = 0;
-      for (const tool of beltTools) {
-        if (!alive()) break;
-        const toolWarmStartedAt = performance.now();
-        let toolWarmSetMs = 0;
-        let toolWarmDraw1Ms = 0;
-        // walkSetTool, not the debounced belt entry point: a loop through the
-        // debounce would collapse into one switch and warm one tool.
-        walkSetTool(tool);
-        toolWarmSetMs = performance.now() - toolWarmStartedAt;
-        // The rise ANIMATION is skipped -- heldRoot is a child of the camera, so
-        // placing it at its settled rest pose is where the player sees the tool
-        // once the 0.26 s equip completes. The equip itself is not skipped: the
-        // registry, the viewmodel, the grips, the hands and the rigs have all
-        // run by the time this draws.
-        heldRoot.visible = true;
-        heldAnim.show = true;
-        heldAnim.t = 1;
-        heldAnim.settle = 1;
-        heldRoot.position.set(0, 0, 0);
-        heldRoot.rotation.set(0, 0, 0);
-        camera.updateMatrixWorld(true);
-        // TWO FRAMES, and the shadow bake asked for explicitly.
-        //
-        // The passes in a frame do not all run every frame: the shadow map is
-        // baked on a throttle (autoUpdate is off; render() sets needsUpdate at
-        // its own rate) and the AO history is built across frames. A single warm
-        // frame per tool therefore lands somewhere in that cadence by luck.
-        //
-        // Measured, and it is the reason this is not one call: two runs of the
-        // identical build disagreed. The first had every tool at +0 programs;
-        // the second had the vacuum compiling FIVE, all of them `depth` shaders
-        // -- the shadow/AO pass, not the colour pass -- and the cache-key diff
-        // put a light count on them that only the main pass carries. Nothing
-        // about the tool changed between those runs; which passes ran on its one
-        // frame did.
-        renderer.shadowMap.needsUpdate = true;
-        {
-          const draw1StartedAt = performance.now();
-          drawWarmFrame();
-          toolWarmDraw1Ms = performance.now() - draw1StartedAt;
-        }
-        renderer.shadowMap.needsUpdate = true;
-        drawWarmFrame();
-        warmedTools += 1;
-        prewarmTimings.push({
-          label: `gesture-tool-${tool}`,
-          ms: +(performance.now() - toolWarmStartedAt).toFixed(1),
-        });
-        prewarmTimings.push({ label: `gesture-tool-${tool}-set`, ms: +toolWarmSetMs.toFixed(1) });
-        prewarmTimings.push({ label: `gesture-tool-${tool}-draw1`, ms: +toolWarmDraw1Ms.toFixed(1) });
-      }
-      walkSetTool(savedHeld.tool || null);
-      heldRoot.visible = savedHeld.visible;
-      heldRoot.position.copy(savedHeld.position);
-      heldRoot.rotation.copy(savedHeld.rotation);
-      heldAnim.show = savedHeld.animShow;
-      heldAnim.t = savedHeld.animT;
-      heldAnim.settle = savedHeld.animSettle;
-      toolChangeSequence = savedHeld.changeSequence;
-      lastToolChange = savedHeld.lastChange;
-      camera.updateMatrixWorld(true);
-      // Shorthand `{ label, ms }`, matching markPrewarm above. The strings
-      // ratchet treats a label key followed by a quote as player prose, and a
-      // prewarm diagnostics key is not text any player reads. (The first draft
-      // of this comment SPELLED OUT the pattern and tripped the scanner itself,
-      // which is a fair reminder that it matches text, not intent.)
-      const label = 'gesture-tools-warmed';
-      prewarmTimings.push({ label, ms: warmedTools });
+      // The loop that lived here equipped all nine belt tools behind the veil
+      // and drew two forced composer frames each. Measured (Goal 27, per-tool
+      // timing rows): 9.3-18.2 s of EVERY warm-cache load — and the mop's
+      // first in-play equip STILL arrived +1 program +10 geometries (93-485 ms
+      // disk-cold), because the lazy piece builds in walkUpdate's own tool
+      // branches, which no warm-only draw can run without simulating the
+      // world behind the veil. A live update tick was tried here and did not
+      // move it.
+      //
+      // So the warm now runs the PLAYER'S OWN PATH: scheduleDeferredGpuWarm
+      // in main.js cycles the whole belt through the immediate-door equip,
+      // three real frames per tool, two seconds after the game is interactive.
+      // What the live path builds, that builds — for every tool, off-veil.
+      // The census (tools/qa/electron-first-press-census.js) is the proof
+      // either way, cold-tier and warm.
+      //
+      // Its predecessor's hard-won rules, still binding on the deferred loop:
+      // equip through the door that does not queue; two runs of one build
+      // disagreed on depth programs (shadow/AO cadence), so a tool needs
+      // MULTIPLE real frames, not one; the belt's models are resident before
+      // any warm (the held-asset registry ensure() path warms nothing).
       phaseAt = markPrewarm('gesture-tools', phaseAt);
 
       // THE TEE DESK. Its prop label reads "Tee desk - [E] arrivals, check-ins
