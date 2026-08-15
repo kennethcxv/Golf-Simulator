@@ -121,7 +121,10 @@ export const POSES = {
   // in front of the fingertips and the hand read as resting on the pole, not gripping it.
   // The reference the player supplied has the fingers meeting the palm on the far side
   // with the thumb crossing over them. ~177 deg does that, and the thumb comes up to match.
-  wrap: { curl: 1.34, thumb: 1.06, spread: 0.025, index: 1.30 }, // a shaft or a handle
+  // FAULT 3 from the lit frame: the thumb was tucked and barely visible. In the
+  // reference it lies ACROSS the fingers on the near side, which is most of what
+  // reads as "gripping" rather than "resting against". 1.06 -> 1.30.
+  wrap: { curl: 1.34, thumb: 1.30, spread: 0.025, index: 1.30 }, // a shaft or a handle
   trigger: { curl: 1.08, thumb: 0.78, spread: 0.022, index: 0.30 }, // finger on the trigger
   // ITEM 9: at curl 0.46 the fingers barely bend, so once the palm was lifted
   // clear of the sponge they stood straight up off it and the hand read as

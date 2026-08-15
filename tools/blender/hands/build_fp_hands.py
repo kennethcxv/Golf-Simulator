@@ -216,16 +216,21 @@ for fname, flen, fthick in FINGERS:
     # The bulge tapers DOWN the finger: pronounced at the base knuckle, half that
     # at the middle joint, almost nothing at the tip. A uniform bulge is what made
     # the first build photograph as a string of beads rather than a finger.
-    built.append(segment(f"{fname}Prox", flen * 0.40, fthick * 0.50, fthick * 0.40,
-                         fthick * 0.47, fthick * 0.38, knuckle_bulge=0.10))
-    built.append(segment(f"{fname}Mid", flen * 0.34, fthick * 0.47, fthick * 0.38,
-                         fthick * 0.43, fthick * 0.35, knuckle_bulge=0.05))
-    built.append(segment(f"{fname}Dist", flen * 0.26, fthick * 0.43, fthick * 0.35,
-                         fthick * 0.35, fthick * 0.30, knuckle_bulge=0.02))
+    # FAULT 1 from the lit frame: the fingers read as pale STICKS. The taper was
+    # 0.50 -> 0.30 of thickness across three segments, which is a bone's profile,
+    # not a finger's. A real finger loses very little width between the base
+    # knuckle and the nail. 0.56 -> 0.44 keeps the taper legible and stops the
+    # tips reading as twigs.
+    built.append(segment(f"{fname}Prox", flen * 0.40, fthick * 0.56, fthick * 0.45,
+                         fthick * 0.53, fthick * 0.43, knuckle_bulge=0.10))
+    built.append(segment(f"{fname}Mid", flen * 0.34, fthick * 0.53, fthick * 0.43,
+                         fthick * 0.49, fthick * 0.40, knuckle_bulge=0.05))
+    built.append(segment(f"{fname}Dist", flen * 0.26, fthick * 0.49, fthick * 0.40,
+                         fthick * 0.44, fthick * 0.36, knuckle_bulge=0.02))
 
 built.append(segment("ThumbProx", 0.032, 0.0116, 0.0098, 0.0104, 0.0088))
 built.append(segment("ThumbDist", 0.027, 0.0104, 0.0088, 0.0086, 0.0076, knuckle_bulge=0.08))
-built.append(palm("Palm", 0.0335, 0.0165, 0.082, mirror=1.0))
+built.append(palm("Palm", 0.0385, 0.0232, 0.082, mirror=1.0))   # was 0.0335 x 0.0165: no mass behind the fingers
 built.append(forearm("Forearm", 0.115, 0.0268, 0.0212, 0.0370, 0.0330))
 
 # AXIS. The parts are authored running down -Z because that is the axis fpHands

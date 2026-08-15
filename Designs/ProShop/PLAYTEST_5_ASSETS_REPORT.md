@@ -669,3 +669,34 @@ It is closer than the capsules by a clear margin and it is not what the owner as
 for, which is a hand that looks right. The three faults above are the work
 remaining, and for the first time in this thread they are faults of the MODEL
 rather than of the harness.
+
+---
+
+## ROUND 4 — the three faults fixed, and what it looks like now
+
+`hand-v4-lit.png`. All three changes went in and all three landed:
+
+| fault | was | now |
+|---|---|---|
+| fingers read as pale sticks | taper `0.50 → 0.30` of thickness | **`0.56 → 0.36`** — a real finger loses very little width between the base knuckle and the nail |
+| palm had no mass | 0.0335 × 0.0165 | **0.0385 × 0.0232** against a 0.019 finger |
+| thumb tucked, not crossing | `POSES.wrap.thumb = 1.06` | **1.30**, so it lies across the fingers on the near side |
+
+Still 16 parts, 3,416 triangles, draw calls unchanged. 72/89 drawable, broom held,
+no page errors.
+
+**Looking at it: the hand has body now.** The fingers are fuller, the palm reads as
+a palm rather than a hinge, and the thumb is visible across the grip. Against
+round 3 it is plainly better.
+
+**It is still not the reference.** The hands read pale and slightly waxy, and the
+near hand's digits merge into a cluster of ovals rather than separating cleanly.
+The next two things I would change, in order: the skin material (`SKIN 0xd9a97e`
+plus roughness 0.72 photographs as cream plastic under the shop lights — it wants
+a warmer, less reflective value), and the finger SPREAD in `POSES.wrap` (0.025 is
+tight enough that four fingers touch along their whole length and merge visually).
+
+**What is genuinely different about this round:** the loop works. Edit a number,
+rebuild in Blender, re-vendor, re-shoot, look — and the change shows up in the
+frame every time. That loop did not exist for the first three quarters of this
+session, and every one of the four retractions above came from not having it.
