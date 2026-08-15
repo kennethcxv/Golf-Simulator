@@ -1006,3 +1006,57 @@ So the width-to-depth work is done and the remaining fault is a different one:
 **strand coverage across the middle of the head, not the proportions of its
 outline.** That is the next thing to attack, and it is not another splay or length
 value.
+
+---
+
+# ITEM 3 — THE HAND: TWO ROUNDS, AND MY "CEILING" CLAIM WAS WRONG
+
+**I said the soft silhouette was "the limit of lofted elliptical rings without a
+sculpt". That was not true, and it was worth checking instead of asserting.** A
+lofted ring can be ANY closed curve. The ellipse was my choice, not the method's,
+and both rounds below are lofted rings costing **zero extra triangles** — still
+16 parts, still 3,416.
+
+## Round 7 — a flat back
+
+A finger is not elliptical in section. The back is flat, a nail bed over bone; the
+palm side is round with a pad on it. The dorsal half of every ring is now pushed
+toward a straight edge by a superellipse exponent while the palmar half stays
+round.
+
+**The frame:** the segments stop reading as tubes. Flat tops catch the light as
+planes rather than as a continuous highlight running round a cylinder, and that
+alone separates a finger from a rod.
+
+## Round 8 — the knuckle on the back only
+
+The bulge was symmetric, which inflates the whole section and reads as a bead. A
+knuckle is a **dorsal** feature: it stands proud on the back and the palm side
+stays flat under it. Widening stays symmetric (the joint IS wider); the depth is
+now added to the back half alone.
+
+**The frame:** the row of knuckles on the gripping hand stands up and catches the
+light, which is the single most recognisable thing about a hand closed round a
+shaft. `hand-v8-lit.png`, acceptance at `hand-v8-acceptance.png`, 72/89 drawable,
+broom held, run exit 0, output read.
+
+## The straight answer on the ceiling
+
+**There is one, and it is further out than I claimed.** What lofted rings cannot
+do is anything that spans segments or lives between them:
+
+- skin creases that run ACROSS a joint
+- webbing between the fingers
+- the tendon lines on the back of the hand
+- the soft compression where a finger presses into a shaft
+
+Those need a sculpt or a displacement map, and they are what separates this from a
+photograph. **What they do NOT explain is anything I fixed in rounds 7 and 8** —
+those were section shape, which lofting does perfectly well, and I had written
+them off without trying.
+
+So: the hand is not at the ceiling. It is closer to the reference than at any point
+in this project, and two more section-level levers exist that I have not spent
+(palmar pads at the finger bases; a wrist that narrows before the forearm swells).
+**Whether it is worth spending them is the owner's call**, which is the honest
+place for this to sit rather than me deciding the limit for him.

@@ -73,15 +73,36 @@ def finish(ob, me, bm, smooth=True):
     return ob
 
 
-def ring(bm, centre, half_w, half_d, segments, verts_out):
-    """One elliptical cross-section. Ellipse, not circle: that single change is
-    most of what stops a finger reading as a tube."""
+def ring(bm, centre, half_w, half_d, segments, verts_out, flat_back=0.0, dorsal=0.0):
+    """One cross-section. Ellipse, not circle: that single change is most of what
+    stops a finger reading as a tube.
+
+    ROUND 7. I told the owner the soft silhouette was "the limit of lofted
+    elliptical rings without a sculpt". That was too pessimistic and it was worth
+    checking rather than asserting: a lofted ring can be ANY closed curve, and the
+    ellipse was my choice, not the method's.
+
+    A real finger is not elliptical in section. The BACK is flat -- it is a nail
+    bed over bone -- and the palm side is round with a pad on it. `flat_back`
+    squares off the +y half toward a straight edge while leaving the -y half
+    round, which is the single strongest cue that a segment is a finger and not a
+    tube. It costs nothing: same vertex count, same triangle count."""
     ring_verts = []
     for i in range(segments):
         a = (i / segments) * math.tau
+        cx = math.cos(a)
+        cy = math.sin(a)
+        if flat_back > 0.0 and cy > 0.0:
+            # superellipse on the dorsal half only: pushes the profile toward a
+            # flat top while keeping the corners rounded rather than chamfered
+            k = 1.0 + flat_back * 1.6
+            cy = cy ** (1.0 / k)
+            cx = math.copysign(abs(cx) ** (1.0 / (1.0 + flat_back * 0.45)), cx)
+        # the knuckle stands proud on the BACK of the finger only
+        dy = half_d * (1.0 + (dorsal if cy > 0.0 else 0.0))
         v = bm.verts.new((
-            centre.x + math.cos(a) * half_w,
-            centre.y + math.sin(a) * half_d,
+            centre.x + cx * half_w,
+            centre.y + cy * dy,
             centre.z,
         ))
         ring_verts.append(v)
@@ -105,7 +126,7 @@ def cap(bm, ring_verts, centre, flip=False):
 
 
 def segment(name, length, base_w, base_d, tip_w, tip_d,
-            knuckle_bulge=0.14, tip_round=True, sections=7, segments=12):
+            knuckle_bulge=0.14, tip_round=True, sections=7, segments=12, flat_back=0.55):
     """A phalanx: origin at the JOINT, running down -Z, tapering, with a bulge at
     the base where the knuckle is and a rounded tip.
 
@@ -122,12 +143,19 @@ def segment(name, length, base_w, base_d, tip_w, tip_d,
         # THE KNUCKLE. A raised cosine over the first third: widest right at the
         # joint, gone by mid-segment. Without it three segments read as three
         # separate objects however well they are placed.
+        dorsal_bulge = 0.0
         if t < 0.34:
+            # ROUND 8. The bulge was symmetric, which inflates the whole section
+            # and reads as a bead. A knuckle is a DORSAL feature: it stands proud
+            # on the back of the finger and the palm side stays flat under it.
+            # Widening stays symmetric (the joint IS wider), but the depth is
+            # added to the back half only, which is what makes the row of
+            # knuckles on a gripping hand catch the light.
             bulge = knuckle_bulge * (0.5 + 0.5 * math.cos((t / 0.34) * math.pi))
-            w *= 1.0 + bulge
-            d *= 1.0 + bulge * 0.72
+            w *= 1.0 + bulge * 0.55
+            dorsal_bulge = bulge * 1.30
         z = -length * t
-        ring(bm, Vector((0, 0, z)), w, d, segments, rings)
+        ring(bm, Vector((0, 0, z)), w, d, segments, rings, flat_back, dorsal_bulge)
     # close the base flat against the previous joint (hidden inside the bulge)
     cap(bm, rings[0], (0, 0, 0.0006), flip=True)
     for i in range(len(rings) - 1):
@@ -138,7 +166,7 @@ def segment(name, length, base_w, base_d, tip_w, tip_d,
         last = rings[-1]
         z = -length
         for k, (sw, sd, dz) in enumerate(((0.78, 0.80, 0.28), (0.44, 0.47, 0.46))):
-            r = ring(bm, Vector((0, 0, z - tip_w * dz)), tip_w * sw, tip_d * sd, segments, rings)
+            r = ring(bm, Vector((0, 0, z - tip_w * dz)), tip_w * sw, tip_d * sd, segments, rings, flat_back * 0.6)
             bridge(bm, last, r)
             last = r
         cap(bm, last, (0, 0, z - tip_w * 0.62))
