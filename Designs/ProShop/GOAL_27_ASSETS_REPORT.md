@@ -526,3 +526,66 @@ Even at −0.9 EV, near-black materials render as mid-grey — the rake head is
 0.0105 linear and reads as gunmetal. That is AgX's midtone lift, not a missing
 material, and it is worth knowing before anyone judges a black asset from these
 frames.
+
+---
+
+## PRINTED ARTWORK — the checkout bag and the customer basket
+
+Both were shapes with no product on them. They are now printed.
+
+`tools/blender/hero/make_bag_art.mjs` draws the marks as SVG and rasterises them,
+so the source is editable text rather than a baked image nobody can change:
+
+- **`checkout_bag_print.png`** (1600 × 716) — kraft ground with fibre, a golf
+  roundel, the PINE HILLS / GOLF CLUB wordmark with rules, a smaller mark on the
+  back panel, fold rules on the gusset lines, and 100% RECYCLED KRAFT / PLEASE
+  REUSE near the base.
+- **`customer_basket_print.png`** (1024 × 320) — a moulded badge plate.
+
+**The bag art leaves its middle band empty on purpose.** The game drops a dynamic
+brand plane on the front at runtime (`CHECKOUT_DISPLAY_BRAND_PRESENTATION
+.bagPanel`, 0.176 × 0.118 at y 0.150 — about 32% up), and printing under it would
+stack two shop names on each other.
+
+### ASSET 11 — THE CUSTOMER BASKET, built
+
+`Assets/models/hero/customer_basket.glb` — **2,174 tris**, 4 objects, 3 materials,
+validates clean. A separate object from the checkout bag: the game has it as
+`customer-basket` (clubhouse.js, from merch, scale 0.66).
+
+Publix-style: moulded plastic, tapered so they nest, 22 vertical ribs, a rolled
+rim, two folding handles, and a badge. Its design is MOULDED rather than printed
+because that is what injection tooling gives you — a printed decal on a shop
+basket reads as a sticker.
+
+Interior clears a 0.330 × 0.200 × 0.170 yd load by 0.042 at its tightest.
+
+### Faults the assertions and the frames found
+
+| fault | how it showed |
+|---|---|
+| the two handles ran **45 mm through each other** | both arcs converged on one apex point; real handles sit side by side with a finger's gap, which is also what lets them fold past one another |
+| handle pivots floated **2.6 mm off the rim** | the rim rolls out to 1.03× and then takes a 6 mm shell, so its outer face is further out than the nominal top half-depth |
+| the badge artwork came out as **scrambled white streaks** | `mesh_from` recalculates normals, which reorders the quad's loops, so a fixed UV sequence twisted the mapping into a bow-tie. UVs now come from vertex POSITION |
+| then the wordmark printed **backwards** | I flipped u "because the badge faces −Y" on top of a flip the winding had already done |
+| then the badge was **pierced by the ribs**, and after that **hidden behind them** | the shell tapers outward with height and Solidify offsets it by the wall; the badge has to follow both |
+| the bag's roundel was an **ellipse** | the texture was square while the wrap is 2.24 : 1 perimeter-to-height |
+| the bag's hero camera was on the **back panel** | same wrong-side fault as the spray bottle |
+
+### And one assertion that was passing for the wrong reason
+
+`assert_touching` short-circuits on "embedded", and for a HOLLOW host that is
+wrong: "inside the mesh" of a 6 mm basket shell means inside its CAVITY, so a
+handle arcing over the open top counted as embedded 70 mm deep and passed
+however far above the rim it floated. **The broken variant proved it by
+passing.** There is now a `require_surface` mode that measures surface distance
+only, and the basket's handles use it.
+
+The badge's tolerance is also sized to the rib depth rather than to a hair: it is
+a four-corner quad on a ribbed wall, so a corner can land in a valley and the
+measured gap is to the valley floor rather than the crest it is seated on.
+
+### Still nameable
+
+The 22 moulded ribs are barely legible at hero framing — they read at the
+silhouette edges and wash out across the front face under the studio key.

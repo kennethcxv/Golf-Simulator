@@ -130,6 +130,7 @@ def build(broken=False):
     rings.append(section(HEIGHT * 0.985, flare=0.0022 + RIM_ROLL * 0.52))
     rings.append(section(HEIGHT * 0.952, flare=0.0022 + RIM_ROLL * 0.46))
     outer = loft("BagOuter", rings)
+    HS.wrap_uvs(outer, rings)
     solid = outer.modifiers.new("Paper", "SOLIDIFY")
     solid.thickness = WALL
     solid.offset = 1.0
@@ -182,7 +183,11 @@ def build(broken=False):
                                     pts, faces, smooth=True))
     parts["handles"] = handles
 
-    kraft = HS.pbr("BagKraft", (0.205, 0.108, 0.042), roughness=0.97)
+    kraft = HS.pbr_textured(
+        "BagKraft",
+        os.path.join(REPO, "Assets", "models", "hero", "textures",
+                     "checkout_bag_print.png"),
+        roughness=0.97)
     cord = HS.pbr("BagHandleKraft", (0.165, 0.086, 0.034), roughness=0.98)
     inner = HS.pbr("BagInner", (0.120, 0.062, 0.024), roughness=0.97)
     parts["bag"].data.materials.append(kraft)
@@ -264,8 +269,11 @@ def main():
     tt = H.turntable(centre, dist, OUT_RENDER, f"bag{suffix}", views=8,
                      elevation=18.0, lens=LENS, res=(900, 900))
     H.contact_sheet(tt, os.path.join(OUT_RENDER, f"bag{suffix}-turntable.png"), cols=4)
-    for label, az, el in (("hero", -124, 26), ("front", -90, 8),
-                          ("into", -90, 64), ("side", 0, 8)):
+    # The PRINTED FACE is the +Y panel, so the hero camera has to be on +Y. At
+    # -124 it was looking at the back panel and judging the artwork off the
+    # smaller mark -- the same wrong-side fault as the spray bottle.
+    for label, az, el in (("hero", 118, 26), ("front", 90, 8),
+                          ("into", 90, 64), ("side", 0, 8)):
         cam = H.camera(label, H.orbit_position(centre, dist, az, el), centre, lens=LENS)
         H.render(cam, os.path.join(OUT_RENDER, f"bag{suffix}-{label}.png"), res=(1100, 1100))
         if label == "hero":
@@ -275,7 +283,7 @@ def main():
 
     hfov = 2 * math.atan(math.tan(math.radians(66) / 2) * 16 / 9)
     d = (WIDTH * GAME_SCALE / 0.30) / (2 * math.tan(hfov / 2))
-    app = H.camera_fov("Apparent", H.orbit_position(centre, d, -124, 22), centre, 66.0)
+    app = H.camera_fov("Apparent", H.orbit_position(centre, d, 118, 22), centre, 66.0)
     app.data.sensor_fit = "VERTICAL"
     H.render(app, os.path.join(OUT_RENDER, f"bag{suffix}-apparent.png"), res=(1600, 900))
 

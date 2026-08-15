@@ -93,7 +93,7 @@ def surface_gap(a, b):
     return best
 
 
-def assert_touching(a, b, label, max_gap=0.0015):
+def assert_touching(a, b, label, max_gap=0.0015, require_surface=False):
     """Connected means ABUTTING or EMBEDDED, and the first version only tested
     the first.
 
@@ -102,9 +102,15 @@ def assert_touching(a, b, label, max_gap=0.0015):
     vertices inside the other part is connected by definition, so that is
     checked first.
     """
+    # `require_surface` turns the embedded short-circuit OFF, which matters for
+    # a HOLLOW host. "Inside the mesh" of a 6 mm basket shell means inside its
+    # CAVITY, so a handle arcing over the open top counts as embedded 70 mm deep
+    # and the check passes however far above the rim it floats -- the broken
+    # variant proved exactly that by passing. Where a part has to MEET a surface
+    # rather than sink into a solid, only the surface distance is meaningful.
     mwa = a.matrix_world
-    deepest = max((point_depth_inside(b, mwa @ v.co) for v in a.data.vertices),
-                  default=-1e9)
+    deepest = -1e9 if require_surface else max(
+        (point_depth_inside(b, mwa @ v.co) for v in a.data.vertices), default=-1e9)
     if deepest > 0.0002:
         print(f"  connection assertion passed: {a.name} is embedded in "
               f"{b.name} by {deepest * 1000:.2f} mm ({label})")
@@ -328,6 +334,71 @@ def apply_mods(obj):
     obj.select_set(True)
     bpy.ops.object.convert(target="MESH")
     return bpy.context.view_layer.objects.active
+
+
+def pbr_textured(name, image_path, roughness=0.9, uv_map="UVMap"):
+    """A material whose base colour is a PRINTED image.
+
+    A grocery sack is printed, not tinted. Modelling the shape and leaving it a
+    flat brown is a bag with no product on it.
+    """
+    import os as _os
+    if not _os.path.exists(image_path):
+        raise SystemExit(f"BUILD FAILED: artwork missing: {image_path} "
+                         f"(run tools/blender/hero/make_bag_art.mjs)")
+    mat = bpy.data.materials.new(name)
+    mat.use_nodes = True
+    nt = mat.node_tree
+    b = nt.nodes["Principled BSDF"]
+    b.inputs["Roughness"].default_value = roughness
+    tex = nt.nodes.new("ShaderNodeTexImage")
+    tex.image = bpy.data.images.load(image_path)
+    tex.image.colorspace_settings.name = "sRGB"
+    uv = nt.nodes.new("ShaderNodeUVMap")
+    uv.uv_map = uv_map
+    nt.links.new(uv.outputs["UV"], tex.inputs["Vector"])
+    nt.links.new(tex.outputs["Color"], b.inputs["Base Color"])
+    return mat
+
+
+def wrap_uvs(obj, rings, name="UVMap"):
+    """Arc-length UVs for a lofted shell.
+
+    u runs around the section by ARC LENGTH, so the print does not stretch on the
+    long panels and bunch on the short ones; v runs up the loft. The wrapping
+    quad gets u = 1 on its far edge rather than 0, or the whole texture smears
+    backwards across one column of faces.
+    """
+    n = len(rings[0])
+    cum = []
+    for ring in rings:
+        acc = [0.0]
+        for i in range(n):
+            a = ring[i]
+            b = ring[(i + 1) % n]
+            acc.append(acc[-1] + (b - a).length)
+        cum.append(acc)
+    heights = [r[0].z for r in rings]
+    span = max(heights) - min(heights) or 1.0
+
+    layer = obj.data.uv_layers.new(name=name)
+    for poly in obj.data.polygons:
+        for li in poly.loop_indices:
+            vi = obj.data.loops[li].vertex_index
+            r, i = divmod(vi, n)
+            if r >= len(rings):
+                layer.data[li].uv = (0.0, 0.0)
+                continue
+            total = cum[r][-1] or 1.0
+            # a loop's own vertex index gives u directly; the wrap face is the
+            # one whose two far vertices are index 0, and they take u = 1
+            u = cum[r][i] / total
+            if i == 0 and poly.loop_total == 4:
+                others = [obj.data.loops[k].vertex_index % n for k in poly.loop_indices]
+                if max(others) == n - 1:
+                    u = 1.0
+            layer.data[li].uv = (u, (heights[r] - min(heights)) / span)
+    return layer
 
 
 def pbr(name, colour, roughness=0.5, metallic=0.0, transmission=0.0, ior=1.45,
