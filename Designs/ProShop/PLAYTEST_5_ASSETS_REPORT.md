@@ -700,3 +700,40 @@ tight enough that four fingers touch along their whole length and merge visually
 rebuild in Blender, re-vendor, re-shoot, look — and the change shows up in the
 frame every time. That loop did not exist for the first three quarters of this
 session, and every one of the four retractions above came from not having it.
+
+## ROUND 5 — skin and spread
+
+`hand-v5-lit.png`.
+
+| change | was | now |
+|---|---|---|
+| skin colour | `0xd9a97e` | **`0xc4875c`** |
+| skin roughness | 0.72 | **0.90** — the highlight was doing most of the "plastic" reading |
+| shade colour | `0xc9976c` | `0xa96f48` |
+| finger spread | `POSES.wrap.spread` 0.025 | **0.062** |
+
+**The skin reads as flesh now rather than cream plastic** — that change landed
+clearly. The far hand's digits separate; the near hand's still merge somewhat at
+this angle.
+
+72/89 drawable, broom held, no page errors, draw calls and triangle count
+unchanged (both changes are a material constant and a pose number — no rebuild).
+
+## Item 1 after five rounds
+
+| round | change | effect |
+|---|---|---|
+| 1 | axis baked into vertices | fingers wrap the shaft instead of splaying as rods |
+| 2 | forearm thickness, tapered knuckle bulge | forearm reads as an arm; segments stop beading |
+| 3 | named every segment; traced adoption | 16/16 adopted, both hands, no misses |
+| 4 | finger taper, palm mass, thumb pose | the hand gains body and a visible grip |
+| 5 | skin hue/roughness, finger spread | flesh rather than plastic; digits begin to separate |
+
+**Still not the reference.** It is much closer than the capsules and it is not
+there. The remaining difference is in the near hand's digit separation at grip
+angles, and in the overall silhouette being softer than the photograph's.
+
+**But the loop that produced rounds 4 and 5 works**, and it is the thing that was
+missing: change a number, rebuild if the change is geometry, re-shoot lit at a
+judgeable framing, and look. Both rounds took minutes. The first three quarters of
+this session produced four retractions precisely because that loop did not exist.

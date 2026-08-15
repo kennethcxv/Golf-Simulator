@@ -18,8 +18,12 @@ import * as THREE from 'three';
 import { CachedGLTFLoader } from './gltfCache.js';
 import { CLEANING_TOOLS } from '../data/cleaningTools.js';
 
-const SKIN = 0xd9a97e;
-const SKIN_SHADE = 0xc9976c; // the underside of the fingers, so knuckles read against the palm
+// ROUND 5, from the lit frame: 0xd9a97e at roughness 0.72 photographs as CREAM
+// PLASTIC under the shop lights -- pale and slightly waxy, which is a specular
+// problem as much as a hue one. Warmer and matter: skin has almost no gloss at
+// this scale, and the highlight was doing most of the "plastic" reading.
+const SKIN = 0xc4875c;
+const SKIN_SHADE = 0xa96f48; // the underside of the fingers, so knuckles read against the palm
 const CUFF = 0x2f4a35; // the club's own polo green, at the wrist
 const CUFF_DARK = 0x21351f; // the sleeve's rolled interior, so the opening reads as depth not a disc
 const NAIL = 0xe6c39c; // a lighter flattened hint on the index and middle nails
@@ -124,7 +128,7 @@ export const POSES = {
   // FAULT 3 from the lit frame: the thumb was tucked and barely visible. In the
   // reference it lies ACROSS the fingers on the near side, which is most of what
   // reads as "gripping" rather than "resting against". 1.06 -> 1.30.
-  wrap: { curl: 1.34, thumb: 1.30, spread: 0.025, index: 1.30 }, // a shaft or a handle
+  wrap: { curl: 1.34, thumb: 1.30, spread: 0.062, index: 1.30 }, // a shaft or a handle; spread 0.025 merged the four digits into one mass
   trigger: { curl: 1.08, thumb: 0.78, spread: 0.022, index: 0.30 }, // finger on the trigger
   // ITEM 9: at curl 0.46 the fingers barely bend, so once the palm was lifted
   // clear of the sponge they stood straight up off it and the hand read as
@@ -565,7 +569,7 @@ function adoptAuthored(mesh, geometry, mirror) {
 
 export function makeFpHands() {
   const mats = {
-    skin: new THREE.MeshStandardMaterial({ color: SKIN, roughness: 0.72 }),
+    skin: new THREE.MeshStandardMaterial({ color: SKIN, roughness: 0.9 }),
     shade: new THREE.MeshStandardMaterial({ color: SKIN_SHADE, roughness: 0.78 }),
     cuff: new THREE.MeshStandardMaterial({ color: CUFF, roughness: 0.78 }),
     cuffDark: new THREE.MeshStandardMaterial({ color: CUFF_DARK, roughness: 0.85 }),
