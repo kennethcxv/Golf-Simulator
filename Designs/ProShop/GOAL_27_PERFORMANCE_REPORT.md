@@ -315,6 +315,21 @@ cacheKeys, enter the editor, diff, nearest-twin field analysis. Findings:
   outlier amplified is 60% smaller. Entry-time re-measure queued for the
   rested machine.
 
+## CORRECTION: the "degraded machine" is the PARALLEL SESSION'S BAKES
+
+The degradation hunt ended with every subsystem probing healthy — CPU at
+full 4.3 GHz, GPU at 45°C and full clocks with 3.7/16 GB VRAM, disk at
+1.6 GB/s, zero orphaned processes — while boots still ran 3-5× slow. The
+last probe found the cause: **Blender plus sixteen Python workers from the
+parallel hero-assets session, holding total CPU at ~60% during their
+bakes.** The slowdown tracks THEIR work schedule, which is why identical
+bits measured 26.9 s in one hour and 132.7 s in another. The machine is
+not sick, nothing needs a reboot, and the earlier "degradation" section
+below stands as the honest log of chasing it — with this correction on
+top: the load numbers are trustworthy exactly when the co-tenant is quiet,
+and a quiet-window watcher is armed to fire the verification boot at the
+first calm stretch.
+
 ## THE MEASUREMENT ENVIRONMENT DEGRADED — later numbers are contaminated
 
 The revert was verified byte-identical to the committed build that measured
