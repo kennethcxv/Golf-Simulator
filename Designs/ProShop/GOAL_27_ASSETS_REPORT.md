@@ -322,3 +322,84 @@ player scale.
 `Designs/ProShop/Images/Goal_27/hand/` — turntable contact sheet, hero, dorsal,
 palmar, ulnar, radial, silhouette, apparent-size, the reference, and
 `BEFORE-shipped-build.png` (the shipped build's frame, for comparison).
+
+---
+
+## ASSETS 2, 3, 4 — BROOM HEAD, DUSTPAN, SPRAY BOTTLE
+
+Hard surface, no solving. All three share `tools/blender/hero/hardsurface_lib.py`.
+
+### The assertion that matters, and the four instrument bugs it took to get it right
+
+"Many small things attached to one big thing" has failed twice here — the mop's
+strands and the rake's bristles were both FLOATING IN AIR — so the property is
+ROOT and CONNECTION, measured on geometry. Single-shell does not apply: these
+legitimately have separate parts.
+
+Each was watched failing on a deliberately broken variant. Four of those attempts
+were wrong, and each was only caught because the broken variant was run first:
+
+| bug | what happened |
+|---|---|
+| the broken variant lifted the bristles **UP** | which seats them DEEPER in a block that is above them. 60/60 tufts "passed" on a variant that was not broken |
+| `assert_touching` used unsigned distance | a socket sunk 6 mm into a block reported a 6 mm "gap" and failed for being too well attached |
+| `point_depth_inside` passed **world** coords to `closest_point_on_mesh` | which takes LOCAL. Silently correct for a host at the origin — true for the broom block, false for the spray head, where a nozzle 7 mm inside read as 2.2 mm outside |
+| the broken trigger moved **forward** | along the 74 mm the head is deep, so it stayed in contact and passed |
+
+### Triangle counts, against the hand's 5,179
+
+| asset | triangles | objects | materials |
+|---|---|---|---|
+| broom head | **2,820** | 218 (216 tufts) | 3 |
+| dustpan | **1,052** | 2 | 3 |
+| spray bottle | **1,420** | 7 | 4 |
+
+### BROOM — 5 rounds — **KEEP THE PROCEDURAL**
+
+The bar was different: the procedural broom already reads correctly. Mine has a
+better ferrule and a cleaner hem, but the bristles — which are the whole read —
+are worse. The procedural's are fine and dense and read as fibre; mine are
+chunkier flat blades with visible lanes between the rows.
+
+Getting bristles that fine needs roughly 400 tufts, which is ~5,000 triangles on
+bristles alone — the hand's entire budget, for a secondary prop. **Not clearly
+better, so the procedural stays.** Evidence: `broom-vs-procedural.png`.
+
+Rounds: comb of 20 countable teeth → 148 staggered tufts → darker (the studio was
+blowing near-black to grey) → level hem and untapered bristles → 216 tufts with
+less splay.
+
+### DUSTPAN — 6 rounds — reads as a dustpan
+
+Faults by frame, in order found: it read as a **canoe** (240 × 225 with the walls
+sweeping to points at the lip — a dustpan's mouth has to be obviously the widest
+thing about it); it rendered as brushed aluminium (a clearcoat over a near-black
+base is a white specular sheet); **my hero camera was behind the pan** so the
+mouth was hidden in every frame I judged from; the side walls tapered to
+knife-thin spikes; the floor looked like crumpled foil (a 2.2 mm dish fighting
+the rail's curvature under smooth shading); and flat shading over nine rail
+stations banded the floor.
+
+The lip is continuous with the pan by construction — it is where the lofted
+shell's wall height goes to zero — and `assert_one_piece` holds it.
+
+### SPRAY BOTTLE — 4 rounds — reads as a trigger spray
+
+**Rendered in Cycles by default.** EEVEE's screen-space refraction turns the
+translucent body into frosted grey speckle with no liquid visible at all, so the
+fast engine cannot answer the only question this asset has to answer.
+
+Faults by frame: the hero camera was on the **back** of the bottle — no trigger,
+no nozzle, nothing to read; the bottle was too tall and narrow and read as a
+drinks bottle; the trigger was a 4 mm strap that read as a wire bail; the head
+was a plain matchbox; and at 18 sides the shoulder and waist showed flat facets,
+which a translucent body puts in the frame twice — once as the outline and once
+refracted through it.
+
+### A studio calibration that affected all three
+
+The renders were made at 0 EV with a bright three-point studio and AgX, and every
+dark material came out light: charcoal read as brushed aluminium, near-black
+bristles read as grey wire. I read that twice as a missing material before it
+turned out to be exposure that had never been set. The studio now runs at
+**−0.9 EV**.

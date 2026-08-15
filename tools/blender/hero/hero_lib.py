@@ -71,6 +71,11 @@ def set_engine(engine="EEVEE", samples=64):
     scene.render.film_transparent = False
     scene.view_settings.view_transform = "AgX" if _has_view_transform("AgX") else "Filmic"
     scene.view_settings.look = "None"
+    # AgX lifts midtones hard, and this studio is bright. Left at 0 EV a charcoal
+    # dustpan renders as brushed aluminium and near-black bristles render as grey
+    # wire -- both were read as missing materials before the exposure was the
+    # thing that had never been set.
+    scene.view_settings.exposure = -0.9
 
 
 def _has_view_transform(name):
@@ -111,7 +116,7 @@ def _aim(obj, target):
     obj.rotation_euler = direction.to_track_quat("-Z", "Y").to_euler()
 
 
-def studio(center=(0, 0, 0), scale=1.0, key=220.0, fill=60.0, rim=180.0):
+def studio(center=(0, 0, 0), scale=1.0, key=130.0, fill=38.0, rim=105.0):
     """Three-point studio, sized to the subject.
 
     `scale` is roughly the subject's radius in metres. Light energy is scaled by
