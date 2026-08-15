@@ -13,7 +13,7 @@
     "tool-trashbag",
     "tool-washer",
     "tool-paint",
-    "SKIP bag-packed: only 1 goods packed"
+    "SKIP bag-packed: only 2 goods packed"
   ],
   "prep": {
     "clock": 840,
