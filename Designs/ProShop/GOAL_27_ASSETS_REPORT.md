@@ -742,3 +742,34 @@ else, with the other assertions still passing in the same run:
   pressure washer wand. SHIP.
 
 glTF validated: 0 failed, 0 warnings.
+
+---
+
+## THE LEDGER BOOK — the gutter is measured off the mesh, not authored into it
+
+*(This section was missing when the wand shipped — the asset was built and
+committed but never written up. Numbers below are from a re-run, not memory.)*
+
+`tools/blender/hero/build_ledger.py` → `Assets/models/hero/ledger_book.glb`
+Renders: `Designs/ProShop/Images/Goal_27/ledger/`
+
+**6,656 triangles, 16 objects, 3 materials.** The most expensive hero asset in
+the set, and the one that earns it: the player *reads* this at reading distance,
+so the page surface has to survive a close camera. Boards, spine, nine leaves and
+one turning leaf.
+
+The page surface is not a flat card. Each leaf is a solved surface with a
+**gutter** — `g = drop · exp(−(u/0.34)²)` — so the paper dives toward the spine
+the way a bound block actually does, and the fore-edge is wobbled rather than
+ruled straight. The left page's UVs are flipped (`u if side > 0 else 1 − u`) so
+the ruled artwork does not print backwards across the gutter.
+
+**The assertion that matters is that the gutter is measured, not asserted from
+the constant that authored it.** `gutter_depth(leaf)` reads the depth back off
+the mesh and fails below 55 % of authored — 16.68 mm measured against 16.5
+authored. If the surface solve ever flattens, the number moves; a check that
+re-read the authoring constant could not have noticed.
+
+Every leaf is asserted seated in its block (5.23–6.39 mm embedded), the turning
+leaf is asserted still bound at the spine (0.00 mm — it is a hinge, not a gap),
+and the ribbon is asserted lying on the page it marks (0.19 mm).
