@@ -400,8 +400,21 @@ export function buildToolViewmodels() {
                 // The damp grey lives HERE now (the authored skirt's own
                 // A9A294 family, darkened wet), matte like waterlogged
                 // cotton.
+                // PLAYTEST 4, ITEM 3a — THE COLOUR WAS THE BIGGEST GAP.
+                //
+                // 0x8f8a80 is a mid-grey, chosen in Goal 19 to read as damp
+                // waterlogged cotton. Put beside the owner's reference in
+                // Designs/ProShop/Images/Goal_26/after/mop-vs-reference.png it is
+                // the whole difference: his mop is a BRIGHT WHITE microfibre disc
+                // and the game's is a charcoal ring, in the same frame as a
+                // correctly-lit red hub, so this is pigment and not lighting.
+                //
+                // 0xe9e5db is off-white with the warmth left in, so it still sits
+                // in the room's palette rather than glowing. Roughness stays at
+                // 0.97: microfibre has no specular to speak of, and a white
+                // material with a highlight would read as plastic.
                 const yarn = new THREE.MeshStandardMaterial({
-                  color: 0x8f8a80, roughness: 0.97, metalness: 0,
+                  color: 0xe9e5db, roughness: 0.97, metalness: 0,
                 });
                 // B1 (Goal 17) — MEASURED, NOT GUESSED.
                 //
@@ -536,6 +549,31 @@ export function buildToolViewmodels() {
                 hubRim.position.y = 0.008;
                 collar.add(hubRim);
                 entry.mopHub = hub;
+
+                // PLAYTEST 4, ITEM 3a — "a DENSE UNIFORM DISC... the hub clamping
+                // it CLEANLY."
+                //
+                // The bunches hang from a collar at 0.50 of the head radius and
+                // splay outward, so everything inside that ring is empty air. From
+                // straight above the hub hides it; from the angle the player
+                // actually holds the tool you see daylight through the middle of
+                // the head, which is why it still reads as a ring.
+                //
+                // On the reference the microfibre is CONTINUOUS under the clamp —
+                // the red fitting is pressed onto a backing that is already fabric.
+                // So a thin disc of the same yarn material sits just under the hub
+                // and closes the hole. It is backing, not strands: it adds nothing
+                // to the strand count and nothing to the physics, so the 18-bunch
+                // spacing and the density ruling the owner has reserved are both
+                // untouched by it.
+                const pad = new THREE.Mesh(
+                  new THREE.CylinderGeometry(HEAD_R * 0.60, HEAD_R * 0.54, 0.020, 18, 1, false),
+                  yarn,
+                );
+                pad.name = 'MESH_MopPad';
+                pad.position.y = 0.004;
+                collar.add(pad);
+                entry.mopPad = pad;
 
                 entry.strandRig = rig;
                 entry.strandMaterial = yarn;
@@ -829,6 +867,22 @@ export function buildToolViewmodels() {
           entry.strandRig.update(dt, floorWorldY);
         }
       }
+    },
+    // PLAYTEST 4, ITEM 3b: the yarn solver's own view of itself. A clip of the
+    // mop is worthless without this, because "the strands did not move" and "the
+    // mop was never equipped, so nothing moved" produce identical footage -- and
+    // the first attempt at that clip made exactly that mistake.
+    strandRigDiagnostics: (id) => {
+      const entry = loaded.get(id);
+      const rig = entry?.strandRig;
+      if (!rig) return null;
+      return {
+        equipped: equippedTool === id,
+        using: !!entry.using,
+        active: typeof rig.isActive === 'function' ? rig.isActive() : null,
+        feel: typeof rig.feel === 'function' ? rig.feel() : null,
+        strands: rig.strandCount ?? null,
+      };
     },
     // D (Goal 23): rebuild a tool's yarn with different parameters, for the
     // sweep that chooses the look. Returns null for a tool that has none.

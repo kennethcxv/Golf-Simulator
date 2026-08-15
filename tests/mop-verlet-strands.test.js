@@ -70,8 +70,20 @@ test('at rest the yarn hangs straight down and then does not move at all', () =>
   assert.ok(worst < 1e-6, `settled yarn moved ${worst} with a motionless head`);
 });
 
-test('moved sideways the yarn trails behind, and settles back when it stops', () => {
+test('moved sideways WHILE MOPPING the yarn trails behind, and settles back when it stops', () => {
   const { rig, head } = makeRig();
+  // PLAYTEST 4, ITEM 3b — THIS TEST NOW NAMES ITS MODE, ON THE OWNER'S RULING.
+  //
+  // "The strands should only move when I am holding the left mouse button.
+  // Carried, walking, turning, looking: they hold still... Change the carry
+  // parameters accordingly and update that test rather than working around it."
+  //
+  // Trailing is what MOPPING does. When it was the unconditional behaviour of the
+  // solver, sliding the head sideways trailed the tips whether or not the player
+  // was mopping — which is the swing he keeps reporting. The claim is unchanged
+  // and it is asserted harder than before (the carried half below is new); what
+  // changed is that it is now scoped to the state it was always describing.
+  rig.setActive(true);
   run(rig, head, 180, 1 / 60); // settle first
   const still = offsetOf(rig, head);
 
@@ -90,6 +102,33 @@ test('moved sideways the yarn trails behind, and settles back when it stops', ()
   const settled = offsetOf(rig, head);
   assert.ok(Math.abs(settled.x) < Math.abs(moving.x) * 0.15,
     `after stopping, offset ${settled.x.toFixed(4)} should relax from ${moving.x.toFixed(4)}`);
+});
+
+test('CARRIED, the identical slide barely moves the yarn at all', () => {
+  // The other half of the ruling, and the one that was missing. Same rig, same
+  // 40-frame slide, carried instead of mopping. Without it, "carried is
+  // effectively still" is a claim in a comment.
+  const { rig, head } = makeRig();
+  rig.setActive(false);
+  run(rig, head, 180, 1 / 60);
+  const still = offsetOf(rig, head);
+  run(rig, head, 40, 1 / 60, (f, h) => { h.position.x += 0.03; });
+  const carried = offsetOf(rig, head);
+
+  const { rig: rig2, head: head2 } = makeRig();
+  rig2.setActive(true);
+  run(rig2, head2, 180, 1 / 60);
+  run(rig2, head2, 40, 1 / 60, (f, h) => { h.position.x += 0.03; });
+  const mopping = offsetOf(rig2, head2);
+
+  assert.ok(Math.abs(still.x) < 0.004, `control: resting offset ${still.x}`);
+  // The bar is "effectively still", not "less than mopping": a mop that swung
+  // 90% as much as a mopping one would pass a ratio test and fail the eye.
+  assert.ok(Math.abs(carried.x) < 0.012,
+    `carried yarn moved ${carried.x.toFixed(4)} on a walking-pace slide; that is a swing, not stillness`);
+  // and mopping must NOT have been quietened along with it, or the fix is a weld
+  assert.ok(Math.abs(mopping.x) > Math.abs(carried.x) * 3,
+    `mopping ${mopping.x.toFixed(4)} vs carried ${carried.x.toFixed(4)} — the drag has gone with the swing`);
 });
 
 test('pressed to the floor the yarn spreads and flattens', () => {

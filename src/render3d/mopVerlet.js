@@ -61,6 +61,15 @@ const DEFAULT_PARAMS = Object.freeze({
   buckle: 0.30,       // how strongly a compressed strand splays outward
   stiffness: 1.0,     // 0..1 fraction of the length error corrected per pass
   maxStep: 1 / 90,    // fixed sub-step, so feel never depends on frame rate
+  // PLAYTEST 4, ITEM 3b — HOW MUCH OF THE HEAD'S OWN MOTION THE YARN SIMPLY RIDES.
+  //
+  // 0 is the pure simulation: every node is left where it was and the solver
+  // pulls it along, which is why turning your head swings the strands. 1 carries
+  // every node with the head's rigid transform, so walking, turning and looking
+  // move the yarn without deforming it AT ALL. Applied to both the current and
+  // previous positions, so it transports the chain without injecting velocity --
+  // the yarn is not being pushed, it is being carried.
+  rigidity: 0,
 });
 
 // 5.2 (Goal 26) — "IT MUST FEEL HEAVY... SEPARATE CARRY AND ACTIVE PARAMETERS --
@@ -100,6 +109,34 @@ export const CARRY_FEEL = Object.freeze({
   iterations: 3,        // stiffer: the bundle holds its shape instead of splaying
   buckle: 0.16,         // little outward splay when nothing is pressing it
   stiffness: 1.0,
+  // PLAYTEST 4, ITEM 3b — "CARRIED IS EFFECTIVELY STILL", which damping cannot do.
+  //
+  // 5.2 tuned damping for this and the owner still sees it swing. Swept, that is
+  // not stubbornness, it is the wrong lever: against a 140 deg/s look-around the
+  // peak tip excursion barely moves across the whole usable range --
+  //
+  //     damping   0.92    0.95    0.97    0.985   0.995   0.999
+  //     look (yd) 0.0953  0.0899  0.0890  0.0925  0.1004  0.1023
+  //
+  // -- because the swing is not the yarn keeping velocity, it is the ANCHOR
+  // travelling on an arc while the tips are still where they were. No amount of
+  // damping removes that; above 0.985 it gets worse, since a node that never
+  // sheds energy keeps ringing.
+  //
+  // `rigidity` is the lever that does: the head's frame-to-frame transform is
+  // applied to the nodes themselves. Swept against the same two motions, with
+  // ACTIVE untouched at 0 in every row (mopping peak 0.1402 throughout):
+  //
+  //     rigidity   0       0.5     0.8     0.9     0.94    0.97    1.0
+  //     walk (yd)  0.0864  0.0549  0.0246  0.0125  0.0076  0.0038  0.0001
+  //     look (yd)  0.0953  0.0694  0.0712  0.0338  0.0233  0.0128  0.0001
+  //
+  // 0.97 is 4 mm of walk swing and 13 mm of look swing on a 336 mm head: still
+  // in every practical sense, which is the bar he set, while 1.0 is a literal
+  // weld that would read as dead when the tool is jolted. The 3% left is the
+  // "small slow response" 5.2 asked for, and it is now the ONLY thing that
+  // moves when the player is not mopping.
+  rigidity: 0.97,
 });
 
 export const ACTIVE_FEEL = Object.freeze({
@@ -108,6 +145,9 @@ export const ACTIVE_FEEL = Object.freeze({
   iterations: 2,
   buckle: 0.42,         // compresses and splays where it meets the floor
   stiffness: 0.92,      // a little give, so the drag reads as weight not as rods
+  // Mopping is the one time the owner WANTS the strands to move, so the yarn is
+  // handed back to the solver completely.
+  rigidity: 0,
 });
 
 // THE YARN THE PLAYER ACTUALLY SEES, owned in one place.
@@ -418,6 +458,27 @@ export function createVerletMopStrands({
     layers.push(mesh);
   }
 
+  // PLAYTEST 4, ITEM 3a — "strands that read as continuous LOOPS rather than
+  // separate rods."
+  //
+  // On the reference mop every fibre is a loop: it leaves the backing, goes out,
+  // folds and comes back. Simulating that would double the node count for a
+  // detail nobody sees at viewmodel distance. What the eye actually reads as
+  // "loop" is the ROUNDED FOLD at the hem versus a cut end, and a flat cap on a
+  // 5-sided tube is unmistakably a cut end.
+  //
+  // So each strand ends in a low-poly bead the width of its own tip. 20
+  // triangles, one extra instanced draw for the whole head, and the hem stops
+  // being a field of sawn-off pipes.
+  const tipGeometry = new THREE.SphereGeometry(strandRadiusBottom * 1.15, 5, 3);
+  const tipLayer = new THREE.InstancedMesh(tipGeometry, material, N);
+  tipLayer.name = 'MopVerletTips';
+  tipLayer.castShadow = false;
+  tipLayer.receiveShadow = false;
+  tipLayer.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+  tipLayer.frustumCulled = false;
+  root.add(tipLayer);
+
   // Per-strand constants. Sunflower placement fills the disc evenly (golden
   // angle, sqrt radius) — no spokes, no banding, and deterministic, so two
   // sessions are identical.
@@ -581,12 +642,26 @@ export function createVerletMopStrands({
   const _dir = new THREE.Vector3();
   const _pos = new THREE.Vector3();
   const _scale = new THREE.Vector3(1, 1, 1);
+  // Constants for the hem beads: a sphere has no orientation, and scaling it
+  // with the strand's own length variation would shrink the fold on short ones.
+  const _qIdentity = new THREE.Quaternion();
+  const _one = new THREE.Vector3(1, 1, 1);
+  // ITEM 3b: the head's motion since the previous frame, as a transform the nodes
+  // can ride. Kept as the INVERSE because that is the form the delta needs.
+  const _prevWorldInv = new THREE.Matrix4();
+  const _delta = new THREE.Matrix4();
+  const _carry = new THREE.Vector3();
+  let hasPrevWorld = false;
   const _anchor = new THREE.Vector3();
 
   // Seed (and re-seed) every chain hanging straight down from its anchor, at
   // rest. Used on the first frame, and whenever the head teleports — equipping,
   // a scene change, a respawn — so a 40-yard jump can never fling the yarn.
   function seed(rootWorld) {
+    // A seed is a teleport or a first frame. The carry transport must not run
+    // against a stale previous matrix, or the whole bundle would be dragged
+    // across the room by the delta between two unrelated places.
+    hasPrevWorld = false;
     for (let i = 0; i < N; i += 1) {
       _anchor.set(anchorX[i], 0, anchorZ[i]).applyMatrix4(rootWorld);
       for (let n = 0; n < NODES; n += 1) {
@@ -617,7 +692,7 @@ export function createVerletMopStrands({
   // in one frame changes how much velocity every node keeps, and the whole head
   // visibly stiffens on the frame the button comes up. Easing over ~0.3 s reads
   // as the yarn losing its momentum, which is what actually happens to a wet mop.
-  const FEEL_KEYS = ['damping', 'floorFriction', 'iterations', 'buckle', 'stiffness'];
+  const FEEL_KEYS = ['damping', 'floorFriction', 'iterations', 'buckle', 'stiffness', 'rigidity'];
   const FEEL_BLEND_SECONDS = 0.3;
 
   // AN EXPLICIT OVERRIDE STILL WINS. The look sweep (rebuildYarn) and every unit
@@ -679,6 +754,42 @@ export function createVerletMopStrands({
     if (jump > 2.0) { seed(rootWorld); return; }
 
     blendFeel(Math.max(0, Math.min(dt, 0.1)));
+
+    // PLAYTEST 4, ITEM 3b — CARRY THE YARN WITH THE TOOL BEFORE SIMULATING IT.
+    //
+    // "They swing when I am merely LOOKING AROUND, which is wrong -- turning my
+    // head is not moving the mop." Correct, and it is not a damping problem: the
+    // anchor swings through an arc while the tips sit where they were, and the
+    // solver reads the difference as the yarn being dragged.
+    //
+    // So the head's frame-to-frame rigid transform is applied to the nodes first,
+    // scaled by `rigidity`. At 1 the whole bundle rides the tool exactly and the
+    // simulation sees no relative motion at all -- walking, turning and looking
+    // become invisible to it, because for a real mop they are. At 0 (mopping) the
+    // solver gets the raw motion back and the strands drag the way they should.
+    //
+    // BOTH p and q move by the same vector, which is the part that matters: Verlet
+    // velocity is (p - q), so transporting the pair leaves the node's velocity
+    // untouched. Moving only p would inject a fake impulse the size of the head's
+    // step, and the yarn would fling itself every time the player turned.
+    const rigidity = Math.max(0, Math.min(1, feel.rigidity ?? live.rigidity ?? 0));
+    if (rigidity > 0.001 && hasPrevWorld) {
+      _delta.copy(rootWorld).multiply(_prevWorldInv);
+      for (let i = 0; i < N; i += 1) {
+        const base = i * NODES;
+        for (let n = 1; n < NODES; n += 1) {
+          const k = base + n;
+          _carry.set(px[k], py[k], pz[k]).applyMatrix4(_delta);
+          const mx = (_carry.x - px[k]) * rigidity;
+          const my = (_carry.y - py[k]) * rigidity;
+          const mz = (_carry.z - pz[k]) * rigidity;
+          px[k] += mx; py[k] += my; pz[k] += mz;
+          qx[k] += mx; qy[k] += my; qz[k] += mz;
+        }
+      }
+    }
+    _prevWorldInv.copy(rootWorld).invert();
+    hasPrevWorld = true;
 
     // Fixed sub-steps: the yarn must feel the same at 30 fps and 144 fps.
     let remaining = Math.min(Math.max(dt, 0), 0.1);
@@ -780,8 +891,17 @@ export function createVerletMopStrands({
         _m.premultiply(_inv);
         layers[n].setMatrixAt(i, _m);
       }
+      // The bead rides the LAST node, which is the hem. Unrotated and unscaled:
+      // a sphere has no orientation to get wrong, and scaling it with the
+      // strand's length variation would make short strands end in small beads.
+      const tip = base + S;
+      _pos.set(px[tip], py[tip], pz[tip]);
+      _m.compose(_pos, _qIdentity, _one);
+      _m.premultiply(_inv);
+      tipLayer.setMatrixAt(i, _m);
     }
     for (let n = 0; n < S; n += 1) layers[n].instanceMatrix.needsUpdate = true;
+    tipLayer.instanceMatrix.needsUpdate = true;
   }
 
   function dispose() {
@@ -790,6 +910,8 @@ export function createVerletMopStrands({
     // and rebuildYarn exists precisely to be called repeatedly.
     for (const g of segmentGeometries) g.dispose();
     for (const layer of layers) layer.dispose();
+    tipGeometry.dispose();
+    tipLayer.dispose();
   }
 
   return {
@@ -840,5 +962,7 @@ export function createVerletMopStrands({
       return out;
     },
     tipLayer: () => layers[S - 1],
+    // the hem beads, so a probe can prove the loops are drawn rather than assumed
+    hemBeads: () => tipLayer,
   };
 }

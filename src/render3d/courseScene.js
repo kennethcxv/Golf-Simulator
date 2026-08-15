@@ -13051,6 +13051,10 @@ export function makeCourseScene(canvas, state) {
       toggleVehicleCamera: toggleGolfCartCamera,
       setTool: walkSetToolDebounced,
       getTool: () => walkTool,
+      // PLAYTEST 4, ITEM 3b: is the mop equipped, and is the solver in its mopping
+      // mode right now? Without this a clip cannot tell "the yarn held still"
+      // from "no yarn was ever in the frame".
+      strandRigDiagnostics: (id) => toolViewmodels.strandRigDiagnostics?.(id) ?? null,
       // E1 — the six axes the broom was fixed against, readable for EVERY tool
       // from the live rig rather than from its registry entry. The registry
       // says what a tool declares; this says where its geometry actually ended
