@@ -1,6 +1,10 @@
 # GOAL 27 — PERFORMANCE REPORT
 
-**Probe lies this session: 0** (running total across sessions: 45)
+**Probe lies this session: 1** (running total across sessions: 46)
+
+| # | The lie | What it cost |
+|---|---|---|
+| 46 | `node tools/golden-diff.mjs ... \| tail -6; echo $?` reported exit 0 — `$?` after a pipeline is TAIL's exit, not node's. The diff had genuinely failed (bag-packed unanswered). | A transience hunt and one wasted 10-minute gate rerun before the laundering was caught. The same shape was dodged once earlier the same night (the first gate run was killed for being piped) and then walked into anyway. Every later exit-code read uses `${PIPESTATUS[0]}` in-band. |
 
 ## Phase gate status
 
@@ -146,6 +150,30 @@ warm-up") is MET for every surface the census can reach.
 belt cycle; one 261 ms cold-tier frame inside the settle window (~2 s
 post-interactive), where the mop's lazy build now lands instead of on the
 player's chosen moment.
+
+---
+
+## Found along the way — the gate was a coin flip
+
+The post-Phase-2 gate went red with **all 13 diff rows green**: `bag-packed`
+NOT CAPTURED, and the diff rightly counts an unanswered committed golden as
+failure (that contract predates this session and is correct — a vanished
+pose once hid a real regression). The capture's own manifest said why:
+"only N goods packed."
+
+Root cause, two layers down: the staging clicks each transaction item at its
+projected CENTER pixel from a fixed stance — and the customer leaning over
+the counter occludes that center. The staging record now shows every item
+needs exactly TWO candidate points. Which items got occluded varied with the
+boot, so the pose staged 1, 2, or 3 goods at random and **the whole gate has
+been a coin flip on this axis since the contract landed** — tonight it
+rolled green once and red twice before being caught.
+
+Fix in `golden-capture.js`: aim the camera at each item, then click candidate
+points across its projected box until the packed COUNT moves, and record
+per-item outcomes (`bagStaging` in the manifest) so a skip names its step.
+Verified: 3/3 packed, `bag-packed` diffs 0.0 against its committed baseline,
+golden exit 0 honest via PIPESTATUS.
 
 ---
 

@@ -250,6 +250,15 @@ async (page) => {
     await waitFrames(60);
     const uids = await page.evaluate(() => window.__fw.scene3d.clubhouse().register.getTx().items.map((i) => i.uid));
     for (const uid of uids) {
+      // AIM FIRST, THEN PROJECT (Goal 27). The old loop projected each item
+      // from the fixed register stance and clicked only when it landed inside
+      // the viewport — and the interior's boot-varying world offset moved the
+      // projection, so on some boots one or two items sat off-view, went
+      // unclicked, and the pose self-skipped ("only N goods packed"). The
+      // diff counts an unanswered committed golden as a FAILURE (as it must),
+      // which made the whole gate a coin flip on this staging. Pointing the
+      // camera at the item before projecting keeps the real mouse verb and
+      // removes the projection's dependence on the boot.
       const spot = await page.evaluate(async (id) => {
         const THREE = await import(new URL('vendor/three.module.js', document.baseURI).href);
         const app = window.__fw;
@@ -259,18 +268,70 @@ async (page) => {
         });
         if (!found) return null;
         const world = new THREE.Box3().setFromObject(found).getCenter(new THREE.Vector3());
-        world.project(app.scene3d.camera);
-        const rect = document.querySelector('canvas').getBoundingClientRect();
-        return {
-          x: rect.left + ((world.x + 1) / 2) * rect.width,
-          y: rect.top + ((-world.y + 1) / 2) * rect.height,
-          ok: Math.abs(world.x) <= 1 && Math.abs(world.y) <= 1,
-        };
+        const w = app.scene3d.walk.state;
+        const cam = app.scene3d.camera.getWorldPosition(new THREE.Vector3());
+        const dx = world.x - cam.x;
+        const dy = world.y - cam.y;
+        const dz = world.z - cam.z;
+        const h = Math.hypot(dx, dz) || 0.001;
+        w.yaw = Math.atan2(-dx / h, -dz / h);
+        w.pitch = Math.atan2(dy, h);
+        return { id };
       }, uid);
-      if (spot && spot.ok) {
-        await page.mouse.click(spot.x, spot.y);
-        await waitFrames(50);
+      if (spot) await waitFrames(8); // let the camera settle on the new aim
+      // The item's CENTER pixel can be occluded (the customer leans over the
+      // counter; the reader sits in front), so a single center click can hit
+      // the occluder and pack nothing while reporting success. Click candidate
+      // points across the projected box until the packed COUNT moves, and
+      // record the whole attempt per item — a skip must name its step.
+      const outcome = { uid, found: !!spot, clicks: 0, packed: false };
+      if (spot) {
+        const packedNow = () => page.evaluate(() => {
+          let count = 0;
+          window.__fw.scene3d.clubhouse().interior.traverse((o) => {
+            if (o.userData?.checkoutVisualState === 'packed-in-bag') count += 1;
+          });
+          return count;
+        });
+        const before = await packedNow();
+        const points = await page.evaluate(async (id) => {
+          const THREE = await import(new URL('vendor/three.module.js', document.baseURI).href);
+          const app = window.__fw;
+          let found = null;
+          app.scene3d.clubhouse().interior.traverse((o) => {
+            if (!found && o.visible && o.userData?.kind === 'item' && o.userData?.uid === id) found = o;
+          });
+          if (!found) return null;
+          const box = new THREE.Box3().setFromObject(found);
+          const rect = document.querySelector('canvas').getBoundingClientRect();
+          const toScreen = (v) => {
+            const p = v.clone().project(app.scene3d.camera);
+            return {
+              x: rect.left + ((p.x + 1) / 2) * rect.width,
+              y: rect.top + ((-p.y + 1) / 2) * rect.height,
+              ok: Math.abs(p.x) <= 1 && Math.abs(p.y) <= 1,
+            };
+          };
+          const c = box.getCenter(new THREE.Vector3());
+          const size = box.getSize(new THREE.Vector3());
+          return [
+            toScreen(c),
+            toScreen(c.clone().add(new THREE.Vector3(0, size.y * 0.3, 0))),
+            toScreen(c.clone().add(new THREE.Vector3(size.x * 0.25, 0, 0))),
+            toScreen(c.clone().add(new THREE.Vector3(-size.x * 0.25, 0, 0))),
+            toScreen(c.clone().add(new THREE.Vector3(0, -size.y * 0.25, 0))),
+          ].filter((p) => p.ok);
+        }, spot.id);
+        for (const p of points || []) {
+          await page.mouse.click(p.x, p.y);
+          outcome.clicks += 1;
+          await waitFrames(30);
+          if (await packedNow() > before) { outcome.packed = true; break; }
+        }
+        if (outcome.packed) await waitFrames(25);
       }
+      manifest.bagStaging = manifest.bagStaging || [];
+      manifest.bagStaging.push(outcome);
     }
     const packed = await page.evaluate(() => {
       const app = window.__fw;
