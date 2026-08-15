@@ -199,6 +199,38 @@ def assert_fits_inside(interior, size, label, margin=0.0030, samples=5):
           f"tightest ({label})")
 
 
+def assert_socket_at(host, sock, label, max_gap=0.0300):
+    """A socket must be AT the part a hand closes around.
+
+    Finding the node by name only proves the exporter kept it. The reported
+    fault is not a missing node -- it is hands 0.81 yd from the rake, because
+    LEGACY_GRIPS holds numbers nobody reconciled with the mesh.
+
+    Measured UNSIGNED, against the host's surface. The signed inside/outside
+    test reads the wrong way here: a grip is a stack of overlapping cylinders
+    joined into one mesh, so closest_point_on_mesh lands on an internal face
+    and the normal points into the solid. It called a socket on the grip's own
+    centreline "4.2 mm outside". Distance to the surface has no such failure
+    mode, and at a 30 mm tolerance against a 17 mm grip it still separates
+    cleanly from the 785 mm the real fault produces.
+    """
+    local = host.matrix_world.inverted() @ sock.location
+    ok, loc, _nor, _i = host.closest_point_on_mesh(local)
+    if not ok:
+        raise SystemExit(f"BUILD FAILED: cannot measure {sock.name} against "
+                         f"{host.name} — {label}")
+    d = ((host.matrix_world @ loc) - sock.location).length
+    if d > max_gap:
+        raise SystemExit(
+            f"BUILD FAILED: {sock.name} is {d * 1000:.1f} mm from {host.name}'s "
+            f"surface — {label}. A hand sent here closes on air, which is the "
+            f"LEGACY_GRIPS fault this socket exists to replace "
+            f"(measured: rake 810, hose 970, divot 720 mm)")
+    print(f"  socket assertion passed: {sock.name} is {d * 1000:.1f} mm from "
+          f"{host.name} ({label})")
+    return d
+
+
 def assert_boxes_overlap(a, b, label, min_overlap=0.0020):
     """Two parts must share real volume, measured on WORLD BOUNDING BOXES.
 

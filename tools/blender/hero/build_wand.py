@@ -9,7 +9,7 @@ breaks exactly that join and nothing else.
 UNITS ARE YARDS.
 
     blender --factory-startup -b --python tools/blender/hero/build_wand.py -- \
-        [cycles] [break=nozzle|trigger|collar|fitting|qc]
+        [cycles] [break=nozzle|trigger|collar|fitting|qc|socket]
 """
 
 import math
@@ -214,6 +214,17 @@ def build(broken=""):
                bevel=0.0020, segments=1),
     ], "SafetyCatch")
 
+    # ---- THE SOCKETS. Authored into the mesh, not looked up in a table.
+    # Primary: where the trigger hand closes, on the grip just under the body.
+    # Support: where the other hand steadies the lance.
+    # 0.80 is not an arbitrary break: it is the measured distance the rake's
+    # hands currently sit from the rake when gripsFor() falls through to
+    # LEGACY_GRIPS. The control reproduces the actual reported fault.
+    stray = Vector((0.80, 0, 0)) if broken == "socket" else Vector((0, 0, 0))
+    p["grip_socket"] = H.socket("SOCKET_GripPrimary",
+                                GRIP_ROOT + axis * 0.042 + stray)
+    p["lance_socket"] = H.socket("SOCKET_GripSupport", Vector((0, 0.2600, 0)))
+
     # ---- hose fitting in the butt of the grip. Short and HEXAGONAL: the long
     # stepped version read as a second barrel firing out of the handle.
     # The flange is WIDER than the grip, so none of its vertices land inside and
@@ -287,6 +298,11 @@ def main():
     HS.assert_no_overlap(p["trigger"], p["guard"], "the trigger must swing inside its guard",
                          min_gap=0.0008)
 
+    HS.assert_socket_at(p["grip"], p["grip_socket"],
+                        "the trigger hand closes on the grip")
+    HS.assert_socket_at(p["lance"], p["lance_socket"],
+                        "the support hand steadies the lance")
+
     subject = [p[k] for k in ORDER]
     print(f"TRIS {H.triangles(subject)} ({len(subject)} objects, "
           f"{len(p['materials'])} materials) — the hand is 5,179")
@@ -319,9 +335,11 @@ def main():
                          os.path.join(OUT_RENDER, f"wand{suffix}-silhouette.png"), res=(900, 900))
 
     if not broken and engine == "CYCLES":
-        H.bake_gltf_axis(subject)
-        H.export_glb(subject, OUT_GLB)
+        sockets = [p["grip_socket"], p["lance_socket"]]
+        H.bake_gltf_axis(subject + sockets)
+        H.export_glb(subject + sockets, OUT_GLB)
         print(f"FINAL TRIS {H.triangles(subject)}")
+        H.verify_sockets(OUT_GLB, ["SOCKET_GripPrimary", "SOCKET_GripSupport"])
 
 
 main()

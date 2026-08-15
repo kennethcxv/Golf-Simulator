@@ -395,6 +395,15 @@ def bake_gltf_axis(objects):
         (x, y, z)_blender  ->  (x, z, -y)_gltf
     """
     for ob in objects:
+        if ob.type == "EMPTY":
+            # A SOCKET has no vertices to bake the swap into, so its LOCATION
+            # takes it instead. Skipping non-meshes here (which this function
+            # used to do) leaves every socket in Blender space while the mesh
+            # around it moves -- the hand would close on empty air, which is
+            # the exact fault this part exists to kill.
+            x, y, z = ob.location
+            ob.location = Vector((x, z, -y))
+            continue
         if ob.type != "MESH":
             continue
         for v in ob.data.vertices:
@@ -419,6 +428,53 @@ def export_glb(objects, path):
     size = os.path.getsize(path)
     print(f"  exported {os.path.basename(path)}  ({size} bytes)")
     return path
+
+
+def socket(name, location):
+    """A named EMPTY at the exact point a hand closes.
+
+    gripsFor() resolves these out of the loaded GLB every frame and returns
+    null for anything it cannot find, at which point the tool falls back to
+    LEGACY_GRIPS -- static numbers never reconciled with the manifest, which is
+    why the rake's hands sit 0.81 yd from the rake. Authoring the socket into
+    the mesh is what makes the fallback path unreachable.
+    """
+    ob = bpy.data.objects.new(name, None)
+    ob.empty_display_type = "PLAIN_AXES"
+    ob.empty_display_size = 0.02
+    ob.location = Vector(location)
+    bpy.context.collection.objects.link(ob)
+    return ob
+
+
+def verify_sockets(path, names):
+    """Load the exported GLB BACK and find the sockets by name.
+
+    Not a check that the empty exists in the scene -- a check that it survived
+    the exporter, which is the only question that matters. Blender's glTF
+    exporter drops objects that are not selected, and an empty with no children
+    is exactly the kind of thing an exporter quietly discards.
+    """
+    before = {o.name for o in bpy.data.objects}
+    bpy.ops.import_scene.gltf(filepath=path)
+    imported = [o for o in bpy.data.objects if o.name not in before]
+    found = {}
+    for want in names:
+        hit = next((o for o in imported if o.name == want
+                    or o.name.startswith(want + ".")), None)
+        if hit is None:
+            raise SystemExit(
+                f"BUILD FAILED: {os.path.basename(path)} has no node named "
+                f"{want}. The tool will fall back to LEGACY_GRIPS and the hands "
+                f"will sit where the table says, not where the grip is. "
+                f"Nodes present: {sorted(o.name for o in imported)[:14]}")
+        found[want] = hit.matrix_world.translation.copy()
+    for k, v in found.items():
+        print(f"  socket verified in the exported GLB: {k} at "
+              f"({v.x:.4f}, {v.y:.4f}, {v.z:.4f})")
+    for o in imported:
+        bpy.data.objects.remove(o, do_unlink=True)
+    return found
 
 
 def argv_after_dashes():
