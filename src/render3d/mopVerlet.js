@@ -305,7 +305,7 @@ export const SHIPPED_MOP_YARN = Object.freeze({
   // and that is what it photographed as. Widening to 0.336 across and cutting
   // the drop to 0.20 puts the ratio at 1.7:1, which is the reference's shape.
   radius: 0.168,
-  length: 0.132,
+  length: 0.108,
   // "The solver can keep four simulation nodes; the GEOMETRY must not show
   // them." With 4 the outward flare -- which scales by n/S -- puts a visible
   // corner at every node, and at the shorter 0.20 drop those corners photograph
@@ -367,7 +367,7 @@ export const SHIPPED_MOP_YARN = Object.freeze({
   // every tip of a STRAIGHT strand to the rim is what makes a starburst. The
   // reference's disc is strands HANGING and gathering, with gravity winning over
   // the outward push, not strands fanned to their maximum radius.
-  splay: 0.78,
+  splay: 0.95,
 });
 
 export function createVerletMopStrands({

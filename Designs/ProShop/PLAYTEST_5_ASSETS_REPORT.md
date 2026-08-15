@@ -956,3 +956,53 @@ mop four times tonight.
 he asked for, and for the first time every one of the three can be judged from a
 photograph taken at a lit, framed, tool-confirmed camera rather than from a
 description or a number.
+
+---
+
+# PLAYTEST 5 ROUND 2 — THE MOP BISECTION, FINISHED
+
+Five points, one boot, one room, one light, one camera, one tool — only the two
+numbers moved, rebuilt in place through `walk.rebuildYarn`, which exists for
+exactly this. Every shot re-asserted the tool first and every shot confirmed it:
+**75/92 drawable, `tool: mop`, on all five.** Run exit 0, output read, no page
+errors. Frames in `qa/electron/mop-bisect/`.
+
+| point | splay | length | hem width | drop | **width : depth** |
+|---|---|---|---|---|---|
+| a | 0.78 | 0.132 | 0.2390 | 0.1479 | **1.62** |
+| b | 0.95 | 0.132 | 0.2396 | 0.1476 | **1.62** |
+| c | **0.95** | **0.108** | 0.2300 | 0.1208 | **1.90** |
+| d | 1.10 | 0.108 | 0.2287 | 0.1205 | **1.90** |
+| e | 1.10 | 0.088 | 0.2194 | 0.0982 | **2.24** |
+
+## The finding that matters more than the winner
+
+**Splay is nearly inert.** a→b moves it from 0.78 to 0.95 and the ratio does not
+budge (1.62 → 1.62). c→d moves it 0.95 → 1.10: also nothing (1.90 → 1.90). Only
+LENGTH moves the shape. The strands are already reaching their constraint, so
+pushing them outward harder does not widen the hem — it just presses on a limit
+they have hit.
+
+Nine passes tuned splay among other things. In this range it does almost nothing,
+and the one lever that does was never the one being turned.
+
+## Which is closest — by looking
+
+**Point c** (`mop-bisect-c-splay0.95-len0.108.png`). It has the width without
+going thin: at e the head starts reading as a narrow ring rather than a pad with
+body, and the reference's microfibre has visible depth. c is also nearest the
+owner's own description — 1.90 against "roughly twice as wide as it is deep".
+
+**Shipped: `splay 0.95, length 0.108`.**
+
+## What is still wrong, and it is not the ratio
+
+In **every** one of the five frames the head reads as a **RING**: the middle is
+open and you can see through it at the angle the tool is actually held. That is
+the Goal 26 5.1 complaint — "it reads as a ring not a disc" — which I believed the
+microfibre pad had closed in Playtest 4. At this angle it has not.
+
+So the width-to-depth work is done and the remaining fault is a different one:
+**strand coverage across the middle of the head, not the proportions of its
+outline.** That is the next thing to attack, and it is not another splay or length
+value.
