@@ -773,3 +773,85 @@ re-read the authoring constant could not have noticed.
 Every leaf is asserted seated in its block (5.23–6.39 mm embedded), the turning
 leaf is asserted still bound at the spine (0.00 mm — it is a hinge, not a gap),
 and the ribbon is asserted lying on the page it marks (0.19 mm).
+
+---
+
+# REVISION PASS — all six, in the order written
+
+Renders in `Designs/ProShop/Images/Goal_27/{register_rev,money_rev,basket_rev,wand_rev,bag_rev,ledger_closed}/`.
+
+| asset | before | after | materials |
+|---|---|---|---|
+| Cash register | 728 tris | **3,324** | 4 → 4 |
+| Money (24 designs) | 1,504 | **1,504** | 4 → 4 |
+| Customer basket | 2,174 | **3,454** | 3 → 3 |
+| Pressure wand | 788 | **1,208** | 3 → 3 |
+| Checkout bag | 1,740 | **1,828** | 2 → 2 |
+| Ledger, closed | *never built* | **1,560** | 3 |
+
+**No asset gained a material.** Every new part boundary reuses a material that
+was already on the object.
+
+## 1. The register
+
+Notes are on top now and coins beneath: five channels run the full length of
+the floor and the note platform rests on their walls over the rear 52 %, so the
+coins genuinely are under the notes and the front of every channel stays open.
+
+| level | measured off the geometry |
+|---|---|
+| note bay | 0.1966 deep × 0.0930 wide × 0.0220 walls |
+| a note is | 0.1706 × 0.0725 — flat, 26 mm to spare |
+| clearance above the platform | 0.0490 to the rim (0.0270 above the bay walls) |
+| coin channel | 0.0733 wide × 0.0420 deep, open 0.1814 in front |
+| a quarter is | 0.0265 |
+
+The monitor is built to the in-game kit spec (`build_checkout_kit.py`): a
+0.352 × 0.2225 16:10 glass opening, 0.011 bezel, 0.020 chin, 0.030 deep, tilted
+−7°, with the live 0.34 × 0.2125 canvas as its own quad in front of the glass.
+It was 0.306 × 0.196 at −16°.
+
+**The box under the monitor is the fixed housing and always was.** The fault
+was that it *read* as a drawer. The shell is now a lower carcass and an upper
+deck split by a recessed band, so the moving part is the only part that looks
+like it moves.
+
+## 2. The money
+
+The interlocking circles are gone from every card, and the generator now
+**refuses to write an atlas** that contains a scheme name or any two circles
+that overlap without being concentric. Watched it fire by restoring the old
+pair: *"two circles at (432.64,77.52) r27.45 and (463.36,77.52) r27.45 overlap
+without being concentric"*.
+
+There are no issuer names at all — an invented glyph and a category word — which
+is the only way to be certain a name is not somebody's bank.
+
+## 3–6
+
+The basket's handles root in the rim through four pivot bosses; the ribs went
+from 22 deep to 12 shallow on a denser section, because the corduroy was
+aliasing (2.4 points per rib) as much as design. The wand's grip seats in a
+moulded socket and gained a safety catch, quick-connect collar, finger ridges
+and a 30° swivel inlet. The bag has been used rather than extruded, and its
+cavity was re-measured **after** the deformation:
+
+    floor 0.3249 × 0.1860 · opening 0.3323 × 0.1931 · wall height 0.4133
+    at game scale: 0.4387 × 0.2512 · 0.4486 × 0.2607 · 0.5580
+
+The ledger's closed state had **never been built** — `build()` took an `opened`
+parameter that nothing in its body ever read.
+
+## The instrument lesson this pass keeps repeating
+
+Five separate parts this session were **wider than the thing they attach to**,
+so not one of their vertices landed inside it and a vertex-sampling assertion
+called them detached — correctly. The register's insert flange, the wand's
+quick-connect collar, the note platform over a 5.5 mm divider, the basket's
+handle end, the wand's hose fitting. The fix is never to loosen the tolerance:
+either model the shank the real part has, test the join in the other direction,
+or use `assert_boxes_overlap`, which exists for exactly this shape.
+
+And a thin box has **no vertices except its end corners**, so any assertion that
+samples vertices can only ever sample its ends. That is why burying a divider's
+ends 3 mm deeper moved its rooting number by nothing at all.
