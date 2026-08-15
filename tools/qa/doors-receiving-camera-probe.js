@@ -12,7 +12,7 @@ async (page) => {
   await page.waitForFunction(() => window.__fw?.scene3d?.clubhouse?.()?.architecturalDoors?.diagnostics?.().ready, null, { timeout: 120000 });
   await page.addStyleTag({ content: '.toast-wrap, .notification-center, .shop-lockhint { display: none !important; }' });
   await page.evaluate(async () => {
-    const finishes = await import('/src/sim/constructionFinishes.js');
+    const finishes = await import(new URL('src/sim/constructionFinishes.js', document.baseURI).href);
     const state = window.__fw.state;
     state.cash = Math.max(Number(state.cash) || 0, 10_000_000);
     const construction = finishes.ensureConstructionFinishes(state);

@@ -41,7 +41,7 @@ export const WASHERS = [
   { id: 'greenline', name: 'Greenline 1600', power: 0.95, radius: 0.40, cost: 260, level: 0,
     blurb: 'An honest domestic machine. Twice the bite of the rental.' },
   { id: 'ironwood', name: 'Ironwood Pro 2400', power: 1.5, radius: 0.55, cost: 820, level: 2,
-    blurb: 'Contractor kit. Wide fan, real pressure — walls fall off it.' },
+    blurb: 'Contractor kit. Wide fan, real pressure - walls fall off it.' },
 ];
 
 export const surfaceById = (id) => WASH_SURFACES.find((s) => s.id === id);

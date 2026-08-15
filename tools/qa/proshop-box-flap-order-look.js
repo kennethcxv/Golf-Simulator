@@ -38,7 +38,7 @@
   await page.waitForTimeout(600);
   await page.evaluate(async (seed) => {
     localStorage.clear();
-    const E = await import('/src/sim/empire.js');
+    const E = await import(new URL('src/sim/empire.js', document.baseURI).href);
     localStorage.setItem('golfempire:autosave', JSON.stringify(E.empireSnapshot(E.newStarterEmpire('relaxed', seed))));
   }, SEED);
   await page.reload({ waitUntil: 'domcontentloaded' });
@@ -53,7 +53,7 @@
   // versus "revealed from one side" legible at all.
   const setup = await page.evaluate(async () => {
     const app = window.__fw;
-    const D = await import('/src/sim/deliveries.js');
+    const D = await import(new URL('src/sim/deliveries.js', document.baseURI).href);
     const ch = app.scene3d.clubhouse();
     const box = D.boxesOf(app.state).find((b) => b.orderId == null && b.surfaceId === 'floor:clubhouse');
     if (!box) return { ok: false, reason: 'no floor starter carton' };
@@ -73,7 +73,7 @@
   // the scene graph rather than read back off the numbers that drove it.
   const flapPose = () => page.evaluate(async (boxId) => {
     const app = window.__fw;
-    const D = await import('/src/sim/deliveries.js');
+    const D = await import(new URL('src/sim/deliveries.js', document.baseURI).href);
     const box = D.boxesOf(app.state).find((b) => b.id === boxId);
     const NAMES = ['BOX_FLAP_FRONT', 'BOX_FLAP_BACK', 'BOX_FLAP_LEFT', 'BOX_FLAP_RIGHT'];
     const FLAP_NAMES = NAMES;
@@ -108,7 +108,7 @@
     // carton's own subtree only. If it lands on a flap the lid is still shut; if it lands on
     // a wall, the base or a product, the player can see in. This is the claim the report
     // makes, and it is the one a "two facing panels lifted" check cannot answer.
-    const THREE = await import('/vendor/three.module.js');
+    const THREE = await import(new URL('vendor/three.module.js', document.baseURI).href);
     // ANCHORED TO THIS CARTON'S OWN XZ, not to a scene-graph ancestor. The first version
     // walked up to the nearest node containing a BOX_WALL_FRONT, which found a shared parent
     // holding several cartons: sealed, the ray hit another carton's FLAT_PANEL_RIGHT and

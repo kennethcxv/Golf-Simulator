@@ -25,7 +25,7 @@ const clubhouseSource = fs.readFileSync(new URL('../src/render3d/clubhouse.js', 
 
 test('a carton demands no tool, and no prop asks for the box cutter at all', () => {
   assert.doesNotMatch(clubhouseSource, /'boxcutter'/,
-    'nothing in the clubhouse may request the cutter — that request was the only '
+    'nothing in the clubhouse may request the cutter - that request was the only '
     + 'way a player could ever hold one, so its absence is what retires the item');
   assert.doesNotMatch(clubhouseSource, /toolPathAtProgress\(b\.tape\)/,
     'the projected seam path is the drag gesture and must be gone with it');

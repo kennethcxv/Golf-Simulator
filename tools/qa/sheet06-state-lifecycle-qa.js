@@ -103,9 +103,8 @@ async (page) => {
 
   async function continueIntoGame(label) {
     phase = `${label}:menu`;
-    const button = page.getByText('Continue', { exact: true });
-    await button.waitFor({ timeout: 20000 });
-    await button.click();
+    const { clickThroughMenu } = await import(`file:///${process.cwd().replace(/\\/g, '/')}/tools/qa/lib/qa-boot.mjs`);
+    await clickThroughMenu(page);
     phase = `${label}:game-load`;
     await page.waitForFunction(() => window.__fw?.scene3d?.clubhouse?.(), null, {
       timeout: waitTimeoutMs,
@@ -334,7 +333,7 @@ async (page) => {
     return page.evaluate(async ({ expected, keepDoor }) => {
       const app = window.__fw;
       const clubhouse = app.scene3d.clubhouse();
-      const restoration = await import('/src/sim/clubhouseRestoration.js');
+      const restoration = await import(new URL('src/sim/clubhouseRestoration.js', document.baseURI).href);
       const production = typeof clubhouse.sheet06Production === 'function'
         ? clubhouse.sheet06Production()
         : clubhouse.sheet06Production;

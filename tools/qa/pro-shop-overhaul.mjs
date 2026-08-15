@@ -235,8 +235,8 @@ async function captureSet(folder) {
 
 async function setStock(mode, tier) {
   return page.evaluate(async ({ mode: stockMode, tier: shopTier, renovated }) => {
-    const { capacityOf } = await import('/src/data/fixtureSlots.js');
-    const { skuById, RETAIL_CATS } = await import('/src/data/shopItems.js');
+    const { capacityOf } = await import(new URL('src/data/fixtureSlots.js', document.baseURI).href);
+    const { skuById, RETAIL_CATS } = await import(new URL('src/data/shopItems.js', document.baseURI).href);
     const app = window.__fw;
     app.state.shop.unlockedTier = shopTier;
     if (renovated && stockMode === 'full' && app.state.shop.reno) {

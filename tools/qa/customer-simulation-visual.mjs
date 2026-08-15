@@ -101,20 +101,8 @@ page.on('requestfailed', (request) => {
 
 await page.goto(url, { waitUntil: 'domcontentloaded' });
 await page.waitForTimeout(900);
-const continueButton = page.getByText('Continue', { exact: true });
-if (await continueButton.count() && await continueButton.isEnabled()) {
-  await continueButton.click();
-} else {
-  const polishedNewGame = page.locator('.menu-screen .menu-action').filter({ hasText: /^New game/ });
-  if (await polishedNewGame.count()) {
-    await polishedNewGame.click();
-    await page.getByRole('dialog', { name: 'New game' }).waitFor();
-    await page.locator('.difficulty-card').filter({ hasText: /^Relaxed/ }).click();
-  } else {
-    await page.getByRole('button', { name: /New Empire.*Relaxed/ }).click();
-  }
-  await page.getByRole('button', { name: 'Buy', exact: true }).first().click();
-}
+const { clickThroughMenu } = await import(`file:///${process.cwd().replace(/\\/g, '/')}/tools/qa/lib/qa-boot.mjs`);
+await clickThroughMenu(page);
 await page.waitForFunction(() => (
   window.__fw
   && window.__fw.scene3d
@@ -141,7 +129,7 @@ if (await resumeButton.count() && await resumeButton.isVisible()) await resumeBu
 
 const fixture = await page.evaluate(async () => {
   const app = window.__fw;
-  const customerDomain = await import('/src/sim/customerSimulation.js');
+  const customerDomain = await import(new URL('src/sim/customerSimulation.js', document.baseURI).href);
   const {
     CUSTOMER_INTENT,
     CUSTOMER_STATE,

@@ -12,17 +12,39 @@
     "start": "electron .",
     "dev": "electron . --dev",
     "serve": "node tools/serve.cjs",
-    "test": "node --test"
+    "test": "node --test",
+    "lint": "eslint src",
+    "golden:capture": "node tools/qa/run-electron.cjs tools/qa/golden-capture.js --clubhouse=pine-hills-v2",
+    "golden:diff": "node tools/golden-diff.mjs",
+    "golden": "npm run golden:capture && npm run golden:diff",
+    "golden:accept": "node tools/golden-diff.mjs --accept",
+    "golden:control": "node tools/golden-control.mjs",
+    "gate": "node tools/lint-ratchet.mjs && node tools/build-vendor-models.mjs --check && npm test && npm run golden && npm run golden:control",
+    "gen:broom-metrics": "node tools/gen/extract-broom-metrics.mjs",
+    "save:check": "node tools/inspect-save.mjs"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@gltf-transform/cli": "^4.4.2",
     "@gltf-transform/core": "^4.4.2",
     "@gltf-transform/extensions": "^4.4.2",
     "electron": "^39.8.10",
+    "esbuild": "^0.28.2",
+    "eslint": "^10.8.1",
+    "globals": "^17.9.0",
+    "gltf-validator": "^2.0.0-dev.3.10",
     "ktx2-encoder": "^0.6.0",
+    "pixelmatch": "^7.2.0",
     "playwright": "^1.61.1",
-    "sharp": "^0.35.3"
+    "pngjs": "^7.0.0",
+    "postprocessing": "^6.39.4",
+    "sharp": "^0.35.3",
+    "three-mesh-bvh": "^0.9.14",
+    "troika-three-text": "^0.52.5"
   },
   "dependencies": {
+    "@recast-navigation/core": "^0.43.1",
+    "@recast-navigation/generators": "^0.43.1",
     "three": "^0.185.1"
   },
   "allowScripts": {

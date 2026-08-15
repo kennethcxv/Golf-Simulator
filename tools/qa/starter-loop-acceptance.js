@@ -34,7 +34,7 @@ async (page) => {
   const step = (id, detail = {}) => steps.push({ id, ...detail });
 
   const view = () => page.evaluate(async () => {
-    const { campaignView } = await import('/src/sim/campaign.js');
+    const { campaignView } = await import(new URL('src/sim/campaign.js', document.baseURI).href);
     const v = campaignView(window.__fw.state);
     return {
       phase: v.phase,
@@ -293,7 +293,7 @@ async (page) => {
       const engaged = (await useToolAt('dustpan', target.x, target.z, 950))
         || (await useToolAt('vacuum', target.x, target.z, 750));
       const panRoom = await page.evaluate(async () => {
-        const { panSpace } = await import('/src/sim/cleaningToolState.js');
+        const { panSpace } = await import(new URL('src/sim/cleaningToolState.js', document.baseURI).href);
         return panSpace(window.__fw.state);
       });
       if (panRoom <= 0.15) await emptyLoadsAtDisposal(3);
@@ -305,8 +305,8 @@ async (page) => {
         // debris is destroyed or injected; everything downstream still runs
         // through normal controls.
         const collected = await page.evaluate(async (entry) => {
-          const { collectAt } = await import('/src/sim/cleaningDebris.js');
-          const { addToPan, panSpace } = await import('/src/sim/cleaningToolState.js');
+          const { collectAt } = await import(new URL('src/sim/cleaningDebris.js', document.baseURI).href);
+          const { addToPan, panSpace } = await import(new URL('src/sim/cleaningToolState.js', document.baseURI).href);
           // Collect no more than the physical pan can hold, and credit the
           // structured authority (reno.pan is a mirror rewritten every sync).
           const room = panSpace(window.__fw.state);
@@ -331,7 +331,7 @@ async (page) => {
     assert(debrisDone.pan <= 0.001 && debrisDone.bag <= 0.001,
       `Pan or bag still loaded after disposal: ${JSON.stringify(debrisDone)}.`);
     await page.waitForFunction(async () => {
-      const { restorationSnapshot } = await import('/src/sim/clubhouseRestoration.js');
+      const { restorationSnapshot } = await import(new URL('src/sim/clubhouseRestoration.js', document.baseURI).href);
       return !!restorationSnapshot(window.__fw.state)?.cleanupMilestones['generic-debris'];
     }, null, { timeout: 5000 });
     step('loose-debris-complete', { ...debrisDone, collectFallbacks });
@@ -382,7 +382,7 @@ async (page) => {
     // to per-target progress with authored tool schedules); only four are
     // direct E interactions. Drive each with its own production route.
     const detailProgress = (id) => page.evaluate(async (targetId) => {
-      const { restorationSnapshot } = await import('/src/sim/clubhouseRestoration.js');
+      const { restorationSnapshot } = await import(new URL('src/sim/clubhouseRestoration.js', document.baseURI).href);
       return restorationSnapshot(window.__fw.state).targetProgress[targetId] || 0;
     }, id);
     const dropCarry = () => page.evaluate(() => {
@@ -393,7 +393,7 @@ async (page) => {
       window.__fw.state.shop.carry = null;
     });
     const poses = await page.evaluate(async () => {
-      const { PINE_HILLS_CLEANUP_POSES } = await import('/src/render3d/clubhouse/pineHillsInterior.js');
+      const { PINE_HILLS_CLEANUP_POSES } = await import(new URL('src/render3d/clubhouse/pineHillsInterior.js', document.baseURI).href);
       return Object.fromEntries(Object.entries(PINE_HILLS_CLEANUP_POSES)
         .map(([id, pose]) => [id, { x: pose.x, z: pose.z }]));
     });
@@ -497,7 +497,7 @@ async (page) => {
         if (!label || !/—\s*\[E\]\s*$/.test(label)) continue;
         await page.keyboard.press('e');
         const done = await page.waitForFunction(async (targetId) => {
-          const { restorationSnapshot } = await import('/src/sim/clubhouseRestoration.js');
+          const { restorationSnapshot } = await import(new URL('src/sim/clubhouseRestoration.js', document.baseURI).href);
           return restorationSnapshot(window.__fw.state).targetProgress[targetId] >= 1;
         }, id, { timeout: 1800 }).then(() => true).catch(() => false);
         if (done) { interacted = true; break; }
@@ -517,7 +517,7 @@ async (page) => {
       { targetId: 'ceiling:panel-07', x: -0.2, z: 2.65 },
     ];
     const lightDone = (id) => page.evaluate(async (targetId) => {
-      const { restorationSnapshot } = await import('/src/sim/clubhouseRestoration.js');
+      const { restorationSnapshot } = await import(new URL('src/sim/clubhouseRestoration.js', document.baseURI).href);
       return restorationSnapshot(window.__fw.state).targetProgress[targetId] >= 1;
     }, id);
     await page.evaluate(() => {
@@ -543,7 +543,7 @@ async (page) => {
         if (!/PANEL/i.test(label)) continue;
         await page.keyboard.press('e');
         repaired = await page.waitForFunction(async (targetId) => {
-          const { restorationSnapshot } = await import('/src/sim/clubhouseRestoration.js');
+          const { restorationSnapshot } = await import(new URL('src/sim/clubhouseRestoration.js', document.baseURI).href);
           return restorationSnapshot(window.__fw.state).targetProgress[targetId] >= 1;
         }, panel.targetId, { timeout: 3000 }).then(() => true).catch(() => false);
         if (repaired) break;
@@ -565,9 +565,9 @@ async (page) => {
     currentStep = 'fixture checkpoint: finish cleaning thresholds and repairs';
     const checkpoint = await page.evaluate(async () => {
       const state = window.__fw.state;
-      const { cleanGrimeAt } = await import('/src/sim/shop.js');
-      const R = await import('/src/sim/clubhouseRestoration.js');
-      const C = await import('/src/sim/campaign.js');
+      const { cleanGrimeAt } = await import(new URL('src/sim/shop.js', document.baseURI).href);
+      const R = await import(new URL('src/sim/clubhouseRestoration.js', document.baseURI).href);
+      const C = await import(new URL('src/sim/campaign.js', document.baseURI).href);
       state.shop.reno.grime.fill(0);
       cleanGrimeAt(state, 0, 0, 0.001);
       state.shop.reno.windows = state.shop.reno.windows.map(() => 0);
@@ -584,7 +584,7 @@ async (page) => {
       for (const milestoneId of ['floor', 'windows', 'generic-debris']) {
         R.restorationAction(state, { type: 'complete-cleanup-milestone', milestoneId });
       }
-      const { addExpense } = await import('/src/sim/economy.js');
+      const { addExpense } = await import(new URL('src/sim/economy.js', document.baseURI).href);
       const kitLine = state.shop.inventory.repairkit1
         || (state.shop.inventory.repairkit1 = { shelf: 0, back: 0 });
       const kitsNeeded = C.CAMPAIGN_REPAIR_JOBS.length;
@@ -618,7 +618,7 @@ async (page) => {
     // ---- Step 10: stock every retail group ---------------------------------
     currentStep = 'starter-stock: stock every retail group';
     const stockState = () => page.evaluate(async () => {
-      const { restorationSnapshot } = await import('/src/sim/clubhouseRestoration.js');
+      const { restorationSnapshot } = await import(new URL('src/sim/clubhouseRestoration.js', document.baseURI).href);
       const snap = restorationSnapshot(window.__fw.state);
       return { restock: { ...snap.restockMilestones }, complete: snap.complete.restocking };
     });
@@ -629,7 +629,7 @@ async (page) => {
     const missingGroups = Object.entries(stockBefore.restock)
       .filter(([, done]) => !done).map(([groupId]) => groupId);
     await page.evaluate(async (groups) => {
-      const { restorationAction } = await import('/src/sim/clubhouseRestoration.js');
+      const { restorationAction } = await import(new URL('src/sim/clubhouseRestoration.js', document.baseURI).href);
       for (const groupId of groups) {
         restorationAction(window.__fw.state, { type: 'complete-restock-milestone', groupId });
       }
@@ -679,7 +679,7 @@ async (page) => {
     // loose-debris phase; make one more player-verb cleaning pass if the
     // trash terms demand it, then assert with the actual measured terms.
     const trashTerms = () => page.evaluate(async () => {
-      const { totalDebris } = await import('/src/sim/cleaningDebris.js');
+      const { totalDebris } = await import(new URL('src/sim/cleaningDebris.js', document.baseURI).href);
       const state = window.__fw.state;
       return {
         clutter: (state.shop.reno.clutter || []).filter((pile) => !pile.cleared).length,
@@ -700,8 +700,8 @@ async (page) => {
           || (await useToolAt('vacuum', target.x, target.z, 750));
         if (!engaged) {
           await page.evaluate(async (entry) => {
-            const { collectAt } = await import('/src/sim/cleaningDebris.js');
-            const { addToPan, panSpace } = await import('/src/sim/cleaningToolState.js');
+            const { collectAt } = await import(new URL('src/sim/cleaningDebris.js', document.baseURI).href);
+            const { addToPan, panSpace } = await import(new URL('src/sim/cleaningToolState.js', document.baseURI).href);
             const room = panSpace(window.__fw.state);
             if (room <= 0.01) return 0;
             const got = collectAt(window.__fw.state, entry.x, entry.z, 0.6, room);
@@ -710,7 +710,7 @@ async (page) => {
           }, target);
         }
         const panRoom = await page.evaluate(async () => {
-          const { panSpace } = await import('/src/sim/cleaningToolState.js');
+          const { panSpace } = await import(new URL('src/sim/cleaningToolState.js', document.baseURI).href);
           return panSpace(window.__fw.state);
         });
         if (panRoom <= 0.15) await emptyLoadsAtDisposal(4);
@@ -720,7 +720,7 @@ async (page) => {
       step('pre-open-reclean-done', trash);
     }
     const readiness = await page.evaluate(async () => {
-      const { openingReadiness } = await import('/src/sim/campaign.js');
+      const { openingReadiness } = await import(new URL('src/sim/campaign.js', document.baseURI).href);
       return openingReadiness(window.__fw.state).requirements
         .filter((entry) => !entry.ok).map((entry) => ({ id: entry.id, reason: entry.reason }));
     });
@@ -745,7 +745,7 @@ async (page) => {
     let businessOpen = await page.evaluate(() => window.__fw.state.campaign?.businessOpen === true);
     if (!businessOpen) {
       const opened = await page.evaluate(async () => {
-        const { openClubhouse } = await import('/src/sim/campaign.js');
+        const { openClubhouse } = await import(new URL('src/sim/campaign.js', document.baseURI).href);
         return openClubhouse(window.__fw.state);
       });
       businessOpen = !!opened?.ok;
@@ -771,7 +771,7 @@ async (page) => {
       return !!tx && tx.items.length === 3 && (!customer?.name || customer.name === name);
     }, saleName, { timeout: 60000 });
     await page.evaluate(async () => {
-      const { REGISTER } = await import('/src/data/shopLayout.js');
+      const { REGISTER } = await import(new URL('src/data/shopLayout.js', document.baseURI).href);
       const app = window.__fw;
       const origin = app.scene3d.clubhouse().interior.position;
       const walk = app.scene3d.walk;
@@ -830,7 +830,7 @@ async (page) => {
     }, null, { timeout: 20000 });
     const expectedCents = await page.evaluate(async () => {
       const tx = window.__fw.scene3d.clubhouse().register.getTx();
-      const { totalOf } = await import('/src/sim/register.js');
+      const { totalOf } = await import(new URL('src/sim/register.js', document.baseURI).href);
       return Math.round(totalOf(tx) * 100);
     });
     assert(Number.isFinite(expectedCents) && expectedCents > 0,
@@ -868,8 +868,8 @@ async (page) => {
     }));
     assert(beforeReload.reviews >= 1, 'The served customer left no review.');
     await page.evaluate(async () => {
-      const { empireSnapshot } = await import('/src/sim/empire.js');
-      const Storage = await import('/src/core/storage.js');
+      const { empireSnapshot } = await import(new URL('src/sim/empire.js', document.baseURI).href);
+      const Storage = await import(new URL('src/core/storage.js', document.baseURI).href);
       await Storage.saveData('autosave', empireSnapshot(window.__fw.empire));
       await Storage.saveData('autosave-meta', {
         savedAt: Date.now(),

@@ -34,20 +34,8 @@ page.on('pageerror', (error) => errors.push(`PAGEERROR: ${error.message}`));
 async function boot({ navigate = true } = {}) {
   if (navigate) await page.goto(url);
   await page.waitForTimeout(1_000);
-  const continueButton = page.getByText('Continue', { exact: true });
-  if (await continueButton.count() && await continueButton.isEnabled()) {
-    await continueButton.click();
-  } else {
-    const polishedNewGame = page.locator('.menu-screen .menu-action').filter({ hasText: /^New game/ });
-    if (await polishedNewGame.count()) {
-      await polishedNewGame.click();
-      await page.getByRole('dialog', { name: 'New game' }).waitFor();
-      await page.locator('.difficulty-card').filter({ hasText: /^Relaxed/ }).click();
-    } else {
-      await page.getByRole('button', { name: /New Empire.*Relaxed/ }).click();
-    }
-    await page.getByRole('button', { name: 'Buy', exact: true }).first().click();
-  }
+  const { clickThroughMenu } = await import(`file:///${process.cwd().replace(/\\/g, '/')}/tools/qa/lib/qa-boot.mjs`);
+  await clickThroughMenu(page);
   await page.waitForFunction(() => (
     window.__fw?.scene3d?.clubhouse && window.__fw.scene3d.clubhouse()
   ), null, { timeout: 90_000 });
@@ -71,8 +59,8 @@ const shot = async (name) => {
 async function resetCustomerFloor(minuteOfDay = 600) {
   await page.evaluate(async (minute) => {
     const app = window.__fw;
-    const domain = await import('/src/sim/customerSimulation.js');
-    const reservations = await import('/src/sim/reservations.js');
+    const domain = await import(new URL('src/sim/customerSimulation.js', document.baseURI).href);
+    const reservations = await import(new URL('src/sim/reservations.js', document.baseURI).href);
     const sim = domain.customerSimulationOf(app.state);
     for (const customer of [...sim.active]) {
       domain.despawnCustomer(app.state, customer, { reason: 'functional QA reset' });
@@ -107,8 +95,8 @@ async function runFrontDeskCase({ id, kind, nowMinute, slotMinute = null }) {
   await resetCustomerFloor(nowMinute);
   let setup = await page.evaluate(async (scenario) => {
     const app = window.__fw;
-    const domain = await import('/src/sim/customerSimulation.js');
-    const reservations = await import('/src/sim/reservations.js');
+    const domain = await import(new URL('src/sim/customerSimulation.js', document.baseURI).href);
+    const reservations = await import(new URL('src/sim/reservations.js', document.baseURI).href);
     const day = Math.floor(app.state.clock.minutes / 1440);
     const ch = app.scene3d.clubhouse();
     const targetMinute = app.state.clock.minutes;
@@ -162,7 +150,7 @@ async function runFrontDeskCase({ id, kind, nowMinute, slotMinute = null }) {
     const createButton = page.getByRole('button', { name: 'Create booking', exact: true });
     if (!(await createButton.isEnabled())) {
       const diagnostics = await page.evaluate(async () => {
-        const operations = await import('/src/sim/reservations.js');
+        const operations = await import(new URL('src/sim/reservations.js', document.baseURI).href);
         const state = window.__fw.state;
         const dayAbs = Math.floor(state.clock.minutes / 1440);
         return {
@@ -224,8 +212,8 @@ async function runCancellationCase() {
   await resetCustomerFloor(nowMinute);
   const setup = await page.evaluate(async ({ id: caseId, now, slot }) => {
     const app = window.__fw;
-    const domain = await import('/src/sim/customerSimulation.js');
-    const reservations = await import('/src/sim/reservations.js');
+    const domain = await import(new URL('src/sim/customerSimulation.js', document.baseURI).href);
+    const reservations = await import(new URL('src/sim/reservations.js', document.baseURI).href);
     const day = Math.floor(app.state.clock.minutes / 1440);
     app.state.clock.minutes = day * 1440 + 540;
     const booked = reservations.bookSlot(app.state, day, slot, `QA ${caseId}`);
@@ -290,7 +278,7 @@ await resetCustomerFloor(660);
 const abandonmentSetup = await page.evaluate(async () => {
   const app = window.__fw;
   const ch = app.scene3d.clubhouse();
-  const domain = await import('/src/sim/customerSimulation.js');
+  const domain = await import(new URL('src/sim/customerSimulation.js', document.baseURI).href);
   app.state.shop.inventory.balls1.shelf = 3;
   app.state.shop.inventory.glove1.shelf = 3;
   app.state.shop.held = [];
@@ -344,8 +332,8 @@ await resetCustomerFloor(840);
 const saveSetup = await page.evaluate(async () => {
   const app = window.__fw;
   const ch = app.scene3d.clubhouse();
-  const domain = await import('/src/sim/customerSimulation.js');
-  const lifecycle = await import('/src/sim/inventoryLifecycle.js');
+  const domain = await import(new URL('src/sim/customerSimulation.js', document.baseURI).href);
+  const lifecycle = await import(new URL('src/sim/inventoryLifecycle.js', document.baseURI).href);
   lifecycle.ensureInventoryLifecycle(app.state);
   for (const id of ['balls3', 'glove1']) {
     const inv = app.state.shop.inventory[id];
@@ -377,7 +365,7 @@ await page.waitForFunction((eye) => {
   return Math.hypot(camera.position.x - eye.x, camera.position.z - eye.z) < 0.03;
 }, { x: 2.78 - 8, z: 5.52 + 228 }, { timeout: 15_000 });
 const pixels = await page.evaluate(async () => {
-  const THREE = await import('/vendor/three.module.js');
+  const THREE = await import(new URL('vendor/three.module.js', document.baseURI).href);
   const app = window.__fw;
   const ch = app.scene3d.clubhouse();
   const items = [];

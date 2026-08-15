@@ -9,6 +9,7 @@ import {
 } from '../src/sim/register.js';
 import { pickFromShelf, returnToShelf, heldUnits } from '../src/sim/checkout.js';
 import { capacityOf } from '../src/data/fixtureSlots.js';
+import { allocateCustomerIdentity } from '../src/sim/customerIdentity.js';
 import {
   INVENTORY_STAGE,
   moveInventory,
@@ -113,23 +114,53 @@ test('cash stays transaction-local, then commits with cent-exact total and origi
 test('object customer identities stay readable across ticket and ledger postings', () => {
   const state = newGame('relaxed', 111);
   state.shop.drawer = newDrawer();
+  const customer = allocateCustomerIdentity(state, {
+    sourceId: 'register-integrity-rhea',
+    legacy: { name: 'Rhea Osborne', customerId: 'customer-rhea' },
+  });
   const tx = cashTx(state, { uid: 'named-customer-unit' });
   finishPhysicalSale(tx);
 
-  const result = completeSale(state, tx, {
-    name: 'Rhea Osborne',
-    customerId: 'customer-rhea',
-  });
+  const result = completeSale(state, tx, customer);
   assert.equal(result.ok, true);
 
   const postings = state.ledger.entries.filter((entry) => entry.relatedId === tx.id);
   assert.equal(postings.length, 2, 'the sale retains revenue and non-cash COGS postings');
   assert.equal(postings.find((entry) => entry.category === 'shopSales')?.description,
-    'Register sale — Rhea Osborne');
+    'Register sale - Rhea Osborne');
   assert.equal(postings.find((entry) => entry.category === 'costOfGoods')?.description,
-    'Cost of goods — Rhea Osborne');
+    'Cost of goods - Rhea Osborne');
   assert.equal(state.shop.transactionHistory[0].customer, 'Rhea Osborne');
   assert.equal(state.shop.transactionHistory[0].customerId, 'customer-rhea');
+  assert.equal(state.shop.transactionHistory[0].transactionId, tx.id,
+    'the durable ticket retains the exact ledger/idempotency transaction identity');
+});
+
+test('an unresolved customer event is rejected before stock, drawer, or money moves', () => {
+  const state = newGame('relaxed', 112);
+  state.shop.drawer = newDrawer();
+  const tx = cashTx(state, { uid: 'unknown-customer-unit' });
+  finishPhysicalSale(tx);
+  const before = {
+    cash: state.cash,
+    drawer: JSON.stringify(state.shop.drawer),
+    held: JSON.stringify(heldUnits(state)),
+    history: state.shop.transactionHistory.length,
+    ledger: state.ledger.entries.length,
+  };
+
+  const result = completeSale(state, tx, {
+    name: 'Unresolved Customer',
+    customerId: 'customer-does-not-exist',
+  });
+  assert.equal(result.ok, false);
+  assert.match(result.diagnostic || result.reason, /unknown customer identity/i);
+  assert.notEqual(tx.banked, true);
+  assert.equal(state.cash, before.cash);
+  assert.equal(JSON.stringify(state.shop.drawer), before.drawer);
+  assert.equal(JSON.stringify(heldUnits(state)), before.held);
+  assert.equal(state.shop.transactionHistory.length, before.history);
+  assert.equal(state.ledger.entries.length, before.ledger);
 });
 
 test('void and save-like JSON reload cannot persist an in-progress drawer mutation', () => {
@@ -180,7 +211,7 @@ test('realistic over-change reduces cash and books a cash-over-short expense', (
   assert.equal(state.shop.salesLive.revenue, 10, 'sales analytics retain the ticket value');
 });
 
-test('short-changing the customer is impossible in every mode — the handover refuses', () => {
+test('short-changing the customer is impossible in every mode - the handover refuses', () => {
   const state = newGame('realistic', 104);
   state.shop.drawer = newDrawer();
   const item = { uid: 'cash-unit', skuId: 'balls3', name: 'Tour dozen', price: 10 };
@@ -232,7 +263,7 @@ test('a bad held UID rejects the whole sale before stock or money can partially 
   const beforeHeld = structuredClone(heldUnits(state));
   const result = completeSale(state, tx, 'Invalid basket');
   assert.equal(result.ok, false);
-  assert.match(result.reason, /does not match/i);
+  assert.match(result.diagnostic || result.reason, /does not match/i);
   assert.deepEqual(heldUnits(state), beforeHeld, 'the valid first UID was not partially consumed');
   assert.equal(state.cash, cashBefore);
   assert.equal((state.shop.salesLive || {}).units || 0, 0);

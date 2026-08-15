@@ -9,6 +9,7 @@
 // hands: a raycast to the floor, a snapped ghost, and a colour.
 
 import * as THREE from 'three';
+import { t } from '../../core/i18n.js';
 import { fixtureRect, FIXTURE_HALF } from '../../data/shopLayout.js';
 import { placeableSpec, placeableSpecBySkuId } from '../../data/placeableItems.js';
 import {
@@ -282,7 +283,7 @@ export function buildBuildMode(B, deps) {
   function beginStoredPlaceable() {
     const item = selectedPlaceable();
     if (!item) {
-      if (hooks.toast) hooks.toast('Property storage is empty.', 'warn');
+      if (hooks.toast) hooks.toast(t('build.storageEmpty'), 'warn');
       return true;
     }
     if (item.quantityStored < 1) {
@@ -303,7 +304,7 @@ export function buildBuildMode(B, deps) {
     sellConfirmation = null;
     makePlaceableGhost(item.skuId);
     ghost.visible = true;
-    if (hooks.toast) hooks.toast(`${item.displayName} - [E] place · [R] rotate · [RMB] cancel`);
+    if (hooks.toast) hooks.toast(t('build.holdingToPlace', { name: item.displayName }));
     return true;
   }
 
@@ -321,7 +322,7 @@ export function buildBuildMode(B, deps) {
     makePlaceableGhost(spec.skuId);
     ghost.visible = true;
     setDecorPlacementVisible(placement.id, false);
-    if (hooks.toast) hooks.toast(`${spec.displayName} - [E] set down · [R] rotate · [X] store · [RMB] cancel`);
+    if (hooks.toast) hooks.toast(t('build.holdingToSetDown', { name: spec.displayName }));
     return true;
   }
 
@@ -357,18 +358,18 @@ export function buildBuildMode(B, deps) {
     finishDecorCarry();
     rebuildDecor();
     if (hooks.sfx) hooks.sfx('thunk');
-    if (hooks.toast) hooks.toast(`${name} placed. [Z] undo`);
+    if (hooks.toast) hooks.toast(t('build.placed', { name }));
     return true;
   }
 
   function undoLast() {
     if (carrying || decorCarry) {
-      if (hooks.toast) hooks.toast('Set down or cancel the item in your hands first.', 'warn');
+      if (hooks.toast) hooks.toast(t('build.setDownFirst'), 'warn');
       return true;
     }
     const command = history.pop();
     if (!command) {
-      if (hooks.toast) hooks.toast('Nothing to undo.', 'warn');
+      if (hooks.toast) hooks.toast(t('build.nothingToUndo'), 'warn');
       return true;
     }
     let result = null;
@@ -382,7 +383,7 @@ export function buildBuildMode(B, deps) {
     }
     rebuildDecor();
     if (hooks.sfx) hooks.sfx('thunk');
-    if (hooks.toast) hooks.toast('Last property placement undone.');
+    if (hooks.toast) hooks.toast(t('build.undone'));
     return true;
   }
 
@@ -390,7 +391,7 @@ export function buildBuildMode(B, deps) {
     const item = selectedPlaceable();
     if (!inventoryOpen || !item) return false;
     if (item.quantityStored < 1) {
-      if (hooks.toast) hooks.toast('Only stored items can be sold.', 'warn');
+      if (hooks.toast) hooks.toast(t('build.onlyStoredSell'), 'warn');
       return true;
     }
     const now = performance.now();
@@ -468,7 +469,7 @@ export function buildBuildMode(B, deps) {
 
     enter() {
       active = true;
-      if (hooks.toast) hooks.toast('Build mode - [I] property inventory · look at placed items and [E] to move · [B] stop.');
+      if (hooks.toast) hooks.toast(t('build.modeHint'));
     },
 
     exit() {
@@ -533,7 +534,7 @@ export function buildBuildMode(B, deps) {
         setFixtureCollidersActive(id, true);
         setFixtureStockVisible(id, true);
         if (hooks.sfx) hooks.sfx('thunk');
-        if (hooks.toast) hooks.toast('Set down. The customers will find their way round it.');
+        if (hooks.toast) hooks.toast(t('build.setDownClear'));
         return true;
       }
       const decor = decorUnderAim();
@@ -560,7 +561,7 @@ export function buildBuildMode(B, deps) {
       if (anchor) anchor.visible = false;
       setFixtureCollidersActive(f.id, false);
       setFixtureStockVisible(f.id, false);
-      if (hooks.toast) hooks.toast(`${f.title || f.kind} — [E] set down · [R] turn · [X] into the back · [RMB] cancel`);
+      if (hooks.toast) hooks.toast(t('build.movingFixture', { name: f.title || f.kind }));
       return true;
     },
 
@@ -595,7 +596,7 @@ export function buildBuildMode(B, deps) {
         finishDecorCarry();
         rebuildDecor();
         if (hooks.sfx) hooks.sfx('thunk');
-        if (hooks.toast) hooks.toast('Returned to property storage. [Z] undo');
+        if (hooks.toast) hooks.toast(t('build.returnedToStorage'));
         return true;
       }
       if (!carrying) return false;
@@ -632,7 +633,7 @@ export function buildBuildMode(B, deps) {
       rebuildLayout();
       setFixtureCollidersActive(id, true);
       setFixtureStockVisible(id, true);
-      if (hooks.toast) hooks.toast('Into the back it goes.');
+      if (hooks.toast) hooks.toast(t('build.intoTheBack'));
       return true;
     },
 

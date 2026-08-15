@@ -37,7 +37,7 @@ const counterBack = FRONT_DESK_FRAME.frontDepth / 2;
 const backcounterLocal = toDeskRect(fixtureRect(backcounter));
 const backcounterFront = backcounterLocal.minZ;
 
-test('a person is wider than nothing — the constants are honest', () => {
+test('a person is wider than nothing - the constants are honest', () => {
   assert.ok(PLAYER_DIAM > 0.6 && PLAYER_DIAM < 0.8, 'a human, in yards');
   assert.ok(STAFF_CORRIDOR_MIN > PLAYER_DIAM, 'a corridor you can only just squeeze through is not a workspace');
 });
@@ -139,7 +139,7 @@ test('the player can reach every part of the workspace from where they stand', (
   }
   for (const [name, p] of Object.entries(OPERATED)) {
     const d = Math.hypot(p.x - REG.stand.x, p.z - REG.stand.z);
-    assert.ok(d <= REACH, `the ${name} is ${d.toFixed(2)} yd away — out of reach`);
+    assert.ok(d <= REACH, `the ${name} is ${d.toFixed(2)} yd away - out of reach`);
   }
 });
 
@@ -178,7 +178,7 @@ test('staging is on the CUSTOMER side and the bag zone is on the STAFF side', ()
 // block — POS, drawer, terminal, printer, customer display — on the RIGHT. A
 // clicked product crosses the reader and then arcs into the bag; nothing may
 // stand in either leg and nothing may hide the goods behind the monitor.
-test('bag left, goods centre, register block right — and the scanner route is clear', () => {
+test('bag left, goods centre, register block right - and the scanner route is clear', () => {
   const stagingMid = { x: (REG.staging.minX + REG.staging.maxX) / 2, z: (REG.staging.minZ + REG.staging.maxZ) / 2 };
   const bag = frontDeskLocalPoint(REG.bag.x, REG.bag.z);
   const staging = toDeskRect(REG.staging);

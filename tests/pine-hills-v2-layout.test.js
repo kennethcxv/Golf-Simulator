@@ -215,7 +215,7 @@ test('the cut list is exact and touches nothing in the service wing', () => {
   assert.equal(L.cutFixtures.length, 11);
   for (const id of L.cutFixtures) {
     assert.ok(!byId.has(id), `${id} should be cut`);
-    assert.ok(!L.fixturePoses[id], `${id} is cut — a pose for it is dead data`);
+    assert.ok(!L.fixturePoses[id], `${id} is cut - a pose for it is dead data`);
   }
   for (const id of ['office_desk', 'office_chair', 'office_filing', 'packing_bench',
     'backshelf_n', 'backshelf_e', 'backshelf_e2']) {
@@ -284,7 +284,7 @@ test('every stand point is deliverable: clear of all colliders (the item-3 lesso
   }
 });
 
-test('the queue ruling: line east along the desk face, exit lane never crossed', () => {
+test('the queue ruling: single file BACK from the desk, exit lane never crossed', () => {
   const slab = {
     minX: V2.x - V2.frontLength / 2, maxX: V2.x + V2.frontLength / 2,
     minZ: V2.z - V2.frontDepth / 2, maxZ: V2.z + V2.frontDepth / 2,
@@ -304,20 +304,28 @@ test('the queue ruling: line east along the desk face, exit lane never crossed',
     assert.ok(!inBounds(p, exitLane),
       `queue slot ${i} at (${p.x.toFixed(2)}, ${p.z.toFixed(2)}) stands in the exit lane`);
   }
-  // The line itself: monotone east (the tail grows AWAY from the door), body
-  // spacing in the tight-retail band, and every line slot on the face band.
+  // B1 (Goal 19) SUPERSEDES the 2026-07-28 east ruling: "I want a single-file
+  // line running BACK from the desk, one behind another." The line steps
+  // SOUTH away from the desk face (monotone -z), with only a small eastward
+  // drift allowed (it keeps the tail off the overflow pocket), body spacing
+  // in the tight-retail band, and the whole line still east of the exit lane.
   for (let i = 1; i < L.queue.lineSlots; i++) {
     const prev = v2Slot(i - 1);
     const cur = v2Slot(i);
-    assert.ok(cur.x > prev.x + 0.5, `line slot ${i} does not step east`);
+    assert.ok(prev.z - cur.z > 0.5, `line slot ${i} does not step BACK from the desk`);
+    assert.ok(Math.abs(cur.x - prev.x) <= 0.30,
+      `line slot ${i} drifts ${Math.abs(cur.x - prev.x).toFixed(2)} sideways - that is a second lane, not a file`);
     const spacing = Math.hypot(cur.x - prev.x, cur.z - prev.z);
     assert.ok(spacing >= 0.60 && spacing <= 1.00,
       `line spacing ${spacing.toFixed(3)} outside the 0.60-1.00 body band`);
-    assert.ok(cur.z > 2.0 && cur.z < slab.minZ,
-      `line slot ${i} off the desk-face band`);
   }
-  assert.ok(Math.abs(head.x - 2.82) < 1e-9 && Math.abs(head.z - 2.30) < 1e-9,
-    'the head moved — checkout reach circles and camera poses key off (2.82, 2.30)');
+  // F5 (Full_Goal_16): the paying customer stands RIGHT of the bag strip,
+  // opposite the cashier — the head moved 0.22 east (2.82 → 3.04) by
+  // instruction, and the pitch shortened (0.80 → 0.69) so slot 2 stays on
+  // the exact member_station clearance the old line proved out. Checkout
+  // reach interactions key off the LIVE customer position, not this point.
+  assert.ok(Math.abs(head.x - 3.04) < 1e-9 && Math.abs(head.z - 2.30) < 1e-9,
+    'the head moved - F5 fixed it at (3.04, 2.30); move it only with a new ruling');
 });
 
 test('the protected clearways stay empty', () => {
@@ -354,22 +362,16 @@ test('the corridor seal closes the partition-to-desk hole', () => {
   assert.ok(seal.x - seal.t / 2 >= member.maxX + 0.05,
     'seal presses member_station');
 
-  // The west seal (same day): the Z-channel behind the return — return-south
-  // gap plus return-to-hutch gap — tunnelled bodies into the corridor even
-  // though every pinch is sub-capsule. Both fillets must be flush on every
-  // seam or a shove channel reopens.
+  // C5, 2026-08-04: `returnBackFill` is GONE and must stay gone. It sealed the
+  // 0.34 yd behind the return leg, and with the leg deleted it is the last thing
+  // standing in the staff pass-through. Asserting its absence here is the point:
+  // the seal and the doorway are the same 0.88 yd of floor, and a future edit
+  // that re-adds the fillet re-seals the till.
   const westSeal = L.corridorWestSeal;
-  const returnWestX = V2.x - V2.frontLength / 2;
-  const returnEastX = returnWestX + V2.returnCollisionWidth;
-  const returnSouthZ = V2.z + V2.returnStaffExtent;
+  assert.equal(westSeal.returnBackFill, undefined,
+    'returnBackFill is the staff pass-through - it must not come back');
   const hutch = fixtureRectOf(byId.get('backcounter'));
-  const back = westSeal.returnBackFill;
-  assert.ok(back.minX <= returnWestX + 0.02, 'returnBackFill west seam');
-  assert.ok(back.maxX >= returnEastX - 0.02, 'returnBackFill east seam');
-  assert.ok(back.minZ <= returnSouthZ + 0.02, 'returnBackFill return-end seam');
-  assert.ok(back.maxZ >= B.maxZ - 0.02, 'returnBackFill south-wall seam');
   const gapFill = westSeal.hutchGapFill;
-  assert.ok(gapFill.minX <= back.maxX + 1e-6, 'gapFill does not meet returnBackFill');
   assert.ok(gapFill.maxX >= hutch.minX - 0.02, 'gapFill-hutch seam');
   assert.ok(gapFill.minZ <= hutch.minZ + 0.02, 'gapFill hutch-face seam');
   assert.ok(gapFill.maxZ >= B.maxZ - 0.02, 'gapFill south-wall seam');
@@ -460,10 +462,21 @@ test('traffic legs run inside the room and through open floor', () => {
 });
 
 test('clutter spots sit in dead zones: off every leg, outside every solid', () => {
-  assert.equal(L.clutterSpots.length, 8);
+  // Seven since C5 (2026-08-04): the eighth sat in what is now the staff
+  // pass-through and pinched it to 0.17 yd. The count is asserted so a spot
+  // cannot be added back without someone reading this.
+  assert.equal(L.clutterSpots.length, 7);
   const legs = L.trafficPaths(v2Slot);
+  const passThroughBand = {
+    minX: V2.x - V2.frontLength / 2 - 0.25,
+    maxX: V2.x - V2.frontLength / 2 + V2.returnCollisionWidth + 0.25,
+    minZ: V2.z + V2.frontDepth / 2,
+    maxZ: B.maxZ,
+  };
   for (const spot of L.clutterSpots) {
     assert.ok(inRoomOrWing(spot), `clutter (${spot.x}, ${spot.z}) outside room+wing`);
+    assert.ok(distToRect(spot, passThroughBand) >= 0.05,
+      `clutter (${spot.x}, ${spot.z}) sits in the staff pass-through`);
     for (const leg of legs) {
       for (let s = 0; s < leg.length - 1; s++) {
         const d = distPointSegment(spot, leg[s], leg[s + 1]);
@@ -497,7 +510,7 @@ test('the greybox ceiling repair pair sits inside the envelope', () => {
     assert.ok(inBounds(panel, B), `${id} centre outside the envelope`);
   }
   const orphan = CLUBHOUSE_CEILING_PANELS.find((entry) => entry.id === 'panel-02');
-  assert.ok(orphan.x < B.minX, 'panel-02 is cavity-side — the module must not expose it');
+  assert.ok(orphan.x < B.minX, 'panel-02 is cavity-side - the module must not expose it');
 });
 
 test('phase 4: the v2 ceiling rig hangs every panel and both fault beats inside the envelope', () => {
@@ -505,7 +518,7 @@ test('phase 4: the v2 ceiling rig hangs every panel and both fault beats inside 
   assert.equal(rig.y, L.ceilingY, 'the rig hangs from the v2 lid');
   assert.equal(rig.panels.length, 4, 'exactly the four in-envelope stations');
   const ids = rig.panels.map((panel) => panel.id);
-  assert.equal(new Set(ids).size, 4, 'position keys are unique — these name meshes');
+  assert.equal(new Set(ids).size, 4, 'position keys are unique - these name meshes');
   // Sim keys are deliberately NOT unique. The sim owns exactly two light
   // faults and the save shape is pinned, so the only way to make the neglected
   // room read as neglected is to hang more than one fitting off each fault:
@@ -517,7 +530,7 @@ test('phase 4: the v2 ceiling rig hangs every panel and both fault beats inside 
       (sim) => [sim, simIds.filter((id) => id === sim).length],
     )),
     { 'panel-02': 2, 'panel-07': 2 },
-    'both faults drive a pair of fittings — the abandoned read',
+    'both faults drive a pair of fittings - the abandoned read',
   );
   assert.equal(simIds.filter((id) => id !== 'panel-02' && id !== 'panel-07').length, 0,
     'no fitting is healthy in the neglected room');

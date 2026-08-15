@@ -326,7 +326,7 @@ test('capabilities derive from the saved box surface without parallel state', ()
   })).canUnpack, true, 'stockroom floor');
   assert.equal(boxPlacementCapabilities(state, carton(6, {
     loc: 'world', surfaceId: FLOOR_BOX_SURFACE_ID, x: 0, z: 2, ry: 0,
-  })).canUnpack, true, 'and the sales floor — the invisible stockroom line is gone');
+  })).canUnpack, true, 'and the sales floor - the invisible stockroom line is gone');
 });
 
 // The rule, as one assertion. Seven surfaces used to accept a carton and then

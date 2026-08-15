@@ -828,7 +828,12 @@ function makeWorkOrder(model) {
       { id: 'disease', label: 'Treat or flag disease', complete: false },
       { id: 'reinspect', label: 'Reinspect the completed work', complete: false },
       { id: 'condition', label: 'Raise hole condition to 75', complete: false },
-      { id: 'save-load', label: 'Save, reload, and confirm persistence', complete: false },
+      // V3 (Goal 19): "Save, reload, and confirm persistence" was a QA
+      // acceptance criterion printed on the PLAYER's work order — the
+      // stranger verifier read it off the tablet. The persistence machinery
+      // it exercised (reloadCountAtArrival / persistence.reloadCount) stays;
+      // the checklist row is gone, and with it the absurd gate where a
+      // player who never reloads could never finish a work order.
     ],
   };
 }
@@ -1474,11 +1479,9 @@ function hydrateSavedCourseMaintenance(state, raw, model) {
   model.runtime.scoreDirty = false;
   model.runtime.encodedFields = raw.fields;
   model.runtime.encodedRevision = model.runtime.saveRevision;
-  const saveLoad = workOrderStep(model, 'save-load');
-  if (saveLoad) {
-    saveLoad.complete = model.route.reloadCountAtArrival !== null
-      && model.persistence.reloadCount > model.route.reloadCountAtArrival;
-  }
+  // a stale save may still carry the retired 'save-load' QA step — drop it so
+  // old saves cannot resurrect the un-completable work order
+  model.workOrder.steps = model.workOrder.steps.filter((step) => step.id !== 'save-load');
   if (
     model.workOrder.steps.every((step) => step.complete)
     && model.workOrder.completedAtMinute === null
@@ -2256,11 +2259,6 @@ export function updateWorkOrder(state, model = null) {
   set('reinspect', region.inspection.lastCompletedAtMinute !== null
     && fieldSteps.every((id) => workOrderStep(region, id)?.complete));
   set('condition', score.total >= 75);
-  set(
-    'save-load',
-    region.route.reloadCountAtArrival !== null
-      && region.persistence.reloadCount > region.route.reloadCountAtArrival,
-  );
   if (
     region.workOrder.steps.every((step) => step.complete)
     && region.workOrder.completedAtMinute === null

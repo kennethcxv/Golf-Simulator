@@ -39,7 +39,7 @@ if (process.env.QA_BOOTSTRAP === '1') {
   await page.goto(baseUrl, { waitUntil: 'domcontentloaded', timeout: 60_000 });
   await page.evaluate(async (seed) => {
     localStorage.clear();
-    const empireModule = await import('/src/sim/empire.js');
+    const empireModule = await import(new URL('src/sim/empire.js', document.baseURI).href);
     const empire = empireModule.newEmpire('relaxed', seed);
     const willow = empire.market.find((property) => property.name === 'Willow Creek Municipal') || empire.market[0];
     const bought = empireModule.buyProperty(empire, willow.id);

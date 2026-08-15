@@ -281,7 +281,7 @@ function visitEveryTextField(lap, visit) {
 
 // --- the bug, and the fix --------------------------------------------------------------------
 
-test('the harness drops a keystroke when the field is detached — the bug is reachable', () => {
+test('the harness drops a keystroke when the field is detached - the bug is reachable', () => {
   // A control for the instrument. If typing into a detached field still "worked", every
   // assertion below would be green against the broken code too.
   const host = new MiniNode('div');
@@ -336,7 +336,7 @@ test('EVERY text field in the laptop takes a whole word, through a render it did
   const visited = [];
   const failures = [];
   const seen = visitEveryTextField(lap, (field, key, where) => {
-    if (!key) { failures.push(`${where}: a text field with no focus key — paint() cannot restore it`); return; }
+    if (!key) { failures.push(`${where}: a text field with no focus key - paint() cannot restore it`); return; }
     if (visited.includes(key)) return;
     visited.push(key);
     const before = field.value;
@@ -355,7 +355,7 @@ test('EVERY text field in the laptop takes a whole word, through a render it did
   // …and it must have found the ones we know about, or a future refactor could empty the
   // sweep and leave this test green over nothing.
   for (const key of ['laptop-search', 'shop-stock-search', 'shop-order-search', 'settings-clubname']) {
-    assert.ok(visited.includes(key), `the sweep never reached ${key} — it visited ${visited.join(', ')}`);
+    assert.ok(visited.includes(key), `the sweep never reached ${key} - it visited ${visited.join(', ')}`);
   }
 });
 

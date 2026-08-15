@@ -1,0 +1,73 @@
+{
+  "control": {
+    "frames": 143,
+    "maxSinkYd": 0,
+    "restingSeatMm": 2.5,
+    "bagSpanYd": 0.228
+  },
+  "card": {
+    "atApproval": {
+      "found": true,
+      "visible": true,
+      "restsOnCounterMm": 3.7,
+      "thicknessMm": 1.1,
+      "flat": true
+    },
+    "afterRelease": {
+      "found": false
+    }
+  },
+  "run": {
+    "frames": 886,
+    "deliverFrames": 92,
+    "framesOverCounter": 68,
+    "worstSinkYd": -0.02,
+    "worstSample": {
+      "ms": 29794,
+      "phase": "bag-deliver",
+      "stage": "done",
+      "minY": 0.2293,
+      "maxY": 0.4804,
+      "overCounter": true,
+      "sink": -0.02,
+      "bagLocalZ": 0.06,
+      "gripL": 0.03,
+      "rootY": -0.846,
+      "headY": 0.643,
+      "gripR": -0.071,
+      "hipL": null,
+      "shoulderL": null,
+      "gripLocalZ": -0.81
+    },
+    "phasesSeen": [
+      null,
+      "bag-deliver",
+      "bag-customer-hold",
+      "released"
+    ],
+    "frontDepthHalf": 0.41,
+    "counterVsFrame": {
+      "counter": [
+        -0.8,
+        1.797
+      ],
+      "frame": [
+        -0.8,
+        1.797
+      ],
+      "counterDepth": 0.82
+    },
+    "atHold": {
+      "bagMinY": -0.7368,
+      "gripLocalZ": -0.81,
+      "bagMaxY": 0.0192,
+      "bagCentreY": -0.359,
+      "gripL": 0.03,
+      "rootY": -0.846,
+      "headY": 0.643,
+      "gripHeightFraction": 0.588
+    }
+  },
+  "phasesThroughDesk": false,
+  "receivingHandAtHip": true
+}

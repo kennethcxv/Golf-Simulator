@@ -11,6 +11,25 @@
 // Geometry is authored against the reference sheets (Sheet 8 — cleaning equipment, and the two
 // first-person sheets). Colours are the club's: Pineview green, brass, cream.
 
+// WHAT A TOOL SOUNDS LIKE WHEN IT BITES, as data.
+//
+// E3 measured it: every tool declares three sound names (`audio.loop/start/stop`)
+// and 26 of the 27 declared names DO NOT EXIST in the audio module. Only the
+// broom had a start transient and a release tail, and only the broom had its
+// loop respond to stroke intensity and floor surface — every other tool played
+// one flat loop from the moment you pressed the button to the moment you let go.
+//
+// The fix is not 26 bespoke synth functions. The broom's contact layer is a
+// shaped noise burst; every one of these tools is also a shaped noise burst, and
+// what differs between a mop slap and a bristle scratch is where the band sits
+// and how fast it dies. So the SHAPE is declared here and one pair of functions
+// in core/audio.js renders it.
+//
+//   startHz/stopHz  band centre of the bite and of the release, in Hz
+//   startGain       peak of the bite
+//   stopTail        seconds the release takes to fade
+//   q               band sharpness; low is airy, high is a defined scrape
+
 export const TOOL_CLASS = {
   JET: 'jet',         // pressurised water — erodes grime along the stream
   SUCTION: 'suction', // draws loose debris into an intake
@@ -20,6 +39,28 @@ export const TOOL_CLASS = {
   SPRAY: 'spray',     // lays solution on a surface
   CARRY: 'carry',     // held, fills, gets emptied
 };
+
+// HOW A TOOL MOVES WHILE IT IS BEING USED, in its own local frame.
+//
+// E1 measured four tools — dustpan, spray, washer, trashbag — returning ONE
+// distinct transform across two full seconds of held use. Not a small
+// animation: no animation. They were static props in the hands while mop,
+// cloth, sponge and vacuum all had a stroke. The machinery was never
+// per-tool; those four were simply not wired into it, because the driver
+// dispatched on toolClass and three classes had no branch at all.
+//
+// So the motion is declared here rather than switched on there, and one shared
+// driver in courseScene reads it. A tool with no `useMotion` is a static prop
+// ON PURPOSE and says so by omission.
+//
+//   rate   drive speed in rad/s
+//   swing  [x, z] amplitude in yards; z is 90 deg out of phase with x, which
+//          turns a lateral slide into a push-and-return
+//   roll   radians about the tool's own z, in phase with x
+//   jitter yards of per-frame tremble (a pressurised line, not a swing)
+//
+// Deliberately no y and no pitch: the floor solve owns both for anchored tools
+// and a second writer would fight it. See courseScene's floor-contact block.
 
 // What a surface is dirtied WITH decides what shifts it.
 export const DIRT = {
@@ -65,6 +106,12 @@ export const CLEANING_TOOLS = {
   // ---------------------------------------------------------------- 78/79 pressure washer -----
   washer: {
     id: 'washer',
+    // B4: DRAWN BARE. The hand-worked tools are held without a first-person
+    // hand on them - the tool sits in view on its own. This is the single
+    // source for that: fpHands reads it when it attaches, and a viewmodel rig
+    // reads it too (the washer has one), so neither can put a hand back on
+    // its own. The stick tools - broom, mop, vacuum, dustpan - keep theirs.
+    hands: false,
     label: 'Pressure washer',
     toolClass: TOOL_CLASS.JET,
     belt: true,
@@ -85,8 +132,27 @@ export const CLEANING_TOOLS = {
     },
     sockets: { nozzle: { pos: [0, 0.0678, -0.7444], rot: [-0.16, 0, 0] } },
     grip: { pos: [0.0, -0.13, 0.20], rot: [-0.35, 0, 0.12] },
-    support: { pos: [0.0, 0.015, -0.30], rot: [-0.30, 0, 0.9] },
+    // Q7 (2026-08-06) ruled ONE hand from the then-reference; E1 (Goal 18)
+    // REVERSES it from the new playtest: "One hand, not two. It should be
+    // held with both hands." The GLB kept SOCKET_GripSupport authored for
+    // exactly this opt-back-in; the old same-side-grip complaint is handled
+    // by the separate handRollUpper/handRollLower in the feel file.
+    // The authored SOCKET_GripSupport in the fp GLB takes over when loaded;
+    // this is the procedural fallback pose for the lower hand, mid-shaft.
+    support: { pos: [0.0, 0.005, -0.38], rot: [-0.08, 0, -0.10] },
+    // a pressurised wand does not swing, it trembles and pushes back against
+    // the hands; the tremble is what sells the pressure
+    useMotion: { rate: 15.0, swing: [0.006, 0.013], roll: 0.014, jitter: 0.005 },
     recoil: 0.055,
+    // A PRESSURISED HIT, LOW AND BROAD.
+    //
+    // G1: this key was declared TWICE — this line and then a second, quieter
+    // `tone: { startHz: 1900, ... }` described as "wetter and rounder than the
+    // cloth", copied down from a hand tool. The second silently won, so the
+    // washer has been speaking with a cloth's voice and the band written for it
+    // has never been heard. Legal JavaScript, no warning, and nothing in the
+    // suite could see it until tests/lint-duplicate-keys.test.js.
+    tone: { startHz: 900, stopHz: 520, startGain: 0.075, stopTail: 0.30, q: 0.8 },
     audio: { loop: 'washerLoop', start: 'washerStart', stop: 'washerStop' },
   },
 
@@ -133,6 +199,8 @@ export const CLEANING_TOOLS = {
     grip: { pos: [0.0, 0.005, 0.10], rot: [-0.10, 0, 0.05] },
     support: null,
     recoil: 0.012,
+    // the motor taking a bite of air
+    tone: { startHz: 640, stopHz: 300, startGain: 0.060, stopTail: 0.34, q: 0.7 },
     audio: { loop: 'vacuumLoop', start: 'vacuumStart', stop: 'vacuumStop', pickup: 'vacuumPickup' },
   },
 
@@ -143,7 +211,7 @@ export const CLEANING_TOOLS = {
     toolClass: TOOL_CLASS.STROKE,
     floorAnchored: true, // worked against the floor: the head stays down when you look about
     belt: true,
-    equipToast: 'press and move to mop. Hard floors only — carpet just soaks.',
+    equipToast: 'press and move to mop. Hard floors only - carpet just soaks.',
     reach: 2.2,
     radius: 0.40,
     strength: 0.85,
@@ -173,8 +241,17 @@ export const CLEANING_TOOLS = {
     },
     sockets: { contact: { pos: [0, -0.115, -1.90], rot: [-Math.PI / 2, 0, 0] } },
     grip: { pos: [0.0, 0.005, 0.08], rot: [-0.08, 0, 0.10] },
-    support: { pos: [-0.015, 0.0, -0.46], rot: [-0.10, 0, -0.20] },
+    // Q7 (2026-08-06) ruled ONE hand from the then-reference; E1 (Goal 18)
+    // REVERSES it from the new playtest: "One hand, not two. It should be
+    // held with both hands." The GLB kept SOCKET_GripSupport authored for
+    // exactly this opt-back-in; the old same-side-grip complaint is handled
+    // by the separate handRollUpper/handRollLower in the feel file.
+    // The authored SOCKET_GripSupport in the fp GLB takes over when loaded;
+    // this is the procedural fallback pose for the lower hand, mid-shaft.
+    support: { pos: [0.0, 0.005, -0.38], rot: [-0.08, 0, -0.10] },
     recoil: 0.018,
+    // a wet slap, duller than bristles
+    tone: { startHz: 1150, stopHz: 700, startGain: 0.038, stopTail: 0.22, q: 0.9 },
     audio: { loop: 'mopSwish', start: 'mopStart', stop: 'mopStop' },
   },
 
@@ -212,8 +289,19 @@ export const CLEANING_TOOLS = {
     },
     sockets: { contact: { pos: [0, -0.215, -1.85], rot: [-Math.PI / 2, 0, 0] } },
     grip: { pos: [0.0, 0.005, 0.08], rot: [-0.08, 0, 0.10] },
-    support: { pos: [-0.015, 0.0, -0.48], rot: [-0.10, 0, -0.18] },
+    // Q7 (2026-08-06) ruled ONE hand from the then-reference; E1 (Goal 18)
+    // REVERSES it from the new playtest: "One hand, not two. It should be
+    // held with both hands." The GLB kept SOCKET_GripSupport authored for
+    // exactly this opt-back-in; the old same-side-grip complaint is handled
+    // by the separate handRollUpper/handRollLower in the feel file.
+    // The authored SOCKET_GripSupport in the fp GLB takes over when loaded;
+    // this is the procedural fallback pose for the lower hand, mid-shaft.
+    support: { pos: [0.0, 0.005, -0.38], rot: [-0.08, 0, -0.10] },
     recoil: 0.020,
+    // No `tone`: the broom is the approved standard and keeps its own
+    // hand-authored broomStart/broomStop in core/audio.js. The shared
+    // renderer below exists to bring the other eight UP to it, not to
+    // replace it.
     audio: { loop: 'broomSweep', start: 'broomStart', stop: 'broomStop' },
   },
 
@@ -257,13 +345,24 @@ export const CLEANING_TOOLS = {
     sockets: { contact: { pos: [0, -0.066, -1.60], rot: [-Math.PI / 2, 0, 0] } },
     grip: { pos: [0.0, 0.005, 0.08], rot: [-0.10, 0, 0.08] },
     support: null,
+    // a scoop is a short brisk push into the pile and a draw back, with the
+    // pan rolling a little as the lip rides the boards
+    useMotion: { rate: 5.2, swing: [0.030, 0.055], roll: 0.055 },
     recoil: 0.014,
+    // plastic lip on boards — bright and short
+    tone: { startHz: 2100, stopHz: 1250, startGain: 0.034, stopTail: 0.14, q: 1.4 },
     audio: { loop: 'dustpanCollect', start: 'dustpanStart', stop: 'dustpanStop' },
   },
 
   // ------------------------------------------------------------------- 76 spray bottle --------
   spray: {
     id: 'spray',
+    // B4: DRAWN BARE. The hand-worked tools are held without a first-person
+    // hand on them - the tool sits in view on its own. This is the single
+    // source for that: fpHands reads it when it attaches, and a viewmodel rig
+    // reads it too (the washer has one), so neither can put a hand back on
+    // its own. The stick tools - broom, mop, vacuum, dustpan - keep theirs.
+    hands: false,
     label: 'All-purpose cleaner',
     toolClass: TOOL_CLASS.SPRAY,
     belt: true,
@@ -302,12 +401,20 @@ export const CLEANING_TOOLS = {
     grip: { pos: [0.0, 0.05, 0.055], rot: [-0.16, 0, 0.10] },
     support: null,
     recoil: 0.030,
+    // the hiss of the nozzle, brightest in the kit
+    tone: { startHz: 3200, stopHz: 2100, startGain: 0.030, stopTail: 0.10, q: 1.6 },
     audio: { loop: 'sprayLoop', start: 'sprayTrigger', stop: 'sprayStop' },
   },
 
   // -------------------------------------------------------------------------- 77 cloth --------
   cloth: {
     id: 'cloth',
+    // B4: DRAWN BARE. The hand-worked tools are held without a first-person
+    // hand on them - the tool sits in view on its own. This is the single
+    // source for that: fpHands reads it when it attaches, and a viewmodel rig
+    // reads it too (the washer has one), so neither can put a hand back on
+    // its own. The stick tools - broom, mop, vacuum, dustpan - keep theirs.
+    hands: false,
     label: 'Microfibre cloth',
     toolClass: TOOL_CLASS.STROKE,
     belt: true,
@@ -335,19 +442,37 @@ export const CLEANING_TOOLS = {
       only: 'Cloth', // cloth and sponge share one authored set
     },
     sockets: { contact: { pos: [0, -0.056, -0.010], rot: [-Math.PI / 2, 0, 0] } },
-    grip: { pos: [0.0, 0.062, 0.028], rot: [-1.32, 0, 0.10] }, // palm down, flat on the surface
+    // ITEM 9 (2026-08-06): "hands still visible on sponge and cloth."
+    // Photographed at the held pose, the fingertips stand up THROUGH the folded
+    // cloth. The authored SOCKET_ClothGrip sits at the block's centre — right
+    // for a shaft, where the pole passes through the closed palm, and wrong for
+    // a 15 cm block, which cannot. `standoff` lifts the resolved socket in the
+    // tool's own frame so the palm rests on the top face and the fingers close
+    // over the front edge instead of through the middle.
+    grip: {
+      pos: [0.0, 0.062, 0.028], rot: [-1.32, 0, 0.10], // palm down, flat on the surface
+      standoff: [0.0, 0.112, 0.034],
+    },
     support: null,
     recoil: 0.016,
+    // a soft drag; barely there on purpose
+    tone: { startHz: 2600, stopHz: 1600, startGain: 0.026, stopTail: 0.16, q: 1.1 },
     audio: { loop: 'clothWipe', start: 'clothStart', stop: 'clothStop' },
   },
 
   // ------------------------------------------------------------------------- 77 sponge --------
   sponge: {
     id: 'sponge',
+    // B4: DRAWN BARE. The hand-worked tools are held without a first-person
+    // hand on them - the tool sits in view on its own. This is the single
+    // source for that: fpHands reads it when it attaches, and a viewmodel rig
+    // reads it too (the washer has one), so neither can put a hand back on
+    // its own. The stick tools - broom, mop, vacuum, dustpan - keep theirs.
+    hands: false,
     label: 'Scouring sponge',
     toolClass: TOOL_CLASS.STROKE,
     belt: true,
-    equipToast: 'scrub the stubborn grime — it takes a few passes.',
+    equipToast: 'scrub the stubborn grime - it takes a few passes.',
     reach: 1.2,
     radius: 0.16,
     strength: 0.75,    // slower than the cloth, but it shifts what the cloth cannot
@@ -369,15 +494,27 @@ export const CLEANING_TOOLS = {
       only: 'Sponge', // cloth and sponge share one authored set
     },
     sockets: { contact: { pos: [0, -0.050, 0], rot: [-Math.PI / 2, 0, 0] } },
-    grip: { pos: [0.0, 0.060, 0.020], rot: [-1.30, 0, 0.10] },
+    // ITEM 9: same defect, same cause - see the cloth above.
+    grip: {
+      pos: [0.0, 0.060, 0.020], rot: [-1.30, 0, 0.10],
+      standoff: [0.0, 0.046, 0.014],
+    },
     support: null,
     recoil: 0.022,
+    // wetter and rounder than the cloth
+    tone: { startHz: 1900, stopHz: 1150, startGain: 0.030, stopTail: 0.18, q: 1.0 },
     audio: { loop: 'spongeScrub', start: 'spongeStart', stop: 'spongeStop' },
   },
 
   // ---------------------------------------------------------------------- 80 trash bag --------
   trashbag: {
     id: 'trashbag',
+    // B4: DRAWN BARE. The hand-worked tools are held without a first-person
+    // hand on them - the tool sits in view on its own. This is the single
+    // source for that: fpHands reads it when it attaches, and a viewmodel rig
+    // reads it too (the washer has one), so neither can put a hand back on
+    // its own. The stick tools - broom, mop, vacuum, dustpan - keep theirs.
+    hands: false,
     label: 'Trash bag',
     toolClass: TOOL_CLASS.CARRY,
     belt: true,
@@ -409,7 +546,12 @@ export const CLEANING_TOOLS = {
     sockets: { contact: { pos: [0, -0.30, -0.03], rot: [-Math.PI / 2, 0, 0] } },
     grip: { pos: [0.0, 0.098, 0.010], rot: [-1.05, 0, 0.16] },
     support: null,
+    // heavier and slower than the pan: you are stooping and gathering, and the
+    // weight in the bag lags the hands
+    useMotion: { rate: 2.6, swing: [0.050, 0.034], roll: 0.075 },
     recoil: 0.010,
+    // poly crackle, bright but loose
+    tone: { startHz: 2900, stopHz: 1800, startGain: 0.032, stopTail: 0.20, q: 1.3 },
     audio: { loop: 'bagRustle', start: 'bagPickup', stop: 'bagStop' },
   },
 };
@@ -420,6 +562,77 @@ export const TOOL_IDS = Object.freeze(Object.keys(CLEANING_TOOLS));
 export const BELT_ORDER = Object.freeze(
   [null, 'washer', 'vacuum', 'mop', 'broom', 'dustpan', 'spray', 'cloth', 'sponge', 'trashbag'],
 );
+
+// --- WHAT A TOOL CAN ACTUALLY SHIFT -----------------------------------------
+//
+// D3. The floor carries two independent messes, and until now nothing named
+// them: LOOSE debris (the grit and litter clusters in cleaningDebris.js, which
+// a broom pushes and a pan or a bag collects) and GROUND-IN grime (the cell
+// field in shop.js, which only water, suction or a worked cloth lifts). A
+// player holding a broom and staring at a grimy floor gets no feedback at all,
+// because the broom's own gate quietly does nothing there.
+//
+// This is the same routing the cleaning gate in clubhouse.js already performs
+// in its TOOL_CLASS switch, lifted out so the dirt REVEAL can answer "what can
+// the thing in my hands do about this?" without re-deriving it. If the two ever
+// disagree, tests/dirt-media-routing.test.js fails.
+export const MEDIUM = Object.freeze({
+  DEBRIS: 'debris', // loose piles sitting ON the floor — sweepable, collectable
+  GRIME: 'grime',   // worked into the boards — needs water, suction or a cloth
+});
+
+const MEDIA_BY_CLASS = Object.freeze({
+  [TOOL_CLASS.SWEEP]: [MEDIUM.DEBRIS],
+  [TOOL_CLASS.SCOOP]: [MEDIUM.DEBRIS],
+  [TOOL_CLASS.CARRY]: [MEDIUM.DEBRIS],
+  [TOOL_CLASS.SUCTION]: [MEDIUM.DEBRIS, MEDIUM.GRIME], // draws piles in AND lifts dust
+  [TOOL_CLASS.STROKE]: [MEDIUM.GRIME],
+  [TOOL_CLASS.JET]: [MEDIUM.GRIME],
+  [TOOL_CLASS.SPRAY]: [],                              // lays solution; removes nothing
+});
+
+/**
+ * Which floor media this tool can remove. Empty for the sprayer (it prepares a
+ * surface rather than cleaning it) and for anything that is not a cleaning tool.
+ */
+export function toolMedia(id) {
+  const t = CLEANING_TOOLS[id];
+  if (!t) return [];
+  return MEDIA_BY_CLASS[t.toolClass] || [];
+}
+
+// --- J2: THE REVEAL IS A LEGEND --------------------------------------------
+//
+// One colour and one plain name per medium, owned here so the marker mesh, the
+// HUD legend and the reticle cannot drift apart. Two media is the honest
+// number: the floor carries loose DEBRIS (piles you sweep, scoop and bag) and
+// ground-in GRIME (a cell field you vacuum, mop or wash) — and the overlaps
+// are DECLARED, not painted over: the broom/dustpan/trashbag trio is a
+// pipeline over one medium by design, and the vacuum genuinely lifts both
+// (dry piles into the intake, ground-in dust off the boards). Inventing six
+// colours for two sim media would be a legend that lies.
+//
+// Amber = dry, loose, sweepable. Cyan = worked into the surface, wet-or-
+// suction work. Warm/cool reads apart for every common colour-vision type.
+export const MEDIUM_STYLE = Object.freeze({
+  [MEDIUM.DEBRIS]: Object.freeze({ color: 0xffc24d, label: 'Loose debris', verb: 'sweep it' }),
+  [MEDIUM.GRIME]: Object.freeze({ color: 0x53d6ff, label: 'Ground-in grime', verb: 'vacuum or mop it' }),
+});
+
+/** Every tool that can shift this medium — DERIVED from the routing above, so
+ * the legend can never disagree with what the cleaning gate actually does. */
+export function toolsForMedium(medium) {
+  return TOOL_IDS.filter((id) => toolMedia(id).includes(medium));
+}
+
+/**
+ * The trash bag is the one tool that discriminates WITHIN a medium — collectAt
+ * is called with a `kind === 'litter'` predicate, so it walks past grit. Null
+ * means "every kind of that medium".
+ */
+export function toolDebrisKinds(id) {
+  return CLEANING_TOOLS[id]?.toolClass === TOOL_CLASS.CARRY ? ['litter'] : null;
+}
 
 export const toolDef = (id) => CLEANING_TOOLS[id] || null;
 

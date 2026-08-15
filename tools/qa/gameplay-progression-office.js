@@ -236,8 +236,8 @@ async (page) => {
 
   async function livePadPlans() {
     return page.evaluate(async () => {
-      const { planPalletizedPadBoxes } = await import('/src/data/deliveryStaging.js');
-      const { SHOP_CATALOG } = await import('/src/data/shopItems.js');
+      const { planPalletizedPadBoxes } = await import(new URL('src/data/deliveryStaging.js', document.baseURI).href);
+      const { SHOP_CATALOG } = await import(new URL('src/data/shopItems.js', document.baseURI).href);
       const boxes = window.__fw.state.shop.deliveries.boxes;
       const byId = new Map(boxes.map((box) => [box.id, box]));
       return planPalletizedPadBoxes(boxes.filter((box) => box.loc === 'pad')).map((plan) => ({
@@ -421,7 +421,7 @@ async (page) => {
 
   async function campaignSnapshot() {
     return page.evaluate(async () => {
-      const { SHOP_CATALOG } = await import('/src/data/shopItems.js');
+      const { SHOP_CATALOG } = await import(new URL('src/data/shopItems.js', document.baseURI).href);
       const state = window.__fw.state;
       return {
         boxes: state.shop.deliveries.boxes.map((box) => ({
@@ -629,7 +629,7 @@ async (page) => {
     const checkpointPath = path.join(deliveryOut, 'checkpoint-office-boxes-inside.json');
     await saveCheckpoint(checkpointPath);
     const result = await page.evaluate(async () => {
-      const C = await import('/src/sim/campaign.js');
+      const C = await import(new URL('src/sim/campaign.js', document.baseURI).href);
       const state = window.__fw.state;
       return {
         boxes: state.shop.deliveries.boxes.map((box) => ({

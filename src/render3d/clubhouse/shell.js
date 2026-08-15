@@ -9,10 +9,11 @@ import * as THREE from 'three';
 import { RectAreaLightUniformsLib } from 'three/addons/lights/RectAreaLightUniformsLib.js';
 import {
   SHELL, INTERIOR, DOOR_MAIN, DOOR_STOCK, DOOR_BACK, WINDOWS, WINDOW_DIM,
-  PARTITIONS, STOCKROOM, HOURS_SIGN, CEILING_PANEL_RIG, SHELL_LIGHT_PLACEMENTS,
+  PARTITIONS, STOCKROOM, HOURS_SIGN, HOURS_SIGN_BOARD, CEILING_PANEL_RIG, SHELL_LIGHT_PLACEMENTS,
   FRONT_DESK, shopLightingTier,
 } from '../../data/shopLayout.js';
 import { roundedBox, makeSignTexture, makeConcreteTexture, makeSidingTexture } from './materials.js';
+import { exteriorSignFace } from './openClosedSigns.js';
 import { shopTierIndex } from '../../sim/shopProgression.js';
 import { restorationSnapshot } from '../../sim/clubhouseRestoration.js';
 
@@ -105,7 +106,7 @@ export function buildShell(B) {
     productionFallbackNodes[key].push(node);
     return node;
   };
-  let businessSignOpen = true;
+  let businessSignFaceKey = 'open';
   let repaintBusinessSign = () => {};
   let retailSlab = null;
   const partitionColliders = [];
@@ -600,23 +601,24 @@ export function buildShell(B) {
     trackProductionFallback('exteriorShellStructure', chimCap);
 
     // hours sign (sign kit) + porch sconce by the door
-    const signTex = makeSignTexture(['PRO SHOP', 'OPEN TODAY', '6 AM – 8 PM'], { w: 256, h: 192 });
-    repaintBusinessSign = (open) => {
-      const nextOpen = !!open;
-      if (nextOpen === businessSignOpen) return;
-      businessSignOpen = nextOpen;
-      const painted = makeSignTexture(
-        nextOpen
-          ? ['PRO SHOP', 'OPEN TODAY', '6 AM – 8 PM']
-          : ['PRO SHOP', 'CLOSED', 'RESTORATION'],
-        {
-          w: 256,
-          h: 192,
-          field: nextOpen ? '#f4f0e6' : '#e8dfcb',
-          ink: nextOpen ? '#1f4a26' : '#473c31',
-          secondaryInk: nextOpen ? '#3f3a30' : '#8a4d3a',
-        },
-      );
+    //
+    // THE ONE A CUSTOMER READS. It used to be repainted from the campaign's
+    // businessOpen milestone, which is permanently true once the clubhouse has
+    // ever opened — so it said OPEN TODAY through every night the player had
+    // turned the card indoors to CLOSED. Its copy now comes from
+    // exteriorSignFace() and is pushed by the open/closed registry, the same
+    // tick that turns the card. See clubhouse/openClosedSigns.js.
+    const signTex = makeSignTexture(exteriorSignFace({ open: true, established: true }).lines, { w: 256, h: 192 });
+    repaintBusinessSign = (face) => {
+      if (!face || face.key === businessSignFaceKey) return;
+      businessSignFaceKey = face.key;
+      const painted = makeSignTexture(face.lines, {
+        w: 256,
+        h: 192,
+        field: face.field,
+        ink: face.ink,
+        secondaryInk: face.secondaryInk,
+      });
       const canvas = signTex.image;
       const ctx = canvas.getContext('2d');
       ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -625,7 +627,7 @@ export function buildShell(B) {
       signTex.needsUpdate = true;
     };
     const sign = new THREE.Mesh(
-      new THREE.PlaneGeometry(0.72, 0.54),
+      new THREE.PlaneGeometry(HOURS_SIGN_BOARD.w, HOURS_SIGN_BOARD.h),
       new THREE.MeshStandardMaterial({ map: signTex, roughness: 0.85 }),
     );
     sign.name = 'LegacyBusinessHoursSign';
@@ -1046,6 +1048,34 @@ export function buildShell(B) {
     // practicals stay on all day (retail) but carry the room after dark
     const finishScale = [0.60, 0.80, 1.0, 1.14][shopTierNow] || 0.60;
     const scale = (0.72 + 0.55 * (1 - moodDayF)) * finishScale;
+    // 9.3 (Goal 26) — "The interior is unreadably dark at 6 am, which is when the
+    // game starts. The lights are on the restoration path, so either the game
+    // does not start at 6 am, or the lobby has ONE WORKING BULB from the
+    // beginning. Pick one and say which."
+    //
+    // PICKED: the lobby should keep one working bulb. The game DOES start at
+    // 6 am -- newClock() returns DAY_START_MIN and a live boot measured 360.45 --
+    // and moving the start time would drag the tee sheet, the arrival planner and
+    // every authored morning beat with it to fix a lighting problem.
+    //
+    // HIS REPORT REPRODUCES, in corners rather than everywhere. 28 sampled views
+    // (7 positions x 4 headings, HUD cropped out, campaign on, ceiling unrepaired):
+    // median-of-medians 50, but TWO views are genuinely unreadable -- median luma
+    // 20 of 255 with 56% of the frame indistinguishable from black, worst at
+    // interior offset (3,3) looking back at 180 degrees.
+    //
+    // I TRIED THE BULB AND IT DID NOTHING, so it is not in the tree. Forcing
+    // practical index 0 to a third brightness while unpowered moved the
+    // median-of-medians 50 -> 50, the unreadable count 2 -> 2, and the darkest
+    // sample 20 -> 21. That fitting is nowhere near the corner that is dark, and
+    // shipping a light that cannot be told apart from no light would be exactly
+    // the kind of unverifiable change this project keeps paying for.
+    //
+    // WHAT THE NEXT ATTEMPT NEEDS: the practicals' own positions, so the one
+    // nearest interior offset (3,3) can be the emergency bulb instead of index 0.
+    // The measurement is ready -- tools/qa/electron-dawn-readability.js -- and it
+    // asserts its own precondition, because ceilingCircuitPowered returns TRUE for
+    // free play and my first run measured a lit room.
     practicals.forEach((p, i) => {
       let on = ceilingCircuitPowered ? 1 : 0;
       if (shopTierNow === 0 && [1, 2, 4, 5, 6].includes(i)) on = 0;
@@ -1196,6 +1226,10 @@ export function buildShell(B) {
     productionVisualFallbackKeys: PRODUCTION_VISUAL_FALLBACK_KEYS,
     productionVisualFallbackCounts,
     partitionColliders: Object.freeze(partitionColliders),
-    setBusinessOpen: (open) => repaintBusinessSign(open),
+    // Takes a FACE, not a boolean. A boolean here is what let the exterior
+    // board be driven by a campaign milestone for months without anyone
+    // noticing it was a different question from "is the shop open right now".
+    setSignFace: (face) => repaintBusinessSign(face),
+    exteriorSignName: 'LegacyBusinessHoursSign',
   };
 }

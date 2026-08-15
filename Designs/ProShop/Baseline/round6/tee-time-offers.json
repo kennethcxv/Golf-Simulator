@@ -1,0 +1,144 @@
+{
+  "speedIdx": 1,
+  "partySize": 2,
+  "rows": [
+    {
+      "askedLabel": "7:00 AM",
+      "askedMinute": 420,
+      "beyondWindow": false,
+      "none": false,
+      "offered": [
+        {
+          "at": "7:00 AM",
+          "minute": 420,
+          "deltaMin": 0,
+          "reallyAvailable": true
+        },
+        {
+          "at": "7:30 AM",
+          "minute": 450,
+          "deltaMin": 30,
+          "reallyAvailable": true
+        }
+      ],
+      "firstOfferAccepted": true,
+      "windowMin": 30
+    },
+    {
+      "askedLabel": "9:30 AM",
+      "askedMinute": 570,
+      "beyondWindow": false,
+      "none": false,
+      "offered": [
+        {
+          "at": "9:30 AM",
+          "minute": 570,
+          "deltaMin": 0,
+          "reallyAvailable": true
+        },
+        {
+          "at": "10:00 AM",
+          "minute": 600,
+          "deltaMin": 30,
+          "reallyAvailable": true
+        },
+        {
+          "at": "9:00 AM",
+          "minute": 540,
+          "deltaMin": -30,
+          "reallyAvailable": true
+        }
+      ],
+      "firstOfferAccepted": true,
+      "windowMin": 30
+    },
+    {
+      "askedLabel": "1:00 PM",
+      "askedMinute": 780,
+      "beyondWindow": false,
+      "none": false,
+      "offered": [
+        {
+          "at": "1:00 PM",
+          "minute": 780,
+          "deltaMin": 0,
+          "reallyAvailable": true
+        },
+        {
+          "at": "1:30 PM",
+          "minute": 810,
+          "deltaMin": 30,
+          "reallyAvailable": true
+        },
+        {
+          "at": "12:30 PM",
+          "minute": 750,
+          "deltaMin": -30,
+          "reallyAvailable": true
+        }
+      ],
+      "firstOfferAccepted": true,
+      "windowMin": 30
+    },
+    {
+      "askedLabel": "4:00 PM",
+      "askedMinute": 960,
+      "beyondWindow": false,
+      "none": false,
+      "offered": [
+        {
+          "at": "4:00 PM",
+          "minute": 960,
+          "deltaMin": 0,
+          "reallyAvailable": true
+        },
+        {
+          "at": "4:30 PM",
+          "minute": 990,
+          "deltaMin": 30,
+          "reallyAvailable": true
+        },
+        {
+          "at": "3:30 PM",
+          "minute": 930,
+          "deltaMin": -30,
+          "reallyAvailable": true
+        }
+      ],
+      "firstOfferAccepted": true,
+      "windowMin": 30
+    },
+    {
+      "askedLabel": "6:30 PM",
+      "askedMinute": 1110,
+      "beyondWindow": true,
+      "none": false,
+      "offered": [
+        {
+          "at": "4:30 PM",
+          "minute": 990,
+          "deltaMin": -120,
+          "reallyAvailable": true
+        }
+      ],
+      "firstOfferAccepted": false,
+      "windowMin": 30
+    },
+    {
+      "askedLabel": "3:00 AM (impossible)",
+      "askedMinute": 180,
+      "beyondWindow": true,
+      "none": false,
+      "offered": [
+        {
+          "at": "7:00 AM",
+          "minute": 420,
+          "deltaMin": 240,
+          "reallyAvailable": true
+        }
+      ],
+      "firstOfferAccepted": false,
+      "windowMin": 30
+    }
+  ]
+}

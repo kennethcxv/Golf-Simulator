@@ -55,7 +55,7 @@
   await page.waitForTimeout(700);
   await page.evaluate(async (seed) => {
     localStorage.clear();
-    const E = await import('/src/sim/empire.js');
+    const E = await import(new URL('src/sim/empire.js', document.baseURI).href);
     const empire = E.newStarterEmpire('relaxed', seed);
     localStorage.setItem('golfempire:autosave', JSON.stringify(E.empireSnapshot(empire)));
   }, SEED);
@@ -80,7 +80,7 @@
 
   // Record the subject's measured state so each arm's change is evidenced, not asserted.
   const subject = await page.evaluate(async () => {
-    const THREE = await import('/vendor/three.module.js');
+    const THREE = await import(new URL('vendor/three.module.js', document.baseURI).href);
     const s3 = window.__fw.scene3d; const ch = s3.clubhouse(); const o = ch.interior.position;
     let root = null;
     ch.interior.traverse((n) => { if (!root && /AssetRuntime_65_stockroom_worktable/.test(n.name || '')) root = n; });
@@ -142,7 +142,7 @@
   const matched = [];
   for (const spec of MATCHED) {
     const pose = await page.evaluate(async ({ shot, m, standoff, margin }) => {
-      const THREE = await import('/vendor/three.module.js');
+      const THREE = await import(new URL('vendor/three.module.js', document.baseURI).href);
       const app = window.__fw; const s3 = app.scene3d; const ch = s3.clubhouse();
       const o = ch.interior.position; const w = s3.walk; w.clearKeys();
       const cs = typeof ch.customers === 'function' ? ch.customers() : ch.customers;

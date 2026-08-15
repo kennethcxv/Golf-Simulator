@@ -63,17 +63,45 @@ export function resolveOverlaps(x, z, r, groups, iterations = 6) {
 }
 
 // breadcrumbs of ground the player stood on cleanly
-export function createSafeTrail(cap = 24) {
+//
+// RECOVERY IS LOCAL (Goal 21, Verifier 3's worst finding). A stranger spent a
+// third of their session being warped back into the front-door alcove — eight
+// times, once from mid-lawn during a sprint. The mechanism:
+//
+//   crumbs are only recorded while NOT overlapping, so inside a persistent snag
+//   zone none are ever added; the newest surviving crumb is wherever the player
+//   last stood cleanly, which can be minutes old and yards away; and recall()
+//   happily teleported them there.
+//
+// Being yanked backwards across the lawn is worse than being stuck, because it
+// is not understood. So a crumb is only "where you last had room" if it is
+// recent AND near. When nothing qualifies, recall returns null and the caller
+// falls through to nearestFree, which is a local nudge — the correct answer.
+export function createSafeTrail(cap = 24, options = {}) {
+  const maxAgeMs = options.maxAgeMs ?? 12000;
+  const maxDistance = options.maxDistance ?? 5;
   const pts = [];
   return {
-    record(x, z) {
-      pts.push({ x, z });
+    record(x, z, atMs = 0) {
+      pts.push({ x, z, atMs });
       if (pts.length > cap) pts.shift();
     },
-    // walk backwards until we find a crumb that is *still* free — the shop changes shape
-    recall(isFree) {
+    /**
+     * Walk backwards until we find a crumb that is *still* free — the shop
+     * changes shape. `from` is where the player is now, {x, z, atMs}; without
+     * it the search is unbounded, which is the old behaviour and is kept only
+     * for the manual pause-menu fallback.
+     */
+    recall(isFree, from = null) {
       for (let i = pts.length - 1; i >= 0; i--) {
-        if (isFree(pts[i].x, pts[i].z)) return pts[i];
+        const p = pts[i];
+        if (from) {
+          // ordered oldest to newest, so the first crumb too old to count means
+          // every one behind it is older still
+          if (Number.isFinite(from.atMs) && from.atMs - p.atMs > maxAgeMs) return null;
+          if (Math.hypot(p.x - from.x, p.z - from.z) > maxDistance) continue;
+        }
+        if (isFree(p.x, p.z)) return p;
       }
       return null;
     },

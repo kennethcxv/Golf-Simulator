@@ -444,6 +444,222 @@ def _principled_input(node: bpy.types.Node, names: Sequence[str]) -> Any | None:
     return None
 
 
+# ---------------------------------------------------------------------------
+# CC0 texturing
+# ---------------------------------------------------------------------------
+#
+# A slot gets photographic surface WITHOUT its shipped colour moving. That constraint
+# is the whole design: `tools/blender/palette.py` records that silently retinting
+# already-shipped assets is not a texture change, and it is right. So the builder keeps
+# authoring the colour, and the tint that multiplies the map is SOLVED from it here.
+#
+# Two modes, and which one a slot gets is measured, not chosen:
+#
+#   albedo   The calibrated (desaturated, exposure-normalised) map is multiplied by a
+#            solved tint, so the shipped MEAN lands exactly on the authored colour and
+#            the grain rides on top of it. Plus normal and roughness.
+#
+#   surface  Normal and roughness only, over the flat authored colour. This is what a
+#            dark or low-contrast slot gets, and it is not a consolation prize: matte
+#            rubber, moulded plastic and powder-coat carry their character in surface
+#            response, not in albedo variation. Putting a base-colour map on them adds
+#            texture memory and changes nothing on screen.
+#
+# The gate between them is `visible_span` from `cc0_calibrate.py`, restated here so a
+# Blender run needs no numpy. It is NOT the source's contrast ratio: contrast survives
+# calibration exactly, but the sRGB curve is steeply compressive near black, so the same
+# ratio spans ~34 code values on medium walnut and ~2 on black powder-coat. Measured in
+# `Spike/TEXTURE_VALIDATION.md`; a source-contrast gate cannot tell those two apart.
+
+_CC0_SPIKE_DIR = Path(__file__).resolve().parents[2] / "asset_sources" / "textures" / "cc0_spike"
+_CC0_CALIBRATED_DIR = Path(__file__).resolve().parents[2] / "asset_sources" / "textures" / "cc0_calibrated"
+_CC0_FAMILY_STATS = _CC0_CALIBRATED_DIR / "family_stats.json"
+
+# Below this the grain is not reliably visible on an uncalibrated display at normal
+# viewing distance, which is the same 8-code-value threshold the arm comparison used.
+CC0_MIN_VISIBLE_SPAN = 8.0
+
+# The authored roughness is intent - 0.90 for cotton yarn, 0.32 for brass - and a map
+# that REPLACES it throws that away. glTF can only MULTIPLY, so the map ships with a
+# solved factor = authored / mapMean, which puts the shipped mean back on the authored
+# value. When that factor would exceed 1 the map is simply too smooth to carry the
+# surface, and the slot ships its flat authored roughness instead: a roughness map that
+# drags a 0.93 sponge down to 0.17 is a visible regression, not a detail.
+
+_cc0_stats_cache: dict | None = None
+CC0_TEXTURE_DECISIONS: list[dict] = []
+_cc0_enabled = True
+
+
+def set_cc0_enabled(enabled: bool) -> None:
+    """Withhold every CC0 map without touching a single builder.
+
+    This is what makes the before/after comparison a control rather than a memory:
+    the untextured build runs the same code over the same geometry with the same
+    authored colours, and differs only in whether the maps were wired.
+    """
+    global _cc0_enabled
+    _cc0_enabled = bool(enabled)
+
+
+def _cc0_family_stats() -> dict:
+    global _cc0_stats_cache
+    if _cc0_stats_cache is None:
+        if not _CC0_FAMILY_STATS.exists():
+            raise SystemExit(
+                f"missing {_CC0_FAMILY_STATS}\n"
+                "run: python tools/blender/cc0_calibrate.py --emit-family-stats"
+            )
+        _cc0_stats_cache = json.loads(_CC0_FAMILY_STATS.read_text(encoding="utf-8"))["families"]
+    return _cc0_stats_cache
+
+
+def _srgb_from_linear(value: float) -> float:
+    return value * 12.92 if value <= 0.0031308 else 1.055 * (value ** (1 / 2.4)) - 0.055
+
+
+def _cc0_roughness_factor(stats: dict, roughness: float) -> float | None:
+    """`authored / mapMean`, or None when the map cannot reach the authored value."""
+    mean = float(stats.get("roughnessMapMean") or 0.0)
+    if mean <= 0.0:
+        return None
+    factor = float(roughness) / mean
+    return round(factor, 6) if factor <= 1.0 else None
+
+
+def cc0_plan(family: str, base_color: Sequence[float], roughness: float,
+             mode: str = "auto") -> dict:
+    """Decide albedo-vs-surface for one slot, and solve its tint.
+
+    Pure arithmetic on the family's measured statistics — no image is opened, so this
+    is cheap enough to call for every material in every build.
+
+    `mode='surface'` forces surface-only. The measured gate answers "would the albedo
+    grain be VISIBLE", which is the question it can answer; it cannot answer "should
+    this material look worn". PaintedMetal001's chipped-paint albedo is right on a
+    pressure washer and wrong on a moulded polypropylene bucket, where it reads as
+    staining rather than wear. That is an authoring call, so it is made in the builder
+    with a reason attached rather than by nudging a threshold until it agrees.
+    """
+    stats = _cc0_family_stats().get(family)
+    if stats is None:
+        raise SystemExit(f"unknown CC0 family {family!r}; run tools/blender/fetch_cc0.py --list")
+    gain = float(stats["exposureGain"])
+    normalised_mean = float(stats["meanLuma"]) * gain
+    target = tuple(float(c) for c in base_color[:3])
+    tint = [c / max(normalised_mean, 1e-9) for c in target]
+    reachable = not any(c > 1.0 for c in tint)
+
+    # Span at the map's p10/p90, per channel, once tinted onto this target.
+    mid = max((float(stats["lumaP10"]) + float(stats["lumaP90"])) / 2 * gain, 1e-9)
+    spans = []
+    for channel in target:
+        scale = channel / mid
+        low = min(scale * float(stats["lumaP10"]) * gain, 1.0)
+        high = min(scale * float(stats["lumaP90"]) * gain, 1.0)
+        spans.append((_srgb_from_linear(high) - _srgb_from_linear(low)) * 255.0)
+    span = max(spans)
+
+    if mode == "surface":
+        why = "surface forced by the builder — this family's albedo is wrong for this material"
+    elif not reachable:
+        mode, why = "surface", "tint would exceed 1.0 — target is lighter than the normalised map"
+    elif span < CC0_MIN_VISIBLE_SPAN:
+        mode, why = "surface", f"albedo grain would span {span:.1f} code values, under {CC0_MIN_VISIBLE_SPAN}"
+    else:
+        mode, why = "albedo", f"albedo grain spans {span:.1f} code values"
+    return {
+        "family": family,
+        "mode": mode,
+        "reason": why,
+        "roughnessFactor": _cc0_roughness_factor(stats, roughness),
+        "roughnessReason": (
+            "map mean is below the authored roughness — multiply can only smooth it further"
+            if _cc0_roughness_factor(stats, roughness) is None else "factor lands the mean on the authored value"
+        ),
+        "tintLinear": [round(c, 6) for c in tint],
+        "visibleSpanCodeValues": round(span, 1),
+        "reachable": reachable,
+        "shippedHex": "".join(f"{round(_srgb_from_linear(c) * 255):02X}" for c in target),
+        "contrastP90overP10": stats["contrastP90overP10"],
+    }
+
+
+def _cc0_image(node_tree, family: str, suffix: str, *, non_color: bool, calibrated: bool = False):
+    path = (_CC0_CALIBRATED_DIR / f"{family}_calibrated_Color.jpg" if calibrated
+            else _CC0_SPIKE_DIR / f"{family}_1K-JPG_{suffix}.jpg")
+    if not path.exists():
+        return None
+    node = node_tree.nodes.new("ShaderNodeTexImage")
+    node.image = bpy.data.images.load(str(path), check_existing=True)
+    # The asset validator rejects unpacked textures, and correctly so: an unpacked
+    # image is a path dependency that breaks the moment the .blend moves.
+    if not node.image.packed_file:
+        node.image.pack()
+    if non_color:
+        node.image.colorspace_settings.name = "Non-Color"
+    return node
+
+
+def _cc0_apply(mat, bsdf, plan: dict, *, uv_scale: float) -> None:
+    """Wire the CC0 maps for one material, in the mode `plan` selected."""
+    nt = mat.node_tree
+    texco = nt.nodes.new("ShaderNodeTexCoord")
+    mapping = nt.nodes.new("ShaderNodeMapping")
+    mapping.inputs["Scale"].default_value = (uv_scale, uv_scale, 1.0)
+    nt.links.new(texco.outputs["UV"], mapping.inputs["Vector"])
+    family = plan["family"]
+
+    def hooked(suffix, *, non_color, calibrated=False):
+        node = _cc0_image(nt, family, suffix, non_color=non_color, calibrated=calibrated)
+        if node is not None:
+            nt.links.new(mapping.outputs["Vector"], node.inputs["Vector"])
+        return node
+
+    if plan["mode"] == "albedo":
+        col = hooked("Color", non_color=False, calibrated=True)
+        if col is not None:
+            # Blender 5.1's glTF exporter recognises a base-colour tint from exactly one
+            # node pattern: ShaderNodeMix, RGBA, MULTIPLY, Factor pinned to 1.0, with the
+            # tint on an unconnected constant socket. ShaderNodeMixRGB renders identically
+            # and exports with NO baseColorFactor, shipping the raw untinted photograph.
+            # `tests/proshop-basecolor-factor.test.js` reads the GLB back to catch that.
+            mix = nt.nodes.new("ShaderNodeMix")
+            mix.data_type = "RGBA"
+            mix.blend_type = "MULTIPLY"
+            mix.inputs["Factor"].default_value = 1.0
+            # RGBA sockets by index: every data type shares the display names A and B.
+            nt.links.new(col.outputs["Color"], mix.inputs[6])
+            mix.inputs[7].default_value = (*plan["tintLinear"], 1.0)
+            nt.links.new(mix.outputs[2], bsdf.inputs["Base Color"])
+
+    if plan["roughnessFactor"] is not None:
+        rough = hooked("Roughness", non_color=True)
+        if rough is not None:
+            # MULTIPLY by a constant, and nothing else. glTF defines
+            #   roughness = roughnessFactor x texture.g
+            # so a multiply is the only operation the format can carry, and the factor
+            # solved above lands the shipped MEAN on the authored roughness.
+            #
+            # An earlier version modulated with SUBTRACT/MULTIPLY/ADD around the
+            # authored value. It rendered correctly in Blender and exported as the RAW
+            # map with no factor at all — the exporter matched "there is a roughness
+            # image upstream" and discarded the arithmetic, so a 0.52 walnut shipped
+            # across the map's full range. Reading the GLB back is what caught it.
+            scale = nt.nodes.new("ShaderNodeMath")
+            scale.operation = "MULTIPLY"
+            scale.inputs[1].default_value = float(plan["roughnessFactor"])
+            nt.links.new(rough.outputs["Color"], scale.inputs[0])
+            nt.links.new(scale.outputs["Value"], bsdf.inputs["Roughness"])
+
+    normal = hooked("NormalGL", non_color=True)
+    if normal is not None:
+        # NormalGL is the OpenGL green convention, which is what glTF expects.
+        nm = nt.nodes.new("ShaderNodeNormalMap")
+        nt.links.new(normal.outputs["Color"], nm.inputs["Color"])
+        nt.links.new(nm.outputs["Normal"], bsdf.inputs["Normal"])
+
+
 def material(
     name: str,
     base_color: Sequence[float],
@@ -457,8 +673,15 @@ def material(
     emission_color: Sequence[float] | None = None,
     emission_strength: float = 0.0,
     double_sided: bool = False,
+    texture: str | None = None,
+    uv_scale: float = 2.0,
+    texture_mode: str = "auto",
 ) -> bpy.types.Material:
-    """Create/reuse a clean stylized-PBR material with Blender 5.x fallbacks."""
+    """Create/reuse a clean stylized-PBR material with Blender 5.x fallbacks.
+
+    `texture` names a CC0 family (see ``tools/blender/fetch_cc0.py --list``). The colour
+    the surface ships does not change when it is supplied — see the CC0 block above.
+    """
 
     clean_name = _label(name)
     if not clean_name.startswith("MAT_"):
@@ -509,21 +732,45 @@ def material(
                 continue
     mat["project_owned"] = True
     mat["style"] = "Pinehollow stylized PBR"
+    if texture is not None and _cc0_enabled:
+        plan = cc0_plan(texture, rgba, roughness, texture_mode)
+        _cc0_apply(mat, bsdf, plan, uv_scale=uv_scale)
+        mat["cc0_family"] = texture
+        mat["cc0_mode"] = plan["mode"]
+        mat["cc0_visible_span"] = plan["visibleSpanCodeValues"]
+        mat["cc0_roughness_map"] = plan["roughnessFactor"] is not None
+        mat["cc0_reason"] = plan["reason"]
+        CC0_TEXTURE_DECISIONS.append({"material": clean_name, **plan})
     return mat
 
 
-def palette_materials() -> dict[str, bpy.types.Material]:
-    """Return the shared project-owned Pinehollow material palette."""
+def palette_materials(*, textured: bool = False) -> dict[str, bpy.types.Material]:
+    """Return the shared project-owned Pinehollow material palette.
+
+    `textured` is opt-in because this palette is shared with sheets the pro-shop slice
+    does not rebuild. Passing it changes surface response only; the colours are
+    identical either way, and the CC0 block above is where that is enforced.
+
+    Only the structural slots take a family. Glass, paper and the collision authoring
+    material get nothing: a normal map on a mirror or a transmissive pane is a defect,
+    not a detail.
+    """
 
     colors = {key: hex_to_linear_rgba(value) for key, value in PALETTE_SRGB_HEX.items()}
+    tex = (lambda family, **kw: {"texture": family, **kw}) if textured else (lambda family, **kw: {})
     result = {
         "warm_cream": material("PH_WarmCream", colors["warm_cream"], roughness=0.67),
-        "deep_green": material("PH_DeepGolfGreen", colors["deep_green"], roughness=0.52),
+        "deep_green": material("PH_DeepGolfGreen", colors["deep_green"], roughness=0.52,
+                               **tex("PaintedMetal001", uv_scale=2.8)),
         "muted_sage": material("PH_MutedSage", colors["muted_sage"], roughness=0.66),
-        "medium_walnut": material("PH_MediumWalnut", colors["medium_walnut"], roughness=0.49),
-        "natural_oak": material("PH_NaturalOak", colors["natural_oak"], roughness=0.54),
-        "warm_charcoal": material("PH_WarmCharcoal", colors["warm_charcoal"], roughness=0.56),
-        "restrained_brass": material("PH_RestrainedBrass", colors["restrained_brass"], roughness=0.32, metallic=0.88),
+        "medium_walnut": material("PH_MediumWalnut", colors["medium_walnut"], roughness=0.49,
+                                  **tex("Wood062", uv_scale=2.6)),
+        "natural_oak": material("PH_NaturalOak", colors["natural_oak"], roughness=0.54,
+                                **tex("Wood051", uv_scale=2.2)),
+        "warm_charcoal": material("PH_WarmCharcoal", colors["warm_charcoal"], roughness=0.56,
+                                  **tex("Metal032", uv_scale=3.0)),
+        "restrained_brass": material("PH_RestrainedBrass", colors["restrained_brass"], roughness=0.32, metallic=0.88,
+                                     **tex("Metal032", uv_scale=4.0)),
         "brushed_steel": material("PH_BrushedSteel", colors["brushed_steel"], roughness=0.39, metallic=0.82),
         "soft_black": material("PH_SoftBlack", colors["soft_black"], roughness=0.47),
         "rubber": material("PH_Rubber", colors["rubber"], roughness=0.86),
@@ -755,6 +1002,44 @@ def cylinder(
                 properties=properties)
     parent_keep_world(obj, parent)
     return obj
+
+
+def bore(
+    target: bpy.types.Object,
+    cutter: bpy.types.Object,
+) -> bpy.types.Object:
+    """Cut `cutter` out of `target` and delete the cutter. EXACT solver.
+
+    Added 2026-08-03 for the 099 umbrella stand, whose "hollow" was a solid
+    black cylinder standing inside a solid wall — a painted-on cavity with a
+    drain tray sealed underneath it that no camera could ever see. Faking a
+    hollow is exactly the class of defect the part-visibility sweep exists to
+    catch, and the only honest fix is to remove the material.
+
+    The material handling mirrors tools/blender/proshop_lib.py's boolean_cut,
+    which is the pattern that already works in this repository: assign the
+    material BEFORE applying, then re-index every polygon afterwards, because
+    the boolean brings the cutter's own slots across and leaves faces pointing
+    at indices the target does not have.
+    """
+    if target is None or cutter is None:
+        raise ValueError("bore requires both a target and a cutter")
+    bpy.context.view_layer.objects.active = target
+    modifier = target.modifiers.new("Bore", "BOOLEAN")
+    modifier.operation = "DIFFERENCE"
+    modifier.object = cutter
+    modifier.solver = "EXACT"
+    bpy.ops.object.modifier_apply(modifier=modifier.name)
+    for polygon in target.data.polygons:
+        polygon.material_index = 0
+    # …and drop the slots the boolean brought over. Re-indexing the faces is not
+    # enough on its own: the cutter's own (empty) slot survives as slot 1 and the
+    # publisher's material-slot validator fails the asset on it. Pop from the end
+    # so the surviving indices stay valid while removing.
+    while len(target.data.materials) > 1:
+        target.data.materials.pop(index=len(target.data.materials) - 1)
+    bpy.data.objects.remove(cutter, do_unlink=True)
+    return target
 
 
 def sphere(

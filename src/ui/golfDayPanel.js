@@ -8,7 +8,7 @@ const titleCase = (value) => String(value || '')
 
 function scoreText(party) {
   const golfer = party.golfers[party.currentGolferIndex] || party.golfers[0];
-  if (!golfer) return '—';
+  if (!golfer) return '-';
   const completed = party.scorecard.filter((hole) => hole.complete);
   const completedPar = completed.reduce((sum, hole) => sum + hole.par, 0);
   const delta = golfer.totalStrokes - completedPar;
@@ -16,7 +16,7 @@ function scoreText(party) {
   const current = golfer.holeStrokes
     ? `${golfer.holeStrokes} ${golfer.holeStrokes === 1 ? 'stroke' : 'strokes'}`
     : '';
-  if (!completed.length) return current || '—';
+  if (!completed.length) return current || '-';
   return current ? `${relative} · ${current}` : relative;
 }
 
@@ -75,7 +75,7 @@ export function makeGolfDayPanel(app) {
           el('span', { text: `H${Math.min(party.scorecard.length, party.holeIndex + 1)} · ${scoreText(party)}` })),
         el('div', { class: 'golf-live-phase', text: titleCase(party.state) }),
         el('div', { class: 'golf-live-detail' },
-          el('span', { text: party.transport === 'ride' ? `Cart ${party.cartId?.replace('cart-', '') || '—'}` : 'Walking' }),
+          el('span', { text: party.transport === 'ride' ? `Cart ${party.cartId?.replace('cart-', '') || '-'}` : 'Walking' }),
           party.state === 'practicing' && party.practiceKind
             ? el('span', { text: titleCase(party.practiceKind) })
             : null,

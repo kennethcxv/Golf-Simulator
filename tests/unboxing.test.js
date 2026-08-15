@@ -94,7 +94,7 @@ test('the box arrives sealed: taped, flaps shut, full, and it will not give you 
   assert.equal(openFlap(st, b.id).ok, false, 'and the flaps will not lift through the tape');
 });
 
-test('cutting the tape is a cut, not a switch — half-cut is a real state you can save', () => {
+test('cutting the tape is a cut, not a switch - half-cut is a real state you can save', () => {
   const st = landed();
   const b = boxesOf(st)[0];
 
@@ -116,7 +116,7 @@ test('cutting the tape is a cut, not a switch — half-cut is a real state you c
   assert.equal(cutTape(st, b.id, 1).ok, false, 'and the tape only cuts once');
 });
 
-test('you cannot cut a box you are holding — you need both hands', () => {
+test('you cannot cut a box you are holding - you need both hands', () => {
   const st = landed();
   const b = boxesOf(st)[0];
   assert.ok(pickUpBox(st, b.id).ok);
@@ -156,7 +156,7 @@ test('the lid opens in two halves, and only once the tape is gone', () => {
 
 // --- the contents come out into your hands ----------------------------------------------------
 
-test('contents come out into YOUR HANDS — they do not teleport into the backroom', () => {
+test('contents come out into YOUR HANDS - they do not teleport into the backroom', () => {
   const st = landed('balls2', 12);
   const b = boxesOf(st)[0];
   const before = unitsOf(st, 'balls2');
@@ -209,7 +209,7 @@ test('you cannot carry a box and an armful at the same time, or two different li
   assert.equal(takeFromBox(st, ballBox.id).ok, false, 'and not while holding a box');
 });
 
-test('an empty box stays in the world as an empty box — it does not vanish when you take the last one', () => {
+test('an empty box stays in the world as an empty box - it does not vanish when you take the last one', () => {
   const st = landed('glove1', 8);
   const b = boxesOf(st)[0];
   cutTape(st, b.id, 1); openAllFlaps(st, b.id);
@@ -249,7 +249,7 @@ test('a fixture takes what belongs on it, and tells you where the rest goes', ()
   assert.equal(homeOf('cap1').id, 'hatstand');
 });
 
-test('every line for sale has exactly one fixture that accepts it — no orphans, no ambiguity', () => {
+test('every line for sale has exactly one fixture that accepts it - no orphans, no ambiguity', () => {
   // "Enforce: hats on hat fixtures, shirts on apparel fixtures, balls on ball shelves, clubs on
   // club racks, bags on bag stands, shoes on shoe displays, accessories on compatible small-product
   // fixtures." Every one of those is a row in FIXTURES[].skus, and this is the proof.
@@ -302,7 +302,7 @@ test('stocking stops when the shelf is full and RETAINS the leftovers in your ha
   assert.equal(carriedGoods(st), null);
 });
 
-test('one at a time or a whole armful — hold-to-stock puts them on the shelf one by one', () => {
+test('one at a time or a whole armful - hold-to-stock puts them on the shelf one by one', () => {
   const st = bareShop();
   st.shop.inventory.balls1.back = 10;
   takeFromBack(st, 'balls1', 6);
@@ -333,7 +333,7 @@ test('flatten only when empty; recycle only when flat; and a flattened box is st
   assert.ok(flattenBox(st, b.id).ok);
   assert.equal(b.flat, true);
   assert.equal(boxState(b), 'flattened');
-  assert.equal(boxesOf(st).length, 1, 'a flattened box is still in the room — it did not evaporate');
+  assert.equal(boxesOf(st).length, 1, 'a flattened box is still in the room - it did not evaporate');
 
   // and you can carry the flat one to the bin
   assert.ok(pickUpBox(st, b.id).ok);
@@ -492,7 +492,7 @@ test('an empty box asks to be flattened, and a flat one to be carried', () => {
   assert.equal(nextBoxStep(b), BOX_STEP.CARRY, 'flat, so the next press picks it up');
 });
 
-test('a carried box refuses every step — you need both hands', () => {
+test('a carried box refuses every step - you need both hands', () => {
   const st = landed();
   const b = boxesOf(st)[0];
   b.loc = 'carried';

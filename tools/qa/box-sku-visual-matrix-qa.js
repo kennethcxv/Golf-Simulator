@@ -90,12 +90,12 @@ async (page) => {
 
   async function stageOpenBox(spec, index) {
     const fixture = await page.evaluate(async ({ spec: requested, orderId, spot }) => {
-      const D = await import('/src/sim/deliveries.js');
-      const { SHOP_CATALOG } = await import('/src/data/shopItems.js');
-      const { planShipment } = await import('/src/data/boxes.js');
-      const { productPackagingFor } = await import('/src/data/productPackaging.js');
-      const { previewBoxPlacement } = await import('/src/sim/boxPlacement.js');
-      const { FLOOR_BOX_SURFACE_ID } = await import('/src/data/boxPlacementSurfaces.js');
+      const D = await import(new URL('src/sim/deliveries.js', document.baseURI).href);
+      const { SHOP_CATALOG } = await import(new URL('src/data/shopItems.js', document.baseURI).href);
+      const { planShipment } = await import(new URL('src/data/boxes.js', document.baseURI).href);
+      const { productPackagingFor } = await import(new URL('src/data/productPackaging.js', document.baseURI).href);
+      const { previewBoxPlacement } = await import(new URL('src/sim/boxPlacement.js', document.baseURI).href);
+      const { FLOOR_BOX_SURFACE_ID } = await import(new URL('src/data/boxPlacementSurfaces.js', document.baseURI).href);
       const state = window.__fw.state;
       D.ensureDeliveries(state);
       const delivery = state.shop.deliveries;

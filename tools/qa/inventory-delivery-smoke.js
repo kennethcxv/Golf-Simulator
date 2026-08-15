@@ -12,9 +12,8 @@ async (page) => {
 
   await page.setViewportSize({ width: 1600, height: 900 });
   await page.goto(baseUrl, { waitUntil: 'domcontentloaded' });
-  const continueButton = page.getByText('Continue', { exact: true }).first();
-  await continueButton.waitFor({ state: 'visible', timeout: 30000 });
-  await continueButton.click();
+  const { clickThroughMenu } = await import(`file:///${process.cwd().replace(/\\/g, '/')}/tools/qa/lib/qa-boot.mjs`);
+  await clickThroughMenu(page);
   await page.waitForFunction(() => window.__fw?.scene3d?.clubhouse?.(), null, { timeout: 90000 });
   await page.waitForFunction(() => {
     const veil = document.querySelector('.load-veil');
@@ -23,9 +22,9 @@ async (page) => {
   await page.waitForTimeout(1800);
 
   await page.evaluate(async () => {
-    const delivery = await import('/src/sim/deliveries.js');
-    const boxes = await import('/src/data/boxes.js');
-    const items = await import('/src/data/shopItems.js');
+    const delivery = await import(new URL('src/sim/deliveries.js', document.baseURI).href);
+    const boxes = await import(new URL('src/data/boxes.js', document.baseURI).href);
+    const items = await import(new URL('src/data/shopItems.js', document.baseURI).href);
     const app = window.__fw;
     app.speedIdx = 0;
     app.state.cash = 250000;
@@ -55,7 +54,7 @@ async (page) => {
   await page.waitForTimeout(300);
 
   const read = async (step) => page.evaluate(async (name) => {
-    const delivery = await import('/src/sim/deliveries.js');
+    const delivery = await import(new URL('src/sim/deliveries.js', document.baseURI).href);
     const app = window.__fw;
     const box = delivery.boxesOf(app.state)[0];
     return {

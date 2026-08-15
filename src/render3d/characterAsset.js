@@ -5,6 +5,7 @@
 // this keeps real articulated motion fully under our control, no exporter risk.
 
 import * as THREE from 'three';
+import { STRIDE_RATE_RAD_S } from '../data/locomotion.js';
 import { CUSTOMER_IMPATIENT_BEAT_SECONDS } from './clubhouse/customerFlow.js';
 
 // Articulation stays per actor; immutable GPU resources do not. A bounded
@@ -98,11 +99,43 @@ export function makeCharacter({ polo = 0x3b6fb3, khaki = 0xc2b190, cap = 0xf2efe
   // hovered ~5 cm above the ground. Every base height below is lowered to plant the feet.
   const pelvis = ellipsoid(0.32, 0.18, 0.21, mKhaki, 0.98);
   root.add(pelvis);
-  const belt = new THREE.Mesh(new THREE.CylinderGeometry(0.205, 0.198, 0.038, 18), mBelt);
+  // H3 (Goal 17) — THE TORSO WAS WIDER THAN THE BELT, AND THE BELT WAS A
+  // COARSER POLYGON. Both, at once, on the sides.
+  //
+  // Computed rather than eyeballed. The belt sits at y 1.055; the chest group
+  // sits at 1.07, so the belt meets the torso lathe at local y -0.015. The
+  // profile interpolates between (0.202, -0.018) and (0.212, 0.035) to a radius
+  // of 0.2026 there. The belt's mid radius was (0.205 + 0.198) / 2 = 0.2015.
+  // The shirt was already 1.1 mm outside the belt before any pose.
+  //
+  // And the belt had 18 radial segments to the torso's 24. A cylinder is a
+  // POLYGON: between its vertices its surface sits at r * cos(pi/n), so the
+  // belt's real surface on its flats was 0.2015 * 0.9848 = 0.1984 - putting
+  // 4.2 mm of shirt outside the belt at every flat. That is the "skin phases
+  // through the belt" of H3, and it is a static geometry fault, not a pose one:
+  // it is true standing still.
+  //
+  // Fixed on both counts. The segment count matches the torso, so neither is a
+  // coarser polygon than the other, and the radii are set so the belt's
+  // INSCRIBED radius (0.206 * cos(pi/24) = 0.2043) clears the torso's
+  // circumscribed 0.2026 with 1.7 mm to spare. Depth is unchanged and was never
+  // the problem: at scale.z 0.74 against the torso's 0.72 the belt already
+  // stood 6.6 mm proud front and back.
+  const belt = new THREE.Mesh(new THREE.CylinderGeometry(0.209, 0.203, 0.038, 24), mBelt);
   belt.position.y = 1.055;
   belt.scale.z = 0.74;
   belt.castShadow = true;
   root.add(belt);
+  // Q6: a real buckle. A plain dark band round the waist reads as a seam; the
+  // bright rectangle at the front is what says "belt", and a belt is most of
+  // what says the trousers are golf trousers rather than pyjamas.
+  const buckle = new THREE.Mesh(new THREE.BoxGeometry(0.062, 0.044, 0.014), M(0xb9a06a, 0.34));
+  buckle.position.set(0, 1.055, 0.152);
+  buckle.castShadow = true;
+  root.add(buckle);
+  const buckleTongue = new THREE.Mesh(new THREE.BoxGeometry(0.030, 0.020, 0.008), mBelt);
+  buckleTongue.position.set(0, 1.055, 0.160);
+  root.add(buckleTongue);
 
   const chest = new THREE.Group();
   chest.position.y = 1.07;
@@ -132,8 +165,14 @@ export function makeCharacter({ polo = 0x3b6fb3, khaki = 0xc2b190, cap = 0xf2efe
   // A polo shoulder yoke lying across the top of the chest, tying both arm-roots into the body.
   const yoke = new THREE.Mesh(new THREE.CapsuleGeometry(0.135, 0.26, 6, 14), mPolo);
   yoke.rotation.z = Math.PI / 2;
-  yoke.scale.set(1, 1, 0.82);
-  yoke.position.y = 0.4;
+  // ITEM 16, proportions: at scale 1 this is a 27 cm roll of fabric lying
+  // across the shoulders from y 0.265 to y 0.535, and the four-up portrait
+  // reads it as balloon sleeves on every customer. Flattened to 0.68 it becomes
+  // a shoulder LINE. The x scale is untouched, so the shoulder span and the
+  // deltoid coverage at the arm root are exactly as they were - only the
+  // roundness goes.
+  yoke.scale.set(1, 0.68, 0.82);
+  yoke.position.y = 0.392;
   yoke.castShadow = true;
   chest.add(yoke);
   // A skin neck rising out of the collar and into the skull — no more floating head.
@@ -150,6 +189,25 @@ export function makeCharacter({ polo = 0x3b6fb3, khaki = 0xc2b190, cap = 0xf2efe
   collar.position.y = 0.415;
   collar.castShadow = true;
   chest.add(collar);
+  // Q6 (2026-08-06): "add real golf clothes on them etc." The shirt was already
+  // a polo in shape - collar, placket, buttons - but nothing said GOLF polo.
+  // The tells a player actually recognises are contrast trim on the collar and
+  // sleeve openings, so they go on here in a tone derived from the shirt rather
+  // than a fixed colour, which keeps every randomised polo looking deliberate.
+  const trimTone = (base) => {
+    const c = new THREE.Color(base);
+    const hsl = { h: 0, s: 0, l: 0 };
+    c.getHSL(hsl);
+    // a crisp light trim on a dark shirt, a deep one on a pale shirt
+    return new THREE.Color().setHSL(hsl.h, Math.min(1, hsl.s * 0.55), hsl.l > 0.5 ? 0.20 : 0.86);
+  };
+  const mTrim = M(trimTone(polo).getHex(), 0.7);
+  const collarTrim = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.1105, 0.1105, 0.012, 18, 1, true), mTrim,
+  );
+  collarTrim.position.y = 0.441;
+  fineDetail(collarTrim);
+  chest.add(collarTrim);
   // A short placket + two buttons down the chest so the front reads as a polo.
   const placket = box(0.028, 0.17, 0.012, M(polo, 0.62), 0.30, 0.138);
   fineDetail(placket);
@@ -165,7 +223,33 @@ export function makeCharacter({ polo = 0x3b6fb3, khaki = 0xc2b190, cap = 0xf2efe
   head.name = 'headJoint';
   head.position.y = 0.62;
   chest.add(head);
-  const skull = new THREE.Mesh(new THREE.SphereGeometry(0.155, 20, 14), mSkin);
+  // H2 (Goal 17) — THE SAME CAUSE AS H3, ON A DIFFERENT PART OF THE BODY.
+  //
+  // "Eyebrows and moustaches float in front of the face. From the side they sit
+  // off the skin with a visible gap."
+  //
+  // The features ARE seated against the skull's nominal 0.155 radius - the brow
+  // at (0.058, 0.114, 0.137) sits 0.1523 from the skull centre on its inner
+  // face, comfortably inside 0.155. On paper it is buried.
+  //
+  // But the skull was a SphereGeometry(0.155, 20, 14), and a UV sphere is a
+  // POLYGON in both axes. Between its vertices the drawn surface pulls in by
+  // roughly cos(pi/20) * cos(pi/28) = 0.9814 - so the skin that actually gets
+  // drawn sits at about 0.1521, which is INSIDE the brow's inner face. The
+  // features were seated against a surface the renderer never draws, and the
+  // gap opens exactly where the brief says it does: from the side, on the
+  // facets.
+  //
+  // Raising the segment count is the fix for every feature at once - eyes,
+  // brows, catchlights, moustache - rather than re-seating each against a
+  // faceting allowance. At 28 x 20 the drawn surface is 0.1540, which is now
+  // OUTSIDE the brow's inner face by 1.7 mm, so the features are buried in skin
+  // from any angle.
+  //
+  // The cost is triangles, not draw calls: one mesh either way, 280 -> 560
+  // triangles on a head. A1 measured this renderer as draw-call bound, so this
+  // is the cheap axis to spend on.
+  const skull = new THREE.Mesh(new THREE.SphereGeometry(0.155, 28, 20), mSkin);
   skull.position.y = 0.06;
   skull.castShadow = true;
   head.add(skull);
@@ -189,7 +273,11 @@ export function makeCharacter({ polo = 0x3b6fb3, khaki = 0xc2b190, cap = 0xf2efe
     head.add(catchlight);
     const brow = box(0.052, 0.012, 0.014, mBrow, 0.114, 0.137);
     brow.position.x = x * 1.02;
-    brow.position.z = 0.158;
+    // G2: seated on the skull along the FULL radial — the first fix used
+    // the x=0 surface (0.145) and left the brows 10 mm proud on their
+    // diagonal at x ±0.058, which the mesh-raycast instrument caught. The
+    // surface at (x, y 0.114) is sqrt(0.155^2 - x^2 - 0.054^2) ≈ 0.133.
+    brow.position.z = 0.139;
     brow.rotation.z = x < 0 ? 0.14 : -0.14;
     fineDetail(brow);
     head.add(brow);
@@ -197,7 +285,10 @@ export function makeCharacter({ polo = 0x3b6fb3, khaki = 0xc2b190, cap = 0xf2efe
   const nose = ellipsoid(0.034, 0.045, 0.030, mSkin, 0.043, 0.163, 8);
   fineDetail(nose);
   head.add(nose);
-  const mouth = box(0.058, 0.011, 0.010, mFace, -0.028, 0.158);
+  // G2: this dark slab at z 0.158 hovered ~25 mm off the skull (surface z
+  // at mouth height is 0.1276) and read in profile as a floating moustache
+  // — there IS no moustache mesh; this was it. Seated now, <=2 mm proud.
+  const mouth = box(0.058, 0.011, 0.010, mFace, -0.028, 0.133);
   mouth.rotation.x = 0.12; // a faint upward set, so the resting face is neutral-friendly
   fineDetail(mouth);
   head.add(mouth);
@@ -210,26 +301,95 @@ export function makeCharacter({ polo = 0x3b6fb3, khaki = 0xc2b190, cap = 0xf2efe
   if (mCap) {
     // A soft golf cap: a domed crown hugging the skull, a top button, and a curved bill —
     // not a soup can with a slab stuck to it.
-    const crown = new THREE.Mesh(new THREE.SphereGeometry(0.168, 20, 12, 0, Math.PI * 2, 0, Math.PI * 0.58), mCap);
-    crown.scale.set(1.02, 0.94, 1.06);
-    crown.position.y = 0.05;
+    //
+    // Q6 (2026-08-06): "the persons hat is like phased in with there head." It
+    // was, and the numbers said so. The skull is a 0.155 sphere centred at
+    // y=0.06, so its crown reaches 0.215. The cap's crown was a 0.168 sphere
+    // scaled 0.94 in y and seated at 0.05, reaching 0.208 - SEVEN MILLIMETRES
+    // BELOW the head it was supposed to cover, so the skull came through the
+    // top. The cap now sits on the skull's own centre and keeps a real band of
+    // clearance all the way round rather than a coincidence at the sides.
+    const SKULL_R = 0.155;
+    const SKULL_Y = 0.06;
+    // ITEM 16: "hats worst", and the four-up portrait says why. Q6 fixed the
+    // skull poking THROUGH the crown by seating the crown on the skull's own
+    // centre and giving it a 0.58*PI sweep. That sweep runs 14 degrees past the
+    // equator, so the crown skirt came down to y=0.019 ALL THE WAY ROUND -
+    // including across the front of the face, which puts the eyes (y 0.083) and
+    // the brows (y 0.114) inside the hat. Add the old bill, a 0.185-wide slab
+    // sitting at y 0.118 directly over them, and the result reads as a
+    // motorcycle helmet with a visor and a face in shadow. It measured as a
+    // well-seated cap the whole time because clearance was the only thing being
+    // measured.
+    //
+    // A cap's crown stops at the brow. So the crown is now a plain hemisphere
+    // whose RIM is the brow line: sweep PI/2 exactly, so the rim sits at the
+    // crown's own centre height, and that centre is placed at brow height
+    // rather than at the skull's.
+    const CAP_RIM_Y = 0.135; // ~15 mm above the top of the brow (0.120)
+    const crown = new THREE.Mesh(
+      new THREE.SphereGeometry(0.145, 22, 12, 0, Math.PI * 2, 0, Math.PI / 2), mCap,
+    );
+    // shallower than a ball: a cap crown is a low dome, and 0.66 puts its top
+    // 16 mm clear of the skull's 0.215 instead of 19 mm of headroom
+    crown.scale.set(1.0, 0.66, 1.04);
+    crown.position.y = CAP_RIM_Y;
     crown.castShadow = true;
     head.add(crown);
-    const button = new THREE.Mesh(new THREE.SphereGeometry(0.016, 8, 6), mCap);
-    button.position.y = 0.196;
+    // the button rides the crown's actual top, not the old one's
+    const crownTop = crown.position.y + 0.145 * crown.scale.y;
+    const button = new THREE.Mesh(new THREE.SphereGeometry(0.014, 8, 6), mCap);
+    button.position.y = crownTop + 0.004;
     fineDetail(button);
     head.add(button);
-    // curved bill: a flattened, slightly down-tilted disc projecting from the crown front
-    const bill = ellipsoid(0.185, 0.026, 0.155, mCap, 0.108, 0.14, 16);
-    bill.rotation.x = 0.17;
+    // The bill projects FORWARD from the rim and stays above the brow. Its
+    // underside at y 0.121 is 38 mm clear of the eyes; the old one's was 8 mm
+    // clear and its tilt took it lower still.
+    // ...and it has to PROJECT, or it reads as part of the dome and the whole
+    // thing looks like a beret. The crown's front edge is at z 0.151, so a bill
+    // ending at 0.205 clears it by 54 mm; a real peak stands about 85 mm proud,
+    // which is what separates the two shapes at conversational distance.
+    const bill = ellipsoid(0.165, 0.021, 0.215, mCap, CAP_RIM_Y - 0.003, 0.128, 18);
+    bill.rotation.x = 0.24;
+    bill.castShadow = true;
     head.add(bill);
-  } else {
-    // bare head gets hair instead of a cap
-    const hair = new THREE.Mesh(
-      G('hair', () => new THREE.SphereGeometry(0.16, 12, 8, 0, Math.PI * 2, 0, Math.PI / 2.1)),
-      M(0x4a3a28, 0.95),
+    // the sweatband: the dark inner rim a real cap shows under the crown edge.
+    // It sits AT the rim now (the old one was 87 mm lower, level with the ears,
+    // where a cap has no band).
+    const band = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.1425, 0.1435, 0.022, 22, 1, true),
+      M(0x2f3a34, 0.9),
     );
-    hair.position.y = 0.1;
+    band.position.y = CAP_RIM_Y - 0.010;
+    band.scale.set(1.0, 1, 1.04);
+    fineDetail(band);
+    head.add(band);
+  } else {
+    // ITEM 16: the bare head wore a hemisphere sliced flat across a round
+    // skull. Its rim sat at y 0.112 - ABOVE the skull's widest point - so the
+    // sides and back of the head were bare scalp below a hard horizontal line,
+    // and the portrait read as a swim cap. Measured as coverBelowEquator
+    // -0.30: the covering stopped three tenths of a skull radius short of even
+    // reaching the equator.
+    //
+    // Real hair reaches the nape at the back and stops at the brow in front, so
+    // the rim is not horizontal - it is TILTED. One sphere segment, swept a
+    // little past its own equator and tipped back, gives both edges at once:
+    // the front rim rises to the hairline and the back rim drops to the neck.
+    const HAIR_R = 0.163;
+    const HAIR_SWEEP = Math.PI * 0.56; // 10.8 degrees past the equator
+    const hair = new THREE.Mesh(
+      G('hair', () => new THREE.SphereGeometry(HAIR_R, 20, 14, 0, Math.PI * 2, 0, HAIR_SWEEP)),
+      M(0x3d3024, 0.82),
+    );
+    hair.position.y = 0.075;
+    // Tipped back 0.52 rad: the rim circle is 0.160 across, so each edge moves
+    // 0.160*sin(0.52) = 79 mm. Front hairline lands at y 0.124, 4 mm above the
+    // top of the brow; the back reaches y -0.034, below the ears and onto the
+    // nape. A sphere is rotation-invariant, so tipping it moves the rim without
+    // touching the clearance Q6 measured.
+    hair.rotation.x = -0.52;
+    hair.castShadow = true;
     head.add(hair);
   }
 
@@ -240,7 +400,11 @@ export function makeCharacter({ polo = 0x3b6fb3, khaki = 0xc2b190, cap = 0xf2efe
     chest.add(shoulder);
     // deltoid cap at the pivot: a polo ball merging the yoke into the sleeve. Sitting on
     // the joint centre, it caps the shoulder at every arm angle without a visible socket.
-    const deltoid = ball(0.080, mPolo, 16);
+    // ITEM 16: 0.080 against a 0.056 upper arm is a 24 mm bulb at the joint,
+    // and with the yoke behind it every customer read as balloon sleeves. 0.071
+    // still clears the arm by 15 mm, so the joint stays closed at every angle -
+    // which is the only reason this ball exists - without the balloon.
+    const deltoid = ball(0.071, mPolo, 16);
     deltoid.scale.set(0.94, 0.90, 0.84);
     shoulder.add(deltoid);
     const upperArm = capsule(0.056, 0.20, mPolo, -0.15);
@@ -251,6 +415,12 @@ export function makeCharacter({ polo = 0x3b6fb3, khaki = 0xc2b190, cap = 0xf2efe
     sleeveCuff.position.y = -0.275;
     sleeveCuff.castShadow = true;
     shoulder.add(sleeveCuff);
+    // Q6: the matching contrast band at the sleeve opening - the other half of
+    // what makes a shirt read as a golf polo rather than any collared top
+    const sleeveTrim = new THREE.Mesh(new THREE.CylinderGeometry(0.0635, 0.0635, 0.011, 14), mTrim);
+    sleeveTrim.position.y = -0.288;
+    fineDetail(sleeveTrim);
+    shoulder.add(sleeveTrim);
     const elbow = new THREE.Group();
     elbow.name = `elbow${side}`;
     elbow.position.y = -0.32;
@@ -326,17 +496,40 @@ export function makeCharacter({ polo = 0x3b6fb3, khaki = 0xc2b190, cap = 0xf2efe
     knee.add(shin);
     // a real shoe: a soft leather upper on a rubber sole with a rounded toe, in place of the
     // dark block that used to sit under the trouser cuff.
-    const sole = box(0.135, 0.035, 0.30, mSole, -0.452, -0.03);
+    // G1 (Goal 18): the rig's contract at the top of this file says the toes
+    // sit on local +Z with the face — these were authored on -Z, so every
+    // body type walked with both shoes on backwards (image 7). Mirrored.
+    const sole = box(0.135, 0.035, 0.30, mSole, -0.452, 0.03);
     sole.castShadow = true;
     knee.add(sole);
-    const foot = ellipsoid(0.128, 0.115, 0.235, mShoe, -0.398, -0.05, 12);
+    const foot = ellipsoid(0.128, 0.115, 0.235, mShoe, -0.398, 0.05, 12);
     knee.add(foot);
-    const toe = ellipsoid(0.118, 0.088, 0.13, mShoe, -0.41, -0.135, 12);
+    const toe = ellipsoid(0.118, 0.088, 0.13, mShoe, -0.41, 0.135, 12);
     knee.add(toe);
     const tongue = box(0.075, 0.05, 0.10, mShoe, -0.352, 0.01);
     tongue.rotation.x = -0.25;
     fineDetail(tongue);
     knee.add(tongue);
+    // Q6: a golf shoe, not a street shoe. Two tells, both cheap: a pale
+    // midsole stripe between the upper and the sole, and a trouser cuff that
+    // BREAKS over the shoe instead of a khaki tube ending in mid-air.
+    // G1: the stripe was WIDER and LONGER than the sole (0.138/0.302 vs
+    // 0.135/0.30), so its pale rim stuck out under the dark rubber all round
+    // — the "white slab beneath each foot". Inset, it reads on the side
+    // profile only, which is what a midsole is.
+    // ...and toned from near-white to putty: at a stride's heel-lift the pale
+    // underside caught the light as a bright plate (the last of the "white
+    // slab" read), which a real midsole never does at ten paces.
+    const midsole = box(0.131, 0.014, 0.294, M(0x9a958a, 0.7), -0.4335, 0.03);
+    fineDetail(midsole);
+    knee.add(midsole);
+    const trouserCuff = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.076, 0.084, 0.055, 14), mKhaki,
+    );
+    trouserCuff.position.set(0, -0.318, 0.006);
+    trouserCuff.scale.z = 0.94;
+    trouserCuff.castShadow = true;
+    knee.add(trouserCuff);
     limbs[`hip${side}`] = hip;
     limbs[`knee${side}`] = knee;
   }
@@ -405,24 +598,33 @@ export function makeCharacter({ polo = 0x3b6fb3, khaki = 0xc2b190, cap = 0xf2efe
     char.phase += dt;
     const p = char.phase;
     let hipL = 0, hipR = 0, kneeL = 0, kneeR = 0, shL = 0, shR = 0, elb = -0.25;
+    // Both elbows share `elb` for every symmetric pose. `elbL` overrides the
+    // LEFT one for poses where the two arms are doing different jobs — one arm
+    // reaching while the other hangs, which a single shared bend cannot say.
+    let elbL = null;
     let lean = 0.04, twist = 0, headTilt = 0, bob = 0, shLz = 0.06, shRz = -0.06;
 
     if (char.mode === 'Walk' || char.mode === 'WalkBag') {
-      const w = p * 8.7; // ~1.4 strides/s
+      const w = p * STRIDE_RATE_RAD_S; // ~1.4 strides/s
       hipL = 0.55 * Math.sin(w);
       hipR = -hipL;
       kneeL = 0.4 * Math.max(0, Math.sin(w - 1.1));
       kneeR = 0.4 * Math.max(0, Math.sin(w + Math.PI - 1.1));
       if (char.mode === 'WalkBag') {
-        // Ease from the two-handed acceptance pose into a one-handed side
-        // carry, avoiding a one-frame snap as the customer turns to leave.
+        // Ease from the acceptance pose into a one-handed side carry, avoiding
+        // a one-frame snap as the customer turns to leave.
         const u = Math.min(1, p / 0.55);
         const settle = u * u * (3 - 2 * u);
-        // Keep the loaded carrier at waist height until the shopper clears the
-        // counter. A fully dropped arm hides the entire bag behind the walnut top.
-        shL = -1.18 + 0.025 * Math.sin(w * 0.5) * settle;
-        shR = -1.00 * (1 - settle) + 0.38 * Math.sin(w) * settle;
-        elb = -0.66 * (1 - settle) - 0.68 * settle;
+        // C4: THE CARRIED ARM HANGS. It used to hold shL at -1.18 for the whole
+        // walk — a 68 deg lift, held — on the reasoning that "a fully dropped
+        // arm hides the entire bag behind the walnut top". That is one second
+        // of framing bought with a customer who carries a shop bag out at
+        // waist height like a lantern. They are walking AWAY from the counter;
+        // the bag is in clear view within a stride either way.
+        shL = -0.42 * (1 - settle) + (-0.16 + 0.06 * Math.sin(w * 0.5)) * settle;
+        shR = -0.05 * (1 - settle) + 0.38 * Math.sin(w) * settle;
+        elbL = -0.55 * (1 - settle) - 0.20 * settle;   // the carrying arm straightens
+        elb = -0.12 * (1 - settle) - 0.35 * settle;    // the free arm swings
         lean = 0.14 * (1 - settle) + 0.07 * settle;
       } else {
         shL = -0.45 * Math.sin(w);
@@ -500,6 +702,17 @@ export function makeCharacter({ polo = 0x3b6fb3, khaki = 0xc2b190, cap = 0xf2efe
       elb = -0.62;
       lean = 0.13;
       headTilt = 0.08;
+    } else if (char.mode === 'CashLaid') {
+      // F6 (Full_Goal_16): the notes are DOWN on the counter — the arm comes
+      // back and the customer waits for change with hands settled, a touch
+      // of forward attention keeping them "at the counter" rather than idle.
+      // The card path never uses this: a card stays in the held-out hand
+      // until the cashier takes it.
+      shR = -0.30;
+      shL = -0.16;
+      elb = -0.18;
+      lean = 0.07;
+      headTilt = 0.05;
     } else if (char.mode === 'Receive') {
       shR = -1.05;
       shL = -0.10;
@@ -507,9 +720,25 @@ export function makeCharacter({ polo = 0x3b6fb3, khaki = 0xc2b190, cap = 0xf2efe
       lean = 0.10;
       headTilt = 0.16;
     } else if (char.mode === 'ReceiveBag') {
-      shR = -1.00;
-      shL = -1.18;
-      elb = -0.66;
+      // ONE HAND, like a person. This used to raise both arms (shL -1.18
+      // alongside shR -1.00), which reads as being handed something heavy with
+      // two hands — or worse, as a surrender. Nobody takes a small shop bag
+      // that way: you put one hand out, take the handles, and go.
+      //
+      // C4 — AND IT HAS TO BE THE HAND THE BAG GOES TO. The bag attaches to
+      // carryGrip('L') (clubhouse.js onCustomerPaid), and this pose raised the
+      // RIGHT arm to -1.00 while the left hung: the customer reached with one
+      // hand and received in the other. Photographed at the counter 2026-08-04
+      // — a raised empty fist on one side, a flat bag half inside the desk on
+      // the other.
+      //
+      // So the LEFT arm is the one that moves, and it goes FORWARD, not up:
+      // -0.42 puts the hand out at hip height, which is where the brief says
+      // the bag is taken. The right arm hangs.
+      shL = -0.42;   // the receiving arm — forward at the hip, not lifted
+      elbL = -0.55;  // forearm out, so the hand clears the body
+      shR = -0.05;   // the other arm just hangs
+      elb = -0.12;   // …near enough straight
       lean = 0.14;
       // A small appreciative nod makes the ownership transfer read as a positive
       // customer reaction without turning checkout into an arcade celebration.
@@ -557,13 +786,22 @@ export function makeCharacter({ polo = 0x3b6fb3, khaki = 0xc2b190, cap = 0xf2efe
     limbs.shoulderR.rotation.x = shR;
     limbs.shoulderL.rotation.z = shLz;
     limbs.shoulderR.rotation.z = shRz;
-    limbs.elbowL.rotation.x = elb;
+    limbs.elbowL.rotation.x = elbL ?? elb;
     limbs.elbowR.rotation.x = elb;
     chest.rotation.x = lean;
     chest.rotation.y = twist;
     head.rotation.x = headTilt;
     chest.position.y = 1.07 + bob; // bob lives on the body — root stays placeable
-    pelvis.position.y = 0.98 + bob * 0.7;
+    // G1 (Full_Goal_16): FOUR vertical laws used to meet at the waist —
+    // shirt 1.0x bob, stomach 0.7x, belt and buckle never, hips never — so
+    // at stride the hem slid against a static belt at 2.8 Hz and the torso
+    // read as pumping apart. One law now: the whole trunk rides the same
+    // bob, and the only remaining seam (pelvis-to-hip) is the one hipCap
+    // already covers.
+    pelvis.position.y = 0.98 + bob;
+    belt.position.y = 1.055 + bob;
+    buckle.position.y = 1.055 + bob;
+    buckleTongue.position.y = 1.055 + bob;
   };
 
   char.update(0.001); // land in a valid pose immediately

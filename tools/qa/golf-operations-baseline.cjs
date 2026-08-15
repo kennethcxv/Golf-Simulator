@@ -202,8 +202,8 @@ async function main() {
 
     const fixture = await page.evaluate(async () => {
       const app = window.__fw;
-      const reservations = await import('/src/sim/reservations.js');
-      const time = await import('/src/sim/time.js');
+      const reservations = await import(new URL('src/sim/reservations.js', document.baseURI).href);
+      const time = await import(new URL('src/sim/time.js', document.baseURI).href);
       const cal = time.calendarOf(app.state.clock.minutes);
       app.state.clock.minutes = cal.dayAbs * 1440 + 9 * 60 + 20;
       const names = ['Priya Nguyen', 'Marcus Reed', 'Elaine Castillo'];
@@ -286,7 +286,7 @@ async function main() {
       walk.pitch = -0.18;
     });
     await page.waitForFunction(() => (
-      window.__fw.scene3d.clubhouse().customers.some((customer) => customer.isGolfer && customer.queued)
+      window.__fw.scene3d.clubhouse().customers().some((customer) => customer.isGolfer && customer.queued)
     ), null, { timeout: 45000 });
     await page.waitForTimeout(700);
     await page.screenshot({ path: path.join(OUT, '04-arrival-at-register.png') });
@@ -296,7 +296,7 @@ async function main() {
       due: window.__fw.state.reservations.booked
         .filter((reservation) => reservation.status === 'booked')
         .map((reservation) => ({ id: reservation.id, name: reservation.name, status: reservation.status })),
-      npcNames: window.__fw.scene3d.clubhouse().customers
+      npcNames: window.__fw.scene3d.clubhouse().customers()
         .filter((customer) => customer.isGolfer)
         .map((customer) => customer.name),
     }));

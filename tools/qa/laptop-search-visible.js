@@ -33,7 +33,7 @@
   await page.waitForTimeout(600);
   await page.evaluate(async (seed) => {
     localStorage.clear();
-    const E = await import('/src/sim/empire.js');
+    const E = await import(new URL('src/sim/empire.js', document.baseURI).href);
     localStorage.setItem('golfempire:autosave', JSON.stringify(E.empireSnapshot(E.newStarterEmpire('relaxed', seed))));
   }, SEED);
   await page.reload({ waitUntil: 'domcontentloaded' });
@@ -49,10 +49,27 @@
   const seated = await page.evaluate(async () => {
     const app = window.__fw;
     const ch = app.scene3d.clubhouse();
-    const L = await import('/src/data/shopLayout.js');
+    const L = await import(new URL('src/data/shopLayout.js', document.baseURI).href);
     const origin = ch.interior.position;
     const st = app.scene3d.walk.state;
-    const laptop = L.FRONT_DESK.laptop;
+    const laptop = (() => {
+        // D1: the LIVE rig rather than the layout datum.
+        //
+        // NOT because the datum was stale — it was the first hypothesis and it
+        // is wrong. Measured 2026-08-04: the rig sits at interior-local
+        // (-2.550, 1.557) and FRONT_DESK.laptop reads (-2.550, 1.557). B8 moved
+        // the datum with the machine. This is here so a future move of one
+        // without the other cannot silently re-open the same investigation; the
+        // interior group carries no rotation, so local == world - origin, which
+        // is the frame the surrounding maths is already written in.
+        const ch = app.scene3d.clubhouse();
+        const rig = ch.laptopRig ? ch.laptopRig() : null;
+        const node = rig && rig.object;
+        if (!node) return L.FRONT_DESK.laptop;
+        ch.interior.updateMatrixWorld(true);
+        const m = node.matrixWorld.elements;
+        return { x: m[12] - ch.interior.position.x, z: m[14] - ch.interior.position.z };
+      })();
     const seat = { x: L.FRONT_DESK.staffChair.x, z: L.FRONT_DESK.staffChair.z };
     st.x = seat.x + origin.x;
     st.z = seat.z + origin.z;
@@ -77,15 +94,32 @@
   // "not rendering", which was a fact about the probe.
   await page.keyboard.press('KeyE');
   let laptopOpen = await page.waitForFunction(
-    () => window.__fw.laptopOpen === true, null, { timeout: 6000 },
+    () => (() => { const a = window.__fw; if (!a || a.laptopOpen !== true) return false; const s = document.querySelector('.laptop-screen'); if (!s || s.style.display === 'none') return false; const f = document.querySelector('.lt-frame'); if (!f) return false; const r = f.getBoundingClientRect(); if (!(r.width > 100 && r.height > 60)) return false; const p = window.__qaLtFrame || {}; window.__qaLtFrame = { x: r.left, w: r.width }; return Math.abs((p.x ?? -1e6) - r.left) < 0.5 && Math.abs((p.w ?? -1e6) - r.width) < 0.5; })(), null, { timeout: 6000 },
   ).then(() => true).catch(() => false);
   if (!laptopOpen) {
     await page.evaluate(async () => {
       const app = window.__fw;
-      const L = await import('/src/data/shopLayout.js');
+      const L = await import(new URL('src/data/shopLayout.js', document.baseURI).href);
       const origin = app.scene3d.clubhouse().interior.position;
       const st = app.scene3d.walk.state;
-      const laptop = L.FRONT_DESK.laptop;
+      const laptop = (() => {
+        // D1: the LIVE rig rather than the layout datum.
+        //
+        // NOT because the datum was stale — it was the first hypothesis and it
+        // is wrong. Measured 2026-08-04: the rig sits at interior-local
+        // (-2.550, 1.557) and FRONT_DESK.laptop reads (-2.550, 1.557). B8 moved
+        // the datum with the machine. This is here so a future move of one
+        // without the other cannot silently re-open the same investigation; the
+        // interior group carries no rotation, so local == world - origin, which
+        // is the frame the surrounding maths is already written in.
+        const ch = app.scene3d.clubhouse();
+        const rig = ch.laptopRig ? ch.laptopRig() : null;
+        const node = rig && rig.object;
+        if (!node) return L.FRONT_DESK.laptop;
+        ch.interior.updateMatrixWorld(true);
+        const m = node.matrixWorld.elements;
+        return { x: m[12] - ch.interior.position.x, z: m[14] - ch.interior.position.z };
+      })();
       st.x = laptop.x + origin.x;
       st.z = laptop.z + 0.95 + origin.z;
       st.yaw = Math.atan2(0, 0.95);
@@ -94,7 +128,7 @@
     await page.waitForTimeout(700);
     await page.keyboard.press('KeyE');
     laptopOpen = await page.waitForFunction(
-      () => window.__fw.laptopOpen === true, null, { timeout: 9000 },
+      () => (() => { const a = window.__fw; if (!a || a.laptopOpen !== true) return false; const s = document.querySelector('.laptop-screen'); if (!s || s.style.display === 'none') return false; const f = document.querySelector('.lt-frame'); if (!f) return false; const r = f.getBoundingClientRect(); if (!(r.width > 100 && r.height > 60)) return false; const p = window.__qaLtFrame || {}; window.__qaLtFrame = { x: r.left, w: r.width }; return Math.abs((p.x ?? -1e6) - r.left) < 0.5 && Math.abs((p.w ?? -1e6) - r.width) < 0.5; })(), null, { timeout: 9000 },
     ).then(() => true).catch(() => false);
   }
   // The DOM lands ~1.35 s in: lid swing, then boot, then the interface. Wait for the

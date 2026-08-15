@@ -163,7 +163,7 @@ await shot('13-cleaning-vacuum-after');
 // B/E/R/E are the actual controls that enter, pick up, rotate, and place it.
 const placementFixture = await page.evaluate(async () => {
   const app = window.__fw;
-  const layout = await import('/src/sim/layout.js');
+  const layout = await import(new URL('src/sim/layout.js', document.baseURI).href);
   const origin = app.scene3d.clubhouse().interior.position;
   const fixtures = layout.placedFixtures(app.state);
   const fixture = fixtures.find((entry) => !entry.stored);
@@ -222,8 +222,8 @@ if (placementFixture?.destination) {
 // counter check-in with the register's normal E interaction.
 result.frontDesk.before = await page.evaluate(async () => {
   const app = window.__fw;
-  const reservations = await import('/src/sim/reservations.js');
-  const time = await import('/src/sim/time.js');
+  const reservations = await import(new URL('src/sim/reservations.js', document.baseURI).href);
+  const time = await import(new URL('src/sim/time.js', document.baseURI).href);
   const cal = time.calendarOf(app.state.clock.minutes);
   app.state.clock.minutes = Math.floor(app.state.clock.minutes / 1440) * 1440 + 8 * 60;
   const booked = reservations.bookSlot(app.state, cal.dayAbs, 8 * 60 + 30, 'Morgan Lee');
@@ -255,7 +255,7 @@ if (maintenanceSpeedBefore !== 0) await page.keyboard.press('Space');
 result.maintenance.clockPaused = await page.evaluate(() => window.__fw.speedIdx === 0);
 result.maintenance.before = await page.evaluate(async () => {
   const app = window.__fw;
-  const constants = await import('/src/sim/constants.js');
+  const constants = await import(new URL('src/sim/constants.js', document.baseURI).href);
   const section = app.state.sections.find((entry) => entry.cells?.length);
   const index = section.cells[Math.floor(section.cells.length / 2)];
   const x = index % app.state.course.w;

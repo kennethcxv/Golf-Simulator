@@ -202,8 +202,9 @@ by accident.
 
 ## NAV-WAIT-001 — NPCs have nowhere to wait for an occupied browse stand
 
-**Status:** OPEN. Named 2026-07-28 by the walk-through ruling on NAV-CHURN-001.
-A **missing feature**, not a threshold problem and not a nav bug.
+**Status:** FIXED 2026-08-02. Named 2026-07-28 by the walk-through ruling on
+NAV-CHURN-001. A **missing feature**, not a threshold problem and not a nav bug —
+and it was closed by building the feature, not by moving a threshold.
 
 **The defect.** A browse stand serves one customer at a time. A customer whose
 chosen stand is occupied has no wait state to enter: it keeps its stand point
@@ -237,11 +238,12 @@ else — a pin against geometry, a queue overrun, a containment breach — is
 untagged and still fails. Waived episodes are always printed with their count,
 durations, fixtures and the defect ID; the waiver is never silent.
 
-**The exemption expires with the defect.** When this entry leaves OPEN,
-`DEFECT_EXEMPTIONS` in `tools/qa/proshop-greybox-customer-day.js` must lose its
-`NAV-WAIT-001` waiver in the same commit. `tests/proshop-churn-exemption.test.js`
-enforces the pairing in both directions, so a fix that forgets the waiver turns
-the suite red instead of quietly keeping a dead exemption alive.
+**The exemption expired with the defect.** `DEFECT_EXEMPTIONS` in
+`tools/qa/proshop-greybox-customer-day.js` lost its `NAV-WAIT-001` waiver in the
+same commit that flipped this status, as
+`tests/proshop-churn-exemption.test.js` requires in both directions. Every
+episode in this room now faces the 20-s cap and the recovery floor with no
+exemption of any kind.
 
 **Fix shape (unscheduled — sim work, explicitly out of scope for the blocker
 session):** a stand needs an occupancy claim and a small ring of spaced wait
@@ -249,6 +251,51 @@ points. A customer that finds its stand claimed either holds at a wait point
 facing the stand, or re-picks a different destination and returns. The
 acceptance signal is that this class disappears from the episode log rather than
 being exempted from it.
+
+**What was built** (`src/render3d/clubhouse.js`, contract in
+`tests/nav-wait-stand-claim.test.js`): exactly that shape. A stand carries a
+claim taken on approach inside 2.60 yd, never from across the room. A customer
+that cannot have the stand holds at a spaced point derived from
+`fixtureBrowsePoint`, so hold points rotate with the display like the browse
+pose does; slots sit 0.70 yd apart with the first row 1.85 yd back, which is
+outside the approach band the episodes were attributed in, so the waiting cannot
+become the new shoving. Reaching a hold point is deliberately **not** reaching
+the stop, so a waiter never runs the browse beat at a stand it has not reached.
+The claim is released on every exit route (browse finished, moved to a
+non-fixture stop, and the single `removeCustomer` funnel). The crowd is bounded
+at 8 slots; past that a shopper gives the stand up rather than joining a scrum.
+
+**Acceptance, measured** (same instrument, same window, same speed as the
+signature above: 1x, 10:00-11:00, both legs, 10 spawned;
+`Greybox/data/greybox-customer-day-navwait-fix.json`):
+
+| | neglected | restored |
+|---|---|---|
+| block episodes | **95 to 0** | **82 to 1** |
+| over the 20-s cap | **43 to 0** | **41 to 0** |
+| p50 / p95 / max | 17.8 / 45.4 / 93.6 s to none | 20.1 / 54.0 / 75.3 s to **12.6 / 12.6 / 12.6** |
+| recovery within 15 s | 27.4% to **100%** | 17.1% to **100%** |
+| nav blocks | 349 to **9** | 353 to **4** |
+| still inside at close | 1 to **0** | 1 to **0** |
+
+`waived: 0` and `waivedByDefect: {}` in both legs: the class **disappeared from
+the log** rather than being exempted from it, which is the acceptance signal
+above. The single surviving episode is judged, not waived, and clears the cap.
+
+**Negative control.** A fix that bought quiet by making customers do less would
+produce the same episode count. It did not: `transactions` was 0 in the
+before-run too (this window never had sales, the harness measures navigation),
+and `stillInsideAtClose` went 1 to 0 in both legs, so *more* shoppers completed
+their route and left. The remaining nav blocks are all at the exit door
+(`stopKind: 'exit'`, `fixtureId: null`) rather than at a stand: a different and
+far smaller thing, and none of them became an episode.
+
+**One caveat, stated because it points the other way.** The acceptance run
+overlapped a 283-s test suite on the same machine. Episodes are measured in
+**wall** seconds, so CPU contention *inflates* them (a walker making normal sim
+progress covers less ground per wall second). The measurement is therefore
+conservative: a quiet machine can only produce equal or fewer episodes than the
+0 and 1 recorded here.
 
 ---
 
@@ -414,3 +461,46 @@ HARNESS_REMEDIATION.md §F). Standing rules 14–15 added to HARNESS_TRUST.md.
 **Unblocks:** a small repro harness (two deliberate concurrent runners +
 lock-state logging) before hardening (acquire re-verification, mtime-based
 staleness, or rename-based acquire).
+
+---
+
+## A4 / CHK-READER-PATH-001 — "the reader phases through the counter on its way back"
+
+**Status: CANNOT REPRODUCE.** Closed 2026-08-04 by ruling ("D6 — A4, the reader
+path, closed either way… Record it as CANNOT REPRODUCE in DEFECTS.md with both
+instruments named, so it is not chased again").
+
+**Reported (playtest round 8, 2026-08-03):** when the card payment finishes and
+the reader returns from the customer's face to its bay, it passes through the
+counter slab rather than around it.
+
+**What was built to catch it, and what each one said.**
+
+| instrument | what it measures | result |
+|---|---|---|
+| `tools/qa/checkout-reader-geometry.js` | the terminal's world AABB against the counter's, sampled every animation frame across a full present → insert → approve → park cycle | no frame with the reader's box below the counter top while its footprint is over the slab |
+| `tools/qa/checkout-round7-renders.js` (`report.reader`) | `lowestAboveCounter` — the parked and mid-flight terminal's lowest point relative to `COUNTER_TOP` | positive at every captured beat |
+
+Two sessions, two sound instruments, both negative. Nothing in the return path
+lerps through the slab: the reader travels between two authored points that are
+both above the counter top, and the bay it parks in is cut INTO the counter's
+front face rather than under its top.
+
+**Why it is being closed rather than left open.** An open defect with no repro
+and two clean instruments is a standing invitation to re-measure the same thing
+a third time. The honest state is: reported once, never reproduced, and the
+measurements that would show it are in the harness and green.
+
+**What would reopen it.** A screenshot or clip of the frame in question — the
+report was a memory of motion, and a still of the intersection is the one piece
+of evidence neither instrument can produce on its own. If it recurs, capture the
+frame first and attach it here; the two drivers above then have something
+concrete to be checked against rather than a shape to search for.
+
+**Related, and NOT the same defect:** C4 (2026-08-04) found the paid BAG really
+did travel through the counter — 0.375 yd of it — on the same desk, in the same
+beat, one prop over. That one reproduced immediately on the first measurement
+(`tools/qa/checkout-bag-handoff-path.js`) and is fixed. It is plausible that the
+A4 report was this, seen once and attributed to the nearer object; there is no
+way to establish that now, and it is recorded here as a possibility rather than
+a conclusion.

@@ -36,7 +36,9 @@ test('a new property opens as a compact BASIC retail operation', () => {
   const state = newGame('relaxed', 12001);
   assert.equal(state.shop.progression.tier, 'basic');
   assert.equal(state.shop.unlockedTier, 1);
-  assert.equal(shopCustomerCapacity(state), 2);
+  // F7 (Full_Goal_16): ceilings raised so the standing formula shows —
+  // starter floor now holds five
+  assert.equal(shopCustomerCapacity(state), 5);
   assert.deepEqual(
     placedFixtures(state).map((fixture) => fixture.id).sort(),
     ['backcounter', 'backshelf_n', 'hatstand', 'shelf_acc', 'shelf_balls', 'shelf_small'].sort(),
@@ -75,7 +77,7 @@ test('STANDARD construction costs money, takes two days, and activates physical 
   assert.equal(state.shop.progression.tier, 'standard');
   assert.equal(state.shop.progression.pending, null);
   assert.equal(state.shop.unlockedTier, 2);
-  assert.equal(shopCustomerCapacity(state), 4);
+  assert.equal(shopCustomerCapacity(state), 8); // F7: standard floor holds eight
   assert.ok(shopProductCapacity(state) > beforeCapacity);
   assert.equal(appraiseProperty(state), beforeValue + SHOP_TIERS.standard.propertyValue);
   assert.equal(shopCategoryUnlocked(state, 'clubs'), true);

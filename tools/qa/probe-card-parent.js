@@ -15,7 +15,7 @@ async (page) => {
 
   const fixture = await page.evaluate(async () => {
     const app = window.__fw;
-    const { REGISTER } = await import('/src/data/shopLayout.js');
+    const { REGISTER } = await import(new URL('src/data/shopLayout.js', document.baseURI).href);
     const clubhouse = app.scene3d.clubhouse();
     clubhouse.setOrganicWalkins(false);
     clubhouse.clearWalkins();
@@ -47,7 +47,7 @@ async (page) => {
     window.__fw.scene3d.clubhouse().register.getTx().items.map((item) => item.uid)
   ));
   const projectObject = (query) => page.evaluate(async (q) => {
-    const THREE = await import('/vendor/three.module.js');
+    const THREE = await import(new URL('vendor/three.module.js', document.baseURI).href);
     const app = window.__fw;
     let found = null;
     app.scene3d.clubhouse().interior.traverse((o) => {

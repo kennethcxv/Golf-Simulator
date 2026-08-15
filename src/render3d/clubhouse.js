@@ -10,6 +10,8 @@
 // walkProps/propColliders in WORLD coordinates.
 
 import * as THREE from 'three';
+import { t } from '../core/i18n.js';
+import { notify } from '../sim/notifications.js';
 import { fitDistance } from '../core/screenFit.js';
 import { clamp, rngOf } from '../core/utils.js';
 import { LAPTOP, screenCornersLocal, screenNormalLocal } from '../core/laptopRig.js';
@@ -19,7 +21,7 @@ import { SHOP_CATALOG, SHELF_CAP, DECOR_SPOTS } from '../data/shopItems.js';
 import {
   SHELL, INTERIOR, FIXTURES, FIXTURE_HALF, COUNTER, OFFICE, STOCKROOM, LOUNGE,
   DOOR_MAIN, DOOR_STOCK, DOOR_BACK,
-  FRONT_DESK, MAT, BASKET_STATION, HOURS_SIGN, LOGO_RUG, queueSlot, REGISTER,
+  FRONT_DESK, FRONT_DESK_FRAME, MAT, BASKET_STATION, HOURS_SIGN, LOGO_RUG, queueSlot, REGISTER,
   COUNTER_TOP, fixtureBrowsePoint, frontDeskPoint,
   CLUBHOUSE_LAYOUT_VARIANT,
   CLUBHOUSE_VARIANT_REQUEST,
@@ -37,6 +39,7 @@ import {
   setPlacementSpotlightAim,
 } from '../sim/propertyInventory.js';
 import { buildPropertyFurnitureVisual } from './clubhouse/propertyFurnitureVisuals.js';
+import { createLedgerBook } from './clubhouse/ledgerBook.js';
 import {
   boxesOf, pickUpBox, putDownBox, carriedBox, openBox, emptyTrash,
   openFlap, takeFromBox, flattenBox, recycleCarriedBox,
@@ -82,7 +85,6 @@ import {
   abandonUnit, stageUnit, visibleBasketSlots,
 } from '../sim/customerBasket.js';
 import { drawPaymentMethod, paymentDistributionReport } from '../sim/paymentBag.js';
-import { totalOf } from '../sim/register.js';
 import { addRevenue } from '../sim/economy.js';
 import { triggerContextTutorial, tutorialFlag } from '../sim/tutorial.js';
 import {
@@ -100,10 +102,16 @@ import { ceilingCircuitPowered as ceilingCircuitPoweredSim } from '../sim/clubho
 import {
   dueForCheckIn, dueForArrivals, markReservationEnRoute, markReservationArrived,
   walkInAvailability, selectWalkInSlot, fmtSlot, deskReservationList,
+  slotTimes, availableSlots, resolveTeeTimeRequest, reservationById,
+  // (the walk-in ask rule lives in the sim; see the import below)
 } from '../sim/reservations.js';
 import {
+  walkInAskFrom, queuePositionMayAbandon, queueAdvanceSlot, queueSlotIsClear,
+} from '../sim/customerSimulation.js';
+import { steerAround, STEER_DEFAULTS } from './clubhouse/steerAhead.js';
+import { BODY_RADIUS, avoidanceHeading, separate } from './clubhouse/crowd.js';
+import {
   allocateCustomerIdentity, customerIdentityById, paymentChoiceDialogue,
-  recordCustomerVisit,
 } from '../sim/customerIdentity.js';
 import { makeClubhouseMaterials, roundedBox, makeSignTexture, makeProductLabel } from './clubhouse/materials.js';
 import { createMerch } from './clubhouse/merch.js';
@@ -136,6 +144,8 @@ import { SHED_ROOM } from '../data/shedLayout.js';
 import { buildShopProgressionVisuals } from './clubhouse/shopProgressionVisuals.js';
 import { buildDoors } from './clubhouse/doors.js';
 import { createClubhouseArchitecturalDoorInstallation } from './clubhouse/architecturalDoorInstallation.js';
+import { createFirstDoorVisibilityReady } from './clubhouse/firstDoorVisibilityReady.js';
+import { createCeilingCircuitRenderSync } from './clubhouse/ceilingCircuitRenderSync.js';
 import { createSheet06ProductionRuntime } from './assets51to100/sheet06ProductionRuntime.js';
 import { createSheet06NavigationContract } from './assets51to100/sheet06Navigation.js';
 import {
@@ -151,6 +161,9 @@ import {
 } from '../sim/shopProgression.js';
 import { createRegisterMode } from './clubhouse/simplifiedRegisterMode.js';
 import { flipSign, shopAcceptsWalkIns, signIsOpen } from '../sim/shopSign.js';
+import { shopSignLocalPoint } from '../data/shopSignPlacement.js';
+import { createOpenClosedSignRegistry, exteriorSignFace } from './clubhouse/openClosedSigns.js';
+import { shopFootfallDrive, shopFootfallTarget } from '../sim/shopFootfall.js';
 import { buildDirt } from './clubhouse/dirt.js';
 import { buildShedDirt } from './clubhouse/shedDirt.js';
 import { createShedInterior } from './clubhouse/shedInterior.js';
@@ -161,6 +174,7 @@ import { buildExterior } from './clubhouse/exterior.js';
 import { buildWashing } from './clubhouse/washing.js';
 import { buildCampaignWorld } from './clubhouse/campaignWorld.js';
 import { makeNav } from './clubhouse/nav.js';
+import { createRecastNav } from './clubhouse/recastNav.js';
 import {
   createMountainLodge,
   MOUNTAIN_LODGE_BUILDING_DEPTH_METERS,
@@ -191,7 +205,9 @@ import {
   ensureWet, wetAt, solutionAt, solutionLevel, consumeSolution, dryTick, SOLUTION_MIN,
   wetGridForRoom,
 } from '../sim/cleaningWet.js';
-import { CLEANING_TOOLS, TOOL_CLASS } from '../data/cleaningTools.js';
+import {
+  CLEANING_TOOLS, TOOL_CLASS, MEDIUM, MEDIUM_STYLE, toolMedia, toolDebrisKinds,
+} from '../data/cleaningTools.js';
 import {
   ensureCleaningToolState, cleaningStatus, panSpace, bagSpace, addToPan, addToBag,
   emptyPanIntoBag, tieBag, disposeTiedBag, serviceMop, changeBucketWater,
@@ -203,7 +219,8 @@ import {
   createCustomerImpatientBeat, stepCustomerImpatientBeat,
 } from './clubhouse/customerFlow.js';
 import {
-  PAID_BAG_ACCEPTANCE_HOLD_SEC, attachPaidBagToCustomer, syncPaidBagCarry,
+  PAID_BAG_ACCEPTANCE_HOLD_SEC, attachPaidBagToCustomer,
+  createPaidBagResourceLedger, disposePaidBagFromCustomer, syncPaidBagCarry,
 } from './clubhouse/customerPaidBag.js';
 import { activeFixtures, placedFixtures, ensureLayout, roomStyle } from '../sim/layout.js';
 import { ROOM_STYLE_OPTIONS } from '../data/placeableCatalog.js';
@@ -228,6 +245,26 @@ import {
   createCheckoutFlow, transitionCheckout, enterCheckoutRecovery, checkoutStateTimedOut,
   recoverTimedOutCheckout, resumeCheckout,
 } from '../sim/registerFlow.js';
+
+// Goal 24 performance QA observes this edge without owning it. The callback is
+// intentionally optional and synchronous: a recorder can move its measurement
+// boundary onto the exact production frame that accepted an organic arrival,
+// before customer construction and navigation begin. Observer failures are
+// isolated so installing diagnostics can never change whether a shopper spawns.
+export function emitGoal24NpcLifecycleBoundary(boundary) {
+  const observer = globalThis.__goal24NpcLifecycleBoundary;
+  if (typeof observer !== 'function') return false;
+  try {
+    observer(boundary);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+// The overlay layer the carried-delivery preview renders on. Exported so a
+// check that something is DISTINCT from it can read it instead of retyping 30.
+export const CARRY_RENDER_LAYER = 30;
 
 const CAT_COLORS = {
   balls: 0xf3f0e4,
@@ -422,6 +459,83 @@ export function makeGoodsMesh(carry, {
 }
 
 const FLOOR_TOP = 0.3; // interior floor (and porch deck) height over the terrain base
+// Every clubhouse ever constructed in this session, oldest first. See the note
+// at the push site in makeClubhouse. Never cleared: a rebuild that happened and
+// was then corrected is the whole thing this is here to catch.
+// G2 — IS THE PROGRESS TEST WORTH ITS KEEP?
+//
+// Item 14 added a second stuck test beside the original displacement one, on
+// this reasoning: walk into a CORNER and you move nothing, so `moved < step *
+// 0.25` fires; walk into the flat FACE of a box and resolveCustomer slides you
+// along it, so you move most of your step every frame, forever, and
+// displacement is never true. The shape of the prop decided whether the
+// recovery ladder existed at all.
+//
+// Report 14 could not confirm the branch had ever RESCUED anybody — the
+// no-progress clock peaked at 1.66 s against a 2.5 s threshold — so the brief
+// asks for proof or a revert. The verdict is a pure function so the proof does
+// not depend on catching the sim in the act: tests/nav-stuck-verdict.test.js
+// drives an input where displacement says "walking fine" and progress says
+// "stuck", which is the whole claim, and the live diagnostics report the
+// high-water mark so the threshold can be argued about with a number.
+export const NAV_PROGRESS_EPSILON_YD = 0.08;
+// G10 (Goal 17) asked for three seconds; F2 (Goal 18) tightens it to ONE:
+// "New threshold: 1 second of no progress. Then they take a genuinely
+// different route, even a much longer one." The live ladder must also act
+// promptly — the old arithmetic stacked 3 s of no-progress plus 3 s of
+// ladder gate, which is the six silent seconds the playtest watched.
+export const NAV_NO_PROGRESS_SECONDS = 1;
+// Kept as an alias so nothing that imported the old name breaks silently.
+export const NAV_SLIDING_SECONDS = NAV_NO_PROGRESS_SECONDS;
+
+/**
+ * G2, ANSWERED AND REVERTED. The brief said: prove the progress test rescues
+ * something displacement cannot, or revert it and record that displacement was
+ * sufficient. It could not be proved, so it is reverted.
+ *
+ * Measured in Electron on pine-hills-v2, shop open, organic walk-ins, 150 s at
+ * 1x (tools/qa/electron-nav-progress-peak.js). The no-progress clock reached
+ * 3.00 s — PAST the 2.5 s threshold, so the branch was live and eligible — and
+ * rescued exactly ZERO customers, while displacement caught four (two
+ * sidesteps, a nudge, a retarget). Every frame on which progress would have
+ * fired, displacement had already fired: the clock's high-water mark was set on
+ * a frame that was also a displacement stall. The control run, with the
+ * customer sim suspended, moved neither number.
+ *
+ * So `sliding` is no longer a stuck REASON. The clock and the counter stay,
+ * because they cost nothing and they are the evidence that would reopen this:
+ * `slidingRescues` counts the frames where progress WOULD have been the sole
+ * signal, and it is still reported by navBlockDiagnostics(). If a future run
+ * shows it climbing, the branch comes back with a number behind it instead of
+ * an argument.
+ *
+ * @param {{moved:number, step:number, noProgressT:number}} sample
+ * @returns {{stuck:boolean, reason:'none'|'displacement', wouldSlide:boolean}}
+ */
+export function navStuckVerdict({ moved, step, noProgressT }) {
+  if (!(step > 0.001)) return { stuck: false, reason: 'none', wouldSlide: false };
+  const wouldSlide = noProgressT > NAV_NO_PROGRESS_SECONDS;
+  // G10 (Goal 17) — THREE SECONDS OF NO PROGRESS IS STUCK, WHATEVER
+  // DISPLACEMENT THINKS, AND THIS ORDER IS THE WHOLE FIX.
+  //
+  // The previous attempt computed exactly this flag and then never let it make
+  // anybody stuck: displacement was tested first and, as the measurement
+  // showed, it had already fired on every frame where progress would have.
+  // That is not evidence that no-progress is redundant - it is evidence that a
+  // test which runs second can never win. The brief is explicit: "it must fire
+  // regardless of what displacement thinks."
+  //
+  // So it is tested FIRST and carries its own reason, because the two need
+  // different answers. Displacement means "you are against something" and a
+  // sidestep usually clears it. No progress for three seconds means the route
+  // itself is wrong, and the answer is a different route or a dropped stop.
+  if (wouldSlide) return { stuck: true, reason: 'no-progress', wouldSlide };
+  if (moved < step * 0.25) return { stuck: true, reason: 'displacement', wouldSlide };
+  return { stuck: false, reason: 'none', wouldSlide };
+}
+
+export const CLUBHOUSE_BUILD_LOG = [];
+
 export const CLUBHOUSE_INTERIOR_DRAW_DISTANCE = 80;
 export const CLUBHOUSE_GTAO_EXCLUSION_CLEARANCE_YD = 15;
 // The east pallet in row one has an unobstructed authored +Z approach. Its
@@ -577,6 +691,38 @@ export function makeClubhouse(ctx) {
   // office/stockroom wing, the safety lights, the entrance mat. The v2 interior
   // module stands grey volumes in for what is vetoed here. Veto-only: the built-in
   // facility/fixture gates still apply to everything else.
+  // A2 — EVERY BUILD, RECORDED, WITH WHAT IT RESOLVED AND WHY.
+  //
+  // The complaint is "tabbing out and back loads a DIFFERENT clubhouse first,
+  // then mine", and the presentation switch above has a fallback to
+  // 'modern-public' — a genuinely different building — reached whenever neither
+  // the layout constant, the variant request, nor state.property.clubhouseVariant
+  // names something known. A rebuild that happens before the save's property
+  // field is populated would therefore draw the wrong building and then correct
+  // itself, which is exactly what that sentence describes.
+  //
+  // So the answer must not be reasoned about. Every construction appends here,
+  // with the three inputs it saw, and a driver can read the whole session's
+  // history: one entry means one building was ever built.
+  CLUBHOUSE_BUILD_LOG.push({
+    at: CLUBHOUSE_BUILD_LOG.length,
+    presentation: requestedClubhousePresentation,
+    layoutVariant: CLUBHOUSE_LAYOUT_VARIANT,
+    requested: CLUBHOUSE_VARIANT_REQUEST.variant || null,
+    fromSavedProperty: state?.property?.clubhouseVariant || null,
+  });
+  // ...and if it ever DOES change under the player, say so out loud. A silent
+  // swap is the reason this is hard to chase: the building is correct by the
+  // time anyone looks. This turns "I think I saw a different clubhouse" into a
+  // line in the console naming both of them.
+  const firstBuild = CLUBHOUSE_BUILD_LOG[0];
+  if (firstBuild.presentation !== requestedClubhousePresentation) {
+    console.warn(
+      `[clubhouse] presentation CHANGED mid-session: ${firstBuild.presentation} -> ${requestedClubhousePresentation}. `
+      + `layout=${CLUBHOUSE_LAYOUT_VARIANT} requested=${CLUBHOUSE_VARIANT_REQUEST.variant} `
+      + `savedProperty=${state?.property?.clubhouseVariant}. The player saw two different buildings.`,
+    );
+  }
   const greyboxPresentation = requestedClubhousePresentation === 'pine-hills-v2';
   const GREYBOX_SUPPRESSED_PROP_ASSETS = new Set([
     61, 62, 63,        // desk shell, hutch cabinet, fitting booth — grey volumes instead
@@ -893,6 +1039,21 @@ export function makeClubhouse(ctx) {
   });
   shell.lightingCompatibility = lightingCompatibility;
 
+  // --- OPEN / CLOSED, IN ONE PLACE -------------------------------------------
+  // Two signs, one fact. Every board that says OPEN or CLOSED registers here and
+  // is repainted by syncOpenClosedSigns(), which reads signIsOpen(state) and
+  // nothing else. A sign that is not registered is driven by nothing, and
+  // tests/shop-sign.test.js checks the registered names against the scene.
+  const openClosedSigns = createOpenClosedSignRegistry();
+  if (shell.exteriorSignName && shell.setSignFace) {
+    openClosedSigns.register(shell.exteriorSignName, (facts) => {
+      shell.setSignFace(exteriorSignFace(facts));
+    });
+  }
+  function syncOpenClosedSigns() {
+    return openClosedSigns.sync(state, campaignAllowsBusiness(state));
+  }
+
   function refreshRoomStyle() {
     const selected = roomStyle(state);
     for (const kind of ['floor', 'walls', 'trim']) {
@@ -1006,6 +1167,7 @@ export function makeClubhouse(ctx) {
     })
     : dormantPresentation('modern-public');
   let props61to100 = null;
+  let props61to100ProtectedAtDisposal = null;
   let deliveryEquipment = null;
   const resortClubhouse = createResortClubhouse({
     group,
@@ -1082,16 +1244,17 @@ export function makeClubhouse(ctx) {
     shell.lighting.refreshCondition(conditionNow);
     refreshEntranceMatAppearance();
   }
-  let ceilingCircuitPowered = null;
+  const ceilingCircuitRenderSync = createCeilingCircuitRenderSync({
+    state,
+    readPowered: ceilingCircuitPoweredSim,
+    applyPowered: (powered) => shell.lighting.setCeilingCircuitPowered(powered),
+  });
+  const syncCeilingCircuitPower = () => ceilingCircuitRenderSync.sync();
   const updateFlicker = (dt) => {
     // Shared with the sim's repair-light gate — see clubhouseRestoration.js.
     // When the renderer owned its own copy of this rule, the sim could report a
     // panel repaired while this side kept the ring dark.
-    const powered = ceilingCircuitPoweredSim(state);
-    if (powered !== ceilingCircuitPowered) {
-      ceilingCircuitPowered = powered;
-      shell.lighting.setCeilingCircuitPowered(powered);
-    }
+    syncCeilingCircuitPower();
     shell.lighting.updateFlicker(dt);
   };
 
@@ -1223,7 +1386,19 @@ export function makeClubhouse(ctx) {
     getFixtureAnchor: (fixtureId) => fixtureAnchors.get(fixtureId) || null,
     legacyReady: merchReady,
     merch,
-    visibilityForAsset: greyboxPresentation
+    // Sheet-6 and other loader runtimes can share GLTF resource identities in
+    // tests and through future cache unification. The course/scene resources
+    // that predate this runtime remain borrowed, never runtime-owned.
+    protectedRenderableResources: () => props61to100ProtectedAtDisposal
+      || mergeRenderableResources(
+        protectedRenderableResources,
+        sheet06Production.borrowedResources?.(),
+        architecturalDoorInstallation.ownedResources?.(),
+      ),
+    // This suppression set is a construction-time presentation choice. Declaring
+    // it fixed lets the three allowed inert props share the global static batch;
+    // genuinely mutable visibility callbacks remain conservatively unbatched.
+    fixedVisibilityForAsset: greyboxPresentation
       ? (assetNumber) => !GREYBOX_SUPPRESSED_PROP_ASSETS.has(assetNumber)
       : null,
     hooks: {
@@ -1328,6 +1503,38 @@ export function makeClubhouse(ctx) {
     }
   }
   const detailInterior = shedPresentation ? shedInterior : pineHillsInterior;
+  // The loading-manager counter reaches zero before every loader callback has
+  // necessarily finished mounting, canonicalizing, and batching its scene
+  // nodes. Doorway prewarm must not certify those late nodes as resident before
+  // every runtime capable of changing the first shop view has settled.
+  // All loaders are already in flight, so this is one concurrent barrier rather
+  // than a serial load chain.
+  const firstDoorVisibilityReady = createFirstDoorVisibilityReady({
+    sheet06: sheet06Production.ready,
+    architecturalDoors: architecturalDoorInstallation.ready,
+    props: props61to100.ready,
+    pineHillsInterior: pineHillsInterior.ready,
+    shedInterior: shedInterior?.ready ?? Promise.resolve(Object.freeze({
+      lifecycle: 'dormant', kind: 'shed-interior',
+    })),
+    modernPublic: modernClubhouse.ready,
+    mountainLodge: mountainLodge.ready,
+    resortClubhouse: resortClubhouse.ready,
+    premiumCountryClub: premiumCountryClub.ready,
+    diagnostics: {
+      sheet06: () => sheet06Production.diagnostics(),
+      architecturalDoors: () => architecturalDoorInstallation.diagnostics(),
+      props: () => props61to100.diagnostics(),
+      pineHillsInterior: () => pineHillsInterior.diagnostics(),
+      shedInterior: () => shedInterior?.diagnostics?.() ?? Object.freeze({
+        lifecycle: 'dormant', status: 'dormant', kind: 'shed-interior',
+      }),
+      modernPublic: () => modernClubhouse.diagnostics(),
+      mountainLodge: () => mountainLodge.diagnostics(),
+      resortClubhouse: () => resortClubhouse.diagnostics(),
+      premiumCountryClub: () => premiumCountryClub.diagnostics(),
+    },
+  });
 
   function fixtureBrowsePose(fixture, localX = 0, localZ = null) {
     const local = fixtureBrowsePoint(fixture, localX, localZ);
@@ -1480,7 +1687,19 @@ export function makeClubhouse(ctx) {
   // What is left here is the join: a customer reaching the head of the queue starts a
   // transaction, standing at the counter offers [E] to step into it, and a customer who
   // walks out takes their goods back to the shelf.
+  // The register's irreversible finalizer receives one authoritative route
+  // bridge owned by the customer runtime. Unlike presentation callbacks stored
+  // on an actor, this remains available if an actor callback is absent or was
+  // replaced by a failing test/extension hook.
+  B.releasePaidCustomerFromCheckoutAuthoritative = (customer) => (
+    releasePaidCustomerFromCheckoutAuthoritative(customer)
+  );
   const register = createRegisterMode(B);
+  // QA-only, identity-bound and one-shot. The runtime checkout verifier uses
+  // this to prove a presentation exception after durable banking cannot strand
+  // the customer, duplicate the ticket, or return paid stock to inventory.
+  let qaPaidPresentationFault = null;
+  let qaPaidReleaseFault = null;
   B.register = register;
 
   const flowNow = () => performance.now();
@@ -1681,24 +1900,93 @@ export function makeClubhouse(ctx) {
     return true;
   }
 
-  // The sale banked. registerMode calls this through cust.onPaid, because IT owns the
-  // money and the goods, and clubhouse.js owns the person.
-  function onCustomerPaid(c, transaction = null) {
-    const acceptanceYaw = c.mesh.rotation.y;
+  function transferCustomerPaidOwnership(c) {
+    if (!c) return false;
+    const firstTransfer = !c.bought;
     c.bought = true;
     c.paymentStatus = 'paid';
-    if (!c.visitRecorded && c.customerId) {
-      recordCustomerVisit(state, c.customerId, {
-        dayAbs: Math.floor(state.clock.minutes / 1440),
-        purpose: 'retail',
-        outcome: 'purchase',
-        paymentMethod: transaction && transaction.method,
-        amount: transaction ? totalOf(transaction) : 0,
-      });
-      c.visitRecorded = true;
+    // The ticket is already durable when this callback runs. Transfer the
+    // merchandise ownership before review, meshes, audio, or handoff visuals:
+    // none of those presentation steps may leave a paid cart eligible for the
+    // unpaid-exit restock net if one of them fails.
+    c.cart = [];
+    c.awaitingCheckout = false;
+    c.checkoutPhase = 'complete';
+    // Operational tallies belong beside authoritative paid ownership, not in
+    // fallible review/mesh/bag presentation. Customer history itself is banked
+    // synchronously by completeSale so both survive an onPaid exception.
+    if (firstTransfer) {
+      visitTally.purchasesCompleted += 1;
+      if (c.combinedVisit) visitTally.combinedCompleted += 1;
     }
+    // Do not let actor presentation claim an accounting result the durable
+    // ticket did not achieve. The register sets this only after its persisted
+    // customer-visit event applied (or reconciled as an idempotent no-op).
+    c.visitRecorded = c.tx?.customerVisitRecorded === true;
+    return true;
+  }
+
+  function releasePaidCustomerFromCheckoutAuthoritative(c) {
+    if (!c) return false;
+    // This is the non-visual, idempotent last-resort boundary used from the
+    // register finalizer's `finally`. Keep it independent of shelf rebuilds,
+    // reviews, meshes, audio, and every other operation that can throw after a
+    // ticket has banked. Even if leaveQueue itself is later decorated with a
+    // fallible side effect, exact-identity removal below still frees the till.
+    try {
+      leaveQueue(c);
+    } catch {
+      const queueIndex = counterQueue.indexOf(c);
+      if (queueIndex >= 0) counterQueue.splice(queueIndex, 1);
+      c.queued = false;
+      c.queueSlotHeld = null;
+    }
+    const exitIdx = c.stops?.findIndex((stop) => stop.kind === 'exit') ?? -1;
+    if (exitIdx >= 0) c.stopIdx = exitIdx;
+    c.linger = 0;
+    c.currentDestination = 'exit';
+    c.path = null;
+    c.pathGoal = null;
+    c.checkoutPaidReleased = true;
+    return counterQueue.indexOf(c) < 0;
+  }
+
+  function releasePaidCustomerFromCheckout(c, transaction = null) {
+    const injectedFault = qaPaidReleaseFault;
+    qaPaidReleaseFault = null;
+    if (injectedFault
+        && Number(injectedFault.transactionNumber) === Number(transaction?.number)
+        && String(injectedFault.customerId) === String(c?.customerId)) {
+      throw new Error('QA injected paid-customer route-release failure.');
+    }
+    const released = releasePaidCustomerFromCheckoutAuthoritative(c);
+    if (!released) return false;
+    // Reconcile the shelf even if the decorative paid-customer presentation
+    // failed before it reached its old rebuild call. The ownership and route
+    // fields above remain authoritative if this visual refresh itself throws.
+    rebuildStock();
+    return true;
+  }
+
+  // The sale banked. registerMode calls this through cust.onPaid, because IT owns the
+  // money and the goods, and clubhouse.js owns the person. Authoritative ownership
+  // and route release are separate callbacks so a broken review/mesh/bag flourish
+  // cannot strand an already-durable ticket at the register.
+  function onCustomerPaid(c, transaction = null) {
+    transferCustomerPaidOwnership(c);
+    const injectedFault = qaPaidPresentationFault;
+    qaPaidPresentationFault = null;
+    if (injectedFault
+        && Number(injectedFault.transactionNumber) === Number(transaction?.number)
+        && String(injectedFault.customerId) === String(c?.customerId)) {
+      throw new Error('QA injected paid-customer presentation failure.');
+    }
+    const acceptanceYaw = c.mesh.rotation.y;
     leaveReview(c, true);
     clearCustomerItemMeshes(c);
+    // the goods are paid for; if they also came for the course, THIS is where
+    // they raise it - after everything is scanned, at the same counter
+    beginPendingDesk(c);
     // FINALIZE is the ownership boundary: only after the sale banks do the
     // branded carrier, receipt, and any oversize goods attach to the customer.
     // This keeps unpaid props at the counter while ensuring paid goods remain
@@ -1713,12 +2001,17 @@ export function makeClubhouse(ctx) {
     const bag = handedBag || kitBag || legacyBag || new THREE.Group();
     const productionBag = !!(handedBag || kitBag || legacyBag);
     if (!productionBag) {
+      const ownedBagResources = createPaidBagResourceLedger();
       const body = new THREE.Mesh(
-        new THREE.BoxGeometry(0.2, 0.26, 0.13),
-        new THREE.MeshStandardMaterial({ color: 0x2e5a3a, roughness: 0.85 }),
+        ownedBagResources.ownGeometry(new THREE.BoxGeometry(0.2, 0.26, 0.13)),
+        ownedBagResources.ownMaterial(new THREE.MeshStandardMaterial({
+          color: 0x2e5a3a, roughness: 0.85,
+        })),
       );
       body.position.y = 0.13;
       bag.add(body);
+      bag.userData.disposeCheckoutPaidBagResources = () => ownedBagResources.dispose();
+      bag.userData.checkoutPaidBagResourceStatus = () => ownedBagResources.status();
     } else if (legacyBag) {
       // A believable 26 cm retail carrier: large enough for the three-item sale
       // and readable as the object the customer owns in the departure shot.
@@ -1746,17 +2039,13 @@ export function makeClubhouse(ctx) {
     // route locomotion takes over as soon as the acceptance hold expires.
     c.bagAcceptanceFace = null;
     if (char) char.setMode('ReceiveBag');
-    c.cart = [];
-    c.awaitingCheckout = false;
-    c.checkoutPhase = 'complete';
-    leaveQueue(c);
-    c.stopIdx += 1;
-    c.linger = 0;
-    rebuildStock(); // the shelf gap where their pick came from stays real
   }
 
   addProp({
     x: regWp.x, z: regWp.z, r: 2.2,
+    // F1 (Full_Goal_16): a work station — its prompt outranks an equipped
+    // tool's label inside this radius (courseScene walkFindFocus).
+    station: true,
     label: () => {
       if (!facilityInstalled(state, 'frontCounter')) return null;
       if (!facilityInstalled(state, 'registerHardware')) {
@@ -1776,20 +2065,20 @@ export function makeClubhouse(ctx) {
       const due = dueForCheckIn(state);
       if (due.length) {
         const reservation = due[0];
-        return `Tee desk — [E] serve ${reservation.reservationHolder} (${reservation.partySize} players · ${fmtSlot(reservation.minute)})`
+        return `Tee desk - [E] serve ${reservation.reservationHolder} (${reservation.partySize} players · ${fmtSlot(reservation.minute)})`
           + (due.length > 1 ? ` · ${due.length - 1} more waiting` : '');
       }
-      return 'Tee desk — [E] arrivals, check-in & walk-ins';
+      return 'Tee desk - [E] arrivals, check-ins and walk-ins';
     },
     action: () => {
       if (!facilityInstalled(state, 'frontCounter') || !facilityInstalled(state, 'registerHardware')) {
-        if (hooks.toast) hooks.toast('Install the counter and register hardware before serving guests.', 'warn');
+        if (hooks.toast) hooks.toast(t('shop.installTheCounterAnd'), 'warn');
         return;
       }
       // The shared monitor owns selection and never mutates a reservation merely
       // because the player pressed E near the counter.
       if (register.enter() || register.isActive()) return;
-      if (hooks.toast) hooks.toast('The front desk is unavailable.', 'warn');
+      if (hooks.toast) hooks.toast(t('shop.theFrontDeskIs'), 'warn');
     },
   });
 
@@ -2107,7 +2396,7 @@ export function makeClubhouse(ctx) {
     const mapWp = L2W(OFFICE.map.x, OFFICE.map.z - 0.5);
     addProp({
       x: mapWp.x, z: mapWp.z, r: 2.2,
-      label: () => 'Course wall map — [E] step back to the overview camera',
+      label: () => 'Course wall map - [E] step back to the overview camera',
       action: () => { if (hooks.toggleOverview) hooks.toggleOverview(); },
     });
 
@@ -2320,7 +2609,7 @@ export function makeClubhouse(ctx) {
       c2.fillText(clock12(), 256, 224);
       c2.fillStyle = '#5d7a64';
       c2.font = '12px system-ui, sans-serif';
-      c2.fillText('GOLF SIMULATOR — press E to sign in', 256, 286);
+      c2.fillText('GOLF SIMULATOR - press E to sign in', 256, 286);
       screenTex.needsUpdate = true;
     }
     // The front-desk machine must read as the management hub before the player
@@ -2372,8 +2661,18 @@ export function makeClubhouse(ctx) {
     const compWp = L2W(FRONT_DESK.laptop.x, FRONT_DESK.laptop.z);
     office.computerProp = addProp({
       x: compWp.x, z: compWp.z, r: 2.3,
+      // G1: THE LAPTOP IS A WORK STATION, AND THE RULE ALREADY EXISTED.
+      //
+      // A station in reach outranks the equipped tool's prompt, so a mop in
+      // hand does not have to be put down to use the counter. That was written
+      // for the till and applied to the till and the reading desk — and the
+      // laptop, which opens a full-screen station exactly like both of them, was
+      // never tagged. So with a tool out the prompt read the mop, [E] did
+      // nothing, and the player had to swap to empty hands to open their own
+      // back office.
+      station: true,
       label: () => facilityInstalled(state, 'laptop')
-        ? 'Laptop — [E] open GOLF SIMULATOR'
+        ? 'Laptop - [E] open GOLF SIMULATOR'
         : null,
       action: () => { if (hooks.openLaptop) hooks.openLaptop(); },
     });
@@ -2438,7 +2737,10 @@ export function makeClubhouse(ctx) {
     // the two facility-gated production meshes below.
     props61to100.refreshVisibility?.();
     if (sheet07Production) sheet07Production.refresh();
-    if (shell.setBusinessOpen) shell.setBusinessOpen(campaignAllowsBusiness(state));
+    // The signs are pushed from ONE place, every frame (see syncOpenClosedSigns
+    // in update()); this only nudges it so a facility install repaints in the
+    // same frame rather than the next one.
+    syncOpenClosedSigns();
   }
 
   // Assets 61 and 66 already belong to the unified 61–100 runtime above.
@@ -3048,7 +3350,7 @@ export function makeClubhouse(ctx) {
     const wp = L2W(pile.x, pile.z);
     const prop = addProp({
       x: wp.x, z: wp.z, r: 1.9,
-      label: () => 'Old clutter — [E] haul it out',
+      label: () => 'Old clutter - [E] haul it out',
       action: () => {
         const res = clearClutter(state, idx);
         if (!res.ok) return;
@@ -3061,7 +3363,7 @@ export function makeClubhouse(ctx) {
         refreshCondition();
         presentRestorationFeedback(res.restoration);
         if (hooks.sfx) hooks.sfx('thunk');
-        if (hooks.toast) hooks.toast('Hauled a pile of junk out the back.');
+        if (hooks.toast) hooks.toast(t('shop.hauledAPileOf'));
       },
     });
     clutterObjs.push({ group: g, collider, prop });
@@ -3372,7 +3674,7 @@ export function makeClubhouse(ctx) {
       onSpotlightAimChange: ({ headIndex, yaw, tilt, presetLabel }) => {
         if (placementId) setPlacementSpotlightAim(state, placementId, headIndex, yaw, tilt);
         if (hooks.sfx) hooks.sfx('fixtureAdjust');
-        if (hooks.toast) hooks.toast(`${sku.name} spotlight ${headIndex + 1} aimed to ${presetLabel}.`);
+        if (hooks.toast) hooks.toast(t('shop.spotlightAimed', { name: sku.name, head: headIndex + 1, preset: presetLabel }));
       },
     });
     built.group.position.set(pose.x, 0, pose.z);
@@ -3405,7 +3707,7 @@ export function makeClubhouse(ctx) {
     if (!ghost) {
       entry.prop = addProp({
         x: wp.x, z: wp.z, r: 1.9,
-        label: () => `${sku.name} — [E] pack it back up`,
+        label: () => `${sku.name} - [E] pack it back up`,
         action: () => {
           const removed = placementId
             ? removeDecorPlacement(state, placementId)
@@ -3417,7 +3719,7 @@ export function makeClubhouse(ctx) {
           rebuildDecor();
           refreshCondition();
           if (hooks.sfx) hooks.sfx('thunk');
-          if (hooks.toast) hooks.toast(`${sku.name} packed up — it's back in the backroom.`);
+          if (hooks.toast) hooks.toast(`${sku.name} packed up - it's back in the backroom.`);
         },
       });
       entry.prop.playerPlacedFurniture = true;
@@ -3474,7 +3776,7 @@ export function makeClubhouse(ctx) {
             // the crosshair with nearby fixtures.  Give the authored 3D handle
             // a modest priority once the player is already inside its reach.
             focusBias: 0.34,
-            label: () => `${sku.name} ${componentNoun.toLowerCase()} — [E] ${component.isOpen() ? 'close' : 'open'}`,
+            label: () => `${sku.name} ${componentNoun.toLowerCase()} - [E] ${component.isOpen() ? 'close' : 'open'}`,
             action: () => component.toggle(),
           };
           prop.playerPlacedFurniture = true;
@@ -3498,8 +3800,8 @@ export function makeClubhouse(ctx) {
               const circuit = lightController.isCircuitPowered();
               const verb = lightController.isOn() ? 'switch off' : 'switch on';
               return circuit
-                ? `${sku.name} — [E] ${verb}`
-                : `${sku.name} — ceiling circuit has no power · [E] ${verb}`;
+                ? `${sku.name} - [E] ${verb}`
+                : `${sku.name} - ceiling circuit has no power · [E] ${verb}`;
             },
             action: () => lightController.toggle(),
           };
@@ -3520,7 +3822,7 @@ export function makeClubhouse(ctx) {
               aimY: initial.y,
               focusPoint,
               focusBias: 0.86,
-              label: () => `${sku.name} spotlight ${head.index + 1} — [E] change aim (${head.presetLabel})`,
+              label: () => `${sku.name} spotlight ${head.index + 1} - [E] change aim (${head.presetLabel})`,
               action: () => head.cycle(),
             };
             prop.playerPlacedFurniture = true;
@@ -3619,7 +3921,7 @@ export function makeClubhouse(ctx) {
               },
               action: () => {
                 if (!cabinetOpen()) {
-                  if (hooks.toast) hooks.toast(`Open a bay ${bay} cabinet door first.`, 'warn');
+                  if (hooks.toast) hooks.toast(t('shop.openBayDoorFirst', { bay }), 'warn');
                   return;
                 }
                 const wasCarrying = !!carriedGoods(state);
@@ -3674,7 +3976,7 @@ export function makeClubhouse(ctx) {
     } else {
       entry.prop = addProp({
         x: wp.x, z: wp.z, r: 1.9,
-        label: () => `Place the ${sku.name.toLowerCase()} here — [E]`,
+        label: () => `Place the ${sku.name.toLowerCase()} here - [E]`,
         action: () => {
           const res = placeDecor(state, skuId, spotIdx);
           if (!res.ok) {
@@ -3685,7 +3987,7 @@ export function makeClubhouse(ctx) {
           rebuildDecor();
           refreshCondition();
           if (hooks.sfx) hooks.sfx('thunk');
-          if (hooks.toast) hooks.toast(`${sku.name} placed — the shop is coming together.`);
+          if (hooks.toast) hooks.toast(t('shop.placedComingTogether', { name: sku.name }));
         },
       });
       entry.props.push(entry.prop);
@@ -5126,6 +5428,7 @@ export function makeClubhouse(ctx) {
   const _dp = new THREE.Vector3();
   const _ds = new THREE.Vector3();
   const _dUp = new THREE.Vector3(0, 1, 0);
+  const _dRight = new THREE.Vector3(1, 0, 0);
   let wetVisualDirty = false;
   let wetRepaintClock = 0;
   function refreshDebrisVisual() {
@@ -5172,16 +5475,90 @@ export function makeClubhouse(ctx) {
   //
   // The markers deliberately draw THROUGH geometry (depthTest off, late render
   // order) — a pile behind the counter is exactly the one you cannot find.
-  const SENSE_CAP = DEBRIS_CAP * 2;
+  //
+  // D3: AND IT ANSWERS THE TOOL IN YOUR HANDS.
+  //
+  // The reveal used to light the debris clusters and nothing else, for every
+  // tool equally. That is wrong in both directions: a player holding a mop was
+  // shown piles the mop cannot touch, and a player holding anything at all was
+  // never shown the ground-in grime, which is the larger half of a filthy floor
+  // and has no other tell. Markers are now per-MEDIUM (cleaningTools.js
+  // MEDIUM), coloured by what kind of mess they are, and filtered to what the
+  // held tool can actually shift. With no cleaning tool out, everything shows —
+  // that is the "which way do I go" case the Tab overview wants.
+  const SENSE_CAP = DEBRIS_CAP * 2 + RENO.grid.w * RENO.grid.h;
   const senseGeo = new THREE.SphereGeometry(0.16, 10, 8);
   const senseMat = new THREE.MeshBasicMaterial({
-    color: 0x74e0ff,
+    color: 0xffffff, // white: the per-instance colour carries the medium
     transparent: true,
     opacity: 0,
     depthTest: false,
     depthWrite: false,
     toneMapped: false,
   });
+  // J1: THE REVEAL SHOWS THE OBJECT, NOT A MARKER (first-person mode).
+  //
+  // "Blue circles and flat orange patches tell me where something is, not
+  // what it is." So on foot the reveal now draws THE THINGS THEMSELVES:
+  //  - each debris pile as a ghost of its own geometry (the grit clump / the
+  //    litter slab, scaled a rim wider so it haloes the real mesh), through
+  //    walls, in the medium's legend colour;
+  //  - each dirty grime cell as a flat quad fitted to the CELL'S OWN
+  //    footprint on the boards — the stain's real shape and extent, not a
+  //    hovering ball.
+  // The sphere markers stay for the Tab overview's column mode, where a
+  // silhouette on the floor is invisible from above the roof and a pillar is
+  // the honest answer.
+  const senseGhostMatFor = (hex) => new THREE.MeshBasicMaterial({
+    color: hex,
+    transparent: true,
+    opacity: 0,
+    depthTest: false,
+    depthWrite: false,
+    toneMapped: false,
+  });
+  const senseGhostGritMat = senseGhostMatFor(MEDIUM_STYLE[MEDIUM.DEBRIS].color);
+  const senseGhostLitterMat = senseGhostMatFor(MEDIUM_STYLE[MEDIUM.DEBRIS].color);
+  const senseGrimeQuadMat = senseGhostMatFor(MEDIUM_STYLE[MEDIUM.GRIME].color);
+  const GRIME_MARKER_MAX_CAP = 20; // mirrors GRIME_MARKER_MAX below
+  const senseGhostGrit = new THREE.InstancedMesh(debrisGeo, senseGhostGritMat, DEBRIS_CAP);
+  const senseGhostLitter = new THREE.InstancedMesh(litterGeo, senseGhostLitterMat, DEBRIS_CAP);
+  // 2026-08-06 ruling: the reveal must pick out "the specific mess", not "the
+  // huge blob". One filled quad per grid cell was the blob - a cell is over a
+  // metre across, so a dirty floor lit up as a wall of solid tiles that said
+  // nothing a condition number does not. Grime is now drawn as SPECKLES
+  // scattered inside each cell, as many as the cell is dirty, which reads as
+  // the actual patches of muck on the boards.
+  const GRIME_SPECKLES_PER_CELL = 9;
+  const senseGrimeQuad = new THREE.InstancedMesh(
+    new THREE.PlaneGeometry(1, 1), senseGrimeQuadMat,
+    GRIME_MARKER_MAX_CAP * GRIME_SPECKLES_PER_CELL,
+  );
+  for (const ghost of [senseGhostGrit, senseGhostLitter, senseGrimeQuad]) {
+    ghost.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+    ghost.castShadow = false;
+    ghost.receiveShadow = false;
+    ghost.frustumCulled = false;
+    ghost.count = 0;
+    ghost.visible = false;
+    ghost.renderOrder = 40; // after the world, with the markers
+    interior.add(ghost);
+  }
+  senseGhostGrit.name = 'DirtSenseGhostGrit';
+  senseGhostLitter.name = 'DirtSenseGhostLitter';
+  senseGrimeQuad.name = 'DirtSenseGrimeCells';
+  // Loose debris keeps the established cyan; grime is a warm ochre, because it
+  // is the colour of the thing itself and because the two must be tellable
+  // apart at a glance and through a wall.
+  // J2: the marker colours come from the ONE legend authority, so the mesh,
+  // the HUD chips and the reticle name the same medium the same way. (They
+  // used to be hand-typed here — blue circles for debris, orange for grime —
+  // which is exactly the "tells me where, not what" the review of the reveal
+  // called out.)
+  const SENSE_COLOR = {
+    [MEDIUM.DEBRIS]: new THREE.Color(MEDIUM_STYLE[MEDIUM.DEBRIS].color),
+    [MEDIUM.GRIME]: new THREE.Color(MEDIUM_STYLE[MEDIUM.GRIME].color),
+  };
   const senseMesh = new THREE.InstancedMesh(senseGeo, senseMat, SENSE_CAP);
   senseMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
   senseMesh.frustumCulled = false;
@@ -5195,31 +5572,145 @@ export function makeClubhouse(ctx) {
 
   let senseAlpha = 0;
   let senseColumns = false;
+  let senseTool = null;
+  const senseTally = { debris: 0, grime: 0, hiddenByTool: 0 };
+
+  // Grime lives on a coarse cell grid rather than as clusters, so a marker
+  // stands at the centre of any cell still carrying enough to be worth a pass.
+  // Below this the floor reads clean and a marker would be noise.
+  const GRIME_MARKER_MIN = 0.06;
+  // …and on a day-one floor EVERY cell is over that threshold. Marking all 104
+  // of them wallpapered the room in orange spheres — technically true, and
+  // useless: "the whole floor is dirty" is what the condition number already
+  // says. The reveal's job is WHERE TO GO FIRST, so it shows the worst patches
+  // only. 20 is roughly a fifth of the grid: enough to describe the shape of
+  // the mess, few enough to see the room through.
+  const GRIME_MARKER_MAX = GRIME_MARKER_MAX_CAP;
+  // Debris is a pile you walk up to; grime is IN the boards. Drawing both as
+  // the same floating ball made a stained floor look like hovering fruit, so
+  // grime markers are flattened onto the surface and read as a stain.
+  const GRIME_FLATTEN = 0.14;
 
   function refreshDirtSense() {
-    const list = debrisState(state);
+    const media = senseTool ? toolMedia(senseTool) : [MEDIUM.DEBRIS, MEDIUM.GRIME];
+    const wantDebris = media.includes(MEDIUM.DEBRIS);
+    const wantGrime = media.includes(MEDIUM.GRIME);
+    const kinds = senseTool ? toolDebrisKinds(senseTool) : null;
+    const COLUMN_YD = 9.0;
     let n = 0;
-    for (let i = 0; i < list.length && n < SENSE_CAP; i += 1) {
-      const d = list[i];
-      if (!d || d.a <= 0.001) continue;
-      // A marker's size answers "how much", so a big pile reads as worth the
-      // walk; the column mode stands it up so it clears furniture from above.
-      const s = Math.min(2.6, 0.7 + Math.sqrt(d.a) * 1.7);
-      // The overview looks DOWN at a roofed building, so a marker that stops at
-      // head height is behind the ceiling and useless. The column is sized to
-      // punch clean through the roof: the 0.16 yd sphere scaled to ~9 yd tall,
-      // standing from the floor.
-      const COLUMN_YD = 9.0;
-      const h = senseColumns ? COLUMN_YD / (0.16 * 2) : s;
-      _dp.set(d.x, senseColumns ? COLUMN_YD / 2 : 0.10 + 0.02 * s, d.z);
+    let ghostGrit = 0;
+    let ghostLitter = 0;
+    let grimeQuads = 0;
+    senseTally.debris = 0;
+    senseTally.grime = 0;
+    senseTally.hiddenByTool = 0;
+
+    // columns mode keeps the sphere pillars — from above the roof a
+    // silhouette on the boards is invisible and the pillar is the answer
+    const place = (x, z, s, medium) => {
+      const h = COLUMN_YD / (0.16 * 2);
+      _dp.set(x, COLUMN_YD / 2, z);
       _dq.identity();
       _ds.set(s, h, s);
       _dm.compose(_dp, _dq, _ds);
       senseMesh.setMatrixAt(n, _dm);
+      senseMesh.setColorAt(n, SENSE_COLOR[medium]);
       n += 1;
+    };
+
+    const list = debrisState(state);
+    for (let i = 0; i < list.length; i += 1) {
+      const d = list[i];
+      if (!d || d.a <= 0.001) continue;
+      if (!wantDebris || (kinds && !kinds.includes(d.kind))) { senseTally.hiddenByTool += 1; continue; }
+      const s = Math.min(2.6, 0.7 + Math.sqrt(d.a) * 1.7);
+      if (senseColumns) {
+        if (n < SENSE_CAP) place(d.x, d.z, s, MEDIUM.DEBRIS);
+      } else {
+        // J1: the pile ITSELF, ghosted — same matrix family refreshDebrisVisual
+        // composes for the drawn clump, scaled a rim wider so the glow haloes
+        // the real mesh and reads as the object's own silhouette.
+        const vs = Math.min(2.4, 0.55 + Math.sqrt(d.a) * 1.5) * 1.30;
+        _dp.set(d.x, 0.012 * vs, d.z);
+        _dq.setFromAxisAngle(_dUp, (d.x * 7.3 + d.z * 3.1) % Math.PI);
+        const litter = d.kind === 'litter';
+        _ds.set(litter ? vs * 1.25 : vs, litter ? vs * 0.65 : vs * 0.22, litter ? vs * 1.10 : vs);
+        _dm.compose(_dp, _dq, _ds);
+        if (litter && ghostLitter < DEBRIS_CAP) senseGhostLitter.setMatrixAt(ghostLitter++, _dm);
+        else if (!litter && ghostGrit < DEBRIS_CAP) senseGhostGrit.setMatrixAt(ghostGrit++, _dm);
+      }
+      senseTally.debris += 1;
     }
+
+    const grime = state.shop?.reno?.grime;
+    if (grime) {
+      const cellW = RENO.room.w / RENO.grid.w;
+      const cellD = RENO.room.d / RENO.grid.h;
+      const dirty = [];
+      for (let cy = 0; cy < RENO.grid.h; cy += 1) {
+        for (let cx = 0; cx < RENO.grid.w; cx += 1) {
+          const amount = grime[cy * RENO.grid.w + cx];
+          if (!(amount > GRIME_MARKER_MIN)) continue;
+          if (!wantGrime) { senseTally.hiddenByTool += 1; continue; }
+          dirty.push({ cx, cy, amount });
+        }
+      }
+      // Worst first, then truncate — so as the floor gets cleaner the markers
+      // stop being a wall and start being a to-do list, and the last few to
+      // survive are genuinely the last few patches left.
+      dirty.sort((a, b) => b.amount - a.amount);
+      for (const cell of dirty.slice(0, GRIME_MARKER_MAX)) {
+        const x = -RENO.room.w / 2 + (cell.cx + 0.5) * cellW;
+        const z = -RENO.room.d / 2 + (cell.cy + 0.5) * cellD;
+        if (senseColumns) {
+          if (n < SENSE_CAP) {
+            place(x, z, Math.min(2.6, 0.7 + Math.sqrt(cell.amount) * 1.7), MEDIUM.GRIME);
+          }
+        } else {
+          // THE SPECIFIC MESS, not a lit tile. Scatter small speckles inside
+          // the cell - more of them, and larger, the dirtier the cell is - so
+          // the reveal reads like grime seen through the boards rather than a
+          // highlighted square. The scatter is a deterministic hash of the
+          // cell, so the same floor shows the same patches every boot.
+          const count = Math.max(2, Math.round(
+            2 + Math.min(1, cell.amount) * (GRIME_SPECKLES_PER_CELL - 2),
+          ));
+          let h = (cell.cx * 73856093) ^ (cell.cy * 19349663);
+          const rand = () => {
+            h = Math.imul(h ^ (h >>> 15), h | 1);
+            h ^= h + Math.imul(h ^ (h >>> 7), h | 61);
+            return ((h ^ (h >>> 14)) >>> 0) / 4294967296;
+          };
+          for (let s = 0; s < count && grimeQuads < senseGrimeQuad.instanceMatrix.count; s += 1) {
+            // a speckle never grows past a third of its cell, so no single
+            // mark can read as a slab however dirty the cell is
+            const size = (0.10 + rand() * 0.12) * Math.min(cellW, cellD)
+              * (0.75 + Math.min(1, cell.amount) * 0.45);
+            _dp.set(
+              x + (rand() - 0.5) * cellW * 0.82,
+              0.035,
+              z + (rand() - 0.5) * cellD * 0.82,
+            );
+            _dq.setFromAxisAngle(_dRight, -Math.PI / 2);
+            _ds.set(size, size * (0.75 + rand() * 0.35), 1);
+            _dm.compose(_dp, _dq, _ds);
+            senseGrimeQuad.setMatrixAt(grimeQuads++, _dm);
+          }
+        }
+        senseTally.grime += 1;
+      }
+      senseTally.grimeCellsDirty = dirty.length;
+    }
+
     senseMesh.count = n;
     senseMesh.instanceMatrix.needsUpdate = true;
+    if (senseMesh.instanceColor) senseMesh.instanceColor.needsUpdate = true;
+    senseGhostGrit.count = ghostGrit;
+    senseGhostLitter.count = ghostLitter;
+    senseGrimeQuad.count = grimeQuads;
+    senseGhostGrit.instanceMatrix.needsUpdate = true;
+    senseGhostLitter.instanceMatrix.needsUpdate = true;
+    senseGrimeQuad.instanceMatrix.needsUpdate = true;
   }
 
   /**
@@ -5227,14 +5718,29 @@ export function makeClubhouse(ctx) {
    * `columns` stands each marker into a tall pillar for the overview camera,
    * where a floor-hugging blob is invisible from above the roof.
    */
-  function setDirtReveal(alpha, columns = false) {
+  // C5 (Goal 18): the register freezes the walk update, so courseScene's
+  // per-frame stationOpen zeroing never runs while the till is up — a reveal
+  // lit at the moment of entry stayed lit behind the UI. The register mode
+  // zeroes it at the entry transition through this handle.
+  B.setDirtReveal = (...args) => setDirtReveal(...args);
+  function setDirtReveal(alpha, columns = false, toolId = null) {
     const a = Math.max(0, Math.min(1, Number.isFinite(alpha) ? alpha : 0));
-    const modeChanged = columns !== senseColumns;
+    const tool = CLEANING_TOOLS[toolId] ? toolId : null;
+    const modeChanged = columns !== senseColumns || tool !== senseTool;
     senseColumns = !!columns;
+    senseTool = tool;
     senseAlpha = a;
-    senseMesh.visible = a > 0.002;
-    senseMat.opacity = a * (columns ? 0.5 : 0.72);
-    if (senseMesh.visible && (modeChanged || senseMesh.count === 0 || a > 0)) refreshDirtSense();
+    const on = a > 0.002;
+    // columns mode = pillars; on foot = the objects themselves (J1)
+    senseMesh.visible = on && senseColumns;
+    senseMat.opacity = a * 0.5;
+    senseGhostGrit.visible = on && !senseColumns;
+    senseGhostLitter.visible = on && !senseColumns;
+    senseGrimeQuad.visible = on && !senseColumns;
+    senseGhostGritMat.opacity = a * 0.85;
+    senseGhostLitterMat.opacity = a * 0.85;
+    senseGrimeQuadMat.opacity = a * 0.5;
+    if (on && (modeChanged || a > 0)) refreshDirtSense();
   }
 
   /** The nearest remaining cluster to a world point, for the reticle prompt. */
@@ -5600,9 +6106,9 @@ export function makeClubhouse(ctx) {
     if (!reno) return null;
     const cx = Math.floor(((l.x + RENO.room.w / 2) / RENO.room.w) * RENO.grid.w);
     const cy = Math.floor(((l.z + RENO.room.d / 2) / RENO.room.d) * RENO.grid.h);
-    if (cx < 0 || cx >= RENO.grid.w || cy < 0 || cy >= RENO.grid.h) return 'Vacuum — aim at the floor';
+    if (cx < 0 || cx >= RENO.grid.w || cy < 0 || cy >= RENO.grid.h) return 'Vacuum - aim at the floor';
     const d = reno.grime[cy * RENO.grid.w + cx];
-    return d > 0.05 ? `Vacuum — this patch: ${Math.round(d * 100)}% dirty · hold LMB` : 'Vacuum — this patch is clean';
+    return d > 0.05 ? `Vacuum - this patch: ${Math.round(d * 100)}% dirty · hold LMB` : 'Vacuum - this patch is clean';
   }
 
   function emptyDustpanIntoBag() {
@@ -5637,21 +6143,21 @@ export function makeClubhouse(ctx) {
       label: () => {
         const pan = state.shop.reno.pan || 0;
         const bag = state.shop.reno.bag || 0;
-        if (pan > 0) return 'Cleaning disposal — [E] empty the dustpan into the trash bag';
-        if (bag > 0) return 'Cleaning disposal — [E] tie and discard the filled trash bag';
+        if (pan > 0) return 'Cleaning disposal - [E] empty the dustpan into the trash bag';
+        if (bag > 0) return 'Cleaning disposal - [E] tie and discard the filled trash bag';
         return null;
       },
       action: () => {
         const pan = emptyDustpanIntoBag();
         if (pan > 0) {
           if (hooks.sfx) hooks.sfx('disposal');
-          if (hooks.toast) hooks.toast('Dustpan emptied into the trash bag. Tie it off here when the floor is clear.');
+          if (hooks.toast) hooks.toast(t('shop.dustpanEmptiedIntoThe'));
           return;
         }
         const bag = disposeCleaningBag();
         if (bag > 0) {
           if (hooks.sfx) hooks.sfx('disposal');
-          if (hooks.toast) hooks.toast('Filled trash bag disposed — the cleaning bay is clear.');
+          if (hooks.toast) hooks.toast(t('shop.filledTrashBagDisposed'));
           presentRestorationFeedback(syncGenericCleanupMilestone(state));
         }
       },
@@ -5706,7 +6212,9 @@ export function makeClubhouse(ctx) {
   carriedBoxHands.name = 'DeliveryBoxCarryHands';
   carriedBoxHands.visible = false;
   camera.add(carriedBoxHands);
-  const DELIVERY_CARRY_RENDER_LAYER = 30;
+  // (module-level DELIVERY_CARRY_RENDER_LAYER — kept here as a local alias so
+  // the surrounding code reads unchanged)
+  const DELIVERY_CARRY_RENDER_LAYER = CARRY_RENDER_LAYER;
   let deliveryCarryLightsPrepared = false;
 
   function setDeliveryCarryOverlay(root, enabled) {
@@ -7237,11 +7745,16 @@ export function makeClubhouse(ctx) {
         m.userData.deliveryPresentationState = box.loc === 'pad' ? 'pallet-ready' : 'world-ready';
         m.userData.deliveryInteractionEnabled = true;
 
-        // a set-down box occupies the floor: register a collider so the player AND the
-        // customer nav grid (which bakes from the same list) both treat it as solid. Only
-        // WORLD drops — the ones a player can put anywhere; pad/stock stacks sit at
-        // known-clear spots. The sig gate means a hold-to-cut (same spot) never re-bakes nav.
-        if (box.loc === 'world' && resolvedSurfaceId === FLOOR_BOX_SURFACE_ID) {
+        // A box on the floor occupies the floor: register a collider so the player AND
+        // the customer nav grid (which bakes from the same list) both treat it as solid.
+        // The sig gate means a hold-to-cut (same spot) never re-bakes nav.
+        //
+        // This used to also require box.loc === 'world' - only boxes the PLAYER had put
+        // down - on the reasoning that delivered pad and stock stacks "sit at known-clear
+        // spots". They do not: a delivery lands them on the sales floor and customers
+        // walked straight into them, because the grid could not see them and the path went
+        // through. Resting on the floor is the honest predicate, whoever put it there.
+        if (resolvedSurfaceId === FLOOR_BOX_SURFACE_ID) {
           const cdim = boxDims(box.box || 'carton');
           const cosine = Math.abs(Math.cos(ry));
           const sine = Math.abs(Math.sin(ry));
@@ -7398,25 +7911,25 @@ export function makeClubhouse(ctx) {
     const name = sku?.name || box.skuId || 'carton';
     const recyclingWorld = L2W(STOCKROOM.bin.x, STOCKROOM.bin.z);
     if (recyclingDrop?.id === box.id) {
-      return 'Recycling — lowering the flattened carton in...';
+      return 'Recycling - lowering the flattened carton in...';
     }
     if (box.flat && Math.hypot(
       recyclingWorld.x - walk.x,
       recyclingWorld.z - walk.z,
     ) <= 1.8) {
-      return 'Recycling — [E] drop the flattened carton in';
+      return 'Recycling - [E] drop the flattened carton in';
     }
     if (!boxPlacementMode?.isActive()) {
-      return `Carrying ${name} ×${box.qty} — [E] choose a placement`;
+      return `Carrying ${name} ×${box.qty} - [E] choose a placement`;
     }
     const diagnostics = boxPlacementMode.diagnostics();
     if (!diagnostics.visible) {
-      return `Carrying ${name} ×${box.qty} — aim down at an approved surface · [R] rotate`;
+      return `Carrying ${name} ×${box.qty} - aim down at an approved surface · [R] rotate`;
     }
     if (!diagnostics.legal) {
       return `${diagnostics.reason || 'That placement is blocked.'} · [R] rotate · [Esc] keep carrying`;
     }
-    return `Carrying ${name} ×${box.qty} — [E] place · [R] rotate · [Esc] keep carrying`;
+    return `Carrying ${name} ×${box.qty} - [E] place · [R] rotate · [Esc] keep carrying`;
   }
 
   // a box in the stockroom is unpacked in place; anywhere else, [E] lifts it into your arms
@@ -7500,10 +8013,10 @@ export function makeClubhouse(ctx) {
         if (b.loc === 'pad' && !exposedPadBoxIds.has(b.id)) return null;
         const sku = SHOP_CATALOG.find((s) => s.id === b.skuId);
         const name = sku ? sku.name : b.skuId;
-        if (b.flat) return 'Flattened carton — [E] carry it to the recycling';
+        if (b.flat) return 'Flattened carton - [E] carry it to the recycling';
         if (isEmpty(b)) return boxFlattenAnimations.has(b.id)
           ? `Folding the empty ${name} carton...`
-          : `Empty ${name} box — [E] flatten it`;
+          : `Empty ${name} box - [E] flatten it`;
         if (!unpackHere(prop, b)) {
           const zone = b.loc === 'pad' ? 'Pad delivery: '
             : b.loc === 'receiving-fallback' ? 'Safe receiving: '
@@ -7513,7 +8026,7 @@ export function makeClubhouse(ctx) {
           // whose surface cannot be resolved at all — and deliberately no longer
           // recites a list of approved surfaces, because naming the rule was
           // never the fix. The rule was.
-          return `${zone}${name} ×${b.qty}${b.lb ? ` · ${b.lb} lb` : ''} — [E] pick up`;
+          return `${zone}${name} ×${b.qty}${b.lb ? ` · ${b.lb} lb` : ''} - [E] pick up`;
         }
         // One source of truth for "what does the next press do": nextBoxStep
         // decides, and action() below asks the same question. The prompt
@@ -7521,23 +8034,23 @@ export function makeClubhouse(ctx) {
         // bug, and it stops being possible when both read the same function.
         if (boxOpeningAnimations.has(b.id)) {
           return boxOpeningPhases.get(b.id) === 0
-            ? `${name} — tearing the tape...`
-            : `${name} — opening the carton...`;
+            ? `${name} - tearing the tape...`
+            : `${name} - opening the carton...`;
         }
         const held = carriedGoods(state);
         const handsFull = !!(held && held.skuId !== b.skuId);
         switch (nextBoxStep(b, { canUnpack: true, handsFull })) {
           case BOX_STEP.TEAR:
-            return `${name} case · ${b.qty} inside — [E] tear the tape open`;
+            return `${name} case · ${b.qty} inside - [E] tear the tape open`;
           case BOX_STEP.FLAP:
-            return `${name} — [E] open the other flap`;
+            return `${name} - [E] open the other flap`;
           case BOX_STEP.BLOCKED:
             // NAME THE KEY. This prompt used to say "put down what you're holding first"
             // when no key put anything down — an instruction the player could not follow.
-            return `${name} ×${b.qty}, open — [Z] set down what you're holding first`;
+            return `${name} ×${b.qty}, open - [Z] set down what you're holding first`;
           case BOX_STEP.TAKE:
           default:
-            return `${name} ×${b.qty} in the case — [E] take an armful`;
+            return `${name} ×${b.qty} in the case - [E] take an armful`;
         }
       },
       // NO TOOL. A carton used to demand the box cutter be equipped and then
@@ -7606,7 +8119,7 @@ export function makeClubhouse(ctx) {
         // into a carton has goods knocking each other, which that cue does not contain.
         sfx('boxContentsShift');
         tutorialFlag(state, 'boxCarried');
-        if (r.left <= 0) say(`${r.taken} × ${name} — the case is empty.`);
+        if (r.left <= 0) say(`${r.taken} × ${name} - the case is empty.`);
         rebuildBoxes();
       },
     });
@@ -7701,7 +8214,7 @@ export function makeClubhouse(ctx) {
         if (inStockroomBounds(l.x, l.z)) {
           const fixture = homeFixture(cg.skuId);
           const units = cg.qty === 1 ? 'this unit' : 'these units';
-          return `Holding ${sku.name} ×${cg.qty} — [E] store ${units} in back · sales floor: ${fixture?.title || 'assigned display'}`;
+          return `Holding ${sku.name} ×${cg.qty} - [E] store ${units} in back · sales floor: ${fixture?.title || 'assigned display'}`;
         }
         // Outside the stockroom, let the real shelf fixture own the prompt.
         // This helper follows 0.9 m ahead and otherwise always wins nearest-
@@ -7745,21 +8258,21 @@ export function makeClubhouse(ctx) {
           const water = status.bucket.water === 'empty'
             ? 'empty'
             : `${status.bucket.water} water ${Math.round(status.bucket.level * 100)}%`;
-          return `Mop bucket · ${water} · mop ${charge}% — [E] insert and wring`;
+          return `Mop bucket · ${water} · mop ${charge}% - [E] insert and wring`;
         }
         if (held === 'dustpan') {
           return status.pan.load > 0
-            ? `Trash bag · pan ${status.pan.load.toFixed(1)}/${status.pan.capacity} — [E] empty pan into bag`
+            ? `Trash bag · pan ${status.pan.load.toFixed(1)}/${status.pan.capacity} - [E] empty pan into bag`
             : 'Dustpan empty · sweep a pile into it first';
         }
         if (held === 'trashbag') {
-          if (status.bag.tied) return 'Trash bag tied — carry it to the waste station';
+          if (status.bag.tied) return 'Trash bag tied - carry it to the waste station';
           if (status.bag.load > 0) {
-            return `Trash bag ${status.bag.load.toFixed(1)}/${status.bag.capacity} — [E] tie bag`;
+            return `Trash bag ${status.bag.load.toFixed(1)}/${status.bag.capacity} - [E] tie bag`;
           }
-          return 'Fresh trash bag — collect loose debris or empty the dustpan here';
+          return 'Fresh trash bag - collect loose debris or empty the dustpan here';
         }
-        return 'Cleaning bay — equip the mop, dustpan, or trash bag';
+        return 'Cleaning bay - equip the mop, dustpan, or trash bag';
       },
       get secondaryLabel() {
         return hooks.getTool?.() === 'mop' ? 'change bucket water' : null;
@@ -7777,7 +8290,7 @@ export function makeClubhouse(ctx) {
         if (held === 'mop') {
           const result = serviceMop(state);
           if (!result.ok) {
-            say('The bucket is empty — press [X] here to change the water.', 'warn');
+            say('The bucket is empty - press [X] here to change the water.', 'warn');
             return;
           }
           syncBucketVisual();
@@ -7821,16 +8334,16 @@ export function makeClubhouse(ctx) {
         const held = hooks.getTool?.();
         const cleaning = cleaningStatus(state);
         if (held === 'trashbag' && cleaning) {
-          if (cleaning.bag.tied) return 'Waste station — [E] dispose tied trash bag';
-          if (cleaning.bag.load > 0) return 'Waste station — tie the loaded bag at the cleaning bay first';
-          return 'Waste station — the trash bag is empty';
+          if (cleaning.bag.tied) return 'Waste station - [E] dispose tied trash bag';
+          if (cleaning.bag.load > 0) return 'Waste station - tie the loaded bag at the cleaning bay first';
+          return 'Waste station - the trash bag is empty';
         }
         const cb = carriedBox(state);
-        if (recyclingDrop) return 'Recycling — lowering the flattened carton in...';
-        if (cb && cb.flat) return 'Recycling — [E] drop the flattened carton in';
+        if (recyclingDrop) return 'Recycling - lowering the flattened carton in...';
+        if (cb && cb.flat) return 'Recycling - [E] drop the flattened carton in';
         const dd = state.shop.deliveries;
         const flatNear = dd && dd.boxes.some((b) => b.flat && b.loc !== 'carried');
-        return flatNear || (dd && dd.trash > 0) ? 'Recycling — [E] break down the flattened cartons' : null;
+        return flatNear || (dd && dd.trash > 0) ? 'Recycling - [E] break down the flattened cartons' : null;
       },
       action: () => {
         if (hooks.getTool?.() === 'trashbag') {
@@ -7849,7 +8362,7 @@ export function makeClubhouse(ctx) {
           startRecyclingDrop(cb);
           return;
         }
-        if (emptyTrash(state).ok) { sfx('disposal'); say('Cardboard recycled — the stockroom breathes again.'); rebuildBoxes(); }
+        if (emptyTrash(state).ok) { sfx('disposal'); say('Cardboard recycled - the stockroom breathes again.'); rebuildBoxes(); }
       },
     });
   }
@@ -8046,15 +8559,15 @@ export function makeClubhouse(ctx) {
         retainFocus: () => !!deliveryEquipment?.diagnostics().handTruck.active,
         label: () => {
           const status = deliveryEquipment?.diagnostics().handTruck;
-          if (status?.active) return 'Delivery hand truck — checking the axle balance...';
+          if (status?.active) return 'Delivery hand truck - checking the axle balance...';
           const box = carriedBox(state);
           if (box) {
             const placement = handTruckPlacementForCarriedBox(state, box.id);
             return placement.ok
-              ? 'Delivery hand truck — [E] place the carton on the toe plate'
-              : `Delivery hand truck — ${placement.reason}`;
+              ? 'Delivery hand truck - [E] place the carton on the toe plate'
+              : `Delivery hand truck - ${placement.reason}`;
           }
-          return 'Delivery hand truck — [E] tip it back and check the load balance';
+          return 'Delivery hand truck - [E] tip it back and check the load balance';
         },
         action: () => {
           if (deliveryEquipment?.diagnostics().handTruck.active) return;
@@ -8077,16 +8590,16 @@ export function makeClubhouse(ctx) {
           if (box) {
             const placement = stockingCartPlacementForCarriedBox(state, box.id);
             return placement.ok
-              ? 'Stocking cart — [E] place the carton on the top deck'
-              : `Stocking cart — ${placement.reason}`;
+              ? 'Stocking cart - [E] place the carton on the top deck'
+              : `Stocking cart - ${placement.reason}`;
           }
           const occupied = boxesOf(state).filter((boxEntry) => (
             boxEntry.loc === 'equipment'
             && boxEntry.equipmentId === 'delivery_stocking_cart'
           )).length;
           return occupied
-            ? `Stocking cart — ${occupied} saved carton position${occupied === 1 ? '' : 's'} in use`
-            : 'Stocking cart — top deck ready for a delivery carton';
+            ? `Stocking cart - ${occupied} saved carton position${occupied === 1 ? '' : 's'} in use`
+            : 'Stocking cart - top deck ready for a delivery carton';
         },
         action: () => {
           if (carriedBox(state)) {
@@ -8101,10 +8614,10 @@ export function makeClubhouse(ctx) {
       ...common,
       label: () => {
         const status = deliveryEquipment?.diagnostics().palletJack;
-        if (status?.active) return 'Pallet jack — hydraulic stroke in progress...';
+        if (status?.active) return 'Pallet jack - hydraulic stroke in progress...';
         return status?.raised
-          ? 'Pallet jack — [E] pump once to lower the forks'
-          : 'Pallet jack — [E] pump once to raise the forks';
+          ? 'Pallet jack - [E] pump once to lower the forks'
+          : 'Pallet jack - [E] pump once to raise the forks';
       },
       action: () => {
         const started = deliveryEquipment?.triggerPalletJackPump?.();
@@ -8340,6 +8853,8 @@ export function makeClubhouse(ctx) {
 
   // --- customers: they walk in from the course, through the real door -------------------
   const customers = [];
+  let customerLifecycleSequence = 0;
+  let customerRouteSequence = 0;
   // buildDoors is constructed before the customer simulation and receives a
   // lazy view. Publish the live array as soon as it exists; otherwise automatic
   // doorway checks keep seeing an empty list while real shoppers are on screen.
@@ -8348,7 +8863,116 @@ export function makeClubhouse(ctx) {
   let disposalSummary = null;
   // golfer-wardrobe palette, muted to the club color language
   const CUST_COLORS = [0x4a6d94, 0x2c3e66, 0xb0788f, 0x8f4f39, 0x4a7050, 0x7b8277, 0x4d4038];
+  // C6 — how often somebody here for a tee time also shops. Before this the
+  // answer was structurally 0%: the browse-stop builder lived inside the
+  // "no other reason to be here" branch. 0.45 is the rate a real pro shop
+  // recognises — most people at the desk glance at the wall on the way past —
+  // and it is a named constant so the measured share can be moved deliberately.
+  // QA can pin this so a driver observes the case it means to observe rather
+  // than waiting on a coin flip; the live game always uses the default.
+  let COMBINED_VISIT_CHANCE = 0.45;
+  // The C6 acceptance instrument. Counting live customers cannot answer "N of M
+  // visits", because a visit ends by being removed from the array — so the tally
+  // is incremented at the four moments and read afterwards.
+  const visitTally = {
+    arrivals: 0,          // everyone who walked in
+    deskErrands: 0,       // here for a tee time (pre-registered OR walk-in ask)
+    retailOnly: 0,        // here to shop and nothing else
+    combinedOffered: 0,   // desk errand that also drew a shopping plan
+    combinedStarted: 0,   // ...and reached the shop floor after the desk
+    combinedCompleted: 0, // ...and paid for something
+    checkInsCompleted: 0,
+    purchasesCompleted: 0,
+  };
   const counterQueue = [];
+
+  // --- NAV-WAIT-001: a browse stand serves ONE customer at a time -----------
+  // The defect this closes: a customer whose chosen stand was occupied had no
+  // wait state. It kept the stand point as its goal and kept walking at it, so
+  // bodies stacked in the approach band shoving and sidestepping until the
+  // stand freed — 90 of 95 (neglected) and 79 of 82 (restored) of ALL measured
+  // churn episodes were this one class, at p50 ~18-20 s.
+  //
+  // Escalating them was always the wrong verb: they were never STUCK, their
+  // goal simply was not available yet. So the stand now carries a claim, and a
+  // customer that cannot have it waits — spaced, facing the stand, out of the
+  // approach band — instead of pressing into it.
+  const WAIT_RING = Object.freeze({
+    slotsPerRow: 4,
+    // Across the stand's face. Wider than a body (0.68) at every slot so the
+    // waiting itself cannot become the new shoving.
+    spanX: 2.10,
+    // Behind the browse pose (which sits at halfDepth + 0.72). 1.85 puts the
+    // first row clear of the 2.60-yd approach band the defect was measured in.
+    standOff: 1.85,
+    rowStep: 0.80,
+    // Past this many, waiting is hopeless and the shopper moves on rather than
+    // forming an unbounded crowd.
+    maxSlots: 8,
+  });
+  // Matches the defect's own attribution band (an episode counted as this class
+  // only if the walker stalled within 2.60 yd of the stand it was heading for),
+  // so the fix operates exactly where the problem was measured.
+  const STAND_CLAIM_RADIUS = 2.60;
+  const fixtureClaims = new Map(); // fixtureId -> the customer browsing it
+  // placedFixtures() rebuilds a list; the wait poses need lookups by id every
+  // frame, so cache one map per update and invalidate it when the floor changes.
+  let fixtureByIdCache = null;
+  function fixtureById() {
+    if (!fixtureByIdCache) {
+      fixtureByIdCache = new Map(placedFixtures(state).map((f) => [f.id, f]));
+    }
+    return fixtureByIdCache;
+  }
+
+  function releaseFixtureClaim(c) {
+    if (!c || !c.fixtureClaim) return false;
+    if (fixtureClaims.get(c.fixtureClaim) === c) fixtureClaims.delete(c.fixtureClaim);
+    c.fixtureClaim = null;
+    c.waitSlot = null;
+    c.waitFixtureId = null;
+    return true;
+  }
+
+  // A spaced hold point behind the stand, in the fixture's own frame, so it
+  // rotates with the display exactly as the browse pose does.
+  function fixtureWaitPose(fixture, slot) {
+    const row = Math.floor(slot / WAIT_RING.slotsPerRow);
+    const column = slot % WAIT_RING.slotsPerRow;
+    const spread = WAIT_RING.slotsPerRow > 1
+      ? (column - (WAIT_RING.slotsPerRow - 1) / 2) * (WAIT_RING.spanX / (WAIT_RING.slotsPerRow - 1))
+      : 0;
+    const halfDepth = Number.isFinite(fixture.footprint?.maxZ)
+      ? fixture.footprint.maxZ
+      : (FIXTURE_HALF[fixture.kind] || [1, 1])[1];
+    const local = fixtureBrowsePoint(
+      fixture,
+      spread,
+      halfDepth + WAIT_RING.standOff + row * WAIT_RING.rowStep,
+    );
+    const target = L2W(local.x, local.z);
+    const origin = L2W(fixture.x, fixture.z);
+    return { x: target.x, z: target.z, faceX: origin.x, faceZ: origin.z };
+  }
+
+  // Stable while a customer keeps waiting on the same stand, so waiters do not
+  // swap places every frame — that would be its own kind of churn.
+  function waitSlotFor(c, fixtureId) {
+    if (c.waitFixtureId === fixtureId && Number.isFinite(c.waitSlot)) return c.waitSlot;
+    const taken = new Set();
+    for (const other of customers) {
+      if (other !== c && other.waitFixtureId === fixtureId && Number.isFinite(other.waitSlot)) {
+        taken.add(other.waitSlot);
+      }
+    }
+    let slot = 0;
+    while (taken.has(slot) && slot < WAIT_RING.maxSlots) slot += 1;
+    if (slot >= WAIT_RING.maxSlots) return null; // the crowd is full; move on
+    c.waitFixtureId = fixtureId;
+    c.waitSlot = slot;
+    return slot;
+  }
+
   const doorW = L2W(DOOR_MAIN.x, halfD);
   const spawnW = { x: doorW.x + 1.5, z: doorW.z + SHELL.porchD + 9 };
 
@@ -8402,31 +9026,115 @@ export function makeClubhouse(ctx) {
       ],
     );
     group.add(board);
-    // beside the door on the interior face of the south wall, at eye height
-    const hang = L2W(DOOR_MAIN.x + DOOR_MAIN.w / 2 + 0.42, halfD - 0.10);
-    group.position.set(hang.x, floorY + 1.55, hang.z);
+    // Beside the door on the interior face of the south wall, at eye height.
+    //
+    // ONE DATUM, TWO FRAMES. The card is a child of `interior`, so it takes the
+    // LOCAL point; the walk prop is matched against world walk.x/z, so it takes
+    // the same point through L2W. This used to hand the world point to both,
+    // which applied the building offset twice and left the card 360 yards away
+    // from the hotspot that flips it (measured 2026-08-03).
+    // INTERIOR.d, not the SHELL wall centreline. `halfD` is the centreline of a
+    // 0.25 yd wall, so hanging 0.10 in from it left the card 0.025 yd BEHIND
+    // the inner face — inside the wall, which is also what isInside() said.
+    // INTERIOR.d/2 is the face the player stands against and the same envelope
+    // the room's own inside test uses.
+    const signLocal = shopSignLocalPoint(DOOR_MAIN, INTERIOR.d);
+    const hang = L2W(signLocal.x, signLocal.z);
+    group.position.set(signLocal.x, signLocal.y, signLocal.z);
     interior.add(group);
     suppressInteriorSunShadows(group);
 
+    // K (Goal 23) — THE SIGN WAS FLOATING, AND IT HAD TO BE.
+    //
+    // The stranger's word was "floating" and the geometry agrees exactly: an
+    // 0.012 yd board centred 0.10 yd off the wall leaves its back face 8.6 cm
+    // proud of the plaster with nothing whatever between them.
+    //
+    // And it cannot simply be pushed flush, because this card SPINS THROUGH 180
+    // DEGREES to flip between OPEN and CLOSED -- that turn is the whole gesture
+    // and a card against the wall cannot make it. A thing that must stand off a
+    // wall needs something holding it there, so: a bracket arm out of the wall
+    // and a collar at the pivot.
+    //
+    // The mount is a sibling of the card, NOT a child of it. The card turns; the
+    // bracket must not turn with it, or the fixture swings out of the wall every
+    // time the shop opens.
+    const mount = new THREE.Group();
+    mount.name = 'ClubhouseOpenClosedSignMount';
+    const wallZ = INTERIOR.d / 2;                    // the plaster face
+    const armLen = Math.max(0.02, wallZ - signLocal.z); // wall face to the card
+    const arm = new THREE.Mesh(
+      new THREE.BoxGeometry(0.022, 0.022, armLen),
+      mats.brass,
+    );
+    // spans the gap: half its length back from the card toward the wall
+    arm.position.set(0, 0.075, armLen / 2);
+    const plate = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.07, 0.008), mats.brass);
+    plate.position.set(0, 0.075, armLen - 0.004);
+    const collar = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.014, 0.014, 0.055, 10),
+      mats.brass,
+    );
+    collar.position.set(0, 0.05, 0);
+    mount.add(arm, plate, collar);
+    mount.position.set(signLocal.x, signLocal.y, signLocal.z);
+    interior.add(mount);
+    suppressInteriorSunShadows(mount);
+
     // CLOSED shows the customer-facing side to the player; OPEN turns the card
     // around. The yaw IS the state, so there is nothing to keep in sync.
-    const applyFacing = () => {
-      group.rotation.y = signIsOpen(state) ? Math.PI : 0;
+    //
+    // THE TURN IS VISIBLE. It used to assign the target yaw outright, so the
+    // card teleported through 180 degrees between two frames and the only
+    // evidence anything happened was the toast. You flipped it and it had
+    // always been that way. Now the target is stored and the card SWINGS to it
+    // over SPIN_S, eased in and out, so the flip is a thing you watched happen.
+    // A quarter-second is about right: long enough to read as a turn, short
+    // enough that opening the shop is not a cutscene.
+    const SPIN_S = 0.28;
+    const spin = { from: 0, to: 0, t: 1 };
+    const applyFacing = (animate = false) => {
+      const want = signIsOpen(state) ? Math.PI : 0;
+      if (!animate) {
+        spin.from = want; spin.to = want; spin.t = 1;
+        group.rotation.y = want;
+        return;
+      }
+      if (Math.abs(want - spin.to) < 1e-6) return;
+      spin.from = group.rotation.y;
+      spin.to = want;
+      spin.t = 0;
+    };
+    // Ticked from the clubhouse update; a no-op once the card has settled.
+    const tickSpin = (dt) => {
+      if (spin.t >= 1) return;
+      spin.t = Math.min(1, spin.t + dt / SPIN_S);
+      // smoothstep: the card starts moving, swings, and settles rather than
+      // arriving at full speed and stopping dead against nothing
+      const e = spin.t * spin.t * (3 - 2 * spin.t);
+      group.rotation.y = spin.from + (spin.to - spin.from) * e;
     };
     applyFacing();
+    // The card used to be re-aimed only at build and on the E press, so the
+    // midnight rollover (closeSignForNewDay) flipped the SIM to CLOSED and left
+    // the card facing OPEN until someone pressed E twice. Registered AFTER the
+    // silent applyFacing() above, so a save that loads OPEN starts turned
+    // rather than swinging round on the first frame.
+    openClosedSigns.register(group.name, () => applyFacing(true));
 
     const prop = addProp({
-      x: group.position.x,
-      z: group.position.z,
+      x: hang.x,
+      z: hang.z,
       r: 1.9,
       label: () => (signIsOpen(state)
-        ? 'Door sign: OPEN — [E] close up'
-        : 'Door sign: CLOSED — [E] open for business'),
+        ? 'Door sign: OPEN - [E] close up'
+        : 'Door sign: CLOSED - [E] open for business'),
       action: () => {
         const result = flipSign(state, ((state.clock.minutes % 1440) + 1440) % 1440);
         if (!result.ok) return;
-        applyFacing();
-        if (hooks.sfx) hooks.sfx('uiTick');
+        applyFacing(true); // swing it, do not teleport it
+        // E2: the sign is cardboard on a string, not a menu row
+        if (hooks.sfx) hooks.sfx('signFlip');
         // State the fact; no coaching, and no warning about opening late or
         // opening filthy — the player learns those (Designs/ROADMAP.md).
         if (hooks.toast) {
@@ -8436,7 +9144,7 @@ export function makeClubhouse(ctx) {
         }
       },
     });
-    return { group, prop, applyFacing };
+    return { group, prop, applyFacing, tickSpin };
   })();
 
   // --- reusable customer baskets --------------------------------------------------
@@ -8592,6 +9300,95 @@ export function makeClubhouse(ctx) {
     return L2W(s.x, s.z);
   }
 
+  // C3 (Goal 24) — NOTHING IS HANDED OVER UNTIL THEY ARE AT THE DESK.
+  //
+  // "They hand goods THROUGH the body of the person being served, before their
+  // turn." The gate on placing goods was `counterQueue.indexOf(c) === 0`, which
+  // is a position in an ARRAY, not a position on the floor. Goal 23's own note
+  // on queue advancement says why that is not the same thing: "THE LINE ADVANCES
+  // WHEN THE FLOOR IS CLEAR, NOT WHEN THE ARRAY IS" — the moment the served
+  // customer is spliced out, the next person is index 0 while still standing
+  // several yards back, with the person ahead of them physically in the way.
+  //
+  // They then began reaching for the staging mat from there, and the product's
+  // flight is a straight line from their wrist to the counter, so it passes
+  // through whoever is still standing at the desk. Nothing was wrong with the
+  // motion; the person playing it was in the wrong place.
+  //
+  // So the body has to have arrived. QUEUE_HEAD_REACH_YD is a stride and a bit:
+  // tight enough that there is nobody between them and the counter, loose enough
+  // that the last few inches of settling do not stall the sale.
+  // Read from the layout table, which owns the queue geometry this is measured
+  // against. It was a local 0.8 while the pitch between slots is 0.684, so slot
+  // 1 counted as the desk — see the note beside `headReachYd`.
+  const QUEUE_HEAD_REACH_YD = PINE_HILLS_V2_LAYOUT?.queue?.headReachYd ?? 0.45;
+  // Half a set of shoulders, plus a little. A product whose path comes closer
+  // than this to somebody's centre line has gone through them.
+  const BODY_CLEARANCE_YD = 0.32;
+  function customerIsAtTheDesk(c) {
+    if (!c || !c.mesh) return false;
+    const slot = queueSlotW(0);
+    if (Math.hypot(c.mesh.position.x - slot.x, c.mesh.position.z - slot.z)
+      > QUEUE_HEAD_REACH_YD) return false;
+    return deskApproachIsClear(c);
+  }
+
+  // ITEM 2 (Playtest 5) — NOBODY SPEAKS UNTIL THEY HAVE REACHED THE COUNTER.
+  //
+  // "While someone is still standing in the queue, I get a notification saying
+  // 'hey I'm X and these are for me' ... They must reach the counter first,
+  // then ask."
+  //
+  // The three desk greetings were gated on `counterQueue.indexOf(c) === 0`,
+  // which is the SAME array-position test C3 above had to replace for handing
+  // goods over, for the same reason it gives in full: the line advances when the
+  // floor is clear, not when the array is, so the head of the array is routinely
+  // still standing several slots back with somebody physically in front of them.
+  //
+  // C3 fixed the hands and left the mouth on the old predicate — the
+  // two-populations shape inside one function, three greetings and a placement
+  // rule reading two different answers to "is it their turn".
+  //
+  // Speaking is looser than reaching, so this is not customerIsAtTheDesk: that
+  // also requires the corridor from the hand to the staging mat to be clear,
+  // which is right for putting a product down and wrong for saying hello.
+  // Somebody walking past should not silence a customer who has arrived.
+  function customerHasReachedTheCounter(c) {
+    if (!c || !c.mesh) return false;
+    const slot = queueSlotW(0);
+    return Math.hypot(c.mesh.position.x - slot.x, c.mesh.position.z - slot.z)
+      <= QUEUE_HEAD_REACH_YD;
+  }
+
+  // ...AND NOBODY IS STANDING IN THE WAY OF THE HAND.
+  //
+  // Standing at the head slot is not sufficient, which the measurement found
+  // and I would not have guessed. When the line advances, the customer who has
+  // just been served is STILL WALKING AWAY and is briefly between the new head
+  // and the counter — so the next person, correctly at the desk by every other
+  // test, reaches straight through the back of someone who has not left yet.
+  // The corridor from the placing hand to the staging mat has to be empty.
+  function deskApproachIsClear(c) {
+    const target = L2W(REGISTER.staging.x, REGISTER.staging.z);
+    const ax = c.mesh.position.x;
+    const az = c.mesh.position.z;
+    const vx = target.x - ax;
+    const vz = target.z - az;
+    const len2 = (vx * vx) + (vz * vz);
+    if (len2 < 1e-4) return true;
+    for (const other of customers) {
+      if (other === c || !other.mesh) continue;
+      const t = (((other.mesh.position.x - ax) * vx) + ((other.mesh.position.z - az) * vz)) / len2;
+      // behind the hand, or past the counter: not in the way
+      if (t <= 0.15 || t >= 1) continue;
+      const cx = ax + (vx * t);
+      const cz = az + (vz * t);
+      if (Math.hypot(other.mesh.position.x - cx, other.mesh.position.z - cz)
+        < BODY_CLEARANCE_YD) return false;
+    }
+    return true;
+  }
+
   function experienceStop(fixture, claimed) {
     if (!fixture?.experience) return null;
     const socket = fixtureSockets(fixture).find((candidate) => !claimed.has(candidate.key));
@@ -8613,6 +9410,174 @@ export function makeClubhouse(ctx) {
       faceZ: face.z,
       duration: fixture.experience === 'putting' ? 5.2 : fixture.experience === 'fitting' ? 4.2 : 3.2,
     };
+  }
+
+  // C6 — THE RETAIL ERRAND, lifted out of spawnCustomer (2026-08-04).
+  //
+  // This block used to live inside `if (!toCounter && !walkInRequest)`, which is
+  // why the combined-visit share was not low but structurally zero: a customer
+  // here for a tee time never received a shopping plan, so they could never buy
+  // anything, and no probability anywhere changed that.
+  //
+  // It is a pure builder now — it produces the plan and the stops and adds
+  // nothing to the customer — so the same errand can be built at spawn and
+  // spliced in later, after the desk has finished with a golfer.
+  function buildRetailErrand(rng) {
+    const stops = [];
+    const floorFixtures = placedFixtures(state);
+    const browsable = floorFixtures.filter((f) => f.skus && f.skus.length > 0);
+    const claimed = new Set(customers.flatMap((customer) => customer.stops
+      .slice(customer.stopIdx)
+      .map((stop) => stop.socketKey)
+      .filter(Boolean)));
+    // Plan one real fixture visit per intended unit, preferring different
+    // displays before revisiting a well-stocked one.
+    const organicPlan = planOrganicOrder(browsable, state.shop.inventory, rng);
+    const visits = organicPlan.picks.length
+      ? organicPlan.picks
+      : (browsable.length ? [{ fixture: browsable[rng.int(browsable.length)], skuId: null }] : []);
+    for (const visit of visits) {
+      const f = visit.fixture;
+      // Keep a stable fixture-local browse pose so a customer already en
+      // route follows the same display through a build-mode move or turn.
+      const fixtureLocalX = (rng.next() - 0.5) * 0.8;
+      const halfDepth = Number.isFinite(f.footprint?.maxZ)
+        ? f.footprint.maxZ
+        : (FIXTURE_HALF[f.kind] || [1, 1])[1];
+      const fixtureLocalZ = halfDepth + 0.72 + (rng.next() - 0.5) * 0.4;
+      const pose = fixtureBrowsePose(f, fixtureLocalX, fixtureLocalZ);
+      stops.push({
+        kind: 'fixture',
+        fixtureId: f.id,
+        fixtureLocalX,
+        fixtureLocalZ,
+        skus: f.skus,
+        plannedSku: visit.skuId,
+        browseOnly: !visit.skuId,
+        title: f.title,
+        ...pose,
+      });
+      for (const id of f.experienceAfter || []) {
+        const beat = experienceStop(floorFixtures.find((candidate) => candidate.id === id), claimed);
+        if (!beat || stops.some((s) => s.fixtureId === id)) continue;
+        claimed.add(beat.socketKey);
+        stops.push(beat);
+        break;
+      }
+    }
+    return { organicPlan, stops };
+  }
+
+  // THE SECOND HALF OF A COMBINED VISIT (2026-08-06 order ruling).
+  //
+  // The shopping is walked first now, so what is held back is the DESK
+  // business: the golfer pays for their goods, then asks about their tee time
+  // at the same counter without queueing twice. Called from the paid-sale
+  // site; returns false when there is nothing pending, which leaves a
+  // shop-only customer's behaviour exactly as it was.
+  // B2 (Goal 23) — THE ASK, RAISED WHILE THE TICKET IS STILL OPEN.
+  //
+  // WHAT THE OLD CHECK MEASURED: tests/one-visit-one-payment.test.js drives
+  // createTx -> scanItem -> attachGreenFeeToTx -> payOnce ->
+  // finalizeReservationCheckIn directly on the sim modules. Eleven tests, all
+  // honest, all green, and not one of them asks whether a customer in the shop
+  // ever reaches that path. They never did: the only thing that raised the tee
+  // time errand was beginPendingDesk, called from the paid-sale site, and
+  // attachGreenFeeToTx requires tx.stage 'scanning' on an unbanked ticket. The
+  // merged ticket was provably correct and structurally unreachable.
+  //
+  // This is the ask itself, and nothing else. It deliberately does NOT
+  // reclassify the customer as desk business, because doing that while they
+  // still hold unpaid goods is the unpaid-exit escape recorded at
+  // openWalkInCustomer: booked or rejected, both desk outcomes released them to
+  // the door and the goods silently restocked as a lost sale. They stay the
+  // counter customer with an open ticket; what changes is that the player now
+  // HEARS the request in time to put it on the same ticket.
+  function raiseDeskErrandAtCounter(c) {
+    if (!c || !c.deskErrandPending || c.deskErrandSpoken) return false;
+    if (c.reservationId == null && !c.requestedTeeMinute) return false;
+    c.deskErrandSpoken = true;
+    c.deskErrandRaisedMidSale = true;
+    c.patience = PATIENCE_FULL;
+    setPatience(c);
+    c.dialogue = combinedVisitDeskLine(c);
+    if (hooks.toast) hooks.toast(t('shop.customerSays', { name: c.name, line: c.dialogue }), 'info');
+    visitTally.combinedStarted += 1;
+    return true;
+  }
+
+  // B2 (Goal 24) — THE ASK NAMES A TIME, because there is nothing to offer
+  // otherwise.
+  //
+  // "One more thing, have you got a time free today?" is a question the player
+  // cannot answer: the desk books a SLOT, and the customer never said which. The
+  // shape already existed for a plain walk-in twenty lines further down
+  // (`could I get the 10:40 tee time?`) and the combined visit simply did not
+  // use it — even though `requestedTeeMinute` is the very field that lets this
+  // errand be raised at all, so the time was always known and never spoken.
+  //
+  // Same flow, same wording shape, same desk buttons: the player offers,
+  // adjusts, or refuses the named time.
+  function combinedVisitDeskLine(c) {
+    if (c.reservationId != null) return 'While I am here, can I check in for my tee time?';
+    const party = c.partySize || 1;
+    if (!Number.isFinite(c.requestedTeeMinute)) {
+      // no minute to name: keep it honest rather than inventing one
+      return `One more thing: anything open today for ${party}?`;
+    }
+    return party > 1
+      ? `One more thing: could we get ${fmtSlot(c.requestedTeeMinute)} for ${party}?`
+      : `One more thing: could I get the ${fmtSlot(c.requestedTeeMinute)} tee time?`;
+  }
+
+  function beginPendingDesk(c) {
+    if (!c || !c.deskErrandPending) return false;
+    if (c.reservationId == null && !c.requestedTeeMinute) return false;
+    // Already settled on the ticket they just paid: the merged path ran, the
+    // round is checked in, and sending them back to the desk for it would ask
+    // the player to serve the same errand twice.
+    if (c.reservationId != null) {
+      const booking = reservationById(state, c.reservationId);
+      if (booking && booking.status !== 'booked') {
+        c.deskErrandPending = false;
+        return false;
+      }
+    }
+    c.deskErrandPending = false;
+    // they stay where they are - already at the head of the counter - and
+    // become desk business, which is what puts them on the check-in list
+    c.checkoutPhase = c.reservationId != null ? 'reservation-waiting' : 'walk-in-waiting';
+    c.currentDestination = 'front-desk';
+    c.awaitingCheckout = false;
+    c.patience = PATIENCE_FULL;
+    setPatience(c);
+    // B1 (Goal 23) — NOBODY WHO HAS ASKED FOR SOMETHING LEAVES BEFORE IT IS
+    // ANSWERED.
+    //
+    // Setting checkoutPhase was not enough to keep them here, and this is why
+    // "they announce a tee time and then walk out" survived: the desk branch is
+    // guarded by `stop.kind === 'counter'`, and the shopping route's counter
+    // stop has already been CONSUMED by the purchase that just completed. On
+    // the next frame the route reads 'exit' and the person leaves mid-sentence,
+    // with their own line still on screen.
+    //
+    // So the route is pinned back to the counter, which is where they are
+    // standing and where the answer has to come from.
+    const counterStop = Array.isArray(c.stops)
+      ? c.stops.findIndex((s) => s && s.kind === 'counter') : -1;
+    if (counterStop >= 0) c.stopIdx = counterStop;
+    c.linger = 0;
+    c.deskErrandAwaitingAnswer = true;
+    if (!c.deskErrandSpoken) {
+      c.deskErrandSpoken = true;
+      // asked AFTER the goods, and the wording follows whether they hold a
+      // booking or are hoping for one. B2 (Goal 24): one authority for the
+      // wording, so the two sites cannot drift into asking differently.
+      c.dialogue = combinedVisitDeskLine(c);
+      if (hooks.toast) hooks.toast(t('shop.customerSays', { name: c.name, line: c.dialogue }), 'info');
+    }
+    visitTally.combinedStarted += 1;
+    return true;
   }
 
   function spawnCustomer(toCounter = false, reservation = null, options = {}) {
@@ -8651,14 +9616,57 @@ export function makeClubhouse(ctx) {
       reservation.fullName = identity.fullName;
       reservation.paymentPreference ||= identity.paymentPreference;
     }
+    // M1 (2026-08-05): the personality clause is gone. It gated walk-in tee
+    // requests to friendly/exacting — a third of identities — on top of the
+    // 58% purpose gate, so desk errands ran ~19% of organic arrivals and a
+    // combined (book+buy) visit was a once-an-hour event nobody ever saw
+    // complete. Wanting a tee time is a PURPOSE, not a personality trait; a
+    // hurried golfer asks for one faster, not never. Purpose stays the gate.
     const walkInRequest = !toCounter
-      && options.allowWalkInRequest === true
-      && identity.visitProfile.preferredPurpose === 'tee-time'
-      && ['friendly', 'exacting'].includes(identity.personality);
+      && (options.forceWalkIn === true
+        || (options.allowWalkInRequest === true
+          && identity.visitProfile.preferredPurpose === 'tee-time'));
     const customerType = reservationId != null
       ? (reservation.customerType || 'reservation')
       : walkInRequest ? 'walk-in-tee' : 'retail';
     const rng = rngOf(state);
+    // L1 (2026-08-05): a walk-in golfer arrives ASKING FOR A TIME — the ask
+    // is the errand. Until now no ask existed at the live desk: the check-in
+    // tab could only deal generic next openings, so "book them in at the
+    // time they asked" was impossible by construction. The ask is a minute
+    // off the sheet's own grid, at least the walk-in lead out, biased toward
+    // the next couple of hours the way a same-day caller actually asks — and
+    // deliberately blind to availability: people ask for the time they want,
+    // and the desk reconciles it against the sheet (resolveTeeTimeRequest,
+    // walk report B6's scheduler).
+    let walkInAskMinute = null;
+    if (walkInRequest) {
+      if (Number.isFinite(options.requestedTeeMinute)) {
+        walkInAskMinute = Math.floor(options.requestedTeeMinute);
+      } else {
+        // D2 (Goal 20), found by Verifier 1: this used to reach up to the TENTH
+        // slot ahead, which on a thirty-minute grid is five hours — the same
+        // fault the arrival planner had, in a second place, so fixing the
+        // planner alone left half the walk-ins asking for the afternoon. One
+        // rule now, in customerSimulation.walkInAskFrom.
+        // 4.2 (Goal 26): the ask is now checked against REAL AVAILABILITY, so
+        // "if everything inside the next hour is already booked, there is no
+        // walk-in request at all" is true in the game and not only in the sim
+        // helper. Without this argument the rule would be correct and unreachable
+        // -- the zero-call-sites shape this repository keeps paying for.
+        const dayAbs = Math.floor(state.clock.minutes / 1440);
+        let bookedMinutes;
+        try {
+          const free = new Set(availableSlots(state, dayAbs, { walkIn: true })
+            .map((slot) => slot.minute));
+          bookedMinutes = slotTimes(state).filter((minute) => !free.has(minute));
+        } catch { bookedMinutes = null; }
+        walkInAskMinute = walkInAskFrom(
+          state.clock.minutes % 1440, slotTimes(state), rng.next(),
+          bookedMinutes ? { bookedMinutes } : {},
+        );
+      }
+    }
     const visitorId = `visitor-${state.shop.nextVisitorId++}`;
     // real variety on the floor: builds, trousers, skin tones, hats or hair
     const TROUSERS = [0xc2b190, 0x8a8577, 0x4b545c, 0x6b5a44];
@@ -8696,48 +9704,29 @@ export function makeClubhouse(ctx) {
     // the approach: porch step, then just inside the door (the doorbell moment)
     stops.push({ kind: 'walk', x: doorW.x, z: doorW.z + 2.6 });
     stops.push({ kind: 'enter', x: doorW.x, z: doorW.z - 1.4 });
-    if (!toCounter && !walkInRequest) {
-      const floorFixtures = placedFixtures(state);
-      const browsable = floorFixtures.filter((f) => f.skus && f.skus.length > 0);
-      const claimed = new Set(customers.flatMap((customer) => customer.stops
-        .slice(customer.stopIdx)
-        .map((stop) => stop.socketKey)
-        .filter(Boolean)));
-      // Plan one real fixture visit per intended unit, preferring different
-      // displays before revisiting a well-stocked one.
-      organicPlan = planOrganicOrder(browsable, state.shop.inventory, rng);
-      const visits = organicPlan.picks.length
-        ? organicPlan.picks
-        : (browsable.length ? [{ fixture: browsable[rng.int(browsable.length)], skuId: null }] : []);
-      for (const visit of visits) {
-        const f = visit.fixture;
-        // Keep a stable fixture-local browse pose so a customer already en
-        // route follows the same display through a build-mode move or turn.
-        const fixtureLocalX = (rng.next() - 0.5) * 0.8;
-        const halfDepth = Number.isFinite(f.footprint?.maxZ)
-          ? f.footprint.maxZ
-          : (FIXTURE_HALF[f.kind] || [1, 1])[1];
-        const fixtureLocalZ = halfDepth + 0.72 + (rng.next() - 0.5) * 0.4;
-        const pose = fixtureBrowsePose(f, fixtureLocalX, fixtureLocalZ);
-        stops.push({
-          kind: 'fixture',
-          fixtureId: f.id,
-          fixtureLocalX,
-          fixtureLocalZ,
-          skus: f.skus,
-          plannedSku: visit.skuId,
-          browseOnly: !visit.skuId,
-          title: f.title,
-          ...pose,
-        });
-        for (const id of f.experienceAfter || []) {
-          const beat = experienceStop(floorFixtures.find((candidate) => candidate.id === id), claimed);
-          if (!beat || stops.some((s) => s.fixtureId === id)) continue;
-          claimed.add(beat.socketKey);
-          stops.push(beat);
-          break;
-        }
-      }
+    // C6: a shopping plan is no longer welded to "arrived with no other
+    // reason" - a tee-time arrival gets one too, on a roll. Since the
+    // 2026-08-06 order ruling they WALK it first and hold the desk business
+    // back (`deskErrandPending`) until the goods are paid for.
+    const combinedIntent = (toCounter || walkInRequest)
+      && options.skipRetailPlan !== true
+      && rng.chance(COMBINED_VISIT_CHANCE)
+      && placedFixtures(state).some((f) => f.skus && f.skus.length > 0);
+    const retailPlan = (!toCounter && !walkInRequest) || combinedIntent
+      ? buildRetailErrand(rng)
+      : null;
+    visitTally.arrivals += 1;
+    if (toCounter || walkInRequest) visitTally.deskErrands += 1; else visitTally.retailOnly += 1;
+    if (combinedIntent) visitTally.combinedOffered += 1;
+    // 2026-08-06 ruling: "they first buy things from the shop and then on top
+    // of that after you scan everything they say can i also check in for my
+    // time". So a combined visit SHOPS FIRST and raises the desk errand at the
+    // counter once the goods are scanned. Previously the desk came first and
+    // the shopping was spliced in afterwards, which read backwards: the golfer
+    // checked in, wandered off, and queued a second time.
+    if (retailPlan) {
+      organicPlan = retailPlan.organicPlan;
+      stops.push(...retailPlan.stops);
     }
     // Paying visitors draw their cash-or-card preference ONCE here, from the
     // balanced shuffled bag (sim/paymentBag.js). Reservation guests already drew
@@ -8769,7 +9758,10 @@ export function makeClubhouse(ctx) {
       });
     }
     if (toCounter || walkInRequest || organicPlan.picks.length) {
-      const regW = L2W(COUNTER.registerX, COUNTER.registerZ);
+      // F5 (Full_Goal_16): the paying customer addresses the CASHIER'S
+      // stand, not the register-block datum out by the bag — face across the
+      // counter at the person serving them.
+      const regW = L2W(COUNTER.staffStand.x, COUNTER.staffStand.z);
       stops.push({ kind: 'counter', x: queueSlotW(0).x, z: queueSlotW(0).z, faceX: regW.x, faceZ: regW.z });
     }
     stops.push({ kind: 'exit', x: doorW.x, z: doorW.z + 2.6 });
@@ -8779,6 +9771,16 @@ export function makeClubhouse(ctx) {
       mesh: g,
       identity,
       customerId: identity.customerId,
+      visitorId,
+      spawnSource: options.spawnSource || 'scripted-or-reservation',
+      lifecycleBoundaryId: options.lifecycleBoundary?.lifecycleId ?? null,
+      lifecycleBoundaryAtMs: Number.isFinite(options.lifecycleBoundary?.atMs)
+        ? options.lifecycleBoundary.atMs : null,
+      // Constant-size QA/profiling evidence. This is the production creation
+      // edge used to order the first organic route request without polling-time
+      // inference; it does not participate in customer behavior.
+      createdAtMs: performance.now(),
+      routeDiagnostics: null,
       fullName: identity.fullName,
       name: identity.fullName,
       presentationPolo,
@@ -8794,6 +9796,7 @@ export function makeClubhouse(ctx) {
       reservationId,
       groupMembers: reservation?.groupMembers ? [...reservation.groupMembers] : [],
       teeTime: reservation?.minute ?? null,
+      requestedTeeMinute: walkInAskMinute,
       arrivalTime: reservation?.arrivalTime ?? (reservationId != null ? state.clock.minutes : null),
       paymentStatus: reservation?.paymentStatus || 'pending',
       reservationStatus: reservation?.status || null,
@@ -8809,18 +9812,28 @@ export function makeClubhouse(ctx) {
       rangBell: false,
       cart: [],
       targetCartSize: organicPlan.target,
+      // C6 + the 2026-08-06 order ruling: the errand is now walked FIRST, so
+      // nothing is held pending. What IS held is the desk business, raised at
+      // the counter after the goods are scanned.
+      deskErrandPending: combinedIntent,
+      deskErrandSpoken: false,
+      combinedVisit: combinedIntent,
       scanned: 0,
       patience: PATIENCE_FULL,   // the 3-minute register clock; browsing never drains it
       awaitingCheckout: false,
       itemMeshes: new Map(),
       checkoutProductResources: createRegisterItemResources(),
       oversizeCarryRoot: null,
+      // a combined visitor is a SHOPPER until the goods are paid for; only
+      // then do they become desk business
       checkoutPhase: organicPlan.target
         ? 'shopping'
         : (reservationId != null
           ? (loungeEarly ? 'reservation-arriving' : 'reservation-arriving')
           : walkInRequest ? 'walk-in-arriving' : 'browsing'),
-      currentDestination: loungeEarly ? 'lounge' : (toCounter || walkInRequest ? 'front-desk' : 'shop'),
+      currentDestination: loungeEarly
+        ? 'lounge'
+        : ((toCounter || walkInRequest) && !combinedIntent ? 'front-desk' : 'shop'),
       loungeUntil: loungeEarly ? deskReadyAt : null,
       deskGreetingSpoken: false,
       dialogue: '',
@@ -9061,14 +10074,26 @@ export function makeClubhouse(ctx) {
     return c.itemMeshes;
   }
 
+  const _placeScaleScratch = new THREE.Vector3();
   function clearCustomerItemMeshes(c) {
+    const failures = [];
     if (c.itemMeshes) {
-      for (const mesh of c.itemMeshes.values()) disposeCustomerProductMesh(c, mesh);
+      for (const mesh of c.itemMeshes.values()) {
+        try {
+          disposeCustomerProductMesh(c, mesh);
+        } catch (error) {
+          failures.push(error);
+          try { mesh?.removeFromParent?.(); } catch { /* keep releasing siblings */ }
+        }
+      }
       c.itemMeshes.clear();
     }
     c.checkoutPlacement = null;
     c.placeMotion = null;
-    if (register && typeof register.setPlacementPreview === 'function') register.setPlacementPreview(null);
+    if (register && typeof register.setPlacementPreview === 'function') {
+      try { register.setPlacementPreview(null); } catch (error) { failures.push(error); }
+    }
+    return { ok: failures.length === 0, failures };
   }
 
   function updateCustomerPlacement(c, dt) {
@@ -9093,6 +10118,17 @@ export function makeClubhouse(ctx) {
         c.cart.map((entry) => ({ sku: SHOP_CATALOG.find((sku) => sku.id === entry.skuId) })),
         REGISTER.staging,
         COUNTER_TOP + 0.012,
+        // ITEM 6: this is the CUSTOMER's set-down path -- the one the brief names
+        // ("when the customer puts goods down") -- so it needs the keep-out even
+        // more than the register's own layout does.
+        //
+        // PLAYTEST 4, ITEM 4 (SECOND REPORT): and it has to be the BAG's footprint,
+        // not the authored handoff rect. Measured on a real customer set-down,
+        // `tees1` cleared REGISTER.bagging by exactly its 0.02 clearance and was
+        // still 0.1375 yd inside FrontDeskShoppingBag, because the object is
+        // 0.54 x 0.45 yd against a rect of 0.40 x 0.24. The register measures its
+        // own bag; falling back to the rect only when there is no bag to measure.
+        register.counterBagKeepOut?.() || REGISTER.bagging,
       );
       const pose = poses[index];
       item.placed = false;
@@ -9109,6 +10145,14 @@ export function makeClubhouse(ctx) {
         }
         // Preserve the hand's world pose while changing ownership to the counter.
         interior.attach(mesh);
+        // C3 (Goal 19): the carried mesh inherited the customer BODY scale
+        // (char roots run 0.87-0.99) and attach() preserves it — so goods
+        // landed on the counter at the customer's size and popped ~9% bigger
+        // when the register rebuilt them at authored scale on the last
+        // placement (measured live: world 0.9186 -> 1.0, popRatio 1.089).
+        // One size from the moment it leaves the hand: world-true authored.
+        const worldScale = mesh.getWorldScale(_placeScaleScratch);
+        if (worldScale.x > 1e-6) mesh.scale.multiplyScalar(1 / worldScale.x);
         if (wristStart) mesh.position.copy(wristStart);
         c.placeMotion = {
           uid: item.uid,
@@ -9276,8 +10320,23 @@ export function makeClubhouse(ctx) {
     return true;
   }
 
+  // WHY DOES A SHOPPER LEAVE A STOCKED SHELF EMPTY-HANDED?
+  //
+  // Ten retail shoppers produced zero carts in a shop measured to hold 110 units
+  // across four browsable fixtures, and planOrganicOrder returned 2 picks on
+  // 12/12 live trials -- so the plan is sound and the EXECUTION is not. This
+  // function has five ways to decline and from outside they are indistinguishable;
+  // the counter names which one fired. Diagnostic only, never read by the game.
+  const pickStats = {
+    calls: 0, noSkus: 0, cartFull: 0, nothingStocked: 0, browseOnlyRoll: 0,
+    browseOnlyReplace: 0, shelfRefused: 0, took: 0,
+    // and the approach half: did they ever get the stand at all?
+    claimed: 0, standGivenUp: 0, noFixtureRecord: 0, fixtureStopSeen: 0,
+  };
   function customerPick(c, stop) {
-    if (!stop.skus || (c.targetCartSize && c.cart.length >= c.targetCartSize)) return;
+    pickStats.calls += 1;
+    if (!stop.skus) { pickStats.noSkus += 1; return; }
+    if (c.targetCartSize && c.cart.length >= c.targetCartSize) { pickStats.cartFull += 1; return; }
     const rng = rngOf(state);
     const stocked = stop.skus.filter((id) => {
       if (!state.shop.inventory[id] || state.shop.inventory[id].shelf <= 0) return false;
@@ -9285,6 +10344,7 @@ export function makeClubhouse(ctx) {
       return !c.hasBasket || basketCompatible(sku);
     });
     if (!stocked.length) {
+      pickStats.nothingStocked += 1;
       // bare display: they glance and move on — and someone occasionally says so
       c.emptyStops = (c.emptyStops || 0) + 1;
       if (rng.chance(0.18) && hooks.toast && walk.active && isInside(walk.x, walk.z)) {
@@ -9292,10 +10352,11 @@ export function makeClubhouse(ctx) {
       }
       return;
     }
-    if (stop.browseOnly && !rng.chance(0.55)) return;
+    if (stop.browseOnly && !rng.chance(0.55)) { pickStats.browseOnlyRoll += 1; return; }
     // Browse-only visitors may inspect and replace a unit: a visible shelf-count
     // beat with no sale. Planned buyers take exactly one unit at each stop.
     if (stop.browseOnly) {
+      pickStats.browseOnlyReplace += 1;
       const skuId = stocked[rng.int(stocked.length)];
       if (pickFromShelf(state, skuId).ok) {
         rebuildStock(); // the unit leaves the display while they look it over
@@ -9313,7 +10374,8 @@ export function makeClubhouse(ctx) {
     // journal does. Let the persisted held-unit allocator mint it; a local
     // renderer counter would restart and replay an old lot movement.
     const picked = pickFromShelf(state, skuId);
-    if (!picked.ok) return;
+    if (!picked.ok) { pickStats.shelfRefused += 1; return; }
+    pickStats.took += 1;
     const uid = picked.uid;
     const sku = SHOP_CATALOG.find((s) => s.id === skuId);
     c.cart.push({
@@ -9329,7 +10391,7 @@ export function makeClubhouse(ctx) {
     if (hooks.sfx && walk.active && isInside(walk.x, walk.z)) hooks.sfx('product');
     // a pick means they're heading to the counter — make sure a stop exists
     if (!c.stops.some((s, i) => i > c.stopIdx && s.kind === 'counter')) {
-      const regW = L2W(COUNTER.registerX, COUNTER.registerZ);
+      const regW = L2W(COUNTER.staffStand.x, COUNTER.staffStand.z); // F5: face the cashier
       c.stops.splice(c.stops.length - 2, 0, { kind: 'counter', x: queueSlotW(0).x, z: queueSlotW(0).z, faceX: regW.x, faceZ: regW.z });
     }
   }
@@ -9353,7 +10415,7 @@ export function makeClubhouse(ctx) {
       c.oversizeCarryRoot = null;
     }
     if (announce && hooks.toast && walk.active && isInside(walk.x, walk.z)) {
-      hooks.toast(`${c.name} put back what they were carrying.`, 'warn');
+      hooks.toast(t('shop.putBackCarried', { name: c.name }), 'warn');
     }
     rebuildStock();
     return true;
@@ -9390,7 +10452,7 @@ export function makeClubhouse(ctx) {
     if (hadCart && hooks.toast) {
       // no literal minutes — game clocks and wall clocks disagree, and the player only
       // needs the cause: they were kept waiting too long
-      hooks.toast(`${c.name} got tired of waiting, put everything back, and left a bad review.`, 'warn');
+      hooks.toast(t('shop.tiredOfWaiting', { name: c.name }), 'warn');
     }
     c.checkoutPhase = 'leaving';
     // they walked out mid-sale: void it, clear the counter, and put the goods back.
@@ -9423,6 +10485,9 @@ export function makeClubhouse(ctx) {
   function removeCustomer(i) {
     const c = customers[i];
     if (!c) return;
+    // NAV-WAIT-001: never let a departing shopper take a stand's claim with it,
+    // or that display is closed for the rest of the day.
+    releaseFixtureClaim(c);
 
     // They came in, they saw the place, they left. That is a visit, and a visit is reviewable —
     // not just the ones that ended in a sale or a tantrum at the till, which is how most of them
@@ -9472,21 +10537,29 @@ export function makeClubhouse(ctx) {
     c.awaitingCheckout = false;
     c.checkoutPhase = 'leaving';
     leaveQueue(c);
+    // The paid carrier owns per-sale GPU resources that are intentionally not
+    // part of the character's original resource snapshot. Release it before
+    // any optional product/receipt presentation cleanup can fail.
+    disposePaidBagFromCustomer(c);
     clearCustomerItemMeshes(c);
     for (const product of c.checkoutHandoffProducts || []) {
-      product.removeFromParent();
-      if (typeof c.checkoutHandoffProductDisposer === 'function') {
-        c.checkoutHandoffProductDisposer(product);
-      }
+      try { product.removeFromParent(); } catch { /* continue releasing sibling resources */ }
+      try {
+        if (typeof c.checkoutHandoffProductDisposer === 'function') {
+          c.checkoutHandoffProductDisposer(product);
+        }
+      } catch { /* paid-bag and character cleanup must still run */ }
     }
     c.checkoutHandoffProducts = [];
     c.checkoutHandoffProductDisposer = null;
     if (c.oversizeCarryRoot) {
-      if (c.checkoutProductResources) c.checkoutProductResources.dispose(c.oversizeCarryRoot);
-      c.oversizeCarryRoot.removeFromParent();
+      try {
+        if (c.checkoutProductResources) c.checkoutProductResources.dispose(c.oversizeCarryRoot);
+      } catch { /* keep removing the paid customer */ }
+      try { c.oversizeCarryRoot.removeFromParent(); } catch { /* keep removing */ }
       c.oversizeCarryRoot = null;
     }
-    disposeCustomerHandoffReceipt(c);
+    try { disposeCustomerHandoffReceipt(c); } catch { c.handoffReceipt = null; }
 
     // Character resources are captured by makeCharacter before any shared item
     // proxy or paid-bag GLB is parented beneath it, so this cannot evict cached
@@ -9527,6 +10600,25 @@ export function makeClubhouse(ctx) {
 
   function openReservationCustomer(c) {
     if (!c || c.reservationId == null || c.reservationReleased) return false;
+    // GOODS FIRST, THEN THE DESK — TRIED, AND REVERTED WITH EVIDENCE (Goal 23).
+    //
+    // openWalkInCustomer has carried a "still holding goods is a shopper"
+    // exclusion since F8; this predicate never got one, so I added the mirror:
+    //   if (c.cart?.length && !c.bought) return false;
+    //
+    // It fires the F8 invariant. Watched on both builds with the same driver:
+    // WITHOUT it the customer sits at 'reservation-waiting' and the sale runs;
+    // WITH it they flip to 'reservation-leaving' and the console prints
+    // "[F8-INVARIANT] combined visitor reached the exit with 2 unpaid item(s)
+    // after a desk outcome" — the exact escape the exclusion exists to prevent,
+    // caused by adding the exclusion. Something downstream releases a booking
+    // holder who is neither desk business nor due, and that release is the real
+    // bug; the exclusion only exposes it.
+    //
+    // Left out rather than shipped, because a wrong fix that fires a live
+    // invariant is worse than the asymmetry it was meant to correct. The three
+    // changes that DO reach one payment (the ask at scan-complete, the payment
+    // hold, and the desk list) do not need it.
     const reservation = reservationRecordForCustomer(c);
     return !!reservation && reservation.status === 'booked';
   }
@@ -9536,11 +10628,60 @@ export function makeClubhouse(ctx) {
       && c.customerType === 'walk-in-tee'
       && c.reservationId == null
       && !c.reservationReleased
-      && !c.walkInRejected;
+      && !c.walkInRejected
+      // F8 (Full_Goal_16): a combined visitor still HOLDING GOODS is a
+      // shopper — the cart branch takes them first (pay, then the desk ask
+      // through beginPendingDesk). Classifying them as desk business here
+      // was the unpaid-exit escape: booked or rejected, both desk outcomes
+      // released them to the door and the goods silently restocked as a
+      // lost sale. (__f8LegacyClassifier is the QA-only reintroduction the
+      // escape driver's negative control flips on — the ledgerTurnLegacy
+      // pattern; never set by the game.)
+      // F8 exclusion, with the one exception it was never meant to cover:
+      // a customer who has ALREADY PAID and has since asked for a tee time.
+      // The escape this guards against is an UNPAID exit — a desk outcome
+      // releasing someone who still owes for the goods in their hands. Once
+      // `bought` is true there is nothing left to escape with, and holding the
+      // exclusion past that point is what made them walk out mid-sentence (B1).
+      && (typeof window !== 'undefined' && window.__f8LegacyClassifier
+        ? true
+        : (!(c.cart && c.cart.length) || (c.bought && c.deskErrandAwaitingAnswer)));
   }
 
   function openDeskCustomer(c) {
     return openReservationCustomer(c) || openWalkInCustomer(c);
+  }
+
+  // B1/B4 (Goal 24) — THE ASK HAD TO BE ANSWERABLE, AND WAS NOT.
+  //
+  // openWalkInCustomer deliberately excludes anyone still holding goods; that
+  // exclusion is the unpaid-exit guard and it stays. But the desk bridge used it
+  // for two different jobs — "is this person desk business" (routing) and "may
+  // the player act on their request" (the screen) — and the second job needs the
+  // opposite answer. A combined visitor asks for a tee time on the last barcode,
+  // and from that moment:
+  //
+  //   * walkIns() filtered them out, so no row appeared on Check In
+  //   * with no row there was no slot to book and no button to refuse
+  //   * so `deskErrandPending` could never be cleared
+  //   * and the automatic payment advance is gated on !deskErrandOutstanding()
+  //
+  // The result is the owner's B1 exactly: everything bagged, the sale will not
+  // complete, no card offered, and no action anywhere that unsticks it. The
+  // customer asked a question the game gave the player no way to answer.
+  //
+  // This predicate is the SCREEN's answer, never the router's. It admits the one
+  // extra case — a customer mid-sale who has spoken — and nothing else, so
+  // nobody is reclassified as desk business while they still owe for goods.
+  function deskActionableWalkIn(c) {
+    if (!c) return false;
+    if (openWalkInCustomer(c)) return true;
+    return c.customerType === 'walk-in-tee'
+      && c.reservationId == null
+      && !c.reservationReleased
+      && !c.walkInRejected
+      && !!c.deskErrandRaisedMidSale
+      && !!c.deskErrandPending;
   }
 
   function reservationCustomerSnapshot(c) {
@@ -9582,7 +10723,16 @@ export function makeClubhouse(ctx) {
     if (!c || c.reservationId == null) return false;
     if (c.reservationReleased) return true;
     c.reservationReleased = true;
+    c.deskErrandAwaitingAnswer = false; // B1: the errand has been answered
     c.reservationExitReason = reason;
+    // C6: checked in, and they came in for a sleeve of balls as well. The desk
+    // is finished with them — `reservationReleased` already removes them from
+    // deskReservationList — so send them shopping instead of out of the door.
+    // Only on a successful check-in: someone turned away is leaving.
+    if (reason === 'checked-in' || reason === 'completed') {
+      visitTally.checkInsCompleted += 1;
+      leaveQueue(c);
+    }
     c.checkoutPhase = 'reservation-leaving';
     c.currentDestination = 'exit';
     c.awaitingCheckout = false;
@@ -9601,6 +10751,72 @@ export function makeClubhouse(ctx) {
   // The bridge never mutates reservation status or money; it only supplies the due
   // list, resolves the exact waiting person, and releases that presentation after
   // the sim-layer payment has committed.
+  // L3 — THE LEDGER BOOK. A bound club register on the front desk: a prop
+  // with an E prompt, opened in place by main.js (enterLedger, the laptop
+  // focus pattern). It is a LENS on the identity directory's visit history
+  // (src/sim/clubRoster.js) — it owns no state and grants nothing.
+  const ledgerBook = createLedgerBook({
+    THREE,
+    state,
+    anchor: FRONT_DESK.ledger,
+    counterTop: COUNTER_TOP,
+    // the journal rises to the FACE on E (the reader's comes-to-you pattern)
+    // and voices its cover/riffle/turns through the shared paper cue
+    camera,
+    sfx,
+    // moving the book persists its spot; the E/X prop follows it below
+    onPlaced: (spot) => {
+      if (state.shop) state.shop.ledgerSpot = { ...spot };
+      const world = L2W(spot.x, spot.z);
+      ledgerProp.x = world.x;
+      ledgerProp.z = world.z;
+      ledgerProp.aimY = interior.position.y + spot.y + 0.03;
+    },
+  });
+  suppressInteriorSunShadows(ledgerBook.root);
+  interior.add(ledgerBook.root);
+  const ledgerProp = (() => {
+    const start = ledgerBook.position();
+    const world = L2W(start.x, start.z);
+    return addProp({
+      x: world.x,
+      z: world.z,
+      // reachable from the till across the counter (the staff stand is
+      // 1.77 yd from the spawn spot; the laptop's own prop reaches 2.3)
+      r: 2.2,
+      // The book can lie INSIDE the tee desk's own E zone (r 2.2 at the
+      // register point), which otherwise swallows every press at the counter.
+      // Scoring the book as a true 3D aim target (the stacked-carton pattern)
+      // makes LOOKING AT THE BOOK act on the book, while a level glance
+      // across the desk still serves the desk. aimY is WORLD height - the
+      // score compares against the world camera, and this site does not sit
+      // at y=0.
+      aimY: interior.position.y + start.y + 0.03,
+      focusBias: 0.55,
+      station: true, // F1: the reading desk is a work station too
+      label: () => {
+        if (ledgerBook.isOpen() || ledgerBook.isCarried()) return null;
+        // D2: this callback fires only when the player is inside the book's
+        // reach and roughly facing it, which is the last quiet moment before
+        // they press E. Build the pages here so the swing has nothing to do.
+        ledgerBook.prewarm?.();
+        // D1: say WHAT it is. "Club register" is what the object is called; the
+        // player is looking for the book that tells them how the club is doing.
+        return 'The club ledger - [E] read the book · [X] carry it';
+      },
+      action: () => { if (hooks.openLedger) hooks.openLedger(); },
+      secondaryAction: () => {
+        if (ledgerBook.isOpen() || ledgerBook.isCarried()) return;
+        if (carriedBox(state) || carriedGoods(state)) {
+          if (hooks.toast) hooks.toast(t('shop.yourArmsAreAlready'), 'warn');
+          return;
+        }
+        ledgerBook.setCarried(true);
+        if (hooks.toast) hooks.toast(t('shop.carryingTheClubRegister'));
+      },
+    });
+  })();
+
   B.frontDeskReservations = {
     // due by the book, plus whoever is PHYSICALLY here for a booking — a guest who walks
     // in ten minutes early must show on the desk while they stand at it
@@ -9608,29 +10824,71 @@ export function makeClubhouse(ctx) {
       state,
       customers
         .filter((c) => c.reservationId != null && !c.reservationReleased
-          && String(c.checkoutPhase || '').startsWith('reservation'))
+          && (String(c.checkoutPhase || '').startsWith('reservation')
+            // B2 (Goal 23) — THE LAST LINK IN THE ONE-PAYMENT CHAIN.
+            //
+            // A combined visitor mid-sale has checkoutPhase 'placing', not
+            // 'reservation-*', so their booking was absent from the desk list
+            // at exactly the moment they asked for it. The merged-ticket code
+            // was correct, the ask now arrives in time, and the player still
+            // could not find the row to click. Someone standing at the counter
+            // who has just asked to check in is the definition of "physically
+            // here for a booking", which is what this list is for.
+            || c.deskErrandRaisedMidSale))
         .map((c) => c.reservationId),
     ),
+    // B2 (Goal 19): the desk list must not outlive the person. A customer who
+    // gave up and walked ("leaving") LEAVES THE LIST, and every row carries
+    // `atSlot` — is this body physically standing on its queue slot right now
+    // — so the screen can stop printing IN QUEUE for someone still crossing
+    // the room (queued flips true when the counter becomes their STOP, which
+    // is decided from across the floor).
     walkIns: () => customers
-      .filter((customer) => openWalkInCustomer(customer))
-      .map((customer) => ({
-        customerId: customer.customerId,
-        name: customer.fullName,
-        fullName: customer.fullName,
-        partySize: customer.partySize || 1,
-        paymentPreference: customer.paymentPreference,
-        phase: customer.checkoutPhase,
-        queued: customer.queued,
-        queueIndex: customer.queued ? counterQueue.indexOf(customer) : -1,
-      })),
+      .filter((customer) => deskActionableWalkIn(customer)
+        && customer.checkoutPhase !== 'leaving')
+      .map((customer) => {
+        const queueIndex = customer.queued ? counterQueue.indexOf(customer) : -1;
+        let atSlot = false;
+        if (queueIndex >= 0 && customer.mesh) {
+          const slot = queueSlotW(queueIndex);
+          atSlot = Math.hypot(
+            customer.mesh.position.x - slot.x,
+            customer.mesh.position.z - slot.z,
+          ) < 0.55;
+        }
+        return {
+          customerId: customer.customerId,
+          name: customer.fullName,
+          fullName: customer.fullName,
+          partySize: customer.partySize || 1,
+          paymentPreference: customer.paymentPreference,
+          phase: customer.checkoutPhase,
+          queued: customer.queued,
+          queueIndex,
+          atSlot,
+          // L1: the ask crosses the bridge — the desk cannot honour a time it
+          // never hears
+          requestedTeeMinute: Number.isFinite(customer.requestedTeeMinute)
+            ? customer.requestedTeeMinute
+            : null,
+        };
+      }),
     customerFor: (id) => customers.find((c) => sameReservationId(c.reservationId, id)) || null,
     readyCustomerFor: (id) => {
       const customer = customers.find((c) => sameReservationId(c.reservationId, id));
+      // A booking holder who asks to check in on an open goods ticket remains
+      // the checkout customer (`waiting`) until the one combined payment
+      // completes. This is screen readiness only; routing and unpaid-exit
+      // ownership stay with checkout.
+      const combinedAtCounter = !!(customer
+        && customer.deskErrandRaisedMidSale
+        && customer.deskErrandPending
+        && customer.cart?.length);
       return customer
         && customer.queued
         && counterQueue.indexOf(customer) === 0
         && !customer.reservationReleased
-        && customer.checkoutPhase === 'reservation-waiting'
+        && (customer.checkoutPhase === 'reservation-waiting' || combinedAtCounter)
         ? customer
         : null;
     },
@@ -9646,16 +10904,48 @@ export function makeClubhouse(ctx) {
     },
     walkInSlotsFor: (customerId) => {
       const customer = customers.find((candidate) => candidate.customerId === customerId);
-      if (!customer || !openWalkInCustomer(customer)) return [];
+      if (!customer || !deskActionableWalkIn(customer)) return [];
       const dayAbs = Math.floor(state.clock.minutes / 1440);
-      return walkInAvailability(state, {
+      const slots = walkInAvailability(state, {
         dayAbs,
         partySize: customer.partySize || 1,
       });
+      const asked = Number.isFinite(customer.requestedTeeMinute)
+        ? customer.requestedTeeMinute
+        : null;
+      if (asked == null) return slots;
+      // L1: the desk ANSWERS THE ASK — nearest-to-asked first (the resolver's
+      // own metric, ties to the earlier slot), with the exact match flagged so
+      // the UI can say "their asked time" instead of dealing three arbitrary
+      // openings
+      return [...slots]
+        .sort((a, b) => (
+          Math.abs(a.minute - asked) - Math.abs(b.minute - asked) || a.minute - b.minute
+        ))
+        .map((slot) => ({
+          ...slot,
+          askedExact: slot.minute === asked,
+          deltaFromAskMin: slot.minute - asked,
+        }));
+    },
+    walkInAskFor: (customerId) => {
+      const customer = customers.find((candidate) => candidate.customerId === customerId);
+      if (!customer || !deskActionableWalkIn(customer)) return null;
+      const asked = Number.isFinite(customer.requestedTeeMinute)
+        ? customer.requestedTeeMinute
+        : null;
+      if (asked == null) return null;
+      const dayAbs = Math.floor(state.clock.minutes / 1440);
+      return {
+        asked,
+        verdict: resolveTeeTimeRequest(state, dayAbs, asked, {
+          partySize: customer.partySize || 1,
+        }),
+      };
     },
     bookWalkIn: (customerId, dayAbs, minute) => {
       const customer = customers.find((candidate) => candidate.customerId === customerId);
-      if (!customer || !openWalkInCustomer(customer)) {
+      if (!customer || !deskActionableWalkIn(customer)) {
         return { ok: false, reason: 'That walk-in request is no longer waiting.' };
       }
       if (!customer.queued || counterQueue.indexOf(customer) !== 0) {
@@ -9681,16 +10971,49 @@ export function makeClubhouse(ctx) {
       customer.paymentStatus = result.res.paymentStatus;
       customer.reservationStatus = result.res.status;
       customer.checkInStatus = result.res.checkInStatus;
-      customer.checkoutPhase = 'reservation-waiting';
-      customer.currentDestination = 'front-desk';
+      // B1 (Goal 24): a combined visitor booking mid-sale stays the COUNTER
+      // customer. Reclassifying them as desk business here is the F8 unpaid-exit
+      // escape by another door -- they still have goods on the counter, and the
+      // fee is about to join that same ticket in beginReservationPayment.
+      if (!(customer.deskErrandRaisedMidSale && customer.cart && customer.cart.length)) {
+        customer.checkoutPhase = 'reservation-waiting';
+        customer.currentDestination = 'front-desk';
+      }
+      // A combined visit is not answered merely because the tee-sheet row was
+      // created. The green fee still has to join the open goods ticket. Leave
+      // both errand flags armed until beginReservationPayment confirms that
+      // attachGreenFeeToTx succeeded; on a rejected/invalid attachment the new
+      // booking therefore remains visible and actionable instead of becoming a
+      // ghost unpaid reservation with no retry path.
       result.res.currentDestination = 'front-desk';
       result.res.checkInStatus = 'waiting';
       return { ...result, customer };
     },
     rejectWalkIn: (customerId) => {
       const customer = customers.find((candidate) => candidate.customerId === customerId);
-      if (!customer || !openWalkInCustomer(customer)) return false;
+      if (!customer || !deskActionableWalkIn(customer)) return false;
       customer.walkInRejected = true;
+      customer.deskErrandAwaitingAnswer = false; // B1: turned away IS an answer
+      // B4 (Goal 24) — REFUSING THE TEE TIME MUST NOT LOSE THE SALE.
+      //
+      // Everything below sends the body to the door. For a plain walk-in that is
+      // right: they came for a time, there is no time, they leave. For a
+      // combined visitor it is a customer with UNPAID GOODS ON THE COUNTER being
+      // walked out of the shop by the player answering their question, and the
+      // goods restock as a lost sale.
+      //
+      // Refusal is an ANSWER, so the errand is settled and the payment gate
+      // opens. They stay exactly where they are, at the head of the counter,
+      // and pay for the goods. Just the goods.
+      if (customer.deskErrandRaisedMidSale && customer.cart && customer.cart.length) {
+        customer.deskErrandPending = false;
+        customer.requestedTeeMinute = null;
+        customer.dialogue = 'No luck? Never mind, just these then.';
+        if (hooks.toast) {
+          hooks.toast(t('shop.customerSays', { name: customer.name, line: customer.dialogue }), 'info');
+        }
+        return true;
+      }
       customer.checkoutPhase = 'walk-in-leaving';
       customer.currentDestination = 'exit';
       leaveQueue(customer);
@@ -9742,6 +11065,370 @@ export function makeClubhouse(ctx) {
       counterQueue.splice(qi, 1);
       c.queued = false;
     }
+    // B3: a rejoin starts from wherever the line actually puts them, not from
+    // the slot they were holding last time they stood here.
+    c.queueSlotHeld = null;
+  }
+
+  // B (Goal 21): the SAME occupancy test resolveCustomer enforces, asked as a
+  // question about a point rather than applied as a correction. The two must
+  // agree exactly — a look-ahead that avoids something the resolver would have
+  // allowed makes the walker jitter on the boundary between the two opinions.
+  // The customer is held in a slot rather than closed over, because this runs
+  // several times per walker per frame.
+  const steerStats = {
+    calls: 0, engaged: 0, tooShort: 0, steered: 0, trapped: 0, travelSum: 0, travelMax: 0,
+  };
+
+  // 2.1 (Goal 26) — WHILE I AM AT THE TILL, MY BODY IS NOT AN OBSTACLE.
+  //
+  // "I finish a transaction. The second person walks up, gets blocked by
+  // something, sidesteps right to left, then walks in place without moving, then
+  // leaves... It happens when I am standing in the middle of the cash register
+  // from the opposite side. THAT IS ME."
+  //
+  // He is right, and it is not one test: the player's body enters the customer
+  // simulation in THREE separate places -- the look-ahead's blocked-point query
+  // (_customerBlockedAt), the reciprocal-avoidance neighbour list
+  // (crowdNeighbours), and the settle pass's hard clamp (crowdClamp). Fixing any
+  // one and leaving the others is precisely the two-populations shape that has
+  // bitten this repository repeatedly, and it would present as "mostly fixed",
+  // which is worse than untouched because it is harder to see.
+  //
+  // Three, not four: the queue-slot occupancy test (queueSlotIsClear) builds its
+  // body list from OTHER CUSTOMERS ONLY and never had the player in it, so there
+  // is nothing to clear there. Checked rather than assumed, because "I fixed the
+  // occupancy test" would otherwise be a claim about a test that does not
+  // consider the thing being cleared.
+  //
+  // So there is ONE predicate and all four ask it. When the player is parked at a
+  // station -- operating the till, reading the ledger, on the laptop or the desk
+  // screen -- they are not standing in the room in any sense the crowd should
+  // care about: the camera is elsewhere, they cannot move, and they are behind
+  // the counter rather than in the customer lane. It restores itself the moment
+  // the station lets go, because it is derived every frame rather than latched.
+  // HOW FAR APART A CUSTOMER AND THE PLAYER ARE MEANT TO END UP. One number,
+  // because it is one question, and because the two systems that answer it used
+  // to hold different values: the clamp pushed the CUSTOMER out to a literal
+  // 0.72 while the player's own gentle step only triggered under 0.62, so the
+  // clamp's success was exactly the condition that switched the step off. See
+  // the note on PLAYER_CLEAR.
+  const PLAYER_CLAMP_YD = 0.72;
+  // yd/SECOND, which is what "1.7 yd/s at 60 Hz" always meant and never was.
+  const CUSTOMER_CLAMP_SPEED = 1.7;
+  // The current frame's dt, published by update() so crowdClamp can express a
+  // RATE rather than a per-frame constant. crowdClamp is handed to `separate`
+  // as a callback with the fixed shape (x, z, radius), so there is no dt slot
+  // to thread it through; publishing it here is narrower than changing that
+  // signature. One call site, `settleCustomerCrowd`, and it runs from update()
+  // after this is set.
+  let frameDt = 1 / 60;
+
+  function playerBlocksCustomers() {
+    if (!walk.active) return false;
+    // register mode owns the camera for the whole transaction
+    try { if (register && register.isActive && register.isActive()) return false; } catch { /* not built yet */ }
+    // THE BOOK HAS THE PLAYER — and "reading it" is not the same as "it is open".
+    //
+    // PLAYTEST 5, ITEM 3, third report: "I am still being walked into while
+    // reading the ledger." This asked isCarried() and isOpen(), which are both
+    // real methods answering the wrong question. isCarried is `carried`, set by
+    // setCarried — the book being TRANSPORTED across the room. isOpen is
+    // `bookState === 'open' || 'opening'`. And main.js's enterLedger records in
+    // as many words that "the FIRST press only brings the book up, SHUT", then
+    // gates app.ledgerOpen on book.isInHand(). So the ordinary act of raising
+    // the ledger to read it produced carried=false, open=false, and a player
+    // who was solid. isInHand's own comment is the giveaway: "In your hands at
+    // all, shut or not: what the E key and the HUD care about."
+    try {
+      if (ledgerBook && ((ledgerBook.isCarried && ledgerBook.isCarried())
+        || (ledgerBook.isInHand && ledgerBook.isInHand())
+        || (ledgerBook.isOpen && ledgerBook.isOpen()))) return false;
+    } catch { /* not built yet */ }
+    // the laptop, the ledger and the desk screen are full-screen surfaces owned
+    // by main.js; it publishes them on the app object, which is the only handle
+    // this module has to them. Read defensively: an undefined flag must mean
+    // "not parked", never "parked", or a missing accessor would phase the player
+    // out for good.
+    //
+    // app.deskScreenOpen USED TO BE READ HERE AND IS WRITTEN NOWHERE IN src/.
+    // It was the owner's own lead and it was right: the identifier appeared in
+    // exactly one place in the entire tree — this line — so the comparison was
+    // `undefined === true` on every frame since it was written, the desk screen
+    // never phased the player out at all, and the desk screen is exactly where
+    // he gives walk-in tee times. The flag main.js actually writes is
+    // frontDeskOpen (set in enterFrontDesk, cleared in exitFrontDesk).
+    // tests/player-blocks-customers-flags.test.js now fails on any app flag this
+    // predicate reads that nothing in src/ assigns.
+    const app = (typeof window !== 'undefined' && window.__fw) ? window.__fw : null;
+    if (app && (app.laptopOpen === true
+      || app.frontDeskOpen === true
+      || app.ledgerOpen === true)) return false;
+    return true;
+  }
+
+  let _steerCustomer = null;
+  function _customerBlockedAt(px, pz) {
+    const r = 0.3;
+    for (const col of custCols) {
+      if (col.door) continue; // a doorway is a way through, not a wall
+      if (px + r > col.minX && px - r < col.maxX && pz + r > col.minZ && pz - r < col.maxZ) return true;
+    }
+    if (playerBlocksCustomers() && Math.hypot(px - walk.x, pz - walk.z) < PLAYER_CLAMP_YD) return true;
+    for (const o of customers) {
+      if (o === _steerCustomer || !o.mesh) continue;
+      if (Math.hypot(px - o.mesh.position.x, pz - o.mesh.position.z) < 0.6) return true;
+    }
+    return false;
+  }
+
+  // --- CROWD: nobody stands inside anybody ------------------------------------
+  //
+  // WHO STANDS THEIR GROUND. Someone holding a place in the queue, at the desk,
+  // or mid-payment has a reason to be exactly where they are, and letting a
+  // passer-by shoulder them out of position is how the line stopped looking like
+  // a line. They get infinite mass; the mover goes around.
+  // `c.queued` is the real flag -- it is what counterQueue membership is derived
+  // from throughout this file. My first version guessed at stage/phase/mode
+  // strings that do not exist on these objects, and the diagnostic duly reported
+  // `pinned: 0` in a room with a six-deep queue: nobody was standing their
+  // ground, which is precisely the bug it was meant to prevent.
+  function customerIsPinned(c) {
+    if (!c) return false;
+    if (c.pinnedForCrowd === true) return true;
+    // Holding a place in the line, or standing at the till being served --
+    // and actually STANDING. A queuer advancing to the next slot is moving,
+    // and calling a mover immovable broke the one guarantee the settle pass
+    // makes: pinned-vs-pinned pairs are skipped entirely, so two queuers
+    // walking up the line at once could interpenetrate with nothing to part
+    // them. The crowd driver caught it as 3/70 overlapping frames, worst
+    // 0.19 yd, the first regression of that number since the pass shipped.
+    const standing = Math.hypot(c.vx || 0, c.vz || 0) < 0.08;
+    if (!standing) return false;
+    if (c.queued === true) return true;
+    if (c.queueSlotHeld != null) return true;
+    return false;
+  }
+
+  // Only the people who could matter this frame. Scanning the whole floor per
+  // customer is the sort of n-squared that becomes a stall once a room is busy.
+  const CROWD_RANGE = 2.4;
+  // A person merely WALKING gets the standard body; a person standing their
+  // ground in the queue gets a wider one, because the owner's complaint is not
+  // "they touched" but "they ran into the LINE" -- a queue deserves a berth, not
+  // a graze. The player is wider still: brushing the player reads worse than
+  // brushing anyone, and the player cannot be relied on to dodge.
+  const QUEUE_BERTH = 0.12;
+  const PLAYER_RADIUS = 0.4;
+  // POOLED. The first version allocated a fresh record per neighbour per
+  // customer per frame -- O(n^2) short-lived objects at 60 Hz, which is GC
+  // pressure for no reason and the sort of thing that turns into stutter on a
+  // busy floor. The records never outlive the call, so they are reused.
+  const _crowdNear = [];
+  const _crowdPool = [];
+  function crowdRecord(slot) {
+    let record = _crowdPool[slot];
+    if (!record) {
+      record = { x: 0, z: 0, vx: 0, vz: 0, pinned: false, radius: BODY_RADIUS };
+      _crowdPool[slot] = record;
+    }
+    return record;
+  }
+  function customerNeighbours(c) {
+    _crowdNear.length = 0;
+    const px = c.mesh.position.x;
+    const pz = c.mesh.position.z;
+    for (const other of customers) {
+      if (other === c || !other.mesh || other.mesh.visible === false) continue;
+      const ox = other.mesh.position.x;
+      const oz = other.mesh.position.z;
+      if (Math.abs(ox - px) > CROWD_RANGE || Math.abs(oz - pz) > CROWD_RANGE) continue;
+      const record = crowdRecord(_crowdNear.length);
+      record.x = ox;
+      record.z = oz;
+      record.vx = other.vx || 0;
+      record.vz = other.vz || 0;
+      record.pinned = customerIsPinned(other);
+      record.radius = record.pinned ? BODY_RADIUS + QUEUE_BERTH : BODY_RADIUS;
+      _crowdNear.push(record);
+    }
+    // THE PLAYER IS A NEIGHBOUR TOO. Before this, walkers reasoned about every
+    // customer and treated the player as nothing but a hard clamp at the last
+    // half-yard -- which is exactly "running into myself in general". The player
+    // enters the same reciprocal math as everyone else, with their real
+    // velocity, so a walker crossing the player's path swerves EARLY the way it
+    // does for another walker. Pinned, because the avoidance must never assume
+    // the player will take the other half of the correction.
+    // 2.1: ...but not while the player is parked at a station. See
+    // playerBlocksCustomers -- this is one of the four places the body enters the
+    // simulation and they must agree, or a walker steers around a phantom the
+    // resolver would have let it walk straight through.
+    if (playerBlocksCustomers()
+        && Math.abs(walk.x - px) <= CROWD_RANGE && Math.abs(walk.z - pz) <= CROWD_RANGE) {
+      const record = crowdRecord(_crowdNear.length);
+      record.x = walk.x;
+      record.z = walk.z;
+      record.vx = walk.vx || 0;
+      record.vz = walk.vz || 0;
+      record.pinned = true;
+      record.radius = PLAYER_RADIUS;
+      _crowdNear.push(record);
+    }
+    return _crowdNear;
+  }
+
+  // THE SIMULTANEOUS PASS, run once after every customer has taken its step. The
+  // clamp keeps a body that was pushed out of a neighbour from being pushed into
+  // a wall: without it, untangling a clump beside the counter puts somebody
+  // inside the counter.
+  // Monotonic QA identities for qaCustomerTrack, held OUTSIDE the customer
+  // objects so nothing the game owns is mutated by a diagnostic. Never read by
+  // the game itself.
+  let qaTrackSeq = 0;
+  const qaTrackIds = new WeakMap();
+  const qaTrackId = (c) => {
+    let id = qaTrackIds.get(c);
+    if (!id) { qaTrackSeq += 1; id = `q${qaTrackSeq}`; qaTrackIds.set(c, id); }
+    return id;
+  };
+  const crowdStats = { passes: 0, pairsOverlapping: 0, worstOverlap: 0 };
+  const _crowdBodies = [];
+  const _crowdBodyPool = [];
+  function crowdClamp(x, z, radius) {
+    let nx = x;
+    let nz = z;
+    for (const col of custCols) {
+      if (nx + radius > col.minX && nx - radius < col.maxX
+        && nz + radius > col.minZ && nz - radius < col.maxZ) {
+        const pushLeft = nx + radius - col.minX;
+        const pushRight = col.maxX - (nx - radius);
+        const pushUp = nz + radius - col.minZ;
+        const pushDown = col.maxZ - (nz - radius);
+        const min = Math.min(pushLeft, pushRight, pushUp, pushDown);
+        if (min === pushLeft) nx = col.minX - radius;
+        else if (min === pushRight) nx = col.maxX + radius;
+        else if (min === pushUp) nz = col.minZ - radius;
+        else nz = col.maxZ + radius;
+      }
+    }
+    // 2.1: the hard shove-away. This is the one the owner actually SEES -- it is
+    // what pushes a queuer sideways out of the lane and leaves them treading air
+    // against a body that, from their point of view, is not there.
+    // PLAYTEST 4, ITEM 5 (SECOND REPORT) — THE SHOVE IS NOW A STEP.
+    //
+    // This used to place the body at 0.72 yd in ONE frame. Measured by staging a
+    // customer exactly on the player: the first sample already read 0.72, so the
+    // separation was instantaneous -- and an instantaneous half-yard is the
+    // teleport the owner ruled out, seen from the other side of the camera. It
+    // also got there before the player's own gentle step could contribute, so
+    // "push me clear gently" could never happen.
+    //
+    // The target is unchanged; only the RATE is capped.
+    //
+    // PLAYTEST 5, ITEM 3 (THIRD REPORT) — THE RATE LIMIT WAS NOT A RATE.
+    //
+    // It was `const CLAMP_STEP = 0.028`, PER FRAME, with a comment reading "about
+    // 1.7 yd/s at 60 Hz". Nothing in it is per second. On the 240 Hz panel this
+    // machine reports it is 6.7 yd/s, and on the owner's display it is whatever
+    // his refresh happens to be — so the fix that was supposed to turn the shove
+    // into a step is still a shove wherever frames are cheap, and gets harsher
+    // the better the hardware.
+    //
+    // Measured: player written onto a customer, sampled every 250 ms. The FIRST
+    // sample already read 0.82 yd apart — further than the 0.72 target — so the
+    // whole separation was over inside a quarter of a second, and the player's
+    // own 1.1 yd/s step (which IS dt-scaled) contributed 0 frames and 0 yards
+    // across six seconds. That is the "push me clear gently" that could never
+    // happen, still never happening after the round that was meant to fix it.
+    //
+    // Scaled by the frame's own dt now, so it is 1.7 yd/s on every machine and
+    // the player's step is a real share of the separation rather than a loser in
+    // a race it was never told it was in.
+    if (playerBlocksCustomers()) {
+      const pd = Math.hypot(nx - walk.x, nz - walk.z);
+      if (pd > 0.01 && pd < PLAYER_CLAMP_YD) {
+        const wantX = walk.x + ((nx - walk.x) / pd) * PLAYER_CLAMP_YD;
+        const wantZ = walk.z + ((nz - walk.z) / pd) * PLAYER_CLAMP_YD;
+        const dx = wantX - nx;
+        const dz = wantZ - nz;
+        const need = Math.hypot(dx, dz);
+        const CLAMP_STEP = Math.max(0, Math.min(frameDt, 0.1)) * CUSTOMER_CLAMP_SPEED;
+        const take = (CLAMP_STEP > 0 && need > CLAMP_STEP) ? CLAMP_STEP / need : 1;
+        nx += dx * take;
+        nz += dz * take;
+      }
+    }
+    return { x: nx, z: nz };
+  }
+  function settleCustomerCrowd() {
+    _crowdBodies.length = 0;
+    for (const c of customers) {
+      if (!c.mesh || c.mesh.visible === false) continue;
+      const slot = _crowdBodies.length;
+      let body = _crowdBodyPool[slot];
+      if (!body) {
+        body = { x: 0, z: 0, radius: BODY_RADIUS, pinned: false, c: null };
+        _crowdBodyPool[slot] = body;
+      }
+      body.x = c.mesh.position.x;
+      body.z = c.mesh.position.z;
+      body.radius = BODY_RADIUS;
+      body.pinned = customerIsPinned(c);
+      body.c = c;
+      _crowdBodies.push(body);
+    }
+    if (_crowdBodies.length < 2) { crowdStats.pairsOverlapping = 0; return; }
+    // Skip the whole solve on the overwhelmingly common frame where nobody is
+    // near anybody. A cheap bounding test first keeps the O(n^2) separation off
+    // the hot path in an empty or spread-out room.
+    let anyClose = false;
+    for (let i = 0; i < _crowdBodies.length && !anyClose; i += 1) {
+      for (let j = i + 1; j < _crowdBodies.length; j += 1) {
+        const a = _crowdBodies[i];
+        const b = _crowdBodies[j];
+        if (Math.abs(a.x - b.x) < 0.8 && Math.abs(a.z - b.z) < 0.8) { anyClose = true; break; }
+      }
+    }
+    if (!anyClose) { crowdStats.pairsOverlapping = 0; return; }
+    crowdStats.pairsOverlapping = separate(_crowdBodies, undefined, crowdClamp);
+    crowdStats.passes += 1;
+    let worst = 0;
+    for (let i = 0; i < _crowdBodies.length; i += 1) {
+      const body = _crowdBodies[i];
+      for (let j = i + 1; j < _crowdBodies.length; j += 1) {
+        const d = Math.hypot(body.x - _crowdBodies[j].x, body.z - _crowdBodies[j].z);
+        if (d < BODY_RADIUS * 2) worst = Math.max(worst, BODY_RADIUS * 2 - d);
+      }
+      const mesh = body.c.mesh;
+      if (mesh.position.x === body.x && mesh.position.z === body.z) continue;
+      mesh.position.x = body.x;
+      mesh.position.z = body.z;
+      mesh.position.y = groundYAt(body.x, body.z) ?? heightAt(body.x, body.z);
+    }
+    crowdStats.worstOverlap = +worst.toFixed(4);
+  }
+
+  function crowdDiagnostics() {
+    let pairs = 0;
+    let worst = 0;
+    const live = customers.filter((c) => c.mesh && c.mesh.visible !== false);
+    for (let i = 0; i < live.length; i += 1) {
+      for (let j = i + 1; j < live.length; j += 1) {
+        const d = Math.hypot(
+          live[i].mesh.position.x - live[j].mesh.position.x,
+          live[i].mesh.position.z - live[j].mesh.position.z,
+        );
+        if (d < BODY_RADIUS * 2) { pairs += 1; worst = Math.max(worst, BODY_RADIUS * 2 - d); }
+      }
+    }
+    return {
+      people: live.length,
+      pairs,
+      worstOverlap: +worst.toFixed(4),
+      touching: +(BODY_RADIUS * 2).toFixed(3),
+      pinned: live.filter(customerIsPinned).length,
+      passes: crowdStats.passes,
+    };
   }
 
   function resolveCustomer(c, nx, nz) {
@@ -9766,16 +11453,13 @@ export function makeClubhouse(ctx) {
         nz = walk.z + ((nz - walk.z) / pd) * 0.72;
       }
     }
-    for (const o of customers) {
-      if (o === c) continue;
-      const dx = nx - o.mesh.position.x;
-      const dz = nz - o.mesh.position.z;
-      const d = Math.hypot(dx, dz);
-      if (d > 0.01 && d < 0.6) {
-        nx = o.mesh.position.x + (dx / d) * 0.6;
-        nz = o.mesh.position.z + (dz / d) * 0.6;
-      }
-    }
+    // PERSON-VS-PERSON IS NO LONGER RESOLVED HERE, and this loop is why the
+    // owner kept photographing people standing inside each other. It pushed only
+    // THIS customer out of the others, in array order, once per customer per
+    // frame: A steps out of B, then B is updated and walks straight back into A.
+    // Neither yields, the pair grinds, and which one wins depends on pool order.
+    // settleCustomerCrowd() below replaces it with one simultaneous symmetric
+    // pass over everybody after all of them have moved.
     return { nx, nz };
   }
 
@@ -9785,6 +11469,12 @@ export function makeClubhouse(ctx) {
   // navBlockDiagnostics(); the QA day runs assert against it.
   const navBlockLog = [];
   let navBlocksTotal = 0;
+  // G2 — the no-progress high-water mark and how often the sliding branch was
+  // the ONLY thing that flagged a customer. Both read by
+  // navBlockDiagnostics(); see NAV_STUCK note above.
+  let navProgressPeak = 0;
+  let navSlidingRescues = 0;
+  const debugFloorBoxCols = []; // QA-only: obstacles a driver dropped, so it can take them away
   function recordNavBlock(c, action, tx, tz, wp) {
     navBlocksTotal += 1;
     const near = [];
@@ -9824,18 +11514,113 @@ export function makeClubhouse(ctx) {
   }
 
   // walkable grid around the building; doors are excluded (they open for walkers)
+  const navCreateStartedAtMs = performance.now();
   const nav = makeNav({
     minX: center.x - 16, maxX: center.x + 16,
     minZ: center.z - 13, maxZ: center.z + 15,
     cell: 0.3, radius: 0.32,
   });
+  const navCreatedAtMs = performance.now();
+  const navCreateDurationMs = navCreatedAtMs - navCreateStartedAtMs;
   let navVersion = -1;
+  // Goal 24 performance attribution. These monotonic counters are owned by the
+  // shipping navigation path and have no reset or drive surface. They let an
+  // Electron run prove that the route it calls "first" really paid (or avoided)
+  // the first static-collider rebuild, while startup tracing retains the base
+  // grid-construction cost separately.
+  let navFreshCallCount = 0;
+  let navRebuildCount = 0;
+  let navRebuildTotalDurationMs = 0;
+  let navRebuildMaximumDurationMs = 0;
+  let navLastRebuildDurationMs = null;
+  let navLastRebuildAtMs = null;
+  // 3.1 (Goal 26) — RECAST, IN PRODUCTION. Baked once from the static interior
+  // during loading (see the bake kick below), queried first by the real customer
+  // routing call, and falling straight through to the grid router above when it
+  // is not ready or cannot answer. The counters are the proof of the call site:
+  // "recast is enabled" is not evidence that a customer ever asked it anything.
+  const recastNav = createRecastNav();
+  let recastRoutesServed = 0;
+  // 3.3: how many agents took a ladder rung on ONE frame. The peak is the whole
+  // point -- a total says nothing about whether they were spread out.
+  let navRepathsThisFrame = 0;
+  let navRepathPeakPerFrame = 0;
+  let navRepathFramesWithAny = 0;
+  let navRepathTotal = 0;
+  let recastRoutesFallenBack = 0;
+  let recastBakeResult = null;
+
+  // ONE BAKE, OFF THE GAMEPLAY FRAME. requestIdleCallback where it exists, a
+  // timeout where it does not -- either way this runs after the frame that asked
+  // for it, never inside it. It returns the same promise on every call, so a QA
+  // driver awaiting it and the loader kicking it cannot produce two bakes.
+  let recastBakePromise = null;
+  function bakeRecastOnce() {
+    if (recastBakePromise) return recastBakePromise;
+    recastBakePromise = new Promise((resolve) => {
+      const run = () => {
+        // BOTH ROOTS. `group` (shell, porch, threshold) and `interior` (floor,
+        // fixtures, stock) are SIBLINGS, not parent and child -- baking `group`
+        // alone found 324 meshes where `interior` alone found 1502, which is how
+        // I noticed. Measured: with the interior alone,
+        // every one of the 24 refusals was the FROM end, clustered at dz +18..20
+        // and +7.6..8.4 from the interior origin -- customers walking IN from
+        // outside and standing on the threshold. The doorway apron they start on
+        // is part of the building's group, not its interior, so an interior-only
+        // navmesh cannot place them and the route falls to the grid. The floor
+        // height still comes from `interior`, which is the room's own plane.
+        interior.updateWorldMatrix(true, false);
+        const floorY = interior.matrixWorld.elements[13];
+        recastNav.bake([group, interior], {}, { floorY }).then((r) => {
+          recastBakeResult = r;
+          resolve(r);
+        }).catch((e) => {
+          recastBakeResult = { ok: false, why: String((e && e.message) || e).slice(0, 200) };
+          resolve(recastBakeResult);
+        });
+      };
+      if (typeof requestIdleCallback === 'function') requestIdleCallback(run, { timeout: 4000 });
+      else setTimeout(run, 0);
+    });
+    return recastBakePromise;
+  }
+
   function navFresh() {
+    navFreshCallCount += 1;
     if (navVersion !== colVersion) {
+      const rebuildStartedAtMs = performance.now();
       nav.rebuild(custCols.filter((c) => !c.door));
+      const rebuildDurationMs = performance.now() - rebuildStartedAtMs;
+      navRebuildCount += 1;
+      navRebuildTotalDurationMs += rebuildDurationMs;
+      navRebuildMaximumDurationMs = Math.max(
+        navRebuildMaximumDurationMs,
+        rebuildDurationMs,
+      );
+      navLastRebuildDurationMs = rebuildDurationMs;
+      navLastRebuildAtMs = performance.now();
       navVersion = colVersion;
     }
     return nav;
+  }
+
+  function navPerformanceDiagnostics() {
+    return Object.freeze({
+      schemaVersion: 1,
+      source: 'shipping-clubhouse-makeNav-and-navFresh-monotonic-counters',
+      capturedAtMs: performance.now(),
+      navCreateStartedAtMs,
+      navCreatedAtMs,
+      navCreateDurationMs,
+      navFreshCallCount,
+      navRebuildCount,
+      navRebuildTotalDurationMs,
+      navRebuildMaximumDurationMs,
+      navLastRebuildDurationMs,
+      navLastRebuildAtMs,
+      colliderVersion: colVersion,
+      builtColliderVersion: navVersion,
+    });
   }
 
   // QA determinism: organic walk-ins spawn on a wall-clock probability that is independent
@@ -9909,7 +11694,14 @@ export function makeClubhouse(ctx) {
     locomotionScale: locomotionSpeed,
   });
 
+  // cached footfall target; -1 means "not solved this session yet"
+  let footfallTargetMinute = -1;
+  let footfallTarget = 0;
+
   function updateCustomers(dt) {
+    // One fixture lookup table per frame (NAV-WAIT-001's wait poses need it by
+    // id); a build-mode move or a sold-out display rebuilds it next frame.
+    fixtureByIdCache = null;
     // How much of the shop's DAY passed this frame, and how far a body may move
     // in it. The two are deliberately different numbers above 4x.
     const decisionDt = dt * simSpeed;
@@ -9926,15 +11718,47 @@ export function makeClubhouse(ctx) {
     // the exit (reservations and an in-progress transaction stay exempt below,
     // unchanged). See src/sim/shopSign.js.
     const open = shopAcceptsWalkIns(state, minute);
-    const targetCount = open
-      ? clamp(Math.round(((state.shop.salesYesterday.units || 2) / 8) * 3), 1, shopCustomerCapacity(state))
-      : 0;
+    // HOW BUSY THE SHOP IS, scaled by how the club is doing rather than by its
+    // own output. See src/sim/shopFootfall.js for why yesterday's unit sales
+    // were the wrong input: they are a mirror of footfall, so they locked it at
+    // one. Recomputed once a game minute — shopCondition() walks the grime and
+    // window arrays, which is not a per-frame cost worth paying for a number
+    // that cannot meaningfully change inside a minute.
+    // …keyed on the WHOLE minute. `minute` carries the frame's fraction, so
+    // comparing it raw re-solved on almost every frame and the cache did
+    // nothing at all.
+    const wholeMinute = Math.floor(minute);
+    if (open && wholeMinute !== footfallTargetMinute) {
+      footfallTargetMinute = wholeMinute;
+      footfallTarget = shopFootfallTarget(state, shopCustomerCapacity(state), { open: true });
+    }
+    const targetCount = open ? footfallTarget : 0;
     // Arrivals per GAME hour, not per wall second. This was the single biggest
     // contributor to the empty fast-forward shop: the roll fired on wall time,
     // so a 16x game hour rolled 1/16th as many times as a 1x one.
-    if (organicWalkins && open && customers.length < targetCount
+    // F1 (Goal 18): appointments are not footfall. A reservation guest at the
+    // desk was counted against the organic target, so one booked arrival
+    // crowded every walk-in shopper out of a floor-of-one room (measured:
+    // the wired generator's first guest halved observed walk-ins).
+    const organicCount = customers.filter((c) => c.reservationId == null).length;
+    if (organicWalkins && open && organicCount < targetCount
         && Math.random() < Math.min(0.9, decisionDt * 0.15)) {
-      spawnCustomer(false, null, { allowWalkInRequest: true });
+      const lifecycleBoundary = Object.freeze({
+        schemaVersion: 1,
+        eventType: 'organic-customer-lifecycle-window-start',
+        lifecycleId: `organic-footfall:${++customerLifecycleSequence}`,
+        atMs: performance.now(),
+        source: 'shipping-organic-footfall-loop',
+        spawnSource: 'organic-footfall',
+        customerCountBefore: customers.length,
+        organicCustomerCountBefore: organicCount,
+      });
+      emitGoal24NpcLifecycleBoundary(lifecycleBoundary);
+      spawnCustomer(false, null, {
+        allowWalkInRequest: true,
+        spawnSource: 'organic-footfall',
+        lifecycleBoundary,
+      });
     }
     if (!open) {
       for (const c of customers) {
@@ -9945,6 +11769,14 @@ export function makeClubhouse(ctx) {
         // progress. Their patience is frozen below; preserve the queue and route
         // until the player explicitly finalizes or abandons the transaction.
         if (register.hasTx() && register.getCustomer() === c) continue;
+        // A SCRIPTED visit is an assertion by the caller, not a walk-in. When
+        // the open/closed sign landed it started evicting these too, and every
+        // harness that stages a shopper with sendToCounter() without also
+        // flipping the sign began timing out waiting for a customer that had
+        // quietly turned round and left (~20 drivers, including the checkout
+        // render suite). The sign gates ARRIVALS; it must not delete a shopper
+        // somebody explicitly placed.
+        if (c.scriptedVisit) continue;
         if (c.stops[c.stopIdx] && c.stops[c.stopIdx].kind !== 'exit' && c.stops[c.stopIdx].kind !== 'gone') {
           leaveQueue(c);
           c.stopIdx = c.stops.length - 2; // head for the exit
@@ -9952,6 +11784,11 @@ export function makeClubhouse(ctx) {
         }
       }
     }
+
+    // 3.3: one frame's worth of ladder rungs. Reset here, read after the loop,
+    // so the peak is a real per-frame number rather than a running total that
+    // any spread of repaths would produce.
+    navRepathsThisFrame = 0;
 
     for (let i = customers.length - 1; i >= 0; i--) {
       const c = customers[i];
@@ -9967,7 +11804,28 @@ export function makeClubhouse(ctx) {
         const dx = c.mesh.position.x - camera.position.x;
         const dz = c.mesh.position.z - camera.position.z;
         const wasFar = c.characterPresentationFar === true;
-        const far = dx * dx + dz * dz > (wasFar ? 16 : 20.25);
+        // H4 (Goal 17) — THE POP WAS HAPPENING AT CONVERSATIONAL DISTANCE.
+        //
+        // Measured: the fine-detail meshes (brows, and the rest of the facial
+        // set) switched off at sqrt(20.25) = 4.5 yd and back on at sqrt(16) =
+        // 4.0 yd. There is hysteresis, so it does not flicker on the boundary -
+        // but it is a hard visible/invisible flip, and 4.5 yd is the distance
+        // you stand at to talk to somebody. Walk up to a customer and their
+        // face arrives, which is exactly what H4 describes.
+        //
+        // The brief offers two answers: carry the features at distance, or
+        // blend the swap. I am taking a third that is really the first, bounded:
+        // push the swap out to where the features are too small to read, so the
+        // moment it happens cannot be seen. A 12 mm brow at 4.5 yd is plainly
+        // visible; at 9 yd it is a couple of pixels at this window size.
+        //
+        // NOT pushed to "never", deliberately. These are per-character meshes
+        // and A1 measured this renderer as DRAW-CALL BOUND, so carrying them
+        // across a whole crowd at any distance spends the exact currency the
+        // game is short of. 9 yd out / 8 yd in doubles the range, puts the swap
+        // well outside any conversation, and keeps the saving for the distant
+        // crowd where it actually pays.
+        const far = dx * dx + dz * dz > (wasFar ? 64 : 81);
         if (far !== wasFar) {
           c.characterPresentationFar = far;
           char.setPresentationDetail(far ? 'far' : 'full');
@@ -9996,7 +11854,20 @@ export function makeClubhouse(ctx) {
         // shop's day: at 16x a customer must not wait sixteen game-hours for a
         // cashier just because the wall clock says ten minutes.
         c.preServiceWait = (c.preServiceWait || 0) + decisionDt;
-        if (c.preServiceWait > PATIENCE_FULL) {
+        // A2 (Goal 21) — THE FRONT OF THE LINE NEVER LEAVES.
+        //
+        // A customer queues, waits while the player serves the person ahead,
+        // reaches the front, and walks out before they can be served. Whatever
+        // that modelled, what the player experiences is being punished for
+        // doing the job correctly. Positions one and two are unconditional;
+        // from third place back patience is real, and that is where the
+        // pressure the game wants actually lives.
+        //
+        // THIS IS THE LIVE FUSE. The same rule was first written into
+        // clubhouse/customers.js, which turns out to be imported by nothing —
+        // see the note in section B of Report 21.
+        if (c.preServiceWait > PATIENCE_FULL
+          && queuePositionMayAbandon(counterQueue.indexOf(c))) {
           beginCustomerImpatientBeat(c);
           continue;
         }
@@ -10050,6 +11921,20 @@ export function makeClubhouse(ctx) {
       // Silent: the register give-up path owns the messaging; this net only
       // catches structural leavers and should never narrate.
       if (c.cart.length && (stop.kind === 'exit' || stop.kind === 'gone')) {
+        // F8 invariant (Full_Goal_16): nobody leaves with unpaid goods. This
+        // net still heals the world (the goods go back), but a customer who
+        // reaches the door with a WALK-IN DESK OUTCOME behind them is the
+        // escape class F8 closed — that combination is a hard QA violation,
+        // counted and shouted, never silent.
+        if (c.combinedVisit && (c.walkInRejected || c.reservationReleased || c.reservationId != null)) {
+          const msg = `[F8-INVARIANT] combined visitor "${c.fullName}" reached the ${stop.kind} `
+            + `with ${c.cart.length} unpaid item(s) after a desk outcome`;
+          console.error(msg);
+          if (typeof window !== 'undefined') {
+            window.__f8Violations = (window.__f8Violations || []);
+            window.__f8Violations.push({ name: c.fullName, items: c.cart.length, kind: stop.kind });
+          }
+        }
         surrenderCart(c, { announce: false });
       }
 
@@ -10062,15 +11947,103 @@ export function makeClubhouse(ctx) {
           c.queuedAt = now; // the clock a review will quote back at you
           c.queueLenOnArrival = counterQueue.length - 1;
         }
-        const slot = queueSlotW(counterQueue.indexOf(c));
+        // B3 (Goal 23) — THE LINE ADVANCES WHEN THE FLOOR IS CLEAR, NOT WHEN
+        // THE ARRAY IS. See queueAdvanceSlot in sim/customerSimulation.js for
+        // why: splicing the served customer out moved everyone's target
+        // instantly, while their body was still standing on it.
+        const wanted = counterQueue.indexOf(c);
+        const held = Number.isFinite(c.queueSlotHeld) ? c.queueSlotHeld : wanted;
+        const bodies = [];
+        for (const other of customers) {
+          if (other === c || !other.mesh) continue;
+          bodies.push({ x: other.mesh.position.x, z: other.mesh.position.z });
+        }
+        c.queueSlotHeld = queueAdvanceSlot(held, wanted, (idx) => (
+          queueSlotIsClear(queueSlotW(idx), bodies)
+        ));
+        const slot = queueSlotW(c.queueSlotHeld);
         tx = slot.x;
         tz = slot.z;
+      }
+
+      // NAV-WAIT-001. Claim the stand on APPROACH, not from across the room: a
+      // shopper still crossing the floor holds nothing, so the stand goes to
+      // whoever actually gets there. Inside the approach band an unclaimed
+      // stand is taken; a claimed one sends this shopper to a spaced hold point
+      // facing it. `waitingForStand` then suppresses the arrival branch below,
+      // because reaching a hold point is not reaching the stop.
+      let waitingForStand = false;
+      let waitFace = null;
+      if (stop.kind === 'fixture' && stop.fixtureId) {
+        pickStats.fixtureStopSeen += 1;
+        if (c.fixtureClaim && c.fixtureClaim !== stop.fixtureId) releaseFixtureClaim(c);
+        const holder = fixtureClaims.get(stop.fixtureId);
+        const mine = holder === c;
+        if (!mine) {
+          const reach = Math.hypot(stop.x - c.mesh.position.x, stop.z - c.mesh.position.z);
+          const holderGone = holder && !customers.includes(holder);
+          if (holderGone) fixtureClaims.delete(stop.fixtureId);
+          if (reach <= STAND_CLAIM_RADIUS) {
+            if (!fixtureClaims.get(stop.fixtureId)) {
+              pickStats.claimed += 1;
+              fixtureClaims.set(stop.fixtureId, c);
+              c.fixtureClaim = stop.fixtureId;
+              c.waitSlot = null;
+              c.waitFixtureId = null;
+            } else {
+              const fixture = fixtureById().get(stop.fixtureId);
+              const slot = fixture ? waitSlotFor(c, stop.fixtureId) : null;
+              if (fixture && slot != null) {
+                const hold = fixtureWaitPose(fixture, slot);
+                tx = hold.x;
+                tz = hold.z;
+                waitFace = hold;
+                waitingForStand = true;
+              } else {
+                // No fixture record, or the crowd is full: give this stand up
+                // rather than joining an unbounded scrum. Their remaining plan
+                // still stands, and an empty plan simply heads for the exit.
+                pickStats.standGivenUp += 1;
+                if (!fixture) pickStats.noFixtureRecord += 1;
+                releaseFixtureClaim(c);
+                c.stopIdx += 1;
+                c.path = [];
+                c.pathGoal = null;
+                c.linger = 0;
+                continue;
+              }
+            }
+          }
+        }
+      } else if (c.fixtureClaim) {
+        releaseFixtureClaim(c);
       }
 
       const dx = tx - c.mesh.position.x;
       const dz = tz - c.mesh.position.z;
       const dist = Math.hypot(dx, dz);
-      if (dist < 0.18) {
+      // Reaching a HOLD POINT is not reaching the stop. Stand still, face the
+      // display, and let the claim check above hand the stand over the moment
+      // it frees — without ever running the browse/pick beat out here.
+      if (waitingForStand) {
+        if (dist < 0.18) {
+          c.path = [];
+          c.pathGoal = null;
+          c.stuckT = 0;
+          c.repathed = false;
+          if (char) char.setMode(c.hasBasket ? 'BasketIdle' : 'Idle');
+          if (waitFace) {
+            const want = characterYawToward(
+              c.mesh.position.x, c.mesh.position.z, waitFace.faceX, waitFace.faceZ,
+            );
+            let dy = want - c.mesh.rotation.y;
+            while (dy > Math.PI) dy -= Math.PI * 2;
+            while (dy < -Math.PI) dy += Math.PI * 2;
+            c.mesh.rotation.y += dy * Math.min(1, dt * 8);
+          }
+          continue;
+        }
+      } else if (dist < 0.18) {
         if (stop.kind === 'enter' && !c.rangBell) {
           c.rangBell = true;
           c.entered = true; // they got through the door, so they have an opinion
@@ -10097,7 +12070,15 @@ export function makeClubhouse(ctx) {
         if (holdingInLounge) {
           c.linger = 0;
           if (char) char.setMode('Idle');
-        } else if (stop.kind === 'counter' && openReservationCustomer(c)) {
+        // A reservation holder who also shopped is still an unpaid checkout
+        // customer until the merchandise ticket owns those units. Keeping this
+        // exclusion local to counter dispatch is deliberate: lifecycle checks
+        // above still need openReservationCustomer(c) to protect an active
+        // booking from closing-time or stale-status release. Once the cart is
+        // paid, onCustomerPaid clears it and the combined desk result already
+        // carried the green fee on that same ticket.
+        } else if (stop.kind === 'counter' && openReservationCustomer(c)
+            && !(c.cart?.length && !c.bought)) {
           c.checkoutPhase = 'reservation-waiting';
           c.currentDestination = 'front-desk';
           const reservation = reservationRecordForCustomer(c);
@@ -10112,7 +12093,7 @@ export function makeClubhouse(ctx) {
           c.patience = PATIENCE_FULL;
           setPatience(c);
           if (char) char.setMode('Idle');
-          if (!c.deskGreetingSpoken && counterQueue.indexOf(c) === 0) {
+          if (!c.deskGreetingSpoken && customerHasReachedTheCounter(c)) {
             c.deskGreetingSpoken = true;
             c.dialogue = reservation && (reservation.partySize || 1) > 1
               ? `Hi, we have the ${fmtSlot(reservation.minute)} tee time under ${c.fullName}.`
@@ -10126,14 +12107,19 @@ export function makeClubhouse(ctx) {
           c.patience = PATIENCE_FULL;
           setPatience(c);
           if (char) char.setMode('Idle');
-          if (!c.deskGreetingSpoken && counterQueue.indexOf(c) === 0) {
+          if (!c.deskGreetingSpoken && customerHasReachedTheCounter(c)) {
             c.deskGreetingSpoken = true;
-            c.dialogue = `Hi, do you have anything open for ${c.partySize || 1}?`;
+            // L1: the ask is SPOKEN — the monitor row then corroborates it
+            c.dialogue = Number.isFinite(c.requestedTeeMinute)
+              ? ((c.partySize || 1) > 1
+                ? `Hi, could we get ${fmtSlot(c.requestedTeeMinute)} for ${c.partySize}?`
+                : `Hi, could I get the ${fmtSlot(c.requestedTeeMinute)} tee time?`)
+              : `Hi, do you have anything open for ${c.partySize || 1}?`;
             say(c.dialogue);
           }
         // the head of the line with a basket waits for the PLAYER to ring
         // them up — patience runs out eventually and the pick goes back
-        } else if (stop.kind === 'counter' && c.cart.length && counterQueue.indexOf(c) === 0) {
+        } else if (stop.kind === 'counter' && c.cart.length && customerHasReachedTheCounter(c)) {
           if (!c.deskGreetingSpoken) {
             c.deskGreetingSpoken = true;
             c.dialogue = `Hi, I'm ${c.fullName}. These are all for me.`;
@@ -10146,12 +12132,21 @@ export function makeClubhouse(ctx) {
             c.reachedRegHead = true;
             c.patience = PATIENCE_FULL;
           }
-          if (!c.awaitingCheckout) {
+          if (!c.awaitingCheckout && customerIsAtTheDesk(c)) {
             // One product crosses from their hands to the staging mat at a time.
             // Only after the last settles does registerMode take ownership.
             const placed = updateCustomerPlacement(c, dt);
             if (placed && !register.hasTx()) {
               c.onPaid = (transaction) => onCustomerPaid(c, transaction);
+              c.onPaidOwnership = () => transferCustomerPaidOwnership(c);
+              c.onPaidRelease = (transaction) => releasePaidCustomerFromCheckout(c, transaction);
+              c.onPaidReleaseAuthoritative = () => (
+                releasePaidCustomerFromCheckoutAuthoritative(c)
+              );
+              // B2 (Goal 23): the register owns the barcode, clubhouse owns the
+              // person, so the register says WHEN the goods are all scanned and
+              // this decides what the person does about it.
+              c.onGoodsScanned = () => raiseDeskErrandAtCounter(c);
               c.awaitingCheckout = handPlacedItemsToRegister(c);
             }
           }
@@ -10169,11 +12164,22 @@ export function makeClubhouse(ctx) {
             let checkoutMode = c.checkoutPhase === 'placing' ? 'Checkout' : 'Idle';
             if (['ChoosingPayment', 'CardPresented', 'CardInsertReady', 'CardInserting',
               'CardAmountEntry', 'CardProcessing', 'CardApproved', 'CashPresented',
-              'PaymentComplete', 'ReceiptPrinting'].includes(flowState)) checkoutMode = 'Present';
+              'PaymentComplete', 'ReceiptPrinting'].includes(flowState)) {
+              checkoutMode = 'Present';
+              // F6 (Full_Goal_16): cash goes DOWN and the arm comes back —
+              // once the tender fan has landed (the fly-in runs ~0.6 s from
+              // CashPresented entry) the customer settles to await change.
+              // The card keeps the held-out reach until it is taken; after
+              // PaymentComplete both methods stand settled.
+              const flowAgeMs = flowNow() - (c.checkoutFlow?.enteredAtMs || 0);
+              if (flowState === 'CashPresented' && flowAgeMs > 900) checkoutMode = 'CashLaid';
+              if (flowState === 'PaymentComplete') checkoutMode = 'CashLaid';
+            }
             else if (flowState === 'CardDeclined') checkoutMode = 'Declined';
             else if (['SelectingChange', 'GivingChange'].includes(flowState)) checkoutMode = 'Receive';
             else if (['Bagging', 'BagHandoff'].includes(flowState)) checkoutMode = 'ReceiveBag';
             char.setMode(checkoutMode);
+            c.qaPoseMode = checkoutMode; // read-only QA breadcrumb (F6 driver)
           }
           if (c.patience <= 0) beginCustomerImpatientBeat(c);
         } else if (!served) {
@@ -10192,7 +12198,11 @@ export function makeClubhouse(ctx) {
               c.plannedCount = 1;
             }
           }
-          if (stop.kind === 'fixture') customerPick(c, stop);
+          // done browsing — the stand goes back to whoever is holding for it
+          if (stop.kind === 'fixture') {
+            customerPick(c, stop);
+            releaseFixtureClaim(c);
+          }
           if (stop.kind === 'lounge' && c.reservationId != null) {
             c.checkoutPhase = 'reservation-arriving';
             c.currentDestination = 'front-desk';
@@ -10224,9 +12234,49 @@ export function makeClubhouse(ctx) {
         if (char) char.setMode(c.bagMesh ? 'WalkBag' : 'Walk');
         // path on destination change only; string-pulled waypoints thereafter
         if (!c.pathGoal || Math.hypot(c.pathGoal.x - tx, c.pathGoal.z - tz) > 0.22) {
-          c.path = navFresh().path(c.mesh.position.x, c.mesh.position.z, tx, tz) || [{ x: tx, z: tz }];
+          const requestedAtMs = performance.now();
+          const requestId = `${c.customerId}:${++customerRouteSequence}`;
+          // RECAST FIRST, GRID SECOND. Both return the same {x,z} waypoint
+          // array, so this is a substitution rather than a rewrite -- and if
+          // the navmesh is not ready, or the pair of points does not snap onto
+          // it, the shipping grid router answers exactly as it did before.
+          const recastPath = recastNav.path(
+            c.mesh.position.x, c.mesh.position.z, tx, tz, c.mesh.position.y,
+          );
+          if (recastPath) recastRoutesServed += 1; else if (recastNav.isReady()) recastRoutesFallenBack += 1;
+          c.path = recastPath
+            || navFresh().path(c.mesh.position.x, c.mesh.position.z, tx, tz)
+            || [{ x: tx, z: tz }];
+          c.pathSource = recastPath ? 'recast' : 'grid';
+          // Goal 24 evidence must describe THIS request, not whatever the
+          // process-wide counter says when an asynchronous observer happens to
+          // poll later. A second customer can legitimately request a route in
+          // that gap. Snapshot immediately after the shipping navFresh().path
+          // call and bind it to immutable route/customer/lifecycle identities.
+          const navPerformanceAtResolution = Object.freeze({
+            ...navPerformanceDiagnostics(),
+            routeRequestId: requestId,
+            customerId: c.customerId,
+            lifecycleBoundaryId: c.lifecycleBoundaryId,
+          });
+          const resolvedAtMs = navPerformanceAtResolution.capturedAtMs;
+          c.routeDiagnostics = {
+            requestId,
+            customerId: c.customerId,
+            requestedAtMs,
+            resolvedAtMs,
+            pathNodes: c.path.length,
+            goal: { x: tx, z: tz },
+            spawnSource: c.spawnSource,
+            lifecycleBoundaryId: c.lifecycleBoundaryId,
+            lifecycleBoundaryAtMs: c.lifecycleBoundaryAtMs,
+            navPerformanceAtResolution,
+          };
           c.pathGoal = { x: tx, z: tz };
           c.stuckT = 0;
+          // a new destination means the old best distance means nothing
+          c.bestGoalDist = Infinity;
+          c.noProgressT = 0;
         }
         while (c.path.length > 1
           && Math.hypot(c.path[0].x - c.mesh.position.x, c.path[0].z - c.mesh.position.z) < 0.3) {
@@ -10237,8 +12287,67 @@ export function makeClubhouse(ctx) {
         const wdz = wp.z - c.mesh.position.z;
         const wdist = Math.hypot(wdx, wdz) || 1;
         const step = Math.min(wdist, c.speed * moveDt); // capped: see LOCOMOTION_SPEED_CAP
-        const res = resolveCustomer(c, c.mesh.position.x + (wdx / wdist) * step, c.mesh.position.z + (wdz / wdist) * step);
+        // B (Goal 21) — LOOK BEFORE STEPPING, IN THE CODE THAT ACTUALLY RUNS.
+        //
+        // resolveCustomer below is penetration resolution: it can only push a
+        // walker back out of something it is already inside, which is why a
+        // shopper grinds along a shelf end until the stuck timer notices. The
+        // look-ahead turns the heading first, by the smallest angle that clears.
+        //
+        // This was written last session into clubhouse/customers.js, which is
+        // imported by NOTHING — eight headless tests passed against a module the
+        // game never loads. That is why the owner still watched customers walk
+        // into things. Same code, now on the live path.
+        _steerCustomer = c;
+        let heading = steerAround(
+          c.mesh.position.x, c.mesh.position.z, wdx, wdz, wdist, _customerBlockedAt,
+        );
+        // ...and then the PEOPLE, with their velocities. steerAround treats a
+        // person as a static blocked disc and switches off entirely below
+        // STEER_DEFAULTS.minTravel, which is the exact range at which two people
+        // are about to collide. This is reciprocal -- both parties run it on the
+        // same frame and each takes half the correction -- which is what makes
+        // them step past one another instead of both dodging the same way.
+        const crowdNear = customerNeighbours(c);
+        let crowdSlow = 1;
+        if (crowdNear.length) {
+          const avoid = avoidanceHeading(
+            { x: c.mesh.position.x, z: c.mesh.position.z, vx: c.vx || 0, vz: c.vz || 0 },
+            crowdNear, heading.x, heading.z, Math.max(0.2, step / Math.max(dt, 1e-4)),
+          );
+          if (avoid.avoided) {
+            heading = { ...heading, x: avoid.x, z: avoid.z, steered: true };
+            // YIELD, do not just swerve. A sidestep at full stride through a
+            // tight gap still reads as barging; people slow down when a
+            // collision is imminent. Urgency > 2 is the overlapping band in
+            // avoidanceHeading; above ~1.2 the closest approach is inside half
+            // a second. Scaling the step is what makes two crossing walkers
+            // resolve as one yielding to the other rather than both wedging
+            // into the same gap at speed.
+            const urgency = avoid.threat?.urgency ?? 0;
+            if (urgency >= 2) crowdSlow = 0.35;
+            else if (urgency > 1.2) crowdSlow = 0.6;
+          }
+        }
+        steerStats.calls += 1;
+        if (wdist > STEER_DEFAULTS.minTravel) steerStats.engaged += 1; else steerStats.tooShort += 1;
+        if (heading.steered) steerStats.steered += 1;
+        if (heading.trapped) steerStats.trapped += 1;
+        steerStats.travelSum += wdist;
+        if (wdist > steerStats.travelMax) steerStats.travelMax = wdist;
+        const res = resolveCustomer(
+          c,
+          c.mesh.position.x + heading.x * step * crowdSlow,
+          c.mesh.position.z + heading.z * step * crowdSlow,
+        );
         const moved = Math.hypot(res.nx - c.mesh.position.x, res.nz - c.mesh.position.z);
+        // Velocity, so the people around this one can see where it is GOING
+        // rather than only where it is standing. Without it two walkers each
+        // dodge a body that will not be there by the time they arrive.
+        if (dt > 1e-6) {
+          c.vx = (res.nx - c.mesh.position.x) / dt;
+          c.vz = (res.nz - c.mesh.position.z) / dt;
+        }
         c.mesh.position.x = res.nx;
         c.mesh.position.z = res.nz;
         c.mesh.rotation.y = characterYawToward(
@@ -10255,10 +12364,103 @@ export function makeClubhouse(ctx) {
         // see); rung 4 projects the TARGET to its nearest reachable point (the
         // stand point itself is inside an inflated collider, so arrival could
         // never happen); rung 5 abandons the stop rather than freeze the day.
-        if (step > 0.001 && moved < step * 0.25) {
+        // ITEM 14 (2026-08-06): "they run into the box at the top left forever.
+        // Find why the recovery ladder never fires on that obstacle."
+        //
+        // Because the ladder's only stuck test is DISPLACEMENT — did I move a
+        // quarter of the step I asked for. Walk into a corner and you move
+        // nothing, so it fires. Walk into the flat FACE of a box and
+        // resolveCustomer slides you along it: you move most of your step,
+        // every frame, forever, and `moved < step * 0.25` is never true. The
+        // ladder was never reached on that obstacle, so none of its five rungs
+        // could help. The shape of the prop decided whether recovery existed.
+        //
+        // Displacement is the wrong question. The right one is PROGRESS: is the
+        // target getting closer. A customer grinding along a box face is moving
+        // and getting nowhere, and that is what the ladder needs to hear.
+        const goalDist = Math.hypot(tx - c.mesh.position.x, tz - c.mesh.position.z);
+        if (!Number.isFinite(c.bestGoalDist) || goalDist < c.bestGoalDist - NAV_PROGRESS_EPSILON_YD) {
+          c.bestGoalDist = goalDist;
+          c.noProgressT = 0;
+        } else {
+          c.noProgressT = (c.noProgressT || 0) + dt;
+        }
+        // G2: the verdict is a pure function now, so the claim item 14 was
+        // built on — "there are states displacement cannot see and progress
+        // can" — is something a test can drive both branches of directly
+        // instead of something the sim has to be caught doing.
+        const verdict = navStuckVerdict({ moved, step, noProgressT: c.noProgressT });
+        // ...and the high-water mark of every customer's no-progress clock,
+        // whether or not it ever crossed the threshold. Report 14 could only say
+        // "the branch never fired"; this says how close it came.
+        if (c.noProgressT > navProgressPeak) navProgressPeak = c.noProgressT;
+        // the frames where progress WOULD have been the only signal. Zero in
+        // every run so far; the number is what would reopen the branch.
+        if (verdict.wouldSlide && !verdict.stuck) navSlidingRescues += 1;
+        if (verdict.stuck) {
           c.stuckT = (c.stuckT || 0) + dt;
-          if (c.stuckT > 3.0) {
+          // F2: a wrong ROUTE gets acted on within ~a beat of the 1 s verdict;
+          // a displacement scrape keeps the patient 3 s gate (its sidesteps
+          // are cheap but jittery when too eager).
+          let ladderGate = verdict.reason === 'no-progress' ? 0.35 : 3.0;
+          // 3.3 (Goal 26) — "BOUNDED REPATH TIMING WITH JITTER SO AGENTS DO NOT
+          // ALL REPATH ON ONE FRAME."
+          //
+          // Without this they do, and the case is not hypothetical: when the
+          // player stands in the corridor, every shopper behind them stops
+          // making progress within a few frames of each other, so every one of
+          // them crosses the same 0.35 s gate on the same frame and the whole
+          // queue repaths at once. One recast query is 0.135 ms; eight on one
+          // frame is a visible hitch on the frame a player is already annoyed.
+          //
+          // The offset is DERIVED FROM THE CUSTOMER ID, not random: a random
+          // offset re-rolled per frame would smear the gate rather than stagger
+          // it, and two runs of the same scenario would not be comparable.
+          if (c.repathJitter === undefined) {
+            // A MIXING hash, not `h * 31 + ch`. Customer ids here are sequential,
+            // and the classic string hash maps sequential inputs to sequential
+            // outputs: measured, seven customers came out at 0.120, 0.121, 0.121,
+            // 0.122, 0.122, 0.122, 0.123 -- a three-millisecond spread wearing
+            // the name "jitter". The avalanche step is what makes ids that
+            // differ by one character land far apart.
+            let h = 2166136261;
+            const id = String(c.customerId || '');
+            for (let i = 0; i < id.length; i += 1) {
+              h ^= id.charCodeAt(i);
+              h = Math.imul(h, 16777619);
+            }
+            h ^= h >>> 15; h = Math.imul(h, 2246822507);
+            h ^= h >>> 13; h = Math.imul(h, 3266489909);
+            h ^= h >>> 16;
+            c.repathJitter = ((h >>> 0) / 4294967296) * 0.4;
+          }
+          ladderGate += c.repathJitter;
+          if (c.stuckT > ladderGate) {
+            navRepathsThisFrame += 1;
             c.stuckEscalation = (c.stuckEscalation || 0) + 1;
+            // G10: "Not a nudge, not a repath along the same line: a genuinely
+            // different path, and if none exists, they abandon that stop."
+            //
+            // A displacement stall means the walker is against something and a
+            // sidestep usually clears it, so that keeps the full ladder. Three
+            // seconds of NO PROGRESS means the route is wrong, and sidestepping
+            // a wrong route just wastes two more rungs against it - so this
+            // reason enters the ladder at the RETARGET rung and escalates to
+            // abandoning the stop from there.
+            if (verdict.reason === 'no-progress' && c.stuckEscalation < 3) {
+              c.stuckEscalation = 3;
+            }
+            // F2: "a genuinely different route". The nudge rung repositions
+            // and repaths, but the fresh path can lead straight back through
+            // the same blocked waypoint — the sidestep/nudge/retarget trio
+            // looping at one shelf in the logs is that cycle. Ban the
+            // waypoint the stall happened at: if the next path leads there
+            // again, skip straight to moving the TARGET instead.
+            if (verdict.reason === 'no-progress' && c.bannedWp
+              && Math.hypot(c.bannedWp.x - wp.x, c.bannedWp.z - wp.z) < 0.5) {
+              c.stuckEscalation = Math.max(c.stuckEscalation, 4);
+            }
+            if (verdict.reason === 'no-progress') c.bannedWp = { x: wp.x, z: wp.z };
             const rung = Math.min(5, c.stuckEscalation);
             recordNavBlock(c, ['sidestep', 'sidestep', 'nudge', 'retarget', 'skip'][rung - 1], tx, tz, wp);
             if (rung <= 2) {
@@ -10283,17 +12485,37 @@ export function makeClubhouse(ctx) {
               }
             } else if (rung >= 5 && stop && stop.kind !== 'exit' && stop.kind !== 'gone') {
               if (stop.kind === 'counter') leaveQueue(c);
+              // F2: "if they cannot find any way to reach what they want,
+              // tell me. I should never have a customer silently stuck in my
+              // shop without knowing." The bell carries it; the dedupe key
+              // keeps one report per customer+stop, not a stream.
+              try {
+                notify(state, {
+                  kind: 'shop',
+                  text: t('shop.customerGaveUpStop', { name: c.name || 'A customer', what: stop.kind }),
+                  dedupeKey: `nav-giveup:${c.id}:${c.stopIdx}`,
+                });
+              } catch { /* a notification must never take the walker down */ }
               c.stopIdx += 1;
               c.stuckEscalation = 0;
+              c.bannedWp = null;
             }
             c.pathGoal = null;
             c.stuckT = 0;
             c.repathed = false;
+            // a rung has just moved them or their target; give the progress
+            // test a fresh baseline or it re-fires on the next frame
+            c.bestGoalDist = Infinity;
+            c.noProgressT = 0;
           } else if (c.stuckT > 1.2 && !c.repathed) {
             c.pathGoal = null;
             navVersion = -1; // rebake — a door or hauled pile may have changed the world
             c.repathed = true;
           }
+        // G2: the clear-the-stuck-clock arm used to hold off while the progress
+        // clock was over its threshold. With `sliding` no longer a stuck reason
+        // that guard would keep a genuinely walking customer's escalation state
+        // alive for no reason, so it goes with the branch it belonged to.
         } else if (moved > step * 0.6) {
           c.stuckT = 0;
           c.repathed = false;
@@ -10302,6 +12524,96 @@ export function makeClubhouse(ctx) {
       }
       c.mesh.position.y = groundYAt(c.mesh.position.x, c.mesh.position.z) ?? heightAt(c.mesh.position.x, c.mesh.position.z);
     }
+
+    // 3.3: roll the frame up. navRepathPeakPerFrame is the number that says
+    // whether the jitter works -- eight agents each taking a rung on their own
+    // frame and eight taking one together produce the same total and very
+    // different frames.
+    if (navRepathsThisFrame > 0) {
+      navRepathFramesWithAny += 1;
+      navRepathTotal += navRepathsThisFrame;
+      if (navRepathsThisFrame > navRepathPeakPerFrame) navRepathPeakPerFrame = navRepathsThisFrame;
+    }
+    // AFTER everyone has moved, not during: this is the pass that guarantees no
+    // two people are left standing inside each other, whatever order the pool
+    // happened to update them in.
+    settleCustomerCrowd();
+    separatePlayerFromCustomers(dt);
+  }
+
+  // PLAYTEST 4, ITEM 5 — "WHEN I COME BACK FROM THE LEDGER OR THE REGISTER AND A
+  // CUSTOMER IS STANDING INSIDE ME, I SHOULD JUST MOVE A BIT."
+  //
+  // The clamp above already shoves the CUSTOMER out to 0.72 yd, but it does it in
+  // one frame, and it only runs while `playerBlocksCustomers()` is true. Both
+  // halves are wrong for the case he is describing. While the player is parked at
+  // a station they are deliberately not a body, so customers walk into the space
+  // they occupy; the instant the station lets go the predicate flips and someone
+  // is inside them. Snapping the customer half a yard sideways on that frame is
+  // the teleport he does not want, from the other side of the camera.
+  //
+  // So the overlap is resolved by MOVING THE PLAYER, gently, and only as far as
+  // it takes. A capped speed rather than a jump, along the shortest separation,
+  // and refused outright if the step would push the body out of the room -- being
+  // nudged through a wall is worse than being stood in.
+  // PLAYTEST 5, ITEM 3 — WHY THE NUDGE HAS NEVER ONCE FIRED.
+  //
+  // This was 0.62, with the comment "slightly inside the 0.72 clamp, so the two
+  // do not fight". They do not fight, and that is the whole problem: the clamp's
+  // target IS 0.72, so the moment it does its job the separation is already
+  // outside 0.62 and `d < PLAYER_CLEAR` is never true again. The gentle step was
+  // shipped behind a condition the clamp guarantees to falsify -- FOUND_FALSE
+  // shape 5, and it is why last round "could not stage an overlap to watch the
+  // nudge fire". You cannot stage one. The clamp removes it first.
+  //
+  // Measured: player written onto a customer in the running shop, sampled every
+  // 250 ms for six seconds. First sample already 0.7813 yd apart, nudge fired
+  // 0 frames and 0 yards, separation achieved entirely by the CUSTOMER moving --
+  // which is the half the owner asked to stop.
+  // (tools/qa/electron-player-nudge-fires.js, negative control passed: the
+  // counters stayed still with the nearest body 1.09 yd away.)
+  //
+  // One constant now, shared with the clamp, so the two cannot drift apart
+  // again. They do not oscillate: both push along the same separating axis and
+  // both stop at the same distance, so what they now do is SHARE the step
+  // instead of one of them doing all of it.
+  const PLAYER_CLEAR = PLAYER_CLAMP_YD;
+  const PLAYER_NUDGE_SPEED = 1.1; // yd/s: a step aside, not a shove
+  let playerNudgeTotal = 0;
+  let playerNudgeFrames = 0;
+  function separatePlayerFromCustomers(dt) {
+    if (!walk.active || !playerBlocksCustomers()) return;
+    const step = Math.max(0, Math.min(dt, 0.1)) * PLAYER_NUDGE_SPEED;
+    if (step <= 0) return;
+    let pushX = 0;
+    let pushZ = 0;
+    for (const c of customers) {
+      if (!c.mesh || c.mesh.visible === false) continue;
+      const dx = walk.x - c.mesh.position.x;
+      const dz = walk.z - c.mesh.position.z;
+      const d = Math.hypot(dx, dz);
+      if (d >= PLAYER_CLEAR) continue;
+      // Two bodies exactly on top of each other have no separation direction, so
+      // the customer's own facing is used rather than a random one: stepping out
+      // the way they are looking is the direction that stops reading as a shove.
+      const nx = d > 1e-3 ? dx / d : Math.sin(c.mesh.rotation.y || 0);
+      const nz = d > 1e-3 ? dz / d : Math.cos(c.mesh.rotation.y || 0);
+      const want = PLAYER_CLEAR - d;
+      pushX += nx * want;
+      pushZ += nz * want;
+    }
+    const need = Math.hypot(pushX, pushZ);
+    if (need <= 1e-4) return;
+    const move = Math.min(step, need);
+    const nx = walk.x + (pushX / need) * move;
+    const nz = walk.z + (pushZ / need) * move;
+    // Never nudge someone through the shell. isInside is the same test the walk
+    // controller uses, so "outside" here means the same thing it does there.
+    if (!isInside(nx, nz, 0.2)) return;
+    walk.x = nx;
+    walk.z = nz;
+    playerNudgeTotal += move;
+    playerNudgeFrames += 1;
   }
 
   // --- per-frame update -------------------------------------------------------------------
@@ -10376,6 +12688,12 @@ export function makeClubhouse(ctx) {
   // camera so the shader draw sees the same PointLight set as the first live
   // editor frame, without advancing customers, deliveries, or checkout state.
   function syncCameraVisibility() {
+    // Prewarm intentionally does not call update(), so this render-only path
+    // must still apply the simulation-owned circuit gate before it certifies a
+    // light-count shader signature. Otherwise fresh campaign boot draws the
+    // hidden/detail set as powered (6 point / 2 area) and the first live door
+    // frame requests the real unpowered signature.
+    syncCeilingCircuitPower();
     // Resort hero views sit farther from the larger 4,000 sq ft shell. Past
     // this distance its saved furniture is no longer legible through the
     // glazing, so avoid submitting the complete checkout/retail fit-out and
@@ -10384,13 +12702,32 @@ export function makeClubhouse(ctx) {
     const resortPresentationEnabled = typeof resortClubhouse.enabled === 'function'
       && resortClubhouse.enabled();
     const interiorDrawDistance = resortPresentationEnabled ? 34 : CLUBHOUSE_INTERIOR_DRAW_DISTANCE;
+    // THE ROOM YOU ARE STANDING IN MUST NOT VANISH BECAUSE THE CAMERA IS
+    // ELSEWHERE. This asked the CAMERA where it was, and on the way back from
+    // the overview the camera is still out over the course for several frames
+    // while it returns to the player. For those frames the fit-out is culled and
+    // what remains on screen is the bare authored shell -- green walls, carpet,
+    // a window, no counter and no fixtures -- which is exactly the owner's
+    // "it shows the dummy map before my grey one", and why it only happens on
+    // Tab-then-Tab-again rather than on the way in. Recorded and viewed at
+    // qa/tab-map/frames/frame-0371.png.
+    //
+    // While walking, the PLAYER's position is the authority: they are the reason
+    // the interior is being drawn at all. The camera keeps its say for every
+    // other view, which is what the draw-distance saving was measured on.
     const visible = clubhouseInteriorVisibleAt(
       camera.position.x,
       camera.position.z,
       center.x,
       center.z,
       interiorDrawDistance,
-    );
+    ) || (walk.active && clubhouseInteriorVisibleAt(
+      walk.x,
+      walk.z,
+      center.x,
+      center.z,
+      interiorDrawDistance,
+    ));
     // Visual-evidence scripts may isolate the permanent authored shell from a
     // player's saved furniture. The flag never changes simulation or save data.
     interior.visible = interior.userData.visualQaForceHidden ? false : visible;
@@ -10407,7 +12744,15 @@ export function makeClubhouse(ctx) {
 
   function update(dtMs) {
     const dt = Math.min(0.1, dtMs / 1000);
+    frameDt = dt; // crowdClamp's separation rate, see CUSTOMER_CLAMP_SPEED
     now += dt;
+    // Both signs, from one fact. sync() compares two booleans and returns; it
+    // only touches a canvas or starts a swing when signIsOpen(state) has
+    // actually moved — including when the midnight rollover moved it, which is
+    // the case nothing used to notice.
+    syncOpenClosedSigns();
+    // the door sign's flip animation (a no-op unless it is mid-swing)
+    shopSign.tickSpin(dt);
     // Campaign arrival events. The objective list and the arrival phase gate
     // read campaign.events, and nothing else records them: porch contact (or
     // the immediate approach) marks the walk-up, crossing the interior
@@ -10471,6 +12816,17 @@ export function makeClubhouse(ctx) {
     updateDeliveryBoxTransfers(dt);
     updateCustomers(dt);
     register.update(dt);
+    if (ledgerBook.isCarried()) {
+      // the carried book rides one forearm's length ahead, waist high
+      const off = interior.position;
+      ledgerBook.followCarry({
+        x: walk.x - Math.sin(walk.yaw) * 0.52 - off.x,
+        z: walk.z - Math.cos(walk.yaw) * 0.52 - off.z,
+        y: 0.98,
+        ry: walk.yaw,
+      });
+    }
+    ledgerBook.update(dt);
     updateStockFlights(dt);
     updateBoxLifecycleAnimations(dt);
     updateRecyclingDrop(dt);
@@ -10588,20 +12944,30 @@ export function makeClubhouse(ctx) {
   function dispose() {
     if (disposing) return disposalSummary;
     disposing = true;
+    // Cancel the presentation barrier before any constituent runtime releases
+    // its roots. This clears the deadline and diagnostic closures, and resolves
+    // an unsafe disposed report for an in-flight prewarm instead of retaining
+    // this clubhouse until timeout.
+    const firstDoorVisibilityReadyDisposal = firstDoorVisibilityReady.dispose?.() ?? false;
     register.leave({ restorePointer: false });
     disposeFixtures();
     props61to100.stopAnimations();
+    // Snapshot borrowed identities before their owning runtimes clear their
+    // caches. The prop runtime may reference the same GLTF resources but must
+    // never release another runtime's ownership.
+    props61to100ProtectedAtDisposal = mergeRenderableResources(
+      protectedRenderableResources,
+      sheet06Production.borrowedResources?.(),
+      architecturalDoorInstallation.ownedResources?.(),
+    );
     const premiumCountryClubDisposal = premiumCountryClub.dispose();
     const resortClubhouseDisposal = resortClubhouse.dispose();
     const mountainLodgeDisposal = mountainLodge.dispose();
     const modernClubhouseDisposal = modernClubhouse.dispose();
     const sheet06ProductionDisposal = sheet06Production.dispose();
     const architecturalDoorsDisposal = architecturalDoorInstallation.dispose();
-    // The 71-100 dressing is NOT released here. Its meshes are GLB clones, and this teardown's
-    // rule for loader clones is that the cache which produced them owns freeing them — the same
-    // boundary createMerch and the Sheet-6 isolated cache sit behind. Freeing them from this side
-    // as well is a double release, which tests/clubhouse-resource-lifecycle.test.js counts.
-    // `props61to100.dispose()` exists for rebuilding the dressing on its own, not for teardown.
+    // Runtime roots are protected from the outer procedural walk below, then
+    // released through their own ownership boundary after that walk completes.
     const boxPlacementDisposal = boxPlacementMode?.dispose?.() || null;
     deliveryBoxTransfers.clear();
     deliveryBoxTransferHistory.length = 0;
@@ -10629,6 +12995,10 @@ export function makeClubhouse(ctx) {
     // tearing the scene down must not pocket whatever shoppers were holding: the save is written
     // from `state`, and stock in a deleted shopper's hands would simply cease to exist.
     for (let i = customers.length - 1; i >= 0; i--) removeCustomer(i);
+    // Six customer-card canvases deliberately stay cached after the opaque GPU
+    // warm-up. They are not all reachable from the scene graph, so the register
+    // releases that explicit ownership ledger before the broad resource walk.
+    const registerDisposal = register.dispose?.() || null;
 
     const equipmentBorrowedResources = deliveryEquipment?.borrowedResources?.() || null;
     clearDeliveryVanColliders();
@@ -10659,14 +13029,20 @@ export function makeClubhouse(ctx) {
       protectedRenderableResources,
       equipmentBorrowedResources,
       merch.ownedResources ? merch.ownedResources() : null,
-      // Assets 71-100 are GLB clones. Like every other loader clone in this teardown, the cache
-      // that produced them owns releasing them — the procedural walk must not free them a second
-      // time. `interior` is a staticRoot, so without this the walk reaches straight into them.
-      collectRenderableResources(props61to100.roots()),
+      // Protect the complete runtime group, including its sibling global
+      // static batch. Its dispose() releases runtime-owned GLTF/batch resources
+      // while leaving merch-baked geometry to the merchandise cache.
+      collectRenderableResources(props61to100.group),
       // The Pine Hills dressing uses CachedGLTFLoader clones.  The cache owns
       // their shared GLB resources; this outer procedural walk owns only the
       // boards, signs, and other geometry created in this clubhouse instance.
       collectRenderableResources(pineHillsInterior.roots()),
+      // Shed presentation has two explicit raw-resource owners nested beneath
+      // the broad shell/interior roots. Protect exactly their owned ledgers
+      // here; each runtime releases its resources once below. ShedInterior's
+      // ledger deliberately excludes borrowed clubhouse materials.
+      shedInterior?.ownedResources?.(),
+      dirt.ownedResources?.(),
     );
 
     camera.remove(carriedBoxHands);
@@ -10678,16 +13054,24 @@ export function makeClubhouse(ctx) {
     // Release procedural/static resources once, while loader-owned clone data
     // remains exclusively under createMerch's ownership boundary.
     const procedural = disposeRenderableResources(ownedResources, protectedResources);
+    // Flip the runtime's disposed guard before any late GLTF callback can
+    // mount a root or register a collider during reload-only recovery. The
+    // whole runtime group was protected above, while merch-owned baked
+    // geometry stays protected inside this disposal until merch.dispose().
+    const props61to100Disposal = props61to100.dispose();
     const pineHillsInteriorDisposal = pineHillsInterior.dispose();
     // Under shed, release the shed's own minted content (interior nodes + grime
     // plane / window films). Under every other variant these are no-ops.
-    if (shedPresentation) { detailInterior?.dispose?.(); dirt.dispose?.(); }
+    const shedInteriorDisposal = shedPresentation ? detailInterior?.dispose?.() : null;
+    const shedDirtDisposal = shedPresentation ? dirt.dispose?.() : null;
     const merchandise = merch.dispose ? merch.dispose() : null;
     deliveryEquipment = null;
     boxPlacementMode = null;
     disposalSummary = Object.freeze({
       procedural,
       merchandise,
+      register: registerDisposal,
+      firstDoorVisibilityReady: firstDoorVisibilityReadyDisposal,
       deliveryEquipment: deliveryEquipmentDisposal,
       boxPlacement: boxPlacementDisposal,
       premiumCountryClub: premiumCountryClubDisposal,
@@ -10696,10 +13080,20 @@ export function makeClubhouse(ctx) {
       modernClubhouse: modernClubhouseDisposal,
       sheet06Production: sheet06ProductionDisposal,
       architecturalDoors: architecturalDoorsDisposal,
+      props61to100: props61to100Disposal,
       pineHillsInterior: pineHillsInteriorDisposal,
+      shedInterior: shedInteriorDisposal,
+      shedDirt: shedDirtDisposal,
     });
     return disposalSummary;
   }
+
+  // 3.1: kick the ONE bake now that the interior is fully built. This is the
+  // last statement before the API is returned, which is the latest point in
+  // LOADING and the earliest point at which the geometry it reads is complete.
+  // bakeRecastOnce defers to an idle callback, so the work itself lands after
+  // this frame -- "never on a gameplay frame", as written.
+  bakeRecastOnce();
 
   return {
     group, interior,
@@ -10711,11 +13105,13 @@ export function makeClubhouse(ctx) {
     center: Object.freeze({ x: center.x, z: center.z }),
     localToWorld: (lx, lz) => L2W(lx, lz),
     worldToLocal: (wx, wz) => W2L(wx, wz),
-    update, syncCameraVisibility, rebuildStock, rebuildReno, refreshCondition, repaintGrime,
+    update, syncCameraVisibility, syncCeilingCircuitPower,
+    rebuildStock, rebuildReno, refreshCondition, repaintGrime,
     repaintWash: () => washing.repaintAll(),
     rebuildBoxes, presentDeliveryArrival, renderDeliveryCarryOverlay,
     sheet06Production: sheet06ProductionPublic,
     sheet06ProductionReady: () => sheet06Production.ready,
+    firstDoorVisibilityReady,
     architecturalDoors: Object.freeze({
       ready: architecturalDoorInstallation.ready,
       diagnostics: () => architecturalDoorInstallation.diagnostics(),
@@ -10762,6 +13158,10 @@ export function makeClubhouse(ctx) {
       sheet07: sheet07Production.diagnostics(),
       businessOpen: campaignAllowsBusiness(state),
     }),
+    // Every board that says OPEN or CLOSED, and the one fact driving them. A
+    // driver can cross this list against the scene graph, which is how an
+    // unwired sign is caught rather than assumed absent.
+    signDiagnostics: () => openClosedSigns.diagnostics(),
     boxPlacement: Object.freeze({
       isActive: () => !!boxPlacementMode?.isActive(),
       hasCarriedBox: () => !!carriedBox(state),
@@ -10828,6 +13228,39 @@ export function makeClubhouse(ctx) {
     //     fetched again. There is no floor entity for loose product, so inventing one here
     //     would be a bigger change than the report asks for.
     setDownCarried: (aheadX, aheadZ, ry = 0) => {
+      // the carried LEDGER first: it never coexists with a carried box (the
+      // pick-up refuses full arms), so this order costs nothing
+      if (ledgerBook.isCarried()) {
+        const local = W2L(aheadX, aheadZ);
+        // inverse of frontDeskPoint: is the drop point ON the desk?
+        const dx = local.x - FRONT_DESK_FRAME.x;
+        const dz = local.z - FRONT_DESK_FRAME.z;
+        const cos = Math.cos(FRONT_DESK_FRAME.ry);
+        const sin = Math.sin(FRONT_DESK_FRAME.ry);
+        const deskX = dx * cos - dz * sin;
+        const deskZ = dx * sin + dz * cos;
+        const onDesk = Math.abs(deskX) <= 2.35 && Math.abs(deskZ) <= 0.50;
+        // VERIFY2_L: an off-desk drop used to seat at interior y=0.001, which
+        // outdoors is FLUSH with the walkway - the closed book vanished into
+        // the paving. Ask the ground under the drop point instead.
+        const groundLocal = onDesk
+          ? COUNTER_TOP
+          : (Number.isFinite(groundYAt?.(aheadX, aheadZ))
+            ? groundYAt(aheadX, aheadZ) - interior.position.y + 0.004
+            : 0.004);
+        ledgerBook.placeAt({
+          x: local.x,
+          z: local.z,
+          y: groundLocal,
+          ry,
+        });
+        sfx('boxdown');
+        return {
+          ok: true,
+          kind: 'ledger',
+          message: onDesk ? 'Set the club register on the desk.' : 'Set the club register down.',
+        };
+      }
       const box = carriedBox(state);
       if (box) {
         const local = W2L(aheadX, aheadZ);
@@ -10852,6 +13285,260 @@ export function makeClubhouse(ctx) {
       };
     },
     carrySpeedFactor: () => carrySpeedFactor(state),
+    // I2 (Goal 23): is the player holding the register? courseScene reads this
+    // to refuse WASD -- "while I am holding the book, WASD must not move me.
+    // I am reading."
+    ledgerCarried: () => !!(ledgerBook && ledgerBook.isCarried && ledgerBook.isCarried()),
+    // G2 (Goal 24) — CARRYING IS NOT THE ONLY WAY TO BE HOLDING IT.
+    //
+    // The movement lock was gated on `ledgerCarried()` alone, and so was the
+    // check that certified it: the Goal 23 driver called
+    // `ledgerBook.setCarried(true)` and measured 0.0000 forward and 0.0000
+    // strafe. Both numbers were honest. They were about the wrong state. A
+    // player who presses E to READ the book is OPEN, not carried, and walked
+    // away from the desk with the pages in front of them.
+    //
+    // One accessor for "the book has the player", so the lock and any future
+    // check cannot disagree about which state that is again.
+    ledgerHasThePlayer: () => !!(ledgerBook
+      && ((ledgerBook.isCarried && ledgerBook.isCarried())
+        || (ledgerBook.isOpen && ledgerBook.isOpen()))),
+    // qaCustomerTrack hands out monotonic ids; see the comment on `id` below.
+    // 2.1 QA. Both exist so the walk-up driver reads the SIMULATION rather than
+    // inferring from the scene graph. `qaPlayerBlocksCustomers` is the same
+    // predicate the three crowd tests ask, so a driver cannot be told one thing
+    // while the crowd is told another; `qaCustomerTrack` reports each customer's
+    // live position, intended velocity and queue state, which is what makes
+    // "walking in place" (intent high, travel zero) expressible at all.
+    // QA ONLY: the mesh behind a qaCustomerTrack id, so a driver can pin a body
+    // in place and prove its stuck detector can actually see a stall. A detector
+    // that reports zero on every build has proved nothing.
+    // PHASE 3 GATE VERIFIER ONE: give a named shopper a destination. The clause
+    // is "a shopper blocked by the queue routes around it AND REACHES THE ITEM",
+    // and there is no way to test that by watching whoever happens to be in the
+    // room -- my first run measured four shoppers against a "far side" zone none
+    // of them had any reason to walk to and reported the zero as if it meant
+    // something. This inserts a real stop at the customer's CURRENT index, so
+    // the next thing they do is walk to it.
+    qaSendCustomerTo: (id, x, z) => {
+      for (const c of customers) {
+        if (!c || !c.mesh || qaTrackId(c) !== id) continue;
+        if (!Array.isArray(c.stops)) return false;
+        const idx = Math.max(0, Math.min(c.stops.length, c.stopIdx || 0));
+        c.stops.splice(idx, 0, { kind: 'browse', x, z, faceX: x, faceZ: z + 1 });
+        c.stopIdx = idx;
+        c.path = null;
+        c.pathGoal = null;
+        c.bestGoalDist = undefined;
+        c.noProgressT = 0;
+        return true;
+      }
+      return false;
+    },
+    qaCustomerMeshById: (id) => {
+      for (const c of customers) if (c && c.mesh && qaTrackId(c) === id) return c.mesh;
+      return null;
+    },
+    // 3.1: prove the call site. `routesServed` is incremented inside the real
+    // customer routing call and nowhere else, so a non-zero value here cannot be
+    // produced by anything except a production customer asking recast for a path.
+    qaRecastNav: () => ({
+      ...recastNav.diagnostics(),
+      bakeResult: recastBakeResult,
+      routesServed: recastRoutesServed,
+      routesFallenBack: recastRoutesFallenBack,
+    }),
+    // 3.1: the bake must never happen on a gameplay frame, so it is exposed for
+    // a driver to await rather than being polled for.
+    qaRecastBake: () => bakeRecastOnce(),
+    // 3.3: the repath spread. Reset so a driver can measure one staged scenario
+    // rather than everything since boot.
+    qaNavRepath: () => ({
+      peakPerFrame: navRepathPeakPerFrame,
+      framesWithAny: navRepathFramesWithAny,
+      total: navRepathTotal,
+      meanPerActiveFrame: navRepathFramesWithAny
+        ? +(navRepathTotal / navRepathFramesWithAny).toFixed(2) : 0,
+      // keyed by customer, because the LIST changes between two reads as people
+      // arrive and leave -- comparing two arrays positionally reported the jitter
+      // as unstable when it was the population that had moved, not the values.
+      jitters: customers
+        .filter((c) => c.repathJitter !== undefined)
+        .map((c) => ({ id: String(c.customerId), j: +c.repathJitter.toFixed(4) })),
+    }),
+    qaNavRepathReset: () => {
+      navRepathPeakPerFrame = 0;
+      navRepathFramesWithAny = 0;
+      navRepathTotal = 0;
+    },
+    // PHASE 3 GATE: how deep is a point inside a static collider, in yards, 0
+    // when clear. It reads `custCols` -- the SAME list resolveCustomer pushes
+    // people out of -- because a contact probe that derives its own colliders
+    // from the scene graph is measuring a different world from the one the
+    // customers are actually resolved against, and would disagree with the game
+    // rather than reporting on it.
+    qaPointBlocked: (x, z, r = 0.3) => {
+      let worst = 0;
+      for (const col of custCols) {
+        if (col.door) continue;
+        if (x + r > col.minX && x - r < col.maxX && z + r > col.minZ && z - r < col.maxZ) {
+          const pen = Math.min(
+            x + r - col.minX, col.maxX - (x - r),
+            z + r - col.minZ, col.maxZ - (z - r),
+          );
+          if (pen > worst) worst = pen;
+        }
+      }
+      return worst;
+    },
+    // PHASE 3 GATE: IS THIS POINT SOMEWHERE A WALKER CAN BE DELIVERED AT ALL?
+    // `qaPointBlocked` above answers a different question than it looks like it
+    // answers -- it reads the CUSTOMER collider list, so it says nothing about
+    // the walkable grid, and it returned a confident 0 for a goal the grid could
+    // not deliver anyone to. This is the grid's own answer, from the same call
+    // the stuck ladder's rung 4 uses to relocate an unreachable stop, so a
+    // driver can tell "the customer stopped short" from "the customer arrived
+    // at the only place its goal could be moved to" before writing either down.
+    qaNavOpenPoint: (x, z, radius = 6) => {
+      const grid = navFresh();
+      // `isOpenWorld` IS THE ANSWER, and comparing nearestOpenWorld's output to
+      // the point is not. nearestOpenWorld returns a CELL CENTRE, so a perfectly
+      // walkable point still comes back displaced by up to half a cell diagonal
+      // -- the first version of this called a threshold of 0.05 yd on that
+      // displacement and duly reported every open point in the shop as
+      // unreachable, including the floor the customers were standing on.
+      const openHere = grid.isOpenWorld(x, z);
+      const near = grid.nearestOpenWorld(x, z, radius);
+      const movedBy = near ? Math.hypot(near.x - x, near.z - z) : null;
+      return {
+        reachable: !!openHere,
+        // where rung 4 would relocate a stop placed here, and how far -- which is
+        // the distance a driver holding the original coordinates would report as
+        // a walker mysteriously stopping short
+        x: near ? +near.x.toFixed(4) : null,
+        z: near ? +near.z.toFixed(4) : null,
+        movedBy: movedBy === null ? null : +movedBy.toFixed(4),
+      };
+    },
+    qaPickStats: () => ({ ...pickStats }),
+    qaPlayerBlocksCustomers: () => playerBlocksCustomers(),
+    // ITEM 5: how far the gentle separation has actually moved the player, and
+    // the closest anyone is standing right now. A nudge that never fires and a
+    // nudge that is not needed look identical from outside.
+    // PLAYTEST 5, ITEM 3: separatePlayerFromCustomers refuses to move the player
+    // when the step would land outside the shell, and that refusal was the last
+    // untested reason the nudge might never fire. It is invisible from outside
+    // because `isInside` is private, so three runs could only say "it did not
+    // fire" without being able to say why. This is the same predicate the walk
+    // controller uses, so "outside" here means what it means there.
+    qaIsInside: (x, z, margin = 0.2) => isInside(x, z, margin),
+    qaPlayerSeparation: () => {
+      let nearest = Infinity;
+      for (const c of customers) {
+        if (!c.mesh || c.mesh.visible === false) continue;
+        const d = Math.hypot(walk.x - c.mesh.position.x, walk.z - c.mesh.position.z);
+        if (d < nearest) nearest = d;
+      }
+      return {
+        blocking: playerBlocksCustomers(),
+        nearestCustomer: Number.isFinite(nearest) ? +nearest.toFixed(4) : null,
+        clearance: PLAYER_CLEAR,
+        nudgeYards: +playerNudgeTotal.toFixed(4),
+        nudgeFrames: playerNudgeFrames,
+      };
+    },
+    qaCustomerTrack: () => customers
+      .filter((c) => c && c.mesh && c.mesh.visible !== false)
+      .map((c, i) => ({
+        // A STABLE IDENTITY, STAMPED ONCE. Customers carry no id of their own, so
+        // the first version of this fell back to the ARRAY INDEX -- which changes
+        // under a walker the moment anyone ahead of them is removed. A tracker
+        // keyed on that compares one person's position against another's and
+        // reads the difference as travel, so "walking in place" (intent high,
+        // travel zero) gets silently reclassified as movement. It biases toward
+        // UNDER-counting the fault, which is the safer direction but still wrong.
+        id: qaTrackId(c),
+        index: i,
+        x: +c.mesh.position.x.toFixed(4),
+        z: +c.mesh.position.z.toFixed(4),
+        vx: +(c.vx || 0).toFixed(4),
+        vz: +(c.vz || 0).toFixed(4),
+        queued: c.queued === true,
+        slot: c.queueSlotHeld ?? null,
+        served: c.served === true,
+        // WHICH STOP ARE THEY ON? "They never reached the queue" is a symptom
+        // with several causes -- no counter stop was planned, they were still
+        // browsing, or they walked past it -- and the route index separates them.
+        stopIdx: c.stopIdx ?? null,
+        stopKind: (c.stops && c.stops[c.stopIdx]) ? c.stops[c.stopIdx].kind : null,
+        // WHERE THE STOP IS *NOW*. A stop is not a constant: the stuck ladder's
+        // rung 4 REWRITES stop.x/stop.z to the nearest cell the grid can deliver
+        // a walker to, and rung 5 abandons the stop and steps stopIdx past it.
+        // A driver that remembers the coordinates it asked for and measures the
+        // customer against those is therefore measuring a goal the customer may
+        // no longer hold -- which is exactly how "sent to a point behind the
+        // blockade, never got within 4.3 yd" was reported for a customer whose
+        // own target had been moved out from under it. These are read from the
+        // live stop object every call, so a relocation shows up as a moved goal
+        // rather than as a walker that inexplicably stopped short.
+        stopX: (c.stops && c.stops[c.stopIdx] && Number.isFinite(c.stops[c.stopIdx].x))
+          ? +c.stops[c.stopIdx].x.toFixed(4) : null,
+        stopZ: (c.stops && c.stops[c.stopIdx] && Number.isFinite(c.stops[c.stopIdx].z))
+          ? +c.stops[c.stopIdx].z.toFixed(4) : null,
+        stopCount: Array.isArray(c.stops) ? c.stops.length : null,
+        // Which rung of the give-up ladder this walker is on. 0 = walking
+        // normally; 4 = its target has just been moved; 5 = the stop is being
+        // abandoned. Without it, "stopped short" and "gave up and moved on" look
+        // identical from the outside.
+        stuckEscalation: Number.isFinite(c.stuckEscalation) ? c.stuckEscalation : 0,
+        // How deep inside the nearest customer collider this body is, and how far
+        // outside if it is clear. The residual walk-in-place happens with ~1.9 yd
+        // of clear space to the nearest neighbour, so it is NOT crowd separation;
+        // the remaining candidate is static geometry, and this is what asks it.
+        // Positive = penetration depth, negative = clearance.
+        // Is this body deliberately HOLDING for a fixture stand? A shopper waiting
+        // their turn at a shelf stands still with movement intent still set, which
+        // my walk-in-place metric would score as the defect -- the same mistake
+        // the queue split already corrected one level up. Exposed so the metric
+        // can exclude it rather than be quietly wrong about it.
+        waitingForStand: c.waitSlot != null || c.waitFixtureId != null,
+        fixtureClaim: c.fixtureClaim ?? null,
+        // 3.1: WHICH ROUTER ANSWERED. It was missing from this projection while
+        // a driver was reading `c.pathSource` off it and tallying six nulls as
+        // "no customer used recast" -- next to a routesServed counter saying
+        // twenty had. The counter was right and the tally was reading a field
+        // that did not exist here.
+        pathSource: c.pathSource ?? null,
+        // PHASE 3 GATE: enough to tell "walking" from "standing at a stop", so a
+        // contact watcher does not have to guess from velocity which of those it
+        // is looking at. Queue-standing counted as running-in-place once already.
+        walking: !!(c.path && c.path.length && !(c.waitSlot != null || c.waitFixtureId != null)),
+        repathJitter: Number.isFinite(c.repathJitter) ? +c.repathJitter.toFixed(4) : null,
+        linger: Number.isFinite(c.linger) ? +c.linger.toFixed(2) : null,
+        colliderPen: (() => {
+          if (!c.mesh) return null;
+          const x = c.mesh.position.x;
+          const z = c.mesh.position.z;
+          let best = -Infinity;
+          for (const col of custCols) {
+            if (col.door) continue;
+            // signed distance to the box: >0 inside
+            const dx = Math.min(x - col.minX, col.maxX - x);
+            const dz = Math.min(z - col.minZ, col.maxZ - z);
+            const pen = Math.min(dx, dz);
+            if (pen > best) best = pen;
+          }
+          return Number.isFinite(best) ? +best.toFixed(3) : null;
+        })(),
+        // Distance to the CURRENT stop. The arrival test is `dist < 0.18`, and
+        // "they never arrived" is only meaningful next to how close they got.
+        targetDist: (c.stops && c.stops[c.stopIdx] && c.mesh)
+          ? +Math.hypot(c.stops[c.stopIdx].x - c.mesh.position.x,
+            c.stops[c.stopIdx].z - c.mesh.position.z).toFixed(3)
+          : null,
+        stopKinds: Array.isArray(c.stops) ? c.stops.map((x) => x && x.kind).join('>') : null,
+        cart: Array.isArray(c.cart) ? c.cart.length : null,
+      })),
     carryCollisionRadius: () => {
       const box = carriedBox(state);
       if (!box || box.flat) return 0;
@@ -10859,6 +13546,7 @@ export function makeClubhouse(ctx) {
     },
     isInside, groundYAt, suppressesGroundCoverAt, vacuumAt, vacuumLabelAt,
     doorWorld: doorW,
+    mainEntranceDiagnostics: () => doorsApi.mainEntranceDiagnostics?.() ?? null,
     laptopPose: (fovDeg, aspect) => (office.seatPose ? office.seatPose(fovDeg, aspect) : null),
     laptopLid: (open) => office.setLid && office.setLid(open),
     laptopBoot: () => office.startBoot && office.startBoot(),
@@ -10873,6 +13561,31 @@ export function makeClubhouse(ctx) {
     register: {
       isActive: () => register.isActive(),
       hasTx: () => register.hasTx(),
+      // G4.1: the counter bag, forwarded. `ch.register` is a NARROW FACADE, not
+      // the register-mode object, so an accessor added there is invisible here -
+      // which cost three driver runs and a wrong suspicion that the bag was
+      // never built. A probe reported registerKeysMatching /bag/i as [] and
+      // accessorType undefined, which is what settled it.
+      bagNode: () => (register.bagNode ? register.bagNode() : null),
+      checkoutBagOwnershipStatus: () => (register.checkoutBagOwnershipStatus
+        ? register.checkoutBagOwnershipStatus() : null),
+      // C2 (Goal 19): forwarded the day it was added — the facade's own note
+      // above records what an unforwarded accessor costs.
+      cardNode: () => (register.cardNode ? register.cardNode() : null),
+      // H (Goal 23): forwarded the day it was added. The facade's own note
+      // above records what an unforwarded accessor costs.
+      repaintBrand: () => (register.repaintBrand ? register.repaintBrand() : false),
+      cardBrandCanvas: () => (register.cardBrandCanvas ? register.cardBrandCanvas() : null),
+      debugPaymentCardCanvas: (cardId) => (register.debugPaymentCardCanvas
+        ? register.debugPaymentCardCanvas(cardId) : null),
+      cardOwnedResourceStatus: () => (register.cardOwnedResourceStatus
+        ? register.cardOwnedResourceStatus() : null),
+      paidBagResourceStatus: () => (register.paidBagResourceStatus
+        ? register.paidBagResourceStatus() : null),
+      cardTextureCacheStatus: () => (register.cardTextureCacheStatus
+        ? register.cardTextureCacheStatus() : null),
+      itemMesh: (uid) => (register.itemMesh ? register.itemMesh(uid) : null),
+      bagIsAtCounter: () => (register.bagIsAtCounter ? register.bagIsAtCounter() : false),
       enter: () => register.enter(),
       leave: () => register.leave(),
       onDown: (e) => register.onDown(e),
@@ -10887,6 +13600,37 @@ export function makeClubhouse(ctx) {
       getTx: () => register.getTx(),
       getCustomer: () => register.getCustomer(),
       getFlow: () => register.getFlow(),
+      // The watchdog's own log. Forwarded because a checkout that parks itself
+      // in Recovery looks identical from the outside to one that is merely
+      // waiting — only this says which.
+      checkoutWatchdogDiagnostics: () => register.checkoutWatchdogDiagnostics(),
+      debugFailNextBankHelperReturn: () => register.debugFailNextBankHelperReturn?.(),
+      debugFailNextPaidCustomerPresentation: () => {
+        const transaction = register.getTx();
+        const customer = register.getCustomer();
+        if (!transaction || !customer || transaction.banked) {
+          qaPaidPresentationFault = null;
+          return { armed: false, transactionNumber: null, customerId: null };
+        }
+        qaPaidPresentationFault = {
+          transactionNumber: transaction.number,
+          customerId: customer.customerId,
+        };
+        return { armed: true, ...qaPaidPresentationFault };
+      },
+      debugFailNextPaidCustomerRelease: () => {
+        const transaction = register.getTx();
+        const customer = register.getCustomer();
+        if (!transaction || !customer || transaction.banked) {
+          qaPaidReleaseFault = null;
+          return { armed: false, transactionNumber: null, customerId: null };
+        }
+        qaPaidReleaseFault = {
+          transactionNumber: transaction.number,
+          customerId: customer.customerId,
+        };
+        return { armed: true, ...qaPaidReleaseFault };
+      },
       scanPresentation: () => register.scanPresentation(),
       scanAlignment: () => register.scanAlignment(),
       cashHandoffPresentation: () => register.cashHandoffPresentation(),
@@ -10903,14 +13647,40 @@ export function makeClubhouse(ctx) {
       hint: () => register.hint(),
       monitorActionPoint: (id) => register.monitorActionPoint(id),
       monitorScreenPoint: (id) => register.monitorScreenPoint(id),
+      // B2 (Goal 23): WHAT IS ON THE DESK SCREEN RIGHT NOW. A driver that
+      // clicks monitorScreenPoint for a row that is not drawn gets null and
+      // cannot tell "the row is missing" from "I asked for the wrong id".
+      deskHitTargets: () => (register.deskHitTargets ? register.deskHitTargets() : null),
+      // B3 (Goal 24): the status line and its instruction, forwarded the day
+      // they were needed. `ch.register` is a NARROW FACADE — the note on
+      // bagNode above records the three driver runs an unforwarded accessor
+      // costs, and a check that cannot read the screen cannot verify the words
+      // printed on it.
+      // deskAction reports whether the action was DRAWN as well as whether it
+      // ran, which is the difference between "the mouse missed" and "the screen
+      // never offered it" — two opposite causes with one symptom.
+      deskAction: (action) => (register.deskAction ? register.deskAction(action) : null),
+      checkoutStatus: () => (register.checkoutStatus ? register.checkoutStatus() : null),
+      checkoutInstruction: () => (register.checkoutInstruction ? register.checkoutInstruction() : null),
       cardXScreenPoint: () => register.cardXScreenPoint(),
       presentedCashScreenPoint: () => register.presentedCashScreenPoint(),
+      drawerSlotScreenPoint: (denom) => register.drawerSlotScreenPoint(denom),
+      // ITEM 12: the offered notes INDIVIDUALLY. presentedCashScreenPoint
+      // returns the pile's one generous hit sphere, which is the right target
+      // to click and the wrong one to aim a per-note hover test at. This
+      // facade is a hand-written whitelist, so a method added to the register
+      // is invisible until it is forwarded here — which is exactly how the
+      // first run of the note-hover driver reported "0 notes on the desk"
+      // when it should have said "the accessor never existed".
+      presentedTenderScreenPoints: () => register.presentedTenderScreenPoints(),
       presentedCardScreenPoint: () => register.presentedCardScreenPoint(),
       cardTerminalScreenPoint: () => register.cardTerminalScreenPoint(),
       insertAt: () => register.insertAt(),
       cardKeyScreenPoint: (actionId) => register.cardKeyScreenPoint(actionId),
       debugTerminalXAt: (x, y) => register.debugTerminalXAt(x, y),
       debugWorkingPose: () => register.debugWorkingPose(),
+      debugMonitorTabPixels: () => register.debugMonitorTabPixels(),
+      debugCardGrabOutline: (on) => register.debugCardGrabOutline(on),
       cardTerminalLocked: () => register.cardTerminalLocked(),
       monitorHotspots: () => register.monitorHotspots(),
       workspace: () => register.workspace(),
@@ -10925,10 +13695,99 @@ export function makeClubhouse(ctx) {
     // through it, because waiting on the RNG to produce a two-item cash customer is
     // not a test, it is a lottery.
     customers: () => customers,
+    crowdDiagnostics,
     // Every stuck escalation across the session, with positions, targets and the
     // colliders that boxed the walker in. The live-parity day run reads THIS —
     // the same evidence the live game logs — instead of inventing its own.
-    navBlockDiagnostics: () => ({ total: navBlocksTotal, recent: navBlockLog.slice(-120) }),
+    navBlockDiagnostics: () => ({
+      total: navBlocksTotal,
+      recent: navBlockLog.slice(-120),
+      // B (Goal 21): how often the look-ahead actually RUNS in the real shop,
+      // as opposed to in a test's hand-drawn room. engagedPct near zero means
+      // it is shipped disabled and every passing test measured unreached code.
+      steer: {
+        ...steerStats,
+        engagedPct: steerStats.calls
+          ? +(100 * steerStats.engaged / steerStats.calls).toFixed(1) : 0,
+        steeredPct: steerStats.calls
+          ? +(100 * steerStats.steered / steerStats.calls).toFixed(1) : 0,
+        travelMean: steerStats.calls
+          ? +(steerStats.travelSum / steerStats.calls).toFixed(3) : 0,
+        minTravel: STEER_DEFAULTS.minTravel,
+      },
+      // G2: how near the sliding branch came to firing, and how often it was
+      // the only thing that saw a stuck customer
+      progressPeakSeconds: +navProgressPeak.toFixed(2),
+      slidingRescues: navSlidingRescues,
+      slidingThresholdSeconds: NAV_SLIDING_SECONDS,
+    }),
+    // QA-only: the three things a nav claim needs to be measurable rather than
+    // asserted - the path the customers' own grid returns, a floor obstacle
+    // dropped where the driver wants one, and the ladder's running tally.
+    navBlockReport: () => navBlockLog.slice(),
+    // Path between two points the GRID chose, not two a driver guessed. A
+    // request that starts or ends inside a collider returns an empty path,
+    // which reads to a naive driver as a perfectly straight line - so the
+    // endpoints are snapped, and the run itself is discovered by sweeping the
+    // sales floor for the longest clear span the grid will actually walk.
+    debugCustomerRun: (span = 5.0) => {
+      const grid = navFresh();
+      const seedW = L2W(COUNTER.registerX, COUNTER.registerZ);
+      const anchor = grid.nearestOpenWorld(seedW.x, seedW.z + 3.0, 10);
+      if (!anchor) return null;
+      const openAt = (x, z) => {
+        const p = grid.nearestOpenWorld(x, z, 0.35);
+        return p && Math.hypot(p.x - x, p.z - z) < 0.35;
+      };
+      let a = { x: anchor.x, z: anchor.z };
+      let b = { x: anchor.x, z: anchor.z };
+      for (let d = 0.25; d <= span; d += 0.25) {
+        if (openAt(anchor.x - d, anchor.z)) a = { x: anchor.x - d, z: anchor.z };
+        if (openAt(anchor.x + d, anchor.z)) b = { x: anchor.x + d, z: anchor.z };
+      }
+      const world = grid.path(a.x, a.z, b.x, b.z) || [];
+      const mid = { x: (a.x + b.x) / 2, z: (a.z + b.z) / 2 };
+      const local = (p) => {
+        const l = W2L(p.x, p.z);
+        return { x: +l.x.toFixed(3), z: +l.z.toFixed(3) };
+      };
+      return {
+        from: { x: +a.x.toFixed(3), z: +a.z.toFixed(3) },
+        to: { x: +b.x.toFixed(3), z: +b.z.toFixed(3) },
+        midLocal: local(mid),
+        length: +Math.hypot(b.x - a.x, b.z - a.z).toFixed(3),
+        points: world.map((p) => ({ x: +p.x.toFixed(3), z: +p.z.toFixed(3) })),
+      };
+    },
+    // The path between endpoints the CALLER pins, so a before/after comparison is the
+    // same route twice. `debugCustomerRun` re-derives its own span each call, which is
+    // right for discovering a clear stretch and wrong for comparing one: dropping a box
+    // shrinks the span it can find, so the two probes end up measuring different routes.
+    debugPathBetween: (ax, az, bx, bz) => {
+      const grid = navFresh();
+      const world = grid.path(ax, az, bx, bz) || [];
+      // Local coordinates alongside world, because a caller that wants to put something
+      // ON this path has to hand `debugDropFloorBox` an interior-local point.
+      return {
+        from: { x: +ax.toFixed(3), z: +az.toFixed(3) },
+        to: { x: +bx.toFixed(3), z: +bz.toFixed(3) },
+        points: world.map((p) => ({ x: +p.x.toFixed(3), z: +p.z.toFixed(3) })),
+        pointsLocal: world.map((p) => {
+          const l = W2L(p.x, p.z);
+          return { x: +l.x.toFixed(3), z: +l.z.toFixed(3) };
+        }),
+      };
+    },
+    debugDropFloorBox: (lx, lz, size = 0.7) => {
+      const col = addCol(colBoxAt(lx, lz, size, size));
+      debugFloorBoxCols.push(col);
+      return { x: +lx.toFixed(3), z: +lz.toFixed(3), half: size / 2 };
+    },
+    debugClearFloorBoxes: () => {
+      for (const col of debugFloorBoxCols) removeCol(col);
+      debugFloorBoxCols.length = 0;
+      return true;
+    },
     checkoutQueue: () => counterQueue.map((customer) => ({
       customerId: customer.customerId,
       name: customer.name,
@@ -10942,6 +13801,46 @@ export function makeClubhouse(ctx) {
       awaitingCheckout: !!customer.awaitingCheckout,
       phase: customer.checkoutPhase,
     })),
+    // GOAL 25 LEGIBILITY — WHY THE TILL LOOKS EMPTY WHILE THE SHOP IS FULL.
+    //
+    // The Phase 1 stranger found this and the owner named it as one of the two
+    // reasons the sale looked broken to him: the head of the line is DESK
+    // business — a walk-in asking for a tee time, or a booking checking in.
+    // Nobody behind them advances until the player serves them at the desk, so a
+    // shop with four people in it shows an untouched counter and a queue that
+    // never moves. The game knew; nothing on screen said so.
+    //
+    // The predicate lives HERE, next to the router that owns it, rather than
+    // being re-derived from `customerType` in main.js. A HUD line that guessed
+    // the rule would go wrong in exactly the case the rule was written for —
+    // that is FOUND_FALSE's "right object, wrong variable" with a longer fuse.
+    //
+    // Returns null when there is nothing to say, so the caller has no rule of
+    // its own to get wrong.
+    // 3.3 (Goal 25) — THE FACADE FORWARDS, and this is where the trap is.
+    //
+    // ch is a NARROW facade: an accessor added to ledgerBook.js is invisible to
+    // courseScene and to every driver until it is named here. That has already
+    // cost this project a debugging session — a working implementation reported
+    // as NOT BUILT because the only thing missing was a line in this object.
+    // Both halves go in together: the per-frame setter and the read-back the
+    // 3.3 check asks for.
+    ledgerProp: () => ledgerProp,
+    setLedgerAimed: (on) => ledgerBook.setAimed?.(on),
+    debugLedgerOutline: () => ledgerBook.debugOutline?.() ?? null,
+    deskHoldup: () => {
+      const head = counterQueue[0];
+      if (!head) return null;
+      // already at the till: the player is serving them, the line is moving
+      if (register.getCustomer && register.getCustomer() === head) return null;
+      if (!openDeskCustomer(head) && !deskActionableWalkIn(head)) return null;
+      return {
+        name: head.fullName || head.name || 'The customer',
+        // everyone else in the line, whatever they came for
+        behind: Math.max(0, counterQueue.length - 1),
+        kind: head.reservationId != null ? 'check-in' : 'tee time',
+      };
+    },
     reservationCustomer: (id) => {
       const customer = customers.find((c) => sameReservationId(c.reservationId, id));
       return reservationCustomerSnapshot(customer);
@@ -10953,9 +13852,138 @@ export function makeClubhouse(ctx) {
       releaseReservationCustomer(customer, 'completed');
       return { ok: true, alreadyReleased, customer: reservationCustomerSnapshot(customer) };
     },
+    // The desk-errand sibling of sendToCounter(): a walk-in golfer standing at
+    // the service queue asking for a tee time. Same contract — it skips the
+    // floor walk, not the accounting; the ask, the queue join, and the booking
+    // all run the production path. options.requestedTeeMinute pins the ask
+    // for deterministic tests; omitted, the customer draws one at spawn.
+    sendWalkInToDesk(options = {}) {
+      // A staged desk errand is PURE by default: a rolled combined-visit
+      // retail plan would send the walker to the shelves instead of the
+      // queue, and every L1 driver depends on them arriving at the desk.
+      // Pass skipRetailPlan:false to stage the COMBINED case instead, which
+      // needs the natural route left alone so the shop half is actually
+      // walked before the counter.
+      const pureDeskErrand = options.skipRetailPlan !== false;
+      const c = spawnCustomer(false, null, {
+        forceWalkIn: true,
+        skipRetailPlan: pureDeskErrand,
+        requestedTeeMinute: options.requestedTeeMinute,
+      });
+      if (!c) return null;
+      c.scriptedVisit = true;
+      if (!pureDeskErrand) {
+        c.entered = true;
+        return c;
+      }
+      const q = queueSlotW(0);
+      c.mesh.position.set(q.x, c.mesh.position.y, q.z);
+      const regW = L2W(COUNTER.registerX, COUNTER.registerZ);
+      c.stops = [
+        { kind: 'counter', x: q.x, z: q.z, faceX: regW.x, faceZ: regW.z },
+        { kind: 'exit', x: doorW.x, z: doorW.z + 2.6 },
+        { kind: 'gone', x: doorW.x, z: doorW.z + 6 },
+      ];
+      c.stopIdx = 0;
+      c.entered = true;
+      return c;
+    },
+    // read-only QA: the staged-customer HANDLE (sendToCounter returns the
+    // display name; drivers need the live entity to watch phases/poses)
+    customerByName: (n) => customers.find((c) => c.name === n || c.fullName === n) || null,
+    // C3 (Goal 24): where the head of the line physically stands, in world
+    // space. A driver measuring "did they hand goods over before their turn"
+    // needs the floor position, not the queue array index — the two disagree for
+    // several seconds every time the line advances, which is the whole bug.
+    queueHeadSlot: () => {
+      const s = queueSlotW(0);
+      return { x: s.x, z: s.z };
+    },
+    // P1 (Goal 25 playtest) — WHERE THE LINE STANDS, AND WHO IS IN FRONT OF WHOM.
+    //
+    // Reports through the SAME functions the placement gate uses
+    // (customerIsAtTheDesk, and the corridor geometry deskApproachIsClear
+    // measures), so a driver cannot certify a rule its own copy invented. The
+    // body gap is recomputed here from live world positions rather than read
+    // back as a boolean, because "did it refuse" and "was anyone actually in the
+    // way" are different questions and a probe that can only see the first
+    // cannot tell a working gate from an empty shop.
+    queueSlotForIndex: (i) => {
+      const s = queueSlotW(Math.max(0, Math.floor(i)));
+      return { x: s.x, z: s.z };
+    },
+    stagingPointWorld: () => {
+      const p = L2W(REGISTER.staging.x, REGISTER.staging.z);
+      return { x: p.x, z: p.z };
+    },
+    debugQueueCorridors: () => {
+      const staging = L2W(REGISTER.staging.x, REGISTER.staging.z);
+      return counterQueue.map((c, index) => {
+        if (!c?.mesh) return { index, name: c?.name ?? null, mesh: false };
+        const ax = c.mesh.position.x;
+        const az = c.mesh.position.z;
+        const vx = staging.x - ax;
+        const vz = staging.z - az;
+        const len2 = (vx * vx) + (vz * vz);
+        let minGap = Infinity;
+        let blockedBy = null;
+        if (len2 >= 1e-4) {
+          for (const other of customers) {
+            if (other === c || !other.mesh) continue;
+            const t = (((other.mesh.position.x - ax) * vx) + ((other.mesh.position.z - az) * vz)) / len2;
+            if (t <= 0.15 || t >= 1) continue;
+            const cx = ax + (vx * t);
+            const cz = az + (vz * t);
+            const gap = Math.hypot(other.mesh.position.x - cx, other.mesh.position.z - cz);
+            if (gap < minGap) { minGap = gap; blockedBy = other.name || null; }
+          }
+        }
+        return {
+          index,
+          name: c.name || null,
+          atDesk: customerIsAtTheDesk(c),
+          awaitingCheckout: !!c.awaitingCheckout,
+          hasCart: !!(c.cart && c.cart.length),
+          distanceToHeadSlotYd: +Math.hypot(
+            ax - queueSlotW(0).x, az - queueSlotW(0).z,
+          ).toFixed(3),
+          corridorMinBodyGapYd: Number.isFinite(minGap) ? +minGap.toFixed(3) : null,
+          blockedBy,
+        };
+      });
+    },
+    // B5 (Goal 24) — CLEAR THE PERSON AT THE COUNTER.
+    //
+    // "When the game wedges or I do not want them there, I need a way to clear
+    // them." This is deliberately routed through removeCustomer, which is the
+    // single funnel every shopper already leaves through: it voids the live
+    // transaction so the register cannot bank a sale for goods that have gone
+    // back on the shelf, returns the stock, releases fixture claims, drops them
+    // from the queue and lets the register go. Anything hand-rolled here would
+    // be the money-out-of-nothing bug that comment was written about.
+    //
+    // Reported honestly: nothing to clear returns null rather than pretending.
+    dismissCounterCustomer() {
+      const atTill = register.getCustomer();
+      const target = atTill || counterQueue[0]
+        || customers.find((c) => c.awaitingCheckout || (c.cart && c.cart.length));
+      if (!target) return null;
+      const name = target.fullName || target.name || null;
+      const index = customers.indexOf(target);
+      if (index < 0) return null;
+      // removeCustomer SPLICES the array itself (last line of it). Splicing
+      // again here removed an innocent bystander standing behind them.
+      removeCustomer(index);
+      return name;
+    },
     sendToCounter(skuIds, payMethod = null) {
       const c = spawnCustomer(false);
       if (!c) return null;
+      // Placed on purpose, so the closed-sign sweep leaves them alone. Without
+      // this a staged shopper is evicted before reaching the till whenever the
+      // shop is shut — which is every fresh profile, since a new day opens
+      // CLOSED and a harness has no reason to know it must flip the sign.
+      c.scriptedVisit = true;
       // An explicit method is the scripted/QA override; otherwise the customer
       // keeps the balanced-bag preference they drew at spawn.
       if (payMethod === 'cash' || payMethod === 'card') c.payMethod = payMethod;
@@ -11120,6 +14148,27 @@ export function makeClubhouse(ctx) {
       drawsThroughGeometry: senseMat.depthTest === false,
       clusters: debrisState(state).filter((d) => d && d.a > 0.001).length,
       totalDebris: +totalDebris(state).toFixed(3),
+      // D3: which medium each marker belongs to, and how many were withheld
+      // because the held tool cannot shift them. `tool: null` means no cleaning
+      // tool is out and everything is shown.
+      tool: senseTool,
+      media: senseTool ? toolMedia(senseTool) : [MEDIUM.DEBRIS, MEDIUM.GRIME],
+      debrisMarkers: senseTally.debris,
+      grimeMarkers: senseTally.grime,
+      hiddenByTool: senseTally.hiddenByTool,
+      perInstanceColour: !!senseMesh.instanceColor,
+      // J1: on foot the reveal draws the OBJECTS — pile ghosts and cell-fitted
+      // stain quads — and the sphere pillars only exist in columns mode.
+      presentation: senseColumns ? 'columns' : 'objects',
+      ghostGrit: senseGhostGrit.count,
+      ghostLitter: senseGhostLitter.count,
+      grimeQuads: senseGrimeQuad.count,
+      // Q1: how many CELLS carry grime vs how many speckles were drawn for
+      // them. A blob-style reveal draws one per cell; the specific-mess
+      // reveal draws several, each far smaller than a cell.
+      grimeCellsDirty: senseTally.grimeCellsDirty ?? 0,
+      grimeCellsShown: senseTally.grime,
+      grimeCellSize: +Math.min(RENO.room.w / RENO.grid.w, RENO.room.d / RENO.grid.h).toFixed(3),
     }),
     cleaningLabel: (toolId) => {
       const status = cleaningStatus(state);
@@ -11143,7 +14192,26 @@ export function makeClubhouse(ctx) {
     bagLoad: () => cleaningStatus(state)?.bag.load || 0,
     emptyPan: () => emptyPanIntoBag(state).moved,
     disposeBag: () => disposeTiedBag(state),
-    customers, doors, // QA access
+    // `customers` is NOT re-exported here. It was, and being the LATER key in
+    // the same object literal it silently overwrote the accessor 350 lines
+    // above, so `clubhouse().customers()` threw "not a function" for every
+    // driver that used the documented form — which is why item 14 could not be
+    // confirmed last session. One name, one meaning: customers() is a getter.
+    doors, // QA access
+    // C6 acceptance: "N of M visits contained both a purchase and a booking".
+    // A visit ends by leaving the customers array, so the answer has to be
+    // accumulated as it happens rather than counted at the end.
+    visitTally: () => ({ ...visitTally }),
+    // The desk bridge, read-only for QA. simplifiedRegisterMode reaches it
+    // through B; an acceptance run that has to PLAY the desk (a check-in is a
+    // player action) had no way in at all.
+    frontDeskBridge: () => B.frontDeskReservations || null,
+    // L3: the club register on the desk - main.js opens it (enterLedger)
+    ledgerBook,
+    // A2: which building this is, and every building this session has built
+    // before it. One entry means one clubhouse was ever drawn.
+    presentation: requestedClubhousePresentation,
+    buildLog: () => CLUBHOUSE_BUILD_LOG.map((entry) => ({ ...entry })),
     collisionDiagnostics: () => Object.freeze(registeredCols.map((collider, index) => {
       const primitiveMetadata = {};
       for (const [key, value] of Object.entries(collider)) {
@@ -11185,6 +14253,17 @@ export function makeClubhouse(ctx) {
         doorMode: shedPresentation ? 'dormant' : 'live',
       };
     },
+    // What the floor is aiming for, and why. Read-only; the arrival loop owns
+    // the number and this only reports it, so a driver can measure concurrency
+    // against the inputs that set it rather than inferring both from a count.
+    footfallDiagnostics: () => ({
+      target: footfallTarget,
+      solvedAtMinute: footfallTargetMinute,
+      drive: +shopFootfallDrive(state).toFixed(4),
+      capacity: shopCustomerCapacity(state),
+      onFloor: customers.length,
+    }),
+    navPerformanceDiagnostics,
     debugSpawn: spawnCustomer, // QA: force a walk-in
     setOrganicWalkins: (on) => { organicWalkins = !!on; }, // QA: silence random walk-ins for a scripted run
     // SIM-TIME-001: the game-speed multiplier, pushed in from the frame loop.
@@ -11192,6 +14271,13 @@ export function makeClubhouse(ctx) {
     // exactly why every NPC quantity used to be wall-bound.
     setSimSpeed,
     simTimeDiagnostics,
+    // QA-only: pin the combined-visit roll so a driver can observe the
+    // combined case and the desk-only case deliberately instead of waiting on
+    // chance. Never called by the game.
+    setCombinedVisitChance: (value) => {
+      COMBINED_VISIT_CHANCE = Math.max(0, Math.min(1, Number(value) || 0));
+      return COMBINED_VISIT_CHANCE;
+    },
     clearWalkins: () => { // QA: empty the floor (returns every held cart to the shelf) so a scripted run starts clean
       for (let i = customers.length - 1; i >= 0; i--) removeCustomer(i);
     },

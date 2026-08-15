@@ -235,7 +235,7 @@ async (page) => {
     const app = window.__fw;
     const { scene, camera } = app.scene3d;
     const clubhouse = app.scene3d.clubhouse();
-    const customerMesh = clubhouse.customers?.[0]?.mesh || null;
+    const customerMesh = clubhouse.customers()?.[0]?.mesh || null;
     let customerRoot = customerMesh;
     while (customerRoot?.parent && customerRoot.parent !== scene) customerRoot = customerRoot.parent;
 
@@ -336,7 +336,7 @@ async (page) => {
       const rootKeys = new WeakMap();
       const roots = new Map();
       const labelCounts = new Map();
-      const customerMesh = clubhouse.customers?.[0]?.mesh || null;
+      const customerMesh = clubhouse.customers()?.[0]?.mesh || null;
       let customerRoot = customerMesh;
       while (customerRoot?.parent && customerRoot.parent !== scene) customerRoot = customerRoot.parent;
       const knownRoles = new Map([

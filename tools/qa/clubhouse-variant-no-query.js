@@ -49,7 +49,7 @@
     await page.waitForTimeout(500);
     await page.evaluate(async ({ seed, key, variant }) => {
       localStorage.clear();
-      const E = await import('/src/sim/empire.js');
+      const E = await import(new URL('src/sim/empire.js', document.baseURI).href);
       localStorage.setItem('golfempire:autosave', JSON.stringify(E.empireSnapshot(E.newStarterEmpire('relaxed', seed))));
       if (variant) localStorage.setItem(key, variant);
       else localStorage.removeItem(key);
@@ -62,8 +62,8 @@
   };
 
   const measure = (label) => page.evaluate(async ({ stage, key }) => {
-    const THREE = await import('/vendor/three.module.js');
-    const L = await import('/src/data/shopLayout.js');
+    const THREE = await import(new URL('vendor/three.module.js', document.baseURI).href);
+    const L = await import(new URL('src/data/shopLayout.js', document.baseURI).href);
     const app = window.__fw;
     const scene = app.scene3d.scene;
     const named = (name) => {

@@ -40,7 +40,7 @@ async (page) => {
   // Fixture: stock, frozen 2 PM, no organic walk-ins, cashier at the v2 staff stand.
   const before = await page.evaluate(async (skuIds) => {
     const app = window.__fw;
-    const { REGISTER } = await import('/src/data/shopLayout.js');
+    const { REGISTER } = await import(new URL('src/data/shopLayout.js', document.baseURI).href);
     const clubhouse = app.scene3d.clubhouse();
     clubhouse.setOrganicWalkins(false);
     clubhouse.clearWalkins();
@@ -167,7 +167,7 @@ async (page) => {
   await page.waitForTimeout(900);
   const entry = await page.evaluate(async () => {
     const tx = window.__fw.scene3d.clubhouse().register.getTx();
-    const { totalOf } = await import('/src/sim/register.js');
+    const { totalOf } = await import(new URL('src/sim/register.js', document.baseURI).href);
     return { total: totalOf(tx), expectedCents: Math.round(totalOf(tx) * 100) };
   });
   const clickKey = async (actionId) => {

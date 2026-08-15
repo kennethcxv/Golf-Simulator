@@ -4,6 +4,12 @@
 // EMPIRE: one wallet, a property market, and whichever owned club is active.
 
 import { BALANCE, simSpeedMultipliers } from './sim/balance.js';
+import { installFaultGuard, reportFault, showFatalPanel } from './core/faultGuard.js';
+import { watchGpuHealth } from './core/gpuHealth.js';
+import { installQaLookCapture } from './core/qaLookCapture.js';
+import { createFrameCap } from './core/frameCap.js';
+import { createStartupHold, installStartupInputHold } from './core/startupHold.js';
+import { ringingPhoneRequest, acceptBookingRequest, declineBookingRequest, fmtSlot } from './sim/reservations.js';
 import { devSessionActive } from './data/clubhouseVariant.js';
 import { HOLE_STATUS, TURF_ZONES, ZONE } from './sim/constants.js';
 import {
@@ -12,14 +18,16 @@ import {
 } from './sim/empire.js';
 import { buildShedEmpire } from './sim/shedScene.js';
 import { SAVE_VERSION } from './sim/state.js';
+import { checkoutWalIsQuarantined, releaseCheckoutWalQuarantine } from './sim/checkoutSettlement.js';
 import { addHole, courseDesignRating, holeNumber } from './sim/course.js';
 import { formatMoney } from './core/utils.js';
 import { createHeldKeys, overviewCameraDelta, OVERVIEW_KEYS, isTextEntryTarget } from './core/heldKeys.js';
 import { calendarOf } from './sim/time.js';
 import {
   clearNotifications, clearToasts, confirmDialog, containFocus, el, modal, notify,
-  setNotificationScope, setPromptText, toast,
+  setNotificationScope, setPromptBindingsProvider, setPromptText, toast,
 } from './ui/ui.js';
+import { t } from './core/i18n.js';
 import { makeHud } from './ui/hud.js';
 import { makeCourseEditor } from './ui/courseEditor.js';
 import { makeInspectPanel } from './ui/inspectPanel.js';
@@ -27,13 +35,16 @@ import { makeGroundsPanel } from './ui/groundsPanel.js';
 import { makeClubPanel } from './ui/clubPanel.js';
 import { makeEmpirePanel } from './ui/empirePanel.js';
 import { openMarketplace } from './ui/marketplacePanel.js';
+import { STARTING_PROPERTY_NAME } from './sim/marketplace.js';
 import { makeObjectivesPanel } from './ui/objectivesPanel.js';
 import { makeShedChecklist } from './ui/shedChecklist.js';
 import { makeCourseMaintenancePanel } from './ui/courseMaintenancePanel.js';
 import { makeGolfDayPanel } from './ui/golfDayPanel.js';
 import { makeLaptop } from './ui/laptop.js';
+import { makePhoneUi } from './ui/phone.js';
 import { makeSettingsPanel } from './ui/settingsPanel.js';
 import { makeToolWheel } from './ui/toolWheel.js';
+import { makeToolTuner } from './ui/toolTuner.js';
 import { quadTransform, uvAt } from './core/laptopProjection.js';
 import { makeAudio } from './core/audio.js';
 import {
@@ -43,7 +54,10 @@ import { makeMenu } from './screens/menu.js';
 import {
   inspectData, loadDataWithStatus, saveData, summarizeSave,
 } from './core/storage.js';
-import { applyDocumentPreferences, makePreferences } from './core/preferences.js';
+import {
+  applyDocumentPreferences, makePreferences, RESOLUTION_PRESETS, SHADOW_QUALITY_LEVELS,
+} from './core/preferences.js';
+import { actionForKey, keyForAction, describeKey } from './core/keyBindings.js';
 import { conditionRating, sectionTurfSummary, sectionStatus } from './sim/turf.js';
 import { shopCondition, vacuumOwned, tickDeliveries } from './sim/shop.js';
 import {
@@ -53,7 +67,9 @@ import {
 } from './sim/register.js';
 import { ownedWasher } from './sim/washing.js';
 import { liveGolfSummary, setGolfSimulationFocus } from './sim/golfDay.js';
-import { BELT_ORDER, CLEANING_TOOLS } from './data/cleaningTools.js';
+import {
+  BELT_ORDER, CLEANING_TOOLS, MEDIUM, MEDIUM_STYLE, toolMedia,
+} from './data/cleaningTools.js';
 import { skuById } from './data/shopItems.js';
 import { makeCourseScene } from './render3d/courseScene.js';
 import { deliveryEtaText } from './sim/deliveryEta.js';
@@ -79,10 +95,20 @@ import {
   levelDivot,
 } from './sim/courseMaintenance.js';
 
+// A (Goal 20): before ANY listener is registered, a QA launch swaps the DOM's
+// pointer-lock primitive for one that does not seize the operator's real
+// cursor. Inert in the shipped game — see src/core/qaLookCapture.js.
+installQaLookCapture();
+
 const canvas = document.getElementById('game');
 const uiRoot = document.getElementById('ui');
 const preferences = makePreferences();
 applyDocumentPreferences(preferences.values);
+// prompts print the BOUND key for every [E]/[X]/... token; a rebind repaints
+// them because setPromptBindingsProvider bumps the render revision, and the
+// subscribe below bumps it again on every later preference write
+setPromptBindingsProvider(() => preferences.values.controls.bindings);
+preferences.subscribe(() => setPromptBindingsProvider(() => preferences.values.controls.bindings));
 
 // ?scene=shed boots straight past the menu into the maintenance-shed test scene,
 // on its own save keys (golfempire:shed-autosave, +-meta, +slots) so it never
@@ -109,6 +135,9 @@ const scopedKey = (key) => (sceneScope ? `${sceneScope}-${key}` : key);
 setNotificationScope(sceneScope);
 
 const app = {
+  // the live preferences document, so a QA driver can audit whether a setting
+  // actually drives anything instead of only being written to storage
+  preferences,
   screen: 'menu', // 'menu' | 'market' | 'game'
   view: 'course', // one continuous world — the shop is a building you walk into
   courseMode: 'walk', // 'walk' (first-person, default) | 'overview' (management rig) | 'editor' (course editor)
@@ -130,6 +159,19 @@ const app = {
   preferences,
 };
 
+const NORMAL_PLAY_SPEED_IDX = Math.max(0, BALANCE.speeds.indexOf(1));
+const startupHold = createStartupHold();
+// This capture barrier is installed once, before UI and scene components add
+// their own capture handlers. The opaque veil catches hit-testing, but document
+// and window listeners would otherwise still receive its hidden input.
+installStartupInputHold({ scope: window, hold: startupHold });
+Object.defineProperty(app, 'startupHoldDiagnostics', {
+  value: startupHold.diagnostics,
+  enumerable: true,
+  configurable: false,
+  writable: false,
+});
+
 // Successful loads can surface migration/recovery details only after their new
 // scene's opaque prewarm veil has cleared. Keying by the deserialized empire
 // keeps the handoff explicit without changing every load caller's return shape.
@@ -149,6 +191,7 @@ let clubPanel = null;
 let empirePanel = null;
 let walkOverlay = null;
 let walkPrompt = null;
+let walkQueueNote = null;
 let walkLockHint = null;
 let walkCondition = null;
 let regHint = null;
@@ -164,6 +207,7 @@ let golfDayPanel = null;
 let menu = null;
 let gameUi = null;
 let toolWheel = null;
+let toolTuner = null; // B2: the live mop/broom tuning overlay (F9)
 let viewButtons = [];
 
 function walkActive() {
@@ -180,6 +224,99 @@ function presentationMode() {
   if (app.courseMode === 'editor') return 'course-editor';
   if (app.courseMode === 'overview') return 'overview';
   return 'walk';
+}
+
+// PHASE 8 (Goal 26) — ONE ESCAPE ROUTER, WITH EXPLICIT PRIORITY.
+//
+// "One top-level capture-phase Escape router with explicit priority. Nothing
+// lower-level double-handles it."
+//
+// Before this there were EIGHTEEN Escape handlers across nine files -- main.js,
+// simplifiedRegisterMode, courseEditor, laptop, phone, toolWheel and ui.js --
+// each deciding for itself, in whatever order the listeners happened to be
+// registered. That is why Escape could unwind two layers at once, or none.
+//
+// The router runs in the CAPTURE phase on window, so it sees the key before any
+// of them, and it calls stopImmediatePropagation() whenever it acts. A layer
+// therefore either gets handled here or is not reached at all -- which is the
+// literal meaning of "nothing lower-level double-handles it".
+//
+// THE ORDER IS THE BRIEF'S, verbatim:
+//   1. cancel an active drag or placement
+//   2. the ledger open or animating -> close it, restore camera and input
+//   3. the laptop, register, desk screen, phone or any modal -> unwind ONE layer
+//   4. otherwise the pause menu
+//
+// Each step returns a string when it acted, so escapeRouterLog records WHICH rung
+// fired. A router that silently does nothing and a router that unwound the wrong
+// layer are indistinguishable from outside without that.
+const escapeRouterLog = [];
+
+function escapeRouteOnce() {
+  // 1 — AN ACTIVE DRAG OR PLACEMENT. First because it is the most local thing
+  // the player is holding, and because abandoning it must never also close the
+  // screen it is being performed on.
+  try {
+    const build = buildApi();
+    if (build?.isActive?.()) { build.cancel?.(); return 'placement'; }
+  } catch { /* the build API is absent outside the editor */ }
+  try {
+    const boxes = boxPlacementApi();
+    if (boxes?.isActive?.()) { boxes.cancel?.(); return 'box-placement'; }
+  } catch { /* no carried box */ }
+  try {
+    if (toolWheel?.isOpen?.()) { toolWheel.close?.(); return 'tool-wheel'; }
+  } catch { /* ditto */ }
+
+  // 2 — THE LEDGER, including while it is still animating. The brief calls it
+  // out separately from the other modals because it owns the camera and the
+  // movement lock, and leaving either behind is the failure it is guarding.
+  try {
+    const ch = app.scene3d?.clubhouse?.();
+    if (ch?.ledgerHasThePlayer?.()) {
+      ch.ledgerBook?.setCarried?.(false);
+      ch.ledgerBook?.setOpen?.(false);
+      return 'ledger';
+    }
+  } catch { /* no clubhouse yet */ }
+
+  // 3 — ONE LAYER OF WHATEVER ELSE IS OPEN. Exactly one: the brief says "unwind
+  // one layer", so each of these returns immediately rather than falling
+  // through and closing the thing behind it too.
+  try {
+    const reg = app.scene3d?.clubhouse?.()?.register;
+    if (reg?.isActive?.()) { reg.leave?.({ restorePointer: false }); return 'register'; }
+  } catch { /* no register */ }
+  if (app.laptopOpen) { exitLaptop(); return 'laptop'; }
+  if (app.frontDeskOpen) { exitFrontDesk(); return 'desk-screen'; }
+  try {
+    if (phoneUi?.isOpen?.()) { phoneUi.close?.(); return 'phone'; }
+  } catch { /* no phone */ }
+
+  // 4 — OTHERWISE THE PAUSE MENU, and Escape closes it again when it is up.
+  if (isPauseOpen()) { closePauseMenu(); return 'pause-close'; }
+  openPauseMenu();
+  return 'pause-open';
+}
+
+function installEscapeRouter() {
+  window.addEventListener('keydown', (event) => {
+    if (event.key !== 'Escape') return;
+    // A text field owns its own Escape (clearing a search box), and stealing it
+    // would make the laptop's own search unusable.
+    const tag = event.target?.tagName;
+    if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+    if (app.screen !== 'game') return;
+    const rung = escapeRouteOnce();
+    escapeRouterLog.push({ at: Date.now(), rung });
+    if (escapeRouterLog.length > 64) escapeRouterLog.shift();
+    event.preventDefault();
+    // THE LINE THAT MAKES IT A ROUTER rather than a nineteenth handler.
+    event.stopImmediatePropagation();
+  }, true);
+  if (typeof window !== 'undefined') {
+    window.__fwEscapeLog = () => escapeRouterLog.slice();
+  }
 }
 
 function requestLook() {
@@ -206,9 +343,10 @@ function enterWalk(spawn) {
   // See GTAO_CONFIG in render3d/courseScene.js and tests/gtao-config.test.js.
   if (!yardHintShown && app.state && app.state.tractor && !app.state.tractor.repaired) {
     yardHintShown = true;
-    setTimeout(() => toast('The old tractor sits by the shed, east of the porch — she’d run again with some work.'), 1200);
+    setTimeout(() => toast(t('hud.theOldTractorSits')), 1200);
   }
   app.courseMode = 'walk';
+  app.scene3d?.setOverviewPin?.(false);
   app.scene3d.walk.enter(spawn);
   if (document.activeElement instanceof HTMLElement && document.activeElement !== document.body
     && document.activeElement.closest('#ui')) document.activeElement.blur();
@@ -326,6 +464,117 @@ function hasCarriedCarton() {
   return !!app.state?.shop?.deliveries?.boxes?.some((box) => box.loc === 'carried');
 }
 
+// D3/D4 (Goal 17) — ONE QUESTION: IS ANYTHING IN THE PLAYER'S HANDS?
+//
+// Carrying was never one mechanism. Cartons go through boxPlacementMode
+// (`hasCarriedBox`), the ledger has its own `setCarried`/`isCarried`, and
+// deliveries carry a third notion in save state. `hasCarriedCarton()` above
+// knows about the first and third and nothing about the book - which is why you
+// can cycle the whole cleaning belt with a ledger in your arms.
+//
+// This is the single predicate the belt, the prompts and the invariant all ask.
+// Adding a new carryable means adding one line HERE, not remembering to guard
+// four call sites, which is the "make this one system" D4 asks for.
+function carriedThing() {
+  if (hasCarriedCarton()) return 'carton';
+  try {
+    const book = app.scene3d?.clubhouse?.()?.ledgerBook;
+    if (book?.isCarried?.()) return 'ledger';
+  } catch { /* no clubhouse in this scene */ }
+  // D4's audit found a THIRD carry notion nobody had joined up: loose GOODS,
+  // tracked in `state.shop.stocking` rather than by either of the other two
+  // systems. `carriedBox(state) || carriedGoods(state)` appears together three
+  // times in clubhouse.js, which is the shape of a family that was known about
+  // locally and never given one name.
+  // The path is `state.shop.carry` - read from sim/stocking.js's own
+  // `carriedGoods()` rather than guessed at. My first attempt wrote
+  // `shop.stocking.carried`, which is a plausible name for a field that does
+  // not exist, and would have made this branch permanently false while looking
+  // completely reasonable.
+  if (app.state?.shop?.carry) return 'goods';
+  return null;
+}
+
+// D2 — WHAT THE SET-DOWN PREDICATE ACTUALLY SEES, READABLE FROM OUTSIDE.
+//
+// The set-down arm was measured RUNNING (a capture/bubble listener pair caught
+// `defaultPrevented` flipping false -> true across it) while the book stayed
+// carried. That puts the fault on one predicate — `carriedThing() === 'ledger'`
+// — and `carriedThing` is module-scope, so no driver could read what it returns
+// at the moment the key is pressed.
+//
+// Five links in this path were each settled by one live measurement: the
+// binding, keyboard delivery, `placeAt`, `ledgerKeyHandler`, and everything
+// upstream of the predicate. This is the sixth, and it exists because guessing
+// at it produced four wrong answers first.
+//
+// A read-only accessor. It calls the same function the handler calls and adds
+// the sub-answers that decide its branch order, so a driver can see WHICH of the
+// three families claimed the carry.
+if (typeof window !== 'undefined') {
+  window.__fwCarryDiag = () => {
+    let carton = null;
+    let ledger = null;
+    try { carton = hasCarriedCarton(); } catch (e) { carton = `threw: ${e.message}`; }
+    try { ledger = !!app.scene3d?.clubhouse?.()?.ledgerBook?.isCarried?.(); } catch (e) { ledger = `threw: ${e.message}`; }
+    return {
+      carriedThing: carriedThing(),
+      hasCarriedCarton: carton,
+      ledgerIsCarried: ledger,
+      shopCarry: app.state?.shop?.carry ?? null,
+      // The two that separate "entered and ineffective" from "never entered".
+      putDownCarriedCalls,
+      putDownCarriedLastSaw,
+    };
+  };
+}
+
+// D1/D2 (Goal 17) — NOTHING IS EVER ABANDONED IN MID-AIR.
+//
+// The mechanism, found rather than guessed: the carried ledger is positioned
+// every frame by `followCarry`, driven from `walk.x/walk.z/walk.yaw`
+// (clubhouse.js). Enter a station and the walk controller stops driving those,
+// so the book simply STOPS - hanging at waist height wherever the player last
+// stood. That is "the book stays hanging in the air where I was standing",
+// verbatim, and it is not a bug in carrying. It is a bug at the STATION
+// BOUNDARY, which means every station is a place a carried thing can be
+// stranded and fixing the cashier alone would leave the class untouched.
+//
+// So it is fixed once, here, at the boundary itself: anything in the player's
+// hands is put DOWN before a station takes over the camera. Put down where they
+// stand, which is where a person would set a book to use a till.
+// D2: how many times this has been ENTERED, and what it saw. Read through
+// window.__fwCarryDiag.
+//
+// "Entered and ineffective" and "never entered" are different bugs, and watching
+// side effects cannot tell them apart — six rounds of inference on this item all
+// foundered on exactly that. This counter is the only thing that distinguishes
+// them, and it costs one integer.
+let putDownCarriedCalls = 0;
+let putDownCarriedLastSaw = null;
+function putDownCarried() {
+  putDownCarriedCalls += 1;
+  const carried = carriedThing();
+  putDownCarriedLastSaw = carried;
+  if (!carried) return null;
+  if (carried === 'ledger') {
+    const book = app.scene3d?.clubhouse?.()?.ledgerBook;
+    const walk = app.scene3d?.walk;
+    if (!book || !walk) return null;
+    const off = app.scene3d.clubhouse().interior.position;
+    book.placeAt({
+      x: walk.x - Math.sin(walk.yaw) * 0.52 - off.x,
+      z: walk.z - Math.cos(walk.yaw) * 0.52 - off.z,
+      ry: walk.yaw,
+    });
+    if (audio.ready) audio.ledgerClose?.();
+    return 'ledger';
+  }
+  // Cartons already have their own placement verb and their own put-down; this
+  // predicate exists so a future carryable cannot be forgotten here.
+  return carried;
+}
+
 function seatPose(ch) {
   // the seat is fitted to the live camera, so the screen fills the view at any FOV or window shape
   const cam = app.scene3d && app.scene3d.camera;
@@ -347,6 +596,8 @@ const WALK_NEAR = 0.15;
 const LAPTOP_NEAR = 0.03;
 const LAPTOP_FOV = 34;
 const walkFov = () => preferences.values.camera.fov;
+// N2/F2: the one place a keyboard event becomes a game verb
+const boundAction = (e) => actionForKey(preferences.values.controls.bindings, e.key);
 function setCameraLens(fov, near) {
   const cam = app.scene3d && app.scene3d.camera;
   if (!cam || (cam.fov === fov && cam.near === near)) return;
@@ -356,7 +607,16 @@ function setCameraLens(fov, near) {
 }
 
 function enterLaptop(startPage = null) {
-  if (!walkActive() || app.laptopOpen || app.frontDeskOpen) return;
+  putDownCarried(); // D1: a station takes the camera; nothing is left floating
+  // 7 (Goal 25) — THE EXCLUSION HAS TO GO BOTH WAYS.
+  //
+  // `enterLedger()` already refuses while the laptop is open. Nothing refused
+  // the LAPTOP while the ledger owned input, so the guard was one-way and the
+  // two could stack: the Phase 7 matrix caught `ledgerOpen: true` and
+  // `laptopOpen: true` in the same sample. Escape then has to unwind two layers
+  // that should never have coexisted, and the book keeps suppressing movement
+  // underneath a screen that has its own idea of the camera.
+  if (!walkActive() || app.laptopOpen || app.frontDeskOpen || app.ledgerOpen) return;
   const ch = app.scene3d.clubhouse && app.scene3d.clubhouse();
   if (!ch) return;
   cancelToolKey();
@@ -433,6 +693,7 @@ function exitLaptop(silent) {
 // workflows remain independent. This mode borrows only the proven cashier pose;
 // it never enters registerMode or touches its live sale.
 function enterFrontDesk(reservationId = null) {
+  putDownCarried(); // D1: a station takes the camera; nothing is left floating
   if (!walkActive() || app.frontDeskOpen || app.laptopOpen || regActive()) return;
   const ch = app.scene3d?.clubhouse?.();
   const pose = ch?.register?.cashierPose?.();
@@ -465,8 +726,310 @@ function exitFrontDesk(silent = false) {
   }
 }
 
+// --- the ledger book (L3) -----------------------------------------------------
+// The club register on the front desk opens IN PLACE: the camera leans over the
+// open spread (the laptop focus pattern), pages turn physically, Escape or E
+// stands back up. No DOM UI — the book itself is the interface.
+let ledgerKeyHandler = null;
+let ledgerClickHandler = null;
+// B3 (Goal 18): the walk overlay (and its control line) hides the moment the
+// book rises, and the only key teaching left was the footer INSIDE the open
+// spread — a raised-shut book taught nothing. This is the same bottom chip
+// as the tool control line, phase-aware, alive for the whole interaction.
+let ledgerHintEl = null;
+
+// D3 (Goal 18): the phone booking channel. The desk phone rings for a couple
+// of game-minutes; the chip says WHO is calling and what they want (read
+// first, then decide), and Y/N answer it without leaving pointer lock —
+// booking rides the same bookSlot path as every other channel.
+let phoneChipEl = null;
+let phoneRingForId = null;
+let phoneLastBellAt = 0;
+let phoneUi = null;
+const phoneKeyLabel = () => describeKey(keyForAction(preferences.values.controls?.bindings, 'phone') || 't');
+function updatePhoneRing(nowMs) {
+  const state = app.state;
+  if (!state || app.screen !== 'game') { removePhoneChip(); return; }
+  const ring = app.laptopOpen || app.frontDeskOpen || regActive() ? null : ringingPhoneRequest(state);
+  if (!ring) { removePhoneChip(); return; }
+  // A1 (Goal 19): the ring is a RINGTONE now, and it keeps trilling whether
+  // the phone is up or in the pocket — it stops when the call is dealt with.
+  if (ring.id !== phoneRingForId || nowMs - phoneLastBellAt > 2600) {
+    phoneRingForId = ring.id;
+    if (audio.ready) (audio.phoneRing || audio.doorbell)?.();
+    phoneLastBellAt = nowMs;
+  }
+  // with the phone in hand the incoming-call screen carries the choice; the
+  // banner is only for a phone still in the pocket
+  if (phoneUi?.isOpen()) {
+    if (phoneChipEl) { phoneChipEl.remove(); phoneChipEl = null; }
+    return;
+  }
+  const cal = Math.floor(state.clock.minutes / 1440);
+  const when = `${ring.dayAbs === cal ? 'today' : `+${ring.dayAbs - cal}d`} ${fmtSlot(ring.minute)}`;
+  if (!phoneChipEl) {
+    phoneChipEl = el('div', { class: 'shop-lockhint phone-ring-chip' });
+    document.getElementById('ui')?.appendChild(phoneChipEl);
+  }
+  phoneChipEl.textContent = `${t('bookings.phone.ringing')} · ${t('bookings.request.row', { name: ring.holder, size: ring.partySize, when })} · Y ${t('bookings.accept')} · N ${t('bookings.decline')} · ${phoneKeyLabel()} ${t('phone.chip.open')}`;
+}
+function removePhoneChip() {
+  if (phoneChipEl) { phoneChipEl.remove(); phoneChipEl = null; }
+  phoneRingForId = null;
+}
+window.addEventListener('keydown', (event) => {
+  if (!phoneChipEl || !app.state) return;
+  const key = event.key.toLowerCase();
+  if (key !== 'y' && key !== 'n') return;
+  const ring = ringingPhoneRequest(app.state);
+  if (!ring) { removePhoneChip(); return; }
+  event.preventDefault();
+  event.stopPropagation();
+  if (key === 'y') {
+    const result = acceptBookingRequest(app.state, ring.id);
+    toast(result.ok ? `${ring.holder} · ${fmtSlot(ring.minute)}` : result.reason, result.ok ? 'good' : 'warn');
+    if (result.ok && audio.ready) audio.uiTick();
+  } else {
+    declineBookingRequest(app.state, ring.id);
+    if (audio.ready) audio.uiTick();
+  }
+  removePhoneChip();
+}, true);
+function updateLedgerHint() {
+  if (!app.ledgerOpen) {
+    if (ledgerHintEl) { ledgerHintEl.remove(); ledgerHintEl = null; }
+    return;
+  }
+  if (!ledgerHintEl) {
+    ledgerHintEl = el('div', { class: 'shop-lockhint ledger-keys-hint' });
+    document.getElementById('ui')?.appendChild(ledgerHintEl);
+  }
+  const b = preferences.values.controls?.bindings;
+  const key = (action, fallback) => describeKey(keyForAction(b, action)) || fallback;
+  const book = ledgerBookApi();
+  // D4 (Goal 19): ONE key opens and turns forward — E all the way through the
+  // book. F3 (Goal 20): and Q is the one that shuts it, not Esc.
+  ledgerHintEl.textContent = book && book.isOpen()
+    ? `${key('interact', 'E')} next page · ${key('moveLeft', 'A')} back · ${key('dirtSense', 'Q')} put the book away`
+    : `${key('interact', 'E')} open the book · ${key('dirtSense', 'Q')} put it back`;
+}
+function ledgerBookApi() {
+  const ch = app.scene3d?.clubhouse?.();
+  return ch && ch.ledgerBook ? ch.ledgerBook : null;
+}
+function enterLedger() {
+  if (!walkActive() || app.ledgerOpen || app.laptopOpen || app.frontDeskOpen || regActive()) return;
+  const book = ledgerBookApi();
+  if (!book) return;
+  cancelToolKey();
+  // the book's own footer teaches the keys, so it needs the LIVE bindings.
+  // D4 (Goal 19): the interact key opens AND turns forward; Esc closes.
+  book.setControlLabels?.({
+    prev: describeKey(keyForAction(preferences.values.controls?.bindings, 'moveLeft')) || 'A',
+    next: describeKey(keyForAction(preferences.values.controls?.bindings, 'interact')) || 'E',
+    // F3 (Goal 20): Q closes the book. It was Esc, which is the menu key
+    // everywhere else in the game and reads as "abandon" rather than "shut the
+    // book". Q is the near hand on the keyboard while E is the far one, which
+    // is the shape of opening and closing something you are holding.
+    close: describeKey(keyForAction(preferences.values.controls?.bindings, 'dirtSense')) || 'Q',
+  });
+  // THE BOOK COMES TO THE PLAYER (2026-08-05 ruling): no lens change, no
+  // camera focus — the journal rises to the face, the clasp frees, the cover
+  // swings. The camera holds still, exactly like the card reader.
+  // C1 (Goal 17): the FIRST press only brings the book up, SHUT. The second
+  // press opens it. advance() owns that order; this just refuses to continue if
+  // the book would not come (it is in your arms right now).
+  book.advance();
+  if (!book.isInHand?.()) return;
+  app.ledgerOpen = true;
+  document.body.classList.add('ledger-mode');
+  // C1 (Full_Goal_16): NEVER take control away. resetCameraInput() clears
+  // any strafe key held at the moment of opening (the C6 ordering case —
+  // open mid-strafe must not glide), but pointer lock STAYS: the player
+  // keeps looking around while the book rises, and the book follows the
+  // face. The old exitPointerLock() here was the "control is taken away".
+  resetCameraInput();
+  closeLeftPanels('none');
+  walkOverlay.style.display = 'none';
+  const viewToggle = document.querySelector('.view-toggle');
+  if (viewToggle) viewToggle.style.display = 'none';
+  ledgerKeyHandler = (event) => {
+    if (!app.ledgerOpen) return;
+    const key = event.key.toLowerCase();
+    // C6: page turns read the LIVE movement bindings, not literals — rebind
+    // strafe to J/L and J/L turn pages. stopPropagation is what actually
+    // CONSUMES the key: without it the walk controller's bubble listener
+    // still records the hold and the character strafes under the book.
+    const action = boundAction(event);
+    // F3 (Goal 20): Q is the close key and it is what the footer teaches.
+    // Escape still works and is deliberately NOT advertised: it is the key
+    // every player reaches for to get out of anything, and letting it fall
+    // through to the pause menu would open the pause veil on top of an open
+    // book, which is a worse state than an unadvertised second way out.
+    if (key === 'escape' || action === 'dirtSense') {
+      event.preventDefault();
+      event.stopPropagation();
+      exitLedger();
+    } else if (action === 'interact') {
+      event.preventDefault();
+      event.stopPropagation();
+      if (event.repeat) return; // a held E is one action, not a page-riffle
+      // D4 (Goal 19): ONE key, forward, the whole way — E raises the shut
+      // book, opens it, and then TURNS THE NEXT PAGE. It never closes;
+      // Esc is the one way down. ("Opening the book and turning to the next
+      // page should be the same key. Do not make me learn two.")
+      const held = ledgerBookApi();
+      if (held && !held.isOpen()) {
+        held.advance();
+        if (audio.ready) audio.ledgerOpen();
+        // the hint flips from "open the book" to the page controls a beat
+        // after the cover starts to swing
+        setTimeout(updateLedgerHint, 300);
+      } else if (held) {
+        const turned = held.turnPage(1);
+        if (turned && audio.ready) audio.ledgerTurn();
+      }
+    } else if (key === 'backspace') {
+      // PHASE 6 — "BACK AND FORWARD THAT BEHAVE." Backspace steps back through
+      // JUMPS, shift+Backspace forward. Deliberately not the arrow keys: those
+      // already turn pages, and conflating "go back a page" with "go back to
+      // where I was" is what makes a Back button untrustworthy.
+      //
+      // Unhandled when there is nowhere to go, rather than swallowed -- a key
+      // that silently does nothing teaches the player it is broken.
+      const book = ledgerBookApi();
+      const moved = event.shiftKey ? book?.navigateForward() : book?.navigateBack();
+      if (moved) {
+        event.preventDefault();
+        event.stopPropagation();
+        audio.ledgerTurn?.();
+      }
+    } else if (/^[1-9]$/.test(key)) {
+      // I3 (Goal 23): the contents list prints page numbers and now they work.
+      // Reaching The Deed on page 9 from the index was seven presses of E.
+      //
+      // PHASE 6 (Goal 26) — "OBVIOUS NAVIGATION TO EVERY SECTION FROM ANYWHERE."
+      //
+      // A page number is only navigation if you are looking at the contents
+      // page, which is the one place you do not need it. From page 7 the number
+      // keys addressed a folio the reader could no longer see. So a digit now
+      // means the Nth SECTION -- the same seven names the contents lists, in the
+      // same order, reachable from any page in the book.
+      //
+      // goToSection has existed and been exported since Goal 23 with ZERO call
+      // sites: "navigation to every section" was implemented and unreachable.
+      // This is the call site.
+      event.preventDefault();
+      event.stopPropagation();
+      const book = ledgerBookApi();
+      const sections = book?.sections?.() || [];
+      const wanted = sections[Number(key) - 1];
+      // Falls back to the page number when the digit is past the last section,
+      // so nothing a reader already learned stops working.
+      const jumped = wanted ? book.goToSection(wanted.id) : book?.goToPage(Number(key));
+      if (jumped) audio.ledgerTurn?.();
+    } else if (key === 'arrowright') {
+      // F4 (Goal 20): the moveRight binding (D by default) used to turn
+      // forward here as well as E. Two keys for one verb, one of them never
+      // taught by the footer, and the player found it by accident. E is the
+      // forward key; D does nothing in the book now. The arrows keep working
+      // because they are the one pair nobody has to be told about, and A still
+      // turns BACK, which is the direction E cannot express.
+      event.preventDefault();
+      event.stopPropagation();
+      const turned = ledgerBookApi()?.turnPage(1);
+      if (turned && audio.ready) audio.ledgerTurn();
+    } else if (key === 'arrowleft' || action === 'moveLeft') {
+      event.preventDefault();
+      event.stopPropagation();
+      const turned = ledgerBookApi()?.turnPage(-1);
+      if (turned && audio.ready) audio.ledgerTurn();
+    }
+  };
+  ledgerClickHandler = (event) => {
+    if (!app.ledgerOpen) return;
+    // C1: pointer lock stays on while reading, and a locked cursor has no
+    // meaningful clientX — the mouse BUTTONS are the page directions there
+    // (left = next, right = back). Unlocked clicks keep the screen-half rule.
+    const direction = document.pointerLockElement
+      ? (event.button === 2 ? -1 : 1)
+      : (event.clientX > window.innerWidth / 2 ? 1 : -1);
+    const turned = ledgerBookApi()?.turnPage(direction);
+    if (turned && audio.ready) audio.ledgerTurn();
+  };
+  window.addEventListener('keydown', ledgerKeyHandler, true);
+  window.addEventListener('pointerdown', ledgerClickHandler, true);
+  updateLedgerHint(); // B3: teach the keys from the first (shut) stage
+  // E2: the book has its own voice — clasp, cover, leaves — not a menu tick
+  if (audio.ready) audio.ledgerOpen();
+}
+function exitLedger(silent = false) {
+  if (!app.ledgerOpen) return;
+  app.ledgerOpen = false;
+  document.body.classList.remove('ledger-mode');
+  updateLedgerHint(); // B3: the chip leaves with the book
+  if (ledgerKeyHandler) window.removeEventListener('keydown', ledgerKeyHandler, true);
+  if (ledgerClickHandler) window.removeEventListener('pointerdown', ledgerClickHandler, true);
+  ledgerKeyHandler = null;
+  ledgerClickHandler = null;
+  // the close beat runs in the book itself: cover shuts, clasp returns, and
+  // it floats back to wherever it rose from
+  ledgerBookApi()?.setOpen(false);
+  if (!silent && audio.ready) audio.ledgerClose();
+  const viewToggle = document.querySelector('.view-toggle');
+  if (viewToggle) viewToggle.style.display = '';
+  resetCameraInput();
+  if (!silent && walkActive()) {
+    walkOverlay.style.display = '';
+    if (audio.ready) audio.uiTick();
+  }
+}
+
 const audio = makeAudio(preferences);
 app.audio = audio;
+
+// 1.4 (Goal 26) — THE ONE CLICK SINK FOR THE WHOLE SESSION.
+//
+// Module scope, and idempotent, because it is called from two places that cannot
+// be collapsed into one: at UI construction (so the menu and its dialogs are
+// covered from the first frame) and again on the game-start path (so a rebuilt
+// game UI cannot end up without it). Installing twice would double every click,
+// so the guard is not decoration.
+//
+// E1: the laptop subtree is excluded -- its own dispatcher already ticks every
+// press centrally in laptop.js, and covering it here would be the second
+// population all over again.
+const CANCEL_WORDS = /^\s*(cancel|back|close|dismiss|not now|no thanks|never mind)\s*$/i;
+const DESTRUCTIVE = /(danger|destructive|delete|remove|discard|void|quit|restart)/i;
+let uiClickSinkInstalled = false;
+function installUiClickSink() {
+  if (uiClickSinkInstalled) return;
+  uiClickSinkInstalled = true;
+  window.__fwUiClick = (node) => {
+    if (!audio.ready) return;
+    if (node && node.closest && node.closest('.laptop-screen')) return;
+    // 1.4: "Disabled controls stay silent." A disabled control did not act, and
+    // the capture-phase listener below sees presses on it regardless.
+    if (node && (node.disabled || node.getAttribute?.('aria-disabled') === 'true')) return;
+    // 1.4: "Cancel and destructive actions get their own variant." Classified
+    // from what the control IS -- its label, its class, its data-action -- so a
+    // dialog's Cancel sounds like a cancel without every dialog knowing it.
+    const label = (node?.textContent || node?.getAttribute?.('aria-label') || '').trim();
+    const cls = `${node?.className || ''} ${node?.dataset?.action || ''}`;
+    if (node && (CANCEL_WORDS.test(label) || DESTRUCTIVE.test(cls) || DESTRUCTIVE.test(label))) {
+      if (audio.uiCancel) { audio.uiCancel(); return; }
+    }
+    audio.uiTick();
+  };
+  // Buttons born outside the factory still click. Factory buttons carry
+  // __fwClickCue and bring their own pointerdown listener, so skipping them here
+  // is what keeps one press to one sound.
+  document.addEventListener('pointerdown', (event) => {
+    const target = event.target;
+    const btn = target && target.closest ? target.closest('button') : null;
+    if (btn && !btn.__fwClickCue) window.__fwUiClick(btn);
+  }, true);
+}
 const TOOL_AUDIO_LOOP = {
   fungicide: 'hose',
   spreader: 'divot',
@@ -511,14 +1074,14 @@ function handleGuideTick(result) {
   if (!result) return;
   const advanced = result.advanced || [];
   if (advanced.length > 3) {
-    toast(`${advanced.length} completed objectives were recovered from the real world state.`, 'good');
+    toast(`${advanced.length} ${advanced.length === 1 ? 'job was' : 'jobs were'} already done. Ticked off.`, 'good');
   } else {
     for (const step of advanced) toast(`✓ ${step.title}`, 'good');
   }
-  if (result.phaseChanged) toast(`Milestone — ${result.phaseChanged.title}`, 'good');
+  if (result.phaseChanged) toast(t('hud.milestone', { title: result.phaseChanged.title }), 'good');
   if (result.firstDayCompleted) showFirstDaySummary();
   if (advanced.length || result.phaseChanged || result.firstDayCompleted) {
-    if (objectivesPanel) objectivesPanel.refresh();
+    if (objectivesPanel) objectivesPanel.refresh(result.view);
     if (laptopUi?.isOpen()) laptopUi.render();
   }
 }
@@ -564,7 +1127,7 @@ function showCampaignArrival() {
 function enterEditor() {
   if (editorActive() || !app.scene3d || app.screen !== 'game') return;
   if (hasCarriedCarton()) {
-    toast('Set down or recycle the carton before opening the course editor.', 'warn');
+    toast(t('hud.setDownOrRecycle'), 'warn');
     return;
   }
   closePauseMenu();
@@ -612,6 +1175,7 @@ function exitEditor() {
     enterWalk('resume');
   } else {
     app.courseMode = 'overview';
+    app.scene3d?.setOverviewPin?.(true);
     const hint = document.querySelector('.hint-bar');
     if (hint) hint.style.display = '';
   }
@@ -672,13 +1236,13 @@ function announceOutbreaks() {
   for (const key of now) {
     if (!lastDiseasedNames.has(key)) {
       const [disease, name] = key.split('|');
-      toast(`${disease} has broken out on ${name}.`, 'warn');
+      toast(t('hud.diseaseOutbreak', { disease, hole: name }), 'warn');
     }
   }
   for (const key of lastDiseasedNames) {
     if (!now.has(key)) {
       const [disease, name] = key.split('|');
-      toast(`${name} has shaken off the ${disease.toLowerCase()}.`);
+      toast(t('hud.diseaseCleared', { hole: name, disease: disease.toLowerCase() }));
     }
   }
   lastDiseasedNames = now;
@@ -687,19 +1251,23 @@ function announceOutbreaks() {
 // --- game lifecycle -----------------------------------------------------------
 
 let sceneStartGeneration = 0;
+let disposeGpuHealthWatch = null;
 let pendingSceneBarrier = null;
 
 function destroyCurrentScene({ hideVeil = false } = {}) {
+  disposeGpuHealthWatch?.();
+  disposeGpuHealthWatch = null;
   if (app.laptopOpen) exitLaptop(true);
   toolWheel?.close('scene-change');
   clearNotifications();
   audio.setToolLoop(null);
   audio.setPaused(false);
   const scene = app.scene3d;
+  startupHold.cancelForScene(scene);
   const barrier = scene?.assetBarrier ? scene.assetBarrier(12000) : null;
   if (scene) scene.dispose();
   if (app.scene3d === scene) app.scene3d = null;
-  app.prewarming = false;
+  app.prewarming = startupHold.isPending();
   if (hideVeil && loadVeil) loadVeil.hide();
   if (barrier && !barrier.idle) {
     const pending = Promise.resolve(barrier.promise).catch(() => {});
@@ -713,12 +1281,30 @@ function destroyCurrentScene({ hideVeil = false } = {}) {
 
 function startGame(state, loadNotice = null) {
   closePauseMenu({ resume: false }); // any pause overlay dies with the old world
+  // Playtest 5 P0 — THE COURSE EDITOR IS UNUSABLE.
+  //
+  // startGameNow already hid the editor, but it does so AFTER the new scene is
+  // built, and the gap in between is the whole defect: the teardown below nulls
+  // app.scene3d, then this function waits two frames and up to a 12 s asset
+  // barrier before startGameNow runs. For that whole stretch the editor
+  // was live, painted, and holding five capture-phase window listeners over a
+  // scene that no longer existed. The editor's own pause shell carries "Load
+  // game" and "Reload the game", so a player reaches it without leaving.
+  //
+  // Hidden here instead: while the OLD scene is still alive, which is the only
+  // moment hide() can hand its camera limits and overrides back.
+  if (editorUi?.isActive()) editorUi.hide();
   const generation = ++sceneStartGeneration;
+  const startupToken = startupHold.begin({
+    generation,
+    intendedSpeedIdx: NORMAL_PLAY_SPEED_IDX,
+  });
   const veil = ensureLoadVeil();
   veil.show('Preparing the course');
   app.prewarming = true;
   app.speedIdx = 0;
   resetCameraInput();
+  resetStartupInputLatches();
 
   // A single animation-frame callback runs before paint. Yield through two so
   // the opaque veil reaches the screen before teardown and course construction
@@ -732,22 +1318,47 @@ function startGame(state, loadNotice = null) {
         veil.set('Finishing the previous course load');
         barrier.finally(() => {
           if (generation !== sceneStartGeneration) return;
-          startGameNow(state, loadNotice, generation);
+          startGameNow(state, loadNotice, generation, startupToken);
         });
         return;
       }
-      startGameNow(state, loadNotice, generation);
+      startGameNow(state, loadNotice, generation, startupToken);
     });
   });
 }
 
-function startGameNow(state, loadNotice = null, generation = sceneStartGeneration) {
+function startGameNow(
+  state,
+  loadNotice = null,
+  generation = sceneStartGeneration,
+  startupToken = null,
+) {
   app.state = state;
+  // The veil is already opaque here. Paint the real campaign-derived chip now,
+  // before scene construction and long before the first doorway threshold, so
+  // entry changes only the opacity of an already-sized layer.
+  primeWalkConditionForState(app.state);
   // Loading a club is a pure restore boundary. The rolling tee-sheet horizon
   // advances in dailyTick; generating it here would post online deposits while
   // the opaque loading veil is still up and make Continue change saved cash.
   app.screen = 'game';
   app.scene3d = makeCourseScene(canvas, state);
+  // GPU HEALTH (2026-08-13): the owner played a whole session at 3 fps because
+  // his GPU process died and nothing in the game said so -- software rendering
+  // spent a night masquerading as a performance regression. The watch names
+  // both observable forms: a context that boots in SwiftShader, and a context
+  // lost mid-session. reportFault lands it in crash.log next to the checkout
+  // diagnostics; the toast tells the player the one thing that helps (restart).
+  disposeGpuHealthWatch?.();
+  disposeGpuHealthWatch = watchGpuHealth({
+    canvas,
+    gl: app.scene3d.renderer?.getContext?.(),
+    report: (origin, message, extra) => reportFault(origin, new Error(message), extra || {}),
+    notify: (kind) => toast(t(kind === 'software' ? 'gpu.softwareMode' : 'gpu.contextLost'), 'warn'),
+  });
+  if (!startupHold.attachScene(startupToken, app.scene3d)) {
+    throw new Error('Course startup hold ownership changed before scene attachment.');
+  }
   // walk-up inspection: the walking controller asks, the app answers with the
   // same sections and status words the top-down click-to-inspect always used
   app.scene3d.walk.hooks.toast = (msg, kind) => {
@@ -763,7 +1374,44 @@ function startGameNow(state, loadNotice = null, generation = sceneStartGeneratio
   app.scene3d.walk.hooks.recovered = (how) => toast(
     how === 'lastSafe' ? 'Stepped you back to where you last had room.' : 'Moved you clear of the furniture.',
   );
-  app.scene3d.walk.hooks.sfx = (name) => { if (audio.ready && audio[name]) audio[name](); };
+  // G2 (Goal 23): the extra arguments are forwarded. They were dropped here, so
+  // a cue that wants to know HOW FULL the drawer already is — which is the whole
+  // difference between a note landing on wood and a note landing on nine other
+  // notes — could not be told, and every deposit would have sounded identical.
+  app.scene3d.walk.hooks.sfx = (name, ...args) => {
+    if (!audio.ready) return;
+    // ITEM 2: the RESULT travels back. A cue that answers a question -- how long
+    // is the drawer, did the sequence start -- was answering into a void, so the
+    // register could not time the cash against the drawer it had just opened.
+    if (audio[name]) return audio[name](...args);
+    // E1: an unmapped cue is a sender defect, not a silent no-op. Named once
+    // per cue; the list stays readable for QA drivers.
+    window.__fwUnknownCues = window.__fwUnknownCues || [];
+    if (!window.__fwUnknownCues.includes(name)) {
+      window.__fwUnknownCues.push(name);
+      console.warn('[audio] unknown cue:', name);
+    }
+  };
+  app.scene3d.walk.hooks.footstep = (surface, intensity) => {
+    if (audio.ready) audio.footstep(surface, intensity);
+    // R-G: the surface is logged beside each step so a driver can assert
+    // 100% agreement between where the player stands and which voice spoke.
+    const log = (window.__fwFootsteps = window.__fwFootsteps || []);
+    const w = app.scene3d?.walk?.state;
+    log.push({ at: performance.now(), surface, x: w ? +w.x.toFixed(2) : null, z: w ? +w.z.toFixed(2) : null });
+    if (log.length > 240) log.splice(0, log.length - 240);
+  };
+  // E1: the button-factory click sink. The laptop subtree is excluded here
+  // (its dispatcher already ticks every press centrally in laptop.js).
+  // 1.4 — "Cancel and destructive actions get their own variant. Disabled
+  // controls stay silent."
+  //
+  // Routed here rather than at each call site because there is one sink and
+  // dozens of call sites, and a per-site rule would be wrong at whichever site
+  // somebody forgot. The classification reads what the button IS -- its class,
+  // its type, its accessible name -- so a dialog's Cancel sounds like a cancel
+  // without every dialog having to know it.
+  installUiClickSink();
   // Task-4 cleaning cadence hooks, routed through the generic audio surface: a stroke turnaround
   // fires a velocity-scaled accent (rate-limited in audio), a spray squeeze fires a trigger puff.
   app.scene3d.walk.hooks.onStrokeReversal = (toolId, intensity) => {
@@ -782,6 +1430,24 @@ function startGameNow(state, loadNotice = null, generation = sceneStartGeneratio
     if (!inContact && broomContactWas && audio.broomStop) audio.broomStop();
     broomContactWas = inContact;
   };
+  // E3 — the same three layers for the other eight tools. The broom keeps its
+  // own authored transients above; this drives every other tool's loop from the
+  // live stroke intensity and fires a shaped contact/release burst on the edges,
+  // rendered from the shape the tool itself declares (cleaningTools.js `tone`).
+  let toolContactWas = false;
+  let toolContactKind = null;
+  app.scene3d.walk.hooks.onToolFeel = (toolId, intensity, inContact, surface) => {
+    if (!audio.ready) return;
+    audio.setToolLoopIntensity?.(toolId, intensity, surface);
+    if (inContact && !toolContactWas) audio.toolContactStart?.(toolId);
+    // Release on the tool that was actually in contact, not on whatever is in
+    // hand by the time the edge lands — swapping mid-stroke would otherwise play
+    // the new tool's tail for the old tool's work.
+    if (!inContact && toolContactWas) audio.toolContactStop?.(toolContactKind || toolId);
+    toolContactWas = inContact;
+    if (inContact) toolContactKind = toolId;
+  };
+
   // Switching, stowing, focus loss, and mode changes are all trigger releases. The renderer owns
   // those lifecycle edges, so it tells audio here instead of waiting for a pointerup that may
   // never arrive (alt-tab and rapid belt cycling are the common cases).
@@ -793,15 +1459,25 @@ function startGameNow(state, loadNotice = null, generation = sceneStartGeneratio
   };
   // the clubhouse's in-world management surfaces route through these
   app.scene3d.walk.hooks.openLaptop = (startPage = null) => enterLaptop(startPage);
+  app.scene3d.walk.hooks.openLedger = () => enterLedger();
+  // F2: the one place that knows a station panel is up. courseScene's dirt
+  // sense asks it every frame so the reveal cannot stay lit behind the till, the
+  // laptop lid or the ledger — the player is reading, not looking round.
+  app.scene3d.walk.hooks.stationOpen = () => !!(
+    app.laptopOpen || app.ledgerOpen || app.frontDeskOpen || regActive()
+  );
+  // N2/F2: the walk controller resolves movement and hold verbs through the
+  // same binding table as the dispatcher above
+  app.scene3d.walk.hooks.bindings = () => preferences.values.controls.bindings;
   app.scene3d.walk.hooks.openFrontDesk = (reservationId) => enterFrontDesk(reservationId);
   app.scene3d.walk.hooks.toggleOverview = () => handlers.toggleCourseMode();
   app.scene3d.walk.hooks.turfLabelAt = (cx, cy) => {
     const section = sectionAtCell(cx, cy);
     if (!section) return null;
     if (TURF_ZONES.has(section.zone) && app.state.turf) {
-      return `${section.name} — ${sectionStatus(app.state, section)} — [E] inspect`;
+      return `${section.name} - ${sectionStatus(app.state, section)} - [E] inspect`;
     }
-    return `${section.name} — [E] inspect`;
+    return `${section.name} - [E] inspect`;
   };
   app.scene3d.walk.hooks.inspectAt = (cx, cy) => {
     const section = sectionAtCell(cx, cy);
@@ -834,9 +1510,9 @@ function startGameNow(state, loadNotice = null, generation = sceneStartGeneratio
     const section = sectionAtCell(cx, cy);
     const i = cy * st.course.w + cx;
     if (!section || !TURF_ZONES.has(section.zone) || !st.turf) {
-      return '💦 Hose out — aim at turf to water · [F] next tool';
+      return '💦 Hose out - aim at turf to water · [F] next tool';
     }
-    return `💦 ${section.name} — moisture ${Math.round(st.turf.moisture[i])} — hold the mouse button to water · [F] next tool`;
+    return `💦 ${section.name} - moisture ${Math.round(st.turf.moisture[i])} - hold the mouse button to water · [F] next tool`;
   };
   // the divot kit patches traffic wear on turf — same wear array the crew's
   // aeration relieves; the olive-tan wear tint clears as you work
@@ -857,14 +1533,14 @@ function startGameNow(state, loadNotice = null, generation = sceneStartGeneratio
     const section = sectionAtCell(cx, cy);
     const i = cy * st.course.w + cx;
     if (!section || !TURF_ZONES.has(section.zone) || !st.turf) {
-      return '⛏ Divot kit out — aim at worn turf · [F] next tool';
+      return '⛏ Divot kit out - aim at worn turf · [F] next tool';
     }
     const w = Math.round(st.turf.wear[i]);
     const localized = section.zone === ZONE.GREEN ? st.turf.ballMarks?.[i] || 0 : st.turf.divots?.[i] || 0;
     const damageLabel = section.zone === ZONE.GREEN ? 'ball marks' : 'divots';
     return w <= 1 && localized <= 0.1
-      ? `⛏ ${section.name} — smooth, no ${damageLabel} here · [F] next tool`
-      : `⛏ ${section.name} — ${damageLabel} ${localized.toFixed(1)} · wear ${w} — hold to repair`;
+      ? `⛏ ${section.name} - smooth, no ${damageLabel} here · [F] next tool`
+      : `⛏ ${section.name} - ${damageLabel} ${localized.toFixed(1)} · wear ${w} - hold to repair`;
   };
   // the bunker rake smooths footprinted sand (wear on BUNKER cells, fed by
   // daily play traffic via sim/bunkers.js)
@@ -915,15 +1591,14 @@ function startGameNow(state, loadNotice = null, generation = sceneStartGeneratio
     const st = app.state;
     const i = cy * st.course.w + cx;
     if (!st.turf || st.course.zones[i] !== ZONE.BUNKER) {
-      return '🧹 Bunker rake out — aim at sand · [F] next tool';
+      return '🧹 Bunker rake out - aim at sand · [F] next tool';
     }
     const w = Math.round(st.turf.wear[i]);
     return w <= 1
       ? '🧹 This sand is raked smooth · [F] next tool'
-      : `🧹 Bunker — footprints ${w} — hold the mouse button to rake`;
+      : `🧹 Bunker - footprints ${w} - hold the mouse button to rake`;
   };
   if (editorUi && editorUi.isActive()) editorUi.hide();
-  app.speedIdx = 1;
   app.viewMode = 'normal';
   app.courseMode = 'walk'; // the course is experienced on foot; Tab for the overview
   if (walkOverlay) walkOverlay.style.display = 'none';
@@ -945,7 +1620,7 @@ function startGameNow(state, loadNotice = null, generation = sceneStartGeneratio
   hud.update();
   golfDayPanel?.update();
   if (objectivesPanel) objectivesPanel.refresh();
-  toast(`Welcome to ${state.clubName} — ${state.mode} mode.`);
+  toast(t('hud.welcome', { club: state.clubName, mode: state.mode }));
   if (lastDiseasedNames.size > 0) {
     toast(`The greenskeeper's note: ${lastDiseasedNames.size} greens are fighting disease. Step outside and click them to diagnose.`, 'warn');
   }
@@ -959,17 +1634,84 @@ function startGameNow(state, loadNotice = null, generation = sceneStartGeneratio
   veil.show(`Arriving at ${state.clubName}`);
   app.prewarming = true;
   const sceneRef = app.scene3d;
+  let prewarmSucceeded = false;
+  let degradedPrewarmNotice = null;
   sceneRef
     .prewarm((label) => { if (app.scene3d === sceneRef) veil.set(label); })
-    .catch(() => {})
-    .finally(() => {
-      if (app.scene3d !== sceneRef) return;
+    .then((completed) => {
+      if (app.scene3d !== sceneRef || generation !== sceneStartGeneration) return;
+      if (completed !== true) throw new Error('Course prewarm ended before completion.');
+      const report = sceneRef.firstDoorVisibilityReport?.();
+      if (report?.status === 'degraded') {
+        const sources = report.degradedSources?.length
+          ? report.degradedSources.join(', ')
+          : 'clubhouse assets';
+        degradedPrewarmNotice = `Some ${sources} used safe fallback visuals.`;
+      }
+      prewarmSucceeded = true;
+    })
+    .catch((error) => {
+      const report = error?.firstDoorVisibilityReport
+        || sceneRef.firstDoorVisibilityReport?.()
+        || null;
+      reportFault('scene.prewarm', error, {
+        generation,
+        currentGeneration: sceneStartGeneration,
+        firstDoorVisibility: report,
+      });
+      // An old scene finishing late cannot dispose, veil, or otherwise affect
+      // the scene that replaced it.
+      if (app.scene3d !== sceneRef || generation !== sceneStartGeneration) return;
+      sceneStartGeneration += 1;
+      veil.set('Course loading could not finish safely');
+      destroyCurrentScene({ hideVeil: false });
+      showFatalPanel({
+        message: report?.status === 'timed-out'
+          ? 'Clubhouse assets did not finish loading safely. Reload to try again.'
+          : `Course loading failed: ${String(error?.message || error)}`,
+      });
+    })
+    .finally(async () => {
+      if (!prewarmSucceeded
+        || app.scene3d !== sceneRef
+        || generation !== sceneStartGeneration) return;
+      const startupCompletion = startupHold.complete(startupToken, sceneRef);
+      if (!startupCompletion) return;
+      app.speedIdx = startupCompletion.intendedSpeedIdx;
+      lastTs = performance.now();
       app.prewarming = false;
-      veil.hide();
-      if (loadNotice) {
+      // PLAYTEST 5 P0 — "I see the map before I load in."
+      //
+      // Nothing here brings the camera back to the player. enterWalk() ran long
+      // before prewarm, so walk.active has been true the whole time and reads
+      // healthy, but prewarm SWINGS THE CAMERA out over the course to warm the
+      // overview and editor programs — measured at camY 147.96 for the whole
+      // prewarm on a fresh boot, against a walk eye of −0.84
+      // (tools/qa/electron-load-in-hands-and-camera.js). The camera only comes
+      // home on the next production frame, which is scheduled, while this line
+      // starts a 420 ms CSS fade immediately. Whether the player sees the course
+      // view was decided by which of those two won a race, and on that boot the
+      // frame won by 287 ms.
+      //
+      // Yield through two animation frames instead — the same paint-yield idiom
+      // startGame uses. The startup hold is released above, so the first of
+      // those is a real production frame drawn from the walk camera, and the
+      // veil is opaque over it. The player's first visible frame is their feet.
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          if (app.scene3d !== sceneRef || generation !== sceneStartGeneration) return;
+          veil.hide();
+        });
+      });
+      // ROUND 4: the first-press stalls come back warm, DEFERRED -- seconds
+      // after the game is interactive, never at this boundary. The full story
+      // is on scheduleDeferredGpuWarm below.
+      scheduleDeferredGpuWarm(sceneRef);
+      const notices = [degradedPrewarmNotice, loadNotice].filter(Boolean);
+      if (notices.length) {
         setTimeout(() => {
           if (generation === sceneStartGeneration && app.scene3d === sceneRef) {
-            toast(loadNotice, 'warn');
+            for (const notice of notices) toast(notice, 'warn');
           }
         }, 460);
       }
@@ -978,6 +1720,100 @@ function startGameNow(state, loadNotice = null, generation = sceneStartGeneratio
 
 // full-screen loading veil (opaque — it also hides the prewarm camera swings)
 let loadVeil = null;
+// DISABLED, and kept rather than deleted so the next attempt starts from what
+// was learned rather than from scratch.
+//
+// It worked: the dustpan's first equip went from 282 ms / +8 GL programs to
+// 46 ms / +0, and the broom's from 362 ms / +9 to 102 ms / +1. But the owner
+// then reported the game "absolutely unplayable, like 3 fps" with
+// `GPU state invalid after WaitForGetOffsetInRange` in the log -- a GPU process
+// loss, after which Chromium falls back to software rendering, which is exactly
+// what 3 fps looks like.
+//
+// I CANNOT PROVE THIS CAUSED IT. The harness measures the current build as
+// FASTER than the pre-change build on every axis I could take (load 49 s vs
+// 64 s, 63 fps standing in both, 20.5 vs 7.0 fps after walking outdoors), and no
+// run of mine reproduced the GPU loss. What is true is that this is the only
+// thing tonight that asks the driver to compile shader programs at a NEW moment
+// -- the veil boundary, while prewarm's uploads are still settling -- and a
+// driver reset under exactly that load is a known hazard.
+//
+// So it is off on risk, not on evidence: a one-time 280 ms hitch on the first
+// tool equip is a far better trade than a chance of a GPU reset. If the owner's
+// next session is healthy with this disabled, that is the evidence, and the warm
+// can come back spread over several frames well after the veil has lifted rather
+// than in a burst at the boundary.
+//
+// ROUND 4: IT IS WANTED BACK. The owner, with the warm withdrawn: "I lag
+// whenever I move from the white bottle to the dusk cleaner... I also lagged
+// really hard the first time I clicked on the button to be the cashier...
+// glitchy with first time button presses." Every one of those is the first
+// draw of a material set compiling its GL programs on a player-facing frame.
+//
+// The placement is the difference from the withdrawn version. That one ran AT
+// the veil boundary, while prewarm's uploads were still settling -- the one
+// moment a burst of compiles could plausibly aggravate a wobbly driver. This
+// one runs SECONDS AFTER the game is interactive, from a timeout, in two
+// stages: the hands warm first (a real draw -- the only mechanism measured to
+// actually compile the 8 hand programs; 16 renderer.compile() configurations
+// and one forced-prewarm draw all failed), then compileAsync over the whole
+// scene, which uses KHR_parallel_shader_compile to build every remaining
+// program off the render thread -- the register mode's, the ledger's -- without
+// blocking a single frame. A player equipping a tool inside the first two
+// seconds simply beats the warm and pays what they always paid; the warm skips
+// itself rather than fight them for the hands.
+function scheduleDeferredGpuWarm(sceneRef) {
+  setTimeout(async () => {
+    try {
+      if (app.scene3d !== sceneRef || app.prewarming) return;
+      const walk = sceneRef?.walk;
+      if (!walk || typeof walk.setTool !== 'function') return;
+      const frame = () => new Promise((resolve) => requestAnimationFrame(resolve));
+      // PLAYTEST 5 P0 — getTool, NOT tool.
+      //
+      // `walk.tool` does not exist on the walk facade; the accessor is
+      // `getTool` and every other caller in this file uses it. So this read was
+      // `undefined` on every boot, `held` was always null, and the guard below
+      // -- "a player equipping a tool inside the first two seconds simply beats
+      // the warm... the warm skips itself rather than fight them for the hands"
+      // -- never once skipped. The warm took the hands off whatever the player
+      // had just picked up, every time.
+      const held = typeof walk.getTool === 'function' ? walk.getTool() : null;
+      window.__fwWarm = { hands: 'skipped', sweep: 'pending' };
+      if (!held) {
+        // ...and put it back through the door that does not queue. The
+        // debounced setter parks a switch made inside 120 ms in a queue drained
+        // only by walkUpdate, so a player parked at a station when the warm
+        // fired kept the dustpan. Measured at t=33433 ms on a fresh boot with
+        // tools/qa/electron-load-in-hands-and-camera.js.
+        const equip = walk.setToolImmediate || walk.setTool;
+        equip.call(walk, 'dustpan');
+        await frame();
+        await frame();
+        await frame();
+        if (app.scene3d !== sceneRef) return;
+        equip.call(walk, null);
+        await frame();
+        window.__fwWarm.hands = walk.getTool?.() == null ? 'done' : 'left-a-tool-behind';
+      }
+      // The sweep is fire-and-forget: parallel compile finishes whenever it
+      // finishes, and anything it misses just pays its old first-use cost.
+      const renderer = sceneRef.renderer;
+      const compiled = renderer?.compileAsync?.(sceneRef.scene, sceneRef.camera);
+      if (compiled?.then) {
+        compiled.then(
+          () => { window.__fwWarm.sweep = 'done'; },
+          () => { window.__fwWarm.sweep = 'failed'; },
+        );
+      } else {
+        window.__fwWarm.sweep = 'unavailable';
+      }
+    } catch (error) {
+      reportFault('scene.deferred-warm', error);
+    }
+  }, 1600);
+}
+
 function ensureLoadVeil() {
   if (loadVeil) return loadVeil;
   const el = document.createElement('div');
@@ -985,15 +1821,119 @@ function ensureLoadVeil() {
   el.setAttribute('role', 'status');
   el.setAttribute('aria-live', 'polite');
   el.setAttribute('aria-busy', 'false');
+  // I (Goal 20) — A PLACE, NOT A VEIL.
+  //
+  // It was a logo, a bar and four tips on flat colour: thirteen seconds with
+  // nothing to look at and no sense of where you were going. The backdrop below
+  // is the MENU's own clubhouse scene, reused class for class — sky, horizon,
+  // clubhouse, flag — so the loading screen shows the club rather than a
+  // rectangle, at the cost of no new asset, no image to decode and no bytes on
+  // a frame that is already busy compiling shaders.
+  //
+  // The club's own name goes under the logo, because "GOLF EMPIRE" is the game
+  // and the player is arriving somewhere specific.
   el.innerHTML = `
+    <div class="load-veil-plate" aria-hidden="true"></div>
+    <div class="load-veil-plate load-veil-plate-b" aria-hidden="true"></div>
+    <div class="load-veil-scrim" aria-hidden="true"></div>
+    <div class="load-veil-place" aria-hidden="true"></div>
     <div class="load-veil-card">
       <div class="load-veil-logo">GOLF EMPIRE</div>
+      <div class="load-veil-club"></div>
       <div class="load-veil-title"></div>
       <div class="load-veil-bar" role="progressbar" aria-label="Loading game" aria-valuemin="0" aria-valuemax="100" aria-valuenow="8"><div class="load-veil-fill"></div></div>
       <div class="load-veil-step"></div>
       <div class="load-veil-tip" aria-live="off"></div>
     </div>`;
   document.body.appendChild(el);
+  // E (Goal 21) — REAL GAME IMAGES, A DIFFERENT ONE EVERY TIME.
+  //
+  // The CSS landscape this replaces was never the ask, and worse, the check
+  // that passed it counted DOM NODES rather than pixels — the same error as
+  // X3's. These are photographs of this club, taken at the player's own eye
+  // height with the shipped renderer (tools/qa/electron-e-loading-plates.js),
+  // graded and compressed by tools/build-loading-plates.mjs.
+  //
+  // Chosen fresh on every show(), never repeating the previous one, so two
+  // consecutive loads are never the same picture.
+  const plateEl = el.querySelector('.load-veil-plate');
+  const placeEl = el.querySelector('.load-veil-place');
+  const PLATES = [
+    { file: 'approach.jpg', caption: 'The approach, Pine Hills Municipal' },
+    { file: 'porch.jpg', caption: 'The clubhouse porch, late light' },
+    { file: 'fairway.jpg', caption: 'Looking down the first' },
+    { file: 'treeline.jpg', caption: 'The shed and the treeline' },
+    { file: 'shopfront.jpg', caption: 'The pro shop windows' },
+    { file: 'green.jpg', caption: 'A green at first light' },
+  ];
+  // J (Goal 23) — TWO OR THREE PLATES PER LOAD, CROSS-FADING.
+  //
+  // One photograph per load was the Goal 21 fix for a blank veil, and on a load
+  // that takes twenty seconds one picture is a still frame you sit and look at.
+  // Two layers, alternating: the incoming plate is set on the hidden one and the
+  // opacity is swapped, so the fade is a CSS transition and neither picture ever
+  // pops.
+  //
+  // The drift animation restarts on whichever layer is coming forward, so every
+  // plate gets the whole slow push rather than joining one already in progress.
+  const plateElB = el.querySelector('.load-veil-plate-b');
+  // MEASURED, and shorter than "a few seconds" sounds, for a reason. The veil on
+  // this machine is up for TWO SECONDS on a fresh boot
+  // (tools/qa/electron-j-loading-plates-alternate.js), so a six-second rotation
+  // never fired once and the player saw exactly the one picture the old code
+  // gave them. 3.5 s puts a second plate on screen inside a seven-second load
+  // and a third inside eleven, while still reading as a held photograph rather
+  // than a slideshow.
+  //
+  // On a fast machine with a short load the first plate is still the only one
+  // seen, and that is correct: there is nothing to fill.
+  const PLATE_SECONDS = 3.5;
+  let lastPlate = -1;
+  let frontIsB = false;
+  let plateTimer = null;
+
+  const paintPlate = (node, plate) => {
+    node.style.backgroundImage = `url("Assets/loading/${plate.file}")`;
+    node.style.animation = 'none';
+    void node.offsetWidth;
+    node.style.animation = '';
+  };
+  const pickPlate = () => {
+    let pick = Math.floor(Math.random() * PLATES.length);
+    if (PLATES.length > 1 && pick === lastPlate) pick = (pick + 1) % PLATES.length;
+    lastPlate = pick;
+    return PLATES[pick];
+  };
+  const nextPlate = () => {
+    if (PLATES.length === 0) return;
+    const plate = pickPlate();
+    const incoming = frontIsB ? plateEl : plateElB;
+    const outgoing = frontIsB ? plateElB : plateEl;
+    paintPlate(incoming, plate);
+    incoming.style.opacity = '1';
+    outgoing.style.opacity = '0';
+    frontIsB = !frontIsB;
+    placeEl.textContent = plate.caption;
+  };
+  const showPlate = () => {
+    if (PLATES.length === 0) return;
+    if (plateTimer) clearInterval(plateTimer);
+    // the first plate of a load appears immediately, without a fade from black
+    frontIsB = true;
+    const plate = pickPlate();
+    paintPlate(plateEl, plate);
+    plateEl.style.opacity = '1';
+    plateElB.style.opacity = '0';
+    frontIsB = false;
+    placeEl.textContent = plate.caption;
+    plateTimer = setInterval(nextPlate, PLATE_SECONDS * 1000);
+  };
+  const stopPlates = () => {
+    if (plateTimer) clearInterval(plateTimer);
+    plateTimer = null;
+  };
+
+  const clubEl = el.querySelector('.load-veil-club');
   const title = el.querySelector('.load-veil-title');
   const stepEl = el.querySelector('.load-veil-step');
   const fill = el.querySelector('.load-veil-fill');
@@ -1002,11 +1942,23 @@ function ensureLoadVeil() {
   const STEPS = ['Compiling shaders', 'Uploading textures', 'Warming the view'];
   let revision = 0;
   let hideTimer = null;
+  // I (Goal 20): tips that TEACH. The four this replaces were true and thin —
+  // two were about menus. These are the things a player actually gets stuck on,
+  // in the order they meet them, and every one of them is a fact about how the
+  // game works rather than a slogan.
   const TIPS = [
-    'Tap F for the next available tool; hold F to open the full tool belt.',
-    'P pauses from walking, checkout, the laptop, placement, or overview.',
-    'A clean, stocked shop gives the register work worth doing.',
-    'Manual save slots are separate from the Continue autosave.',
+    'Tap F for the next tool on the belt. HOLD F to open the whole belt, where every tool shows its own key.',
+    'Your phone is in your pocket on T. The world keeps running while you read it, so you can take a booking on the way to the counter.',
+    'A caller who rings out leaves a voicemail. Open the phone, play the message, then ring them back and they will answer.',
+    'Tee times only come from the phone and the inbox. Ignore both and the sheet stays empty.',
+    'Walk-ins ask for the next hour, not next week. What they want is on the desk screen once they reach the front of the line.',
+    'The ledger opens with E and turns pages with E. Q puts it away.',
+    'Dirt has to be under the crosshair to clean it. Hold Q to see where it all is.',
+    'The mop works wet. When it runs dry, take it to the bucket in the cleaning bay.',
+    'P pauses from anywhere: walking, the checkout, the laptop, placement or overview.',
+    'Stock the shelves from the back room. An empty peg sells nothing, however good the shop looks.',
+    'The laptop in the office runs the business: orders, staff, the books, the tee sheet.',
+    'Manual save slots are separate from the Continue autosave, and the autosave keeps its previous generation as a spare.',
   ];
   let tipTimer = null;
   let tipIndex = 0;
@@ -1019,7 +1971,12 @@ function ensureLoadVeil() {
       revision += 1;
       if (hideTimer !== null) clearTimeout(hideTimer);
       hideTimer = null;
+      showPlate(); // a different photograph of the club every load
       title.textContent = t || 'Loading';
+      // the club you are arriving at, named. Falls back to the starting
+      // property so the very first load is not blank.
+      clubEl.textContent = activeState(app.empire)?.club?.name
+        || app.state?.club?.name || STARTING_PROPERTY_NAME;
       stepEl.textContent = 'Building the course';
       fill.style.width = '12%';
       progress.setAttribute('aria-valuenow', '12');
@@ -1043,6 +2000,10 @@ function ensureLoadVeil() {
       const expectedRevision = revision;
       if (tipTimer) clearInterval(tipTimer);
       tipTimer = null;
+      // J (Goal 23): a rotation left running behind a hidden veil keeps
+      // decoding jpegs and restarting a CSS animation for the rest of the
+      // session, and the next show() would inherit a plate mid-fade.
+      stopPlates();
       fill.style.width = '100%';
       progress.setAttribute('aria-valuenow', '100');
       el.setAttribute('aria-busy', 'false');
@@ -1072,6 +2033,12 @@ function exitToMenu() {
   clearNotifications();
   audio.setToolLoop(null);
   audio.setPaused(false);
+  startupHold.cancel();
+  // Playtest 5 P0: the editor must be told BEFORE the scene it draws through is
+  // destroyed. startGameNow does this on the reload path; this one did not, so
+  // quitting from the editor left it live over a null scene. hide() is safe with
+  // a dead scene now, but ordering it correctly is the point.
+  if (editorUi?.isActive()) editorUi.hide();
   destroyCurrentScene({ hideVeil: true });
   app.screen = 'menu';
   app.state = null;
@@ -1104,7 +2071,7 @@ async function loadEmpireSave(key, label) {
     status = await loadDataWithStatus(key, { repair: false });
   } catch (error) {
     console.error(`${label} storage read failed`, error);
-    toast(`${label} could not be read. The current game was left untouched.`, 'warn');
+    toast(t('hud.saveUnreadable', { label }), 'warn');
     return null;
   }
   if (status.value == null) {
@@ -1146,11 +2113,65 @@ async function loadEmpireSave(key, label) {
   }
 }
 
-async function autosave() {
+// H2: the game saves by itself — every 5 minutes, on day rollover, and on quit
+// — and every write records its TRIGGER in the meta. The trigger matters
+// because ~15 mutation sites already call autosave(): "a fresh file exists"
+// proves nothing about WHY it was written, so a driver asserting the timer
+// reads the trigger field inside a mutation-free window rather than the mtime.
+const AUTOSAVE_INTERVAL_MS = 5 * 60_000;
+// The store already keeps primary + .bak per key. Rotating one more generation
+// (autosave-prev, with its own .bak) happens on the timed/boundary triggers
+// only: a mutation autosave can fire many times a minute in the editor, and
+// doubling an ~800 KB write on each buys nothing the .bak does not already
+// cover inside a session. Across sessions the prev generation is what survives
+// a bad write landing at the worst moment.
+const AUTOSAVE_ROTATING_TRIGGERS = new Set(['interval', 'rollover', 'quit']);
+let autosaveChipTimer = 0;
+
+function showAutosaveChip() {
+  let chip = document.querySelector('.hud-autosave');
+  if (!chip) {
+    chip = document.createElement('div');
+    chip.className = 'hud-autosave';
+    chip.textContent = 'Autosaved';
+    document.getElementById('ui').append(chip);
+  }
+  chip.classList.add('show');
+  clearTimeout(autosaveChipTimer);
+  autosaveChipTimer = setTimeout(() => chip.classList.remove('show'), 1700);
+}
+
+async function autosave(reason = 'mutation') {
   if (!app.empire) return;
   try {
-    await saveData(scopedKey('autosave'), empireSnapshot(app.empire));
-    await saveData(scopedKey('autosave-meta'), currentSaveMetadata());
+    if (AUTOSAVE_ROTATING_TRIGGERS.has(reason)) {
+      try {
+        const current = await loadDataWithStatus(scopedKey('autosave'), { repair: false });
+        if (current.value != null) await saveData(scopedKey('autosave-prev'), current.value);
+      } catch (error) {
+        // Rotation must never block the save itself — but it must not fail
+        // SILENTLY either: the first landing of this feature swallowed an
+        // "Unsupported save key" from the IPC allowlist right here and the
+        // rotation quietly never happened.
+        console.warn('autosave rotation skipped', error);
+      }
+    }
+    const snapshot = empireSnapshot(app.empire);
+    await saveData(scopedKey('autosave'), snapshot);
+    await saveData(scopedKey('autosave-meta'), { ...currentSaveMetadata(), trigger: reason });
+    // PHASE 8: the day-start snapshot that "Restart the current day" restores.
+    // Written ONLY on rollover -- the interval trigger would make it drift into
+    // "a few minutes ago", which is what already disqualified autosave-prev for
+    // this job. Failing to write it must not fail the autosave that matters.
+    if (reason === 'rollover') {
+      try {
+        await saveData(scopedKey('daystart'), snapshot);
+        await saveData(scopedKey('daystart-meta'), { ...currentSaveMetadata(), trigger: 'daystart' });
+      } catch (error) {
+        console.warn('day-start snapshot skipped', error);
+      }
+    }
+    showAutosaveChip();
     return { ok: true };
   } catch (error) {
     notify({
@@ -1164,6 +2185,18 @@ async function autosave() {
     return { ok: false, error };
   }
 }
+
+// The timer itself. Armed once at module load; the guard keeps it silent on
+// the menu, in scoped test scenes without an empire, and while paused.
+setInterval(() => {
+  if (app.screen === 'game' && app.empire && !isPauseOpen()) autosave('interval');
+}, AUTOSAVE_INTERVAL_MS);
+
+// OS-level close (the window X, a reload): best-effort — the in-game quit
+// buttons await a real autosave('quit') and remain the reliable path.
+window.addEventListener('beforeunload', () => {
+  if (app.empire && app.screen === 'game') autosave('quit');
+});
 
 function currentSaveMetadata() {
   const state = app.state || activeState(app.empire);
@@ -1212,12 +2245,13 @@ const handlers = {
   toggleCourseMode() {
     if (app.view !== 'course' || !app.scene3d || editorActive()) return;
     if (app.courseMode === 'walk' && hasCarriedCarton()) {
-      toast('Set down or recycle the carton before changing cameras.', 'warn');
+      toast(t('hud.setDownOrRecycle15'), 'warn');
       return;
     }
     resetCameraInput(); // the map opens still — nothing carries over from the walk
     if (app.courseMode === 'walk') {
       app.courseMode = 'overview';
+      app.scene3d?.setOverviewPin?.(true);
       exitWalk();
       // The overview is the half of dirt visibility that answers WHICH WAY to
       // go — House Flipper 2's Flipper Sense only lights what you already face,
@@ -1227,12 +2261,32 @@ const handlers = {
       const piles = ch?.setDirtReveal ? (ch.dirtSenseDiagnostics?.().clusters || 0) : 0;
       ch?.setDirtReveal?.(1, true);
       toast(piles
-        ? `Overview camera — ${piles} dirty spot${piles === 1 ? '' : 's'} marked. Tab returns you to your feet.`
-        : 'Overview camera — Tab returns you to your feet.');
+        ? `Overview camera - ${piles} dirty spot${piles === 1 ? '' : 's'} marked. Tab returns you to your feet.`
+        : 'Overview camera - Tab returns you to your feet.');
     } else {
       app.courseMode = 'walk';
       app.scene3d.clubhouse?.()?.setDirtReveal?.(0, false);
       enterWalk('resume');
+      // P1 (Goal 25 playtest): "Tab, then Tab again to leave, and the game
+      // effectively crashed."
+      //
+      // Measured across the round trip: pointer lock true before, FALSE after,
+      // and it never came back. WASD still moved (2.11 yd) so every
+      // keyboard-based probe called it healthy, but mouse-look went 0.378 rad to
+      // EXACTLY ZERO and stayed there through a second round trip. A player who
+      // can walk and cannot turn is looking at a game that has stopped
+      // responding to the mouse, which is what "effectively crashed" describes.
+      //
+      // enterWalk leaves lock opt-in on purpose -- on ARRIVAL the HUD controls
+      // should be clickable and "Click to look around" is the instruction. The
+      // Tab RETURN is a different situation: the player was mouse-looking a
+      // second ago and pressed a key that means "put me back on my feet".
+      // Restoring it only here keeps the arrival behaviour untouched.
+      //
+      // The Tab keydown is a user activation, so the request is allowed;
+      // requestLook already swallows a refusal, and a refusal just leaves
+      // today's click-to-look behaviour.
+      requestLook();
     }
     syncPresentationMode(presentationMode());
   },
@@ -1275,7 +2329,7 @@ const handlers = {
       toast(res.reason, 'warn');
       return {};
     }
-    toast(`Bought ${res.property.name} for ${formatMoney(res.property.askingPrice)}.`);
+    toast(t('hud.boughtProperty', { name: res.property.name, price: formatMoney(res.property.askingPrice) }));
     if (!hadActive) {
       startGame(activeState(app.empire));
       autosave();
@@ -1307,12 +2361,12 @@ const handlers = {
       app.speedIdx = prevSpeed || 1;
       return;
     }
-    toast(`Sold for ${formatMoney(res.payout)}. The deed is done.`);
+    toast(t('hud.soldProperty', { price: formatMoney(res.payout) }));
     if (wasActive) {
       if (empire.holdings.length > 0) {
         switchProperty(empire, empire.holdings[0].property.id);
         startGame(activeState(empire));
-        toast(`The office moves to ${activeState(empire).clubName}.`);
+        toast(t('hud.officeMoves', { club: activeState(empire).clubName }));
       } else {
         // sold the whole portfolio — back to the market with a full wallet
         autosave();
@@ -1340,22 +2394,170 @@ let pauseHadPointerLock = false;
 let releasePauseFocus = () => {};
 const SAVE_LIMITS = { empireVersion: EMPIRE_VERSION, saveVersion: SAVE_VERSION };
 
+// A4 — the applying label. A small corner note, not a modal veil: Requirement 5
+// forbids taking control away, and the player keeps looking around while the
+// materials rebuild. It stays up long enough to cover the settling window
+// measured on this machine (1.6 s for the expensive direction) rather than a
+// frame, because the cost three pays lazily is spread over the frames after
+// the click and a label that vanished immediately would be a lie.
+let qualityApplyingEl = null;
+let qualityApplyingTimer = null;
+function showQualityApplying(ms = 1800) {
+  if (!qualityApplyingEl) {
+    qualityApplyingEl = el('div', { class: 'quality-applying', text: t('settings.display.applying') });
+    document.body.append(qualityApplyingEl);
+  }
+  clearTimeout(qualityApplyingTimer);
+  qualityApplyingTimer = setTimeout(() => {
+    qualityApplyingEl?.remove();
+    qualityApplyingEl = null;
+  }, ms);
+}
+
+// A1 (Goal 23): the cap counts VSYNCS. A wall-clock interval cannot pace on a
+// panel whose refresh does not divide it — see the measurements in
+// src/core/frameCap.js.
+const frameCap = createFrameCap();
+app.frameCapDiagnostics = () => frameCap.diagnostics();
+
 function applySettings() {
   const values = preferences.values;
   applyDocumentPreferences(values);
+  frameCap.setCap(Number(values.display.fpsCap) || 0);
+  // E4 (Goal 17) — THE FORMATTED CONTROLS LIST FOLLOWS THE BINDINGS.
+  //
+  // "Changing a key in Controls must change it in the formatted controls list
+  // too, immediately, in the same layout."
+  //
+  // The rebind dialog already refreshed its own BUTTONS. What it never touched
+  // is the list the player actually reads in the world - the lock hint that
+  // spells out "Click to look, WASD move, Shift run, E interact, X carry, Z set
+  // down..." - because that string is built by walkControlHintText() once at
+  // mount and then never again. Rebind Forward to T and the game went on
+  // telling you it was W.
+  //
+  // applySettings already runs on every preference change, so this is where the
+  // list belongs. Every element carrying the hint is updated, not one captured
+  // reference, because the hint is mounted in two places.
+  try {
+    const hint = walkControlHintText();
+    for (const node of document.querySelectorAll('.shop-lockhint')) node.textContent = hint;
+  } catch { /* before the UI is mounted there is nothing to update */ }
   audio.applyPreferences();
   if (laptopUi) laptopUi.setScale(values.display.uiScale);
   if (!app.scene3d) return;
   // Cap device pixel ratio at 1.5 — the perf ceiling the scene is tuned for. A
   // 4K/retina panel at native DPR quadruples the pixel cost for no visible gain
   // at this art style. renderScale still lets the player trade sharpness for fps.
-  app.scene3d.renderer.setPixelRatio(Math.min(1.5, (window.devicePixelRatio || 1) * values.display.renderScale));
-  app.scene3d.renderer.shadowMap.enabled = values.display.shadows;
+  //
+  // ...BUT THE CAP MUST NOT SWALLOW A DELIBERATE REQUEST FOR MORE. On a 1.5-DPR
+  // panel, `Math.min(1.5, 1.5 * renderScale)` returns 1.5 for renderScale 1.0
+  // AND 1.15, so Ultra rendered exactly as many pixels as High. Measured
+  // 2026-08-06 (tools/qa/electron-quality-presets.js): high→ultra separated by
+  // -2.1%, +3.9% and +1.3% at the three fixed poses, all inside the run's own
+  // 8.4% drift — a tier that cost nothing and gave nothing. The cap is a
+  // DEFAULT ceiling, so it applies only while the player is at or below 100%.
+  const scale = values.display.renderScale;
+  const dprCeiling = scale > 1 ? 2 : 1.5;
+  const nativeRatio = window.devicePixelRatio || 1;
+  let pixelRatio = Math.min(dprCeiling, nativeRatio * scale);
+  // A4 (Goal 17), AFTER THE VERIFIER — A PIXEL BUDGET, BECAUSE A5 CHANGED THE
+  // SIZE THIS SETTING IS PAID AT.
+  //
+  // Ultra asks for renderScale 1.15: "sharper than the screen, then
+  // downsampled". On the 1600x940 window that used to ship, that was a 2760 x
+  // 1621 target and nobody noticed. Since A5 the window fills a 4K panel, and
+  // the same 1.15 asks for 4416 x 2363 - 10.4 MPix, a THIRD more than the
+  // display can show.
+  //
+  // Measured by the Section A verifier on two fresh profiles: switching to
+  // Ultra froze the game for 10 814 ms and 9 884.8 ms, with zero animation
+  // frames in between and no program growth. That is the render target being
+  // reallocated, and I had published 78.7 ms for it because I measured before
+  // the window changed size underneath the number.
+  //
+  // So the buffer is capped at what a 4K display can actually show.
+  // Supersampling still works where it is cheap and visible - a 1080p window at
+  // 1.15 is 2.7 MPix and untouched - but a window already at 4K stops paying
+  // for pixels no monitor will draw.
+  const canvas = app.scene3d.renderer.domElement;
+  const cssW = canvas.clientWidth || window.innerWidth;
+  const cssH = canvas.clientHeight || window.innerHeight;
+  const PIXEL_BUDGET = 3840 * 2160;
+  if (cssW > 0 && cssH > 0) {
+    const budgetRatio = Math.sqrt(PIXEL_BUDGET / (cssW * cssH));
+    pixelRatio = Math.min(pixelRatio, budgetRatio);
+    // ...and snap to the display's own ratio when the cap lands within a few
+    // per cent of it, so a preset change does not reallocate every buffer in
+    // the post chain to gain 4% of area nobody can see.
+    if (Math.abs(pixelRatio - nativeRatio) / nativeRatio < 0.06) pixelRatio = nativeRatio;
+  }
+  app.scene3d.renderer.setPixelRatio(pixelRatio);
+  // TOGGLING shadowMap.enabled REQUIRES RECOMPILING EVERY MATERIAL. Three bakes
+  // the shadow sampler declarations into the shader, so a program compiled with
+  // shadows on keeps sampling a map that is no longer being written. Measured in
+  // Electron 2026-08-06 while A/Bing the quality presets: turning shadows off at
+  // runtime produced a continuous stream of
+  //   GL_INVALID_OPERATION: glDrawElements: Mismatch between texture format and
+  //   sampler type (signed/unsigned/float/shadow)
+  // — one per draw call, for as long as the setting stayed off. It has been
+  // possible to reach this from the settings screen for as long as the toggle
+  // has existed. Guarded on an actual change so moving any OTHER slider does not
+  // pay for a full recompile.
+  if (app.scene3d.renderer.shadowMap.enabled !== values.display.shadows) {
+    // A4 (Goal 17) — THE COST IS REAL, THE LABEL IS NEW, AND THE EAGER REBUILD
+    // WAS TRIED AND REVERTED.
+    //
+    // needsUpdate compiles nothing: three rebuilds each material at its NEXT
+    // draw, so the bill used to arrive whenever the player happened to look at
+    // something. Measured before A1 landed: switching to Ultra gave a 5197.5 ms
+    // worst frame with the program count STILL changing 16.7 SECONDS after the
+    // click, and switching to Low blocked so hard that not one animation frame
+    // ran in the 600 ms after it.
+    //
+    // Then A1's load-time warm of the 701 hidden objects landed, and this got
+    // most of the way better on its own: re-measured on the same driver, Ultra
+    // now costs a 71-77 ms worst frame with NO program changes at all, and Low
+    // costs 1586-1591 ms settling by 2.7-3.4 s.
+    //
+    // TRIED AND REVERTED: forcing the rebuild eagerly behind the label with
+    // renderer.compile(). It measured WORSE than leaving three to its own
+    // scheduling - Ultra 226-6224 ms against 71-77, Low 3368-6842 against
+    // 1587-1591 - because compiling every visible material in one blocking
+    // frame is more work than three does lazily once the hidden set is already
+    // warm. Recorded so nobody spends the afternoon on it twice.
+    //
+    // What stays is the honest part the brief asked for: a label saying what is
+    // happening, up while it happens, that does not take control away.
+    showQualityApplying();
+    app.scene3d.renderer.shadowMap.enabled = values.display.shadows;
+    app.scene3d.scene.traverse((object) => {
+      if (!object.material) return;
+      for (const material of (Array.isArray(object.material) ? object.material : [object.material])) {
+        if (material) material.needsUpdate = true;
+      }
+    });
+  }
+  // E2/A: the shadow tier is the biggest single lever on the number the player
+  // feels. The map baked on foot and how often it is baked both come from here;
+  // courseScene owns sun.shadow.mapSize and re-asserts it, so this is a request
+  // rather than a write.
+  const shadowLevel = SHADOW_QUALITY_LEVELS[values.display.shadowQuality]
+    || SHADOW_QUALITY_LEVELS.medium;
+  app.scene3d.setShadowQuality?.({
+    walkMap: shadowLevel.walkMap,
+    editorMap: shadowLevel.walkMap,
+    fullMap: shadowLevel.fullMap,
+    bakeMs: shadowLevel.bakeMs,
+  });
   app.scene3d.resize();
   if (app.scene3d.post) {
     if (app.scene3d.post.gtao) app.scene3d.post.gtao.enabled = values.display.ambientOcclusion;
     if (app.scene3d.post.bloom) app.scene3d.post.bloom.enabled = values.display.bloom;
   }
+  // E2/A: Low skips the composer entirely rather than running it with both
+  // effects switched off — see the note on QUALITY_PRESETS.low.
+  app.scene3d.setPostEnabled?.(values.display.postProcessing !== false);
   app.scene3d.walk?.configure?.({
     sensitivity: values.camera.sensitivity,
     invertY: values.camera.invertY,
@@ -1441,8 +2643,8 @@ function openPauseMenu() {
   }
 
   function saveDescription(record, summary) {
-    if (record.status === 'missing') return 'Empty — ready for a new save';
-    if (record.status === 'corrupt') return 'Unreadable — saving here will preserve the damaged copy as a backup';
+    if (record.status === 'missing') return 'Empty - ready for a new save';
+    if (record.status === 'corrupt') return 'Unreadable - saving here will preserve the damaged copy as a backup';
     if (record.status === 'unsupported') return `Created by newer version ${record.version}`;
     const when = summary?.savedAt ? new Date(summary.savedAt).toLocaleString() : 'time not recorded';
     return `${summary?.clubName || 'Saved restoration'} · Day ${summary?.day || '?'} at ${summary?.clock || '?'} · ${formatMoney(summary?.cash || 0)} · ${when}`
@@ -1487,7 +2689,7 @@ function openPauseMenu() {
               } catch (error) {
                 action.disabled = false;
                 card.dataset.state = 'error';
-                meta.textContent = 'Save failed — your previous slot is still preserved. Check storage access and try another slot.';
+                meta.textContent = 'Save failed - your previous slot is still preserved. Check storage access and try another slot.';
                 status.textContent = `Slot ${index + 1} could not be saved`;
                 notify({ message: `Slot ${index + 1} could not be saved. Your previous copy was preserved.`, category: 'save-failure', persistent: true, dedupeKey: `save-failed-${slot}` });
                 audio.uiError?.();
@@ -1563,6 +2765,15 @@ function openPauseMenu() {
       }));
     },
     controls: (c) => {
+      // D3 (Full_Goal_16): this page used to print HARDCODED key literals,
+      // so a rebound key never appeared here. It renders from the live
+      // bindings table now — built fresh each time the page shows, which is
+      // the honest claim (no app reload, no stale caps). Rows the player
+      // cannot rebind (mouse, Space, Esc) stay written out.
+      const bindings = preferences.values.controls?.bindings || {};
+      const cap = (actionId, fallback) => describeKey(
+        keyForAction(bindings, actionId) || fallback || '',
+      ) || (fallback || 'unbound');
       const group = (title, rows) => {
         const g = el('div', { class: 'ctl-group' }, el('div', { class: 'ctl-title', text: title }));
         for (const [what, ...keys] of rows) {
@@ -1573,22 +2784,31 @@ function openPauseMenu() {
       c.append(
         el('div', { class: 'ctl-cols' },
           group('Move', [
-            ['Walk', 'W', 'A', 'S', 'D'], ['Run', 'Shift'], ['Look around', 'Mouse'],
-            ['Capture the mouse', 'Click'], ['Overview camera (hands free)', 'Tab'],
+            ['Walk', cap('moveForward', 'W'), cap('moveLeft', 'A'), cap('moveBack', 'S'), cap('moveRight', 'D')],
+            ['Run', cap('run', 'Shift')], ['Look around', 'Mouse'],
+            ['Capture the mouse', 'Click'], ['Overview camera (hands free)', cap('overview', 'Tab')],
           ]),
           group('Hands', [
-            ['Interact · pick up · place', 'E'], ['Secondary action · reposition carton', 'X'],
-            ['Tool belt: tap / hold', 'F'],
-            ['Previous tool', 'Q'], ['Use selected tool', 'LMB'],
-            ['Placement mode', 'B'], ['Rotate placement', 'R'], ['Cancel preview', 'Esc'],
+            ['Interact · pick up · place', cap('interact', 'E')],
+            ['Secondary action · reposition carton', cap('carry', 'X')],
+            ['Tool belt: tap / hold', cap('toolBelt', 'F')],
+            // V3 (Goal 19): this row said "Previous tool" against the DIRT
+            // SENSE key — the stranger verifier caught the reference page
+            // contradicting the HUD pill ("Q reveal dirt"). The label now
+            // states the verb the binding actually performs.
+            ['Dirt sense: hold to reveal', cap('dirtSense', 'Q')], ['Use selected tool', 'LMB'],
+            ['Placement mode', cap('buildMode', 'B')], ['Rotate placement', cap('mowerBlades', 'R')],
+            ['Cancel preview', 'Esc'],
           ]),
           group('Time & views', [
-            ['Pause menu', 'P', 'Esc'], ['Pause simulation clock', 'Space'],
-            ['Simulation speed', '1', '2', '3'], ['Course data view', 'V'],
+            ['Pause menu', cap('pause', 'P'), 'Esc'], ['Pause simulation clock', 'Space'],
+            ['Course data view', cap('cartCamera', 'V')],
           ]),
           group('Management', [
-            ['Course editor (hands free)', 'J'],
-            ['Grounds desk', 'G'], ['Club office', 'C'], ['Empire overview', 'M'],
+            ['Course editor (hands free)', cap('courseEditor', 'J')],
+            ['Grounds desk', cap('groundsPanel', 'G')], ['Club office', cap('clubPanel', 'C')],
+            ['Empire overview', cap('empirePanel', 'M')],
+            ['Maintenance tablet', cap('maintenancePanel', 'I')],
             ['Leave laptop / register step back', 'Esc'],
           ]),
         ),
@@ -1605,9 +2825,54 @@ function openPauseMenu() {
             if (!w || !w.unstick) return;
             const how = w.unstick();
             closePauseMenu();
-            toast(how ? 'Freed you up — back on solid ground.' : 'Nowhere clear to move you to.', how ? 'good' : 'warn');
+            toast(how ? 'Freed you up - back on solid ground.' : 'Nowhere clear to move you to.', how ? 'good' : 'warn');
           },
         }),
+        // PHASE 8 (Goal 26): "The pause menu offers: Resume, RESTART THE CURRENT
+        // DAY, Return to main menu, Quit -- with confirmation on the destructive
+        // ones." The other three already existed; this is the one that did not.
+        //
+        // It restores the `daystart` snapshot, written once per rollover. The
+        // button is created DISABLED and only enables once that snapshot is
+        // confirmed present, because a restart that silently does nothing (or
+        // worse, loads a save from some other moment) is a destructive action
+        // failing quietly -- and on the very first day of a new game there is no
+        // rollover behind you and so nothing to restart to.
+        (() => {
+          const restart = el('button', {
+            class: 'pause-wide danger',
+            text: t('pause.restartDay'),
+            disabled: true,
+            title: 'Checking for this morning’s snapshot...',
+          });
+          loadDataWithStatus(scopedKey('daystart'), { repair: false })
+            .then((found) => {
+              if (found.value == null) {
+                restart.title = 'No snapshot from the start of this day yet - available from tomorrow.';
+                return;
+              }
+              restart.disabled = false;
+              restart.title = '';
+              restart.onclick = () => confirmDialog({
+                title: 'Restart the current day?',
+                message: 'Go back to the start of today.',
+                detail: 'Everything you have done since this morning is discarded. This cannot be undone.',
+                confirmLabel: t('pause.restartDayConfirm'),
+                danger: true,
+                onConfirm: async () => {
+                  const empire = await loadEmpireSave(scopedKey('daystart'), 'Start of day');
+                  if (!empire) return false;
+                  closePauseMenu({ resume: false });
+                  bootEmpire(empire);
+                  return true;
+                },
+              });
+            })
+            .catch(() => {
+              restart.title = 'The start-of-day snapshot could not be read.';
+            });
+          return restart;
+        })(),
         el('button', {
           class: 'pause-wide danger',
           text: 'Return to main menu',
@@ -1618,7 +2883,7 @@ function openPauseMenu() {
             confirmLabel: 'Save and return',
             danger: true,
             onConfirm: async () => {
-              const result = await autosave();
+              const result = await autosave('quit');
               if (!result?.ok) return false;
               closePauseMenu({ resume: false });
               exitToMenu();
@@ -1635,7 +2900,7 @@ function openPauseMenu() {
             detail: 'The game will not quit if the autosave fails.',
             confirmLabel: 'Save and quit', danger: true,
             onConfirm: async () => {
-              const result = await autosave();
+              const result = await autosave('quit');
               if (!result?.ok) return false;
               await window.fairwayNative.quit();
               return true;
@@ -1717,20 +2982,32 @@ let toolHoldOpened = false;
 let previousWalkTool = null;
 let walkToolWheelRemainder = 0;
 
-const WALK_TOOL_SHORTCUTS = Object.freeze({
-  washer: 'W',
-  vacuum: 'V',
-  mop: 'M',
-  broom: 'B',
-  dustpan: 'D',
-  spray: 'S',
-  cloth: 'C',
-  sponge: 'G',
-  trashbag: 'T',
-  hose: 'H',
-  divot: 'D',
-  rake: 'R',
-});
+// K3 (Goal 23) — THE TOOL WHEEL ADVERTISED KEYS THAT MEAN SOMETHING ELSE.
+//
+// The stranger found one instance: "the tool wheel says B is the push broom;
+// B opens Build mode." Reading the table against src/core/keyBindings.js, ELEVEN
+// OF TWELVE collided with a global binding, and two collided with each other:
+//
+//   washer W = move forward     vacuum V = cart camera    mop M = empire panel
+//   broom  B = BUILD MODE       dustpan D = move right    spray S = move back
+//   cloth  C = club panel       sponge G = grounds panel  trashbag T = phone
+//   rake   R = mower blades     divot D = move right AND dustpan
+//
+// The letters only fire while the wheel is OPEN, so they worked — but the label
+// promises a key that does something else everywhere else in the game, which is
+// worse than no label. And divot/dustpan sharing D meant the divot kit could
+// never be selected by letter at all, because toolShortcutIndex returns the
+// first match: a dead control nobody had pressed.
+//
+// The wheel already handles 1-9 by POSITION. So the advertised key is now the
+// position, which collides with nothing, is correct whichever set is showing
+// (indoor and outdoor belts differ), and needs no second table to drift from
+// the first. tests/tool-wheel-shortcuts.test.js holds the line.
+function numberToolEntries(entries) {
+  return entries.map((entry, index) => (index < 9
+    ? { ...entry, shortcut: String(index + 1) }
+    : { ...entry, shortcut: null }));
+}
 
 function walkToolEntries() {
   const walk = app.scene3d?.walk;
@@ -1745,26 +3022,28 @@ function walkToolEntries() {
       return {
         id,
         label: def.label,
-        shortcut: WALK_TOOL_SHORTCUTS[id],
         available: inside && cleaningKitOwned,
         reason: !inside ? 'Use this inside the clubhouse' : 'Order the cleaning kit from the laptop',
         detail: def.equipToast,
       };
     });
-  const handsFree = { id: null, label: 'Hands free', shortcut: 'X', detail: 'Interact, carry, and inspect' };
-  if (inside) return [handsFree, ...indoorTools];
-  return [
+  const handsFree = { id: null, label: 'Hands free', detail: 'Interact, carry, and inspect' };
+  if (inside) return numberToolEntries([handsFree, ...indoorTools]);
+  return numberToolEntries([
     handsFree,
     {
-      id: 'washer', label: washer?.name || 'Pressure washer', shortcut: WALK_TOOL_SHORTCUTS.washer,
+      id: 'washer', label: washer?.name || 'Pressure washer',
       available: true,
       detail: 'LMB washes · RMB applies soap',
     },
-    { id: 'hose', label: 'Watering hose', shortcut: WALK_TOOL_SHORTCUTS.hose, detail: 'Raises live turf moisture' },
-    { id: 'divot', label: 'Divot kit', shortcut: WALK_TOOL_SHORTCUTS.divot, detail: 'Repairs worn turf patches' },
-    { id: 'rake', label: 'Bunker rake', shortcut: WALK_TOOL_SHORTCUTS.rake, detail: 'Smooths footprinted sand' },
-  ];
+    { id: 'hose', label: 'Watering hose', detail: 'Raises live turf moisture' },
+    { id: 'divot', label: 'Divot kit', detail: 'Repairs worn turf patches' },
+    { id: 'rake', label: 'Bunker rake', detail: 'Smooths footprinted sand' },
+  ]);
 }
+
+// Tools whose one-line lesson has already been given this session.
+const toolLessonsShown = new Set();
 
 function selectWalkTool(tool) {
   const walk = app.scene3d?.walk;
@@ -1776,6 +3055,29 @@ function selectWalkTool(tool) {
   audio.setToolLoop(null);
   walk.setTool(tool);
   if (audio.ready) audio.equipTick();
+  // K (Goal 23) — TOOL USE WAS TAUGHT ONLY BY FAILING.
+  //
+  // Every cleaning tool carries an `equipToast` in src/data/cleaningTools.js
+  // saying exactly how to work it -- "sweep dirt and leaves into a pile, then
+  // collect it with the dustpan". That text was referenced in ONE place in the
+  // whole repository: as the `detail` line of a tool-wheel row. So the game had
+  // written the lesson for every tool and only ever showed it inside a menu the
+  // player may never open, never at the moment they actually pick the thing up.
+  //
+  // Said once per tool per session: a player cycling the belt with F should not
+  // be lectured on every pass, and someone reaching for the mop for the first
+  // time should not have to fail at it to find out what it does.
+  if (tool && tool !== current) {
+    const def = CLEANING_TOOLS[tool];
+    if (def?.equipToast && !toolLessonsShown.has(tool)) {
+      toolLessonsShown.add(tool);
+      // The lesson text itself, not a new sentence built around it: a template
+      // literal here is a NEW player-facing string, and the strings ratchet
+      // caught it and was right to. The tool has just been equipped, so the
+      // player knows which one it is.
+      toast(def.equipToast);
+    }
+  }
   if (app.state) {
     tutorialFlag(app.state, 'toolSelected');
     if (tool === 'vacuum') triggerContextTutorial(app.state, 'cleaning-tools');
@@ -1786,6 +3088,15 @@ function selectWalkTool(tool) {
 }
 
 function cycleWalkTool(direction = 1) {
+  // D3: your hands are full. The belt is refused rather than silently
+  // swapping a tool into an arm that is already holding something.
+  const carried = carriedThing();
+  if (carried) {
+    toast(carried === 'ledger'
+      ? 'Put the book down first.'
+      : 'Put that down first.', 'warn');
+    return;
+  }
   const entries = walkToolEntries().filter((entry) => entry.available !== false);
   if (!entries.length) return;
   const current = app.scene3d.walk.getTool();
@@ -1794,6 +3105,12 @@ function cycleWalkTool(direction = 1) {
   const step = direction < 0 ? -1 : 1;
   selectWalkTool(entries[(start + step + entries.length) % entries.length].id);
 }
+
+// Q is tap-to-swap / hold-to-reveal (see the keydown handler). 220 ms is the
+// usual tap ceiling: comfortably longer than a deliberate press, comfortably
+// shorter than the shortest useful glance at the dirt overlay.
+const Q_TAP_MS = 220;
+let qPressedAt = null;
 
 function swapPreviousWalkTool() {
   const walk = app.scene3d?.walk;
@@ -1805,8 +3122,49 @@ function swapPreviousWalkTool() {
   selectWalkTool(previous);
 }
 
+// I — the maintenance tablet. makeCourseMaintenancePanel was imported from day
+// one, but the call that creates the panel was lost, so this identifier never
+// existed and the key threw a live ReferenceError straight into the fault veil
+// (H1, 2026-08-05). Created lazily: a session that never presses I pays nothing.
+function setMaintenanceVisible(visible) {
+  if (!gameUi) return;
+  if (!maintenancePanel) {
+    maintenancePanel = makeCourseMaintenancePanel(app, {
+      setVisible: (next) => setMaintenanceVisible(next),
+      toggleInspection: () => {
+        if (!app.state) return;
+        toggleCourseInspection(app.state);
+        maintenancePanel.refresh(true);
+      },
+      selectTool: (id) => {
+        if (app.state) {
+          const result = selectCourseMaintenanceEquipment(app.state, id);
+          if (result && result.ok === false) {
+            toast(result.reason, 'warn');
+            return;
+          }
+        }
+        selectWalkTool(id);
+        maintenancePanel.refresh(true);
+      },
+    });
+    gameUi.append(maintenancePanel.root);
+  }
+  maintenancePanel.setVisible(!!visible);
+  // The tablet has buttons; give the cursor back while it is up.
+  if (maintenancePanel.isVisible() && document.pointerLockElement) document.exitPointerLock();
+}
+
 function showToolWheel() {
   if (!walkActive() || regActive() || app.laptopOpen || buildApi()?.isActive() || isPauseOpen()) return;
+  // D3: the wheel is the other half of the belt. Guarding only the tap-to-cycle
+  // path would leave hold-to-open working, and a player who can SEE the wheel
+  // with a book in their arms has been told the belt is available.
+  const carried = carriedThing();
+  if (carried) {
+    toast(carried === 'ledger' ? 'Put the book down first.' : 'Put that down first.', 'warn');
+    return;
+  }
   toolHoldOpened = true;
   resetCameraInput();
   app.scene3d.walk.setSpraying(false);
@@ -1861,7 +3219,13 @@ canvas.addEventListener('click', () => {
   }
   // first-person walking: clicking (re)captures the mouse — but NOT while the player
   // is behind the till, where the cursor is the whole interface
-  if (regActive() || editorActive() || toolWheel?.isOpen() || isPauseOpen()) return;
+  //
+  // ...nor while the tuning overlay is up (Goal 17 R1). The panel needs the
+  // cursor to drag a slider; a left click that silently re-locks the pointer
+  // turns every drag into a camera pan. RIGHT mouse still looks around, which
+  // is the panel's own documented gesture.
+  if (regActive() || editorActive() || toolWheel?.isOpen() || isPauseOpen()
+    || toolTuner?.isOpen()) return;
   if (app.screen === 'game' && !document.pointerLockElement && walkActive()) {
     requestLook();
     return;
@@ -1915,6 +3279,7 @@ canvas.addEventListener('pointerdown', (e) => {
     }
     const tool = walkActive() && app.scene3d.walk.getTool();
     if (e.button === 0 && tool) {
+      toolPressStartedAt = performance.now(); // Verifier 3 finding 1: tap vs hold
       const toggle = preferences.values.accessibility.toolActivation === 'toggle';
       const active = toggle ? !app.scene3d.walk.isSpraying() : true;
       app.scene3d.walk.setSpraying(active);
@@ -1961,9 +3326,57 @@ canvas.addEventListener('pointermove', (e) => {
   dragging.lastY = e.clientY;
 });
 
+// VERIFIER 3, FINDING 1 — SILENCE ON A WRONG INPUT IS THE FAILURE.
+//
+// A stranger spent fifteen minutes on the porch. The door asked them to wash it,
+// they had the washer in hand, they clicked it five times and NOTHING happened:
+// no water, no refusal, no hint. The tool is correct and their input was
+// correct-but-too-short — a held button is the use trigger, and a tap sets
+// spraying on and off inside a frame, which produces exactly nothing.
+//
+// A player who taps is not doing something forbidden, they are doing something
+// incomplete, and the game had no way to say so. It does now, once per tool per
+// session, so it teaches without nagging the player who already knows.
+const TAP_HINT_MS = 260;
+// X2: how long a tapped trigger sprays. Long enough to see the jet and hear it,
+// short enough that it reads as a squeeze rather than a stuck button.
+const TAP_BURST_MS = 260;
+let tapBurstTimer = null;
+let toolPressStartedAt = 0;
+const tappedToolsHinted = new Set();
+
 window.addEventListener('pointerup', (e) => {
   if (regActive()) { regApi().onUp(e); return; }
+  const heldFor = toolPressStartedAt ? performance.now() - toolPressStartedAt : Infinity;
+  const tool = walkActive() && app.scene3d.walk.getTool && app.scene3d.walk.getTool();
+  toolPressStartedAt = 0;
   if (preferences.values.accessibility.toolActivation === 'hold') stopToolUse();
+  if (tool && heldFor < TAP_HINT_MS
+    && preferences.values.accessibility.toolActivation === 'hold') {
+    // X2 (Goal 21) — A TAP IS A SHORT SQUEEZE OF THE TRIGGER, NOT A NO-OP.
+    //
+    // The stranger verifier tapped the pressure washer five times on the porch
+    // and got nothing: no water, no sound, no number moving. Goal 20 added a
+    // hint, which fires and which they quoted back, and a hint is still an
+    // apology for a dead control. A real trigger gives a real short burst.
+    //
+    // This routes through the SAME spray path a hold uses, so the jet, the
+    // sound and the actual cleaning progress are the genuine ones rather than a
+    // cosmetic puff. A short burst that cleans a little is honest: it is what
+    // the tool would do.
+    app.scene3d.walk.setSpraying(true);
+    if (audio.ready) audio.setToolLoop(tool);
+    if (tapBurstTimer) clearTimeout(tapBurstTimer);
+    tapBurstTimer = setTimeout(() => {
+      tapBurstTimer = null;
+      stopToolUse();
+    }, TAP_BURST_MS);
+    // ...and the hint still teaches the better gesture, once per tool.
+    if (!tappedToolsHinted.has(tool)) {
+      tappedToolsHinted.add(tool);
+      toast(t('hud.holdToUseTool'));
+    }
+  }
 });
 
 canvas.addEventListener('pointerup', () => {
@@ -2018,13 +3431,13 @@ window.addEventListener('keydown', (e) => {
   // register, laptop, placement, overview, and ordinary walk; Esc remains the
   // contextual "step back" key where those modes need it.
   if (isPauseOpen()) {
-    if (e.key === 'p' || e.key === 'P' || e.key === 'Escape') {
+    if (boundAction(e) === 'pause' || e.key === 'Escape') {
       e.preventDefault();
       closePauseMenu();
     }
     return;
   }
-  if (e.key === 'p' || e.key === 'P') {
+  if (boundAction(e) === 'pause') {
     e.preventDefault();
     openPauseMenu();
     return;
@@ -2052,13 +3465,21 @@ window.addEventListener('keydown', (e) => {
       if (walkActive() && app.scene3d?.walk?.cart?.mounted) return;
       app.speedIdx = app.speedIdx === 0 ? 1 : 0;
       return;
-    case '1': app.speedIdx = 1; return;
-    case '2': app.speedIdx = 2; return;
-    case '3': app.speedIdx = 3; return;
+    case 'F9':
+      // B2: the live mop/broom tuning overlay. Dev-facing; the sim keeps
+      // running and the held tool stays drawn while the panel is up.
+      e.preventDefault();
+      toolTuner?.toggle();
+      return;
   }
+  // A3: the speed ladder above 1x is deleted — Space is the only time
+  // control (pause/resume). The old bound 1/2/3 actions are gone from the
+  // bindings table; rebinds stored for them normalize away on load.
 
-  if (e.key === 'Tab') {
-    e.preventDefault(); // Tab is the camera toggle, not DOM focus
+  // Tab must never reach DOM focus in-game, whatever it is bound to
+  if (e.key === 'Tab') e.preventDefault();
+  if (boundAction(e) === 'overview') {
+    e.preventDefault();
     handlers.toggleCourseMode();
     return;
   }
@@ -2075,30 +3496,33 @@ window.addEventListener('keydown', (e) => {
     // green preview and firing the old nearest-prop interaction underneath it.
     const placement = boxPlacementApi();
     if (placement?.hasCarriedBox()) {
-      switch (e.key) {
-        case 'e': case 'E':
-          e.preventDefault();
-          if (e.repeat) return;
-          if (placement.isActive()) placement.commit();
-          else placement.activate();
-          return;
-        case 'r': case 'R':
-          e.preventDefault();
-          if (e.repeat) return;
-          if (!placement.isActive()) placement.activate();
-          placement.rotate();
-          return;
-        case 'Escape':
-          if (placement.isActive()) {
-            e.preventDefault();
-            placement.cancel();
-            return;
-          }
-          break;
-        case 'b': case 'B':
-          toast('Set down or recycle the carton before rearranging fixtures.', 'warn');
-          return;
-        default: break;
+      // the carried carton follows the bound interact key; its rotate stays
+      // on the blades/rotate key family, Escape and B stay literal
+      const placementAction = boundAction(e);
+      if (placementAction === 'interact') {
+        e.preventDefault();
+        if (e.repeat) return;
+        if (placement.isActive()) placement.commit();
+        else placement.activate();
+        return;
+      }
+      if (placementAction === 'mowerBlades') {
+        e.preventDefault();
+        if (e.repeat) return;
+        if (!placement.isActive()) placement.activate();
+        placement.rotate();
+        return;
+      }
+      // ITEM 23: the build key is BOUND here too. Escape stays literal because
+      // keyBindings reserves it.
+      if (placementAction === 'buildMode') {
+        toast(t('hud.setDownOrRecycle16'), 'warn');
+        return;
+      }
+      if (e.key === 'Escape' && placement.isActive()) {
+        e.preventDefault();
+        placement.cancel();
+        return;
       }
     }
 
@@ -2122,8 +3546,27 @@ window.addEventListener('keydown', (e) => {
         } else if (e.key === 'b' || e.key === 'B') {
           e.preventDefault();
           bld.exit();
-          toast('Renovation mode finished.');
+          toast(t('hud.backToWork'));
         }
+        return;
+      }
+      // ITEM 23: build mode's own keys. The two that duplicate a MAIN binding
+      // are routed through it - the inventory key is the maintenance-panel
+      // binding and the exit key is the build-mode binding, so rebinding either
+      // moves both places at once. The rest (rotate, stow, undo, arrows) are
+      // build-mode-only verbs with no row on the rebinding screen; they are
+      // recorded in the report as the remaining literal set rather than
+      // invented bindings nobody asked for.
+      const buildAction = boundAction(e);
+      if (buildAction === 'maintenancePanel') {
+        e.preventDefault();
+        if (!e.repeat) bld.toggleInventory();
+        return;
+      }
+      if (buildAction === 'buildMode') {
+        e.preventDefault();
+        bld.exit();
+        toast(t('hud.backToWork'));
         return;
       }
       switch (e.key) {
@@ -2138,10 +3581,6 @@ window.addEventListener('keydown', (e) => {
         case 'x': case 'X':
           e.preventDefault();
           if (!e.repeat) bld.stow();
-          return;
-        case 'i': case 'I':
-          e.preventDefault();
-          if (!e.repeat) bld.toggleInventory();
           return;
         case 'ArrowUp': case 'ArrowLeft':
           e.preventDefault();
@@ -2159,11 +3598,6 @@ window.addEventListener('keydown', (e) => {
           e.preventDefault();
           if (!e.repeat) bld.undo();
           return;
-        case 'b': case 'B':
-          e.preventDefault();
-          bld.exit();
-          toast('Back to work.');
-          return;
         case 'Escape':
           e.preventDefault();
           if (bld.isInventoryOpen() || bld.isCarrying()) bld.cancel();
@@ -2173,27 +3607,44 @@ window.addEventListener('keydown', (e) => {
       }
     }
 
-    // first-person course: E is the interaction verb (shop convention). The repeat flag matters:
-    // cutting tape and stocking a shelf are HOLD verbs driven per-frame, and a tap verb must not
-    // fire thirty times a second just because the key is down.
-    switch (e.key) {
-      case 'e': case 'E':
+    // first-person course: the BOUND interact key is the interaction verb (shop
+    // convention). N2/F2: every rebindable verb dispatches on its ACTION,
+    // resolved through the one binding table; mode-scoped keys (B build, I
+    // maintenance, panel toggles, Escape) stay literal below. The repeat flag
+    // matters: cutting tape and stocking a shelf are HOLD verbs driven
+    // per-frame, and a tap verb must not fire thirty times a second just
+    // because the key is down.
+    switch (boundAction(e)) {
+      case 'interact':
         if (app.scene3d.walk.interact) app.scene3d.walk.interact(e.repeat);
-        break;
-      case 'x': case 'X':
+        return;
+      case 'carry':
         if (app.scene3d.walk.interactSecondary) app.scene3d.walk.interactSecondary(e.repeat);
-        break;
-      // Z SETS DOWN WHAT YOU ARE HOLDING — the inverse of X, which picks a carton up.
+        return;
+      // SET DOWN releases what you are holding — the inverse of carry.
       // Reported 2026-07-29: "Add a button to put a held item down." A carton prompt already
       // said "put down what you're holding first" and no key did it.
       //
       // The carton lands one pace ahead of the player rather than underfoot, so it does not
       // materialise inside the body and immediately shove them.
-      case 'z': case 'Z': {
-        if (e.repeat) break;
+      case 'setDown': {
+        if (e.repeat) return;
         e.preventDefault();
+        // D2 (Goal 17) — THE BOOK GETS THE SAME VERB AS EVERY OTHER CARRYABLE.
+        //
+        // "There is no way to put the book down. Add one. The same verb as
+        // every other carryable thing." The verb already exists and the HUD
+        // already teaches it - "Z set down" - it simply only ever asked the
+        // carton system. One extra branch, deliberately BEFORE the carton
+        // branch, and the book answers the key the player has already been
+        // taught.
+        if (carriedThing() === 'ledger') {
+          putDownCarried();
+          toast(t('hud.bookSetDown'));
+          return;
+        }
         const ch = app.scene3d.clubhouse && app.scene3d.clubhouse();
-        if (!ch?.setDownCarried) break;
+        if (!ch?.setDownCarried) return;
         const w = app.scene3d.walk.state;
         const ahead = 0.85;
         const result = ch.setDownCarried(
@@ -2206,16 +3657,95 @@ window.addEventListener('keydown', (e) => {
         } else if (result?.reason) {
           toast(result.reason, 'warn');
         }
-        break;
+        return;
       }
-      case 'j': case 'J': // the drafting table: open the course editor from your feet
+      case 'courseEditor': // the drafting table: open the course editor from your feet
         enterEditor();
-        break;
-      case 'b': case 'B': {
+        return;
+      case 'phone': // A1: the pocket phone — up and away on the same key
+        if (e.repeat) return;
+        e.preventDefault();
+        phoneUi?.toggle();
+        return;
+      // G1 (Goal 24): the ledger opens from anywhere in the clubhouse. Asked for
+      // in Goal 22 and in Goal 23; `enterLedger()` existed both times and no key
+      // pointed at it, so the only way in was to walk to the desk and aim at the
+      // cover. Same key closes it, like the phone.
+      case 'ledger':
+        if (e.repeat) return;
+        e.preventDefault();
+        if (app.ledgerOpen) exitLedger();
+        else enterLedger();
+        return;
+      case 'mowerBlades': {
+        const bladeResult = app.scene3d.walk.toggleBlades?.();
+        if (bladeResult?.handled) {
+          toast(bladeResult.enabled ? `${bladeResult.label} blades engaged.` : `${bladeResult.label} blades disengaged.`);
+          if (audio.ready) audio.setToolLoop(bladeResult.enabled ? 'mower' : null);
+          if (maintenancePanel) maintenancePanel.refresh(true);
+          return;
+        }
+        // at the register in Realistic mode, this key hands over the counted change
+        const ch = app.scene3d.clubhouse && app.scene3d.clubhouse();
+        if (ch && ch.confirmChange) ch.confirmChange();
+        return;
+      }
+      case 'cartLights': {
+        if (e.repeat) return;
+        const lightResult = app.scene3d.walk.toggleLights?.();
+        if (lightResult?.handled) {
+          e.preventDefault();
+          toast(lightResult.enabled ? `${lightResult.label} on.` : `${lightResult.label} off.`);
+        }
+        return;
+      }
+      case 'toolBelt': {
+        if (!app.scene3d.walk.cart.mounted) beginToolKey(e);
+        return;
+      }
+      case 'dirtSense': {
+        // THE DIRT-SENSE KEY CARRIES TWO VERBS: TAP SWAPS, HOLD REVEALS.
+        //
+        // D3: this used to swap on keydown, while courseScene's dirt sense
+        // reads the same key HELD. So every time a player did the thing the HUD
+        // tells them to do — "reveal dirt" — their tool silently changed to
+        // the previous one, and the reveal they were looking at was then
+        // filtered for a tool they were no longer holding. Caught by a driver
+        // that measured the tool before and during the hold and got different
+        // answers.
+        //
+        // Deferring the swap to key-up, and only for a press short enough to be
+        // a tap, keeps both verbs on the advertised key and makes them
+        // unambiguous. Holding no longer swaps anything. Rebinding moves the
+        // KEY; this tap/hold split rides with the action.
+        e.preventDefault();
+        if (!e.repeat) qPressedAt = performance.now();
+        return;
+      }
+      case 'cartCamera': {
+        if (e.repeat) return;
+        const cameraResult = app.scene3d.walk.toggleVehicleCamera?.();
+        if (cameraResult?.handled) {
+          e.preventDefault();
+          toast(cameraResult.mode === 'driver' ? 'Driver camera.' : 'Chase camera.');
+          return;
+        }
+        // on foot the same key cycles the turf view, as it always has
+        const modes = ['normal', 'health', 'moisture'];
+        handlers.setViewMode(modes[(modes.indexOf(app.viewMode) + 1) % modes.length]);
+        return;
+      }
+      // ITEM 23: build mode and the four panel toggles now live HERE, in the
+      // bound-action switch, instead of as literal `case 'b'` arms in the
+      // switch below. They were the eight verbs the rebinding screen offered
+      // no row for, and two of them were written out twice - once for inside
+      // the clubhouse and once for outside - so the same key had to be changed
+      // in two places and neither was reachable from settings.
+      case 'buildMode': {
         const ch = app.scene3d.clubhouse && app.scene3d.clubhouse();
         const w = app.scene3d.walk.state;
         if (!ch || !ch.isInside(w.x, w.z)) {
-          toast('Rearranging is for indoors.', 'warn');
+          toast(t('hud.rearrangingIsForIndoors'), 'warn');
           break;
         }
         ch.build.enter();
@@ -2223,97 +3753,70 @@ window.addEventListener('keydown', (e) => {
         objectivesPanel.refresh();
         break;
       }
-      case 'r': case 'R': {
-        const bladeResult = app.scene3d.walk.toggleBlades?.();
-        if (bladeResult?.handled) {
-          toast(bladeResult.enabled ? `${bladeResult.label} blades engaged.` : `${bladeResult.label} blades disengaged.`);
-          if (audio.ready) audio.setToolLoop(bladeResult.enabled ? 'mower' : null);
-          if (maintenancePanel) maintenancePanel.refresh(true);
-          break;
-        }
-        // at the register in Realistic mode, R hands over the counted change
-        const ch = app.scene3d.clubhouse && app.scene3d.clubhouse();
-        if (ch && ch.confirmChange) ch.confirmChange();
-        break;
-      }
-      case 'l': case 'L': {
-        if (e.repeat) break;
-        const lightResult = app.scene3d.walk.toggleLights?.();
-        if (lightResult?.handled) {
-          e.preventDefault();
-          if (!e.repeat) toast(lightResult.enabled ? `${lightResult.label} on.` : `${lightResult.label} off.`);
-        }
-        break;
-      }
-      case 'f': case 'F': {
-        if (!app.scene3d.walk.cart.mounted) beginToolKey(e);
-        break;
-      }
-      case 'q': case 'Q': {
-        e.preventDefault();
-        if (!e.repeat) swapPreviousWalkTool();
-        break;
-      }
-      case 'i': case 'I':
+      case 'maintenancePanel':
         setMaintenanceVisible(!maintenancePanel?.isVisible());
         break;
-      case 'g': case 'G':
+      case 'groundsPanel':
         if (document.pointerLockElement) document.exitPointerLock(); // free the cursor for the panel
         handlers.toggleGrounds();
         break;
-      case 'c': case 'C':
+      case 'clubPanel':
         if (document.pointerLockElement) document.exitPointerLock();
         handlers.toggleClub();
         break;
-      case 'm': case 'M':
+      case 'empirePanel':
         if (document.pointerLockElement) document.exitPointerLock();
         handlers.toggleEmpire();
         break;
-      case 'v': case 'V': {
-        if (e.repeat) break;
-        const cameraResult = app.scene3d.walk.toggleVehicleCamera?.();
-        if (cameraResult?.handled) {
-          e.preventDefault();
-          if (!e.repeat) toast(cameraResult.mode === 'driver' ? 'Driver camera.' : 'Chase camera.');
-          break;
-        }
-        const modes = ['normal', 'health', 'moisture'];
-        handlers.setViewMode(modes[(modes.indexOf(app.viewMode) + 1) % modes.length]);
-        break;
+      default: break;
+    }
+    // ESCAPE STAYS LITERAL, and must: keyBindings reserves it precisely so the
+    // pause-menu escape hatch can never be rebound away. boundAction returns
+    // null for it, so it cannot live in the switch above.
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      if (app.selectedSection) inspectPanel.hide();
+      else if (app.groundsOpen || app.clubOpen || app.empireOpen) closeLeftPanels('none');
+      else {
+        stopToolUse();
+        if (document.pointerLockElement) document.exitPointerLock();
+        openPauseMenu();
       }
-      case 'Escape':
-        e.preventDefault();
-        if (app.selectedSection) inspectPanel.hide();
-        else if (app.groundsOpen || app.clubOpen || app.empireOpen) closeLeftPanels('none');
-        else {
-          stopToolUse();
-          if (document.pointerLockElement) document.exitPointerLock();
-          openPauseMenu();
-        }
-        break;
     }
     return;
   }
 
-  switch (e.key) {
-    case 'e': case 'E':
-    case 'j': case 'J':
-      enterEditor();
-      break;
-    case 'g': case 'G':
+  // the overview map: the bound interact/editor keys open the editor, the
+  // bound camera key cycles the turf view; panel toggles stay literal
+  const overviewAction = boundAction(e);
+  if (overviewAction === 'interact' || overviewAction === 'courseEditor') {
+    // F1 (Full_Goal_16): E at an OPEN station must never fall through to the
+    // drafting table — the register/ledger/laptop/front-desk own the screen.
+    // The editor still opens from the overview proper, and always on its own
+    // bound key.
+    if (overviewAction === 'interact'
+      && (regActive() || app.ledgerOpen || app.laptopOpen || app.frontDeskOpen)) return;
+    enterEditor();
+    return;
+  }
+  if (overviewAction === 'cartCamera') {
+    const modes = ['normal', 'health', 'moisture'];
+    handlers.setViewMode(modes[(modes.indexOf(app.viewMode) + 1) % modes.length]);
+    return;
+  }
+  // ITEM 23: the overview map's panel toggles were a SECOND literal copy of
+  // the same three keys, so rebinding had to be done twice and could be done
+  // in neither. One binding, one place.
+  switch (overviewAction) {
+    case 'groundsPanel':
       handlers.toggleGrounds();
       break;
-    case 'c': case 'C':
+    case 'clubPanel':
       handlers.toggleClub();
       break;
-    case 'm': case 'M':
+    case 'empirePanel':
       handlers.toggleEmpire();
       break;
-    case 'v': case 'V': {
-      const modes = ['normal', 'health', 'moisture'];
-      handlers.setViewMode(modes[(modes.indexOf(app.viewMode) + 1) % modes.length]);
-      break;
-    }
     case 'Escape':
       if (isPauseOpen()) {
         closePauseMenu();
@@ -2339,7 +3842,15 @@ window.addEventListener('keydown', (e) => {
 });
 window.addEventListener('keyup', (e) => {
   held.up(e.key);
-  if (e.key === 'f' || e.key === 'F') endToolKey();
+  const releasedAction = boundAction(e);
+  if (releasedAction === 'toolBelt') endToolKey();
+  if (releasedAction === 'dirtSense') {
+    // A tap is a tool swap; anything longer was a dirt-sense hold and must not
+    // change what is in your hands. See the keydown case for why.
+    const heldMs = qPressedAt == null ? Infinity : performance.now() - qPressedAt;
+    qPressedAt = null;
+    if (heldMs <= Q_TAP_MS) swapPreviousWalkTool();
+  }
 });
 window.addEventListener('blur', () => {
   if (toolKeyTimer) clearTimeout(toolKeyTimer);
@@ -2369,6 +3880,19 @@ function resetCameraInput() {
   dragging = null;
   const w = app.scene3d && app.scene3d.walk;
   if (w && w.clearKeys) w.clearKeys(); // ...and the feet, so a paused stride doesn't resume
+}
+
+function resetStartupInputLatches() {
+  qPressedAt = null;
+  toolPressStartedAt = 0;
+  handledPlacementPointer = false;
+  walkToolWheelRemainder = 0;
+  if (toolKeyTimer) clearTimeout(toolKeyTimer);
+  toolKeyTimer = null;
+  toolHoldOpened = false;
+  if (tapBurstTimer) clearTimeout(tapBurstTimer);
+  tapBurstTimer = null;
+  stopToolUse();
 }
 
 function keyboardCamera(dtMs) {
@@ -2401,9 +3925,152 @@ let golfFocusClock = 0;
 let golfAudioSequence = 0;
 let golfAudioDay = null;
 
+// E6 — THE CONTROL HINT MUST SHOW THE PLAYER'S OWN KEYS.
+//
+// Both copies of the lock hint were literal strings: "WASD move · E interact ·
+// X carry · Z set down · tap/hold F tools · J course editor · Tab overview · P
+// pause". Rebind anything and the line under the crosshair goes on teaching the
+// defaults - which is worse than no hint, because it is a wrong one the player
+// has no reason to distrust. Built from the same binding table every key read
+// resolves through, so it cannot drift.
+function walkControlHintText() {
+  const bindings = preferences.values.controls?.bindings || {};
+  const k = (id, fallback) => {
+    const key = keyForAction(bindings, id);
+    return key ? describeKey(key) : fallback;
+  };
+  const move = [k('moveForward', 'W'), k('moveLeft', 'A'), k('moveBack', 'S'), k('moveRight', 'D')];
+  // WASD reads as one word when it IS WASD, and as four keys when it is not
+  const moveLabel = move.join('').toUpperCase() === 'WASD' ? 'WASD' : move.join('/');
+  return [
+    'Click to look',
+    `${moveLabel} move`,
+    `${k('run', 'Shift')} run`,
+    `${k('interact', 'E')} interact`,
+    `${k('carry', 'X')} carry`,
+    `${k('setDown', 'Z')} set down`,
+    `tap/hold ${k('toolBelt', 'F')} tools`,
+    `${k('phone', 'T')} phone`,
+    `${k('courseEditor', 'J')} course editor`,
+    `${k('overview', 'Tab')} overview`,
+    `${k('pause', 'P')} pause`,
+  ].join(' · ');
+}
+
+// Goal 24: own every production-frame request in one lexical scheduler. These
+// counters begin before the first request and have no reset/mutation hook, so a
+// checkpoint can prove the loop had exactly one root start and never had more
+// than one production callback queued. The getter returns a fresh snapshot;
+// tooling cannot start, stop, or otherwise drive the loop through it.
+const PRODUCTION_FRAME_LOOP_OWNER = 'golf-flipper/src/main.js:production-frame-loop:v1';
+const productionFrameLoopState = {
+  rootStartCount: 0,
+  scheduleCount: 0,
+  callbackCount: 0,
+  pendingCallbackCount: 0,
+  maximumPendingCallbackCount: 0,
+  schedulingFailureCount: 0,
+  pendingUnderflowCount: 0,
+  firstRootStartAtMs: null,
+  lastCallbackAtMs: null,
+};
+
+function productionFrameLoopDiagnostics() {
+  const state = productionFrameLoopState;
+  const accountingConsistent = state.scheduleCount - state.callbackCount
+    === state.pendingCallbackCount;
+  const singleRootStart = state.rootStartCount === 1;
+  const atMostOnePendingCallback = state.maximumPendingCallbackCount === 1
+    && state.pendingCallbackCount <= 1;
+  const oneCallbackCurrentlyPending = state.pendingCallbackCount === 1;
+  const noSchedulerFaults = state.schedulingFailureCount === 0
+    && state.pendingUnderflowCount === 0;
+  return {
+    schemaVersion: 1,
+    ownerToken: PRODUCTION_FRAME_LOOP_OWNER,
+    rootStartCount: state.rootStartCount,
+    scheduleCount: state.scheduleCount,
+    callbackCount: state.callbackCount,
+    pendingCallbackCount: state.pendingCallbackCount,
+    maximumPendingCallbackCount: state.maximumPendingCallbackCount,
+    schedulingFailureCount: state.schedulingFailureCount,
+    pendingUnderflowCount: state.pendingUnderflowCount,
+    firstRootStartAtMs: state.firstRootStartAtMs,
+    lastCallbackAtMs: state.lastCallbackAtMs,
+    accountingConsistent,
+    singleRootStart,
+    atMostOnePendingCallback,
+    oneCallbackCurrentlyPending,
+    invariantHolds: singleRootStart
+      && atMostOnePendingCallback
+      && oneCallbackCurrentlyPending
+      && accountingConsistent
+      && noSchedulerFaults,
+  };
+}
+
+function runProductionFrame(timestamp) {
+  const state = productionFrameLoopState;
+  if (state.pendingCallbackCount === 0) state.pendingUnderflowCount += 1;
+  else state.pendingCallbackCount -= 1;
+  state.callbackCount += 1;
+  state.lastCallbackAtMs = timestamp;
+  frame(timestamp);
+}
+
+function scheduleProductionFrame() {
+  const state = productionFrameLoopState;
+  try {
+    const callbackId = requestAnimationFrame(runProductionFrame);
+    state.scheduleCount += 1;
+    state.pendingCallbackCount += 1;
+    state.maximumPendingCallbackCount = Math.max(
+      state.maximumPendingCallbackCount,
+      state.pendingCallbackCount,
+    );
+    return callbackId;
+  } catch (error) {
+    state.schedulingFailureCount += 1;
+    throw error;
+  }
+}
+
+function startProductionFrameLoop() {
+  const state = productionFrameLoopState;
+  state.rootStartCount += 1;
+  if (state.firstRootStartAtMs == null) state.firstRootStartAtMs = performance.now();
+  return scheduleProductionFrame();
+}
+
+Object.defineProperty(app, 'frameLoopDiagnostics', {
+  value: productionFrameLoopDiagnostics,
+  enumerable: true,
+  configurable: false,
+  writable: false,
+});
+
 function frame(ts) {
+  // A1 (Goal 18/23) — the framerate cap. A skipped tick returns before any sim
+  // or render work, so the whole frame's CPU is saved and not just the draw.
+  // WHICH ticks are skipped is decided by counting vsyncs rather than comparing
+  // wall time: on a 181.8 Hz panel the old interval compare achieved 97 fps
+  // at a cap of 120 with 0.2% of intervals on cadence — a 5.5/11 ms sawtooth
+  // that averages right and feels wrong.
+  if (!frameCap.shouldRender(ts)) {
+    scheduleProductionFrame();
+    return;
+  }
   const dtMs = Math.min(250, ts - lastTs || 16);
   lastTs = ts;
+
+  // Prewarm owns the renderer while the opaque veil is up. More importantly,
+  // the startup capability owns every state boundary: no clock, deliveries,
+  // tutorial, walk input, audio cadence, or autosave clock may advance until the
+  // still-current scene has completed prewarm successfully.
+  if (startupHold.isPending()) {
+    scheduleProductionFrame();
+    return;
+  }
 
   if (app.screen === 'game' && app.state && app.scene3d) {
     keyboardCamera(dtMs);
@@ -2457,6 +4124,10 @@ function frame(ts) {
       }
       const { daysPassed } = empireUpdate(app.empire, gameMinutes);
       if (daysPassed > 0) {
+        // H2: a day boundary is a natural save point, whatever moved the clock.
+        // Watching daysPassed rather than any particular code path means sleep
+        // skips and multi-day batches save exactly once per crossing too.
+        autosave('rollover');
         rebuildSectionIndex();
         app.scene3d.updateHoles();
         announceReopenings();
@@ -2518,11 +4189,11 @@ function frame(ts) {
         const man = ev.order.manifest;
         const boxes = man ? `${man.boxCount} box${man.boxCount === 1 ? '' : 'es'}` : 'boxes';
         if (ev.kind === 'dispatched') {
-          toast(`📦 ${name} has dispatched — ${deliveryEtaText(ev.order, app.state.clock.minutes)}. ${boxes}, ${man ? `${man.weight} lb` : ''}.`);
+          toast(`📦 ${name} has dispatched - ${deliveryEtaText(ev.order, app.state.clock.minutes)}. ${boxes}, ${man ? `${man.weight} lb` : ''}.`);
         } else if (ev.kind === 'soon') {
-          toast(`📦 The ${ev.order.supplier || name} van is close — ${deliveryEtaText(ev.order, app.state.clock.minutes)}.`);
+          toast(`📦 The ${ev.order.supplier || name} van is close - ${deliveryEtaText(ev.order, app.state.clock.minutes)}.`);
         } else if (ev.kind === 'arrived') {
-          toast(`📦 Delivery inbound! ${name} ×${ev.order.qty} — the van is turning into receiving with ${boxes}.`);
+          toast(`📦 Delivery inbound! ${name} ×${ev.order.qty} - the van is turning into receiving with ${boxes}.`);
           // A carton is the only thing in the game opened by hold-and-drag, and
           // the entire retail loop is behind it. Teach it the moment there is
           // actually a box to open; the lesson retires itself on the first cut.
@@ -2545,7 +4216,7 @@ function frame(ts) {
         } else if (ev.kind === 'blocked') {
           // The receiving area is blocked. The van did not dump the boxes anyway, and it did not
           // quietly delete them either — the order is still out there and will try again.
-          toast(`🚫 The van could not unload — the receiving pad is full. ${name} ×${ev.order.qty} is still on board. Carry some cartons inside.`, 'warn');
+          toast(`🚫 The van could not unload - the receiving pad is full. ${name} ×${ev.order.qty} is still on board. Carry some cartons inside.`, 'warn');
         }
       }
     }
@@ -2612,13 +4283,13 @@ function frame(ts) {
       if (app.state.tutorial && !app.state.tutorial.complete) {
         const tut = tickTutorial(app.state);
         if (!app.state.tutorial.hidden) {
-          for (const step of tut.advanced) toast(`🎯 ${step.title} — done.`);
+          for (const step of tut.advanced) toast(`🎯 ${step.title} - done.`);
         }
         if (tut.advanced.length) {
           if (app.state.tutorial.complete && !app.state.tutorial.hidden) {
-            toast('The guide retires — the club is yours now. The Open awaits.', '');
+            toast(t('hud.theGuideRetiresThe'), '');
           }
-          objectivesPanel.refresh();
+          objectivesPanel.refresh(tut.view);
         }
       }
       const cal2 = calendarOf(app.state.clock.minutes);
@@ -2636,12 +4307,14 @@ function frame(ts) {
     }
     hud.update();
     golfDayPanel?.update();
+    updatePhoneRing(ts); // D3: the desk phone rings through the frame loop
+    phoneUi?.update(); // A1: badge, incoming-call face, status clock
   }
   // Weld the interface to the glass. Every frame, unconditionally, for as long as the lid is
   // open — through the camera's ease into the seat, through the lid's swing, through a window
   // resize. A transform that is never cached is a transform that can never go stale.
   if (app.laptopOpen) alignLaptopUi();
-  requestAnimationFrame(frame);
+  scheduleProductionFrame();
 }
 
 const CONDITION_WORD = (c) =>
@@ -2664,7 +4337,7 @@ function registerPrompt() {
     case 'payment': return `Choose card or cash on the register screen${exit}`;
     case 'card-present': return `Take the customer's card, then use the terminal${exit}`;
     case 'card-ready': return `Run the card through the terminal${exit}`;
-    case 'card-busy': return 'Authorising card — please wait';
+    case 'card-busy': return 'Authorising card - please wait';
     case 'card-declined': return `Card declined · try another card or choose cash${exit}`;
     case 'cash-tender': return `Take the customer's cash · [D] open the drawer${exit}`;
     case 'cash-drawer': {
@@ -2677,7 +4350,10 @@ function registerPrompt() {
     }
     case 'receipt': return `Take the printed receipt${exit}`;
     case 'bagging': return `Place every item in the bag, then take the receipt${exit}`;
-    case 'done': return 'Hand the completed order to the customer';
+    // GOAL 25 legibility — the behind-the-till hint carried the same silence as
+    // the register screen: it named the gesture and not the reason. Nothing is
+    // banked until the bag is in their hand.
+    case 'done': return 'Drag the bag to the customer’s palm - the sale banks when they take it';
     default: return `Follow the register screen${exit}`;
   }
 }
@@ -2698,12 +4374,28 @@ function syncPresentationMode(mode) {
 // lookups are cached once, every DOM write is guarded by a last-value check (an identical
 // textContent assignment still rebuilds the text node and dirties layout), and the shop
 // condition — a whole grime-grid scan — is polled at 4Hz instead of 90.
-const ovEl = { prompt: null, lockHint: null, cond: null, propertyInventory: null };
+const ovEl = { prompt: null, lockHint: null, cond: null, propertyInventory: null, queueNote: null };
 const ovLast = {
   prompt: null, opacity: null, lockDisp: null, lockText: null,
-  condText: null, condDisp: null, propertyInventoryText: null, propertyInventoryDisplay: null,
+  condText: null, condVisible: null, propertyInventoryText: null, propertyInventoryDisplay: null,
+  queueNoteText: null, queueNoteVisible: null,
 };
 let condClock = 0;
+
+function shopConditionLabel(state, score = null) {
+  if (!state?.shop) return '🧹 Shop condition -';
+  const condition = Number.isFinite(score) ? score : shopCondition(state);
+  return `🧹 Shop condition ${condition} - ${CONDITION_WORD(condition)}`;
+}
+
+function primeWalkConditionForState(state) {
+  if (!walkCondition) return;
+  const conditionText = shopConditionLabel(state);
+  if (conditionText === ovLast.condText) return;
+  ovLast.condText = conditionText;
+  setPromptText(walkCondition, conditionText);
+}
+
 function updateWalkOverlay(dtMs = 16.7) {
   const mode = presentationMode();
   syncPresentationMode(mode);
@@ -2729,11 +4421,16 @@ function updateWalkOverlay(dtMs = 16.7) {
     ovEl.propertyInventory = walkOverlay.querySelector('.property-inventory');
     ovEl.dirtSense = walkOverlay.querySelector('.dirt-sense-hint');
     ovEl.dirtReticle = walkOverlay.querySelector('.dirt-reticle');
+    ovEl.queueNote = walkOverlay.querySelector('.shop-queue-note');
   }
   if (ovEl.dirtReticle) {
     const aimed = app.scene3d.walk.dirtSense ? app.scene3d.walk.dirtSense().aimed : null;
+    // J2: the reticle names the MEDIUM from the legend authority, so what you
+    // aim at, the marker colour and the HUD chips all say the same thing.
     const reticleText = aimed
-      ? (aimed.kind === 'litter' ? 'litter — sweep it' : 'loose dirt — sweep it')
+      ? (aimed.kind === 'litter'
+        ? 'Litter - sweep or bag it'
+        : `${MEDIUM_STYLE[MEDIUM.DEBRIS].label} - ${MEDIUM_STYLE[MEDIUM.DEBRIS].verb}`)
       : '';
     if (reticleText !== ovLast.dirtReticleText) {
       ovLast.dirtReticleText = reticleText;
@@ -2746,7 +4443,10 @@ function updateWalkOverlay(dtMs = 16.7) {
   if (ovEl.dirtSense) {
     const sense = app.scene3d.walk.dirtSense ? app.scene3d.walk.dirtSense() : null;
     const clusters = sense?.overlay?.clusters || 0;
-    const senseDisplay = clusters > 0 && document.pointerLockElement ? 'flex' : 'none';
+    // F2: and the affordance goes with it. Offering "[Q] reveal dirt" while a
+    // panel is up advertises a key that does nothing.
+    const stationUp = app.laptopOpen || app.ledgerOpen || app.frontDeskOpen || regActive();
+    const senseDisplay = clusters > 0 && document.pointerLockElement && !stationUp ? 'flex' : 'none';
     if (senseDisplay !== ovLast.senseDisplay) {
       ovLast.senseDisplay = senseDisplay;
       ovEl.dirtSense.style.display = senseDisplay;
@@ -2755,6 +4455,29 @@ function updateWalkOverlay(dtMs = 16.7) {
     if (senseOn !== ovLast.senseOn) {
       ovLast.senseOn = senseOn;
       ovEl.dirtSense.classList.toggle('is-on', senseOn);
+    }
+    // J2: THE LEGEND, literally. While the reveal is up, the hint shows which
+    // media the held tool can shift as coloured chips — the same colours the
+    // markers use, from the same authority. No tool = both media (the bare
+    // reveal shows everything). One DOM write per change of tool/state.
+    const senseTool = app.scene3d.walk.getTool ? app.scene3d.walk.getTool() : null;
+    const senseMedia = senseOn
+      ? (CLEANING_TOOLS[senseTool] ? toolMedia(senseTool) : [MEDIUM.DEBRIS, MEDIUM.GRIME])
+      : [];
+    const senseMediaKey = senseMedia.join(',');
+    if (senseMediaKey !== ovLast.senseMediaKey) {
+      ovLast.senseMediaKey = senseMediaKey;
+      let chips = ovEl.dirtSense.querySelector('.dirt-sense-media');
+      if (!chips) {
+        chips = el('span', { class: 'dirt-sense-media' });
+        ovEl.dirtSense.append(chips);
+      }
+      chips.replaceChildren(...senseMedia.map((medium) => el('span', { class: 'dirt-medium-chip' },
+        el('span', {
+          class: 'dirt-medium-dot',
+          style: `background:#${MEDIUM_STYLE[medium].color.toString(16).padStart(6, '0')}`,
+        }),
+        el('span', { text: MEDIUM_STYLE[medium].label }))));
     }
   }
   // build mode speaks over the world's own prompts: while it is on, the only controls that
@@ -2782,16 +4505,18 @@ function updateWalkOverlay(dtMs = 16.7) {
   // A focus prompt only has meaning while mouse-look owns the pointer. When
   // the pointer is free, "Click to play" is the single actionable instruction;
   // stacking both bars made the queue/customer name unreadable.
-  const opacity = label && document.pointerLockElement ? '1' : '0';
+  const promptVisible = !!(label && document.pointerLockElement);
+  const opacity = promptVisible ? '1' : '0.004';
   if (opacity !== ovLast.opacity) {
     ovLast.opacity = opacity;
     ovEl.prompt.style.opacity = opacity;
+    ovEl.prompt.setAttribute('aria-hidden', promptVisible ? 'false' : 'true');
   }
   if (label?.includes('check in')) {
     frontDeskLessonSeen = true;
     triggerContextTutorial(app.state, 'front-desk');
     objectivesPanel.refresh();
-  } else if (frontDeskLessonSeen && label?.startsWith('Register — yesterday')) {
+  } else if (frontDeskLessonSeen && label?.startsWith('Register - yesterday')) {
     tutorialFlag(app.state, 'frontDeskCheckedIn');
     frontDeskLessonSeen = false;
   }
@@ -2800,46 +4525,98 @@ function updateWalkOverlay(dtMs = 16.7) {
   // the pointer is free, as a click-to-play reminder
   const tut = app.state && app.state.tutorial;
   const learned = tut && (tut.complete || tut.hidden || tut.step >= 5);
+  // K (Goal 23): the overview is NOT silent -- it raises its own `.hint-bar`
+  // with a full legend ("drag to pan, right-drag to rotate, wheel to zoom, Tab
+  // returns on foot"). I extended this gate to cover it before checking, and
+  // the change was dead: the walk overlay is hidden in overview, so the hint it
+  // controls cannot be seen there anyway. Reverted rather than shipped.
   const showLockHint = ['walk', 'placement'].includes(mode) && !document.pointerLockElement;
   const lockDisp = showLockHint ? '' : 'none';
   if (lockDisp !== ovLast.lockDisp) {
     ovLast.lockDisp = lockDisp;
     ovEl.lockHint.style.display = lockDisp;
   }
+  // E6: THIS is the copy the player actually reads — the two built at
+  // construction are only the initial text. All three were literal, so a
+  // rebound key was taught wrong under the crosshair on every frame.
+  const bind = preferences.values.controls?.bindings || {};
+  const bk = (id, fallback) => {
+    const key = keyForAction(bind, id);
+    return key ? describeKey(key) : fallback;
+  };
   const lockText = learned
     ? (placement?.hasCarriedBox()
-      ? 'Click to resume · Carrying carton: E place · R rotate · Z set down · Esc keep carrying'
+      ? `Click to resume · Carrying carton: ${bk('interact', 'E')} place · R rotate · ${bk('setDown', 'Z')} set down · Esc keep carrying`
       : 'Click to resume looking')
     : (placement?.hasCarriedBox()
-      ? 'Click to look around · WASD walk · E place · R rotate · Z set down · Esc keep carrying'
-      : 'Click to look · WASD move · Shift run · E interact · X carry · Z set down · tap/hold F tools · J course editor · Tab overview · P pause');
+      ? `Click to look around · ${bk('moveForward', 'W')}${bk('moveLeft', 'A')}${bk('moveBack', 'S')}${bk('moveRight', 'D')} walk · ${bk('interact', 'E')} place · R rotate · ${bk('setDown', 'Z')} set down · Esc keep carrying`
+      : walkControlHintText());
   if (lockText !== ovLast.lockText) {
     ovLast.lockText = lockText;
     setPromptText(ovEl.lockHint, lockText);
   }
-  // inside the shop: the condition chip rides along (and tier-ups chime) — 4Hz is plenty
+  // Inside the shop the condition chip rides along (and tier-ups chime). Keep
+  // its text painted while outside and reveal only its precomposited opacity
+  // layer at the threshold. A first text/layout paint here used to make
+  // Chromium flush the backed-up WebGL queue about 200 ms after door entry.
+  // Condition itself still changes at only 4 Hz.
   condClock += dtMs;
   if (condClock >= 250) {
     condClock = 0;
     const ch = app.scene3d.clubhouse && app.scene3d.clubhouse();
     const inside = ch && ch.isInside(app.scene3d.walk.state.x, app.scene3d.walk.state.z);
-    let condText = null;
-    if (inside && mode === 'walk' && app.state && app.state.shop) {
+    const conditionVisible = !!(inside && mode === 'walk' && app.state?.shop);
+    const conditionScore = conditionVisible ? shopCondition(app.state) : null;
+    const conditionText = conditionVisible
+      ? shopConditionLabel(app.state, conditionScore)
+      : ovLast.condText;
+    if (conditionVisible) {
       if (app.state.tutorial) tutorialFlag(app.state, 'shopWalked');
-      const c = shopCondition(app.state);
-      const word = CONDITION_WORD(c);
-      condText = `🧹 Shop condition ${c} — ${word}`;
-      if (lastCondWord && word !== lastCondWord && c >= 25 && audio.ready) audio.chime();
+      const word = CONDITION_WORD(conditionScore);
+      if (lastCondWord && word !== lastCondWord && conditionScore >= 25 && audio.ready) audio.chime();
       lastCondWord = word;
     }
-    if (condText !== ovLast.condText) {
-      ovLast.condText = condText;
-      if (condText) ovEl.cond.textContent = condText;
+    if (conditionText !== ovLast.condText) {
+      ovLast.condText = conditionText;
+      setPromptText(ovEl.cond, conditionText);
     }
-    const condDisp = condText ? '' : 'none';
-    if (condDisp !== ovLast.condDisp) {
-      ovLast.condDisp = condDisp;
-      ovEl.cond.style.display = condDisp;
+    if (conditionVisible !== ovLast.condVisible) {
+      ovLast.condVisible = conditionVisible;
+      ovEl.cond.classList.toggle('is-visible', conditionVisible);
+      ovEl.cond.setAttribute('aria-hidden', conditionVisible ? 'false' : 'true');
+    }
+    // GOAL 25 legibility — SAY WHY THE LINE IS NOT MOVING.
+    //
+    // Only while the player is inside and on foot: outside the shop it is not
+    // actionable, and in register mode the whole walk overlay is hidden anyway.
+    // The rule itself is `ch.deskHoldup()`, which lives beside the router; this
+    // only renders what it returns, so there is no second copy of the rule to
+    // drift.
+    const holdup = (inside && mode === 'walk' && ch?.deskHoldup) ? ch.deskHoldup() : null;
+    // Through t(), and the count is a COLON-SEPARATED NUMBER rather than
+    // "3 shoppers": English plural agreement baked into a template is not
+    // translatable, and all ten locale tables are currently at zero missing
+    // keys. A line that only reads correctly in English would be the first
+    // crack in that.
+    const kindText = holdup
+      ? t(holdup.kind === 'check-in' ? 'hud.deskKindCheckIn' : 'hud.deskKindTeeTime')
+      : '';
+    const noteText = holdup
+      ? (holdup.behind > 0
+        ? t('hud.deskHoldup', { name: holdup.name, kind: kindText, behind: holdup.behind })
+        : t('hud.deskHoldupAlone', { name: holdup.name, kind: kindText }))
+      : '';
+    // Text only when the sentence actually changed, and NEVER a display write —
+    // opacity class only, so the threshold crossing stays free of layout.
+    if (noteText && noteText !== ovLast.queueNoteText && ovEl.queueNote) {
+      ovLast.queueNoteText = noteText;
+      setPromptText(ovEl.queueNote, noteText);
+    }
+    const noteVisible = !!noteText;
+    if (noteVisible !== ovLast.queueNoteVisible && ovEl.queueNote) {
+      ovLast.queueNoteVisible = noteVisible;
+      ovEl.queueNote.classList.toggle('is-visible', noteVisible);
+      ovEl.queueNote.setAttribute('aria-hidden', noteVisible ? 'false' : 'true');
     }
   }
 }
@@ -2857,9 +4634,9 @@ function checkBigMoments() {
     modal('🏆 THE WILLOW CREEK OPEN', (box, close) => {
       box.append(
         el('div', { class: 'row', style: 'font-size:1.05rem;line-height:1.5' },
-          'You did it. The muni nobody wanted became the club everyone talks about — and today it hosted a major. ' +
+          'You did it. The muni nobody wanted became the club everyone talks about - and today it hosted a major. ' +
           'The greens rolled true, the members watched from the clubhouse they helped build, and the write-ups are glowing.'),
-        el('div', { class: 'row muted' }, 'The club keeps running — there is always another season. Thanks for building it.'),
+        el('div', { class: 'row muted' }, 'The club keeps running - there is always another season. Thanks for building it.'),
         el('div', { class: 'row', style: 'margin-top:12px' },
           el('button', { class: 'primary', text: 'Back to the course', onclick: () => { app.speedIdx = 1; close(); } })),
       );
@@ -2898,7 +4675,7 @@ function announceReopenings() {
   for (const hole of course.holes) {
     const prev = lastStatuses.get(hole.id);
     if (prev && prev !== HOLE_STATUS.OPEN && hole.status === HOLE_STATUS.OPEN) {
-      toast(`Hole ${holeNumber(course, hole.id)} is back open.`);
+      toast(t('hud.holeReopened', { number: holeNumber(course, hole.id) }));
     }
     lastStatuses.set(hole.id, hole.status);
   }
@@ -2938,6 +4715,7 @@ function openMenuSettings() {
 
 function boot() {
   menu = makeMenu({
+    audio, // H1 (Goal 20): the menu was silent because nothing gave it a voice
     async onNewGame(mode) {
       // Begin in the authored three-hole fixer-upper. Later acquisitions belong
       // on the physical clubhouse laptop, after the player knows the space.
@@ -2946,7 +4724,11 @@ function boot() {
       await autosave();
     },
     async onContinue() {
-      const empire = await loadEmpireSave('autosave', 'Autosave');
+      // H2: the rotated generation is a real fallback, not just a file on disk.
+      // If the whole autosave pair (primary + .bak) fails validation, the
+      // previous generation still boots the run.
+      const empire = await loadEmpireSave('autosave', 'Autosave')
+        || await loadEmpireSave('autosave-prev', 'Previous autosave');
       if (empire) bootEmpire(empire);
     },
     async onLoad(_data, slot) {
@@ -2965,7 +4747,12 @@ function boot() {
 
   gameUi = el('div', { class: 'game-ui', style: 'display:none' });
   hud = makeHud(app, handlers);
-  laptopUi = makeLaptop(app, {
+  // The opts object is captured on app so a driver can ask the LAPTOP what it
+  // would do, rather than re-deriving the answer from state and certifying that
+  // its own copy of the rule agrees with itself. The laptop reads its
+  // capabilities from here, so this is the surface that decides whether a fix is
+  // reachable at all.
+  const laptopOpts = {
     close: () => exitLaptop(),
     openPropertyMarket: () => {
       exitLaptop();
@@ -2980,7 +4767,18 @@ function boot() {
       autosave();
       return result;
     },
-  });
+    // B5 (Goal 24): the laptop's way out of a wedged counter. The clubhouse owns
+    // the verb — it funnels through removeCustomer so the register lets go and
+    // the stock returns — and this only carries the result back to the screen.
+    clearCounterCustomer: () => app.scene3d?.clubhouse?.()?.dismissCounterCustomer?.() ?? null,
+    // P0: the checkout interlock's key. Both halves go through the sim module
+    // that owns the latch -- the laptop asks whether it is set and asks it to be
+    // released, and never touches state.shop itself.
+    checkoutRecordsWedged: () => checkoutWalIsQuarantined(app.state),
+    resolveCheckoutRecords: () => releaseCheckoutWalQuarantine(app.state, { acknowledgedBy: 'owner' }).released === true,
+  };
+  app.laptopOpts = laptopOpts; // reachable from window.__fw, see the note above
+  laptopUi = makeLaptop(app, laptopOpts);
   // The laptop component itself, reachable from window.__fw — the drivers already read
   // app.laptopOpen for the door state, and tools/qa/laptop-search-navigate.js needs the
   // instrument side too (searchIndexKinds, lastSearchReveal).
@@ -3014,10 +4812,57 @@ function boot() {
       syncPresentationMode(presentationMode());
     },
   });
+  toolTuner = makeToolTuner(app);
+  app.toolTuner = toolTuner; // reachable from QA via window.__fw
 
-  walkPrompt = el('div', { class: 'shop-prompt', text: '' });
-  walkCondition = el('div', { class: 'shop-cond', text: '', style: 'display:none' });
-  walkLockHint = el('div', { class: 'shop-lockhint', text: 'Click to look · WASD move · E interact · X carry · Z set down · tap/hold F tools · P pause' });
+  // A1 (Goal 19) — the pocket phone. Lives in #ui beside the ring chip; the
+  // world keeps running while it is up (no pause, pointer lock untouched).
+  if (!phoneUi) {
+    phoneUi = makePhoneUi({
+      app,
+      audio,
+      keyLabel: phoneKeyLabel,
+      onBooking: () => {
+        if (app.frontDeskOpen) frontDeskUi?.refresh();
+        hud?.update();
+      },
+    });
+    document.getElementById('ui')?.appendChild(phoneUi.root);
+    app.phone = phoneUi; // reachable from QA via window.__fw
+  }
+
+  walkPrompt = el('div', { class: 'shop-prompt', 'aria-hidden': 'true' });
+  // Build the same keycap/text/background compositor path while the loading
+  // phase still owns first paint. Exact-zero opacity made Chromium defer that
+  // Skia pipeline until the first world-space focus prompt during movement.
+  setPromptText(walkPrompt, '[E] interact');
+  walkCondition = el('div', {
+    class: 'shop-cond', text: shopConditionLabel(app.state), role: 'status',
+    'aria-live': 'polite', 'aria-hidden': 'true',
+  });
+  walkLockHint = el('div', { class: 'shop-lockhint', text: walkControlHintText() });
+  // GOAL 25 legibility — the line is stopped and here is who stopped it. Its own
+  // element rather than the condition chip: the chip is ambient decor the eye
+  // learns to skip, and this is the sentence that unsticks a player who thinks
+  // the game is broken.
+  //
+  // Built the CONDITION CHIP's way, not the obvious way. A `display:none` node
+  // that appears when the queue blocks would flip display for the first time
+  // just after door entry — the exact layout-and-first-paint flush that cost
+  // this project 200 ms of stalled WebGL queue at every threshold, and which
+  // `goal24-door-condition-chip-compositor.test.js` exists to prevent. So it
+  // carries representative text from boot, stays on the translucent compositor
+  // path at 0.004, and only its opacity class changes at runtime.
+  walkQueueNote = el('div', {
+    class: 'shop-queue-note', role: 'status', 'aria-live': 'polite',
+    'aria-hidden': 'true',
+    // Deliberately the real key with NO placeholder values: i18n leaves an
+    // unfilled placeholder visible, so this paints glyphs of the right shape and
+    // length in the player's own language without inventing a second sentence to
+    // translate ten times. It is never read — the note only becomes visible
+    // after real text has replaced it in the same tick.
+    text: t('hud.deskHoldupAlone'),
+  });
   walkOverlay = el('div', { class: 'shop-overlay', style: 'display:none' },
     el('div', { class: 'shop-crosshair' }),
     // House Flipper 1's reticle behaviour: point at dirt and a small label
@@ -3026,7 +4871,7 @@ function boot() {
     // routing it through the single prompt meant a desk or a window outranked
     // the dirt at every pile in the shop.
     el('div', { class: 'dirt-reticle', text: '', style: 'display:none' }),
-    el('div', { class: 'shop-prompt', text: '' }),
+    walkPrompt,
     // Flipper-Sense-style affordance: the reveal is worthless if nobody knows
     // the key exists, so the eye and its binding sit in the lower left whenever
     // there is actually dirt to find.
@@ -3035,8 +4880,9 @@ function boot() {
       el('span', { class: 'dirt-sense-key', text: 'Q' }),
       el('span', { class: 'dirt-sense-text', text: 'reveal dirt' })),
     el('div', { class: 'property-inventory', text: '', style: 'display:none' }),
-    el('div', { class: 'shop-cond', text: '', style: 'display:none' }),
-    el('div', { class: 'shop-lockhint', text: 'Click to look · WASD move · E interact · X carry · Z set down · tap/hold F tools · J course editor · Tab overview · P pause' }),
+    walkCondition,
+    walkLockHint,
+    walkQueueNote,
   );
 
   // BEHIND THE TILL the walk overlay is hidden — no crosshair, no prompt — so the
@@ -3063,12 +4909,53 @@ function boot() {
   viewButtons[0].classList.add('active-tool');
   const viewToggle = el('div', { class: 'view-toggle', style: 'display:none' }, ...viewButtons);
 
-  gameUi.append(hud.root, golfDayPanel.root, inspectPanel.root, groundsPanel.root, clubPanel.root, empirePanel.root, walkOverlay, regHint, laptopUi.root, objectivesPanel.root, viewToggle, editorUi.root, toolWheel.root,
+  gameUi.append(hud.root, golfDayPanel.root, inspectPanel.root, groundsPanel.root, clubPanel.root, empirePanel.root, walkOverlay, regHint, laptopUi.root, objectivesPanel.root, viewToggle, editorUi.root, toolWheel.root, toolTuner.root,
     el('div', { class: 'hint-bar', style: 'display:none', text: 'Course overview · drag to pan · right-drag to rotate · wheel to zoom · V data view · Tab returns on foot · P pause' }));
 
   uiRoot.append(menu.root, gameUi);
-  document.body.append(objectivesPanel.root);
-  requestAnimationFrame(frame);
+
+  // PHASE 8: the single Escape router, installed at construction so it is the
+  // FIRST capture-phase listener on window and therefore sees Escape before the
+  // eighteen handlers it supersedes.
+  installEscapeRouter();
+
+  // 1.4 — ONE CLICK SINK, INSTALLED AT CONSTRUCTION.
+  //
+  // This used to live inside startGameNow(), which meant window.__fwUiClick did
+  // not exist until the player had already started a game. Measured at the menu:
+  // `sinkExists: false`. Menu presses were therefore served by a SECOND,
+  // independent handler in menu.js -- two populations answering one question
+  // (shape 1), with the menu's copy covering only what it happens to see. The
+  // trace showed the consequence plainly: the first press of a session called
+  // uiTick once, and the second press called it ZERO times, because the menu's
+  // own listener is removed and re-added around visibility changes and the
+  // global sink that should have covered the gap was not there yet.
+  //
+  // Installing here makes the sink exist for the whole session -- menu, every
+  // dialog, and the game -- so 1.4's "every clickable control, including controls
+  // inside dialogs" has one rule instead of a per-screen one. The menu's own
+  // handler stays: it is what calls audio.init() on the very first gesture, which
+  // is the only moment a context can legally be created, and the debounce inside
+  // uiTick means the overlap costs one sound rather than two.
+  installUiClickSink();
+  // X3 (Goal 21) — THE LINE THAT MADE THE OBJECTIVES CARD INVISIBLE.
+  //
+  // `document.body.append(objectivesPanel.root)` used to sit here, one line
+  // after the card had already been appended to gameUi above. append() MOVES a
+  // node, so it tore the card out of #ui (position:absolute, z-index 3, layered
+  // over the canvas) and re-parented it to <body>, where it painted BEHIND the
+  // game. Every CSS check said it was fine: display, visibility and opacity were
+  // all correct, checkVisibility() returned true, and it had a real 300x104 rect
+  // at (16, 778). document.elementFromPoint at its own centre returned the
+  // canvas.
+  //
+  // A stranger played for 25 minutes and never found out what the game wanted.
+  // That is the whole cause.
+  //
+  // SHAPE 6 for the found-false ledger: VISIBLE BUT NOT PAINTED. Every property
+  // the check reads is correct and the pixels belong to something else. The
+  // question that catches it is "what does elementFromPoint say is there?"
+  startProductionFrameLoop();
 
   if (sceneScope === 'shed') {
     // The persistent shed readout: created ONLY here (never in normal play), before bootShedScene
@@ -3096,6 +4983,12 @@ async function bootShedScene() {
   bootEmpire(empire);
   await autosave();
 }
+
+// F3: installed BEFORE boot, so a fault during the load itself is caught. This
+// is the load a player is most likely to see fail — a missing model, a shader
+// that will not compile on their driver — and it used to leave the veil up
+// forever with nothing said.
+installFaultGuard();
 
 boot();
 

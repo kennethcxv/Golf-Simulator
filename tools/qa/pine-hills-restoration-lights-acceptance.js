@@ -204,8 +204,8 @@ async (page) => {
       app.scene3d.walk.clearKeys?.();
       app.scene3d.camera.fov = 66;
       app.scene3d.camera.updateProjectionMatrix();
-      const pine = await import('/src/render3d/clubhouse/pineHillsInterior.js');
-      const layout = await import('/src/data/shopLayout.js');
+      const pine = await import(new URL('src/render3d/clubhouse/pineHillsInterior.js', document.baseURI).href);
+      const layout = await import(new URL('src/data/shopLayout.js', document.baseURI).href);
       return {
         cleanupPoses: JSON.parse(JSON.stringify(pine.PINE_HILLS_CLEANUP_POSES)),
         panels: Object.fromEntries(layout.CLUBHOUSE_CEILING_PANELS

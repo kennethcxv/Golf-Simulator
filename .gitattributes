@@ -1,0 +1,11 @@
+# git-lfs — H4 (2026-08-09). Forward-only: existing blobs stay plain in
+# history (no rewrite on a shared branch); every FUTURE add or modification of
+# these binary classes goes to LFS. Collaborators need git-lfs installed.
+*.glb filter=lfs diff=lfs merge=lfs -text
+*.blend filter=lfs diff=lfs merge=lfs -text
+*.hdr filter=lfs diff=lfs merge=lfs -text
+*.exr filter=lfs diff=lfs merge=lfs -text
+*.mp4 filter=lfs diff=lfs merge=lfs -text
+Assets/**/*.png filter=lfs diff=lfs merge=lfs -text
+Assets/**/*.jpg filter=lfs diff=lfs merge=lfs -text
+Assets/**/*.jpeg filter=lfs diff=lfs merge=lfs -text

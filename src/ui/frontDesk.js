@@ -28,6 +28,7 @@ import {
   operationsSummary,
   reservationById,
 } from '../sim/reservations.js';
+import { teeTimeOffers } from '../sim/teeTimeOffer.js';
 import { el, toast } from './ui.js';
 import {
   CUSTOMER_INTENT, CUSTOMER_STATE, customerSimulationOf, customerById, walkInRequestDeclined,
@@ -554,14 +555,41 @@ export function makeFrontDesk(app, options = {}) {
     const resolved = asker && asker.requestedTeeMinute != null
       ? resolveTeeTimeRequest(app.state, cal.dayAbs, asker.requestedTeeMinute, { partySize })
       : null;
+    // WHAT TO OFFER, CLUSTERED AROUND THE ASK (B4, 2026-08-03).
+    //
+    // This list used to be every open slot across the whole horizon, sorted by
+    // clock: a 1:00 ask produced forty options running from this morning to the
+    // day after tomorrow. The right answer was in there and so was every wrong
+    // one. When somebody has said a time, the offers are now the slots NEAR it,
+    // nearest first — 1:00, 1:30, 12:30, 2:00 — and only if nothing is inside
+    // the window does the list fall back to the nearest single time, marked as
+    // such, which is the offer the report asks the player to make.
+    //
+    // With no ask on the counter (a booking the player is making themselves)
+    // the full sheet is still the right list, so that path is unchanged.
+    const askedForOffers = asker?.requestedTeeMinute;
     const slots = [];
-    for (let offset = 0; offset <= Math.min(2, app.state.reservations.config.horizonDays); offset++) {
-      const dayAbs = cal.dayAbs + offset;
-      for (const slot of availableSlots(app.state, dayAbs, { partySize, walkIn: true })) {
+    let offerBeyondWindow = false;
+    if (askedForOffers != null) {
+      const open = availableSlots(app.state, cal.dayAbs, { partySize, walkIn: true });
+      const offered = teeTimeOffers(open, askedForOffers, { partySize });
+      offerBeyondWindow = offered.beyondWindow;
+      for (const entry of offered.offers) {
         slots.push({
-          value: `${dayAbs}:${slot.minute}`,
-          label: `${offset === 0 ? 'Today' : offset === 1 ? 'Tomorrow' : `+${offset}d`} · ${fmtSlot(slot.minute)} · ${slot.availableSeats} open`,
+          value: `${cal.dayAbs}:${entry.slot.minute}`,
+          label: `Today · ${fmtSlot(entry.slot.minute)} · ${entry.slot.availableSeats} open`,
         });
+      }
+    }
+    if (!slots.length) {
+      for (let offset = 0; offset <= Math.min(2, app.state.reservations.config.horizonDays); offset++) {
+        const dayAbs = cal.dayAbs + offset;
+        for (const slot of availableSlots(app.state, dayAbs, { partySize, walkIn: true })) {
+          slots.push({
+            value: `${dayAbs}:${slot.minute}`,
+            label: `${offset === 0 ? 'Today' : offset === 1 ? 'Tomorrow' : `+${offset}d`} · ${fmtSlot(slot.minute)} · ${slot.availableSeats} open`,
+          });
+        }
       }
     }
     if (!slots.some((slot) => slot.value === walkInDraft.slotValue)) {
@@ -657,7 +685,7 @@ export function makeFrontDesk(app, options = {}) {
       el('span', {
         text: asker.requestedTeeMinute == null ? 'Any open slot suits them.'
           : resolved?.exact ? 'That exact time is open.'
-            : resolved?.ok ? `Nearest open is ${fmtSlot(resolved.slot.minute)} (${Math.abs(resolved.deltaMin)} min ${resolved.deltaMin > 0 ? 'later' : 'earlier'}) — they will take anything within an hour.`
+            : resolved?.ok ? `Nearest open is ${fmtSlot(resolved.slot.minute)} (${Math.abs(resolved.deltaMin)} min ${resolved.deltaMin > 0 ? 'later' : 'earlier'}) - they will take anything within an hour.`
               : resolved?.reason || 'Nothing near that time is open.',
       })) : null;
 
@@ -696,7 +724,7 @@ export function makeFrontDesk(app, options = {}) {
           el('span', {}, el('strong', { text: 'TEE DESK' }), el('small', { text: app.state.clubName }))),
         el('div', { class: 'fd-header-stats' },
           el('span', {}, el('small', { text: 'WAITING' }), el('strong', { text: String(summary.waiting.length) })),
-          el('span', {}, el('small', { text: 'NEXT' }), el('strong', { text: summary.nextArrival ? fmtSlot(summary.nextArrival.minute) : '—' })),
+          el('span', {}, el('small', { text: 'NEXT' }), el('strong', { text: summary.nextArrival ? fmtSlot(summary.nextArrival.minute) : '-' })),
           el('span', {}, el('small', { text: 'TODAY' }), el('strong', { text: `${Math.round(summary.utilization * 100)}%` }))),
         button('Close  Esc', () => options.close?.(), 'close')),
       el('div', { class: 'fd-tabs' },

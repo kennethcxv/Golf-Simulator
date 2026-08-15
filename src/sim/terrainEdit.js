@@ -288,7 +288,7 @@ export function tickRenovationsDaily(state) {
         hole.everOpen = true;
         notify(state, {
           kind: 'course',
-          text: `${wasBuilding ? 'Construction' : 'Renovation'} finished — hole ${i + 1} is open for play.`,
+          text: `${wasBuilding ? 'Construction' : 'Renovation'} finished - hole ${i + 1} is open for play.`,
           dedupeKey: `holeopen:${hole.id}:${Math.floor(state.clock ? state.clock.minutes / 1440 : 0)}`,
         });
       } else {
@@ -296,7 +296,7 @@ export function tickRenovationsDaily(state) {
         hole.status = HOLE_STATUS.UNBUILT;
         notify(state, {
           kind: 'course',
-          text: `Work on hole ${i + 1} finished, but the hole is incomplete — it needs a tee and a green before it can open.`,
+          text: `Work on hole ${i + 1} finished, but the hole is incomplete - it needs a tee and a green before it can open.`,
           dedupeKey: `holeincomplete:${hole.id}:${Math.floor(state.clock ? state.clock.minutes / 1440 : 0)}`,
         });
       }

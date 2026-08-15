@@ -4,7 +4,10 @@
 // register.  It can therefore be used by each of those systems without making
 // identity generation depend on frame timing or mutation order.
 
-export const CUSTOMER_IDENTITY_VERSION = 1;
+import { t } from '../core/i18n.js';
+
+export const CUSTOMER_IDENTITY_VERSION = 2;
+export const CUSTOMER_VISIT_EVENT_VERSION = 1;
 
 export const PAYMENT_PREFERENCES = Object.freeze(['cash', 'card']);
 export const CUSTOMER_PERSONALITIES = Object.freeze([
@@ -40,6 +43,16 @@ const LAST_NAMES = Object.freeze([
 ]);
 
 const NAME_CAPACITY = FIRST_NAMES.length * LAST_NAMES.length;
+const VISIT_OUTCOMES = new Set(['visit', 'purchase', 'check-in', 'no-show', 'cancelled']);
+const VISIT_INTEGER_COUNTER_FIELDS = Object.freeze([
+  'totalVisits',
+  'completedPurchases',
+  'completedCheckIns',
+  'noShows',
+  'cancellations',
+  'cashPayments',
+  'cardPayments',
+]);
 
 function seedKey(seed) {
   if (seed === undefined || seed === null || seed === '') return 'default';
@@ -107,10 +120,91 @@ function defaultVisitHistory() {
     cashPayments: 0,
     cardPayments: 0,
     lifetimeSpend: 0,
+    // L3: the ledger book's "first visit" column. Set once, never rewritten.
+    firstVisitDayAbs: null,
     lastVisitDayAbs: null,
     lastVisitPurpose: null,
     lastPaymentMethod: null,
+    // Exact-once tombstones for durable transaction events. Each entry also
+    // stores the canonical payload signature so reusing an event id with
+    // different money/outcomes is rejected instead of silently accepted.
+    appliedEvents: [],
   };
+}
+
+function normalizedAppliedEvents(value) {
+  if (!Array.isArray(value)) return [];
+  const seen = new Set();
+  const events = [];
+  for (const entry of value) {
+    const id = typeof entry?.id === 'string' ? entry.id.trim() : '';
+    const signature = typeof entry?.signature === 'string' ? entry.signature : '';
+    if (!id || !signature || seen.has(id)) continue;
+    seen.add(id);
+    events.push({ id, signature });
+  }
+  return events;
+}
+
+function validVisitHistory(history) {
+  if (!history || typeof history !== 'object' || !Array.isArray(history.appliedEvents)) return false;
+  const appliedEvents = normalizedAppliedEvents(history.appliedEvents);
+  return appliedEvents.length === history.appliedEvents.length
+    && appliedEvents.every((entry, index) => (
+      entry.id === history.appliedEvents[index].id
+      && entry.signature === history.appliedEvents[index].signature
+    ))
+    && VISIT_INTEGER_COUNTER_FIELDS.every((field) => (
+      Number.isSafeInteger(history[field]) && history[field] >= 0
+    ))
+    && Number.isFinite(history.lifetimeSpend)
+    && history.lifetimeSpend >= 0
+    && (history.firstVisitDayAbs === null || Number.isFinite(history.firstVisitDayAbs))
+    && (history.lastVisitDayAbs === null || Number.isFinite(history.lastVisitDayAbs))
+    && (history.lastVisitPurpose === null || typeof history.lastVisitPurpose === 'string')
+    && (history.lastPaymentMethod === null || PAYMENT_PREFERENCES.includes(history.lastPaymentMethod));
+}
+
+function canAssignProperty(target, key) {
+  try {
+    if (!target || (typeof target !== 'object' && typeof target !== 'function')) return false;
+    const own = Object.getOwnPropertyDescriptor(target, key);
+    if (own) return Object.hasOwn(own, 'value') && own.writable === true;
+    let prototype = Object.getPrototypeOf(target);
+    while (prototype) {
+      const inherited = Object.getOwnPropertyDescriptor(prototype, key);
+      if (inherited) {
+        if (!Object.hasOwn(inherited, 'value') || inherited.writable !== true) return false;
+        break;
+      }
+      prototype = Object.getPrototypeOf(prototype);
+    }
+    return Object.isExtensible(target);
+  } catch {
+    return false;
+  }
+}
+
+function tryAssignProperty(target, key, value) {
+  if (!canAssignProperty(target, key)) return false;
+  try {
+    target[key] = value;
+    return target[key] === value;
+  } catch {
+    return false;
+  }
+}
+
+function tryDeleteProperty(target, key) {
+  try {
+    if (!target || (typeof target !== 'object' && typeof target !== 'function')) return false;
+    const descriptor = Object.getOwnPropertyDescriptor(target, key);
+    if (!descriptor) return true;
+    if (descriptor.configurable !== true) return false;
+    return delete target[key];
+  } catch {
+    return false;
+  }
 }
 
 /**
@@ -158,7 +252,20 @@ export function createCustomerIdentity(seed, sourceId = 0) {
     visitProfile: {
       typicalArrivalLeadMinutes: Math.round(8 + punctuality * 17),
       usualPartySize: 1 + Math.floor(unit(seed, id, 'party-size') * 4),
-      preferredPurpose: unit(seed, id, 'visit-purpose') < 0.58 ? 'tee-time' : 'retail',
+      // 4.3 (Goal 26): "Most golfers book ahead. Walk-ins are the exception, not
+      // the default traffic. Weight the generators accordingly."
+      //
+      // Was 0.58 — a clear MAJORITY of arrivals wanting a tee time, which is the
+      // definition of default traffic rather than an exception. This field has
+      // exactly one consumer (clubhouse.js's walkInRequest gate), so the weight
+      // is the whole lever and nothing else shifts with it.
+      //
+      // 0.18 makes roughly one arrival in six a walk-in tee-time ask. Booked
+      // players still arrive in the same numbers — they come through the
+      // reservation path, which does not read this at all — so the shop gets
+      // busier-feeling traffic rather than quieter, with the tee sheet doing the
+      // work the brief says it should.
+      preferredPurpose: unit(seed, id, 'visit-purpose') < 0.18 ? 'tee-time' : 'retail',
     },
     visitHistory: defaultVisitHistory(),
   };
@@ -247,7 +354,7 @@ export function ensureCustomerDirectory(state) {
       && customer.fullName === fullName(customer.firstName, customer.lastName)
       && customer.displayName === customer.fullName
       && customer.name === customer.fullName
-      && customer.visitHistory && typeof customer.visitHistory === 'object'
+      && validVisitHistory(customer.visitHistory)
       && !seenIds.has(customer.customerId)
       && !seenNames.has(customer.fullName.trim().toLowerCase())
       && Boolean(seenIds.add(customer.customerId))
@@ -425,6 +532,342 @@ export function reconcileReservationCustomerIdentities(state) {
   return directory;
 }
 
+function normalizeCustomerVisitEvent(event) {
+  if (!event || typeof event !== 'object') {
+    return { ok: false, reason: t('customer.historyUnavailable'), diagnostic: 'Customer history event is missing.' };
+  }
+  const id = typeof event.id === 'string' ? event.id.trim() : '';
+  const customerId = typeof event.customerId === 'string' ? event.customerId.trim() : '';
+  const purpose = typeof event.purpose === 'string' ? event.purpose.trim() : '';
+  const rawOutcomes = Array.isArray(event.outcomes) ? event.outcomes : [event.outcome];
+  const uniqueOutcomes = new Set(rawOutcomes.filter((outcome) => VISIT_OUTCOMES.has(outcome)));
+  const outcomes = [...VISIT_OUTCOMES].filter((outcome) => uniqueOutcomes.has(outcome));
+  const dayAbs = event.dayAbs === null || event.dayAbs === undefined ? null : Number(event.dayAbs);
+  const amount = Number(event.amount ?? 0);
+  const paymentMethod = event.paymentMethod == null ? null : event.paymentMethod;
+  const reservationId = event.reservationId === null || event.reservationId === undefined
+    ? null
+    : String(event.reservationId);
+  if (!id || !customerId || !purpose || outcomes.length !== rawOutcomes.length || !outcomes.length) {
+    return { ok: false, reason: t('customer.historyUnavailable'), diagnostic: 'Customer history event identity or outcomes are invalid.' };
+  }
+  if ((dayAbs !== null && (!Number.isSafeInteger(dayAbs) || dayAbs < 0))
+      || !Number.isFinite(amount) || amount < 0) {
+    return { ok: false, reason: t('customer.historyUnavailable'), diagnostic: 'Customer history event amount or date is invalid.' };
+  }
+  if (typeof event.countsAsVisit !== 'boolean'
+      || (paymentMethod !== null && !PAYMENT_PREFERENCES.includes(paymentMethod))) {
+    return { ok: false, reason: t('customer.historyUnavailable'), diagnostic: 'Customer history event visit or payment method is invalid.' };
+  }
+  const normalizedAmount = rounded(amount, 2);
+  if (!Number.isFinite(normalizedAmount) || normalizedAmount !== amount
+      || !Number.isSafeInteger(Math.round(normalizedAmount * 100))) {
+    return { ok: false, reason: t('customer.historyUnavailable'), diagnostic: 'Customer history event amount is too large.' };
+  }
+  const normalized = {
+    schemaVersion: CUSTOMER_VISIT_EVENT_VERSION,
+    id,
+    customerId,
+    dayAbs,
+    purpose,
+    outcomes,
+    countsAsVisit: event.countsAsVisit,
+    paymentMethod,
+    amount: normalizedAmount,
+    reservationId,
+  };
+  return {
+    ok: true,
+    event: normalized,
+    signature: JSON.stringify([
+      normalized.customerId,
+      normalized.dayAbs,
+      normalized.purpose,
+      normalized.outcomes,
+      normalized.countsAsVisit,
+      normalized.paymentMethod,
+      normalized.amount,
+      normalized.reservationId,
+    ]),
+  };
+}
+
+function ticketVisitEventAuthority(state, ticket, event) {
+  if (!ticket || typeof ticket !== 'object'
+      || !Number.isSafeInteger(Number(ticket.number)) || Number(ticket.number) <= 0
+      || ticket.customerId !== event.customerId
+      || ticket.method !== event.paymentMethod
+      || !Number.isFinite(Number(ticket.total))
+      || rounded(Number(ticket.total), 2) !== event.amount
+      || !Number.isSafeInteger(Math.round(Number(ticket.total) * 100))) {
+    return { ok: false, reason: t('customer.historyUnavailable'), diagnostic: 'Customer history event does not match its ticket.' };
+  }
+
+  const transactionId = typeof ticket.transactionId === 'string' && ticket.transactionId
+    ? ticket.transactionId : null;
+  const serviceType = typeof ticket.type === 'string' && ticket.type ? ticket.type : null;
+  const serviceReference = typeof ticket.referenceId === 'string' && ticket.referenceId
+    ? ticket.referenceId : null;
+  const expectedEventId = transactionId
+    ? `checkout:${transactionId}:customer-visit`
+    : serviceType && serviceReference
+      ? `service:${serviceType}:${serviceReference}:customer-visit`
+      : null;
+  if (!expectedEventId || event.id !== expectedEventId) {
+    return { ok: false, reason: t('customer.historyUnavailable'), diagnostic: 'Customer history event has no matching ticket identity.' };
+  }
+  if (event.amount === 0) return { ok: true };
+
+  const keyMap = ticket.ledgerIdempotencyKeys;
+  const idMap = ticket.ledgerEntryIds;
+  if (!keyMap || typeof keyMap !== 'object' || !idMap || typeof idMap !== 'object') {
+    return { ok: false, reason: t('customer.historyUnavailable'), diagnostic: 'Customer history event has no ledger provenance.' };
+  }
+  const components = Object.keys(keyMap);
+  if (!components.length || components.some((component) => (
+    typeof keyMap[component] !== 'string' || !keyMap[component]
+    || typeof idMap[component] !== 'string' || !idMap[component]
+  ))) {
+    return { ok: false, reason: t('customer.historyUnavailable'), diagnostic: 'Customer history event ledger provenance is incomplete.' };
+  }
+  const ledger = state?.ledger;
+  const entries = Array.isArray(ledger?.entries) ? ledger.entries : [];
+  let ownsExpectedPosting = false;
+  for (const component of components) {
+    const key = keyMap[component];
+    const id = idMap[component];
+    const matches = entries.filter((entry) => entry?.id === id && entry.idempotencyKey === key);
+    if (matches.length !== 1 || ledger?.processedIds?.[key] !== id) {
+      return { ok: false, reason: t('customer.historyUnavailable'), diagnostic: 'Customer history event ledger provenance is invalid.' };
+    }
+    if (transactionId && key.startsWith(`checkout:${transactionId}:`)) ownsExpectedPosting = true;
+    if (!transactionId && key.startsWith(`service:${serviceType}:${serviceReference}:`)) {
+      ownsExpectedPosting = true;
+    }
+  }
+  return ownsExpectedPosting
+    ? { ok: true }
+    : { ok: false, reason: t('customer.historyUnavailable'), diagnostic: 'Customer history event ledger identity belongs to another payment.' };
+}
+
+export function createCustomerVisitEvent({
+  id,
+  customerId,
+  dayAbs = null,
+  purpose = 'retail',
+  outcomes = ['visit'],
+  countsAsVisit = true,
+  paymentMethod = null,
+  amount = 0,
+  reservationId = null,
+} = {}) {
+  const normalized = normalizeCustomerVisitEvent({
+    id,
+    customerId,
+    dayAbs,
+    purpose,
+    outcomes,
+    countsAsVisit,
+    paymentMethod,
+    amount,
+    reservationId,
+  });
+  if (!normalized.ok) throw new TypeError(normalized.diagnostic || normalized.reason);
+  return normalized.event;
+}
+
+export function preflightCustomerVisitEvent(state, event) {
+  const normalized = normalizeCustomerVisitEvent(event);
+  if (!normalized.ok) return normalized;
+  const customer = customerIdentityById(state, normalized.event.customerId);
+  if (!customer) return { ok: false, reason: t('customer.historyUnavailable'), diagnostic: 'Unknown customer identity.' };
+  if (!validVisitHistory(customer.visitHistory)) {
+    return { ok: false, reason: t('customer.historyUnavailable'), diagnostic: 'Customer visit history is invalid.' };
+  }
+  const existing = customer.visitHistory.appliedEvents.find(
+    (entry) => entry.id === normalized.event.id,
+  );
+  if (existing && existing.signature !== normalized.signature) {
+    return { ok: false, conflict: true, reason: t('customer.historyUnavailable'), diagnostic: 'Customer history event id has conflicting details.' };
+  }
+  if (!existing && !canAssignProperty(customer, 'visitHistory')) {
+    return { ok: false, reason: t('customer.historyUnavailable'), diagnostic: 'Customer visit history is not writable.' };
+  }
+  let nextHistory = null;
+  if (!existing) {
+    nextHistory = historyAfterEvent(customer.visitHistory, normalized.event);
+    nextHistory.appliedEvents.push({ id: normalized.event.id, signature: normalized.signature });
+    if (!validVisitHistory(nextHistory)) {
+      return { ok: false, reason: t('customer.historyUnavailable'), diagnostic: 'Customer visit history would overflow.' };
+    }
+  }
+  return {
+    ok: true,
+    already: !!existing,
+    customer,
+    event: normalized.event,
+    signature: normalized.signature,
+    nextHistory,
+  };
+}
+
+function historyAfterEvent(history, event) {
+  const next = {
+    ...history,
+    appliedEvents: [...history.appliedEvents],
+  };
+  if (event.countsAsVisit) next.totalVisits += 1;
+  if (event.countsAsVisit && next.firstVisitDayAbs == null && Number.isFinite(event.dayAbs)) {
+    next.firstVisitDayAbs = event.dayAbs;
+  }
+  if (event.outcomes.includes('purchase')) next.completedPurchases += 1;
+  if (event.outcomes.includes('check-in')) next.completedCheckIns += 1;
+  if (event.outcomes.includes('no-show')) next.noShows += 1;
+  if (event.outcomes.includes('cancelled')) next.cancellations += 1;
+  if (event.paymentMethod === 'cash') next.cashPayments += 1;
+  if (event.paymentMethod === 'card') next.cardPayments += 1;
+  next.lifetimeSpend = rounded(next.lifetimeSpend + event.amount, 2);
+  next.lastVisitDayAbs = Number.isFinite(event.dayAbs) ? event.dayAbs : next.lastVisitDayAbs;
+  next.lastVisitPurpose = event.purpose;
+  next.lastPaymentMethod = PAYMENT_PREFERENCES.includes(event.paymentMethod)
+    ? event.paymentMethod
+    : next.lastPaymentMethod;
+  return next;
+}
+
+/** Apply one persisted ticket event atomically and idempotently. */
+export function recordCustomerVisitEvent(state, event) {
+  const preflight = preflightCustomerVisitEvent(state, event);
+  if (!preflight.ok || preflight.already) return preflight;
+  const next = preflight.nextHistory;
+  if (!tryAssignProperty(preflight.customer, 'visitHistory', next)) {
+    return { ok: false, reason: t('customer.historyUnavailable'), diagnostic: 'Customer visit history could not be published.' };
+  }
+  return {
+    ok: true,
+    already: false,
+    customer: preflight.customer,
+    event: preflight.event,
+  };
+}
+
+/**
+ * Drain persisted ticket events. A pending event survives save/load; an
+ * already-applied event resolves as a no-op through its customer journal.
+ */
+export function reconcileCustomerVisitEvents(state, { tickets = null } = {}) {
+  const report = { applied: 0, already: 0, pending: 0, failures: [] };
+  try {
+    const source = Array.isArray(tickets)
+      ? tickets
+      : (Array.isArray(state?.shop?.transactionHistory) ? state.shop.transactionHistory : []);
+
+    // A ticket event is a durable outbox record, so its stable id cannot be
+    // allowed to mean two different visits. Detect every conflicting duplicate
+    // before publishing any event from this batch: otherwise ticket ordering
+    // would let the lower-numbered (and potentially forged) event claim the id,
+    // leaving the genuine event permanently conflicted after customer totals had
+    // already changed.
+    const eventGroups = new Map();
+    for (const ticket of source) {
+      const rawEvent = ticket?.customerVisitEvent;
+      const eventId = typeof rawEvent?.id === 'string' ? rawEvent.id.trim() : '';
+      if (!eventId) continue;
+      const normalized = normalizeCustomerVisitEvent(rawEvent);
+      const group = eventGroups.get(eventId) || {
+        tickets: [],
+        signatures: new Set(),
+        invalid: false,
+      };
+      group.tickets.push(ticket);
+      if (normalized.ok) group.signatures.add(normalized.signature);
+      else group.invalid = true;
+      eventGroups.set(eventId, group);
+    }
+    const ambiguousIds = [...eventGroups.entries()]
+      .filter(([, group]) => group.tickets.length > 1
+        && (group.invalid || group.signatures.size > 1))
+      .map(([eventId]) => eventId)
+      .sort();
+    if (ambiguousIds.length > 0) {
+      for (const eventId of ambiguousIds) {
+        report.pending += 1;
+        report.failures.push({
+          ticketNumber: null,
+          eventId,
+          diagnostic: 'Duplicate customer history events conflict on one event identity.',
+        });
+      }
+      return { ok: false, ...report };
+    }
+
+    // The event is a projection of a durable ticket, never an independent
+    // instruction to edit an arbitrary customer. Validate the complete batch
+    // before touching customer, ticket, or reservation state so a forged unique
+    // event cannot claim a victim identity simply by avoiding a duplicate id.
+    for (const ticket of source) {
+      if (!ticket?.customerVisitEvent) continue;
+      const normalized = normalizeCustomerVisitEvent(ticket.customerVisitEvent);
+      const customerPreflight = normalized.ok
+        ? preflightCustomerVisitEvent(state, normalized.event)
+        : normalized;
+      const authority = customerPreflight.ok && customerPreflight.already
+        ? { ok: true }
+        : customerPreflight.ok
+          ? ticketVisitEventAuthority(state, ticket, normalized.event)
+          : customerPreflight;
+      if (!authority.ok) {
+        report.pending += 1;
+        report.failures.push({
+          ticketNumber: ticket.number ?? null,
+          eventId: ticket.customerVisitEvent.id ?? null,
+          diagnostic: authority.diagnostic || authority.reason,
+        });
+      }
+    }
+    if (report.pending > 0) return { ok: false, ...report };
+
+    const ordered = [...source].sort(
+      (a, b) => (Number(a?.number) || 0) - (Number(b?.number) || 0),
+    );
+    for (const ticket of ordered) {
+      if (!ticket?.customerVisitEvent) continue;
+      let result;
+      result = recordCustomerVisitEvent(state, ticket.customerVisitEvent);
+      tryAssignProperty(ticket, 'customerVisitRecorded', result.ok === true);
+      tryAssignProperty(ticket.customerVisitEvent, 'status', result.ok ? 'applied' : 'pending');
+      if (result.ok) {
+        tryDeleteProperty(ticket.customerVisitEvent, 'failureReason');
+        if (result.event?.reservationId !== null) {
+          const reservation = (state?.reservations?.booked || []).find(
+            (entry) => String(entry?.id) === result.event.reservationId,
+          );
+          if (reservation) tryAssignProperty(reservation, 'visitHistoryRecorded', true);
+        }
+        if (result.already) report.already += 1;
+        else report.applied += 1;
+      } else {
+        const diagnostic = result.diagnostic || result.reason || 'Customer history event is pending.';
+        tryAssignProperty(ticket.customerVisitEvent, 'failureReason', diagnostic);
+        report.pending += 1;
+        report.failures.push({
+          ticketNumber: ticket.number ?? null,
+          eventId: ticket.customerVisitEvent.id ?? null,
+          diagnostic,
+        });
+      }
+    }
+  } catch (error) {
+    report.pending += 1;
+    report.failures.push({
+      ticketNumber: null,
+      eventId: null,
+      diagnostic: String(error?.message || error),
+    });
+  }
+  return { ok: report.pending === 0, ...report };
+}
+
 /** Record one completed or failed visit once the authoritative outcome occurs. */
 export function recordCustomerVisit(state, customerId, {
   dayAbs = null,
@@ -432,23 +875,35 @@ export function recordCustomerVisit(state, customerId, {
   outcome = 'visit',
   paymentMethod = null,
   amount = 0,
+  // C6: a combined visit files TWO outcomes — a check-in and a purchase — for
+  // one walk through the door. Both must count against their own tallies; the
+  // second must not count as a second visit.
+  countsAsVisit = true,
 } = {}) {
   const customer = customerIdentityById(state, customerId);
   if (!customer) return { ok: false, reason: 'Unknown customer identity.' };
   const history = customer.visitHistory;
-  history.totalVisits += 1;
-  if (outcome === 'purchase') history.completedPurchases += 1;
-  if (outcome === 'check-in') history.completedCheckIns += 1;
-  if (outcome === 'no-show') history.noShows += 1;
-  if (outcome === 'cancelled') history.cancellations += 1;
-  if (paymentMethod === 'cash') history.cashPayments += 1;
-  if (paymentMethod === 'card') history.cardPayments += 1;
-  history.lifetimeSpend = rounded(history.lifetimeSpend + Math.max(0, Number(amount) || 0), 2);
-  history.lastVisitDayAbs = Number.isFinite(dayAbs) ? dayAbs : history.lastVisitDayAbs;
-  history.lastVisitPurpose = purpose;
-  history.lastPaymentMethod = PAYMENT_PREFERENCES.includes(paymentMethod)
-    ? paymentMethod
-    : history.lastPaymentMethod;
+  if (!validVisitHistory(history) || !VISIT_OUTCOMES.has(outcome)) {
+    return { ok: false, reason: t('customer.historyUnavailable'), diagnostic: 'Customer visit history or outcome is invalid.' };
+  }
+  if (!canAssignProperty(customer, 'visitHistory')) {
+    return { ok: false, reason: t('customer.historyUnavailable'), diagnostic: 'Customer visit history is not writable.' };
+  }
+  const safeAmount = Math.max(0, Number(amount) || 0);
+  const next = historyAfterEvent(history, {
+    dayAbs,
+    purpose,
+    outcomes: [outcome],
+    countsAsVisit,
+    paymentMethod,
+    amount: safeAmount,
+  });
+  if (!validVisitHistory(next)) {
+    return { ok: false, reason: t('customer.historyUnavailable'), diagnostic: 'Customer visit history would overflow.' };
+  }
+  if (!tryAssignProperty(customer, 'visitHistory', next)) {
+    return { ok: false, reason: t('customer.historyUnavailable'), diagnostic: 'Customer visit history could not be published.' };
+  }
   return { ok: true, customer };
 }
 
@@ -473,11 +928,13 @@ function migratedHistory(legacy, baseline) {
     cashPayments: finiteNonNegative(source.cashPayments, baseline.cashPayments),
     cardPayments: finiteNonNegative(source.cardPayments, baseline.cardPayments),
     lifetimeSpend: finiteNonNegative(source.lifetimeSpend ?? source.totalSpent, baseline.lifetimeSpend),
+    firstVisitDayAbs: nullableFinite(source.firstVisitDayAbs, baseline.firstVisitDayAbs),
     lastVisitDayAbs: nullableFinite(source.lastVisitDayAbs, baseline.lastVisitDayAbs),
     lastVisitPurpose: typeof source.lastVisitPurpose === 'string' ? source.lastVisitPurpose : baseline.lastVisitPurpose,
     lastPaymentMethod: PAYMENT_PREFERENCES.includes(source.lastPaymentMethod)
       ? source.lastPaymentMethod
       : baseline.lastPaymentMethod,
+    appliedEvents: normalizedAppliedEvents(source.appliedEvents),
   };
 }
 

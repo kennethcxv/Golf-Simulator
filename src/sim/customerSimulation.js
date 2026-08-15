@@ -51,6 +51,152 @@ export const CUSTOMER_STATE = Object.freeze({
   RECOVERY: 'Recovery',
 });
 
+// D2 (Goal 20): how far ahead somebody standing at the desk asks to tee off.
+// Exported because it is the contract the desk, the sheet and the tests all
+// have to agree on, and because a lead time buried in an expression is how it
+// came to be five hours without anyone noticing.
+// 4.2 (Goal 26): "If it is 6:45 am, a walk-in may ask for 7:00, 7:30 or 8:00 and
+// nothing else." From 06:45 those are +15, +45 and +75 minutes, so BOTH ends of
+// the old 20..65 window were wrong: 20 excluded the 7:00 he lists, and 65
+// excluded the 8:00 he lists.
+//
+// The rule that reproduces his example exactly and does not depend on the grid
+// spacing: everything inside the next hour, PLUS the one slot that straddles the
+// hour boundary. A person at the desk at 6:45 does mean "about the next hour",
+// and 8:00 is the first time that is not inside it.
+export const WALK_IN_ASK_MIN = 10;   // nobody asks for a tee time nine minutes out
+export const WALK_IN_ASK_MAX = 60;   // the hour itself; the straddling slot is added below
+// How far past the hour edge a slot may sit and still count as STRADDLING it.
+// Without this bound the "straddler" degenerates into "the next slot whenever it
+// happens", which is exactly the four-hour reach 4.2 overrules -- a sparse sheet
+// with a gap at noon would have handed an 08:00 walk-in a 12:00 ask again.
+export const WALK_IN_ASK_STRADDLE = 30;
+
+// A2 (Goal 21) — THE FRONT OF THE LINE NEVER LEAVES.
+//
+// The owner's worst bug of the night: a customer queues, waits while the player
+// serves the person ahead, reaches the front — and walks out before they can be
+// served. Whatever the simulation thought it was modelling, what the player
+// experiences is being punished for doing the job correctly.
+//
+// So the first two positions are unconditional. However long it takes, they
+// wait. From third place back, patience is real, and that is where the pressure
+// the game wants actually lives — it is felt by the people you have not started
+// on yet, not by the one you are halfway through serving.
+export const QUEUE_NEVER_ABANDON_DEPTH = 2;
+
+// B3 (Goal 23) — NOBODY MOVES UNTIL THE PERSON AHEAD HAS CLEARED THE DESK.
+//
+// Reported fixed twice and still happening: "a customer finishes, pauses for a
+// second or two, and the next one starts moving and walks into their back."
+//
+// The mechanism was never in the walking. The queue target is recomputed every
+// frame as queueSlotW(counterQueue.indexOf(c)), so the instant the served
+// customer is SPLICED OUT OF THE ARRAY every index behind them drops by one and
+// the whole line starts walking — into a slot the served customer is still
+// physically standing on, because leaving the array and leaving the floor are
+// seconds apart. Both previous fixes tuned steering and avoidance, which is
+// downstream of a target that was already wrong.
+//
+// The owner's rule is about BODIES, not bookkeeping: "not started to move —
+// cleared." So the advance asks the floor, not the array.
+//
+// Clearance is deliberately larger than the 0.6 the steering code treats as a
+// collision: a follower who begins walking at 0.61 is still closing on someone
+// who has barely turned around, and "walked into their back" is exactly what
+// that looks like from behind the counter.
+export const QUEUE_ADVANCE_CLEARANCE = 0.95;
+
+/**
+ * May a customer move up into `slot` yet?
+ *
+ * @param slot     {x, z} of the slot they want to advance into
+ * @param bodies   every OTHER person on the floor, as {x, z}
+ * @param clearance how much empty room the slot needs
+ * @returns true only when nobody is standing in it
+ */
+export function queueSlotIsClear(slot, bodies = [], clearance = QUEUE_ADVANCE_CLEARANCE) {
+  if (!slot || !Number.isFinite(slot.x) || !Number.isFinite(slot.z)) return true;
+  for (const body of bodies) {
+    if (!body || !Number.isFinite(body.x) || !Number.isFinite(body.z)) continue;
+    if (Math.hypot(body.x - slot.x, body.z - slot.z) < clearance) return false;
+  }
+  return true;
+}
+
+/**
+ * Which slot a queuer should actually be walking to this frame.
+ *
+ * `held` is the slot they are already standing on or heading for. They may fall
+ * BACK freely — someone joining ahead of them is not a collision risk — but they
+ * may only move UP one step at a time, and only into room that is genuinely
+ * empty. Advancing one step per call rather than jumping to the array index is
+ * what keeps a three-person cascade from all lunging forward on the same frame.
+ */
+export function queueAdvanceSlot(held, wanted, isClear) {
+  if (!Number.isFinite(held)) return wanted;
+  if (wanted >= held) return wanted; // moving back, or staying put
+  const next = held - 1;
+  return isClear(next) ? next : held;
+}
+
+/** @param queueIndex 0-based position in the service line; negative = not in it */
+export function queuePositionMayAbandon(queueIndex) {
+  // Number(null) is 0, and 0 is finite and is the front of the line — so a
+  // customer whose position came back null would have been pinned in place for
+  // ever, unable to leave the shop. The raw value has to be tested before it is
+  // coerced. This is the second time this exact coercion has bitten.
+  if (queueIndex === null || queueIndex === undefined || queueIndex === '') return true;
+  const index = Number(queueIndex);
+  if (!Number.isFinite(index) || index < 0) return true; // not in the line at all
+  return index >= QUEUE_NEVER_ABANDON_DEPTH;
+}
+
+/**
+ * The ask, chosen off a real slot grid. THE SECOND GENERATOR (Goal 20, found by
+ * Verifier 1): the arrival planner below is not the only place a walk-in
+ * acquires a time. A golfer who spawns on the shop floor gets one from
+ * clubhouse.js, which had its own rule — the nearest ten slots ahead, biased
+ * toward soon — and on a thirty-minute grid that is FIVE HOURS. Fixing the
+ * planner alone left half the walk-ins asking for the afternoon, which is the
+ * two-populations fault exactly: the check passed because it only ever measured
+ * one of them.
+ *
+ * Both sites call this now, so there is one rule and one place to change it.
+ *
+ * @param roll 0..1, the caller's own deterministic draw
+ */
+export function walkInAskFrom(nowMinute, gridMinutes, roll = 0.5, options = {}) {
+  const grid = (Array.isArray(gridMinutes) ? gridMinutes : []).filter(Number.isFinite);
+  if (!grid.length) return null;
+  const lo = nowMinute + WALK_IN_ASK_MIN;
+  const hourEdge = nowMinute + WALK_IN_ASK_MAX;
+  const sorted = grid.slice().sort((a, b) => a - b);
+  const eligible = sorted.filter((minute) => minute >= lo);
+  // Inside the hour, plus the one slot that straddles its edge. 06:45 therefore
+  // reaches 07:00 and 07:30 (inside) and 08:00 (the straddler) and nothing else.
+  const within = eligible.filter((minute) => minute <= hourEdge);
+  const straddler = eligible.find(
+    (minute) => minute > hourEdge && minute - hourEdge <= WALK_IN_ASK_STRADDLE,
+  );
+  const candidates = straddler == null ? within : [...within, straddler];
+
+  // 4.2: "If everything inside the next hour is already booked, there is no
+  // walk-in request at all." THIS REPLACES A DELIBERATE FALLBACK -- the previous
+  // rule reached for the next slot that existed however far out, so a sparse
+  // sheet could produce a four-hour ask. The owner has overruled that: a walk-in
+  // who cannot be served soon does not invent a distant time, and the desk says
+  // there is nothing within the hour. `bookedMinutes` is optional so existing
+  // callers keep working; when supplied, a fully-booked hour returns null.
+  const booked = options.bookedMinutes instanceof Set
+    ? options.bookedMinutes
+    : new Set(Array.isArray(options.bookedMinutes) ? options.bookedMinutes : []);
+  const pool = booked.size ? candidates.filter((minute) => !booked.has(minute)) : candidates;
+  if (!pool.length) return null;
+  const reach = Math.pow(Math.min(0.999999, Math.max(0, roll)), 1.6); // biased toward soon
+  return pool[Math.min(pool.length - 1, Math.floor(reach * pool.length))];
+}
+
 export const CUSTOMER_INTENT = Object.freeze({
   PRO_SHOP_SHOPPER: 'pro-shop-shopper',
   RESERVATION_CHECK_IN: 'reservation-check-in',
@@ -339,8 +485,23 @@ export function planCustomerArrivals(state, dayAbs = calendarOf(state.clock.minu
     // you got anything around 4?" — snapped to the half hour because that is
     // how the ask is phrased, not to what happens to be open. The scheduler
     // (resolveTeeTimeRequest) is what reconciles the ask with the sheet.
+    //
+    // D2 (Goal 20) — AND THAT TIME IS SOON, BECAUSE THEY ARE STANDING HERE.
+    //
+    // The lead used to be `45 + rng.int(300)`: up to FIVE HOURS. That is how a
+    // clubhouse at 6:46 in the morning ended up full of people asking to tee
+    // off at 8:30 — they were not walk-ins in any sense a player could read,
+    // they were strangers who had driven to the club to make an advance
+    // booking in person and then wait two hours. Somebody who plans that far
+    // ahead rings up or emails, which is exactly what C1 made worth doing.
+    //
+    // A walk-in wants the next hour. Snapped to the half hour, that is the
+    // next slot or the one after it, and the bookings correlate with the clock
+    // on the wall.
     const requestedTeeMinute = intent === CUSTOMER_INTENT.WALK_IN_TEE_TIME
-      ? Math.min(19 * 60, Math.round((minute + 45 + rng.int(300)) / 30) * 30)
+      ? Math.min(19 * 60, Math.round(
+        (minute + WALK_IN_ASK_MIN + rng.int(WALK_IN_ASK_MAX - WALK_IN_ASK_MIN)) / 30,
+      ) * 30)
       : null;
     pushArrival(sim, {
       dayAbs,
@@ -980,6 +1141,12 @@ export function recoverCustomerSimulation(state) {
     heldByUid.set(entry.uid, entry);
   }
   const claimed = new Set();
+  const pendingCheckoutUids = new Set(
+    Object.values(state?.shop?.pendingCheckouts || {})
+      .flatMap((plan) => (Array.isArray(plan?.inventory?.entries) ? plan.inventory.entries : []))
+      .map((entry) => entry?.uid)
+      .filter((uid) => typeof uid === 'string' && uid),
+  );
 
   for (const customer of sim.active) {
     customer.cart = customer.cart.filter((item) => {
@@ -991,7 +1158,9 @@ export function recoverCustomerSimulation(state) {
     });
   }
   for (const entry of [...held]) {
-    if (!claimed.has(entry.uid)) returnToShelf(state, entry.skuId, entry.uid);
+    if (!claimed.has(entry.uid) && !pendingCheckoutUids.has(entry.uid)) {
+      returnToShelf(state, entry.skuId, entry.uid);
+    }
   }
 
   const previousQueue = [...sim.serviceQueue];

@@ -40,7 +40,7 @@ test('cancelling an order puts the money back exactly', () => {
   assert.equal(s.shop.orders.length, 0, 'the order is gone');
 });
 
-test('an order cannot be cancelled twice — that is how you print money', () => {
+test('an order cannot be cancelled twice - that is how you print money', () => {
   const s = setup();
   placeOrder(s, 'balls1', 4);
   const id = s.shop.orders[0].id;

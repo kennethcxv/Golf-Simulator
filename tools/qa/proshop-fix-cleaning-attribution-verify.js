@@ -68,7 +68,7 @@ async (page) => {
   // until one of them produces did > 0.
   const targets = await page.evaluate(async () => {
     const app = window.__fw;
-    const { RENO } = await import('/src/sim/shop.js');
+    const { RENO } = await import(new URL('src/sim/shop.js', document.baseURI).href);
     const g = app.state.shop.reno.grime;
     const room = RENO.room;
     const cells = g.map((v, i) => {

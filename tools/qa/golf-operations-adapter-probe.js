@@ -7,9 +7,8 @@ async function runGolfOperationsAdapterProbe(page) {
   page.on('pageerror', (error) => errors.push(`PAGEERROR: ${error.message}`));
 
   await page.goto(baseUrl, { waitUntil: 'domcontentloaded', timeout: 60_000 });
-  const continueButton = page.getByText('Continue', { exact: true }).first();
-  await continueButton.waitFor({ state: 'visible', timeout: 30_000 });
-  await continueButton.click();
+  const { clickThroughMenu } = await import(`file:///${process.cwd().replace(/\\/g, '/')}/tools/qa/lib/qa-boot.mjs`);
+  await clickThroughMenu(page);
   await page.waitForFunction(() => window.__fw?.scene3d?.clubhouse?.(), null, { timeout: 60_000 });
   await page.waitForFunction(() => {
     const veil = document.querySelector('.load-veil');
@@ -18,8 +17,8 @@ async function runGolfOperationsAdapterProbe(page) {
 
   const fixture = await page.evaluate(async () => {
     const app = window.__fw;
-    const operations = await import('/src/sim/reservations.js');
-    const { calendarOf } = await import('/src/sim/time.js');
+    const operations = await import(new URL('src/sim/reservations.js', document.baseURI).href);
+    const { calendarOf } = await import(new URL('src/sim/time.js', document.baseURI).href);
     const cal = calendarOf(app.state.clock.minutes);
     const qaDay = cal.dayAbs + 1;
     operations.resetGolfOperationsQA(app.state);

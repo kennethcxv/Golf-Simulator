@@ -251,8 +251,8 @@ async function main() {
 
     const activeSetup = await page.evaluate(async () => {
       const app = window.__fw;
-      const reservations = await import('/src/sim/reservations.js');
-      const golf = await import('/src/sim/golfDay.js');
+      const reservations = await import(new URL('src/sim/reservations.js', document.baseURI).href);
+      const golf = await import(new URL('src/sim/golfDay.js', document.baseURI).href);
       reservations.resetGolfOperationsQA(app.state, { horizonDays: 7 });
       const create = (holder, minute, arrival, transport, size) => {
         app.state.clock.minutes = arrival;

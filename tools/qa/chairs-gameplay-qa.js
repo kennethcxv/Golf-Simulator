@@ -74,7 +74,7 @@ async (page) => {
 
   const clearPresentation = async () => page.evaluate(async () => {
     const app = window.__fw;
-    const ui = await import('/src/ui/ui.js');
+    const ui = await import(new URL('src/ui/ui.js', document.baseURI).href);
     ui.clearNotifications();
     ui.clearToasts();
     app.speedIdx = 0;
@@ -92,8 +92,8 @@ async (page) => {
 
   const cleanRoom = await page.evaluate(async () => {
     const app = window.__fw;
-    const layout = await import('/src/sim/layout.js');
-    const campaign = await import('/src/sim/campaign.js');
+    const layout = await import(new URL('src/sim/layout.js', document.baseURI).href);
+    const campaign = await import(new URL('src/sim/campaign.js', document.baseURI).href);
     const state = app.state;
     const clubhouse = app.scene3d.clubhouse();
     campaign.disableCampaign(state);
@@ -263,7 +263,7 @@ async (page) => {
   ];
   const basicInventorySeed = await page.evaluate(async (row) => {
     const app = window.__fw;
-    const inventory = await import('/src/sim/propertyInventory.js');
+    const inventory = await import(new URL('src/sim/propertyInventory.js', document.baseURI).href);
     app.state.shop.inventory[row.skuId] = { shelf: 0, back: 1 };
     inventory.importLegacyStoredPlaceables(app.state, row.skuId, 1);
     const item = inventory.ownedPlaceableItem(app.state, row.skuId);
@@ -310,8 +310,8 @@ async (page) => {
 
   const seededChairs = await page.evaluate(async (rows) => {
     const app = window.__fw;
-    const inventory = await import('/src/sim/propertyInventory.js');
-    const shop = await import('/src/sim/shop.js');
+    const inventory = await import(new URL('src/sim/propertyInventory.js', document.baseURI).href);
+    const shop = await import(new URL('src/sim/shop.js', document.baseURI).href);
     const results = [];
     for (const row of rows.filter((entry) => !entry.normalControls)) {
       app.state.shop.inventory[row.skuId] = { shelf: 0, back: 1 };
@@ -336,7 +336,7 @@ async (page) => {
   ];
   const seededDesks = await page.evaluate(async (rows) => {
     const app = window.__fw;
-    const shop = await import('/src/sim/shop.js');
+    const shop = await import(new URL('src/sim/shop.js', document.baseURI).href);
     const results = [];
     for (const row of rows) {
       app.state.shop.inventory[row.skuId] = { shelf: 0, back: 1 };
@@ -408,7 +408,7 @@ async (page) => {
   // then rebuild through the same property-furniture renderer used by saves.
   const alignmentMoves = await page.evaluate(async () => {
     const app = window.__fw;
-    const shop = await import('/src/sim/shop.js');
+    const shop = await import(new URL('src/sim/shop.js', document.baseURI).href);
     const THREE = await import('three');
     const moves = [];
     for (const tier of ['basic', 'standard', 'premium']) {

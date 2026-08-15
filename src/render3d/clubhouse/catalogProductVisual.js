@@ -545,19 +545,26 @@ function buildSimpleProduct(root, descriptor, merch, F) {
   }
 }
 
+// C7 (2026-08-04) — NO PRICE TAGS ANYWHERE. This used to hang a kraft
+// ProductSwingTag plane off the anchor for every club/hang/apparel product, so
+// the tag rode the goods onto the shelf, into the player's hands, across the
+// counter and into the bag. "Every tag, everywhere. Delete the code and the
+// tests that assert tags exist. This reverses earlier work — remove it rather
+// than flagging it off."
+//
+// `barcodeSurface` STAYS. It is not a tag: it is the logical face that decides
+// which way a product is turned to be scanned, and every product still has one.
 function makeAnchor(
   root,
   descriptor,
   resources,
   materials,
   authoredAnchor = null,
-  { includeCheckoutSwingTag = true } = {},
 ) {
   const bounds = visibleBounds(root);
   const size = bounds.getSize(new THREE.Vector3());
   const anchor = new THREE.Object3D();
   anchor.name = 'RuntimeProductBarcodeAnchor';
-  const tagSurface = ['club-tag', 'hang-tag', 'apparel-tag'].includes(descriptor.barcodeSurface);
   if (authoredAnchor) {
     root.updateMatrixWorld(true);
     authoredAnchor.getWorldPosition(anchor.position);
@@ -579,12 +586,6 @@ function makeAnchor(
   // carton side faces -Z until the player physically rotates it.
   if (descriptor.barcodeSurface !== 'package-back') anchor.rotation.y = Math.PI;
   root.add(anchor);
-
-  if (tagSurface && includeCheckoutSwingTag) {
-    const F = factory(anchor, resources, materials);
-    const backing = F.add(new THREE.PlaneGeometry(0.078, 0.046), materials.kraft, 'ProductSwingTag', anchor);
-    backing.position.z = -0.0015;
-  }
   return anchor;
 }
 
@@ -646,9 +647,6 @@ export function buildCatalogProductProxy({
   context = 'checkout',
 } = {}) {
   const descriptor = catalogProductVisual(sku);
-  const packedDeliveryContext = context === 'delivery-packed'
-    || context === 'delivery'
-    || context === 'packed';
   const root = new THREE.Group();
   root.name = `CheckoutProduct_${sku && sku.id ? sku.id : 'unknown'}`;
   const materials = palette(mats, resources);
@@ -669,7 +667,6 @@ export function buildCatalogProductProxy({
     resources,
     materials,
     root.getObjectByName('ANCHOR_ProductBarcode') || root.getObjectByName('BARCODE_AREA'),
-    { includeCheckoutSwingTag: !packedDeliveryContext },
   );
   const gripAnchors = makeGripAnchors(root, descriptor);
   root.userData.catalogVisual = descriptor;
@@ -685,7 +682,7 @@ export function buildCatalogProductProxy({
 // One deterministic layout is used by the customer's placement proxy and the
 // register-owned replacement, preventing a pop when ownership changes. Long goods
 // lie across the staging tray; compact goods occupy the remaining customer-side row.
-export function catalogCheckoutLayout(items, staging, restY) {
+export function catalogCheckoutLayout(items, staging, restY, keepOut = null) {
   const source = items || [];
   const descriptors = source.map((item) => catalogProductVisual(item && (item.sku || item)));
   const large = [];
@@ -735,15 +732,185 @@ export function catalogCheckoutLayout(items, staging, restY) {
     return poses;
   }
 
-  const cols = Math.min(3, Math.max(1, compact.length));
-  compact.forEach((index, order) => {
-    const cx = order % cols;
-    const cz = Math.floor(order / cols);
-    const span = localStaging.maxX - localStaging.minX - 0.28;
-    const x = localStaging.minX + 0.14 + cx * ((span / Math.max(1, cols - 1)) || 0);
-    const z = Math.min(localStaging.minZ + 0.09 + cz * 0.14, localStaging.maxZ - 0.06);
-    poses[index] = poseAt(x, z, (order * 0.7) % 1.2 - 0.6, 'compact');
+  // 2.2 (Goal 26) — ITEMS ON THE COUNTER MUST BEHAVE LIKE OBJECTS.
+  //
+  // "Right now they overlap and phase through each other... they come to rest ON
+  // the surface, they come to rest AGAINST each other, they do not interpenetrate,
+  // and a later item does not occupy the same space as an earlier one."
+  //
+  // This was a FIXED GRID: three columns at a fixed 0.14 pitch in x and 0.14 in z,
+  // with no reference to any item's actual size. Every descriptor carries a real
+  // `size: [x, y, z]`, and the grid ignored all of it -- so a golf-bag-sized box
+  // and a sleeve of tees were handed identical slots, and anything wider than the
+  // pitch necessarily intersected its neighbour. The overlap was not a physics
+  // failure; it was a layout that never asked how big anything was.
+  //
+  // No rigid bodies here, and 2.2 explicitly does not ask for them: what it asks
+  // for is resting contact and no overlap. This is shelf packing -- run along x
+  // placing each item against the previous one with its OWN half-extent plus a
+  // small gap, wrap to a new row when the row is full, and stack onto the row
+  // below only when the surface genuinely runs out. Nothing floats, because every
+  // pose sits on restY or on the measured top of what it rests on.
+  const GAP = 0.012;          // the sliver of counter visible between two objects
+  // THE STRIP IS SHALLOWER THAN THE GOODS, and that governs the shape of this
+  // packer. Measured: the staging rectangle is 0.640 wide and 0.150 DEEP, while a
+  // cap is 0.210 deep and a shoe carton 0.190. Nothing fits "within" it
+  // front-to-back, so there is exactly ONE row and its centre line is the strip's
+  // centre line; items overhang, which is what real objects on a real counter do
+  // and what the staging contract already allows, since it constrains pose
+  // CENTRES rather than extents.
+  //
+  // An earlier attempt inset the usable area by a fixed 0.06 a side. On a 0.150
+  // strip that leaves 0.03 of usable depth, so every item overflowed immediately
+  // and was pushed onto its own stacked layer -- three balls and a cap came out
+  // as three layers. There is no z inset now because there is no z packing.
+
+  // A rotated box occupies a bigger axis-aligned slot than its own width. The
+  // rotation here is small and decorative, so the footprint is computed from the
+  // rotated extent rather than the raw size -- otherwise the gap it eats would
+  // reintroduce exactly the overlap this is removing.
+  const footprint = (descriptor, ry) => {
+    const size = (descriptor && descriptor.size) || [0.16, 0.09, 0.12];
+    const w = Math.max(0.02, Number(size[0]) || 0.16);
+    const d = Math.max(0.02, Number(size[2]) || 0.12);
+    const c = Math.abs(Math.cos(ry || 0));
+    const s = Math.abs(Math.sin(ry || 0));
+    return { w: w * c + d * s, d: d * c + w * s, h: Math.max(0.01, Number(size[1]) || 0.09) };
+  };
+
+  // HOW MANY FIT SIDE BY SIDE, AND WHERE THEIR CENTRES GO.
+  //
+  // Packing edge-to-edge from the left is the obvious approach and it is too
+  // strict here: it demands sum(widths) + gaps <= 0.60, so three bulky items
+  // (a 0.31 shoe carton plus two 0.2-0.24 apparel folds) were declared not to fit
+  // and the third was stacked. Distributing CENTRES across the full staging span
+  // instead lets the outer items overhang the marked strip -- which real objects
+  // on a real counter do, and which the staging contract already allows, since it
+  // constrains centres and not extents. Those same three then sit side by side
+  // with room to spare.
+  //
+  // A row is accepted only when every ADJACENT pair clears: the centre spacing
+  // must exceed the two touching half-widths plus a gap. That is the exact
+  // non-overlap condition for a row sorted along x, so a row that passes cannot
+  // interpenetrate. Whatever does not fit goes to the next layer and rests on top.
+  // PLAYTEST 3 ITEM 6 — THE GOODS MUST NOT TOUCH THE BAG.
+  //
+  // "When the customer puts goods down, they must never intersect or rest
+  // against the shopping bag. Not overlapping, not touching."
+  //
+  // The layout already had a designed gap: the staging strip starts at register
+  // x -0.74 and the bagging footprint's right edge is -0.82, which is 0.08 of
+  // clear counter. The goods reached the bag anyway, and the reason is 2.2's own
+  // ruling -- centres are distributed across the FULL span and outer items are
+  // allowed to OVERHANG, because the staging contract constrains centres and not
+  // extents. A 0.31-wide shoe carton centred on -0.74 puts its left edge at
+  // -0.895, which is 0.075 PAST the bag. The gap was real and the overhang ate
+  // it.
+  //
+  // So the keep-out is applied to the EDGE rather than the centre: the span's
+  // left end moves right by however much the widest item in the row overhangs,
+  // and only far enough to clear. Nothing else about the packing changes, so
+  // 2.2's non-overlap guarantee between goods is untouched.
+  const keepOutCorners = keepOut ? [
+    frontDeskLocalPoint(keepOut.minX, keepOut.minZ),
+    frontDeskLocalPoint(keepOut.minX, keepOut.maxZ),
+    frontDeskLocalPoint(keepOut.maxX, keepOut.minZ),
+    frontDeskLocalPoint(keepOut.maxX, keepOut.maxZ),
+  ] : null;
+  // "Not overlapping, not touching" -- so a clear sliver, not a shared edge.
+  //
+  // PLAYTEST 4, ITEM 4: 0.02 was the sliver measured against `footprintW`, and
+  // `footprintW` is the product's authored footprint, not its rendered box. With
+  // the keep-out finally reading the real bag, `tees1` still clipped it by
+  // 0.0104 yd -- because its drawn mesh (and its ItemClickPad) run about 0.030 yd
+  // wider than the footprint the packer reserves for it. 0.06 covers that gap and
+  // still leaves a visible sliver rather than a shared edge; verified by measuring
+  // the two BOXES on a real set-down, not by re-reading the footprint numbers
+  // that caused the error.
+  const BAG_CLEARANCE = 0.06;
+  const keepOutMaxX = keepOutCorners
+    ? Math.max(...keepOutCorners.map((point) => point.x)) + BAG_CLEARANCE
+    : null;
+
+  const spanMaxX = localStaging.maxX;
+  const rowCentreZ = (localStaging.minZ + localStaging.maxZ) / 2;
+
+  const boxes = compact.map((index, order) => {
+    const ry = (order * 0.7) % 0.5 - 0.25; // a little variety, kept small on purpose
+    return { index, order, ry, box: footprint(descriptors[index], ry) };
   });
+
+  /** Do n items fit one row, distributing their centres evenly across the span? */
+  const rowFits = (entries) => {
+    if (entries.length <= 1) return true;
+    // The same shifted span the placement will use, computed from THIS candidate
+    // row's leftmost item. Asking "does it fit" against the unshifted span would
+    // accept a row the placement then has to squeeze, which is how a non-overlap
+    // guarantee turns back into an overlap.
+    const leftHalf = entries[0].box.w / 2;
+    const minX = keepOutMaxX === null
+      ? localStaging.minX
+      : Math.min(spanMaxX, Math.max(localStaging.minX, keepOutMaxX + leftHalf));
+    const step = (spanMaxX - minX) / (entries.length - 1);
+    for (let i = 0; i + 1 < entries.length; i += 1) {
+      if (step < (entries[i].box.w + entries[i + 1].box.w) / 2 + GAP) return false;
+    }
+    return true;
+  };
+
+  let cursor = 0;
+  let layer = 0;
+  let layerBaseY = 0;
+  while (cursor < boxes.length) {
+    // Take the largest run that still fits, never fewer than one -- an item wider
+    // than the whole counter still has to be put down somewhere.
+    let take = boxes.length - cursor;
+    while (take > 1 && !rowFits(boxes.slice(cursor, cursor + take))) take -= 1;
+    const row = boxes.slice(cursor, cursor + take);
+    // The leftmost item is the one that can reach the bag, so the span's left end
+    // is pushed in by ITS half-width -- per row, because which item sits leftmost
+    // changes with the row. Clamped so a very wide item cannot invert the span.
+    const leftHalf = row.length ? row[0].box.w / 2 : 0;
+    const spanMinX = keepOutMaxX === null
+      ? localStaging.minX
+      : Math.min(spanMaxX, Math.max(localStaging.minX, keepOutMaxX + leftHalf));
+    const step = row.length > 1 ? (spanMaxX - spanMinX) / (row.length - 1) : 0;
+    let rowMaxHeight = 0;
+    row.forEach((entry, i) => {
+      const x = row.length > 1 ? spanMinX + i * step : (spanMinX + spanMaxX) / 2;
+      const pose = frontDeskPose(x, rowCentreZ, entry.ry);
+      poses[entry.index] = {
+        x: pose.x,
+        y: restY + layerBaseY,
+        z: pose.z,
+        ry: pose.ry,
+        sizeClass: 'compact',
+        // Reported so a check can assert non-overlap against the same numbers the
+        // layout used, rather than re-deriving footprints and grading its own
+        // arithmetic. `layer` makes a legitimate stack distinguishable from an
+        // interpenetration at a glance.
+        footprintW: +entry.box.w.toFixed(4),
+        footprintD: +entry.box.d.toFixed(4),
+        // THE FRAME THE PACKING HAPPENED IN. `frontDeskPose` is MIRRORED with
+        // respect to local x -- measured, local -0.9 lands at world +0.10 and
+        // local -0.5 at world -0.30 -- so a check reading `x` and reasoning about
+        // "left" is reasoning in the opposite direction from the packer. The
+        // first version of the bag-clearance test did exactly that and reported
+        // the keep-out as pushing goods TOWARD the bag while it was pushing them
+        // away. Reported for the same reason footprintW is: so a check grades
+        // the numbers the layout used rather than re-deriving them.
+        localX: +x.toFixed(4),
+        localMinX: +(x - entry.box.w / 2).toFixed(4),
+        layer,
+      };
+      rowMaxHeight = Math.max(rowMaxHeight, entry.box.h);
+    });
+    cursor += take;
+    if (cursor < boxes.length) {
+      layer += 1;
+      layerBaseY += rowMaxHeight + 0.002; // rests ON what is under it; never floats
+    }
+  }
   return poses;
 }
 

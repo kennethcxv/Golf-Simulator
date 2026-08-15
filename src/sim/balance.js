@@ -85,6 +85,36 @@ export const BALANCE = {
   // NPC decisions follow it automatically. Without that link, shortening the day
   // would have re-created SIM-TIME-001 by the other route — the clock faster,
   // the shoppers not.
+  // 4.1 (Goal 26) — "Time flows too slowly. The day drags." NOT CHANGED, and
+  // the reason is measured rather than argued.
+  //
+  // This is 180 real minutes for a full game day, 105 for the 06:00-20:00
+  // trading window. 4.1 asks for a full day "in the region of ten to twenty real
+  // minutes", which needs roughly 32/30 here.
+  //
+  // THE SHOP TOLERATES THAT. Six retail shoppers on the real build
+  // (tools/qa/electron-walkup-blocked.js with WALKUP_COMPRESSION) at 4x, 16x and
+  // 32x compression: 6/6 held goods at every rate, 13 / 15 / 17 items taken, and
+  // zero stands given up. No degradation.
+  //
+  // THE GOLF DAY DOES NOT. Bisected against the suite:
+  //
+  //     4x   0 golf-day failures   <- here
+  //     5x   2 failures
+  //     6x   6 failures
+  //     8x   8 failures
+  //    16x   8 failures, plus the compression-ceiling contract itself
+  //
+  // So the ceiling is FOUR, not the sixteen the note below claims, and the
+  // blocker is the golf day rather than the shop. Raising this constant without
+  // fixing that ships a broken tee sheet to make the shop feel better.
+  //
+  // WHAT I COULD NOT SEPARATE, said plainly: whether the golf day genuinely
+  // breaks at 5x, or whether golfDayProduction.test.js is calibrated to 4x and is
+  // reporting its own assumptions back. Its durations scale with compression and
+  // the failing assertions look for events inside fixed game-minute windows, so
+  // both stories fit the evidence. Deciding that is the first task of any future
+  // attempt on 4.1.
   gameMinutesPerRealSecond: 4 / 30,
   // The rate the NPC dwell/patience/arrival numbers were authored against. The
   // clubhouse scales its decision dt by (actual / baseline), so those authored
@@ -99,14 +129,15 @@ export const BALANCE = {
   // SIM-TIME-001 ruling (uncapped, bodies tunnel colliders) and past a certain
   // compression the walking simply does not fit in the day.
   //
-  // Quartering the day multiplied every rung by 4. Left at [0,1,4,16] the top
-  // rung would have become 64x — a fast-forward that empties the shop, which is
-  // the exact defect SIM-TIME-001 was raised for, re-created by the other route.
-  //
-  // So the rungs divide by the same 4. Compressions are now 4x / 8x / 16x, days
-  // of 3h / 90min / 45min. The fastest day is EXACTLY as fast as it was before
-  // this change; what moved is the default, from twelve real hours to three.
-  speeds: [0, 1, 2, 4],
+  // A3 (Full_Goal_16, 2026-08-07): THE LADDER ABOVE 1x IS GONE. "Sped-up
+  // customers look absurd and I do not want the feature." Pause survives —
+  // the editor, the pause menu, the prewarm and two hundred QA drivers
+  // freeze with rung 0 — and 1x is the only speed a running world has.
+  // The decision-vs-locomotion split's DECISION half survives below as the
+  // day-compression constant (4x vs the NPC authoring baseline: delete it
+  // and the short day empties the shop); the rung-varying locomotion
+  // machinery it carried is dead by construction with no rung above 1.
+  speeds: [0, 1],
 
   // --- turf simulation --------------------------------------------------------
   turf: {
@@ -185,23 +216,30 @@ export const BALANCE = {
  * so a test can drive it with a doctored day length and prove the wall rate
  * does not move.
  */
+// A3: the cap is history (no rung above 1 exists to cap) but the SYMBOL is
+// load-bearing in tests and drivers that document the SIM-TIME-001 era, so
+// it stays exported at its final value.
 export const GOLFER_LOCOMOTION_SPEED_CAP = 4;
 export function golferPaceScale(speedRung = 1, balance = BALANCE) {
+  // A3: pace no longer answers a rung — legacy saves may still CARRY one
+  // (state.golfDay.speedRung, clamped to 1 on load), and whatever arrives,
+  // golfers walk at the one speed the world runs.
+  void speedRung;
   const baseline = balance.npcTimingBaselineGameMinutesPerRealSecond || balance.gameMinutesPerRealSecond;
-  const compression = balance.gameMinutesPerRealSecond / baseline;
-  const rung = Math.max(1, Number(speedRung) || 1);
-  return compression * (rung / Math.min(rung, GOLFER_LOCOMOTION_SPEED_CAP));
+  return balance.gameMinutesPerRealSecond / baseline;
 }
 
 export function simSpeedMultipliers(speedIdx, balance = BALANCE) {
-  const rung = balance.speeds[speedIdx];
-  // A paused world still reports the multipliers it would resume at — the
-  // clubhouse loop reads these every frame regardless of pause, and 0 would
-  // divide the shop's whole notion of time by nothing.
-  const active = rung || 1;
+  // A3: with the ladder gone this is not a speed feature any more — it is
+  // the DAY-COMPRESSION constant (the day runs 4x the NPC authoring
+  // baseline) plus the pause flag's resume value. A paused world still
+  // reports the multipliers it would resume at — the clubhouse loop reads
+  // these every frame regardless of pause, and 0 would divide the shop's
+  // whole notion of time by nothing.
+  void speedIdx;
   const baseline = balance.npcTimingBaselineGameMinutesPerRealSecond || (1 / 30);
   return {
-    decision: active * (balance.gameMinutesPerRealSecond / baseline),
-    locomotion: active,
+    decision: balance.gameMinutesPerRealSecond / baseline,
+    locomotion: 1,
   };
 }

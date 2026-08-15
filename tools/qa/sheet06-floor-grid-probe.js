@@ -58,7 +58,7 @@ async (page) => {
     await page.evaluate(async (floorRestored) => {
       const app = window.__fw;
       const clubhouse = app.scene3d.clubhouse();
-      const R = await import('/src/sim/clubhouseRestoration.js');
+      const R = await import(new URL('src/sim/clubhouseRestoration.js', document.baseURI).href);
       for (const component of ['shell', 'porch', 'windows', 'panels', 'trim', 'ceiling', 'floor']) {
         const result = R.setArchitectureComponentRestored(
           app.state,

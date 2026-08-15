@@ -3,7 +3,7 @@
 // gap / two glazed window openings / one warm bare bulb, registers per-segment
 // wall colliders (the doorway is left open), and returns the FULL shell contract
 // that makeClubhouse consumes (windowDefs, lighting facade, styleSurfaces,
-// productionVisualFallbacks, partitionColliders, setBusinessOpen) so the shed
+// productionVisualFallbacks, partitionColliders, setSignFace) so the shed
 // drops straight into the clubhouse's existing walk / cleaning / lighting wiring
 // with zero downstream change.
 //
@@ -365,7 +365,10 @@ export function buildShedShell(B) {
     productionVisualFallbacks,
     productionVisualFallbackKeys: PRODUCTION_VISUAL_FALLBACK_KEYS,
     partitionColliders: [],
-    setBusinessOpen: () => {},
+    // The shed has no street frontage and no board on it. It still answers the
+    // shell contract so the registry can register it unconditionally.
+    setSignFace: () => {},
+    exteriorSignName: null,
     // harmless extras mirroring buildShell's return (unused downstream under shed)
     sidingMat: wallMat,
     roofMat,

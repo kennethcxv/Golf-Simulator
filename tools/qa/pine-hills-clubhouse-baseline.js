@@ -31,7 +31,7 @@ async (page) => {
   const fixture = await page.evaluate(async () => {
     const app = window.__fw;
     const clubhouse = app.scene3d.clubhouse();
-    const layout = await import('/src/data/shopLayout.js');
+    const layout = await import(new URL('src/data/shopLayout.js', document.baseURI).href);
     app.speedIdx = 0;
     app.state.clock.minutes = 14 * 60;
     app.state.weather.locked = true;

@@ -155,10 +155,15 @@ test('stage moves are atomic and a refused overdraw changes no lot', () => {
     skuId: 'balls2',
     quantity: 7,
     referenceId: 'receive-part',
+    cause: 'Partial receipt test',
   });
   assert.equal(received.ok, true);
   assert.equal(inventoryPosition(state, 'balls2').inTransit, 5);
   assert.equal(inventoryPosition(state, 'balls2').deliveredUnopened, 7);
+  const moveEvent = state.shop.inventoryLifecycle.events.at(-1);
+  assert.equal(moveEvent.kind, 'inventory-move');
+  assert.equal(moveEvent.cause, 'Partial receipt test');
+  assert.equal(Object.hasOwn(moveEvent, 'reason'), false);
 
   const before = structuredClone(state.shop.inventoryLifecycle.lots);
   const refused = moveInventory(state, {

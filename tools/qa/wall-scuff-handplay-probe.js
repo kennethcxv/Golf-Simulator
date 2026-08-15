@@ -32,7 +32,7 @@ async (page) => {
   }, { STAND, yaw, pitch });
 
   const progress = () => page.evaluate(async (id) => {
-    const { restorationSnapshot } = await import('/src/sim/clubhouseRestoration.js');
+    const { restorationSnapshot } = await import(new URL('src/sim/clubhouseRestoration.js', document.baseURI).href);
     return restorationSnapshot(window.__fw.state).targetProgress[id] || 0;
   }, SCUFF.id);
 
@@ -58,8 +58,8 @@ async (page) => {
   await sweep('spray', 2, -0.30, -0.62);
   const afterSpray = await progress();
   const wetSwath = await page.evaluate(async ({ SCUFF }) => {
-    const { wetGridForRoom, solutionLevel } = await import('/src/sim/cleaningWet.js');
-    const { RENO } = await import('/src/sim/shop.js');
+    const { wetGridForRoom, solutionLevel } = await import(new URL('src/sim/cleaningWet.js', document.baseURI).href);
+    const { RENO } = await import(new URL('src/sim/shop.js', document.baseURI).href);
     const grid = wetGridForRoom(RENO.room);
     const cells = [];
     for (let dz = -1.2; dz <= 1.2; dz += 0.3) {

@@ -1,0 +1,85 @@
+{
+  "licence": "All entries are CC0 1.0 from ambientCG.",
+  "families": {
+    "Leather011": {
+      "assetId": "Leather011",
+      "displayName": "Leather 011",
+      "category": "Leather",
+      "variant": "1K-JPG",
+      "licence": "CC0 1.0 Universal (ambientCG)",
+      "sourceUrl": "https://ambientcg.com/view?id=Leather011",
+      "downloadUrl": "https://ambientcg.com/get?file=Leather011_1K-JPG.zip",
+      "files": [
+        "Leather011_1K-JPG_Color.jpg",
+        "Leather011_1K-JPG_NormalGL.jpg",
+        "Leather011_1K-JPG_Roughness.jpg"
+      ]
+    },
+    "Fabric030": {
+      "assetId": "Fabric030",
+      "displayName": "Fabric 030",
+      "category": "Fabric",
+      "variant": "1K-JPG",
+      "licence": "CC0 1.0 Universal (ambientCG)",
+      "sourceUrl": "https://ambientcg.com/view?id=Fabric030",
+      "downloadUrl": "https://ambientcg.com/get?file=Fabric030_1K-JPG.zip",
+      "files": [
+        "Fabric030_1K-JPG_Color.jpg",
+        "Fabric030_1K-JPG_NormalGL.jpg",
+        "Fabric030_1K-JPG_Roughness.jpg"
+      ]
+    },
+    "Rubber004": {
+      "assetId": "Rubber004",
+      "displayName": "Rubber 004",
+      "category": "Rubber",
+      "variant": "1K-JPG",
+      "licence": "CC0 1.0 Universal (ambientCG)",
+      "sourceUrl": "https://ambientcg.com/view?id=Rubber004",
+      "downloadUrl": "https://ambientcg.com/get?file=Rubber004_1K-JPG.zip",
+      "files": [
+        "Rubber004_1K-JPG_Color.jpg",
+        "Rubber004_1K-JPG_NormalGL.jpg",
+        "Rubber004_1K-JPG_Roughness.jpg"
+      ]
+    },
+    "Foam001": {
+      "assetId": "Foam001",
+      "displayName": "Foam 001",
+      "category": "Foam",
+      "variant": "1K-JPG",
+      "licence": "CC0 1.0 Universal (ambientCG)",
+      "sourceUrl": "https://ambientcg.com/view?id=Foam001",
+      "downloadUrl": "https://ambientcg.com/get?file=Foam001_1K-JPG.zip",
+      "files": [
+        "Foam001_1K-JPG_Color.jpg",
+        "Foam001_1K-JPG_NormalGL.jpg",
+        "Foam001_1K-JPG_Roughness.jpg"
+      ]
+    },
+    "PaintedMetal001": {
+      "assetId": "PaintedMetal001",
+      "displayName": "Painted Metal 001",
+      "category": "Painted Metal",
+      "variant": "1K-JPG",
+      "licence": "CC0 1.0 Universal (ambientCG)",
+      "sourceUrl": "https://ambientcg.com/view?id=PaintedMetal001",
+      "downloadUrl": "https://ambientcg.com/get?file=PaintedMetal001_1K-JPG.zip",
+      "files": [
+        "PaintedMetal001_1K-JPG_Color.jpg",
+        "PaintedMetal001_1K-JPG_Metalness.jpg",
+        "PaintedMetal001_1K-JPG_NormalGL.jpg",
+        "PaintedMetal001_1K-JPG_Roughness.jpg"
+      ]
+    }
+  },
+  "rejected": {
+    "Plastic010": "normal relief 0.006 and albedo contrast 1.01 - measurably inert on both channels",
+    "Plastic007": "normal relief 0.011 - below the threshold where a normal map changes the frame",
+    "Plastic008": "normal relief 0.010 - same",
+    "Metal038": "normal relief 0.021 - PaintedMetal001 carries twice the relief for the same cost",
+    "Fabric063": "normalised mean 0.518, still too dark to carry a cream target by multiplication",
+    "Fabric064": "normalised mean 0.519 - same",
+    "Foam002": "Foam001 already covers the sponge slots"
+  }
+}

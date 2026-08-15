@@ -68,7 +68,7 @@ test('plain water strips the film off a heavy stain, then stalls dead on it', ()
   assert.ok(surfaceClean(st, heavy.id) < 0.75, 'the wall is nowhere near clean');
 });
 
-test('soap, a moment to work, then the jet — and the stain lifts', () => {
+test('soap, a moment to work, then the jet - and the stain lifts', () => {
   const st = newGame('relaxed', 4);
   ensureWash(st);
   const w = washState(st)[heavy.id];

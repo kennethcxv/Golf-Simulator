@@ -149,7 +149,7 @@ async (page) => {
   // Powered, all panels serviced — the key's fullest state; clock pinned.
   await page.evaluate(async () => {
     const app = window.__fw;
-    const R = await import('/src/sim/clubhouseRestoration.js');
+    const R = await import(new URL('src/sim/clubhouseRestoration.js', document.baseURI).href);
     R.restorationAction(app.state, { type: 'repair-component', component: 'ceiling', progress: 1 });
     const snapshot = R.restorationSnapshot(app.state);
     for (const targetId of Object.keys(snapshot?.targetProgress || {})) {

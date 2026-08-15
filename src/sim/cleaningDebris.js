@@ -15,12 +15,23 @@ import { BROOM_FEEL } from '../data/broomFeel.js';
 
 const MAX_CLUSTERS = 96;      // a hard ceiling: merging keeps us far below this in practice
 export const DEBRIS_MERGE_YD = 0.34;  // piles closer than this become one
-// How fast the bristles push debris. From the one broom tuning file: the push
-// must beat the walk speed (2.2 yd/s), or a forward push at full stride walks
-// straight over its own pile — the review's "dirt lag". (Shipped at 1.05
-// before Phase 6 round 2.)
+// How fast the bristles push debris. From the one broom tuning file, which now
+// derives it from the walk speed itself rather than from a copy of it — this
+// comment used to say "(2.2 yd/s)" while the player walked at 3.4, and the
+// number it described could not keep up. See broomFeel's dirt block.
 const SWEEP_SPEED_YD = BROOM_FEEL.dirt.pushSpeed;
 const SWEEP_MAX_STEP = BROOM_FEEL.dirt.maxStep;  // no single stroke may fling debris further
+// I6 (2026-08-05): pushSpeed is a NET target — "the pile recedes at this rate
+// while you sweep" — but the caller only hands dt over during the stroke's
+// contact window (duty = (2/π)·acos(contactCos) ≈ 0.61 of wall time), so the
+// pile actually moved at pushSpeed × duty × bite. Measured on the first
+// honest race: 0.72 yd/s against a 3.4 yd/s walk — the walking player overran
+// their own pile in the shipping build, the exact defect the number exists to
+// prevent, invisible until the seeded pile actually lived in the room (the
+// drivers had seeded WORLD coords into a LOCAL list for two sessions).
+// The duty is priced back in HERE, where the discount happens, so pushSpeed
+// stays the honest net number everything else derives from.
+const SWEEP_DUTY = (2 / Math.PI) * Math.acos(BROOM_FEEL.stroke.contactCos);
 const SUCK_PULL_YD = 1.35;    // how hard the intake draws debris in, yards/second
 const SUCK_MOUTH_YD = 0.16;   // debris is consumed only this close to the nozzle
 
@@ -126,14 +137,20 @@ export function sweepAt(state, x, z, dirX, dirZ, radius, dtSec) {
   const len = Math.hypot(dirX, dirZ) || 1;
   const ux = dirX / len;
   const uz = dirZ / len;
-  const step = Math.min(SWEEP_MAX_STEP, SWEEP_SPEED_YD * dtSec);
+  const step = Math.min(SWEEP_MAX_STEP, (SWEEP_SPEED_YD / SWEEP_DUTY) * dtSec);
   let moved = 0;
 
   for (const d of list) {
     const dist = Math.hypot(d.x - x, d.z - z);
     if (dist > radius) continue;
-    // the middle of the head pushes hardest; the ends just nudge
-    const bite = 1 - (dist / radius) * 0.65;
+    // The middle of the head pushes hardest; the ends still push. The taper
+    // used to fall to 0.35 at the rim, which set the pushed pile's stable
+    // riding point BEHIND what a full walk could keep up with (a pile being
+    // driven settles where bite × pushSpeed equals the player's speed; at
+    // 0.35 rim bite that equilibrium did not exist and the pile fell out the
+    // back of the head). 0.75 at the rim keeps a stable ride inside the head
+    // at both walk (3.4) and tool-run (4.25) against the 4.89 net push.
+    const bite = 1 - (dist / radius) * 0.25;
     d.x = Math.round((d.x + ux * step * bite) * 1000) / 1000;
     d.z = Math.round((d.z + uz * step * bite) * 1000) / 1000;
     moved += d.a;

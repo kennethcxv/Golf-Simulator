@@ -1,0 +1,92 @@
+{
+  "_comment": "PINNED 2026-08-11: the 'boot-varying world-Y' was never a Y jitter - every harness boot started a NEW GAME with a fresh random seed (measured: seeds 97236116 vs 2066143097, interior Y 1.6 yd apart), so the gate was comparing different worlds. golden-capture now boots forceNew with pinSeed 0.4242. qa-boot gates only the exact onNewGame seed draw and restores native Math.random inside that call, before scene construction; manifest records seed+interiorY - 1035912314 / -0.45135 every run. Measured two-run noise after the pin: 0.0000-0.0622 percent across all 12 poses (shop-floor and stockroom-wall at literal zero). Budgets are 0.25 = roughly 4x the worst measured noise, tight enough that the E1-yaw class (>1 percent family shift) can never hide again. Ignore rects stay: the window view shows LIVE course golfers (runtime randomness is restored after boot, deliberately) and the loose stockroom boxes can topple. 2026-08-11 second calibration: TOOL poses carry idle sway on wall-clock phase (boot-duration shifts it), measured up to 0.51 on tool-mop between two clean runs - tool budgets are 0.75 (still an order under the E1-yaw family class at >1 percent), static poses stay 0.25. bag-packed (the C1 pose: staged 3-item sale, pinned spawn, no despawn) measured 0.105 two-run - budget 0.35.",
+  "*": {
+    "ignore": [
+      [
+        1400,
+        0,
+        520,
+        1028
+      ],
+      [
+        930,
+        570,
+        360,
+        330
+      ]
+    ]
+  },
+  "shop-floor": {
+    "maxDiffPct": 0.25,
+    "ignore": [
+      [
+        1400,
+        0,
+        520,
+        1028
+      ],
+      [
+        930,
+        570,
+        360,
+        330
+      ]
+    ]
+  },
+  "stockroom-wall": {
+    "maxDiffPct": 0.25,
+    "ignore": [
+      [
+        0,
+        760,
+        380,
+        268
+      ],
+      [
+        1620,
+        760,
+        300,
+        268
+      ],
+      [
+        1020,
+        930,
+        320,
+        98
+      ]
+    ]
+  },
+  "tool-broom": {
+    "maxDiffPct": 0.75
+  },
+  "tool-cloth": {
+    "maxDiffPct": 0.75
+  },
+  "tool-dustpan": {
+    "maxDiffPct": 0.75
+  },
+  "tool-mop": {
+    "maxDiffPct": 0.75
+  },
+  "tool-paint": {
+    "maxDiffPct": 0.75
+  },
+  "tool-sponge": {
+    "maxDiffPct": 0.75
+  },
+  "tool-spray": {
+    "maxDiffPct": 0.75
+  },
+  "tool-trashbag": {
+    "maxDiffPct": 0.75
+  },
+  "tool-vacuum": {
+    "maxDiffPct": 0.75
+  },
+  "tool-washer": {
+    "maxDiffPct": 0.75
+  },
+  "bag-packed": {
+    "maxDiffPct": 0.35
+  }
+}

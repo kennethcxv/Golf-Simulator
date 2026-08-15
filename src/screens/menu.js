@@ -6,6 +6,7 @@ import { inspectData, summarizeSave } from '../core/storage.js';
 import { EMPIRE_VERSION } from '../sim/empire.js';
 import { SAVE_VERSION } from '../sim/state.js';
 import { confirmDialog, el, modal, notify } from '../ui/ui.js';
+import { devSessionActive } from '../data/clubhouseVariant.js';
 
 const SLOTS = ['slot1', 'slot2', 'slot3'];
 const LIMITS = { empireVersion: EMPIRE_VERSION, saveVersion: SAVE_VERSION };
@@ -196,11 +197,17 @@ export function makeMenu(handlers) {
       el('span', { class: 'menu-action-label', text: 'Quit' })) : null,
     // Dev/QA entry point: boots straight into the maintenance-shed test scene
     // (its own save keys — never touches a real player's autosave or slots).
-    el('button', {
+    //
+    // GATED, 2026-08-07: the Section A verifier found this on the SHIPPING main
+    // menu with no gate at all, one row below Quit. A player launching the game
+    // was one click from a developer test scene. It now appears only in a dev
+    // session, which is the same test every other dev affordance in this
+    // codebase already uses.
+    devSessionActive() ? el('button', {
       class: 'menu-action', type: 'button',
       onclick: () => { location.search = '?scene=shed'; },
     },
-    el('span', { class: 'menu-action-label', text: 'Test scene: Maintenance Shed' })),
+    el('span', { class: 'menu-action-label', text: 'Test scene: Maintenance Shed' })) : null,
   );
   actionList.addEventListener('keydown', (event) => {
     const actions = [...actionList.querySelectorAll('.menu-action:not([disabled])')];
@@ -297,9 +304,89 @@ export function makeMenu(handlers) {
     }
   }
 
+  // H1 (Goal 20) — THE MAIN MENU HAD NO SOUND AT ALL.
+  //
+  // Not a quiet one: this file contained zero audio references, so every press
+  // on New Game, Settings, Load and Quit was silent, and a silent button is
+  // indistinguishable from a broken one. The stranger verifier reached the same
+  // conclusion from the other end.
+  //
+  // ONE delegated capture-phase listener rather than a sound on each of the
+  // twelve onclick sites, because the menu's dialogs (new game, load, credits,
+  // the delete confirmation) build their own buttons and every one of them
+  // needs to speak too. pointerdown, not click, so the sound lands with the
+  // press the way the in-game button factory already does.
+  //
+  // audio.init() is called first: the context can only be created from a user
+  // gesture, and this IS the first gesture of the session, so without it the
+  // very click that should make the first sound is the one that cannot.
+  const audio = handlers.audio || null;
+  const pressSound = (event) => {
+    const target = event.target?.closest?.('button');
+    if (!target || target.disabled) return;
+    // THIS CALL STAYS AND MUST STAY FIRST. A context can only be created from a
+    // user gesture, and this is the first gesture of the session -- without it
+    // the very click that should make the first sound is the one that cannot.
+    audio?.init?.();
+    // 1.4 — THE SOUND ITSELF BELONGS TO THE SHARED SINK, NOT HERE.
+    //
+    // main.js installs window.__fwUiClick at construction now, so the menu is
+    // already covered, and it is the only place that knows 1.4's classification:
+    // cancel and destructive controls get their own variant. When this function
+    // also spoke, it called uiTick FIRST and the sink's uiCancel then lost the
+    // 120 ms press window -- measured on "Back out of Credits", which reported
+    // cancelCalls: 1 and still played the plain tick. Two populations deciding
+    // one thing, with the wrong one winning (shape 1).
+    //
+    // Delegating keeps one rule and one sound. On the very first press the sink
+    // may not have a context yet, which is why the fallback below still exists:
+    // audio.init() above has just created one, and this press must not be the
+    // silent one.
+    if (typeof window !== 'undefined' && typeof window.__fwUiClick === 'function') {
+      window.__fwUiClick(target);
+      return;
+    }
+    if (target.classList.contains('menu-action-primary')) audio?.uiConfirm?.();
+    else audio?.uiTick?.();
+  };
+  const hoverSound = (event) => {
+    const target = event.target?.closest?.('button');
+    if (!target || target.disabled || !audio?.ready) return;
+    audio.uiTick();
+  };
+
+  // A2 (Goal 22) — THE MENU WAS SILENT BECAUSE THIS LINE NEVER RAN.
+  //
+  // The press handler above is correct and was correct when H1 shipped it. It
+  // was attached in exactly one place: inside setVisible(true). And the menu is
+  // BORN VISIBLE — `root` carries no display:none, main.js appends it at
+  // uiRoot.append(menu.root, gameUi), and the only setVisible calls on the boot
+  // path are setVisible(FALSE) for the shed scope. setVisible(true) exists for
+  // RETURNING to the menu from a game. So on the one path every player takes,
+  // launching the game, the listener was never installed and every button was
+  // silent.
+  //
+  // The check that certified this was four regexes over the text of this file
+  // (tests/menu-sound.test.js). One of them asserts this very
+  // addEventListener line exists. It does exist. It never ran. A test that
+  // reads the source cannot ask what the source does.
+  //
+  // Attaching here, at construction, matches the element's own initial state.
+  // setVisible removes before it adds, so this cannot double-subscribe.
+  document.addEventListener('pointerdown', pressSound, true);
+  root.addEventListener('pointerover', hoverSound);
+
   function setVisible(visible) {
     root.style.display = visible ? '' : 'none';
     root.setAttribute('aria-hidden', String(!visible));
+    // listeners live only while the menu is up, so nothing in the game world
+    // ever ticks because a menu handler was left attached to the document
+    document.removeEventListener('pointerdown', pressSound, true);
+    root.removeEventListener('pointerover', hoverSound);
+    if (visible) {
+      document.addEventListener('pointerdown', pressSound, true);
+      root.addEventListener('pointerover', hoverSound);
+    }
     if (visible) {
       refresh().then(() => {
         const target = continueBtn.disabled ? actionList.querySelector('button:not([disabled])') : continueBtn;

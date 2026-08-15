@@ -67,7 +67,7 @@ async (page) => {
       },
     };
     app.scene3d.applyTimeWeather(14 * 60, app.state.weather);
-    const ui = await import('/src/ui/ui.js');
+    const ui = await import(new URL('src/ui/ui.js', document.baseURI).href);
     ui.clearNotifications();
     ui.clearToasts();
     // Dynamic campaign and delivery beats are outside this architectural QA
@@ -109,7 +109,7 @@ async (page) => {
   for (const shot of shots) {
     await page.evaluate(async ({ shot, center }) => {
       const app = window.__fw;
-      const ui = await import('/src/ui/ui.js');
+      const ui = await import(new URL('src/ui/ui.js', document.baseURI).href);
       ui.clearNotifications();
       ui.clearToasts();
       const walk = app.scene3d.walk;
@@ -126,7 +126,7 @@ async (page) => {
     }, { shot, center: fixture.center });
     await page.waitForTimeout(500);
     await page.evaluate(async () => {
-      const ui = await import('/src/ui/ui.js');
+      const ui = await import(new URL('src/ui/ui.js', document.baseURI).href);
       ui.clearNotifications();
       ui.clearToasts();
     });
@@ -137,7 +137,7 @@ async (page) => {
 
   await page.evaluate(async (center) => {
     const app = window.__fw;
-    const ui = await import('/src/ui/ui.js');
+    const ui = await import(new URL('src/ui/ui.js', document.baseURI).href);
     ui.clearNotifications();
     ui.clearToasts();
     const walk = app.scene3d.walk;
@@ -157,7 +157,7 @@ async (page) => {
     window.__fw.scene3d.clubhouse().premiumCountryClub.diagnostics().runtimeLightFactor
   ));
   await page.evaluate(async () => {
-    const ui = await import('/src/ui/ui.js');
+    const ui = await import(new URL('src/ui/ui.js', document.baseURI).href);
     ui.clearNotifications();
     ui.clearToasts();
   });
@@ -168,7 +168,7 @@ async (page) => {
   // Normal player route: walk to the real member door, use E, and cross it.
   await page.evaluate(async (center) => {
     const app = window.__fw;
-    const ui = await import('/src/ui/ui.js');
+    const ui = await import(new URL('src/ui/ui.js', document.baseURI).href);
     ui.clearNotifications();
     ui.clearToasts();
     const walk = app.scene3d.walk;

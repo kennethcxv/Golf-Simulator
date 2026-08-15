@@ -6,6 +6,8 @@
 // an idempotencyKey; replaying that command then returns the original entry and
 // moves neither cash nor profit a second time.
 
+import { t } from '../core/i18n.js';
+
 export const LEDGER_VERSION = 2;
 export const LEDGER_HISTORY_DAYS = 60;
 export const TX_LOG_CAP = 80;
@@ -99,6 +101,10 @@ export function initLedger(state) {
 }
 
 const r2 = (value) => Math.round((Number(value) || 0) * 100) / 100;
+const safeCentValue = (value) => typeof value === 'number'
+  && Number.isFinite(value)
+  && r2(value) === value
+  && Number.isSafeInteger(Math.round(value * 100));
 const dayOf = (state) => Math.floor((state.clock?.minutes || 0) / 1440);
 
 export function ensureLedger(state) {
@@ -126,14 +132,24 @@ export function ensureLedger(state) {
   ledger.dailySummaries ||= [];
   ledger.processedIds ||= {};
   ledger.processedOutcomeIds ||= {};
-  for (const entry of ledger.entries) {
-    if (entry?.idempotencyKey && entry?.id && !ledger.processedIds[entry.idempotencyKey]) {
-      ledger.processedIds[entry.idempotencyKey] = entry.id;
+  const pendingCheckouts = state?.shop?.pendingCheckouts;
+  const checkoutJournalQuarantined = state?.shop?.pendingCheckoutsQuarantine?.active === true;
+  const checkoutJournalKnownEmpty = !checkoutJournalQuarantined && (pendingCheckouts == null
+    || (isRecord(pendingCheckouts) && Object.keys(pendingCheckouts).length === 0));
+  // Legacy saves predate the checkpoint maps, so rows may normally seed them.
+  // A pending checkout is different: its strict recovery gate must see an
+  // orphan row as an incomplete/corrupt authority. Healing that orphan here
+  // would let recovery skip the money posting while still selling the stock.
+  if (checkoutJournalKnownEmpty) {
+    for (const entry of ledger.entries) {
+      if (entry?.idempotencyKey && entry?.id && !ledger.processedIds[entry.idempotencyKey]) {
+        ledger.processedIds[entry.idempotencyKey] = entry.id;
+      }
     }
-  }
-  for (const outcome of ledger.outcomes) {
-    if (outcome?.idempotencyKey && outcome?.id && !ledger.processedOutcomeIds[outcome.idempotencyKey]) {
-      ledger.processedOutcomeIds[outcome.idempotencyKey] = outcome.id;
+    for (const outcome of ledger.outcomes) {
+      if (outcome?.idempotencyKey && outcome?.id && !ledger.processedOutcomeIds[outcome.idempotencyKey]) {
+        ledger.processedOutcomeIds[outcome.idempotencyKey] = outcome.id;
+      }
     }
   }
   if (!Number.isInteger(ledger.nextSequence) || ledger.nextSequence < 1) {
@@ -204,6 +220,191 @@ function aggregateCashLine(ledger, side, key, amount) {
   lines[key] = r2((lines[key] || 0) + amount);
 }
 
+function isRecord(value) {
+  return !!value && typeof value === 'object' && !Array.isArray(value);
+}
+
+function canAssignProperty(target, key) {
+  if (!target || (typeof target !== 'object' && typeof target !== 'function')) return false;
+  const own = Object.getOwnPropertyDescriptor(target, key);
+  if (own) {
+    return Object.hasOwn(own, 'value') && own.writable === true;
+  }
+  let prototype = Object.getPrototypeOf(target);
+  while (prototype) {
+    const inherited = Object.getOwnPropertyDescriptor(prototype, key);
+    if (inherited) {
+      if (!Object.hasOwn(inherited, 'value')) return false;
+      if (inherited.writable !== true) return false;
+      break;
+    }
+    prototype = Object.getPrototypeOf(prototype);
+  }
+  return Object.isExtensible(target);
+}
+
+function canAppend(array) {
+  return Array.isArray(array)
+    && Object.isExtensible(array)
+    && canAssignProperty(array, 'length');
+}
+
+function own(target, key) {
+  return !!target && Object.prototype.hasOwnProperty.call(target, key);
+}
+
+function sameIdentityValue(actual, expected, key) {
+  if (key !== 'metadata') return actual === expected;
+  try {
+    return JSON.stringify(actual || {}) === JSON.stringify(expected);
+  } catch {
+    return false;
+  }
+}
+
+function identityConflict(row, preview) {
+  return Object.entries(preview).some(([key, value]) => (
+    !sameIdentityValue(row?.[key], value, key)
+  ));
+}
+
+function rowsWithIdentity(rows, key, value) {
+  return Array.isArray(rows)
+    ? rows.filter((row) => row && row[key] === value)
+    : [];
+}
+
+function identityOwnershipConflict(rows, checkpointMap, expectedId, idempotencyKey) {
+  const idRows = rowsWithIdentity(rows, 'id', expectedId);
+  if (idRows.length > 1) return { conflict: true, ambiguous: true };
+  if (idRows.length === 1 && idRows[0].idempotencyKey !== idempotencyKey) {
+    return { conflict: true, row: idRows[0] };
+  }
+  const reverseKeys = isRecord(checkpointMap)
+    ? Object.entries(checkpointMap)
+      .filter(([key, id]) => id === expectedId && key !== idempotencyKey)
+      .map(([key]) => key)
+    : [];
+  if (reverseKeys.length) return { conflict: true, reverseKeys };
+  return { conflict: false };
+}
+
+function ledgerAuthorityWritable(state, {
+  idempotencyKey,
+  spec = {},
+  direction = 'revenue',
+  lineKey = 'otherRevenue',
+  amount = 0,
+  outcome = false,
+} = {}) {
+  const label = outcome ? 'outcome authority' : 'ledger authority';
+  if (!isRecord(state)) return { ok: false, reason: t('ledger.integrityUnavailable'), diagnostic: `The ${label} is not writable.` };
+  const ledger = state.ledger;
+  if (ledger == null) {
+    if (!canAssignProperty(state, 'ledger')
+        || (!outcome && !canAssignProperty(state, 'cash'))) {
+      return { ok: false, reason: t('ledger.integrityUnavailable'), diagnostic: `The ${label} is not writable.` };
+    }
+    return { ok: true };
+  }
+  if (!isRecord(ledger)
+      || !isRecord(ledger.today)
+      || !isRecord(ledger.today.revenue)
+      || !isRecord(ledger.today.expense)
+      || !Array.isArray(ledger.history)
+      || !Array.isArray(ledger.txLog)
+      || !Array.isArray(ledger.entries)
+      || !Array.isArray(ledger.outcomes)
+      || !Array.isArray(ledger.dailySummaries)
+      || !isRecord(ledger.processedIds)
+      || !isRecord(ledger.processedOutcomeIds)
+      || !Number.isInteger(ledger.nextSequence)
+      || ledger.nextSequence < 1
+      || ledger.postingDay === undefined) {
+    return { ok: false, reason: t('ledger.integrityUnavailable'), diagnostic: `The ${label} is unavailable or not writable.` };
+  }
+
+  // ensureLedger normalizes these two properties on every call, even when the
+  // remaining ledger shape is already current.
+  if (!canAssignProperty(ledger, 'version') || !canAssignProperty(ledger, 'txLog')) {
+    return { ok: false, reason: t('ledger.integrityUnavailable'), diagnostic: `The ${label} is not writable.` };
+  }
+  for (const entry of ledger.entries) {
+    if (entry?.idempotencyKey && entry?.id && !ledger.processedIds[entry.idempotencyKey]
+        && !canAssignProperty(ledger.processedIds, entry.idempotencyKey)) {
+      return { ok: false, reason: t('ledger.integrityUnavailable'), diagnostic: 'The ledger checkpoint authority is not writable.' };
+    }
+  }
+  for (const recorded of ledger.outcomes) {
+    if (recorded?.idempotencyKey && recorded?.id
+        && !ledger.processedOutcomeIds[recorded.idempotencyKey]
+        && !canAssignProperty(ledger.processedOutcomeIds, recorded.idempotencyKey)) {
+      return { ok: false, reason: t('ledger.integrityUnavailable'), diagnostic: 'The outcome checkpoint authority is not writable.' };
+    }
+  }
+
+  const checkpointMap = outcome ? ledger.processedOutcomeIds : ledger.processedIds;
+  const rows = outcome ? ledger.outcomes : ledger.entries;
+  if (!canAppend(rows)) return { ok: false, reason: t('ledger.integrityUnavailable'), diagnostic: `The ${label} is not writable.` };
+  if (idempotencyKey) {
+    if (!canAssignProperty(checkpointMap, idempotencyKey)) {
+      return {
+        ok: false,
+        reason: t('ledger.integrityUnavailable'),
+        diagnostic: outcome
+          ? 'The outcome checkpoint authority is not writable.'
+          : 'The ledger checkpoint authority is not writable.',
+      };
+    }
+  } else if (!Object.isExtensible(checkpointMap)
+      || !canAssignProperty(ledger, 'nextSequence')) {
+    return { ok: false, reason: t('ledger.integrityUnavailable'), diagnostic: `The ${label} is not writable.` };
+  }
+
+  if (outcome) return { ok: true };
+  if (!canAssignProperty(state, 'cash')) {
+    return { ok: false, reason: t('ledger.integrityUnavailable'), diagnostic: 'The ledger cash authority is not writable.' };
+  }
+  const cashImpact = r2(spec.cashImpact ?? (
+    direction === 'expense' ? -amount : direction === 'reversal' ? amount : amount
+  ));
+  const currentCash = state.cash == null ? 0 : Number(state.cash);
+  const projectedCash = r2(currentCash + cashImpact);
+  if (!safeCentValue(currentCash) || !safeCentValue(cashImpact)
+      || !Number.isFinite(currentCash + cashImpact) || !safeCentValue(projectedCash)) {
+    return { ok: false, reason: t('ledger.integrityUnavailable'), diagnostic: 'The ledger cash projection is outside safe currency bounds.' };
+  }
+  const aggregate = Object.prototype.hasOwnProperty.call(spec, 'aggregate')
+    ? spec.aggregate
+    : direction === 'revenue' ? { side: 'revenue', key: lineKey, amount }
+      : direction === 'expense' && Number(spec.cashImpact ?? -amount) < 0
+        ? { side: 'expense', key: lineKey, amount }
+        : null;
+  if (aggregate) {
+    const lines = ledger.today[aggregate.side];
+    if (!isRecord(aggregate)
+        || !['revenue', 'expense'].includes(aggregate.side)
+        || typeof aggregate.key !== 'string'
+        || !aggregate.key
+        || typeof aggregate.amount !== 'number'
+        || !Number.isFinite(aggregate.amount)
+        || !isRecord(lines)
+        || !canAssignProperty(lines, aggregate.key)) {
+      return { ok: false, reason: t('ledger.integrityUnavailable'), diagnostic: 'The ledger aggregate authority is not writable.' };
+    }
+    const current = own(lines, aggregate.key) ? lines[aggregate.key] : 0;
+    if (typeof current !== 'number'
+        || !Number.isFinite(current)
+        || !safeCentValue(current)
+        || !safeCentValue(aggregate.amount)
+        || !Number.isFinite(current + aggregate.amount)
+        || !safeCentValue(r2(current + aggregate.amount))) {
+      return { ok: false, reason: t('ledger.integrityUnavailable'), diagnostic: 'The ledger aggregate value is invalid.' };
+    }
+  }
+  return { ok: true };
+}
+
 // Validate a durable posting without initializing, repairing, or otherwise
 // touching the ledger. Multi-authority transactions use this immediately before
 // committing stock or a physical drawer, so every required book entry is known
@@ -236,7 +437,9 @@ export function preflightLedgerEntry(state, spec = {}) {
         : direction === 'reversal' && klass === 'operating' ? amount
           : 0
   ));
-  if (!Number.isFinite(cashImpact) || !Number.isFinite(profitImpact)) {
+  if (!Number.isFinite(cashImpact) || !Number.isFinite(profitImpact)
+      || !safeCentValue(amount) || !safeCentValue(cashImpact)
+      || !safeCentValue(profitImpact)) {
     return { ok: false, reason: 'Ledger impacts must be finite.' };
   }
 
@@ -253,19 +456,119 @@ export function preflightLedgerEntry(state, spec = {}) {
     profitImpact,
     relatedId: spec.relatedId == null ? null : String(spec.relatedId),
   };
+  const strictIdentity = spec.strictIdentity === true;
+  const ledger = state && state.ledger;
+  const propertyId = safe(spec.propertyId || propertyIdOf(state));
+  const identityPreview = strictIdentity && idempotencyKey ? {
+    ...preview,
+    id: spec.entryId || `le:${propertyId}:${idempotencyKey}`,
+    idempotencyKey,
+    day: Number.isInteger(spec.day) ? spec.day
+      : Number.isInteger(ledger?.postingDay) ? ledger.postingDay : dayOf(state),
+    timestamp: Number.isFinite(spec.timestamp) ? spec.timestamp
+      : Number.isInteger(ledger?.postingDay)
+        ? ledger.postingDay * 1440 + 1439
+        : Math.round(state?.clock?.minutes || dayOf(state) * 1440),
+    description: spec.description || LEDGER_LABELS[lineKey] || lineKey,
+    propertyId,
+    source: spec.source || 'simulation',
+    units: Number.isFinite(spec.units) ? spec.units : null,
+    customerCount: Number.isFinite(spec.customerCount) ? spec.customerCount : null,
+    metadata: spec.metadata && typeof spec.metadata === 'object' ? { ...spec.metadata } : {},
+  } : preview;
   if (!idempotencyKey) {
+    const writable = ledgerAuthorityWritable(state, {
+      idempotencyKey: null,
+      spec,
+      direction,
+      lineKey,
+      amount,
+    });
+    if (!writable.ok) return writable;
     return { ok: true, duplicate: false, idempotencyKey: null, preview };
   }
 
-  const ledger = state && state.ledger;
-  const priorId = ledger && ledger.processedIds && ledger.processedIds[idempotencyKey];
-  if (!priorId) {
+  const checkpointMap = isRecord(ledger?.processedIds) ? ledger.processedIds : null;
+  const checkpointExists = own(checkpointMap, idempotencyKey);
+  const priorId = checkpointExists ? checkpointMap[idempotencyKey] : null;
+  const keyRows = rowsWithIdentity(ledger?.entries, 'idempotencyKey', idempotencyKey);
+  const expectedId = spec.entryId || `le:${propertyId}:${idempotencyKey}`;
+  const ownership = identityOwnershipConflict(
+    ledger?.entries,
+    checkpointMap,
+    expectedId,
+    idempotencyKey,
+  );
+  if (ownership.conflict) {
+    return {
+      ok: false,
+      duplicate: true,
+      idempotencyKey,
+      entry: ownership.row || null,
+      reason: t('ledger.integrityUnavailable'),
+      diagnostic: ownership.ambiguous
+        ? 'The ledger entry identity is ambiguous.'
+        : 'That ledger entry identity belongs to a different idempotency key.',
+    };
+  }
+  if (!checkpointExists) {
+    if (keyRows.length > 1) {
+      return {
+        ok: false,
+        duplicate: true,
+        idempotencyKey,
+        reason: t('ledger.integrityUnavailable'), diagnostic: 'The ledger idempotency key is ambiguous.',
+      };
+    }
+    if (keyRows.length === 1) {
+      const [orphan] = keyRows;
+      if (typeof orphan.id !== 'string' || !orphan.id) {
+        return {
+          ok: false,
+          duplicate: true,
+          idempotencyKey,
+          reason: t('ledger.integrityUnavailable'), diagnostic: 'The ledger idempotency checkpoint is incomplete.',
+        };
+      }
+      const idRows = rowsWithIdentity(ledger.entries, 'id', orphan.id);
+      if (idRows.length !== 1) {
+        return {
+          ok: false,
+          duplicate: true,
+          idempotencyKey,
+          reason: t('ledger.integrityUnavailable'), diagnostic: 'The ledger idempotency key is ambiguous.',
+        };
+      }
+      if (identityConflict(orphan, identityPreview)) {
+        return {
+          ok: false,
+          duplicate: true,
+          idempotencyKey,
+          entry: orphan,
+          reason: t('ledger.integrityUnavailable'), diagnostic: 'That ledger key belongs to a different posting.',
+        };
+      }
+      return {
+        ok: false,
+        duplicate: true,
+        orphan: true,
+        idempotencyKey,
+        entry: orphan,
+        preview: identityPreview,
+        reason: t('ledger.integrityUnavailable'), diagnostic: 'The ledger idempotency checkpoint is incomplete.',
+      };
+    }
+    const writable = ledgerAuthorityWritable(state, {
+      idempotencyKey,
+      spec,
+      direction,
+      lineKey,
+      amount,
+    });
+    if (!writable.ok) return writable;
     return { ok: true, duplicate: false, idempotencyKey, preview };
   }
-  const entry = Array.isArray(ledger.entries)
-    ? ledger.entries.find((candidate) => candidate && candidate.id === priorId) || null
-    : null;
-  if (!entry) {
+  if (typeof priorId !== 'string' || !priorId) {
     return {
       ok: false,
       duplicate: true,
@@ -273,8 +576,40 @@ export function preflightLedgerEntry(state, spec = {}) {
       reason: 'The ledger idempotency checkpoint is incomplete.',
     };
   }
-  const conflicts = Object.entries(preview).some(([key, value]) => entry[key] !== value);
-  if (conflicts) {
+  if (priorId !== expectedId) {
+    return {
+      ok: false,
+      duplicate: true,
+      idempotencyKey,
+      reason: t('ledger.integrityUnavailable'), diagnostic: 'The ledger idempotency checkpoint is incomplete or points at a different entry identity.',
+    };
+  }
+  const idRows = rowsWithIdentity(ledger?.entries, 'id', priorId);
+  if (idRows.length !== 1) {
+    return {
+      ok: false,
+      duplicate: true,
+      idempotencyKey,
+      reason: t('ledger.integrityUnavailable'),
+      diagnostic: idRows.length > 1
+        ? 'The ledger idempotency key is ambiguous.'
+        : 'The ledger idempotency checkpoint is incomplete.',
+    };
+  }
+  const [entry] = idRows;
+  if (keyRows.length !== 1 || keyRows[0] !== entry) {
+    return {
+      ok: false,
+      duplicate: true,
+      idempotencyKey,
+      entry,
+      reason: t('ledger.integrityUnavailable'),
+      diagnostic: keyRows.length > 1
+        ? 'The ledger idempotency key is ambiguous.'
+        : 'That ledger key belongs to a different posting.',
+    };
+  }
+  if (identityConflict(entry, identityPreview)) {
     return {
       ok: false,
       duplicate: true,
@@ -283,11 +618,20 @@ export function preflightLedgerEntry(state, spec = {}) {
       reason: 'That ledger key belongs to a different posting.',
     };
   }
-  return { ok: true, duplicate: true, idempotencyKey, entry, preview };
+  return { ok: true, duplicate: true, idempotencyKey, entry, preview: identityPreview };
 }
 
 export function postLedgerEntry(state, spec = {}) {
+  // Direct legacy callers may carry the old aggregate-only ledger shell. Bring
+  // that shell to the current ledger shape before validating the posting. Atomic
+  // multi-authority callers still invoke preflightLedgerEntry themselves first,
+  // so their rejection path remains mutation-free.
   const ledger = ensureLedger(state);
+  const preflight = preflightLedgerEntry(state, spec);
+  if (!preflight.ok) return preflight;
+  if (preflight.duplicate) {
+    return { ok: true, duplicate: true, entry: preflight.entry || null };
+  }
   const direction = spec.direction === 'expense'
     ? 'expense'
     : spec.direction === 'reversal' ? 'reversal' : 'revenue';
@@ -349,9 +693,14 @@ export function postLedgerEntry(state, spec = {}) {
     metadata: spec.metadata && typeof spec.metadata === 'object' ? { ...spec.metadata } : {},
   };
 
+  const projectedCash = r2((state.cash || 0) + cashImpact);
+  if (!safeCentValue(projectedCash)) {
+    return { ok: false, reason: t('ledger.integrityUnavailable'), diagnostic: 'The ledger cash projection is outside safe currency bounds.' };
+  }
+
   ledger.entries.push(entry);
   ledger.processedIds[idempotencyKey] = entry.id;
-  state.cash = r2((state.cash || 0) + cashImpact);
+  state.cash = projectedCash;
   logTx(
     state,
     direction === 'revenue' ? 'rev' : direction === 'reversal' ? 'refund' : 'exp',
@@ -374,9 +723,13 @@ export function postLedgerEntry(state, spec = {}) {
 // a reservation with no fee posted round2(undefined) into greenFees).
 export function addRevenue(state, key, amount, meta = {}) {
   const amt = r2(amount);
-  if (!(amt > 0)) return { ok: false, reason: 'Revenue must be positive.' };
+  if (!(amt > 0) || !safeCentValue(amt)) return { ok: false, reason: t('ledger.integrityUnavailable'), diagnostic: 'Revenue must be a safe positive currency amount.' };
   if (!state.ledger) {
-    state.cash = r2((state.cash || 0) + amt);
+    const projectedCash = r2((state.cash || 0) + amt);
+    if (!safeCentValue(Number(state.cash || 0)) || !safeCentValue(projectedCash)) {
+      return { ok: false, reason: t('ledger.integrityUnavailable'), diagnostic: 'The cash projection is outside safe currency bounds.' };
+    }
+    state.cash = projectedCash;
     return { ok: true, legacy: true };
   }
   return postLedgerEntry(state, {
@@ -390,9 +743,13 @@ export function addRevenue(state, key, amount, meta = {}) {
 
 export function addExpense(state, key, amount, meta = {}) {
   const amt = r2(amount);
-  if (!(amt > 0)) return { ok: false, reason: 'Expense must be positive.' };
+  if (!(amt > 0) || !safeCentValue(amt)) return { ok: false, reason: t('ledger.integrityUnavailable'), diagnostic: 'Expense must be a safe positive currency amount.' };
   if (!state.ledger) {
-    state.cash = r2((state.cash || 0) - amt);
+    const projectedCash = r2((state.cash || 0) - amt);
+    if (!safeCentValue(Number(state.cash || 0)) || !safeCentValue(projectedCash)) {
+      return { ok: false, reason: t('ledger.integrityUnavailable'), diagnostic: 'The cash projection is outside safe currency bounds.' };
+    }
+    state.cash = projectedCash;
     return { ok: true, legacy: true };
   }
   return postLedgerEntry(state, {
@@ -428,9 +785,13 @@ export function addCostOfGoods(state, amount, meta = {}) {
 // amount that was genuinely booked to it.
 export function unbill(state, key, amount, meta = {}) {
   const amt = r2(amount);
-  if (!(amt > 0)) return { ok: false, reason: 'Refund must be positive.' };
+  if (!(amt > 0) || !safeCentValue(amt)) return { ok: false, reason: t('ledger.integrityUnavailable'), diagnostic: 'Refund must be a safe positive currency amount.' };
   if (!state.ledger) {
-    state.cash = r2((state.cash || 0) + amt);
+    const projectedCash = r2((state.cash || 0) + amt);
+    if (!safeCentValue(Number(state.cash || 0)) || !safeCentValue(projectedCash)) {
+      return { ok: false, reason: t('ledger.integrityUnavailable'), diagnostic: 'The cash projection is outside safe currency bounds.' };
+    }
+    state.cash = projectedCash;
     return { ok: true, legacy: true };
   }
   return postLedgerEntry(state, {
@@ -492,6 +853,166 @@ export function recordOutcome(state, spec = {}) {
   return { ok: true, duplicate: false, outcome };
 }
 
+// Pure durable-outcome preview for multi-authority commands. This deliberately
+// mirrors recordOutcome's identity fields without initializing or repairing the
+// ledger: a torn/mismatched checkpoint must be rejected before stock or cash
+// moves, not treated as an already-completed outcome.
+export function preflightOutcome(state, spec = {}) {
+  if (!spec.idempotencyKey) {
+    return { ok: false, reason: t('ledger.integrityUnavailable'), diagnostic: 'Durable outcomes need a stable idempotency key.' };
+  }
+  const idempotencyKey = safe(spec.idempotencyKey);
+  const ledger = state?.ledger;
+  const propertyId = safe(spec.propertyId || propertyIdOf(state || {}));
+  const preview = {
+    id: spec.id || `out:${propertyId}:${idempotencyKey}`,
+    idempotencyKey,
+    day: Number.isInteger(spec.day) ? spec.day
+      : Number.isInteger(ledger?.postingDay) ? ledger.postingDay : dayOf(state),
+    timestamp: Number.isFinite(spec.timestamp) ? spec.timestamp
+      : Number.isInteger(ledger?.postingDay)
+        ? ledger.postingDay * 1440 + 1439
+        : Math.round(state?.clock?.minutes || dayOf(state) * 1440),
+    propertyId,
+    type: spec.type || 'operational',
+    count: Number.isFinite(spec.count) ? spec.count : 1,
+    amount: r2(spec.amount || 0),
+    reason: spec.reason || '',
+    relatedId: spec.relatedId == null ? null : String(spec.relatedId),
+    metadata: spec.metadata && typeof spec.metadata === 'object' ? { ...spec.metadata } : {},
+  };
+  const checkpointMap = isRecord(ledger?.processedOutcomeIds)
+    ? ledger.processedOutcomeIds
+    : null;
+  const checkpointExists = own(checkpointMap, idempotencyKey);
+  const priorId = checkpointExists ? checkpointMap[idempotencyKey] : null;
+  const keyRows = rowsWithIdentity(ledger?.outcomes, 'idempotencyKey', idempotencyKey);
+  const ownership = identityOwnershipConflict(
+    ledger?.outcomes,
+    checkpointMap,
+    preview.id,
+    idempotencyKey,
+  );
+  if (ownership.conflict) {
+    return {
+      ok: false,
+      duplicate: true,
+      idempotencyKey,
+      outcome: ownership.row || null,
+      reason: t('ledger.integrityUnavailable'),
+      diagnostic: ownership.ambiguous
+        ? 'The outcome identity is ambiguous.'
+        : 'That outcome identity belongs to a different idempotency key.',
+    };
+  }
+  if (!checkpointExists) {
+    if (keyRows.length > 1) {
+      return {
+        ok: false,
+        duplicate: true,
+        idempotencyKey,
+        reason: t('ledger.integrityUnavailable'), diagnostic: 'The outcome idempotency key is ambiguous.',
+      };
+    }
+    if (keyRows.length === 1) {
+      const [orphan] = keyRows;
+      if (typeof orphan.id !== 'string' || !orphan.id) {
+        return {
+          ok: false,
+          duplicate: true,
+          idempotencyKey,
+          reason: t('ledger.integrityUnavailable'), diagnostic: 'The outcome idempotency checkpoint is incomplete.',
+        };
+      }
+      const idRows = rowsWithIdentity(ledger.outcomes, 'id', orphan.id);
+      if (idRows.length !== 1) {
+        return {
+          ok: false,
+          duplicate: true,
+          idempotencyKey,
+          reason: t('ledger.integrityUnavailable'), diagnostic: 'The outcome idempotency key is ambiguous.',
+        };
+      }
+      if (identityConflict(orphan, preview)) {
+        return {
+          ok: false,
+          duplicate: true,
+          idempotencyKey,
+          outcome: orphan,
+          reason: t('ledger.integrityUnavailable'), diagnostic: 'That outcome key belongs to a different event.',
+        };
+      }
+      return {
+        ok: false,
+        duplicate: true,
+        orphan: true,
+        idempotencyKey,
+        outcome: orphan,
+        preview,
+        reason: t('ledger.integrityUnavailable'), diagnostic: 'The outcome idempotency checkpoint is incomplete.',
+      };
+    }
+    const writable = ledgerAuthorityWritable(state, {
+      idempotencyKey,
+      spec,
+      outcome: true,
+    });
+    if (!writable.ok) return writable;
+    return { ok: true, duplicate: false, idempotencyKey, preview };
+  }
+  if (typeof priorId !== 'string' || !priorId) {
+    return {
+      ok: false,
+      duplicate: true,
+      idempotencyKey,
+      reason: t('ledger.integrityUnavailable'), diagnostic: 'The outcome idempotency checkpoint is incomplete.',
+    };
+  }
+  if (priorId !== preview.id) {
+    return {
+      ok: false,
+      duplicate: true,
+      idempotencyKey,
+      reason: t('ledger.integrityUnavailable'), diagnostic: 'The outcome idempotency checkpoint is incomplete or points at a different outcome identity.',
+    };
+  }
+  const idRows = rowsWithIdentity(ledger?.outcomes, 'id', priorId);
+  if (idRows.length !== 1) {
+    return {
+      ok: false,
+      duplicate: true,
+      idempotencyKey,
+      reason: t('ledger.integrityUnavailable'),
+      diagnostic: idRows.length > 1
+        ? 'The outcome idempotency key is ambiguous.'
+        : 'The outcome idempotency checkpoint is incomplete.',
+    };
+  }
+  const [outcome] = idRows;
+  if (keyRows.length !== 1 || keyRows[0] !== outcome) {
+    return {
+      ok: false,
+      duplicate: true,
+      idempotencyKey,
+      outcome,
+      reason: t('ledger.integrityUnavailable'),
+      diagnostic: keyRows.length > 1
+        ? 'The outcome idempotency key is ambiguous.'
+        : 'That outcome key belongs to a different event.',
+    };
+  }
+  if (identityConflict(outcome, preview)) {
+    return {
+      ok: false,
+      duplicate: true,
+      idempotencyKey,
+      outcome,
+      reason: t('ledger.integrityUnavailable'), diagnostic: 'That outcome key belongs to a different event.',
+    };
+  }
+  return { ok: true, duplicate: true, idempotencyKey, outcome, preview };
+}
+
 export function entriesInWindow(state, fromDay, toDay = fromDay) {
   const ledger = ensureLedger(state);
   return ledger.entries.filter((entry) => entry.day >= fromDay && entry.day <= toDay);
@@ -545,6 +1066,24 @@ export function financialSummary(state, fromDay, toDay = fromDay) {
   return summary;
 }
 
+function pendingCheckoutLedgerKeys(state) {
+  const pending = state?.shop?.pendingCheckouts;
+  if (!pending || typeof pending !== 'object' || Array.isArray(pending)) {
+    return { entries: new Set(), outcomes: new Set() };
+  }
+  const entries = new Set();
+  const outcomes = new Set();
+  for (const plan of Object.values(pending)) {
+    for (const posting of Array.isArray(plan?.postings) ? plan.postings : []) {
+      const key = posting?.spec?.idempotencyKey;
+      if (typeof key === 'string' && key) entries.add(safe(key));
+    }
+    const outcomeKey = plan?.outcomeSpec?.idempotencyKey;
+    if (typeof outcomeKey === 'string' && outcomeKey) outcomes.add(safe(outcomeKey));
+  }
+  return { entries, outcomes };
+}
+
 export function closeBooks(state, dayAbs, indicators = {}) {
   const ledger = ensureLedger(state);
   const cash = totals(ledger.today);
@@ -563,8 +1102,13 @@ export function closeBooks(state, dayAbs, indicators = {}) {
   ledger.dailySummaries.push(entry.summary);
   if (ledger.dailySummaries.length > LEDGER_HISTORY_DAYS) ledger.dailySummaries.shift();
   const oldestDay = dayAbs - LEDGER_HISTORY_DAYS + 1;
-  ledger.entries = ledger.entries.filter((item) => item.day >= oldestDay);
-  ledger.outcomes = ledger.outcomes.filter((item) => item.day >= oldestDay);
+  const pinned = pendingCheckoutLedgerKeys(state);
+  ledger.entries = ledger.entries.filter((item) => (
+    item.day >= oldestDay || pinned.entries.has(item.idempotencyKey)
+  ));
+  ledger.outcomes = ledger.outcomes.filter((item) => (
+    item.day >= oldestDay || pinned.outcomes.has(item.idempotencyKey)
+  ));
   ledger.yesterday = entry;
   ledger.today = emptyLines();
   ledger.postingDay = null;

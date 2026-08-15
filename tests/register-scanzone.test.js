@@ -69,7 +69,7 @@ test('carrying an item along the customer side of the counter does NOT scan it',
   assert.equal(segmentHitsBox(p(1.5, midY, z), p(4.4, midY, z), s), false);
 });
 
-test('lifting an item high over the scanner clears it — the volume has a ceiling', () => {
+test('lifting an item high over the scanner clears it - the volume has a ceiling', () => {
   const s = REGISTER.scan;
   const midZ = (s.minZ + s.maxZ) / 2;
   const high = s.maxY + 0.2;

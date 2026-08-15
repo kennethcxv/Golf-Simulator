@@ -39,7 +39,7 @@ const order = (state, lines) => {
   });
   assert.equal(result.ok, true, `order rejected: ${result.reason}`);
   const made = state.shop.orders.slice(before);
-  assert.equal(made.length, 1, `expected one order, got ${made.length} — check the suppliers match`);
+  assert.equal(made.length, 1, `expected one order, got ${made.length} - check the suppliers match`);
   return made[0];
 };
 
@@ -57,11 +57,11 @@ test('a multi-line order arrives, and every line is represented', () => {
     { skuId: 'balls1', quantity: 24 },
     { skuId: 'towel1', quantity: 6 },
   ]);
-  assert.equal(placed.skuId, null, 'the order record has no single sku — that is the point');
+  assert.equal(placed.skuId, null, 'the order record has no single sku - that is the point');
   assert.ok(placed.lines.length === 2);
 
   const boxes = arriveOrder(state, placed);
-  assert.ok(boxes.length > 0, 'a multi-SKU order produced NO cartons — the zombie defect');
+  assert.ok(boxes.length > 0, 'a multi-SKU order produced NO cartons - the zombie defect');
 
   const bySku = new Set(boxes.map((b) => b.skuId));
   assert.ok(bySku.has('balls1'), 'the balls line never landed');

@@ -1,5 +1,5 @@
 {
-  "durationMs": 38222,
+  "durationMs": 38248,
   "viewport": {
     "width": 1600,
     "height": 900
@@ -13,13 +13,13 @@
       "kind": "litter"
     },
     "stance": {
-      "x": 4.55,
+      "x": 1.85,
       "z": -1.1,
-      "yaw": 1.57
+      "yaw": -1.57
     },
-    "runwayYd": 2.6,
+    "runwayYd": 2.95,
     "clustersInLane": 1,
-    "strafeRoomYd": 0.8
+    "strafeRoomYd": 0.4
   },
   "tableApproach": {
     "face": {
@@ -61,7 +61,7 @@
     "debrisCount": 18,
     "debrisTotal": 3.93,
     "debrisPositions": [
-      "-7.82,4.58",
+      "-7.99,4.63",
       "-5.20,4.40",
       "-4.50,2.80",
       "-1.20,2.85",
@@ -72,7 +72,7 @@
       "-3.70,0.00",
       "-0.40,0.70",
       "1.80,-0.20",
-      "0.72,-0.86",
+      "4.28,-1.11",
       "-7.40,-3.80",
       "-4.40,-4.30",
       "6.65,5.15",
@@ -126,12 +126,12 @@
       "animated": [
         "washer",
         "vacuum",
+        "broom",
         "dustpan",
         "mop",
-        "broom",
-        "spray",
         "cloth",
         "sponge",
+        "spray",
         "trashbag"
       ],
       "playing": [],
@@ -152,6 +152,13 @@
           "Vacuum_StrokeRight",
           "Vacuum_Unequip"
         ],
+        "broom": [
+          "Broom_BristleContact",
+          "Broom_Equip",
+          "Broom_SweepLeft",
+          "Broom_SweepRight",
+          "Broom_Unequip"
+        ],
         "dustpan": [
           "Dustpan_Empty",
           "Dustpan_Equip",
@@ -166,18 +173,6 @@
           "Mop_StrokeRight",
           "Mop_Unequip"
         ],
-        "broom": [
-          "Broom_BristleContact",
-          "Broom_Equip",
-          "Broom_SweepLeft",
-          "Broom_SweepRight",
-          "Broom_Unequip"
-        ],
-        "spray": [
-          "SprayBottle_Equip",
-          "SprayBottle_Unequip",
-          "SprayBottle_Trigger"
-        ],
         "cloth": [
           "Cloth_Equip",
           "Cloth_Unequip",
@@ -187,6 +182,11 @@
           "Sponge_Equip",
           "Sponge_Scrub",
           "Sponge_Unequip"
+        ],
+        "spray": [
+          "SprayBottle_Equip",
+          "SprayBottle_Unequip",
+          "SprayBottle_Trigger"
         ],
         "trashbag": [
           "TrashBag_Dispose",
@@ -221,6 +221,23 @@
           "played": [],
           "active": false
         },
+        "broom": {
+          "clips": [
+            "Broom_BristleContact",
+            "Broom_Equip",
+            "Broom_SweepLeft",
+            "Broom_SweepRight",
+            "Broom_Unequip"
+          ],
+          "played": [
+            "Broom_Equip",
+            "Broom_BristleContact",
+            "Broom_SweepLeft",
+            "Broom_SweepRight",
+            "Broom_Unequip"
+          ],
+          "active": false
+        },
         "dustpan": {
           "clips": [
             "Dustpan_Empty",
@@ -243,32 +260,6 @@
           "played": [],
           "active": false
         },
-        "broom": {
-          "clips": [
-            "Broom_BristleContact",
-            "Broom_Equip",
-            "Broom_SweepLeft",
-            "Broom_SweepRight",
-            "Broom_Unequip"
-          ],
-          "played": [
-            "Broom_Equip",
-            "Broom_BristleContact",
-            "Broom_SweepLeft",
-            "Broom_SweepRight",
-            "Broom_Unequip"
-          ],
-          "active": false
-        },
-        "spray": {
-          "clips": [
-            "SprayBottle_Equip",
-            "SprayBottle_Unequip",
-            "SprayBottle_Trigger"
-          ],
-          "played": [],
-          "active": false
-        },
         "cloth": {
           "clips": [
             "Cloth_Equip",
@@ -283,6 +274,15 @@
             "Sponge_Equip",
             "Sponge_Scrub",
             "Sponge_Unequip"
+          ],
+          "played": [],
+          "active": false
+        },
+        "spray": {
+          "clips": [
+            "SprayBottle_Equip",
+            "SprayBottle_Unequip",
+            "SprayBottle_Trigger"
           ],
           "played": [],
           "active": false
@@ -302,44 +302,56 @@
     },
     "broom": {
       "vmActive": false,
-      "fov": 50,
+      "fov": 78,
       "layer": 29,
       "reach": 1.118,
-      "drawReach": 0.781,
+      "drawReach": 0.79,
       "workBlend": 1,
       "clamped": true,
       "tilt": 0,
       "intensity": 0,
       "headNdc": {
-        "x": 0.025,
-        "y": -0.951
+        "x": 0.04,
+        "y": -0.538
       },
+      "geomSource": "live",
+      "shaftDrop": -1.237,
+      "shaftDropUnit": -0.907,
+      "headAboveFloor": -0.46,
+      "assetHeadNdc": {
+        "x": 0.04,
+        "y": -0.538
+      },
+      "gripUpper": 1.364,
+      "gripLower": 0.919,
+      "swingRad": 0,
+      "seatError": 0.034,
       "arms": {
         "right": {
           "elbowNdc": {
-            "x": 0.115,
-            "y": -0.252
+            "x": 0.316,
+            "y": -1.131
           },
           "wristNdc": {
-            "x": 0.081,
-            "y": 0.142
+            "x": 0.186,
+            "y": -0.67
           },
-          "spanYd": 0.308,
-          "visibleFrac": 1,
-          "screenRunY": 0.197
+          "spanYd": 0.26,
+          "visibleFrac": 0.715,
+          "screenRunY": 0.165
         },
         "left": {
           "elbowNdc": {
-            "x": 0.025,
-            "y": -0.601
+            "x": 0.06,
+            "y": -0.904
           },
           "wristNdc": {
-            "x": 0.052,
-            "y": -0.285
+            "x": 0.104,
+            "y": -0.614
           },
-          "spanYd": 0.316,
+          "spanYd": 0.26,
           "visibleFrac": 1,
-          "screenRunY": 0.158
+          "screenRunY": 0.145
         }
       }
     }
@@ -358,44 +370,56 @@
       ],
       "broom": {
         "vmActive": true,
-        "fov": 50,
+        "fov": 78,
         "layer": 29,
         "reach": 1.414,
-        "drawReach": 1.414,
+        "drawReach": 2.035,
         "workBlend": 0,
         "clamped": false,
         "tilt": 0,
         "intensity": 0,
         "headNdc": {
-          "x": 0.015,
-          "y": -0.897
+          "x": -0.002,
+          "y": -0.698
         },
+        "geomSource": "live",
+        "shaftDrop": -0.648,
+        "shaftDropUnit": -0.475,
+        "headAboveFloor": 0.599,
+        "assetHeadNdc": {
+          "x": -0.002,
+          "y": -0.698
+        },
+        "gripUpper": 1.364,
+        "gripLower": 0.919,
+        "swingRad": 0,
+        "seatError": 0.034,
         "arms": {
           "right": {
             "elbowNdc": {
-              "x": 0.214,
-              "y": -0.205
+              "x": 0.326,
+              "y": -1.124
             },
             "wristNdc": {
-              "x": 0.183,
-              "y": 0.19
+              "x": 0.196,
+              "y": -0.668
             },
-            "spanYd": 0.308,
-            "visibleFrac": 1,
-            "screenRunY": 0.197
+            "spanYd": 0.26,
+            "visibleFrac": 0.728,
+            "screenRunY": 0.166
           },
           "left": {
             "elbowNdc": {
-              "x": 0.079,
-              "y": -0.55
+              "x": 0.04,
+              "y": -1.009
             },
             "wristNdc": {
-              "x": 0.109,
-              "y": -0.234
+              "x": 0.087,
+              "y": -0.699
             },
-            "spanYd": 0.316,
-            "visibleFrac": 1,
-            "screenRunY": 0.158
+            "spanYd": 0.26,
+            "visibleFrac": 0.973,
+            "screenRunY": 0.151
           }
         }
       }
@@ -408,49 +432,61 @@
       "blocked": false,
       "reason": null,
       "targetLocal": [
-        3.64,
-        -1.08
+        3.09,
+        -1.3
       ],
       "broom": {
         "vmActive": true,
-        "fov": 50,
+        "fov": 78,
         "layer": 29,
         "reach": 1.118,
-        "drawReach": 1.118,
+        "drawReach": 1.287,
         "workBlend": 1,
         "clamped": false,
         "tilt": 0,
-        "intensity": 0.876,
+        "intensity": 0.882,
         "headNdc": {
-          "x": -0.024,
-          "y": -0.809
+          "x": -0.065,
+          "y": -0.148
         },
+        "geomSource": "live",
+        "shaftDrop": -0.765,
+        "shaftDropUnit": -0.561,
+        "headAboveFloor": 0.012,
+        "assetHeadNdc": {
+          "x": -0.065,
+          "y": -0.148
+        },
+        "gripUpper": 1.364,
+        "gripLower": 0.919,
+        "swingRad": -0.169,
+        "seatError": 0.034,
         "arms": {
           "right": {
             "elbowNdc": {
-              "x": 0.245,
-              "y": -0.117
+              "x": 0.293,
+              "y": -1.118
             },
             "wristNdc": {
-              "x": 0.214,
-              "y": 0.294
+              "x": 0.167,
+              "y": -0.655
             },
-            "spanYd": 0.308,
-            "visibleFrac": 1,
-            "screenRunY": 0.206
+            "spanYd": 0.26,
+            "visibleFrac": 0.746,
+            "screenRunY": 0.173
           },
           "left": {
             "elbowNdc": {
-              "x": 0.078,
-              "y": -0.456
+              "x": -0.017,
+              "y": -0.642
             },
             "wristNdc": {
-              "x": 0.108,
-              "y": -0.131
+              "x": 0.036,
+              "y": -0.379
             },
-            "spanYd": 0.316,
+            "spanYd": 0.26,
             "visibleFrac": 1,
-            "screenRunY": 0.163
+            "screenRunY": 0.131
           }
         }
       }
@@ -459,53 +495,65 @@
       "label": "sweep-push-0",
       "tool": "broom",
       "using": true,
-      "did": 0.14,
+      "did": 0,
       "blocked": false,
       "reason": null,
       "targetLocal": [
-        1.81,
-        -1.29
+        5,
+        -0.71
       ],
       "broom": {
         "vmActive": true,
-        "fov": 50,
+        "fov": 78,
         "layer": 29,
         "reach": 1.118,
-        "drawReach": 1.118,
+        "drawReach": 1.401,
         "workBlend": 1,
         "clamped": false,
         "tilt": 0,
-        "intensity": 0.368,
+        "intensity": 0.457,
         "headNdc": {
-          "x": 0.084,
-          "y": -0.812
+          "x": 0.125,
+          "y": -0.115
         },
+        "geomSource": "live",
+        "shaftDrop": -0.77,
+        "shaftDropUnit": -0.564,
+        "headAboveFloor": 0.012,
+        "assetHeadNdc": {
+          "x": 0.125,
+          "y": -0.115
+        },
+        "gripUpper": 1.364,
+        "gripLower": 0.919,
+        "swingRad": 0.292,
+        "seatError": 0.034,
         "arms": {
           "right": {
             "elbowNdc": {
-              "x": 0.414,
-              "y": -0.13
+              "x": 0.389,
+              "y": -1.133
             },
             "wristNdc": {
-              "x": 0.389,
-              "y": 0.275
+              "x": 0.246,
+              "y": -0.664
             },
-            "spanYd": 0.308,
-            "visibleFrac": 1,
-            "screenRunY": 0.202
+            "spanYd": 0.26,
+            "visibleFrac": 0.716,
+            "screenRunY": 0.168
           },
           "left": {
             "elbowNdc": {
-              "x": 0.216,
-              "y": -0.473
+              "x": 0.139,
+              "y": -0.625
             },
             "wristNdc": {
-              "x": 0.252,
-              "y": -0.15
+              "x": 0.174,
+              "y": -0.368
             },
-            "spanYd": 0.316,
+            "spanYd": 0.26,
             "visibleFrac": 1,
-            "screenRunY": 0.162
+            "screenRunY": 0.129
           }
         }
       }
@@ -515,52 +563,64 @@
       "tool": "broom",
       "using": true,
       "did": 0,
-      "blocked": false,
-      "reason": null,
+      "blocked": true,
+      "reason": "occluded",
       "targetLocal": [
-        0.01,
-        -1.31
+        6.23,
+        -0.57
       ],
       "broom": {
         "vmActive": true,
-        "fov": 50,
+        "fov": 78,
         "layer": 29,
         "reach": 1.118,
-        "drawReach": 1.118,
+        "drawReach": 1.352,
         "workBlend": 1,
         "clamped": false,
-        "tilt": 0,
-        "intensity": 0.413,
+        "tilt": 0.046,
+        "intensity": 0.312,
         "headNdc": {
-          "x": 0.096,
-          "y": -0.811
+          "x": 0.166,
+          "y": -0.195
         },
+        "geomSource": "live",
+        "shaftDrop": -0.873,
+        "shaftDropUnit": -0.64,
+        "headAboveFloor": -0.095,
+        "assetHeadNdc": {
+          "x": 0.166,
+          "y": -0.195
+        },
+        "gripUpper": 1.364,
+        "gripLower": 0.919,
+        "swingRad": 0.4,
+        "seatError": 0.034,
         "arms": {
           "right": {
             "elbowNdc": {
-              "x": 0.353,
-              "y": -0.138
+              "x": 0.405,
+              "y": -1.141
             },
             "wristNdc": {
-              "x": 0.325,
-              "y": 0.282
+              "x": 0.259,
+              "y": -0.672
             },
-            "spanYd": 0.308,
-            "visibleFrac": 1,
-            "screenRunY": 0.21
+            "spanYd": 0.26,
+            "visibleFrac": 0.699,
+            "screenRunY": 0.164
           },
           "left": {
             "elbowNdc": {
-              "x": 0.184,
-              "y": -0.479
+              "x": 0.171,
+              "y": -0.68
             },
             "wristNdc": {
-              "x": 0.22,
-              "y": -0.149
+              "x": 0.203,
+              "y": -0.417
             },
-            "spanYd": 0.316,
+            "spanYd": 0.26,
             "visibleFrac": 1,
-            "screenRunY": 0.165
+            "screenRunY": 0.131
           }
         }
       }
@@ -573,49 +633,61 @@
       "blocked": false,
       "reason": null,
       "targetLocal": [
-        0.55,
-        -1.95
+        4.6,
+        -2.4
       ],
       "broom": {
         "vmActive": true,
-        "fov": 50,
+        "fov": 78,
         "layer": 29,
         "reach": 1.118,
-        "drawReach": 1.118,
+        "drawReach": 1.39,
         "workBlend": 1,
         "clamped": false,
         "tilt": 0,
-        "intensity": 0.874,
+        "intensity": 0.851,
         "headNdc": {
-          "x": 0.048,
-          "y": -0.808
+          "x": 0.108,
+          "y": -0.113
         },
+        "geomSource": "live",
+        "shaftDrop": -0.77,
+        "shaftDropUnit": -0.565,
+        "headAboveFloor": 0.012,
+        "assetHeadNdc": {
+          "x": 0.108,
+          "y": -0.113
+        },
+        "gripUpper": 1.364,
+        "gripLower": 0.919,
+        "swingRad": 0.24,
+        "seatError": 0.034,
         "arms": {
           "right": {
             "elbowNdc": {
-              "x": 0.256,
-              "y": -0.133
+              "x": 0.372,
+              "y": -1.109
             },
             "wristNdc": {
-              "x": 0.226,
-              "y": 0.289
+              "x": 0.233,
+              "y": -0.647
             },
-            "spanYd": 0.308,
-            "visibleFrac": 1,
-            "screenRunY": 0.211
+            "spanYd": 0.26,
+            "visibleFrac": 0.764,
+            "screenRunY": 0.176
           },
           "left": {
             "elbowNdc": {
-              "x": 0.111,
-              "y": -0.471
+              "x": 0.122,
+              "y": -0.607
             },
             "wristNdc": {
-              "x": 0.143,
-              "y": -0.141
+              "x": 0.158,
+              "y": -0.352
             },
-            "spanYd": 0.316,
+            "spanYd": 0.26,
             "visibleFrac": 1,
-            "screenRunY": 0.165
+            "screenRunY": 0.127
           }
         }
       }
@@ -625,52 +697,64 @@
       "tool": "broom",
       "using": true,
       "did": 0,
-      "blocked": false,
-      "reason": null,
+      "blocked": true,
+      "reason": "blocked",
       "targetLocal": [
-        1.42,
-        -1.68
+        5.4,
+        -1.24
       ],
       "broom": {
         "vmActive": true,
-        "fov": 50,
+        "fov": 78,
         "layer": 29,
         "reach": 1.118,
-        "drawReach": 0.836,
+        "drawReach": 0.435,
         "workBlend": 1,
         "clamped": true,
         "tilt": 0.3,
-        "intensity": 0.224,
+        "intensity": 0.218,
         "headNdc": {
-          "x": 0.062,
-          "y": -1.063
+          "x": 0.098,
+          "y": -0.857
         },
+        "geomSource": "live",
+        "shaftDrop": -1.359,
+        "shaftDropUnit": -0.996,
+        "headAboveFloor": -0.581,
+        "assetHeadNdc": {
+          "x": 0.098,
+          "y": -0.857
+        },
+        "gripUpper": 1.364,
+        "gripLower": 0.919,
+        "swingRad": 0.181,
+        "seatError": 0.034,
         "arms": {
           "right": {
             "elbowNdc": {
-              "x": 0.251,
-              "y": -0.282
+              "x": 0.359,
+              "y": -1.118
             },
             "wristNdc": {
-              "x": 0.223,
-              "y": 0.1
+              "x": 0.225,
+              "y": -0.665
             },
-            "spanYd": 0.308,
-            "visibleFrac": 1,
-            "screenRunY": 0.191
+            "spanYd": 0.26,
+            "visibleFrac": 0.739,
+            "screenRunY": 0.167
           },
           "left": {
             "elbowNdc": {
-              "x": 0.117,
-              "y": -0.649
+              "x": 0.115,
+              "y": -1.104
             },
             "wristNdc": {
-              "x": 0.148,
-              "y": -0.339
+              "x": 0.155,
+              "y": -0.776
             },
-            "spanYd": 0.316,
-            "visibleFrac": 1,
-            "screenRunY": 0.155
+            "spanYd": 0.26,
+            "visibleFrac": 0.684,
+            "screenRunY": 0.112
           }
         }
       }
@@ -683,49 +767,61 @@
       "blocked": false,
       "reason": null,
       "targetLocal": [
-        0.81,
-        -1.65
+        4.89,
+        -2.46
       ],
       "broom": {
         "vmActive": true,
-        "fov": 50,
+        "fov": 78,
         "layer": 29,
         "reach": 1.118,
-        "drawReach": 0.667,
+        "drawReach": 1.382,
         "workBlend": 1,
-        "clamped": true,
-        "tilt": 0.3,
-        "intensity": 0.341,
+        "clamped": false,
+        "tilt": 0,
+        "intensity": 0.576,
         "headNdc": {
-          "x": 0.014,
-          "y": -1.265
+          "x": 0.095,
+          "y": -0.112
         },
+        "geomSource": "live",
+        "shaftDrop": -0.771,
+        "shaftDropUnit": -0.565,
+        "headAboveFloor": 0.012,
+        "assetHeadNdc": {
+          "x": 0.095,
+          "y": -0.112
+        },
+        "gripUpper": 1.364,
+        "gripLower": 0.919,
+        "swingRad": 0.223,
+        "seatError": 0.034,
         "arms": {
           "right": {
             "elbowNdc": {
-              "x": 0.339,
-              "y": -0.481
+              "x": 0.374,
+              "y": -1.124
             },
             "wristNdc": {
-              "x": 0.314,
-              "y": -0.115
+              "x": 0.234,
+              "y": -0.657
             },
-            "spanYd": 0.308,
-            "visibleFrac": 1,
-            "screenRunY": 0.183
+            "spanYd": 0.26,
+            "visibleFrac": 0.734,
+            "screenRunY": 0.171
           },
           "left": {
             "elbowNdc": {
-              "x": 0.16,
-              "y": -0.832
+              "x": 0.115,
+              "y": -0.618
             },
             "wristNdc": {
-              "x": 0.193,
-              "y": -0.531
+              "x": 0.152,
+              "y": -0.362
             },
-            "spanYd": 0.316,
+            "spanYd": 0.26,
             "visibleFrac": 1,
-            "screenRunY": 0.15
+            "screenRunY": 0.128
           }
         }
       }
@@ -738,49 +834,61 @@
       "blocked": false,
       "reason": null,
       "targetLocal": [
-        0.89,
-        -1.66
+        4.83,
+        -2.32
       ],
       "broom": {
         "vmActive": true,
-        "fov": 50,
+        "fov": 78,
         "layer": 29,
         "reach": 1.118,
-        "drawReach": 0.666,
+        "drawReach": 1.263,
         "workBlend": 1,
-        "clamped": true,
-        "tilt": 0.3,
-        "intensity": 0.482,
+        "clamped": false,
+        "tilt": 0.02,
+        "intensity": 0.863,
         "headNdc": {
-          "x": -0.027,
-          "y": -1.259
+          "x": -0.052,
+          "y": -0.171
         },
+        "geomSource": "live",
+        "shaftDrop": -0.809,
+        "shaftDropUnit": -0.593,
+        "headAboveFloor": -0.031,
+        "assetHeadNdc": {
+          "x": -0.052,
+          "y": -0.171
+        },
+        "gripUpper": 1.364,
+        "gripLower": 0.919,
+        "swingRad": -0.145,
+        "seatError": 0.034,
         "arms": {
           "right": {
             "elbowNdc": {
-              "x": 0.293,
-              "y": -0.455
+              "x": 0.295,
+              "y": -1.116
             },
             "wristNdc": {
-              "x": 0.266,
-              "y": -0.09
+              "x": 0.169,
+              "y": -0.653
             },
-            "spanYd": 0.308,
-            "visibleFrac": 1,
-            "screenRunY": 0.183
+            "spanYd": 0.26,
+            "visibleFrac": 0.749,
+            "screenRunY": 0.173
           },
           "left": {
             "elbowNdc": {
-              "x": 0.118,
-              "y": -0.806
+              "x": -0.008,
+              "y": -0.654
             },
             "wristNdc": {
-              "x": 0.15,
-              "y": -0.507
+              "x": 0.043,
+              "y": -0.392
             },
-            "spanYd": 0.316,
+            "spanYd": 0.26,
             "visibleFrac": 1,
-            "screenRunY": 0.15
+            "screenRunY": 0.131
           }
         }
       }
@@ -793,49 +901,61 @@
       "blocked": false,
       "reason": null,
       "targetLocal": [
-        -7.1,
-        4.26
+        -7.37,
+        4.22
       ],
       "broom": {
         "vmActive": true,
-        "fov": 50,
+        "fov": 78,
         "layer": 29,
         "reach": 1.118,
-        "drawReach": 1.011,
+        "drawReach": 1.143,
         "workBlend": 1,
         "clamped": true,
-        "tilt": 0.3,
-        "intensity": 0.475,
+        "tilt": 0.168,
+        "intensity": 0.609,
         "headNdc": {
-          "x": 0.012,
-          "y": -0.898
+          "x": 0.019,
+          "y": -0.281
         },
+        "geomSource": "live",
+        "shaftDrop": -0.993,
+        "shaftDropUnit": -0.728,
+        "headAboveFloor": -0.21,
+        "assetHeadNdc": {
+          "x": 0.019,
+          "y": -0.281
+        },
+        "gripUpper": 1.364,
+        "gripLower": 0.919,
+        "swingRad": -0.001,
+        "seatError": 0.034,
         "arms": {
           "right": {
             "elbowNdc": {
-              "x": 0.091,
-              "y": -0.224
+              "x": 0.333,
+              "y": -1.104
             },
             "wristNdc": {
-              "x": 0.055,
-              "y": 0.191
+              "x": 0.201,
+              "y": -0.646
             },
-            "spanYd": 0.308,
-            "visibleFrac": 1,
-            "screenRunY": 0.208
+            "spanYd": 0.26,
+            "visibleFrac": 0.773,
+            "screenRunY": 0.177
           },
           "left": {
             "elbowNdc": {
-              "x": 0.004,
-              "y": -0.566
+              "x": 0.051,
+              "y": -0.712
             },
             "wristNdc": {
-              "x": 0.031,
-              "y": -0.24
+              "x": 0.095,
+              "y": -0.448
             },
-            "spanYd": 0.316,
+            "spanYd": 0.26,
             "visibleFrac": 1,
-            "screenRunY": 0.163
+            "screenRunY": 0.132
           }
         }
       }
@@ -848,49 +968,61 @@
       "blocked": false,
       "reason": null,
       "targetLocal": [
-        -7.08,
-        3.84
+        -7.46,
+        4.01
       ],
       "broom": {
         "vmActive": true,
-        "fov": 50,
+        "fov": 78,
         "layer": 29,
         "reach": 1.118,
-        "drawReach": 1.118,
+        "drawReach": 1.248,
         "workBlend": 1,
         "clamped": false,
         "tilt": 0,
-        "intensity": 0.317,
+        "intensity": 0.334,
         "headNdc": {
-          "x": -0.056,
-          "y": -0.813
+          "x": -0.154,
+          "y": -0.201
         },
+        "geomSource": "live",
+        "shaftDrop": -0.77,
+        "shaftDropUnit": -0.564,
+        "headAboveFloor": 0.012,
+        "assetHeadNdc": {
+          "x": -0.154,
+          "y": -0.201
+        },
+        "gripUpper": 1.364,
+        "gripLower": 0.919,
+        "swingRad": -0.378,
+        "seatError": 0.034,
         "arms": {
           "right": {
             "elbowNdc": {
-              "x": 0.069,
-              "y": -0.157
+              "x": 0.261,
+              "y": -1.123
             },
             "wristNdc": {
-              "x": 0.031,
-              "y": 0.265
+              "x": 0.14,
+              "y": -0.659
             },
-            "spanYd": 0.308,
-            "visibleFrac": 1,
-            "screenRunY": 0.211
+            "spanYd": 0.26,
+            "visibleFrac": 0.735,
+            "screenRunY": 0.171
           },
           "left": {
             "elbowNdc": {
-              "x": -0.034,
-              "y": -0.499
+              "x": -0.085,
+              "y": -0.696
             },
             "wristNdc": {
-              "x": -0.009,
-              "y": -0.167
+              "x": -0.024,
+              "y": -0.422
             },
-            "spanYd": 0.316,
+            "spanYd": 0.26,
             "visibleFrac": 1,
-            "screenRunY": 0.166
+            "screenRunY": 0.137
           }
         }
       }
@@ -903,49 +1035,61 @@
       "blocked": false,
       "reason": null,
       "targetLocal": [
-        -0.35,
-        -0.82
+        -0.51,
+        -0.73
       ],
       "broom": {
         "vmActive": true,
-        "fov": 50,
+        "fov": 78,
         "layer": 29,
         "reach": 1.118,
-        "drawReach": 0.933,
+        "drawReach": 0.934,
         "workBlend": 1,
         "clamped": true,
-        "tilt": 0.205,
-        "intensity": 0.133,
+        "tilt": 0.3,
+        "intensity": 0.127,
         "headNdc": {
-          "x": 0.052,
-          "y": -0.961
+          "x": 0.082,
+          "y": -0.459
         },
+        "geomSource": "live",
+        "shaftDrop": -1.187,
+        "shaftDropUnit": -0.87,
+        "headAboveFloor": -0.403,
+        "assetHeadNdc": {
+          "x": 0.082,
+          "y": -0.459
+        },
+        "gripUpper": 1.364,
+        "gripLower": 0.919,
+        "swingRad": 0.181,
+        "seatError": 0.034,
         "arms": {
           "right": {
             "elbowNdc": {
-              "x": 0.291,
-              "y": -0.226
+              "x": 0.347,
+              "y": -1.116
             },
             "wristNdc": {
-              "x": 0.262,
-              "y": 0.163
+              "x": 0.212,
+              "y": -0.656
             },
-            "spanYd": 0.308,
-            "visibleFrac": 1,
-            "screenRunY": 0.194
+            "spanYd": 0.26,
+            "visibleFrac": 0.748,
+            "screenRunY": 0.172
           },
           "left": {
             "elbowNdc": {
-              "x": 0.135,
-              "y": -0.585
+              "x": 0.099,
+              "y": -0.844
             },
             "wristNdc": {
-              "x": 0.167,
-              "y": -0.27
+              "x": 0.138,
+              "y": -0.564
             },
-            "spanYd": 0.316,
+            "spanYd": 0.26,
             "visibleFrac": 1,
-            "screenRunY": 0.157
+            "screenRunY": 0.14
           }
         }
       }
@@ -954,51 +1098,51 @@
   "beats": [
     {
       "name": "idle-hands-free",
-      "atMs": 5
+      "atMs": 21
     },
     {
       "name": "equip-broom",
-      "atMs": 3008
+      "atMs": 3027
     },
     {
       "name": "idle-holding",
-      "atMs": 6217
+      "atMs": 6236
     },
     {
       "name": "walking",
-      "atMs": 9761
+      "atMs": 9777
     },
     {
       "name": "begin-surface-contact",
-      "atMs": 11911
+      "atMs": 12013
     },
     {
       "name": "continuous-sweeping",
-      "atMs": 14546
+      "atMs": 14624
     },
     {
       "name": "direction-changes",
-      "atMs": 17780
+      "atMs": 17843
     },
     {
       "name": "cleaning-near-wall",
-      "atMs": 23870
+      "atMs": 23884
     },
     {
       "name": "sweeping-table-edge",
-      "atMs": 30423
+      "atMs": 30451
     },
     {
       "name": "stop-use",
-      "atMs": 32591
+      "atMs": 32616
     },
     {
       "name": "unequip",
-      "atMs": 35195
+      "atMs": 35224
     },
     {
       "name": "end",
-      "atMs": 38205
+      "atMs": 38243
     }
   ]
 }

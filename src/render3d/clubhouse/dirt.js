@@ -359,7 +359,7 @@ export function buildDirt(B, windowDefs) {
         const v = state.shop?.reno?.windows?.[i] || 0;
         if (v <= 0) return null; // clean glass: no prompt
         const stage = v > 0.63 ? 'filthy' : v > 0.3 ? 'smeared' : 'almost there';
-        return `Window (${stage}) — [E] wipe it down`;
+        return `Window (${stage}) - [E] wipe it down`;
       },
       action: () => {
         const res = wipeWindow(state, i);
@@ -369,7 +369,7 @@ export function buildDirt(B, windowDefs) {
         if (hooks.sfx) hooks.sfx('wipe');
         if (res.left === 0) {
           tutorialFlag(state, 'windowWiped');
-          if (hooks.toast) hooks.toast('The pane comes up clear — real daylight again.');
+          if (hooks.toast) hooks.toast('The pane comes up clear - real daylight again.');
         }
       },
     });

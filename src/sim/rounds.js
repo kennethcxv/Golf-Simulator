@@ -220,7 +220,7 @@ export function simulateDayRounds(state, roundsCount, { forceInclude = null } = 
         source: 'rounds', sourceId: g.id,
         reason: `${g.name} became a delighted, vocal club regular.`,
       });
-      state.club.feed.unshift({ kind: 'champion', day: dayAbs, text: `${g.name} has become a true regular — people ask for their tee time.` });
+      state.club.feed.unshift({ kind: 'champion', day: dayAbs, text: `${g.name} has become a true regular - people ask for their tee time.` });
       if (state.club.feed.length > 20) state.club.feed.pop();
     }
 

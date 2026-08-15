@@ -163,7 +163,7 @@ async (page) => {
     const centre = { x: 60, y: 40 };
     const rect = { x0: centre.x - 3, y0: centre.y - 3, x1: centre.x + 3, y1: centre.y + 3 };
 
-    const visual = await import('/src/render3d/visualField.js');
+    const visual = await import(new URL('src/render3d/visualField.js', document.baseURI).href);
     const probeField = visual.makeVisualField(st.course);
     const probeDistance = visual.makeSurfaceDistanceField(probeField);
 

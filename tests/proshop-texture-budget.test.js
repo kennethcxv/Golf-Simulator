@@ -124,7 +124,7 @@ test('asset_065 carries the textures §7.4 requires', () => {
     'asset_065_stockroom_worktable.glb',
   );
   const images = glbImages(path);
-  assert.ok(images.length > 0, 'asset_065 must ship with embedded images — ART_BIBLE §7.4');
+  assert.ok(images.length > 0, 'asset_065 must ship with embedded images - ART_BIBLE §7.4');
   // The estimated resident cost is the number the texture-memory policy projects
   // from, so pin it rather than let it drift silently.
   const residentMB = images.reduce(

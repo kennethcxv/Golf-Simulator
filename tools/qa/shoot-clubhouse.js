@@ -63,7 +63,7 @@ async (page) => {
       reno.exterior.cobwebs = 0;
       reno.exterior.light = 0;
       reno.exterior.siding.fill(0);
-      const { WASH_SURFACES } = await import('/src/sim/washing.js');
+      const { WASH_SURFACES } = await import(new URL('src/sim/washing.js', document.baseURI).href);
       reno.wash = Object.fromEntries(WASH_SURFACES.map((surface) => {
         const cells = surface.grid.w * surface.grid.h;
         return [surface.id, { grime: new Array(cells).fill(0), soap: new Array(cells).fill(0) }];

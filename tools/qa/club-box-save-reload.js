@@ -66,9 +66,8 @@ async (page) => {
   });
 
   async function waitForGame() {
-    const continueButton = page.getByText('Continue', { exact: true });
-    await continueButton.waitFor({ state: 'visible', timeout: 30000 });
-    await continueButton.click();
+    const { clickThroughMenu } = await import(`file:///${process.cwd().replace(/\\/g, '/')}/tools/qa/lib/qa-boot.mjs`);
+    await clickThroughMenu(page);
     await page.waitForFunction(() => window.__fw?.scene3d?.clubhouse?.(), null, { timeout: 90000 });
     await page.waitForFunction(() => {
       const veil = document.querySelector('.load-veil');
@@ -151,7 +150,7 @@ async (page) => {
 
   async function stageClubBox() {
     const staged = await page.evaluate(async ({ orderId, qty, spot }) => {
-      const D = await import('/src/sim/deliveries.js');
+      const D = await import(new URL('src/sim/deliveries.js', document.baseURI).href);
       const app = window.__fw;
       const state = app.state;
       D.ensureDeliveries(state);
@@ -208,9 +207,9 @@ async (page) => {
 
   async function liveSnapshot(boxId) {
     return page.evaluate(async (id) => {
-      const D = await import('/src/sim/deliveries.js');
-      const B = await import('/src/data/boxes.js');
-      const V = await import('/src/render3d/clubhouse/deliveryBoxVisual.js');
+      const D = await import(new URL('src/sim/deliveries.js', document.baseURI).href);
+      const B = await import(new URL('src/data/boxes.js', document.baseURI).href);
+      const V = await import(new URL('src/render3d/clubhouse/deliveryBoxVisual.js', document.baseURI).href);
       const state = window.__fw.state;
       D.ensureDeliveries(state);
       const delivery = state.shop.deliveries;
@@ -352,8 +351,8 @@ async (page) => {
   async function autosaveSnapshot(boxId) {
     return page.evaluate(async (id) => {
       const app = window.__fw;
-      const B = await import('/src/data/boxes.js');
-      const V = await import('/src/render3d/clubhouse/deliveryBoxVisual.js');
+      const B = await import(new URL('src/data/boxes.js', document.baseURI).href);
+      const V = await import(new URL('src/render3d/clubhouse/deliveryBoxVisual.js', document.baseURI).href);
       await app.autosave();
       const raw = localStorage.getItem('golfempire:autosave');
       if (!raw) throw new Error('The game autosave did not create golfempire:autosave.');
@@ -533,7 +532,7 @@ async (page) => {
   // Establish the strongest honest partial fixture with the production conserved
   // verb, then prove its save and all subsequent gameplay through normal controls.
   const partialSetup = await page.evaluate(async (id) => {
-    const D = await import('/src/sim/deliveries.js');
+    const D = await import(new URL('src/sim/deliveries.js', document.baseURI).href);
     const state = window.__fw.state;
     const before = D.findBox(state, id)?.qty ?? null;
     const result = D.takeFromBox(state, id, 1);

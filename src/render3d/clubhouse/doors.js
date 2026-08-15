@@ -355,7 +355,7 @@ export function buildDoors(B, { dormant = false } = {}) {
     if (registerInteraction) {
       const interactionProp = {
         x: wp.x, z: wp.z, r: 2.1,
-        label: () => `${name} — [E] ${door.open ? 'close' : 'open'}`,
+        label: () => `${name} - [E] ${door.open ? 'close' : 'open'}`,
         action: () => {
           if (door.open) {
             const blocker = doorBlockedBy(door);
@@ -415,6 +415,8 @@ export function buildDoors(B, { dormant = false } = {}) {
   });
   mainDoor.isMainPrimary = true;
   mainDoorRight.isMainFollower = true;
+  mainDoor.interactionId = 'clubhouse-main-door';
+  mainDoorRight.interactionId = 'clubhouse-main-door';
   mainDoor.leaves = [mainDoor, mainDoorRight];
   mainDoorRight.leaves = mainDoor.leaves;
   const mainWorld = L2W(DOOR_MAIN.x, halfD);
@@ -428,6 +430,9 @@ export function buildDoors(B, { dormant = false } = {}) {
   mainDoorRight.open = mainDoor.open;
   mainDoor.swingTarget = MAIN_DOOR_OPEN_RADIANS;
   mainDoorRight.swingTarget = -MAIN_DOOR_OPEN_RADIANS;
+  let mainInteractionSequence = 0;
+  let mainInteractionAtMs = null;
+  let mainInteractionSignal = null;
 
   function setMainAssemblyOpen(open, { persist = true } = {}) {
     const desired = Boolean(open);
@@ -456,12 +461,13 @@ export function buildDoors(B, { dormant = false } = {}) {
   mainDoorRight.openFor = mainDoor.openFor;
 
   const mainEntranceProp = addProp({
+    id: 'clubhouse-main-door',
     x: mainWorld.x, z: mainWorld.z, r: 2.1,
     label: () => {
       const lp = W2L(walk.x, walk.z);
       const leaf = lp.x > DOOR_MAIN.x ? 'right' : 'left';
       const selected = leaf === 'right' ? mainDoorRight : mainDoor;
-      return `Shop doors — [E] ${mainDoor.open ? 'close both' : 'open both'} · [X] ${selected.desiredOpen ? 'close' : 'open'} ${leaf} leaf`;
+      return `Shop doors - [E] ${mainDoor.open ? 'close both' : 'open both'} · [X] ${selected.desiredOpen ? 'close' : 'open'} ${leaf} leaf`;
     },
     action: () => {
       if (mainDoor.open) {
@@ -484,6 +490,10 @@ export function buildDoors(B, { dormant = false } = {}) {
         tutorialFlag(state, 'doorOpened');
         if (hooks.sfx) hooks.sfx('doorbell');
       }
+      mainInteractionSequence += 1;
+      mainInteractionAtMs = performance.now();
+      mainInteractionSignal = mainDoor.open
+        ? 'main-entrance-open-applied' : 'main-entrance-close-applied';
       if (hooks.sfx) hooks.sfx(mainDoor.open ? 'doorSwing' : 'doorShut');
     },
     secondaryAction: () => {
@@ -1020,6 +1030,10 @@ export function buildDoors(B, { dormant = false } = {}) {
       rightAngle: mainDoorRight.angle,
       leftState: mainDoor.desiredOpen ? 'open' : 'closed',
       rightState: mainDoorRight.desiredOpen ? 'open' : 'closed',
+      interactionId: mainDoor.interactionId,
+      interactionSequence: mainInteractionSequence,
+      interactionAtMs: mainInteractionAtMs,
+      interactionSignal: mainInteractionSignal,
     });
   }
 

@@ -1,0 +1,744 @@
+// PHASE 1 ADVERSARIAL REVIEW (Goal 25) — CAN A STRANGER SERVE ONE CUSTOMER?
+//
+// One question, and the phase gate depends on the answer:
+//
+//   products, a specific tee time or check-in, ONE payment, the bag, out the door
+//
+// WHAT MAKES THIS DIFFERENT FROM THE DRIVER THAT ALREADY PASSES.
+// `electron-b-checkout-unsticks.js` reports 29/29 green on this build, including
+// the return-to-checkout transition and the goods-only refused ticket. It also:
+//
+//   * calls `ch.sendToCounter([...])` to conjure a customer with a scripted cart
+//   * sets `state.shop.open`, `campaign.businessOpen` and the clock directly
+//   * teleports the player to REGISTER.stand
+//   * clicks products by projecting their world position to a screen point
+//
+// Every one of those is a QA shortcut, and the owner — who has none of them —
+// still reports that the card never arrives. So this driver is allowed NONE of
+// them. It uses the menu, the mouse, WASD, E, and whatever the screen says.
+// Internal reads are permitted ONLY as instrumentation (where am I, is the
+// pointer locked, did a ticket bank) and never to make something happen.
+//
+// It is written to STOP AT THE FIRST WALL and say exactly where, because that
+// wall is the next item. Reaching step 4 of 9 is a useful result; pretending to
+// reach 9 is not.
+//
+//   node tools/qa/run-electron.cjs tools/qa/electron-p1-stranger-one-customer.js --clubhouse=pine-hills-v2
+async (page) => {
+  const fs = process.getBuiltinModule('node:fs');
+  const path = process.getBuiltinModule('node:path');
+  const OUT = path.resolve('qa/electron/p1-stranger');
+  fs.rmSync(OUT, { recursive: true, force: true });
+  fs.mkdirSync(OUT, { recursive: true });
+  const out = { errs: [], beats: [], wall: null };
+  page.on('pageerror', (e) => out.errs.push(String(e.message || e)));
+
+  let stepNo = 0;
+  const shot = async (name) => {
+    stepNo += 1;
+    const file = `${String(stepNo).padStart(2, '0')}-${name.replace(/[^a-z0-9]+/gi, '-').slice(0, 48)}.png`;
+    await page.screenshot({ path: path.join(OUT, file) });
+    return file;
+  };
+
+  // What is on screen, in words. The stranger decides from this and nothing else.
+  const readScreen = () => page.evaluate(() => {
+    const visible = (el) => {
+      if (!el) return false;
+      const cs = getComputedStyle(el);
+      if (cs.display === 'none' || cs.visibility === 'hidden' || +cs.opacity === 0) return false;
+      const r = el.getBoundingClientRect();
+      return r.width > 0 && r.height > 0;
+    };
+    const grab = (sel) => [...new Set([...document.querySelectorAll(sel)].filter(visible)
+      .map((n) => (n.innerText || n.textContent || '').trim().replace(/\s+/g, ' ').slice(0, 220))
+      .filter(Boolean))];
+    return {
+      pointerLocked: !!document.pointerLockElement,
+      prompt: grab('.shop-prompt'),
+      hud: grab('.hud-min .hud-chip, .hud-context'),
+      toasts: grab('.notification-center .notification, .toast'),
+      regHint: grab('.reg-hint'),
+      hintBar: grab('.hint-bar'),
+      // WHAT IS THE GAME TELLING ME TO DO? The first run never recorded this,
+      // so when the stranger failed to open the shop there was no way to tell
+      // "the game never said" from "the game said and the driver did not look".
+      objectives: grab('.objectives-card, .objectives-panel, .objective, .task-card'),
+      firstUse: grab('.first-use, .firstuse-card, .tip-card'),
+      veil: grab('.load-veil-place, .load-veil-tip'),
+      buttons: [...document.querySelectorAll('button')].filter(visible)
+        .map((b) => (b.textContent || '').trim().replace(/\s+/g, ' ').slice(0, 60))
+        .filter(Boolean).slice(0, 24),
+    };
+  });
+
+  // Instrumentation only — never used to cause anything.
+  const probe = () => page.evaluate(() => {
+    const app = window.__fw;
+    const ch = app?.scene3d?.clubhouse?.() || null;
+    const w = app?.scene3d?.walk?.state || null;
+    const tx = ch?.register?.getTx?.() || null;
+    return {
+      minutes: app?.state?.clock?.minutes ?? null,
+      pos: w ? { x: +w.x.toFixed(2), z: +w.z.toFixed(2) } : null,
+      inside: ch && w ? !!ch.isInside(w.x, w.z, 0.35) : null,
+      shopOpen: !!app?.state?.shop?.open,
+      registerActive: !!ch?.register?.isActive?.(),
+      txItems: tx ? tx.items.length : 0,
+      txStage: tx?.stage ?? null,
+      banked: (app?.state?.shop?.transactionHistory || []).length,
+      // THE THREE VALUES THAT GATE BANKING. A ticket sitting at stage 'done'
+      // banks only when deliveryPhase is 'released' AND the flow is
+      // CustomerLeaving; without these three side by side, "the sale will not
+      // complete" is a symptom with no address.
+      flow: (() => { try { return ch?.register?.getFlow?.()?.state ?? null; } catch { return null; } })(),
+      delivery: (() => { try { return ch?.register?.deliveryPresentation?.()?.phase ?? null; } catch { return null; } })(),
+      banked2: !!ch?.register?.getTx?.()?.banked,
+      // WHAT THE REGISTER IS TELLING THE PLAYER, read from the register rather
+      // than from the DOM. Every DOM text channel is empty during a checkout
+      // because the instruction is painted into the in-world monitor's canvas
+      // texture -- reading .reg-hint and concluding "the game says nothing"
+      // would have been FOUND_FALSE shape 6 with the roles reversed.
+      regStatus: (() => { try { return ch?.register?.checkoutStatus?.() ?? null; } catch { return null; } })(),
+      regInstruction: (() => { try { return ch?.register?.checkoutInstruction?.() ?? null; } catch { return null; } })(),
+      onFloor: ch?.footfallDiagnostics?.()?.onFloor ?? null,
+    };
+  });
+
+  const beat = async (name, extra = {}) => {
+    const [screen, inst] = [await readScreen(), await probe()];
+    const file = await shot(name);
+    const row = { step: stepNo, name, file, screen, inst, ...extra };
+    out.beats.push(row);
+    console.log(`P1 ${String(stepNo).padStart(2, '0')} ${name} :: prompt=${JSON.stringify(screen.prompt)} banked=${inst.banked} tx=${inst.txItems}/${inst.txStage}`);
+    return row;
+  };
+  // THE FIRST WALL IS THE ONE THAT MATTERS. The first version overwrote
+  // `out.wall` at every failure, so a run that died in the menu reported
+  // "payment" -- the last thing it tried, not the thing that stopped it. Every
+  // wall is kept, and `out.wall` is pinned to the first.
+  out.walls = [];
+  const wall = (where, why, detail = {}) => {
+    const row = { step: stepNo, where, why, ...detail };
+    out.walls.push(row);
+    if (!out.wall) out.wall = row;
+    console.log(`P1 WALL at ${where}: ${why}`);
+    return row;
+  };
+
+  // ---- 1. the menu, driven like a person ----------------------------------
+  await page.waitForFunction(() => document.querySelectorAll('button').length > 0, null, { timeout: 120000 });
+  await beat('title screen');
+  const clickByText = async (re, { timeout = 8000 } = {}) => {
+    const deadline = Date.now() + timeout;
+    while (Date.now() < deadline) {
+      const handles = await page.$$('button');
+      for (const h of handles) {
+        const label = ((await h.textContent()) || '').trim();
+        if (!re.test(label)) continue;
+        const box = await h.boundingBox().catch(() => null);
+        if (!box) continue;
+        await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+        return label;
+      }
+      await page.waitForTimeout(250);
+    }
+    return null;
+  };
+  const newGame = await clickByText(/new game|start|play/i);
+  if (!newGame) { wall('menu', 'no button matching New Game/Start/Play'); }
+  await page.waitForTimeout(1200);
+  await beat('after new game');
+
+  // THE DIFFICULTY CARDS ARE NOT BUTTONS, and the first run of this driver
+  // proved it the expensive way: `clickByText` only queries <button>, so it
+  // never picked a card, the game never started, and fourteen beats later the
+  // driver reported "clicked forty times on the register and no ticket ever
+  // banked". Every screenshot was the same NEW GAME dialog. That is the exact
+  // FOUND_FALSE shape -- a probe that cannot see the thing reports the same as
+  // a thing that did not happen -- and it would have been written up as a
+  // payment bug. `.difficulty-card` is the selector stranger-session.js has
+  // used since Goal 20.
+  const cardLoc = page.locator('.difficulty-card');
+  const cardCount = await cardLoc.count().catch(() => 0);
+  if (cardCount > 0) {
+    let idx = 0;
+    for (let i = 0; i < cardCount; i += 1) {
+      const label = await cardLoc.nth(i).innerText().catch(() => '');
+      if (/recommended|default/i.test(label)) { idx = i; break; }
+    }
+    await cardLoc.nth(idx).click();
+    await page.waitForTimeout(600);
+  }
+  const confirm = await clickByText(/^(start|confirm|yes|begin|play)/i, { timeout: 4000 });
+  await beat('picked a difficulty and confirmed', { cardCount, confirm });
+  // CONTROL: if the dialog is still up, everything after this is meaningless.
+  const dialogGone = await page.locator('.difficulty-card').count().catch(() => 0) === 0;
+  if (!dialogGone) wall('difficulty dialog', 'the New Game dialog is still on screen after picking a card and confirming');
+
+  // ---- 2. into the world ---------------------------------------------------
+  const arrived = await page.waitForFunction(
+    () => window.__fw?.scene3d?.walk?.isActive?.(),
+    null, { timeout: 300000 },
+  ).then(() => true).catch(() => false);
+  if (!arrived) wall('load', 'the walk state never became active');
+  await page.waitForFunction(() => {
+    const v = document.querySelector('.load-veil');
+    return !v || getComputedStyle(v).opacity === '0';
+  }, null, { timeout: 300000 }).catch(() => {});
+  await page.waitForTimeout(2500);
+  await beat('spawned');
+
+  // real pointer lock, the way the hint says
+  const canvasBox = await (await page.$('#game') || await page.$('canvas'))?.boundingBox();
+  const cx = canvasBox ? canvasBox.x + canvasBox.width / 2 : 700;
+  const cy = canvasBox ? canvasBox.y + canvasBox.height / 2 : 400;
+  await page.mouse.click(cx, cy);
+  await page.waitForTimeout(800);
+  const locked = (await readScreen()).pointerLocked;
+  await beat('clicked to look', { locked });
+  if (!locked) wall('pointer lock', 'clicking the canvas did not lock the pointer');
+
+  // ---- 3. find the way in --------------------------------------------------
+  // Walk forward in real legs, reading the prompt each leg, and press E on
+  // anything that offers. No teleporting.
+  const walk = async (key, ms) => {
+    await page.keyboard.down(key);
+    await page.waitForTimeout(ms);
+    await page.keyboard.up(key);
+    await page.waitForTimeout(200);
+  };
+  const look = async (dx) => { await page.mouse.move(cx + dx, cy, { steps: 6 }); await page.waitForTimeout(200); };
+
+  // WALKING SOMEWHERE YOU CAN SEE.
+  //
+  // The stranger could shop, queue and read prompts but could not cross a room,
+  // so it never got near enough to the counter for the register prompt to
+  // appear and walled at "never found a prompt that opened the register". A
+  // person looks at the counter and walks to it; this does the same thing with
+  // the only two inputs a player has, mouse and W.
+  //
+  // The world position is used ONLY to steer the camera -- the equivalent of
+  // seeing where the counter is. Nothing about the transaction is shortcut.
+  //
+  // The pixels-per-radian factor is CALIBRATED against the running build rather
+  // than assumed, because mouse sensitivity is a saved player preference and a
+  // hard-coded constant would silently mis-steer on any profile but this one.
+  let pxPerRad = null;
+  const readPose = () => page.evaluate(() => {
+    const w = window.__fw.scene3d.walk.state;
+    return { x: w.x, z: w.z, yaw: w.yaw };
+  });
+  const calibrateLook = async () => {
+    const a = await readPose();
+    await page.mouse.move(cx + 200, cy, { steps: 4 });
+    await page.waitForTimeout(350);
+    const b = await readPose();
+    await page.mouse.move(cx, cy, { steps: 4 });
+    await page.waitForTimeout(250);
+    let d = b.yaw - a.yaw;
+    while (d > Math.PI) d -= 2 * Math.PI;
+    while (d < -Math.PI) d += 2 * Math.PI;
+    pxPerRad = Math.abs(d) > 1e-4 ? 200 / d : null;
+    return { yawDelta: +d.toFixed(4), pxPerRad: pxPerRad && +pxPerRad.toFixed(1) };
+  };
+  const steerTo = async (target, { reach = 1.6, maxLegs = 40 } = {}) => {
+    if (!pxPerRad) return { ok: false, why: 'look sensitivity never calibrated' };
+    // FAIL LOUDLY ON A NaN WAYPOINT. A NaN target makes every distance
+    // comparison false, so the loop runs its full budget and reports "ran out of
+    // legs" -- which reads as "the room is hard to cross" and is really "the
+    // coordinate was never a number". Two runs were lost to exactly that.
+    if (!Number.isFinite(target?.x) || !Number.isFinite(target?.z)) {
+      return { ok: false, why: `waypoint is not a number: ${JSON.stringify(target)}` };
+    }
+    for (let leg = 0; leg < maxLegs; leg += 1) {
+      const p = await readPose();
+      const dist = Math.hypot(target.x - p.x, target.z - p.z);
+      if (dist <= reach) return { ok: true, legs: leg, dist: +dist.toFixed(2) };
+      const want = Math.atan2(-(target.x - p.x), -(target.z - p.z));
+      let err = want - p.yaw;
+      while (err > Math.PI) err -= 2 * Math.PI;
+      while (err < -Math.PI) err += 2 * Math.PI;
+      if (Math.abs(err) > 0.08) {
+        const px = Math.max(-400, Math.min(400, err * pxPerRad));
+        await page.mouse.move(cx + px, cy, { steps: 4 });
+        await page.waitForTimeout(160);
+        await page.mouse.move(cx, cy, { steps: 2 });
+      }
+      await walk('w', Math.abs(err) > 0.5 ? 200 : 500);
+    }
+    const p = await readPose();
+    return { ok: false, dist: +Math.hypot(target.x - p.x, target.z - p.z).toFixed(2), why: 'ran out of legs' };
+  };
+
+  // Calibrate AFTER the helpers exist. The first version called this at the
+  // pointer-lock beat, which is above these `const` declarations -- a temporal
+  // dead zone throw that ended the run at beat 4 with no JSON at all.
+  out.lookCalibration = await calibrateLook();
+  await beat('calibrated the mouse look', out.lookCalibration);
+
+  // NAVIGATE TO WAYPOINTS, DO NOT WALK BLINDLY FORWARD.
+  //
+  // Blind forward walking got inside once and failed the next run -- "walked
+  // fourteen legs and never got inside the clubhouse" -- because whether it
+  // works depends entirely on which way the spawn happens to face. A person
+  // sees the door and goes to it. So does this: door first, then the room.
+  // Straight-line steering cannot path around a wall, which is exactly why the
+  // DOOR is its own waypoint rather than steering at the interior from outside.
+  const places = await page.evaluate(async () => {
+    const { DOOR_CLEARWAY } = await import(new URL('src/data/shopLayout.js', document.baseURI).href);
+    const ip = window.__fw.scene3d.clubhouse().interior.position;
+    // DOOR_MAIN is {wall:'S', x:-0.8} and HAS NO z -- it is described by which
+    // wall it is in. `ip.z + DOOR_MAIN.z` was therefore NaN, every steering leg
+    // compared against NaN, and the driver reported "ran out of legs" with a
+    // null distance for two whole runs. DOOR_CLEARWAY is the authored keep-clear
+    // rectangle in front of that door, so its centre is the approach point.
+    return {
+      door: {
+        x: ip.x + (DOOR_CLEARWAY.minX + DOOR_CLEARWAY.maxX) / 2,
+        z: ip.z + (DOOR_CLEARWAY.minZ + DOOR_CLEARWAY.maxZ) / 2,
+      },
+      inside: { x: ip.x, z: ip.z },
+    };
+  });
+  out.navigation = {};
+  out.navigation.toDoor = await steerTo(places.door, { reach: 2.2, maxLegs: 30 });
+  await beat('walked to the front door', out.navigation.toDoor);
+  // open it if it offers
+  for (let i = 0; i < 8; i += 1) {
+    const s2 = await readScreen();
+    const p2 = (s2.prompt[0] || '').toLowerCase();
+    if (/door|entrance|open both/.test(p2)) {
+      await page.keyboard.press('e');
+      await page.waitForTimeout(1200);
+      await beat(`pressed E on "${(s2.prompt[0] || '').slice(0, 44)}"`);
+      break;
+    }
+    await look(110);
+  }
+  out.navigation.toInside = await steerTo(places.inside, { reach: 2.5, maxLegs: 40 });
+  await beat('walked into the shop', out.navigation.toInside);
+  const insideNow = (await probe()).inside;
+  if (!insideNow) wall('entrance', 'navigated to the door and the interior and never got inside');
+
+  // ---- 3b. THE ONE DISCLOSED SEED, AND WHY IT EXISTS ----------------------
+  //
+  // Run with P1_OPEN_SHOP=1 this driver seeds the world to "restored, stocked,
+  // sign open" and records that it did. Nothing about the CUSTOMER or the
+  // TRANSACTION is seeded: no sendToCounter, no scripted cart, no teleport to
+  // the till, no forced checkout phase. Every click and key from here is real.
+  //
+  // It exists because a brand-new game gates customers behind the whole
+  // restoration campaign — install the display shelves, repair the structure,
+  // open three cartons, restock six retail groups, clear every route, and only
+  // then may the shop open. That is the game working as designed, and it is an
+  // hour of play. Without this seed the stranger tests the restoration tutorial;
+  // with it, the stranger tests the checkout, which is the thing the owner
+  // reports broken. Both runs are reported separately and neither is called the
+  // other.
+  out.seeded = false;
+  if (process.env.P1_OPEN_SHOP === '1') {
+    out.seeded = await page.evaluate(async () => {
+    const app = window.__fw;
+    const ch = app.scene3d.clubhouse();
+    const campaign = await import(new URL('src/sim/campaign.js', document.baseURI).href);
+    // RESTORE, THEN TELL THE RENDERER. The previous seed opened the shop without
+    // restoring it, and the measurement was unambiguous: four customers walked
+    // onto the floor and not one reached the till in 31 game minutes, because an
+    // unrestored shop has no installed fixtures and therefore nothing to buy.
+    // `disableCampaign` restores the authored fixtures in STATE;
+    // `refreshShopProgression` is the accessor that relays those fixtures,
+    // retargets the customer fixture stops and rebuilds stock and boxes so the
+    // scene agrees. Without the second call the shop is stocked in the sim and
+    // empty on screen -- which is the same class of fault as everything else in
+    // FOUND_FALSE.
+    campaign.disableCampaign(app.state);
+    if (app.state.shop) { app.state.shop.open = true; app.state.shop.signOpen = true; }
+    if (app.state.campaign) app.state.campaign.businessOpen = true;
+    for (const id of ['balls1', 'glove1', 'tees1']) {
+      const inv = app.state.shop?.inventory?.[id];
+      if (inv) inv.shelf = Math.max(inv.shelf || 0, 8);
+    }
+    app.state.clock.minutes = Math.floor(app.state.clock.minutes / 1440) * 1440 + 10 * 60;
+    // AND PUT THE PLAYER INSIDE. Disclosed, and deliberately part of the seed
+    // rather than of the test.
+    //
+    // Threading the porch doors with straight-line steering is unreliable --
+    // one run got in, the next ended pressed against the jamb looking at trees
+    // -- and getting through a door is not what Phase 1 gates. The gate is the
+    // CHECKOUT. Everything from here (walking to the counter, taking the desk,
+    // ringing goods up, answering the tee time, paying, watching them leave) is
+    // still real mouse and keyboard. If the entrance itself needs verifying it
+    // deserves its own item, and Part A already reports on it honestly.
+    const w = app.scene3d.walk.state;
+    const ip2 = ch.interior.position;
+    w.x = ip2.x; w.z = ip2.z + 3.0; w.vx = 0; w.vz = 0;
+    ch.refreshShopProgression?.();
+    ch.rebuildStock?.();
+    ch.setOrganicWalkins?.(true);
+      return true;
+    });
+    await page.waitForTimeout(1500);
+    await beat('seeded a restored, stocked, open shop (disclosed)');
+  }
+
+  // ---- 4. open the shop for business --------------------------------------
+  // A stranger opens the shop the way the world offers it: find the sign and
+  // press E. This is a real interaction, not a state write.
+  // LOOK AROUND WHERE YOU ARE STANDING, THEN MOVE. The first version turned a
+  // little and walked forward every third turn, so it marched steadily AWAY
+  // from the door — and the OPEN/CLOSED card hangs on the jamb of the door it
+  // had just come through. It searched twelve times and never faced the one
+  // wall the sign is on. A person entering a shop turns on the spot first.
+  //
+  // So: a full circle in twelve 30-degree steps without moving the feet,
+  // reading the prompt at every step; only then one step forward and another
+  // circle. Five stations, sixty looks.
+  let shopOpen = (await probe()).shopOpen;
+  const sweepFor = async (re, label) => {
+    for (let station = 0; station < 5; station += 1) {
+      for (let turn = 0; turn < 12; turn += 1) {
+        const s = await readScreen();
+        const p = (s.prompt[0] || '').toLowerCase();
+        if (re.test(p)) {
+          await page.keyboard.press('e');
+          await page.waitForTimeout(1200);
+          await beat(`pressed E on "${(s.prompt[0] || '').slice(0, 44)}"`);
+          return true;
+        }
+        await look(110); // ~30 degrees per step at the shipped sensitivity
+      }
+      await walk('w', 650);
+    }
+    console.log(`P1 sweep found nothing for ${label}`);
+    return false;
+  };
+  if (!shopOpen) {
+    await sweepFor(/sign|open|closed|business|come in|back soon/, 'the OPEN/CLOSED sign');
+    shopOpen = (await probe()).shopOpen;
+  }
+  await beat('after trying to open the shop', { shopOpen });
+  if (!shopOpen) wall('the sign', 'never found a prompt that opened the shop for business');
+
+  // ---- 5. wait for a customer to arrive on their own ----------------------
+  // onFloor is the arrival loop's own number. `customerCount()` does not exist
+  // on the API and the OR arm that used it was permanently zero, so this used to
+  // wait on goods-at-the-till -- the end of the visit -- and call the timeout
+  // "nobody came".
+  const gotCustomer = await page.waitForFunction(() => {
+    const ch = window.__fw?.scene3d?.clubhouse?.();
+    return (ch?.footfallDiagnostics?.()?.onFloor ?? 0) > 0;
+  }, null, { timeout: 180000 }).then(() => true).catch(() => false);
+  await beat('waited for a customer', { gotCustomer });
+  if (!gotCustomer) wall('no customer', 'three minutes of open shop and nobody came in');
+
+  // ---- 6. GO TO THE COUNTER FIRST. THE ORDER MATTERS. --------------------
+  //
+  // The first version waited for goods on the counter and only then walked to
+  // the register. That order cannot work and the measurement says why: every
+  // organic customer is a walk-in-tee or a reservation, so the HEAD of the
+  // counter queue is desk business waiting for the player. Until the player
+  // serves it the queue never advances, the shoppers behind never reach index
+  // zero, and no goods are ever placed. Waiting for goods before going to the
+  // desk is waiting for something the player's own absence is preventing.
+  //
+  // So: walk to the counter as soon as anybody is on the floor, take the desk,
+  // and serve whoever is there.
+
+  // walk toward the counter until the prompt names it, then E
+  let atRegister = (await probe()).registerActive;
+  if (!atRegister) {
+    // Walk to the counter the way a person does: look at it, walk to it, and
+    // press E when the prompt names it. The counter's position is read once, to
+    // STEER, exactly as a player uses their eyes.
+    const stand = await page.evaluate(async () => {
+      const { REGISTER } = await import(new URL('src/data/shopLayout.js', document.baseURI).href);
+      const off = window.__fw.scene3d.clubhouse().interior.position;
+      return { x: REGISTER.stand.x + off.x, z: REGISTER.stand.z + off.z };
+    });
+    // 1.4 left it at 1.76 and out of legs. The register prompt reaches further
+    // than that, and an arrival radius tighter than the thing it is approaching
+    // is an oscillation waiting to happen.
+    out.walkToCounter = await steerTo(stand, { reach: 2.0, maxLegs: 50 });
+    await beat('walked to the counter', out.walkToCounter);
+    // now turn to face the monitor and look for the prompt
+    for (let turn = 0; turn < 12 && !atRegister; turn += 1) {
+      const s2 = await readScreen();
+      const p2 = (s2.prompt[0] || '').toLowerCase();
+      if (/register|till|counter|serve|checkout|desk|front desk/.test(p2)) {
+        await page.keyboard.press('e');
+        await page.waitForTimeout(1800);
+        await beat(`pressed E on "${(s2.prompt[0] || '').slice(0, 44)}"`);
+      }
+      atRegister = (await probe()).registerActive;
+      if (!atRegister) await look(110);
+    }
+  }
+  await beat('at the register', { atRegister });
+  if (!atRegister) wall('the till', 'never found a prompt that opened the register');
+
+  // SERVE WHOEVER IS AT THE HEAD. This is the beat the driver was missing.
+  //
+  // The head of the counter queue is tee-time or reservation business, and it
+  // waits for the player. Standing at the desk is not serving it: the previous
+  // run took the desk and then watched four minutes of nothing, because the
+  // person at the front was waiting for a click that never came and the
+  // shoppers behind could not advance past them.
+  //
+  // Every click below lands on a hotspot the monitor is actually drawing,
+  // located by its own screen point -- the same path a player's mouse takes.
+  const clickDesk = async (action) => {
+    const pt = await page.evaluate((a) => {
+      const r = window.__fw.scene3d.clubhouse().register;
+      const p2 = r.monitorScreenPoint ? r.monitorScreenPoint(a) : null;
+      return p2 ? { x: p2.x, y: p2.y } : { missing: true };
+    }, action).catch(() => ({ missing: true }));
+    if (pt.missing) return { action, clicked: false };
+    await page.mouse.click(pt.x, pt.y);
+    await page.waitForTimeout(900);
+    return { action, clicked: true };
+  };
+  out.deskTrail = [];
+  const clickedDeskActions = new Set();
+  for (let round = 0; round < 8; round += 1) {
+    const ids = await page.evaluate(() => {
+      const r = window.__fw.scene3d.clubhouse().register;
+      return r.deskHitTargets ? r.deskHitTargets().filter((h) => !h.disabled).map((h) => h.id) : [];
+    }).catch(() => []);
+    // check-in tab first, then any row, then the action that completes it
+    // DO NOT CLICK THE SAME THING SIX TIMES. The first version preferred
+    // `tab-check-in`, which is always drawn and never disabled, so every round
+    // chose it again and the driver clicked one tab six times and called it
+    // serving. A row was never selected and the check-in never completed.
+    // Anything already clicked is struck off, so the sequence has to advance:
+    // open the tab, select the row, then take the action that completes it.
+    const fresh = ids.filter((i) => !clickedDeskActions.has(i));
+    const pick = fresh.find((i) => /^(reservation-check-in|select-walkin-slot:)/.test(i))
+      || fresh.find((i) => /^select-(reservation|walkin):/.test(i))
+      || fresh.find((i) => /^tab-check-in$/.test(i))
+      || null;
+    if (!pick) { await page.waitForTimeout(1200); continue; }
+    clickedDeskActions.add(pick);
+    out.deskTrail.push(await clickDesk(pick));
+    const st = await probe();
+    if (st.txItems > 0) break;
+  }
+  // KEEP SERVING UNTIL A SHOPPER'S GOODS LAND.
+  //
+  // One pass at the desk is not enough and the runs prove it: whoever is at the
+  // head may be a reservation with no goods at all, and the next arrival is
+  // chance. A player stands there and keeps serving. So does this -- alternating
+  // "clear whatever the desk offers" with "has anybody put goods down yet" for
+  // six minutes, which is long enough for two or three organic visits at the
+  // measured rate of 8 game-minutes per real minute.
+  let goodsArrived = false;
+  for (let sweep = 0; sweep < 36 && !goodsArrived; sweep += 1) {
+    const ids = await page.evaluate(() => {
+      const r = window.__fw.scene3d.clubhouse().register;
+      return r.deskHitTargets ? r.deskHitTargets().filter((h) => !h.disabled).map((h) => h.id) : [];
+    }).catch(() => []);
+    const fresh = ids.filter((i) => !clickedDeskActions.has(i));
+    const pick = fresh.find((i) => /^(reservation-check-in|select-walkin-slot:)/.test(i))
+      || fresh.find((i) => /^select-(reservation|walkin):/.test(i))
+      || fresh.find((i) => /^tab-check-in$/.test(i))
+      || null;
+    if (pick) { clickedDeskActions.add(pick); out.deskTrail.push(await clickDesk(pick)); }
+    await page.waitForTimeout(pick ? 600 : 9000);
+    const st = await probe();
+    goodsArrived = st.txItems > 0;
+    // a new person at the head means new actions worth trying
+    if (!pick && sweep % 4 === 3) clickedDeskActions.clear();
+  }
+  await beat('waited at the desk for goods', { goodsArrived, deskClicks: out.deskTrail.length });
+  if (!goodsArrived) wall('no goods', 'six minutes at the desk and no customer placed goods');
+
+  // ---- 7. ring up every product with real clicks --------------------------
+  // The stranger clicks what it can see. It does NOT project world positions;
+  // it sweeps the lower half of the screen where goods sit on the counter.
+  const itemsAtStart = (await probe()).txItems;
+  for (let pass = 0; pass < 3; pass += 1) {
+    const before = await probe();
+    if (before.txStage && before.txStage !== 'scanning') break;
+    for (let gx = 0.3; gx <= 0.72; gx += 0.07) {
+      for (let gy = 0.52; gy <= 0.78; gy += 0.07) {
+        const st = await probe();
+        if (st.txStage && st.txStage !== 'scanning') break;
+        await page.mouse.click(
+          (canvasBox ? canvasBox.x : 0) + (canvasBox ? canvasBox.width : 1400) * gx,
+          (canvasBox ? canvasBox.y : 0) + (canvasBox ? canvasBox.height : 800) * gy,
+        );
+        await page.waitForTimeout(500);
+      }
+    }
+  }
+  const afterScan = await beat('clicked around the counter to ring goods up', { itemsAtStart });
+  const scannedOk = afterScan.inst.txStage !== 'scanning' || afterScan.inst.txItems === 0;
+
+  // ---- 8. answer whatever the customer asks, then pay ---------------------
+  // Read the screen: if a tee time is outstanding the instruction says so.
+  await page.waitForTimeout(1500);
+  const asked = await beat('what does the screen say now');
+  const wantsTee = JSON.stringify(asked.screen).toLowerCase().includes('tee time');
+
+  // Try to finish the sale using only what is drawn: click the middle of the
+  // screen repeatedly (card/terminal/keypad all live there) for up to 40 beats,
+  // stopping as soon as a ticket banks.
+  const bankedBefore = (await probe()).banked;
+  // PAY THE WAY THE REGISTER ASKS. Blind clicking at the middle of the screen
+  // got a ticket to 'cash-drawer / SelectingChange' and left it there, because
+  // counting change is a specific gesture on specific drawer money and no
+  // amount of random clicking performs it. This drives the actual states:
+  // insert/tap the card, type the total on the keypad, or click drawer
+  // denominations until the change is right.
+  let banked = false;
+  for (let i = 0; i < 45 && !banked; i += 1) {
+    const st = await page.evaluate(async () => {
+      const THREE = await import(new URL('vendor/three.module.js', document.baseURI).href);
+      const r = window.__fw.scene3d.clubhouse().register;
+      const pick = (fn) => { try { return fn ? fn() : null; } catch { return null; } };
+      let card = null;
+      const node = pick(r.cardNode);
+      if (node) {
+        const v = node.getWorldPosition(new THREE.Vector3());
+        v.project(window.__fw.scene3d.camera);
+        const rect = document.querySelector('canvas').getBoundingClientRect();
+        card = {
+          x: rect.left + ((v.x + 1) / 2) * rect.width,
+          y: rect.top + ((-v.y + 1) / 2) * rect.height,
+          onScreen: Math.abs(v.x) <= 1 && Math.abs(v.y) <= 1,
+        };
+      }
+      return {
+        flow: r.getFlow?.()?.state ?? null,
+        stage: r.getTx?.()?.stage ?? null,
+        card,
+        terminal: pick(r.cardTerminalScreenPoint),
+        confirm: pick(r.cardXScreenPoint),
+      };
+    }).catch(() => ({}));
+    if (!st.flow) break;
+    if (st.flow === 'CardAmountEntry') {
+      const keys = await page.evaluate(async () => {
+        const r = window.__fw.scene3d.clubhouse().register;
+        const reg = await import(new URL('src/sim/register.js', document.baseURI).href);
+        const tx = r.getTx();
+        if (!tx) return null;
+        const cents = String(Math.round(reg.totalOf(tx) * 100));
+        const pt = (id) => { try { const p2 = r.cardKeyScreenPoint(id); return p2 ? { x: p2.x, y: p2.y } : null; } catch { return null; } };
+        return { digits: cents.split('').map(pt), ok: pt('OK') };
+      }).catch(() => null);
+      if (keys) {
+        for (const k of keys.digits) if (k) { await page.mouse.click(k.x, k.y); await page.waitForTimeout(140); }
+        if (keys.ok) { await page.mouse.click(keys.ok.x, keys.ok.y); await page.waitForTimeout(800); }
+      }
+    } else if (st.stage === 'cash-drawer' || st.flow === 'SelectingChange') {
+      // click the drawer money the register itself exposes
+      const spot = await page.evaluate(() => {
+        const r = window.__fw.scene3d.clubhouse().register;
+        try {
+          const p2 = r.changeScreenPoint ? r.changeScreenPoint() : null;
+          if (p2) return { x: p2.x, y: p2.y };
+        } catch { /* fall through */ }
+        try {
+          const p3 = r.monitorScreenPoint ? r.monitorScreenPoint('confirm-change') : null;
+          if (p3) return { x: p3.x, y: p3.y };
+        } catch { /* fall through */ }
+        return null;
+      }).catch(() => null);
+      if (spot) { await page.mouse.click(spot.x, spot.y); await page.waitForTimeout(700); }
+      else {
+        const t2 = (st.card && st.card.onScreen ? st.card : null) || st.terminal || st.confirm;
+        if (t2) { await page.mouse.click(t2.x, t2.y); await page.waitForTimeout(600); }
+      }
+    } else {
+      const t2 = (st.card && st.card.onScreen ? st.card : null) || st.terminal || st.confirm;
+      if (t2 && Number.isFinite(t2.x)) { await page.mouse.click(t2.x, t2.y); }
+    }
+    await page.waitForTimeout(650);
+    banked = (await probe()).banked > bankedBefore;
+  }
+  // THE BAG HANDOFF IS THE LAST GATE, and it is a DRAG, not a click.
+  //
+  // The ticket reaches stage 'done' and the flow reaches Bagging, and banking is
+  // gated on deliveryPhase 'released' AND flow CustomerLeaving. The register's
+  // own instruction says it in words: "Grip the bag handles and drag them to the
+  // customer's open palm." Forty clicks cannot perform a drag, which is why the
+  // sale sat at 'done' for a minute looking like a bug.
+  if (!banked) {
+    for (let attempt = 0; attempt < 6 && !banked; attempt += 1) {
+      const grab = await page.evaluate(async () => {
+        const THREE = await import(new URL('vendor/three.module.js', document.baseURI).href);
+        const app = window.__fw;
+        const ch = app.scene3d.clubhouse();
+        const bag = ch.register?.bagNode?.();
+        const cust = ch.register?.getCustomer?.();
+        if (!bag) return null;
+        const rect = document.querySelector('canvas').getBoundingClientRect();
+        const toScreen = (v) => {
+          v.project(app.scene3d.camera);
+          return {
+            x: rect.left + ((v.x + 1) / 2) * rect.width,
+            y: rect.top + ((-v.y + 1) / 2) * rect.height,
+            on: Math.abs(v.x) <= 1 && Math.abs(v.y) <= 1,
+          };
+        };
+        bag.updateWorldMatrix(true, true);
+        const from = toScreen(new THREE.Box3().setFromObject(bag).getCenter(new THREE.Vector3()));
+        let to = null;
+        if (cust?.mesh) {
+          const c = cust.mesh.position.clone();
+          c.y += 1.1; // chest height, where an open palm is
+          to = toScreen(c);
+        }
+        return { from, to };
+      }).catch(() => null);
+      if (!grab?.from?.on) break;
+      const target = grab.to && grab.to.on ? grab.to : { x: grab.from.x + 260, y: grab.from.y - 40 };
+      await page.mouse.move(grab.from.x, grab.from.y, { steps: 3 });
+      await page.mouse.down();
+      await page.mouse.move(target.x, target.y, { steps: 22 });
+      await page.waitForTimeout(220);
+      await page.mouse.up();
+      await page.waitForTimeout(1400);
+      banked = (await probe()).banked > bankedBefore;
+    }
+    await beat('dragged the bag to the customer', { banked });
+  }
+
+  await beat('tried to complete the payment', { wantsTee, banked });
+  if (!banked) wall('payment', 'clicked forty times on the register and no ticket ever banked');
+
+  // ---- 9. the customer leaves ---------------------------------------------
+  const left = await page.waitForFunction(() => {
+    const ch = window.__fw?.scene3d?.clubhouse?.();
+    return !ch?.register?.isActive?.() || !ch?.register?.getTx?.();
+  }, null, { timeout: 90000 }).then(() => true).catch(() => false);
+  await beat('after the sale', { left });
+
+  const inst = await probe();
+  out.result = {
+    mode: out.seeded ? 'checkout-gate (shop seeded open, transaction all real input)'
+      : 'fresh-start (nothing seeded)',
+    reachedTheWall: out.wall ? out.wall.where : null,
+    banked: inst.banked,
+    wantsTee,
+    steps: stepNo,
+  };
+  out.checks = {
+    gotInside: out.beats.some((b) => b.inst.inside === true),
+    openedTheShop: out.beats.some((b) => b.inst.shopOpen === true),
+    aCustomerCame: out.beats.some((b) => (b.inst.onFloor ?? 0) > 0 || b.inst.txItems > 0),
+    goodsOnTheCounter: out.beats.some((b) => b.inst.txItems > 0),
+    tookTheSale: out.beats.some((b) => b.inst.registerActive === true),
+    ringUpFinished: scannedOk,
+    oneTicketBanked: inst.banked === bankedBefore + 1,
+    customerLeft: left === true,
+    noPageErrors: out.errs.length === 0,
+  };
+  out.ok = !out.wall && Object.values(out.checks).every(Boolean);
+  fs.writeFileSync(path.join(OUT, 'stranger.json'), `${JSON.stringify(out, null, 2)}\n`);
+  console.log('P1-STRANGER', JSON.stringify({
+    result: out.result, checks: out.checks, firstWall: out.wall, allWalls: out.walls,
+  }, null, 2));
+  return out;
+}

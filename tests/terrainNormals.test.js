@@ -146,7 +146,7 @@ test('a one-vertex-narrow window would leave a seam, proving the pad is required
   const neighbour = ((cy) * VX + (cx + 1)) * 3;
   assert.notEqual(
     na[neighbour + 1], fromScratch[neighbour + 1],
-    'an unpadded window must leave the neighbour stale — if this passes, the pad is untested',
+    'an unpadded window must leave the neighbour stale - if this passes, the pad is untested',
   );
 });
 

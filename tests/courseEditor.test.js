@@ -519,7 +519,7 @@ test('path-point live preview commits one exact undoable drag', () => {
   assert.deepEqual(Array.from(st.course.zones), Array.from(zonesBefore), 'discard restores the pre-drag raster');
 });
 
-test('holes: add, settings, reorder, delete — with undo', () => {
+test('holes: add, settings, reorder, delete - with undo', () => {
   const st = fresh();
   const s = makeEditSession(st);
   const n = st.course.holes.length;

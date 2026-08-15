@@ -6,8 +6,11 @@
 // World units are YARDS; 1 cell = 8x8 yd. The sim never knows this file exists.
 
 import * as THREE from 'three';
+import { t } from '../core/i18n.js';
 import { Sky } from 'three/addons/objects/Sky.js';
+import { BINDABLE_ACTIONS, DEFAULT_BINDINGS, keyForAction } from '../core/keyBindings.js';
 import { CachedGLTFLoader as GLTFLoader, clearGltfCache } from './gltfCache.js';
+import { createAssetIdleBarrier } from './assetIdleBarrier.js';
 import { initKTX2, ktx2Diagnostics } from './ktx2Support.js';
 import { sharedTextureDiagnostics } from './sharedTexturePool.js';
 import * as BufferGeometryUtils from 'three/addons/utils/BufferGeometryUtils.js';
@@ -88,7 +91,12 @@ import { attachSocket, socketWorld } from './toolSockets.js';
 import { buildToolViewmodels } from './toolViewmodel.js';
 import { createBroomViewmodel } from './broomViewmodel.js';
 import { BROOM_FEEL } from '../data/broomFeel.js';
-import { CLEANING_TOOLS, DIRT } from '../data/cleaningTools.js';
+import { TOOL_VM_FEEL, VM_RIG_TOOLS } from '../data/toolFeel.js';
+import { BELT_ORDER, CLEANING_TOOLS, DIRT } from '../data/cleaningTools.js';
+import {
+  WALK_SPEED_YD_S, RUN_MULTIPLIER, TOOL_RUN_MULTIPLIER, STRIDE_RATE_RAD_S, IDLE_SWAY_RATE_RAD_S,
+  EYE_HEIGHT_YD, WALK_FOV_DEG,
+} from '../data/locomotion.js';
 import { GOLF_CART_TIERS, golfCartTier } from '../data/golfCarts.js';
 import { CLUBHOUSE_VARIANT_REQUEST, DOOR_MAIN, SHELL } from '../data/shopLayout.js';
 import {
@@ -102,6 +110,15 @@ import {
 
 // tools worked against the boards; resolved once rather than filtered every frame
 const FLOOR_ANCHORED_TOOLS = Object.values(CLEANING_TOOLS).filter((t) => t.floorAnchored).map((t) => t.id);
+// How fast the ACCEPTED floor height under a held tool may travel. This is the
+// stray-sample guard: a real floor does not jump, so a garbage groundYAt can
+// only move the tool 1.6 yd/s (0.027 yd on a 60 Hz frame) no matter what it
+// returns, while a genuine step is crossed in a fifth of a second. It bounds
+// the INPUT, so the pose itself stays free to answer a fast look at full speed.
+const FLOOR_SAMPLE_RATE = 1.6;
+// A sanity bound on the solved offset, not a working range. Nothing legitimate
+// asks a held tool to move two yards; anything that does is a broken sample.
+const FLOOR_ANCHOR_ENVELOPE = 2.0;
 
 const ELEV_FT_TO_YD = (1 / 3) * 1.5; // real feet→yards with 1.5x readability exaggeration
 const METERS_TO_YARDS = 1.0936133;
@@ -220,14 +237,55 @@ export function markGrassInstanceBuffersUpdated(grassMesh, instanceCount) {
 export const GTAO_CONFIG = Object.freeze({
   radius: 1.5,
   blendIntensity: 1.0,
-  samples: 24,
-  resolutionScale: 1, // 1 = full resolution
-  pd: Object.freeze({ lumaPhi: 10, depthPhi: 2, normalPhi: 3, radius: 2, radiusExponent: 1, rings: 2, samples: 16 }),
+  // A3 2026-08-10: 24 samples / 16 pd / full res measured 4.34 ms of an
+  // 8.17 ms GPU frame at 4K physical (the old "full res is free indoors"
+  // number was taken at a smaller effective resolution). The sweep
+  // (qa/electron/a3-gtao-sweep) walked samples/pd/scale with a screenshot per
+  // rung at the ledger-desk pose — the exact surface the old full-res pin was
+  // written about — and 12/8/0.75 keeps the box and counter contact shadows
+  // while cutting the whole frame 8.7 -> 5.2 ms. Half res saved nothing more
+  // (denoise is the remaining cost), so 0.75 is the floor worth paying for.
+  samples: 12,
+  resolutionScale: 0.75,
+  pd: Object.freeze({ lumaPhi: 10, depthPhi: 2, normalPhi: 3, radius: 2, radiusExponent: 1, rings: 2, samples: 8 }),
 });
 
-const WALK_FOCUS_MIN_FACING = 0.3;
+// 9.2 (Goal 26): "The prompt bar is sticky -- it names objects the crosshair is
+// nowhere near." 0.3 is a SEVENTY-TWO DEGREE half-angle. A thing 72 degrees off
+// the crosshair is behind your shoulder in any ordinary sense, and it was
+// eligible to claim the prompt.
+//
+// 0.70 is a 45-degree half-angle -- a normal interaction cone, and narrow enough
+// that "under the crosshair" means something. The cross-track weight below
+// already makes the most centred candidate win; this constant is the eligibility
+// floor, so tightening it removes the far-off candidates entirely rather than
+// re-ranking them.
+//
+// Deliberately NOT tuned to the sticky-prompt driver's own 50-degree threshold,
+// which would be circular. 45 is the value a first-person interaction cone
+// usually takes; the driver's 50 stays looser than it on purpose, so the check
+// still has room to catch a regression rather than passing by construction.
+const WALK_FOCUS_MIN_FACING = 0.70;
 const WALK_FOCUS_CROSS_TRACK_WEIGHT = 3.8;
 const WALK_FOCUS_DEPTH_WEIGHT = 0.18;
+// Decision 3 (Goal 24): what counts as "under the crosshair" rather than merely
+// "nearby". BOTH gates have to pass, and they bind at opposite ends of the
+// range, which is the point:
+//
+//   * the ANGLE is what "aimed at" actually means — the crosshair is a point on
+//     the screen, so the test is how far off centre the prop draws. It does the
+//     work at close range. A yards-only gate was the first version and it let
+//     the book win while the player looked level over the desk from a yard
+//     away: 0.3 yd below the eye-line is well inside 0.6 yd, and reads on
+//     screen as a third of the way down the picture. That is not aimed at.
+//   * the YARDS cap does the work at distance, where a fixed angle sweeps an
+//     ever-wider circle and would start claiming things across the room.
+//
+// 12 deg comfortably covers the ledger's whole cover at every range a player
+// reads it from (the cover subtends about 9 deg at a yard), so this is a gate on
+// aim, not a demand for marksmanship.
+const WALK_CROSSHAIR_YD = 0.6;
+const WALK_CROSSHAIR_MIN_FACING = Math.cos(12 * Math.PI / 180);
 
 // A first-person prop with a real authored Y point should be selected by the
 // crosshair, not merely by whichever XZ origin is closest to the player. The
@@ -252,10 +310,38 @@ export function walkPropFocusScore3d(spatialDistance, facingDot, focusBias = 0) 
 // but only while its prop explicitly requests retention and the player remains
 // inside the same authored reach. This prevents a tilting handle from moving
 // its own focus target out from under the player without creating sticky props.
-export function walkPropRetainsFocus(prop, planarDistance) {
+/**
+ * 9.2 (Goal 26) — THIS IS WHERE THE STICKY PROMPT ACTUALLY LIVED.
+ *
+ * Retention used to be distance-only: inside the prop's radius with retainFocus
+ * set, the prompt held whatever it was already naming. It runs BEFORE the
+ * crosshair path, so it decided first, and it had no idea where the player was
+ * looking. Measured by sweeping the view a full circle at each station:
+ * 34 of 47 labelled samples named a prop the player was looking away from, the
+ * worst at 180 DEGREES -- the prompt naming something directly behind them.
+ *
+ * "I am overruling it: THE CROSSHAIR DECIDES THE PROMPT."
+ *
+ * So retention now needs the player still to be facing the thing. `facing` is
+ * the dot of the look direction against the bearing to the prop, passed in by
+ * the caller because this function is pure and has no view of the camera.
+ * RETAIN_FACING_MIN is deliberately loose -- retention exists to stop the label
+ * strobing off and on at the edge of the cone, and that job still needs slack.
+ * It is a hysteresis band, not a second opinion about what the player is aimed
+ * at: 0.35 is about 70 degrees, so the prompt survives a glance away and dies on
+ * a turn.
+ *
+ * `facing` is optional so the pure-function tests that call this with two
+ * arguments keep meaning what they meant; omitted, only the distance rule
+ * applies, which is the old behaviour and is what those tests assert.
+ */
+export const RETAIN_FACING_MIN = 0.35;
+
+export function walkPropRetainsFocus(prop, planarDistance, facing = null) {
   const distance = Number(planarDistance);
   const radius = Number(prop?.r);
   if (!Number.isFinite(distance) || distance < 0 || !(radius > 0) || distance > radius) return false;
+  if (facing !== null && Number.isFinite(facing) && facing < RETAIN_FACING_MIN) return false;
   try {
     return !!(typeof prop.retainFocus === 'function' ? prop.retainFocus() : prop.retainFocus);
   } catch {
@@ -283,20 +369,16 @@ THREE.DefaultLoadingManager.onLoad = () => {
   while (assetIdleResolvers.length) assetIdleResolvers.shift()();
 };
 function whenAssetsIdle(timeoutMs) {
-  if (!assetsInFlight) return Promise.resolve();
-  return new Promise((res) => {
-    let settled = false;
-    let timer = null;
-    const finish = () => {
-      if (settled) return;
-      settled = true;
-      if (timer !== null) clearTimeout(timer);
-      const index = assetIdleResolvers.indexOf(finish);
-      if (index >= 0) assetIdleResolvers.splice(index, 1);
-      res();
-    };
-    assetIdleResolvers.push(finish);
-    timer = setTimeout(finish, timeoutMs); // never hold the veil hostage to a missing file
+  return createAssetIdleBarrier({
+    isIdle: () => !assetsInFlight,
+    subscribe(onIdle) {
+      assetIdleResolvers.push(onIdle);
+      return () => {
+        const index = assetIdleResolvers.indexOf(onIdle);
+        if (index >= 0) assetIdleResolvers.splice(index, 1);
+      };
+    },
+    timeoutMs,
   });
 }
 
@@ -674,6 +756,43 @@ export function makeCourseScene(canvas, state) {
   // at gameplay distance — a 4K/200% desktop was rendering 78% more pixels than this.
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
   renderer.shadowMap.enabled = true;
+  // DO NOT "FIX" THIS TO PCFShadowMap. IT WAS TRIED, AND IT FLOODS THE DRIVER.
+  //
+  // Three DEPRECATED PCFSoftShadowMap: the first shadow bake warns and rewrites
+  // the field (vendor/three.module.js:9148),
+  //   if ( this.type === PCFSoftShadowMap ) { warn(...); this.type = PCFShadowMap; }
+  // so the renderer draws PCF either way and this line looks like a no-op that
+  // only costs shader-cache churn. shadowMapType is part of a program's cache
+  // key (vendor/three.module.js:7733, :7856) and autoUpdate is false below, so
+  // the rewrite lands at PREWARM'S FIRST BAKE, hundreds of compiles in: every
+  // program built before it is keyed to type 2 and everything after to type 1,
+  // and an object still HIDDEN at the flip keeps its stale program until the
+  // player reveals it. That is real, and it was measured -- the ledger's first
+  // page turn compiled exactly one program, and the two keys on that one
+  // material differed by `parameter.shadowMapType 2 -> 1` and nothing else
+  // (qa/electron/firstuse-cachekey/, 2026-08-14).
+  //
+  // Declaring PCFShadowMap here removes the flip and fixes that. It also breaks
+  // the renderer. A/B on this single line, everything else identical, both
+  // ending with shadowMap.type === 1 at runtime
+  // (tools/qa/electron-gl-error-count.js):
+  //
+  //   PCFSoftShadowMap  ->    0 GL errors
+  //   PCFShadowMap      ->  256 GL errors, then Chromium stops reporting
+  //     GL_INVALID_OPERATION: glDrawElements: Mismatch between texture format
+  //     and sampler type (signed/unsigned/float/shadow)
+  //
+  // The flip is doing work. It invalidates every program compiled before the
+  // shadow maps were real and forces them to rebuild once the maps exist.
+  // Without it those early programs SURVIVE, declaring shadow samplers against
+  // textures that were never set up for compare sampling, and every draw that
+  // uses one is rejected. A per-draw GL_INVALID_OPERATION storm is not a trade
+  // for one 15 ms compile -- least of all in a game that has already lost a GPU
+  // process once in this owner's hands.
+  //
+  // The first-reveal compiles are handled instead by the gesture warm at the end
+  // of prewarm, which runs AFTER the bake and so builds the programs the player's
+  // gesture will actually ask for. Same result, no flood.
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   renderer.shadowMap.autoUpdate = false; // baked on the throttle in render(), not per frame
   renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -847,7 +966,7 @@ export function makeCourseScene(canvas, state) {
           const proc = fallback();
           tex.image = proc.image;
           tex.needsUpdate = true;
-          console.warn(`ground texture ${file} missing — procedural fallback in use`);
+          console.warn(`ground texture ${file} missing - procedural fallback in use`);
         }
       },
     );
@@ -1122,7 +1241,7 @@ export function makeCourseScene(canvas, state) {
         '#include <map_fragment>',
         /* glsl */ `
         {
-          // geometry row 0 sits at -z but UV v runs the other way — flip v so the
+          // geometry row 0 sits at -z but UV v runs the other way - flip v so the
           // data textures line up with world positions
           vec2 flippedUv = vec2(vMapUv.x, 1.0 - vMapUv.y);
           vec2 cellUv = flippedUv * uCells;
@@ -1135,7 +1254,7 @@ export function makeCourseScene(canvas, state) {
           // signed distance to the winning zone's boundary, in yards (neg = inside)
           float edgeYd = (zoneSample.g * 255.0 - 128.0) / 32.0 * ${CELL_YD.toFixed(1)};
           // turf condition stays at simulation resolution (it IS sim data).
-          // Disease TYPE is categorical, so it alone keeps the nearest read —
+          // Disease TYPE is categorical, so it alone keeps the nearest read -
           // interpolating between two disease ids would name a third.
           vec2 sUv = (floor(cellUv) + 0.5) / uCells;
           vec4 ax = texture2D(uAuxTex, sUv);
@@ -1165,7 +1284,7 @@ export function makeCourseScene(canvas, state) {
           float hRel = zSmooth.a * 255.0 / 64.0;
           float disSev = aSmooth.g;
 
-          // real PBR surfaces — sample every set in uniform control flow so mip
+          // real PBR surfaces - sample every set in uniform control flow so mip
           // derivatives stay valid across warped zone borders, then select
           vec2 wxz = vWp.xz;
           vec2 uvFair = wxz * 0.16;   // ~6 yd repeat: blade detail at play zoom
@@ -1226,7 +1345,7 @@ export function makeCourseScene(canvas, state) {
           float stripeFreq = 0.0;
           float modeSel = 0.0;
           bool followFlow = false;
-          if (zone < 0.5) {        // OUT — native scrub
+          if (zone < 0.5) {        // OUT - native scrub
             col = FW_STYLIZE(dScrub, vec3(0.170, 0.225, 0.100)); gSplatN = nScrub; gSplatUv = uvScrub; gSplatRough = 0.97;
           } else if (zone < 1.5) { // ROUGH
             col = colRough; gSplatN = nRough; gSplatUv = uvRough; gSplatRough = 0.96;
@@ -1241,23 +1360,23 @@ export function makeCourseScene(canvas, state) {
           } else if (zone < 4.5) { // TEE
             col = colTee; gSplatN = nTee; gSplatUv = uvTee; gSplatRough = 0.93;
             stripeAmp = 0.06; stripeFreq = 0.16; modeSel = uStripeModes.z; followFlow = true;
-          } else if (zone < 5.5) { // BUNKER — warm sand on a gentler curve (never blows to white)
+          } else if (zone < 5.5) { // BUNKER - warm sand on a gentler curve (never blows to white)
             col = colSand;
             gSplatN = nSand; gSplatUv = uvSand; gSplatRough = 0.82;
           } else if (zone < 6.5) { // WATER bed
             col = FW_STYLIZE(dScrub, vec3(0.13, 0.205, 0.09)); gSplatN = nScrub; gSplatUv = uvScrub; gSplatRough = 0.85;
-          } else if (zone < 7.5) { // PATH — a dusty worn shoulder; the ribbon mesh is the pavement
+          } else if (zone < 7.5) { // PATH - a dusty worn shoulder; the ribbon mesh is the pavement
             col = colRough; gSplatN = nRough; gSplatUv = uvRough; gSplatRough = 0.95;
-          } else if (zone < 8.5) { // FRINGE — a shade deeper than green, tight cut
+          } else if (zone < 8.5) { // FRINGE - a shade deeper than green, tight cut
             col = colFringe; gSplatN = nGreen; gSplatUv = uvGreen; gSplatRough = 0.92;
-          } else if (zone < 9.5) { // HEAVY rough — tall, warm, golden-tipped
+          } else if (zone < 9.5) { // HEAVY rough - tall, warm, golden-tipped
             col = FW_STYLIZE(dRough, vec3(0.170, 0.225, 0.085)); gSplatN = nRough; gSplatUv = uvRough; gSplatRough = 0.97;
             col = mix(col, vec3(0.30, 0.29, 0.12), fwNoise(cellUv * 2.7) * 0.16); // seedhead shimmer
           } else if (zone < 10.5) { // DIRT
             col = FW_STYLIZE(dPath, vec3(0.42, 0.31, 0.20)); gSplatN = nPath; gSplatUv = uvPath; gSplatRough = 0.95;
-          } else if (zone < 11.5) { // BED — dark mulch
+          } else if (zone < 11.5) { // BED - dark mulch
             col = FW_STYLIZE(dScrub, vec3(0.23, 0.15, 0.09)); gSplatN = nScrub; gSplatUv = uvScrub; gSplatRough = 0.98;
-          } else {                 // SEMI — first cut between fairway and rough
+          } else {                 // SEMI - first cut between fairway and rough
             col = colSemi; gSplatN = nFair; gSplatUv = uvFair; gSplatRough = 0.95;
             stripeAmp = 0.055; stripeFreq = 0.082; modeSel = uStripeModes.y; followFlow = true;
           }
@@ -1329,7 +1448,7 @@ export function makeCourseScene(canvas, state) {
           col *= 0.96 + fwNoise(cellUv * 0.18 + vec2(9.7, 21.3)) * 0.08;
 
           if (stripeAmp > 0.001 && modeSel > 0.5) {
-            // overgrown turf softens the bands but never erases the pattern —
+            // overgrown turf softens the bands but never erases the pattern -
             // a freshly-mown surface still pops the most
             float fade = max(0.4, clamp(1.7 - hRel, 0.0, 1.0));
             // mow bands follow the HOLE: per-cell direction from the flow field
@@ -1364,7 +1483,7 @@ export function makeCourseScene(canvas, state) {
             // §1: decay reads as OLIVE-TAN desaturation, never brown-black
             col = mix(col, vec3(0.42, 0.40, 0.16), dry * 0.55);
             col = mix(col, vec3(0.40, 0.35, 0.18), smoothstep(0.45, 1.0, wear) * 0.5);
-            // freshly-watered turf reads darker until it drains — the hand-hose's
+            // freshly-watered turf reads darker until it drains - the hand-hose's
             // visible feedback, and honest for any saturated ground
             col *= 1.0 - smoothstep(0.58, 1.0, moisture) * 0.2;
             if (disSev > 0.03) {
@@ -1382,14 +1501,14 @@ export function makeCourseScene(canvas, state) {
             // grass-lip shadow: the sand right under the rolled turf edge sits in
             // shade; the middle of the bunker takes full sun (negative inside).
             // Driven by the bunker's own LINEAR distance channel rather than the
-            // nearest-sampled, quarter-yard-quantized edgeYd — a 20% darkening
+            // nearest-sampled, quarter-yard-quantized edgeYd - a 20% darkening
             // ramp off a quantized input banded visibly across the sand.
             float lip = smoothstep(-3.5, -0.4, surfaceDistanceYd.a);
             col *= mix(1.0, 0.80, lip);
             // faint rake grooves following the sand's long axis
             float rake = sin(dot(vWp.xz, vec2(0.82, 0.30)) * 2.6) * 0.5 + 0.5;
             col *= 0.96 + 0.04 * rake * (1.0 - lip);
-            // footprinted sand: visibly churned and shadowed — raking smooths it back
+            // footprinted sand: visibly churned and shadowed - raking smooths it back
             float foot = smoothstep(0.1, 0.8, wear);
             col *= 1.0 - foot * 0.24;
             float churn = fwNoise(cellUv * 9.0) * 0.6 + fwNoise(cellUv * 23.0) * 0.4;
@@ -2571,6 +2690,42 @@ export function makeCourseScene(canvas, state) {
     treeGroup.name = 'CourseFlora';
   }
 
+  // A — WHICH LAZY BUILDER COSTS THE PLAYER'S FIRST STEP?
+  //
+  // Measured with tools/qa/perf-repeat.mjs: the first 'w' hold costs ~375 ms
+  // (371..387 across six runs, a 16 ms band), while the second and third
+  // movements cost 84 ms and 34 ms. Something builds once, on the first step.
+  //
+  // Six builders construct on first need and any of them is a plausible story.
+  // Six plausible stories is exactly how the tool-beat thread burned eight
+  // hypotheses, so this measures instead of guessing: each builder is wrapped
+  // once, and its FIRST invocation records name, duration and call order.
+  //
+  // Function declarations hoist and their bindings are mutable, so all six can
+  // be wrapped here in one place rather than edited at six sites.
+  //
+  // The cost is one closure per builder and a single boolean test per call
+  // after the first. Read it with `walk.lazyBuildTimings()`.
+  const lazyBuildTimings = [];
+  const timeFirstCall = (name, fn) => function timed(...args) {
+    if (timed.__done) return fn.apply(this, args);
+    timed.__done = true;
+    const t0 = performance.now();
+    try {
+      return fn.apply(this, args);
+    } finally {
+      lazyBuildTimings.push({
+        name, ms: +(performance.now() - t0).toFixed(1), order: lazyBuildTimings.length,
+      });
+    }
+  };
+  ensureFarEvergreenFloraAsset = timeFirstCall('ensureFarEvergreenFloraAsset', ensureFarEvergreenFloraAsset);
+  ensureGolfCartRuntimeLights = timeFirstCall('ensureGolfCartRuntimeLights', ensureGolfCartRuntimeLights);
+  ensureGolfFacilities = timeFirstCall('ensureGolfFacilities', ensureGolfFacilities);
+  ensureGolferVisual = timeFirstCall('ensureGolferVisual', ensureGolferVisual);
+  ensurePartyVisual = timeFirstCall('ensurePartyVisual', ensurePartyVisual);
+  ensureTractorModel = timeFirstCall('ensureTractorModel', ensureTractorModel);
+
   function ensureFarEvergreenFloraAsset(assets) {
     if (assets.has('pine_far')) return;
     const pieces = [];
@@ -2928,7 +3083,7 @@ export function makeCourseScene(canvas, state) {
         rebuildFloraFromModels(assets);
       } else {
         activeFloraAssets = null;
-        console.warn('flora models unavailable — procedural fallback in use');
+        console.warn('flora models unavailable - procedural fallback in use');
         rebuildTreesProcedural();
       }
       freezeStaticCourse(); // freshly planted forests are still furniture
@@ -3047,7 +3202,7 @@ export function makeCourseScene(canvas, state) {
         .replace('#include <common>', `#include <common>
           varying float vBladeH;`)
         .replace('#include <color_fragment>', `#include <color_fragment>
-          // slightly darker at the base, brighter tips — depth in the sward
+          // slightly darker at the base, brighter tips - depth in the sward
           diffuseColor.rgb *= mix(0.97, 1.04, vBladeH);`);
     };
     grassMesh = new THREE.InstancedMesh(geo, mat, GRASS_COUNT);
@@ -4943,20 +5098,23 @@ export function makeCourseScene(canvas, state) {
       if (cartState.status === 'available' && cartState.batteryPercent < 5) {
         return {
           label: `${prefix} - battery depleted - [E] inspect`,
-          action: () => toast(`${prefix} needs charging before it can be driven.`),
+          action: () => toast(t('cart.needsCharging', { cart: prefix })),
         };
       }
       if (cartState.status === 'available' && cartState.condition < 15) {
         return {
           label: `${prefix} - unsafe condition - [E] inspect`,
-          action: () => toast(`${prefix} needs workshop repair before it can be driven.`),
+          action: () => toast(t('cart.needsRepair', { cart: prefix })),
         };
       }
       if (cartState.status === 'available') {
         const driverDoor = golfCartHinge(root, 'Door_FL');
         if (driverDoor && !driverDoor.open) return {
           label: `${prefix} driver/passenger door - [E] open to enter`,
-          action: () => toast(`${prefix} driver door ${toggleHinge('Door_FL') ? 'opened' : 'closed'}.`),
+          action: () => {
+          const on = toggleHinge('Door_FL');
+          toast(t(on ? 'cart.driverDoorOpened' : 'cart.driverDoorClosed', { cart: prefix }));
+        },
         };
         return {
           label: `${prefix} - [E] enter driver seat`,
@@ -4968,14 +5126,20 @@ export function makeCourseScene(canvas, state) {
       const hinge = golfCartHinge(root, 'Windshield_Upper');
       return {
         label: `${prefix} windshield - [E] ${hinge.open ? 'raise' : 'fold'}`,
-        action: () => toast(`${prefix} windshield ${toggleHinge('Windshield_Upper') ? 'folded' : 'raised'}.`),
+        action: () => {
+          const on = toggleHinge('Windshield_Upper');
+          toast(t(on ? 'cart.windshieldFolded' : 'cart.windshieldRaised', { cart: prefix }));
+        },
       };
     }
     if (dz > 0.7 && golfCartHinge(root, 'StorageLid_Rear')) {
       const hinge = golfCartHinge(root, 'StorageLid_Rear');
       return {
         label: `${prefix} rear storage - [E] ${hinge.open ? 'close' : 'open'}`,
-        action: () => toast(`${prefix} rear storage ${toggleHinge('StorageLid_Rear') ? 'opened' : 'closed'}.`),
+        action: () => {
+          const on = toggleHinge('StorageLid_Rear');
+          toast(t(on ? 'cart.rearStorageOpened' : 'cart.rearStorageClosed', { cart: prefix }));
+        },
       };
     }
     const atChargeSide = dx > 0.55 && dz > -0.25;
@@ -4988,7 +5152,7 @@ export function makeCourseScene(canvas, state) {
             const lid = golfCartHinge(root, 'BatteryCompartment_Lid');
             if (lid) lid.open = true;
             sfx('chime');
-            toast(`${prefix} connected. Charging to 100%.`);
+            toast(t('cart.charging', { cart: prefix }));
           } else {
             sfx('thunk');
             toast(result.reason);
@@ -5000,7 +5164,10 @@ export function makeCourseScene(canvas, state) {
       const hinge = golfCartHinge(root, 'BatteryCompartment_Lid');
       return {
         label: `${prefix} battery hatch - ${Math.round(cartState.batteryPercent)}% - [E] ${hinge.open ? 'close' : 'open'}`,
-        action: () => toast(`${prefix} battery hatch ${toggleHinge('BatteryCompartment_Lid') ? 'opened' : 'closed'}.`),
+        action: () => {
+          const on = toggleHinge('BatteryCompartment_Lid');
+          toast(t(on ? 'cart.batteryHatchOpened' : 'cart.batteryHatchClosed', { cart: prefix }));
+        },
       };
     }
     if (tier.id === 'luxury' && Math.abs(dx) > 0.55) {
@@ -5010,7 +5177,10 @@ export function makeCourseScene(canvas, state) {
       const hinge = golfCartHinge(root, doorName);
       if (hinge) return {
         label: `${prefix} passenger door - [E] ${hinge.open ? 'close' : 'open'}`,
-        action: () => toast(`${prefix} passenger door ${toggleHinge(doorName) ? 'opened' : 'closed'}.`),
+        action: () => {
+          const on = toggleHinge(doorName);
+          toast(t(on ? 'cart.passengerDoorOpened' : 'cart.passengerDoorClosed', { cart: prefix }));
+        },
       };
     }
     return {
@@ -5130,8 +5300,8 @@ export function makeCourseScene(canvas, state) {
           && ['booked', 'confirmed'].includes(reservation.status)
         ));
         return waiting.length
-          ? `Starter desk — [E] check in ${waiting[0].reservationHolder}${waiting.length > 1 ? ` · ${waiting.length - 1} more waiting` : ''}`
-          : 'Starter desk — [E] arrivals, check-in & walk-ins';
+          ? `Starter desk - [E] check in ${waiting[0].reservationHolder}${waiting.length > 1 ? ` · ${waiting.length - 1} more waiting` : ''}`
+          : 'Starter desk - [E] arrivals, check-ins and walk-ins';
       },
       action: () => {
         const waiting = (state.reservations?.booked || []).filter((reservation) => (
@@ -5728,6 +5898,15 @@ export function makeCourseScene(canvas, state) {
         triangles: renderer.info.render.triangles,
         geometries: renderer.info.memory.geometries,
         textures: renderer.info.memory.textures,
+        // THE ONE FIELD THAT DISTINGUISHES A SHADER COMPILE FROM EVERYTHING
+        // ELSE. Section A measured first-interaction stalls from 339 ms to
+        // 10 seconds whose placement and size moved unpredictably with input
+        // order, and four models for them were refuted in four consecutive
+        // runs. Every one of those models was arguing about a mechanism nobody
+        // had observed. `programs.length` is observable: if it rises across an
+        // expensive frame, that frame compiled shaders, and if it does not, no
+        // amount of reasoning about first draws applies.
+        programs: renderer.info.programs?.length ?? null,
       },
     };
   }
@@ -5745,15 +5924,15 @@ export function makeCourseScene(canvas, state) {
     z: 0,
     yaw: Math.PI, // shop-door convention: forward = (-sin, -cos); π faces +z, down the course
     pitch: 0,
-    eye: 1.75, // human eye height in yards over the terrain
-    speed: 3.4, // yd/s — the shop's tuned 3.1 reads a hair brisker outdoors
-    runMult: 1.8,
+    eye: EYE_HEIGHT_YD,
+    speed: WALK_SPEED_YD_S,
+    runMult: RUN_MULTIPLIER,
     radius: 0.34, // same body circle the shop uses
     sens: 1,
     invertY: false,
     cameraBob: true,
     reducedMotion: false,
-    fov: 66,
+    fov: WALK_FOV_DEG,
   };
 
   const walkHeld = new Set();
@@ -5904,6 +6083,7 @@ export function makeCourseScene(canvas, state) {
   const stuckMon = createStuckMonitor({ softMs: 700, hardMs: 1800 });
   const cartCol = []; // the parked cart, as a collider, only while it is parked
   let safeClock = 0;
+  let walkTrailClock = 0; // monotonic ms, so breadcrumbs can be aged (Goal 21)
 
   function walkColliderGroups() {
     cartCol.length = 0;
@@ -5929,13 +6109,16 @@ export function makeCourseScene(canvas, state) {
 
     // 2. breadcrumb ground we know is good
     safeClock += dtMs;
+    walkTrailClock += dtMs;
     if (!overlapping && safeClock > 180) {
       safeClock = 0;
-      safeTrail.record(walk.x, walk.z);
+      // stamped, so recall can tell "where I stood a moment ago" from "where I
+      // stood before I walked across the lawn" (Verifier 3's warp trap)
+      safeTrail.record(walk.x, walk.z, walkTrailClock);
     }
 
     // 3. still pinned? escalate. (read the keys, not walkMoving — a wedged cart counts too)
-    const wants = walkHeld.has('w') || walkHeld.has('a') || walkHeld.has('s') || walkHeld.has('d');
+    const wants = heldAction('moveForward') || heldAction('moveLeft') || heldAction('moveBack') || heldAction('moveRight');
     const escalate = stuckMon.update(dtMs, { wantsToMove: wants, moved, overlapping });
     if (escalate) walkUnstick(escalate);
   }
@@ -5953,7 +6136,11 @@ export function makeCourseScene(canvas, state) {
       }
     }
     if (how !== 'nearestFree') {
-      const back = safeTrail.recall((x, z) => walkFreeAt(x, z, r));
+      // Recovery is LOCAL. 'manual' is the pause menu's own button, where the
+      // player has explicitly asked to be moved and a longer reach is welcome;
+      // the automatic escalation must never warp them back across the lawn.
+      const from = how === 'manual' ? null : { x: walk.x, z: walk.z, atMs: walkTrailClock };
+      const back = safeTrail.recall((x, z) => walkFreeAt(x, z, r), from);
       if (back) {
         walk.x = back.x;
         walk.z = back.z;
@@ -6395,6 +6582,10 @@ export function makeCourseScene(canvas, state) {
   const _washNozzle = new THREE.Vector3();
   const _washJetTo = new THREE.Vector3(); // the pressure-lag-ramped visual endpoint of the jet
   const _toolContact = new THREE.Vector3();
+  // the same socket sampled AFTER the floor solve has moved the group. The
+  // residual it yields is what proves the correction LANDED rather than merely
+  // being computed — the distinction this whole item turned on.
+  const _toolContactAfter = new THREE.Vector3();
   let cleaningLastResult = null;
   const cleaningLastContact = new THREE.Vector3();
   const cleaningLastTarget = new THREE.Vector3();
@@ -6409,8 +6600,75 @@ export function makeCourseScene(canvas, state) {
   // background: the procedural tools above are already usable, so equipping never waits on I/O,
   // and each authored mesh (with its own sockets) replaces its stand-in as it lands.
   let toolViewmodelsAuthored = null;
+  // null means "adoption has not resolved yet" and nothing else. It is never
+  // assigned a hand-written "did not run" value, because that is exactly the
+  // string that made the previous attempt unfalsifiable.
+  let toolPrecompile = null;
   toolViewmodels.adoptAuthored(new GLTFLoader()).then((r) => {
     toolViewmodelsAuthored = r;
+    // A6 — THE FIRST TOOL A PLAYER EQUIPS COSTS A ONE-TIME STALL. MEASURED.
+    //
+    //   first equip (broom)   worst frame 1129 ms
+    //   second equip (mop)    worst frame   22 ms      -> 50x, one-time
+    //
+    // The boot prewarm at the bottom of this file already reveals every hidden
+    // object and calls renderer.compile(). It is thorough — and it RACES this
+    // adoption. These authored meshes arrive with their own materials whenever
+    // the GLB finishes, which is routinely after that compile has run, so their
+    // programs are still cold when the player first takes a tool out.
+    //
+    // The async design is deliberate and worth keeping ("equipping never waits
+    // on I/O"), so the fix is not to await adoption at boot. It is to compile
+    // the late arrivals once, here, the moment they land.
+    //
+    // The groups are `visible = false` until equipped, and compile() only walks
+    // what is visible — the same reason the boot prewarm force-reveals. Reveal,
+    // compile, restore exactly what was revealed.
+    try {
+      if (renderer && scene && camera) {
+        const hidden = [];
+        for (const group of Object.values(toolViewmodels.groups || {})) {
+          group.traverse((object) => {
+            if (!object.visible && !object.isLight) { hidden.push(object); object.visible = true; }
+          });
+          if (!group.visible) { hidden.push(group); group.visible = true; }
+        }
+        // TELEMETRY THAT CANNOT LIE ABOUT ITSELF.
+        //
+        // The first attempt at this reported {ran:false, note:"not reached"} —
+        // which was its DECLARED value, because the assignment never attached.
+        // "Did not run" and "was never wired" were indistinguishable, and the
+        // report nearly carried the wrong one as a measurement.
+        //
+        // Every field below is computed INSIDE this block, so a value here at
+        // all proves the block executed. `revealed` and the before/after program
+        // counts cannot be produced from outside it.
+        // THE COMPILE ITSELF IS REMOVED. It ran, it worked, and it was useless:
+        // measured {ran:true, revealed:18, before:0, after:66, compiled:66}.
+        //
+        // `before: 0` shows it fires before the boot prewarm, so its 66 programs
+        // are keyed to a render state the scene has not finished building. And
+        // retiming it would not help either: the 9 programs the first equip
+        // compiles belong to materials that DO NOT EXIST until the equip runs —
+        // `toolViewmodel.js` creates each strand rig's material lazily, guarded
+        // on first equip. Nothing can pre-compile a material that has not been
+        // constructed.
+        //
+        // So this cost 66 program compiles at boot and bought nothing. The
+        // reveal/restore is kept only for the measurement below, which is cheap
+        // and is the check that must fall from +9 to 0 when the real fix lands.
+        for (const object of hidden) object.visible = false;
+        toolPrecompile = {
+          ran: true,
+          revealed: hidden.length,
+          programs: renderer.info.programs?.length ?? null,
+          note: 'compile removed: the equip-time materials do not exist yet',
+        };
+      }
+    } catch (err) {
+      // a cold program is a stall, not a crash: never break boot for it
+      toolPrecompile = { ran: false, threw: String((err && err.message) || err) };
+    }
     if (walkTool && CLEANING_TOOLS[walkTool]) {
       fpHands.setTool(walkTool, toolViewmodels.gripsFor(walkTool));
       toolViewmodels.setEquipped(walkTool, true);
@@ -6516,17 +6774,95 @@ export function makeCourseScene(canvas, state) {
     }
     return { blocked: false, nx: 0, nz: 0 };
   }
-  const broomVm = createBroomViewmodel({
-    camera,
-    renderer,
-    scene,
-    broomGroup: heldGroups.broom,
-    fpHands,
-    colliderQuery: broomColliderQuery,
-    floorY: (x, z) => (clubhouseApi && clubhouseApi.groundYAt ? clubhouseApi.groundYAt(x, z) : null),
-  });
+  // I1 (2026-08-05): ONE RIG INSTANCE PER STICK TOOL, from the same factory
+  // the broom was approved through. Each rig binds its own held group at
+  // construction and reads its own feel (src/data/toolFeel.js); only the
+  // active one updates and draws, so five rigs cost what one did. `broomVm`
+  // stays as the broom's instance because a session's diagnostics and a
+  // shelf of drivers address it by that name.
+  // B2 — LIVE FEEL. Every rig reads a mutable deep clone of its feel table;
+  // the tuning overlay writes leaves of these clones and the held tool
+  // answers the same frame. structuredClone drops toolFeel's deep-freeze;
+  // the values are identical until someone drags a slider. Overrides saved
+  // by the overlay (src/data/toolFeelOverrides.json) are merged in at boot
+  // through applyToolFeelOverrides below, so what was tuned is what ships.
+  const liveToolFeel = {};
+  for (const rigId of VM_RIG_TOOLS) liveToolFeel[rigId] = structuredClone(TOOL_VM_FEEL[rigId]);
+  const feelDeepMerge = (base, patch) => {
+    for (const [key, value] of Object.entries(patch || {})) {
+      if (value && typeof value === 'object' && !Array.isArray(value)
+        && base[key] && typeof base[key] === 'object' && !Array.isArray(base[key])) {
+        feelDeepMerge(base[key], value);
+      } else base[key] = value;
+    }
+    return base;
+  };
+  const toolRigs = {};
+  for (const rigId of VM_RIG_TOOLS) {
+    if (!heldGroups[rigId]) continue;
+    toolRigs[rigId] = createBroomViewmodel({
+      camera,
+      renderer,
+      scene,
+      broomGroup: heldGroups[rigId],
+      fpHands,
+      colliderQuery: broomColliderQuery,
+      floorY: (x, z) => (clubhouseApi && clubhouseApi.groundYAt ? clubhouseApi.groundYAt(x, z) : null),
+      feel: liveToolFeel[rigId],
+      // A8: the REGISTRY decides how many hands here too. Q7 made the shared
+      // toolViewmodel path read `support`, but this bespoke rig built both arms
+      // unconditionally, so the broom - the one tool the ruling was written
+      // against - kept two hands on screen while its registry entry said one.
+      twoHanded: !!CLEANING_TOOLS[rigId]?.support,
+      // B4: and the REGISTRY decides whether it has hands at all. The washer is
+      // drawn bare, and it is a rig tool, so the flag has to reach the rig.
+      showHands: CLEANING_TOOLS[rigId]?.hands !== false,
+      // I5: the drawn interior for the mesh-true clamp (held tools are camera
+      // children, so this root can never self-hit the tool)
+      meshRoot: () => (clubhouseApi ? clubhouseApi.interior : null),
+    });
+  }
+  const broomVm = toolRigs.broom;
+  const rigFor = (id) => (id ? toolRigs[id] || null : null);
+  const activeRig = () => rigFor(walkTool);
+  // B2: apply saved overrides once the native bridge answers; push strand
+  // params whenever the strand rig exists (it attaches when the authored
+  // GLB adopts, so retry briefly).
+  const pushStrandParams = (id) => {
+    const rig = heldGroups[id]?.userData?.strandRig;
+    const params = liveToolFeel[id]?.strands;
+    if (rig?.setParams && params) rig.setParams(params);
+    return !!(rig && params);
+  };
+  function applyToolFeelOverrides(overrides) {
+    if (!overrides || typeof overrides !== 'object') return false;
+    for (const [id, patch] of Object.entries(overrides)) {
+      if (!liveToolFeel[id] || !patch) continue;
+      feelDeepMerge(liveToolFeel[id], patch);
+      toolRigs[id]?.refreshFromFeel?.();
+    }
+    let tries = 0;
+    // Goal 17 R1: EVERY rig that carries fibres, not just the mop. The broom
+    // grew a bristle rig in Goal 16 and this retry still named one tool, so a
+    // saved broom `strands` block was merged into the live feel and then never
+    // reached the rig that draws it — tuned values that silently did nothing.
+    const fibreTools = VM_RIG_TOOLS.filter((id) => liveToolFeel[id]?.strands);
+    const strandRetry = () => {
+      tries += 1;
+      const done = fibreTools.length > 0 && fibreTools.every((id) => pushStrandParams(id));
+      if (!done && tries < 20) setTimeout(strandRetry, 500);
+    };
+    strandRetry();
+    return true;
+  }
+  try {
+    window.fairwayNative?.readToolFeel?.().then((saved) => {
+      if (saved) applyToolFeelOverrides(saved);
+    }).catch(() => {});
+  } catch { /* browser QA has no bridge; defaults stand */ }
   // The viewmodel pass renders with the world's lights: every light learns the
-  // broom layer once per equip (idempotent, and catches lights created since).
+  // rig layer once per equip (idempotent, and catches lights created since).
+  // Every rig shares BROOM_FEEL.camera.layer, so one sweep serves them all.
   function enableBroomLightLayer() {
     scene.traverse((object) => {
       if (object.isLight) object.layers.enable(BROOM_FEEL.camera.layer);
@@ -6796,6 +7132,11 @@ export function makeCourseScene(canvas, state) {
   // tool FEEL: equip/stow easing + a carried bob synced to the gait, so tools
   // read as held in hands rather than glued to the camera
   const heldAnim = { t: 1, show: false, pendingHide: false, settle: 0 };
+  // Constant-size evidence at the exact shipping tool-change edge. This does
+  // not alter selection; it lets QA observe consumption without replacing the
+  // production hook or inferring it from a delay.
+  let toolChangeSequence = 0;
+  let lastToolChange = null;
   // Contact-phase stroke gating: a mop/broom/cloth/sponge cleans only while the stroke drags across
   // the surface, not at the lifted turnarounds. Skipped dt is banked here and released on the next
   // contact frame so the NET cleaning over a stroke is unchanged (the sim is linear in dt).
@@ -6824,6 +7165,28 @@ export function makeCourseScene(canvas, state) {
   const SPRAY_CYCLE = SPRAY_SQUEEZE + SPRAY_RELEASE;      // 0.25 s
   const SPRAY_DUTY_SCALE = SPRAY_CYCLE / SPRAY_SQUEEZE;   // 0.25 / 0.09 ≈ 2.778
   let sprayCadenceT = 0; let spraySqueezeActive = false;
+  // E3: the live intensity of whatever tool is in use, so the audio layer can
+  // follow the stroke for every tool instead of only for the broom.
+  let toolFeelIntensity = 0; let toolFeelContact = false;
+  // The bottle's own kick on each squeeze: full over SPRAY_RECOIL_FALL seconds,
+  // squared so it snaps and settles. TWIST turns the same impulse into a small
+  // roll, because a trigger is pulled off-centre.
+  const SPRAY_RECOIL_FALL = 0.13; const SPRAY_RECOIL_TWIST = 2.4;
+  let sprayRecoilT = 0;
+  // The accepted floor height under each held floor tool — see FLOOR_SAMPLE_RATE.
+  const floorAnchorSampleY = new Map();
+  // E2: WHY THE SOLVE DID OR DID NOT RUN, per tool, per frame.
+  //
+  // The audit inferred from the outside that the old clamp was saturating.
+  // It was not: the solve was not reaching the visible tool at all, and no
+  // number anywhere could tell those two apart — both look like "the head
+  // rides the view". This records the solve's own inputs and its decision, so
+  // "it ran and could not correct enough" and "it never ran" are different
+  // readings instead of the same one.
+  const floorAnchorDebug = { frame: 0, tools: {} };
+  // I5: per-frame pull applied to the held HAND tool when its carry point was
+  // inside a blocked fixture face (0 in the open — the control's claim).
+  const handToolClampDebug = {};
   // Held-tool idle: a slow ±0.4° yaw drift on the whole held rig, 7 s period, for life at rest.
   const IDLE_YAW_AMP = (0.4 * Math.PI) / 180; const IDLE_YAW_RATE = (2 * Math.PI) / 7;
   // Belt-switch debounce: at most one actual tool change per 0.12 s (rapid F-taps keep one pending).
@@ -6836,6 +7199,13 @@ export function makeCourseScene(canvas, state) {
   let trashSwallowT = 1; let trashPopT = 1; let lastBagLoad = 0;
   let bobPhase = 0;
   let walkMoving = false;
+  // E2 footsteps: the gait bob's minima are the footfalls. Displacement
+  // gates them (pushing into a wall pumps the bob but plants nothing) and
+  // the clubhouse slab picks the surface voice.
+  let stepBobSin = 0;
+  let stepBobDelta = 0;
+  let stepDistAccum = 0;
+  let stepIdleS = 0;
   let mountBlend = 0; // 0 = on foot (first person) … 1 = in the seat (chase cam)
   const easeOutCubic = (t) => 1 - Math.pow(1 - t, 3);
 
@@ -6883,7 +7253,7 @@ export function makeCourseScene(canvas, state) {
       }
     }
     // the hands breathe, rise into frame, and shove back under the trigger — or draw the box
-    toolViewmodels.update(dt);
+    toolViewmodels.update(dt, walkFloorWorldY());
     if (walkTool && CLEANING_TOOLS[walkTool]) {
       fpHands.syncGrips(toolViewmodels.gripsFor(walkTool));
     }
@@ -6898,16 +7268,18 @@ export function makeCourseScene(canvas, state) {
     // Rise on equip over 0.26 s; stow faster (0.18 s) so switching tools feels
     // crisp. The broom's rise/stow/settle timings come from its own tuning
     // file (Phase 6: every broom feel value lives in broomFeel.js).
-    const broomOwned = walkTool === 'broom' && broomVm.isActive();
+    const ownRig = rigFor(walkTool);
+    const rigOwned = !!(ownRig && ownRig.isActive());
+    const ownFeel = rigOwned ? TOOL_VM_FEEL[walkTool] : null;
     const equipDur = walk.reducedMotion ? 0.001
       : (heldAnim.show
-        ? (broomOwned ? BROOM_FEEL.equip.duration : 0.26)
-        : (broomOwned ? BROOM_FEEL.unequip.duration : 0.18));
+        ? (rigOwned ? ownFeel.equip.duration : 0.26)
+        : (rigOwned ? ownFeel.unequip.duration : 0.18));
     heldAnim.t = Math.min(1, heldAnim.t + dt / equipDur);
-    // the broom drops with an ease-IN (slow release, brisk exit); everything
+    // a rig tool drops with an ease-IN (slow release, brisk exit); everything
     // else keeps the shared ease-out both ways
     const k = heldAnim.show ? easeOutCubic(heldAnim.t)
-      : (broomOwned ? 1 - broomVm.easeInCubic(heldAnim.t) : 1 - easeOutCubic(heldAnim.t));
+      : (rigOwned ? 1 - ownRig.easeInCubic(heldAnim.t) : 1 - easeOutCubic(heldAnim.t));
     if (!heldAnim.show && heldAnim.t >= 1) {
       heldRoot.visible = false;
       heldAnim.settle = 0;
@@ -6915,8 +7287,8 @@ export function makeCourseScene(canvas, state) {
     }
     // A brief settle overshoot as the tool lands in the hands, then back to
     // rest. Cosmetic only, so it is gated on !reducedMotion.
-    const settleAmp = broomOwned ? BROOM_FEEL.equip.settleOvershoot : 0.012;
-    const settleDur = broomOwned ? BROOM_FEEL.equip.settleTime : 0.06;
+    const settleAmp = rigOwned ? ownFeel.equip.settleOvershoot : 0.012;
+    const settleDur = rigOwned ? ownFeel.equip.settleTime : 0.06;
     let settleY = 0;
     if (heldAnim.show && heldAnim.t >= 1 && !walk.reducedMotion) {
       heldAnim.settle = Math.min(1, heldAnim.settle + dt / settleDur);
@@ -6924,8 +7296,8 @@ export function makeCourseScene(canvas, state) {
     } else if (heldAnim.show && heldAnim.t < 1) {
       heldAnim.settle = 0;
     }
-    // gait-synced bob: strong under way, a slow breathe at rest
-    bobPhase += dt * (walkMoving ? 8.7 : 1.6); // 8.7 = the characters' stride rate
+    // gait-synced bob (the phase itself advances in the walk update — E2
+    // moved it there so the gait exists barehanded; this block only reads it)
     const sway = walk.reducedMotion || !walk.cameraBob ? 0 : (walkMoving ? 1 : 0.25);
     // Recoil belongs to the RIG, not to the hands: the hands are parented into the tool group so
     // their grip stays in the tool's frame, and writing the kick to them slid them along the lance
@@ -7171,6 +7543,12 @@ export function makeCourseScene(canvas, state) {
       sprayCadenceT = 0;
       spraySqueezeActive = false;
       washerJetRamp = 0;
+      lastToolChange = {
+        sequence: ++toolChangeSequence,
+        atMs: performance.now(),
+        next: tool || null,
+        previous: previousTool || null,
+      };
       walkHooks.toolChanged?.(tool || null, previousTool || null);
     }
     if (HELD_TOOL_ASSET_MANIFEST[tool]) {
@@ -7184,6 +7562,10 @@ export function makeCourseScene(canvas, state) {
     toolViewmodels.setTool(tool, previousTool);
     for (const [name, g] of Object.entries(heldGroups)) g.visible = name === tool;
     // Every tool remains physically held.
+    // B4: a tool declared `hands: false` is DRAWN BARE — it sits in view with
+    // no first-person hand on it. The suppression is set before the grips are
+    // applied so a bare tool never shows a hand for the frame in between.
+    fpHands.setHandsSuppressed?.(CLEANING_TOOLS[tool]?.hands === false);
     if (tool && heldGroups[tool] && GRIPS[tool]) {
       heldGroups[tool].add(fpHands.root);
       fpHands.setTool(tool, toolViewmodels.gripsFor(tool));
@@ -7191,10 +7573,14 @@ export function makeCourseScene(canvas, state) {
     } else {
       fpHands.setTool(null);
     }
-    // Phase 6: the broom (with the hands ALREADY re-parented into it, so the
-    // layer sweep catches them) leaves the world pass for its viewmodel pass.
-    if (tool === 'broom') enableBroomLightLayer();
-    broomVm.setActive(tool === 'broom');
+    // Phase 6 → I1: a rig tool (with the hands ALREADY re-parented into it, so
+    // the layer sweep catches them) leaves the world pass for the viewmodel
+    // pass. Deactivations run FIRST: setActive(false) restores the shared hand
+    // scale and arm stubs, so a deactivating rig running after the new one
+    // would clobber what the new one just set.
+    if (toolRigs[tool]) enableBroomLightLayer();
+    for (const [rigId, rig] of Object.entries(toolRigs)) if (rigId !== tool) rig.setActive(false);
+    toolRigs[tool]?.setActive(true);
     const pushed = tool === 'greensMower' || tool === 'spreader';
     if (tool && !pushed) {
       heldRoot.visible = true;
@@ -7209,6 +7595,50 @@ export function makeCourseScene(canvas, state) {
       sprayPoints.material.size = TOOL_SPRAY[tool].size;
     }
     if (!tool) sprayPoints.visible = false;
+  }
+
+  // C10 — NOTHING IS HELD AT A WORK STATION, WHICHEVER PASS DRAWS IT.
+  //
+  // The previous fix was `broomVm.setActive(false)` inside walkExit(), which is
+  // wrong twice over: walkExit() only runs on scene dispose, so it never fires
+  // for the till at all, and it names ONE tool's private render pass. Every
+  // other tool draws under heldRoot in the world pass and was never covered.
+  //
+  // This is the general case, and it is general because it does not enumerate
+  // anything: it puts the tool DOWN through walkSetTool(), the one function
+  // that already knows about every tool, every pass, the hands, the tool
+  // viewmodels, the spray points and the effect timers. A tool added tomorrow
+  // is covered the day it is added, because being held at all goes through the
+  // same setter.
+  // 2026-08-06 ruling: "make sure that items such as the spray, broom etc
+  // switch to the hand automatically when we click on the book the same way
+  // we did for the cash register". The READING DESK is a work station too -
+  // you cannot hold a mop and a ledger. Same predicate, one more station, so
+  // every tool present and future is covered by the same setter.
+  let stationStowedTool = null;
+  function syncStationToolStow() {
+    // G1: ASK THE ONE PREDICATE, NOT A SECOND LIST OF STATIONS.
+    //
+    // This generalised over every TOOL and then hard-coded two STATIONS, so the
+    // laptop was missed: you sat down at the back office with a mop still in
+    // your hands. The host owns the real list (laptop, ledger, front desk,
+    // register); the direct checks stay as a fallback for callers that never set
+    // the hook. Adding a station now covers tool stowing for free.
+    const stationOpen = !!walkHooks.stationOpen?.()
+      || !!clubhouseApi?.register?.isActive?.()
+      || !!clubhouseApi?.ledgerBook?.isOpen?.();
+    if (stationOpen) {
+      if (stationStowedTool !== null || !walkTool) return;
+      stationStowedTool = walkTool;
+      walkSetTool(null);
+      return;
+    }
+    if (stationStowedTool === null) return;
+    const tool = stationStowedTool;
+    stationStowedTool = null;
+    // Only restore into an empty hand: if the player picked something else up
+    // at the counter, that is what they are holding now.
+    if (tool && !walkTool) walkSetTool(tool);
   }
 
   // Belt cycling comes through the exposed setTool. Debounce it so a flurry of F-taps applies one
@@ -7251,14 +7681,14 @@ export function makeCourseScene(canvas, state) {
 
   function cleaningBlockMessage(reason) {
     return ({
-      carpet: 'Mops stay off carpet — use the vacuum there.',
-      'mop-dry': 'The mop is dry — wring it in the cleaning-bay bucket.',
-      'pan-full': 'The dustpan is full — empty it into the trash bag.',
-      'bag-full': 'The trash bag is full — tie it at the cleaning bay.',
-      'bag-tied': 'That bag is tied — dispose it at the stockroom waste station.',
+      carpet: 'Mops stay off carpet - use the vacuum there.',
+      'mop-dry': 'The mop is dry - wring it in the cleaning-bay bucket.',
+      'pan-full': 'The dustpan is full - empty it into the trash bag.',
+      'bag-full': 'The trash bag is full - tie it at the cleaning bay.',
+      'bag-tied': 'That bag is tied - dispose it at the stockroom waste station.',
       'spray-first': 'Loosen it with spray first.',
       'sweep-first': 'Sweep the pile together first.',
-      dry: 'Nothing to wipe yet — spray the surface first.',
+      dry: 'Nothing to wipe yet - spray the surface first.',
       blocked: 'The tool is against a fixture, not the floor.',
       occluded: 'A counter or wall blocks the tool contact.',
     })[reason] || 'Nothing to clean at that contact point.';
@@ -7299,6 +7729,13 @@ export function makeCourseScene(canvas, state) {
   // --- what you're looking at (shop-style focus + [E]) -------------------------------
   let walkFocus = null; // { kind, label, cell? }
   const walkHooks = {}; // main.js provides turfLabelAt / inspectAt / waterAt / hoseLabelAt
+  // N2/F2 - the walker's own read path through the binding table. main.js
+  // provides walkHooks.bindings; headless tests without it get the defaults.
+  const boundWalkKey = (actionId) => keyForAction(
+    walkHooks.bindings ? walkHooks.bindings() : DEFAULT_BINDINGS,
+    actionId,
+  );
+  const heldAction = (actionId) => walkHeld.has(boundWalkKey(actionId));
   walkHooks.getTool = () => walkTool;
   walkHooks.toolAction = (toolId, action) => {
     const clips = {
@@ -7318,6 +7755,141 @@ export function makeCourseScene(canvas, state) {
     const cy = Math.floor((az + worldH / 2) / CELL_YD);
     if (cx < 0 || cy < 0 || cx >= W || cy >= H) return null;
     return { x: cx, y: cy, worldX: ax, worldZ: az };
+  }
+
+  // F1 (Full_Goal_16): find a work station (till, ledger desk) within its
+  // own radius. The cone is deliberately wide — anything not directly behind
+  // you — because the player arrives at a counter looking DOWN at the floor
+  // they were just mopping, and at point-blank range direction means nothing.
+  // ONE AIM SCORE, USED EVERYWHERE (Goal 20, found by Verifier 2).
+  //
+  // A verifier could not open the ledger in forty minutes of play: the crosshair
+  // was on the cover and the prompt said "Front desk". The cause was that
+  // STATIONS were selected by a different rule from every other prop — first
+  // match in registration order, gated only on facing > -0.2, which is a hundred
+  // degrees off axis. The desk is registered eight thousand lines before the
+  // book, so it always won, and the book's own focusBias and aimY — added in an
+  // earlier goal specifically to beat it, with a comment saying so — were dead
+  // code on that path.
+  //
+  // This is the general loop's scoring, lifted out and used by both, so the two
+  // cannot hold different opinions about what you are looking at again.
+  function walkPropAimScore(p) {
+    let focusPoint = null;
+    try {
+      focusPoint = typeof p.focusPoint === 'function' ? p.focusPoint() : p.focusPoint;
+    } catch {
+      focusPoint = null;
+    }
+    const focusX = Number.isFinite(focusPoint?.x) ? focusPoint.x : p.x;
+    const focusZ = Number.isFinite(focusPoint?.z) ? focusPoint.z : p.z;
+    const focusY = Number.isFinite(focusPoint?.y) ? focusPoint.y : p.aimY;
+    const dx = focusX - walk.x;
+    const dz = focusZ - walk.z;
+    const dist = Math.hypot(dx, dz);
+    const focusBias = Number(typeof p.focusBias === 'function' ? p.focusBias() : p.focusBias) || 0;
+    if (Number.isFinite(focusY)) {
+      // Props on different authored levels can share an x/z, so those score
+      // against the real first-person aim ray rather than a flat bearing.
+      const dy = focusY - camera.position.y;
+      const spatial = Math.max(0.001, Math.hypot(dx, dy, dz));
+      const cp = Math.cos(walk.pitch);
+      const facing = (dx / spatial) * -Math.sin(walk.yaw) * cp
+        + (dy / spatial) * Math.sin(walk.pitch)
+        + (dz / spatial) * -Math.cos(walk.yaw) * cp;
+      return {
+        dist, facing, spatial, score: walkPropFocusScore3d(spatial, facing, focusBias),
+      };
+    }
+    const safeDist = Math.max(0.001, dist);
+    const facing = ((dx / safeDist) * -Math.sin(walk.yaw))
+      + ((dz / safeDist) * -Math.cos(walk.yaw));
+    return { dist, facing, spatial: safeDist, score: dist - focusBias };
+  }
+
+  // Decision 3 (Goal 24) — THE CROSSHAIR OUTRANKS THE STATION.
+  //
+  // "If I am aimed at the ledger, the prompt says ledger." The station rule was
+  // written to be forgiving — arrive at a counter looking down at the floor you
+  // were mopping and E still works — and forgiving turned into greedy: standing
+  // anywhere inside the desk's radius, the desk answered for everything,
+  // including the book directly under the crosshair. A documented rule that the
+  // owner and a stranger both read as broken is broken.
+  //
+  // So a prop the player is genuinely AIMED AT now pre-empts both the station
+  // shortcut and the equipped tool's prompt. The gate is deliberately stricter
+  // than the general prop scan's `facing > 0.3` (about 72 deg off axis, which is
+  // "nearby", not "aimed"): the focus point has to land within
+  // WALK_CROSSHAIR_YD of the aim ray, measured as real cross-track distance in
+  // yards. That is the difference between looking AT the book and merely
+  // standing near it holding a mop, and it is why this does not reopen the Goal
+  // 16 complaint it sits on top of — at the till, aimed at the till, the till is
+  // itself the crosshair prop and still wins.
+  function walkPropUnderCrosshair() {
+    let best = null;
+    let bestLabel = '';
+    let bestScore = Infinity;
+    for (const p of walkProps) {
+      const coarseDx = p.x - walk.x;
+      const coarseDz = p.z - walk.z;
+      if (Math.hypot(coarseDx, coarseDz) > p.r + 0.75) continue;
+      const { dist, facing, spatial, score } = walkPropAimScore(p);
+      if (dist > p.r || !Number.isFinite(score) || score >= bestScore) continue;
+      if (!(facing > WALK_CROSSHAIR_MIN_FACING)) continue;
+      const crossTrack = spatial * Math.sqrt(Math.max(0, 1 - facing * facing));
+      if (crossTrack > WALK_CROSSHAIR_YD) continue;
+      const label = p.label();
+      if (!label) continue; // a falsy label = the prop is dormant right now
+      best = p; bestLabel = label; bestScore = score;
+    }
+    return best ? { prop: best, label: bestLabel } : null;
+  }
+
+  // 9.2 (Goal 26) — "THE PROMPT BAR IS STICKY. It names objects the crosshair is
+  // nowhere near. You have documented that walkStationPropInReach does this
+  // deliberately. I AM OVERRULING IT: THE CROSSHAIR DECIDES THE PROMPT. A station
+  // in reach may keep working for E without claiming the prompt."
+  //
+  // Both halves of that are honoured by splitting the one predicate in two:
+  //
+  //   requireAim: true   what the PROMPT may name -- only a station actually
+  //                      under the crosshair, so standing indoors at the till can
+  //                      no longer read "Weeds - [E] pull them" (observed).
+  //   requireAim: false  what E may ACT on -- unchanged reach-and-facing, so
+  //                      pressing E at the counter without looking squarely at it
+  //                      still works, which is what `station` was always for.
+  //
+  // The forgiving gate therefore survives exactly where the owner said it may,
+  // and stops deciding the thing he says the crosshair decides.
+  function walkStationPropInReach({ requireAim = false } = {}) {
+    let best = null;
+    let bestScore = Infinity;
+    for (const p of walkProps) {
+      if (!p.station) continue;
+      const dx = p.x - walk.x;
+      const dz = p.z - walk.z;
+      const dist = Math.hypot(dx, dz);
+      if (dist > (p.r || 0)) continue;
+      // The forgiving gate STAYS. Standing at the counter and pressing E
+      // without looking squarely at it has to keep working — that is what
+      // `station` is for. It is an eligibility floor now rather than the whole
+      // decision.
+      const flat = dist < 0.6 ? 1
+        : ((dx / dist) * -Math.sin(walk.yaw)) + ((dz / dist) * -Math.cos(walk.yaw));
+      if (flat <= -0.2) continue;
+      // ...and among the stations that qualify, the one you are LOOKING AT wins.
+      // A station you are not aimed at scores Infinity from the shared rule, so
+      // it falls back to a bearing-and-distance ranking that always loses to a
+      // station under the crosshair. That is the whole fix in one line.
+      const aimed = walkPropAimScore(p);
+      // A station that is not under the crosshair scores Infinity here. With
+      // requireAim it is skipped outright; without it, it falls back to a
+      // bearing-and-distance ranking so E still reaches it.
+      if (requireAim && !Number.isFinite(aimed.score)) continue;
+      const score = Number.isFinite(aimed.score) ? aimed.score : (dist + 100 - flat);
+      if (score < bestScore) { bestScore = score; best = p; }
+    }
+    return best;
   }
 
   function walkFindFocus() {
@@ -7351,7 +7923,7 @@ export function makeCourseScene(canvas, state) {
       if (dist < 3.6) {
         const facing = ((dx / dist) * -Math.sin(walk.yaw)) + ((dz / dist) * -Math.cos(walk.yaw));
         if (facing > 0.35) {
-          walkFocus = { kind: 'cart', label: 'Tractor — [E] take the wheel' };
+          walkFocus = { kind: 'cart', label: 'Tractor - [E] take the wheel' };
           return;
         }
       }
@@ -7360,14 +7932,56 @@ export function makeCourseScene(canvas, state) {
     // Resolve this before rescoring its moving focus point so the hand-truck
     // handle cannot discard its own prompt midway through the tilt animation.
     const retainedProp = walkFocus?.kind === 'prop' ? walkFocus.prop : null;
+    // carried forward with the retention, so a prop that legitimately held focus
+    // from the crosshair path does not lose the flag for a frame and strobe its
+    // highlight off and on again
+    const retainedViaCrosshair = walkFocus?.viaCrosshair === true;
     if (retainedProp) {
       const retainedDistance = Math.hypot(retainedProp.x - walk.x, retainedProp.z - walk.z);
-      if (walkPropRetainsFocus(retainedProp, retainedDistance)) {
+      // 9.2: how squarely the player is still facing the retained prop. Standing
+      // ON it (distance ~0) has no meaningful bearing, so that case keeps the old
+      // distance-only rule rather than reading a direction out of noise.
+      const retainedFacing = retainedDistance < 0.35 ? 1 : (
+        (((retainedProp.x - walk.x) / retainedDistance) * -Math.sin(walk.yaw))
+        + (((retainedProp.z - walk.z) / retainedDistance) * -Math.cos(walk.yaw))
+      );
+      if (walkPropRetainsFocus(retainedProp, retainedDistance, retainedFacing)) {
         const retainedLabel = retainedProp.label();
         if (retainedLabel) {
-          walkFocus = { kind: 'prop', label: retainedLabel, prop: retainedProp };
+          walkFocus = {
+            kind: 'prop', label: retainedLabel, prop: retainedProp,
+            viaCrosshair: retainedViaCrosshair,
+          };
           return;
         }
+      }
+    }
+    // Decision 3 (Goal 24): AIMED BEATS NEARBY. This sits above both the station
+    // shortcut and the equipped-tool blocks, because both of those return early
+    // and either one could answer for a prop the player is looking straight at.
+    // The owner named the station; the tool blocks are the same fault one step
+    // later, and fixing only the named half would have left "I am aimed at the
+    // ledger and the prompt says something else" true with a mop in hand.
+    const aimedProp = walkPropUnderCrosshair();
+    if (aimedProp) {
+      // `viaCrosshair` records WHICH path produced this focus. Two paths in this
+      // function set kind:'prop' -- this strict one (cos 12 deg facing AND 0.6 yd
+      // cross-track) and the general scan below, which admits facing > 0.3, about
+      // 72 degrees, anywhere inside the prop's own radius. The prompt is happy
+      // with either; a HIGHLIGHT is not. See the 3.3 note at the call site.
+      walkFocus = { kind: 'prop', label: aimedProp.label, prop: aimedProp.prop, viaCrosshair: true };
+      return;
+    }
+    // F1 (Full_Goal_16): a work station in reach OUTRANKS the equipped
+    // tool's prompt — Q+mop at the till must read the till, not the mop.
+    // The tool blocks below return early and used to leave E dead at the
+    // counter (label hijack, facing gate, hose fallback — all three).
+    const stationProp = walkStationPropInReach({ requireAim: true });
+    if (stationProp) {
+      const stationLabel = typeof stationProp.label === 'function' ? stationProp.label() : stationProp.label;
+      if (stationLabel) {
+        walkFocus = { kind: 'prop', label: stationLabel, prop: stationProp };
+        return;
       }
     }
     // A tool the player deliberately equipped owns the prompt. Nearby props no
@@ -7382,7 +7996,7 @@ export function makeCourseScene(canvas, state) {
           kind: 'tool',
           label: clubhouseApi.isInside(ax, az)
             ? clubhouseApi.vacuumLabelAt(ax, az)
-            : 'Vacuum — take it inside the shop · [F] choose another tool',
+            : 'Vacuum - take it inside the shop · [F] choose another tool',
           cell: null,
         };
         return;
@@ -7390,7 +8004,7 @@ export function makeCourseScene(canvas, state) {
       if (walkTool === 'washer') {
         walkFocus = {
           kind: 'tool',
-          label: 'Pressure washer — hold [LMB] to wash · hold [RMB] to apply soap · [F] tools',
+          label: 'Pressure washer - hold [LMB] to wash · hold [RMB] to apply soap · [F] tools',
           cell: null,
         };
         return;
@@ -7413,40 +8027,11 @@ export function makeCourseScene(canvas, state) {
       const coarseDx = p.x - walk.x;
       const coarseDz = p.z - walk.z;
       if (Math.hypot(coarseDx, coarseDz) > p.r + 0.75) continue;
-      let focusPoint = null;
-      try {
-        focusPoint = typeof p.focusPoint === 'function' ? p.focusPoint() : p.focusPoint;
-      } catch {
-        focusPoint = null;
-      }
-      const focusX = Number.isFinite(focusPoint?.x) ? focusPoint.x : p.x;
-      const focusZ = Number.isFinite(focusPoint?.z) ? focusPoint.z : p.z;
-      const focusY = Number.isFinite(focusPoint?.y) ? focusPoint.y : p.aimY;
-      const dx = focusX - walk.x;
-      const dz = focusZ - walk.z;
-      const dist = Math.hypot(dx, dz);
+      // Shelf cartons can share the same x/z on different authored levels, so
+      // props carrying an aim height score against the real first-person ray.
+      // walkPropAimScore is that rule, shared with the station selector above.
+      const { dist, facing, score: focusDistance } = walkPropAimScore(p);
       if (dist > p.r) continue;
-      let facing;
-      let focusDistance = dist;
-      if (Number.isFinite(focusY)) {
-        // Shelf cartons can share the same x/z on different authored levels.
-        // Score those props against the real first-person aim ray so looking at
-        // the upper carton cannot silently select one through the board below.
-        const dy = focusY - camera.position.y;
-        const spatial = Math.max(0.001, Math.hypot(dx, dy, dz));
-        const cp = Math.cos(walk.pitch);
-        facing = (dx / spatial) * -Math.sin(walk.yaw) * cp
-          + (dy / spatial) * Math.sin(walk.pitch)
-          + (dz / spatial) * -Math.cos(walk.yaw) * cp;
-        const focusBias = Number(typeof p.focusBias === 'function' ? p.focusBias() : p.focusBias) || 0;
-        focusDistance = walkPropFocusScore3d(spatial, facing, focusBias);
-      } else {
-        const safeDist = Math.max(0.001, dist);
-        facing = ((dx / safeDist) * -Math.sin(walk.yaw))
-          + ((dz / safeDist) * -Math.cos(walk.yaw));
-        const focusBias = Number(typeof p.focusBias === 'function' ? p.focusBias() : p.focusBias) || 0;
-        focusDistance -= focusBias;
-      }
       if (focusDistance >= bestScore) continue;
       const candidateLabel = facing > 0.3 ? p.label() : '';
       if (candidateLabel) { // a falsy label = the prop is dormant right now
@@ -7474,7 +8059,7 @@ export function makeCourseScene(canvas, state) {
         const az = walk.z - Math.cos(walk.yaw) * 1.5;
         const label = clubhouseApi.isInside(ax, az)
           ? clubhouseApi.vacuumLabelAt(ax, az)
-          : 'Vacuum — take it inside the shop';
+          : 'Vacuum - take it inside the shop';
         if (label) {
           walkFocus = { kind: 'hose', label, cell: null };
           return;
@@ -7523,6 +8108,19 @@ export function makeCourseScene(canvas, state) {
       if (!isRepeat) dismountCart();
       return;
     }
+    // 9.2: the prompt no longer names a station the crosshair is not on, so E
+    // needs its own route to one -- otherwise "may keep working for E" would be
+    // false and pressing E at the counter while looking slightly off would do
+    // nothing. This runs only when the crosshair focus has no action of its own,
+    // so it can never steal a press the player aimed somewhere deliberate.
+    if (!walkFocus || (walkFocus.kind !== 'prop' && walkFocus.kind !== 'cart')) {
+      const reachStation = walkStationPropInReach();
+      if (reachStation && (reachStation.action || reachStation.hold)) {
+        if (isRepeat) return;
+        if (reachStation.action) reachStation.action();
+        return;
+      }
+    }
     if (!walkFocus) return;
     if (walkFocus.kind === 'cart') {
       if (isRepeat) return;
@@ -7539,6 +8137,26 @@ export function makeCourseScene(canvas, state) {
         return;
       }
       if (walkFocus.prop.action) walkFocus.prop.action();
+      else {
+        // K1 (Goal 23) — E WAS SILENT INDOORS ON OBJECTS THE GAME ITSELF NAMES.
+        //
+        // The stranger's first finding, and this is the whole of it: a prop
+        // that is focusable and LABELLED -- which is why its name is on the
+        // prompt bar and why the player pressed E at it -- but carries no
+        // `action` fell off the end of this branch with no else. Nothing
+        // happened and nothing said why.
+        //
+        // Section 1's entrance door got a refusal that names the obstacle and
+        // it is the reason a stranger finally got inside. That rule stopped at
+        // the door. It does not now.
+        const named = typeof walkFocus.prop.label === 'function'
+          ? walkFocus.prop.label()
+          : walkFocus.prop.label;
+        const name = typeof named === 'string' ? named.split(String.fromCharCode(10))[0].trim() : '';
+        if (name && walkHooks.toast) {
+          walkHooks.toast(t('hud.nothingToDoWith', { name }), 'info');
+        }
+      }
     } else if ((walkFocus.kind === 'turf' || walkFocus.kind === 'hose') && walkFocus.cell && walkHooks.inspectAt) {
       if (!isRepeat) walkHooks.inspectAt(
         walkFocus.cell.x,
@@ -7559,7 +8177,7 @@ export function makeCourseScene(canvas, state) {
     // Never let X short-circuit the contextual E release gate. In particular,
     // the placement key may still be physically down during the first frame
     // after a carton lands on a work surface.
-    if (walkHeld.has('e') || contextToolRequiresRelease) return false;
+    if (heldAction('interact') || contextToolRequiresRelease) return false;
     if (walkTool) walkSetTool(null);
     autoTool = null;
     walkFocus.prop.secondaryAction();
@@ -7586,7 +8204,7 @@ export function makeCourseScene(canvas, state) {
   function runHold(dt) {
     holdActive = false;
     if (!walkFocus || walkFocus.kind !== 'prop' || !walkFocus.prop.hold) return;
-    if (!walkHeld.has('e')) return;
+    if (!heldAction('interact')) return;
     if (walkFocus.prop !== holdPressProp) return;
     if (contextToolRequiresRelease) return;
     const requestedTool = walkFocus.prop.tool || null;
@@ -7638,11 +8256,22 @@ export function makeCourseScene(canvas, state) {
   // This still cannot stop a browser-RESERVED chord (Ctrl+W, Ctrl+T, Ctrl+L) — only the
   // Keyboard Lock API can, and that is declined (needs fullscreen, makes Escape a
   // press-and-hold). It does stop everything the page is allowed to claim.
-  const WALK_CONSUMED_KEYS = new Set([
-    'w', 'a', 's', 'd', 'shift', ' ', 'tab',
+  // Literal keys the walker always swallows while pointer-locked, plus
+  // whatever the binding table currently claims (N2/F2 - rebinding a verb to
+  // any key must also stop that key reaching the page).
+  const WALK_CONSUMED_LITERALS = new Set([
+    ' ', 'tab',
     'arrowup', 'arrowdown', 'arrowleft', 'arrowright',
-    'e', 'q', 'r', 'f', 'x', 'b', 'j', 'l', 'i', 'g', 'c', 'm', 'v', 'z',
+    'b', 'i', 'g', 'c', 'm',
   ]);
+  function walkConsumesKey(key) {
+    if (WALK_CONSUMED_LITERALS.has(key)) return true;
+    const bindings = walkHooks.bindings ? walkHooks.bindings() : DEFAULT_BINDINGS;
+    for (const action of BINDABLE_ACTIONS) {
+      if ((bindings[action.id] || action.defaultKey) === key) return true;
+    }
+    return false;
+  }
 
   function walkKeyDown(e) {
     walkReconcileModifiers(e, 'keydown');
@@ -7658,8 +8287,8 @@ export function makeCourseScene(canvas, state) {
     // claim. It cannot stop a browser-RESERVED chord (Ctrl+W, Ctrl+T, Ctrl+N in
     // Chrome) — only the Keyboard Lock API can, and that needs fullscreen and
     // makes Escape a press-and-hold. See OVERNIGHT_REPORT_2.md.
-    if (document.pointerLockElement === canvas && WALK_CONSUMED_KEYS.has(key)) e.preventDefault();
-    if (key === 'e' && !walkHeld.has(key)) {
+    if (document.pointerLockElement === canvas && walkConsumesKey(key)) e.preventDefault();
+    if (key === boundWalkKey('interact') && !walkHeld.has(key)) {
       holdPressProp = walkFocus && walkFocus.kind === 'prop' && walkFocus.prop.hold
         ? walkFocus.prop
         : null;
@@ -7669,9 +8298,9 @@ export function makeCourseScene(canvas, state) {
   function walkKeyUp(e) {
     walkReconcileModifiers(e, 'keyup');
     const key = e.key.toLowerCase();
-    if (document.pointerLockElement === canvas && WALK_CONSUMED_KEYS.has(key)) e.preventDefault();
+    if (document.pointerLockElement === canvas && walkConsumesKey(key)) e.preventDefault();
     walkHeld.delete(key);
-    if (key === 'e') {
+    if (key === boundWalkKey('interact')) {
       contextToolRequiresRelease = false;
       holdPressProp = null;
     }
@@ -7752,6 +8381,20 @@ export function makeCourseScene(canvas, state) {
     walkReconcileModifiers(e, 'mousemove');
     if (document.pointerLockElement !== canvas) return;
     if (walkLockGuard > 0) { walkLockGuard -= 1; return; }
+    // 3.2 (Goal 25) — THE BOOK OWNS LOOK AS WELL AS MOVEMENT.
+    //
+    // Goal 24 stopped WASD while the ledger is open and deliberately left the
+    // mouse alive, on the reasoning that "turning your head over a page you are
+    // holding is not walking". Goal 25 overrules that in as many words: while
+    // the book is open, opening, closing or turning a page, "mouse movement does
+    // not change player yaw or pitch" and "the camera remains composed on the
+    // ledger".
+    //
+    // The delta is DROPPED HERE, before it reaches walk.yaw/pitch, rather than
+    // being corrected afterwards -- the brief is explicit that the deltas must
+    // not enter the world-camera update, and zeroing after the fact leaves one
+    // frame of drift and fights whatever else reads the camera that frame.
+    if (clubhouseApi?.ledgerHasThePlayer?.()) return;
     const sens = walk.sens || 1; // pause-menu mouse sensitivity
     // applyMouseLook clamps the per-event delta (no 180 whip on a reacquisition
     // jump), applies sensitivity, wraps yaw and clamps pitch — see mouseLook.js.
@@ -7791,6 +8434,13 @@ export function makeCourseScene(canvas, state) {
     camera.near = 0.15;
     camera.updateProjectionMatrix();
     heldRoot.visible = !!walkTool && walkTool !== 'greensMower' && walkTool !== 'spreader';
+    // Re-arm the held rig's own pass, which walkExit switched off so the till
+    // and the overview camera would not inherit a floating tool. Without this
+    // the tool would come back invisible after any trip to the counter.
+    // Deactivations first — same ordering contract as setTool.
+    if (toolRigs[walkTool]) enableBroomLightLayer();
+    for (const [rigId, rig] of Object.entries(toolRigs)) if (rigId !== walkTool) rig.setActive(false);
+    toolRigs[walkTool]?.setActive(true);
     window.addEventListener('keydown', walkKeyDown);
     window.addEventListener('keyup', walkKeyUp);
     window.addEventListener('blur', walkBlur);
@@ -7812,6 +8462,15 @@ export function makeCourseScene(canvas, state) {
     walkSetSpraying(false);
     walkSetSoaping(false);
     heldRoot.visible = false; // the overview camera carries no hand tools
+    // The broom draws in its OWN pass, after the world, gated only on the
+    // viewmodel's `active` flag, so hiding the shared held rig is not enough
+    // here either.
+    //
+    // C10: this used to claim it also covered the till. It never did — walkExit
+    // runs on scene DISPOSE and on nothing else, so the counter never reached
+    // it, and eight other tools were never in scope even if it had. The station
+    // stow is syncStationToolStow(), ticked every frame.
+    for (const rig of Object.values(toolRigs)) rig.setActive(false);
     walkHeld.clear();
     // The dirt reveal is driven from the walk update, so leaving on foot with Q
     // down (opening the laptop, stepping to the till) would strand it lit with
@@ -7838,10 +8497,21 @@ export function makeCourseScene(canvas, state) {
     rig.apply();
   }
 
+  // D1 (Goal 23): the boards under the player's feet, for the held tool's yarn
+  // solver. Same source walkUpdate uses for the camera, so the mop's strands
+  // land on the floor the player is standing on rather than passing through it.
+  function walkFloorWorldY() {
+    if (!walk.active) return null;
+    const boards = clubhouseApi ? clubhouseApi.groundYAt(walk.x, walk.z) : null;
+    if (boards !== null && boards !== undefined) return boards;
+    const turf = walkSurfaceHeightAt(walk.x, walk.z);
+    return Number.isFinite(turf) ? turf : null;
+  }
+
   function walkUpdate(dtMs) {
     if (!walk.active) return;
     const dt = dtMs / 1000;
-    toolViewmodels.update(dt);
+    toolViewmodels.update(dt, walkFloorWorldY());
     const px0 = walk.x; // where this frame started, so recovery can tell moving from pinned
     const pz0 = walk.z;
 
@@ -7897,8 +8567,8 @@ export function makeCourseScene(canvas, state) {
         const visual = playerGolfCartVisual;
         const fleetCart = visual.cartState;
         const root = visual.root;
-        const forwardHeld = walkHeld.has('w');
-        const reverseHeld = walkHeld.has('s');
+        const forwardHeld = heldAction('moveForward');
+        const reverseHeld = heldAction('moveBack');
         const hardBrake = walkHeld.has(' ');
         const brakingInput = hardBrake
           || (reverseHeld && cart.velocity > 0.05)
@@ -7914,7 +8584,7 @@ export function makeCourseScene(canvas, state) {
         const velocityDelta = clamp(targetVelocity - cart.velocity, -response * dt, response * dt);
         cart.velocity += velocityDelta;
         if (Math.abs(cart.velocity) < 0.015 && targetVelocity === 0) cart.velocity = 0;
-        const steer = (walkHeld.has('a') ? 1 : 0) - (walkHeld.has('d') ? 1 : 0);
+        const steer = (heldAction('moveLeft') ? 1 : 0) - (heldAction('moveRight') ? 1 : 0);
         let turnDelta = 0;
         if (steer && Math.abs(cart.velocity) > 0.035) {
           const speedAuthority = clamp(Math.abs(cart.velocity) / Math.max(2, cart.speed * 0.55), 0.22, 1);
@@ -7956,8 +8626,8 @@ export function makeCourseScene(canvas, state) {
         updateClippings(dt, walk.x, 0, walk.z, false);
       } else {
       // cart handling: W/S throttle along the heading, A/D steer — no strafing
-      const throttle = (walkHeld.has('w') ? 1 : 0) - (walkHeld.has('s') ? 1 : 0);
-      const steer = (walkHeld.has('a') ? 1 : 0) - (walkHeld.has('d') ? 1 : 0);
+      const throttle = (heldAction('moveForward') ? 1 : 0) - (heldAction('moveBack') ? 1 : 0);
+      const steer = (heldAction('moveLeft') ? 1 : 0) - (heldAction('moveRight') ? 1 : 0);
       if (steer) {
         // full authority under way, gentle pivot when stopped; reversed in reverse
         const authority = throttle > 0 ? 1 : throttle < 0 ? -0.7 : 0.35;
@@ -8032,7 +8702,14 @@ export function makeCourseScene(canvas, state) {
     } else {
       animateTractor(dt, 0, 0, 0, false);
       updateClippings(dt, walk.x, 0, walk.z, false); // clippings settle after you hop off
-      const run = walkHeld.has('shift') ? walk.runMult : 1;
+      // I2: running with a cleaning tool out capped separately — 6.12 yd/s with
+      // a broom in both hands read as flat sprinting. The cap lives in
+      // locomotion.js so BROOM_FEEL.dirt.pushSpeed can derive from the SAME
+      // number and the push-beats-run invariant cannot silently split into two
+      // authorities again (the original pushSpeed defect, one layer up).
+      const run = heldAction('run')
+        ? (walkTool && CLEANING_TOOLS[walkTool] ? TOOL_RUN_MULTIPLIER : walk.runMult)
+        : 1;
       // a full armful or a heavy carton slows you down — sim/stocking says by how much
       const load = clubhouseApi && clubhouseApi.carrySpeedFactor ? clubhouseApi.carrySpeedFactor() : 1;
       const carryRadius = clubhouseApi && clubhouseApi.carryCollisionRadius
@@ -8040,10 +8717,34 @@ export function makeCourseScene(canvas, state) {
         : walk.radius;
       let mx = 0;
       let mz = 0;
-      if (walkHeld.has('w')) mz -= 1;
-      if (walkHeld.has('s')) mz += 1;
-      if (walkHeld.has('a')) mx -= 1;
-      if (walkHeld.has('d')) mx += 1;
+      // I2 (Goal 23) — HOLDING THE BOOK LOCKS YOU TO IT.
+      //
+      // "While I am holding the book, WASD must not move me. No walking, no
+      // strafing. I am reading."
+      //
+      // Carrying the register was a full walking state with a book in frame, so
+      // a player reading a page drifted across the room while they read it. The
+      // keys are read and DISCARDED rather than left unread, so `walkMoving`
+      // goes false, the footstep and bob systems settle, and nothing downstream
+      // has to learn about the book.
+      //
+      // Look is deliberately untouched: turning your head over a page you are
+      // holding is not walking, and taking the mouse away as well would make it
+      // feel broken rather than deliberate.
+      // G2 (Goal 24): OPEN counts, not just CARRIED. This read `ledgerCarried()`
+      // alone, so pressing E to read the book left every movement key live and
+      // the player walked off with the pages up. The Goal 23 driver that
+      // certified this measured 0.0000 forward and 0.0000 strafe honestly — of
+      // the carried state, which is not the state a reader is in.
+      const readingTheBook = !!(clubhouseApi && clubhouseApi.ledgerHasThePlayer
+        ? clubhouseApi.ledgerHasThePlayer()
+        : (clubhouseApi && clubhouseApi.ledgerCarried && clubhouseApi.ledgerCarried()));
+      if (!readingTheBook) {
+        if (heldAction('moveForward')) mz -= 1;
+        if (heldAction('moveBack')) mz += 1;
+        if (heldAction('moveLeft')) mx -= 1;
+        if (heldAction('moveRight')) mx += 1;
+      }
       walkMoving = !!(mx || mz);
       // DID THE MOVEMENT HANDLER RUN, and what did it want? The one question about the
       // input chain that cannot be answered from outside this closure: position delta is
@@ -8071,6 +8772,11 @@ export function makeCourseScene(canvas, state) {
 
     walkRecover(dtMs, px0, pz0);
     const distanceMoved = Math.hypot(walk.x - px0, walk.z - pz0);
+    // E2 (Full_Goal_16): the gait phase lives with the WALK, not with the
+    // held-tool viewmodel — its old home early-returned whenever no tool was
+    // drawn, freezing bobPhase (and with it the camera bob and any footfall)
+    // for the bare-handed player. One advance per frame, here.
+    bobPhase += dt * (walkMoving ? STRIDE_RATE_RAD_S : IDLE_SWAY_RATE_RAD_S);
     updatePushedEquipment(dt, distanceMoved);
     if (!routeArrivalNotified && yardHome && Math.hypot(walk.x - yardHome.x, walk.z - yardHome.z) < 12) {
       routeArrivalNotified = true;
@@ -8086,6 +8792,32 @@ export function makeCourseScene(canvas, state) {
     // inside the clubhouse (or on its porch) you stand on the level floor slab
     const floorY = clubhouseApi ? clubhouseApi.groundYAt(walk.x, walk.z) : null;
     const groundY = floorY !== null && floorY !== undefined ? floorY : walkSurfaceHeightAt(walk.x, walk.z);
+    const stepSin = Math.sin(bobPhase);
+    const stepDelta = stepSin - stepBobSin;
+    // a teleport (door warp, QA staging) is not a stride — a frame that moved
+    // more than any legal step clears the gate instead of loading it
+    if (distanceMoved < 1.0) stepDistAccum += distanceMoved;
+    else stepDistAccum = 0;
+    // standing still forfeits stride credit: the first step after a pause is
+    // a full step, and credit can never carry across a staging teleport
+    // (position assignment between frames is invisible to distanceMoved)
+    if (!walkMoving) {
+      stepIdleS += dt;
+      if (stepIdleS > 0.35) stepDistAccum = 0;
+    } else {
+      stepIdleS = 0;
+    }
+    if (walkMoving && mb <= 0.001 && stepBobDelta < 0 && stepDelta >= 0 && stepDistAccum > 0.22) {
+      if (walkHooks.footstep) {
+        walkHooks.footstep(
+          floorY !== null && floorY !== undefined ? 'boards' : 'turf',
+          heldAction('run') ? 1.25 : 1,
+        );
+      }
+      stepDistAccum = 0;
+    }
+    stepBobSin = stepSin;
+    stepBobDelta = stepDelta;
     if (mb <= 0.001) {
       const bob = walk.cameraBob && !walk.reducedMotion && walkMoving
         ? Math.sin(bobPhase) * 0.018
@@ -8149,6 +8881,42 @@ export function makeCourseScene(canvas, state) {
       }
     }
     walkFindFocus();
+    // 3.3 (Goal 25) — THE OUTLINE FOLLOWS THE PROMPT, from ONE place.
+    //
+    // Not from the prop's own label(): walkPropUnderCrosshair calls label() on
+    // every CANDIDATE while scoring, so a book that loses to the tee desk still
+    // gets its label read. Driving the outline there would light the cover while
+    // the prompt named something else — 3.3's "clears the moment aim is lost"
+    // failing in exactly the case the aim rule exists to separate.
+    //
+    // walkFocus is the resolved answer after every early return in
+    // walkFindFocus, so reading it here means the outline and the prompt are the
+    // same decision by construction. onAim is idempotent; this runs every frame.
+    // FOUND-FALSE, one hour after it shipped: "the book highlights from across
+    // the room, not under the crosshair."
+    //
+    // The first version asked `walkFocus.prop === ledgerProp`, which is true for
+    // BOTH paths that set kind:'prop'. The general scan admits facing > 0.3 --
+    // about 72 degrees off axis -- anywhere inside the prop's radius, and the
+    // ledger's radius is 2.2 yd. So standing near the desk and looking well off
+    // the book lit it. Measured on the finished build at 1.2 yd and 55 degrees
+    // off: active true, 16 shells, while the crosshair was nowhere near it.
+    //
+    // The requirement is "when the crosshair GENUINELY aims at the cover", so
+    // `viaCrosshair` is now required. A prompt may be generous about what you are
+    // near; a highlight must not be, because the highlight is the thing that
+    // claims "this exact object is what E will act on".
+    //
+    // My driver could not see this because it only ever sampled AIMED versus
+    // 180-DEGREES-AWAY -- two points so far apart that both paths agree on them.
+    // The whole disagreement lives in between.
+    if (clubhouseApi?.setLedgerAimed) {
+      clubhouseApi.setLedgerAimed(
+        walkFocus?.kind === 'prop'
+        && walkFocus.viaCrosshair === true
+        && walkFocus.prop === clubhouseApi.ledgerProp?.(),
+      );
+    }
     reconcileAutoTool();   // contextual prop tools equip on focus, stow on look-away
     runHold(dt);           // holding E runs whatever the focused prop exposes as a hold verb
     updateHeldFeel(dt);
@@ -8170,7 +8938,7 @@ export function makeCourseScene(canvas, state) {
           if (res.blocked && !walkSoaping) washHintClock -= dt;
           if (washHintClock <= 0 && res.blocked) {
             washHintClock = 4;
-            if (walkHooks.toast) walkHooks.toast('The water is running straight off it — this needs soap first (hold the right button).', 'warn');
+            if (walkHooks.toast) walkHooks.toast(t('world.theWaterIsRunning'), 'warn');
           }
           // The stream starts at the lance tip. This used to be a camera-local constant that
           // approximated the tip while the player stood still — it ignored heldRoot, so during the
@@ -8214,43 +8982,159 @@ export function makeCourseScene(canvas, state) {
     // on the floor a stride and a half ahead — regardless of where the player is looking. So the
     // tool declares its world pitch and we solve the local rotation that preserves it. Look at the
     // horizon and the head correctly swings below the frame; look down to work and it is there.
+    floorAnchorDebug.frame += 1;
     for (const id of FLOOR_ANCHORED_TOOLS) {
       const g = heldGroups[id];
-      if (!g || !g.visible) continue;
-      // Phase 6: the broom's pose is owned by its viewmodel rig (pitch-driven
-      // reach with the head planted, not a floor-plane re-solve).
-      if (id === 'broom' && broomVm.isActive()) continue;
+      // Dropping the tool forgets its accepted floor sample, so the next equip
+      // snaps to the boards on its first frame instead of easing up from
+      // wherever the last room's floor happened to be.
+      if (!g || !g.visible) {
+        floorAnchorSampleY.delete(id);
+        floorAnchorDebug.tools[id] = { ran: false, why: g ? 'group not visible' : 'no group' };
+        continue;
+      }
+      // Phase 6 → I1: any tool owned by a viewmodel rig gets its pose from the
+      // rig (pitch-driven reach with the head planted), not this floor-plane
+      // re-solve. Was broom-only; now mop, vacuum and dustpan ride the same
+      // exemption while equipped.
+      if (toolRigs[id]?.isActive()) {
+        floorAnchorSampleY.delete(id);
+        floorAnchorDebug.tools[id] = { ran: false, why: 'viewmodel rig owns the pose' };
+        continue;
+      }
       g.rotation.x = CLEANING_TOOLS[id].worldPitch - walk.pitch;
       // FLOOR-CONTACT SOLVE. The fixed world pitch keeps the head aimed down, but the head can still
       // hover or clip depending on stance and the equip/bob height. Sample the flat interior floor
       // under the contact socket and nudge the whole group in Y so strands/bristles/nozzle just kiss
-      // the boards. groundYAt is O(1) indoors (a flat constant — no raycast); the offset is clamped
-      // hard so a stray sample can never fling the tool, and reset from rest each frame so it never
-      // accumulates. Sampling runs AFTER updateHeldFeel, so the socket already carries the gait bob.
+      // the boards. groundYAt is O(1) indoors (a flat constant — no raycast). Sampling runs AFTER
+      // updateHeldFeel, so the socket already carries the gait bob.
+      //
+      // E1/E2: THE GUARD USED TO BE THE SOLVE, AND IT SATURATED ON FRAME ONE.
+      //
+      // This applied `clamp(floorY - contactY, ±0.06)`. The comment called that
+      // clamp a guard against a stray groundYAt sample, which is a real thing to
+      // want — but the correction it has to make is 0.6 yd across the carried
+      // band, an order of magnitude larger than the guard. So the clamp was
+      // pinned at its limit on every frame and the head simply rode the camera
+      // the rest of the way: mop, vacuum and dustpan all declared
+      // `floorAnchored: true` and measured 0.61-0.64 yd of carried spread
+      // (Designs/ProShop/TOOL_STANDARD_AUDIT.md). The flag was honest about
+      // intent; the implementation could not deliver it at any tuning.
+      //
+      // The fix is to put the guard where it belongs. A stray sample is a bad
+      // FLOOR HEIGHT, so guard the floor height: a real floor does not jump, so
+      // the accepted sample may only travel FLOOR_SAMPLE_RATE yd/s. The pose
+      // then applies the whole remaining correction immediately, so it responds
+      // to a fast look at full speed and cannot saturate. The absolute envelope
+      // below it is a sanity bound on a garbage sample, not a working range —
+      // nothing legitimate asks a held tool to move two yards.
       const rest = g.userData.cleaningRestPosition;
-      const floorY = clubhouseApi && clubhouseApi.groundYAt ? clubhouseApi.groundYAt(walk.x, walk.z) : null;
-      if (rest && floorY != null) {
-        g.position.y = rest.y;
-        const contactSocket = CLEANING_TOOLS[id].sockets.contact ? 'contact' : 'nozzle';
-        socketWorld(g, contactSocket, _toolContact);
-        g.position.y = rest.y + Math.max(-0.06, Math.min(0.06, floorY - _toolContact.y));
+      const rawFloorY = clubhouseApi && clubhouseApi.groundYAt ? clubhouseApi.groundYAt(walk.x, walk.z) : null;
+      if (!rest || rawFloorY == null) {
+        floorAnchorDebug.tools[id] = {
+          ran: false,
+          why: !rest ? 'no cleaningRestPosition on the group' : 'no groundYAt sample',
+        };
+        continue;
+      }
+      const prevFloorY = floorAnchorSampleY.get(id);
+      const step = FLOOR_SAMPLE_RATE * dt;
+      const floorY = prevFloorY === undefined ? rawFloorY
+        : prevFloorY + Math.max(-step, Math.min(step, rawFloorY - prevFloorY));
+      floorAnchorSampleY.set(id, floorY);
+      g.position.copy(rest);
+      const contactSocket = CLEANING_TOOLS[id].sockets.contact ? 'contact' : 'nozzle';
+      socketWorld(g, contactSocket, _toolContact);
+      const need = floorY - _toolContact.y;
+      const applied = Math.max(-FLOOR_ANCHOR_ENVELOPE, Math.min(FLOOR_ANCHOR_ENVELOPE, need));
+      // THE CORRECTION IS A WORLD-Y MOVE AND THE GROUP IS A CHILD OF THE CAMERA.
+      //
+      // Writing `position.y += need` looks right and is not: local +Y under a
+      // camera pitched by p delivers only cos(p) of world +Y and drags the tool
+      // backwards by the rest. That under-correction is invisible at the horizon
+      // (cos 0 = 1) and total at the top of the look range (cos 1.35 = 0.22),
+      // which is exactly the shape of "anchored when you work, rides the view
+      // when you look up". So the move is decomposed into the frame the group
+      // actually lives in. `residual` below re-samples the socket afterwards and
+      // is the proof: if this decomposition were wrong it would not be ~0.
+      const cp = Math.cos(walk.pitch);
+      const sp = Math.sin(walk.pitch);
+      g.position.set(rest.x, rest.y + applied * cp, rest.z - applied * sp);
+      socketWorld(g, contactSocket, _toolContactAfter);
+      floorAnchorDebug.tools[id] = {
+        ran: true,
+        floorY: +floorY.toFixed(4),
+        contactYBefore: +_toolContact.y.toFixed(4),
+        need: +need.toFixed(4),
+        applied: +applied.toFixed(4),
+        saturated: Math.abs(applied) >= FLOOR_ANCHOR_ENVELOPE - 1e-6,
+        residual: +(floorY - _toolContactAfter.y).toFixed(4),
+      };
+    }
+    // E1/E2: THE FOUR STATIC TOOLS.
+    //
+    // dustpan, spray, washer and trashbag each returned ONE distinct transform
+    // across two full seconds of held use — not a small animation, none at all —
+    // while mop, cloth, sponge and vacuum all had a stroke. The machinery was
+    // never per-tool: the cleaning block dispatches on toolClass, scoop, jet and
+    // carry had no branch, and the washer does not even reach that block because
+    // it is `external` and the pressure-jet path owns it.
+    //
+    // So the motion is declared on the tool (cleaningTools.js `useMotion`) and
+    // driven HERE, above every one of those forks, where a held tool is a held
+    // tool. A new class needs data rather than a fifth branch.
+    //
+    // x, z and roll only: the floor-contact solve above is authoritative on y
+    // and pitch for anchored tools, and this is exactly the collision that cost
+    // this item its first two attempts.
+    if (walkSpraying && !cart.mounted && CLEANING_TOOLS[walkTool]?.useMotion
+      && !rigFor(walkTool)?.isActive()) {
+      const g = heldGroups[walkTool];
+      const rest = g?.userData?.cleaningRestPosition;
+      if (g && g.visible && rest) {
+        const m = CLEANING_TOOLS[walkTool].useMotion;
+        const phase = time * m.rate;
+        const sx = Math.sin(phase);
+        const cz = Math.cos(phase);
+        const shake = m.jitter ? (Math.random() - 0.5) * m.jitter : 0;
+        g.position.x = rest.x + sx * (m.swing?.[0] ?? 0) + shake;
+        g.position.z = (CLEANING_TOOLS[walkTool].floorAnchored ? g.position.z : rest.z)
+          + cz * (m.swing?.[1] ?? 0) + shake;
+        g.rotation.z = g.userData.cleaningRestRotationZ + sx * (m.roll ?? 0);
+        toolFeelIntensity = Math.abs(cz);
+        toolFeelContact = true;
       }
     }
     // Phase 6: the broom viewmodel rig owns the broom pose. It runs BEFORE the
     // cleaning block so the contact socket resolves from the rig-posed group,
     // and its sub-2° eased contact kick rides the camera for this frame only
     // (the walk update rewrites camera pitch next frame).
-    const broomPose = broomVm.isActive() ? broomVm.update(dt, {
+    // I1: whichever rig owns the held tool updates here — same slot the broom
+    // always used, same ordering contract (before the cleaning block so the
+    // contact socket resolves from the rig-posed group). `broomPose` keeps its
+    // name because the broom-specific dirt-push branches below key on it.
+    const heldRig = rigFor(walkTool);
+    // B2: the LIVE clone, not the frozen table — stroke.rate and anchor here
+    // must answer the tuning overlay the same frame a slider moves.
+    const rigFeel = heldRig ? liveToolFeel[walkTool] : null;
+    const rigPose = heldRig && heldRig.isActive() ? heldRig.update(dt, {
       pitch: walk.pitch,
       yaw: walk.yaw,
       using: walkSpraying,
       moving: walkMoving,
-      phase: time * BROOM_RATE,
+      phase: time * (rigFeel ? rigFeel.stroke.rate : BROOM_RATE),
       reducedMotion: walk.reducedMotion,
-      speedNorm: dt > 0 ? Math.min(1, (distanceMoved / dt) / 2.2) : 0,
+      // NOT the walk speed, despite having been written as it: this is the
+      // hand speed at which the sweep's audio and particles saturate, and it
+      // sits deliberately BELOW a full walk so an ordinary stroke reads at
+      // full strength. Named so it stops masquerading as a locomotion value.
+      speedNorm: dt > 0
+        ? Math.min(1, (distanceMoved / dt)
+          / (liveToolFeel.broom || BROOM_FEEL).dirt.sweepIntensityFullYdS) : 0,
     }) : null;
-    if (broomPose && broomPose.cameraKickRad > 0.0001 && !walk.reducedMotion) {
-      camera.rotation.x -= broomPose.cameraKickRad;
+    const broomPose = walkTool === 'broom' ? rigPose : null;
+    if (rigPose && rigPose.cameraKickRad > 0.0001 && !walk.reducedMotion) {
+      camera.rotation.x -= rigPose.cameraKickRad;
     }
     // The audio layers ride the rig's feel: intensity every frame, the
     // contact edge defined as "bristles in the fast window AND planted", and
@@ -8261,26 +9145,72 @@ export function makeCourseScene(canvas, state) {
       walkHooks.onBroomFeel?.(
         broomPose.intensity, broomPose.inContact && broomPose.planted, broomSurface,
       );
+    } else if (rigPose) {
+      // The other rig tools feed the same three audio layers through E3's
+      // hook: intensity from the rig's stroke, contact from the plant (carry
+      // rigs have no plant, so bare stroke contact carries them).
+      toolFeelIntensity = rigPose.intensity;
+      toolFeelContact = rigPose.inContact && (rigPose.planted || rigFeel?.anchor === 'carry');
     }
+    // E3: THE SAME THREE LAYERS, FOR EVERY OTHER TOOL.
+    //
+    // onBroomFeel has driven the broom's start transient, its intensity- and
+    // surface-following loop and its release tail since Phase 6. Nothing emitted
+    // the equivalent for the other eight, so their loops were flat and their
+    // declared start/stop sounds were never called (and did not exist). One hook,
+    // same shape, for whatever is in hand.
+    if (walkTool && walkTool !== 'broom' && CLEANING_TOOLS[walkTool]) {
+      const surface = (toolFeelContact && clubhouseApi?.cleaningSurfaceAt)
+        ? clubhouseApi.cleaningSurfaceAt(walk.x, walk.z) : null;
+      walkHooks.onToolFeel?.(walkTool, toolFeelIntensity, toolFeelContact, surface);
+    }
+    toolFeelIntensity = 0;
+    toolFeelContact = false;
     // --- DIRT SENSE ---------------------------------------------------------
     // Hold Q: every remaining pile lights up through the geometry, so the piles
     // behind the counter stop being invisible. Using a tool cancels it outright
     // (you are no longer looking, you are working), and it lingers briefly on
     // release so a glance survives letting go of the key.
     if (clubhouseApi?.setDirtReveal) {
-      const senseHeld = walkHeld.has(DIRT_SENSE.key) && !cart.mounted;
-      if (walkSpraying) {
+      const senseHeld = heldAction('dirtSense') && !cart.mounted;
+      // ITEM 11 (2026-08-06): "Q reveal invisible while brooming, exactly when
+      // I need it."
+      //
+      // This branch used to test walkSpraying FIRST, so holding the use button
+      // killed the reveal outright and an explicit Q hold could never be seen:
+      // the alpha decayed to zero in 0.18 s and stayed there for as long as you
+      // swept. The reasoning above ("you are no longer looking, you are
+      // working") is sound for the LINGER — a reveal should not hang around
+      // while you work — but it was applied to the deliberate hold too, which
+      // is the one moment the player is asking for it on purpose.
+      //
+      // An explicit hold now wins. Working still cancels the linger, so the
+      // reveal never trails a stroke you have stopped asking for.
+      // F2: A PANEL IS NOT A GLANCE. With the register, the laptop or the
+      // ledger open the player is reading a screen, not looking round the room —
+      // and the reveal was still lit behind it, glowing through the furniture
+      // under the UI, with the "[Q] reveal dirt" affordance still offered for a
+      // key that now does nothing. Cut to zero immediately rather than fading:
+      // a fade reads as the reveal following you into the panel.
+      const stationOpen = !!walkHooks.stationOpen?.();
+      if (stationOpen) {
+        dirtSenseLinger = 0;
+        dirtSenseAlpha = 0;
+      } else if (senseHeld) {
+        dirtSenseLinger = walkSpraying ? 0 : DIRT_SENSE.linger;
+        dirtSenseAlpha = Math.min(1, dirtSenseAlpha + dt * DIRT_SENSE.rise);
+      } else if (walkSpraying) {
         dirtSenseLinger = 0;
         dirtSenseAlpha = Math.max(0, dirtSenseAlpha - dt / 0.18);
-      } else if (senseHeld) {
-        dirtSenseLinger = DIRT_SENSE.linger;
-        dirtSenseAlpha = Math.min(1, dirtSenseAlpha + dt * DIRT_SENSE.rise);
       } else if (dirtSenseLinger > 0) {
         dirtSenseLinger = Math.max(0, dirtSenseLinger - dt);
       } else if (dirtSenseAlpha > 0) {
         dirtSenseAlpha = Math.max(0, dirtSenseAlpha - dt / DIRT_SENSE.fade);
       }
-      clubhouseApi.setDirtReveal(dirtSenseAlpha, false);
+      // D3: the reveal answers the tool in your hands. A mop lights the grime
+      // and not the piles it cannot lift; a broom does the reverse. With no
+      // cleaning tool out it stays the whole-room "where is the mess" view.
+      clubhouseApi.setDirtReveal(dirtSenseAlpha, false, walkTool);
     }
     // The reticle answers House Flipper 1's question: is the thing I am pointing
     // at actually cleanable? Only while a debris tool is out, and only within
@@ -8335,6 +9265,11 @@ export function makeCourseScene(canvas, state) {
           const rayDir = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
           aim = clubhouseApi.cleaningAim(camera.position, rayDir, def.reach + 1.0);
         }
+        // B0: which tools' drawn pose belongs to the viewmodel rig this frame.
+        // Mop+broom tonight (goal B6 scopes the change); vacuum/dustpan carry
+        // the same two-writer defect and are logged for their own session.
+        const rigOwnsHeldTool = (walkTool === 'broom' || walkTool === 'mop')
+          && !!rigFor(walkTool)?.isActive();
         if (rest && (def.toolClass === 'stroke' || def.toolClass === 'sweep')) {
           // Per-tool retiming: mop = slow heavy push-pull, broom = brisker sweep, cloth = gentle
           // wipe, sponge = quick scrub. (Mop and broom were both the 4.8 / 0.16 fallback before.)
@@ -8363,12 +9298,23 @@ export function makeCourseScene(canvas, state) {
               group.position.z = rest.z + second;
               group.position.y = rest.y;
             }
-          } else if (!(walkTool === 'broom' && broomVm.isActive())) {
-            // Mop: a lateral push-pull across the boards. (The broom's stroke
-            // motion is composed by its viewmodel rig from the same phase.)
+          } else if (!rigOwnsHeldTool) {
+            // Mop: a lateral push-pull across the boards. (A rig tool's
+            // stroke motion is composed by its viewmodel rig from the same
+            // phase.)
+            //
+            // B0 (2026-08-07): this guard used to name the BROOM alone, so
+            // the MOP's rig solved its pose at the rig slot above and then
+            // THESE TWO WRITES clobbered the drawn x and roll every using
+            // frame — measured live: drawn x swept exactly rest.x ± MOP_SPAN
+            // and roll exactly ±0.035 while the rig's diagnostics reported a
+            // perfect solve. Six rounds of mop feel tuning never reached the
+            // screen while the button was held. Scoped to mop+broom tonight
+            // per the goal's B6; the vacuum and dustpan rigs are clobbered
+            // the same way and are logged for their own pass.
             group.position.x = rest.x + Math.sin(phase) * span;
           }
-          if (!(walkTool === 'broom' && broomVm.isActive())) {
+          if (!rigOwnsHeldTool) {
             group.rotation.z = group.userData.cleaningRestRotationZ + cosPhase * 0.035;
           }
           dirX = Math.cos(walk.yaw) * sign;
@@ -8379,7 +9325,7 @@ export function makeCourseScene(canvas, state) {
           // piles and, at push speed, ejected them out of the lane.) sweepAt
           // normalises, so only the direction matters here.
           if (walkTool === 'broom' && broomVm.isActive() && broomPose) {
-            const side = BROOM_FEEL.dirt.sideBias * sign;
+            const side = (liveToolFeel.broom || BROOM_FEEL).dirt.sideBias * sign;
             dirX = -Math.sin(walk.yaw) + Math.cos(walk.yaw) * side;
             dirZ = -Math.cos(walk.yaw) + -Math.sin(walk.yaw) * side;
           }
@@ -8391,6 +9337,10 @@ export function makeCourseScene(canvas, state) {
           // frame; the sim is linear in dt, so this sum-preserving redistribution is outcome-
           // preserving — NET cleaning over any stroke equals the ungated loop (rate-neutral). The
           // invariant holds: strokeGateAccum resets to 0 on every contact frame, so Σ gatedDt == Σ dt.
+          // the stroke is fastest mid-pass and stalls at the turnarounds, which is
+          // exactly the envelope the loop should follow
+          toolFeelIntensity = Math.abs(cosPhase);
+          toolFeelContact = true;
           if (Math.abs(cosPhase) >= STROKE_CONTACT_COS) {
             gatedDt = dt + strokeGateAccum;
             strokeGateAccum = 0;
@@ -8398,10 +9348,15 @@ export function makeCourseScene(canvas, state) {
             strokeGateAccum += dt;
             gatedDt = 0;
           }
-          // Phase 6: a CARRIED broom cleans nothing. Until the rig's pose has
+          // Phase 6: a CARRIED tool cleans nothing. Until the rig's pose has
           // blended onto the boards, contact dt banks instead of landing —
           // sweeping only counts where the bristles visibly are.
-          if (walkTool === 'broom' && broomPose && !broomPose.planted && gatedDt > 0) {
+          // B4 (2026-08-07): this guard named the BROOM alone — the same
+          // broom-only family as the stroke clobber — so an unplanted mop
+          // kept cleaning. Any rig-owned tool's planted flag gates now, and
+          // with B4's reach authority in the flag, hands that cannot span
+          // the floor clean nothing at any pitch.
+          if (rigOwnsHeldTool && rigPose && !rigPose.planted && gatedDt > 0) {
             strokeGateAccum += gatedDt;
             gatedDt = 0;
           }
@@ -8425,6 +9380,8 @@ export function makeCourseScene(canvas, state) {
             toolViewmodels.play('vacuum', vacuumStrokeLeft ? 'strokeleft' : 'strokeright');
             walkHooks.onStrokeReversal?.('vacuum', VACUUM_SPAN * VACUUM_RATE);
           }
+          toolFeelIntensity = Math.abs(Math.cos(phase));
+          toolFeelContact = true;
           vacuumLastSign = sign;
         } else if (rest && def.toolClass === 'spray') {
           // SPRAY CADENCE: a metronomic pump, not a continuous stream. Each cycle is one squeeze
@@ -8441,8 +9398,23 @@ export function makeCourseScene(canvas, state) {
             walkHooks.onSprayPulse?.(walkTool);
             toolViewmodels.play(walkTool, 'trigger');
             emitSprayMist(group, aim?.point && !aim.blocked ? aim.point : null);
+            sprayRecoilT = 1;
           }
           spraySqueezeActive = squeezing;
+          // E1/E2: THE BOTTLE RECOILS, NOT ONLY THE HANDS.
+          //
+          // fpHands.kick() moved the rig and left the bottle rigid inside it, so
+          // the spray tool measured ONE distinct transform across two seconds of
+          // pumping — the pump had no tell on the object itself. It has the
+          // pulse already; it just never reached the group. Squared decay, so
+          // the kick is a snap and a settle rather than a wobble.
+          sprayRecoilT = Math.max(0, sprayRecoilT - dt / SPRAY_RECOIL_FALL);
+          const recoilNow = sprayRecoilT * sprayRecoilT;
+          group.position.z = rest.z + (def.recoil ?? 0) * recoilNow;
+          group.rotation.z = group.userData.cleaningRestRotationZ
+            - (def.recoil ?? 0) * SPRAY_RECOIL_TWIST * recoilNow;
+          toolFeelIntensity = squeezing ? 1 : 0.15;
+          toolFeelContact = true;
           gatedDt = squeezing ? dt * SPRAY_DUTY_SCALE : 0;
         }
         socketWorld(group, socketName, _toolContact);
@@ -8537,14 +9509,74 @@ export function makeCourseScene(canvas, state) {
       for (const [id, group] of Object.entries(heldGroups)) {
         const rest = group.userData.cleaningRestPosition;
         if (!rest || !CLEANING_TOOLS[id]) continue;
-        // Phase 6 / round 3: the broom's viewmodel rig OWNS its transform — it
-        // solves the tool onto the grip and the bristle contact every frame.
+        // Phase 6 / round 3 → I1: a viewmodel rig OWNS its tool's transform —
+        // it solves the tool onto the grip and the contact every frame.
         // Snapping it back to the registry rest pose here undid that solve on
         // every frame the player was not actively sweeping, which is exactly
         // why the idle broom hung in the air while a held stroke looked right.
-        if (id === 'broom' && broomVm.isActive()) continue;
+        // Now guards every rig tool, not just the broom.
+        if (toolRigs[id]?.isActive()) continue;
+        // E2: THE SAME TRAP, THREE TOOLS OVER — AND THIS IS THE WHOLE E1 GAP.
+        //
+        // mop, vacuum and dustpan declare `floorAnchored: true` and the floor
+        // solve above computes a real correction for them every frame: measured
+        // -0.28, -0.99 and -1.00 yd. Every one of those was thrown away HERE, a
+        // few hundred lines later, because `position.copy(rest)` restores y as
+        // well — so the head rode the camera and the flag looked like a lie.
+        //
+        // Note what this means for the audit that sent us here: the ±0.06 clamp
+        // it blamed was never the constraint. It was not saturating. The solve
+        // ran, produced the right number, and was overwritten. From outside,
+        // "corrected as far as it could and fell short" and "corrected fully and
+        // was discarded" are the same picture, which is why the inference was
+        // wrong and only the solve's own inputs could settle it
+        // (walk.floorAnchorDiagnostics).
+        //
+        // The reset still owns x, z and roll — the idle pose should snap back.
+        // It just may not own the axis another solve is authoritative on. The
+        // broom exception above is the same fix, made once for one tool.
+        if (CLEANING_TOOLS[id].floorAnchored && floorAnchorSampleY.has(id)) {
+          group.rotation.z = group.userData.cleaningRestRotationZ;
+          continue;
+        }
         group.position.copy(rest);
         group.rotation.z = group.userData.cleaningRestRotationZ;
+      }
+    }
+    // I5: A HAND TOOL PRESSED INTO A FIXTURE PULLS BACK TO ITS FACE.
+    //
+    // The rig tools carry the broom's own collision clamp; the four close-carry
+    // tools (spray, cloth, sponge, trashbag) had nothing — walk chest-first
+    // into a counter and the carried prop pierced it, because the player
+    // collider stops the BODY 0.34 yd out while the tool rides ~0.6 yd ahead
+    // of the lens. Probe the carry point along the view forward; when it is
+    // inside a blocked face, bisect back to the face and pull the group toward
+    // the camera by the overlap (camera-local +z).
+    //
+    // PLACED AFTER THE REST-POSE RESTORE ABOVE, ON PURPOSE. The first landing
+    // of this block sat a few hundred lines earlier and its pull was recorded
+    // in the debug map and then overwritten by `position.copy(rest)` — the
+    // verbatim E2 trap this file already documents, caught because the probe
+    // measured the drawn mesh (pull 0.60 logged, penetration unchanged).
+    if (walkTool && CLEANING_TOOLS[walkTool] && !rigFor(walkTool)?.isActive() && !cart.mounted) {
+      const g = heldGroups[walkTool];
+      if (g && g.visible) {
+        const carryDepth = Math.abs(CLEANING_TOOLS[walkTool].place?.[2] ?? 0.6) + 0.16;
+        const fx = -Math.sin(walk.yaw);
+        const fz = -Math.cos(walk.yaw);
+        let pull = 0;
+        if (broomColliderQuery(walk.x + fx * carryDepth, walk.z + fz * carryDepth, 0.07)?.blocked) {
+          let lo = 0.05;
+          let hi = carryDepth;
+          for (let step = 0; step < 4; step += 1) {
+            const mid = (lo + hi) / 2;
+            if (broomColliderQuery(walk.x + fx * mid, walk.z + fz * mid, 0.07)?.blocked) hi = mid;
+            else lo = mid;
+          }
+          pull = carryDepth - Math.max(0.05, lo - 0.05);
+          g.position.z += pull;
+        }
+        handToolClampDebug[walkTool] = +pull.toFixed(4);
       }
     }
     const cleaning = clubhouseApi?.cleaningStatus?.();
@@ -9030,6 +10062,11 @@ export function makeCourseScene(canvas, state) {
       verticalFov: camera.fov,
       maxFrameDist: Math.min(440, rig.maxDist),
       maxOverviewDist: rig.maxDist,
+      // J (Goal 23): the overview must FRAME THE PLAYER. The solver only ever
+      // looked at the property grid, and the clubhouse sits off the course
+      // footprint -- measured in Goal 21 at ndcX -1.282, which is not a marker
+      // that is hard to see, it is a marker that is not in the picture.
+      includePoints: walk.active ? [{ x: walk.x, z: walk.z }] : [],
     };
   }
 
@@ -9667,9 +10704,23 @@ export function makeCourseScene(canvas, state) {
   // route, the every-frame bake was ~5ms of GPU per frame (90.5 → 164.1 fps frozen). Ten
   // bakes a second keeps character shadows visually glued to their feet and gives almost
   // all of that time back.
-  const SHADOW_BAKE_MS = 100;
+  // ...and it is a SETTING, because it is the single biggest lever on the number
+  // the player actually feels. Measured in Electron on pine-hills-v2 at a fixed
+  // shop-floor pose (tools/qa/electron-frame-profile.js, 2026-08-06): frames
+  // carrying a bake averaged 61.3 ms against 9.5 ms for frames that did not, and
+  // the 1% low at that pose was 1.9 fps against 39.9 fps with the shadow map
+  // switched off entirely. Average frame rate is not the problem in this game;
+  // the bake frame is.
+  let shadowBakeMs = 100;
   let shadowClock = Infinity; // Infinity → the very first frame always bakes
   let shadowBakes = 0; // perf probes read this to attribute frame spikes to bakes
+  // Goal 24 performance proof: count entry into the shipping composed render,
+  // independently of THREE's internal pass counter.  A composer legitimately
+  // calls renderer.render() several times per frame, so renderer.info alone
+  // cannot distinguish that from accidentally invoking this whole function
+  // twice inside one production callback.  This monotonic, snapshot-only count
+  // gives the QA resource probe that missing absolute denominator.
+  let composedRenders = 0;
 
   // SHADOW FITTING. On foot, only the ±120 yards around the player can ever be read — so
   // that is all the shadow map covers: a 2048 map over 240yd is 2.5× the texel density the
@@ -9679,9 +10730,12 @@ export function makeCourseScene(canvas, state) {
   // 10Hz rebake never swims as the player moves.
   const SHADOW_WALK_SPAN = 120;
   const SHADOW_EDITOR_SPAN = 220;
-  const SHADOW_WALK_MAP = 2048;
-  const SHADOW_EDITOR_MAP = 2048;
-  const SHADOW_FULL_MAP = 4096;
+  // Tunable by the quality preset. fitSunShadow re-asserts these every mode
+  // change and on any drift, so they are the only place a size may be set from —
+  // a QA or settings hand on sun.shadow.mapSize is overwritten within a frame.
+  let SHADOW_WALK_MAP = 2048;
+  let SHADOW_EDITOR_MAP = 2048;
+  let SHADOW_FULL_MAP = 4096;
   let shadowFitMode = null;
   let editorShadowFocus = false;
   const shadowFwd = new THREE.Vector3();
@@ -9743,6 +10797,115 @@ export function makeCourseScene(canvas, state) {
     }
   }
 
+  // THE SHADOW QUALITY LEVER, exposed so the settings preset can actually reach
+  // it. Sizes go through fitSunShadow's own re-assert rather than being written
+  // to sun.shadow.mapSize here: it owns that field, disposes the old GL target
+  // on a genuine size change, and re-fits the camera to match. Setting the map
+  // directly from outside left the fit half-applied, which is the bug the
+  // re-assert was added for.
+  //
+  // walkMap is the one that matters on foot — it is the map baked ten times a
+  // second while the player is inside the shop. fullMap only bakes in the
+  // overview. bakeMs trades shadow latency for frame time: at 100 ms a walking
+  // character's shadow is glued to its feet; at 200 ms it lags perceptibly on a
+  // fast turn, which is why that is a preset choice and not a default.
+  function setShadowQuality({ walkMap, editorMap, fullMap, bakeMs } = {}) {
+    const size = (value, current) => {
+      const n = Number(value);
+      return [512, 1024, 2048, 4096].includes(n) ? n : current;
+    };
+    SHADOW_WALK_MAP = size(walkMap, SHADOW_WALK_MAP);
+    SHADOW_EDITOR_MAP = size(editorMap, SHADOW_EDITOR_MAP);
+    SHADOW_FULL_MAP = size(fullMap, SHADOW_FULL_MAP);
+    const ms = Number(bakeMs);
+    if (Number.isFinite(ms) && ms >= 16 && ms <= 1000) shadowBakeMs = Math.round(ms);
+    // force the next frame to re-fit and re-bake at the new size
+    shadowFitMode = null;
+    shadowClock = Infinity;
+    return {
+      walkMap: SHADOW_WALK_MAP, editorMap: SHADOW_EDITOR_MAP, fullMap: SHADOW_FULL_MAP, bakeMs: shadowBakeMs,
+    };
+  }
+
+  // THE WHOLE POST CHAIN, off. Turning GTAO and bloom off individually still
+  // pays for the composer: a RenderPass into a 4x-MSAA half-float target, a
+  // resolve, and an OutputPass blit. On Low the player has already said they do
+  // not want the look, so skip the target entirely and draw to the back buffer.
+  // Kept separate from post.gtao.enabled / post.bloom.enabled so a player who
+  // wants bloom without AO still gets the composer.
+  function setPostEnabled(on) {
+    postEnabled = on !== false;
+    return postEnabled;
+  }
+
+  // Per-pass diagnostic lever, same philosophy as setAntialiasSamples above:
+  // exposed, not changed. The A3 attribution sweep needs gtao and bloom
+  // addressable individually — a saving locked inside a constructor cannot be
+  // measured, and a measurement that toggles the whole composer cannot say
+  // WHICH pass owns the milliseconds.
+  const postDiag = {
+    gtaoEnabled: () => gtao.enabled,
+    setGtaoEnabled: (v) => { gtao.enabled = v !== false; return gtao.enabled; },
+    bloomEnabled: () => bloom.enabled,
+    setBloomEnabled: (v) => { bloom.enabled = v !== false; return bloom.enabled; },
+    // The pass object itself, for parameter sweeps (updateGtaoMaterial /
+    // updatePdMaterial / setSize). Read-write by design: a sweep that cannot
+    // reconfigure the pass live costs one app relaunch per rung.
+    gtaoPass: () => gtao,
+  };
+
+  // THE MOST EXPENSIVE SINGLE ATTRIBUTE IN THIS RENDERER, AND UNTIL NOW A LITERAL.
+  //
+  // `composerTarget` is built with `samples: 4` — 4x MSAA on a HalfFloatType
+  // target. Measured with EXT_disjoint_timer_query_webgl2, indoors, against a
+  // 0.00-0.04 ms drift control:
+  //
+  //   4x (shipped)   GPU 9.11 ms   100% of frames over the 8.33 ms refresh
+  //   2x             GPU 8.75 ms   100%          <- 0.37 ms, clears nothing
+  //   0x             GPU 7.84 ms    27%          <- 1.28 ms
+  //
+  // The GPU runs a FLAT 8.4-9.1 ms whatever the frame time does, so the indoor
+  // stutter is not a spike: it is a pipeline permanently ~1% over a 120 Hz
+  // interval. This one attribute is 14% of the whole GPU frame, and it was
+  // reachable only by a QA driver reaching into `composer.renderTarget1`.
+  //
+  // Exposed, not changed. The default stays 4x because dropping it trades a
+  // stutter for aliased edges on every surface in the game and that is a taste
+  // decision, not a bug fix. What this does is make the lever addressable — by a
+  // settings row, by a quality preset, or by a driver measuring the next idea —
+  // instead of leaving a measured 1.28 ms locked inside a constructor.
+  function setAntialiasSamples(next) {
+    const n = Number(next);
+    // three.js accepts any non-negative count and silently clamps to the
+    // driver's max; 0, 2, 4 and 8 are the ones worth offering.
+    if (!Number.isFinite(n) || n < 0) return composerTarget.samples;
+    const want = Math.min(8, Math.round(n));
+    if (want === composerTarget.samples
+      && (!composer.renderTarget1 || composer.renderTarget1.samples === want)) {
+      return composerTarget.samples;
+    }
+    composerTarget.samples = want;
+    // The composer keeps two ping-pong targets cloned from this one; both have
+    // to be told, and both have to be disposed so the GL object is rebuilt at
+    // the new sample count rather than reused at the old one.
+    for (const rt of [composer.renderTarget1, composer.renderTarget2]) {
+      if (!rt) continue;
+      rt.samples = want;
+      rt.dispose();
+    }
+    return want;
+  }
+
+  // What it currently is, so a caller can read before it writes and a driver can
+  // prove the write landed rather than assuming it did.
+  function antialiasSamples() {
+    return {
+      target: composerTarget.samples,
+      rt1: composer.renderTarget1?.samples ?? null,
+      rt2: composer.renderTarget2?.samples ?? null,
+    };
+  }
+
   function setEditorShadowFocus(active) {
     const next = !!active;
     if (editorShadowFocus === next) return;
@@ -9750,16 +10913,72 @@ export function makeCourseScene(canvas, state) {
     shadowClock = Infinity;
   }
 
+  // X4 (Goal 21) — WHERE AM I ON THIS MAP?
+  //
+  // The stranger pressed Tab, got "18 dirty spots marked", saw blank forest with
+  // none of them in frame, and could not tell where they were standing. An
+  // overview you cannot locate yourself on is a picture, not a map.
+  //
+  // A pin at the walk position, built once and only ever shown while the
+  // overview camera is live. Deliberately unlit and depth-test-free so it reads
+  // through a hill rather than hiding behind one: the whole job of this object
+  // is to be findable.
+  let playerPin = null;
+  function ensurePlayerPin() {
+    if (playerPin) return playerPin;
+    const group = new THREE.Group();
+    group.name = 'OverviewPlayerPin';
+    const mat = (color) => new THREE.MeshBasicMaterial({
+      color, depthTest: false, depthWrite: false, transparent: true, opacity: 0.96,
+    });
+    const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.35, 9, 8), mat(0xf2f7ea));
+    stem.position.y = 4.5;
+    const head = new THREE.Mesh(new THREE.ConeGeometry(1.9, 4.2, 12), mat(0xd8482f));
+    head.position.y = 11;
+    head.rotation.x = Math.PI; // point DOWN at the spot, the way a map pin does
+    const ring = new THREE.Mesh(new THREE.RingGeometry(2.2, 3.0, 24), mat(0xd8482f));
+    ring.rotation.x = -Math.PI / 2;
+    ring.position.y = 0.12;
+    group.add(stem, head, ring);
+    // drawn last, over everything, so a tree cannot swallow the one thing the
+    // player opened this view to find
+    group.traverse((n) => { if (n.isMesh) n.renderOrder = 9000; });
+    group.visible = false;
+    scene.add(group);
+    playerPin = group;
+    return group;
+  }
+
+  // The app owns this, not the scene. `activeCourseCamera` looks like the right
+  // signal and is not: nothing sets it when the player presses Tab — it is
+  // written by frameCourse(), which only the resize handler and the editor call.
+  // Gating the pin on it produced a pin that never once existed while the app
+  // was demonstrably in overview mode.
+  let overviewPinWanted = false;
+
+  function updatePlayerPin() {
+    const showing = overviewPinWanted || activeCourseCamera?.kind === 'overview';
+    if (!showing && !playerPin) return; // never built, never needed
+    const pin = ensurePlayerPin();
+    pin.visible = showing;
+    if (!showing) return;
+    pin.position.set(walk.x, heightAt(walk.x, walk.z) ?? 0, walk.z);
+    // a slow turn, so the eye catches it as the only moving thing on a still map
+    pin.rotation.y += 0.012;
+  }
+
   function render(dtMs, st) {
     if (sceneDisposed) return;
+    composedRenders += 1;
     guardCourseWaterReflection.beginFrame();
+    updatePlayerPin();
     time += dtMs / 1000;
     // Repack flora at most once before a frame begins. A mesh onBeforeRender
     // hook is invoked again by AO and shadow passes and can also rebucket a
     // partly rendered frame when the player crosses an LOD refresh boundary.
     floraLodUpdate?.();
     shadowClock += dtMs;
-    if (shadowClock >= SHADOW_BAKE_MS) {
+    if (shadowClock >= shadowBakeMs) {
       fitSunShadow();
       renderer.shadowMap.needsUpdate = true;
       shadowClock = 0;
@@ -9799,6 +11018,9 @@ export function makeCourseScene(canvas, state) {
       refreshMaintenanceWorldProps(time);
     }
     if (clubhouseApi) clubhouseApi.update(dtMs); // doors, shop customers, interior life
+    // C10: after the clubhouse has settled this frame's station state, so
+    // opening the till stows the tool in the same frame it opens.
+    syncStationToolStow();
     prepareFrameShadows(renderer.shadowMap);
     // flag wave
     if (holeGroup) {
@@ -9825,8 +11047,9 @@ export function makeCourseScene(canvas, state) {
       renderer.render(scene, camera);
     }
     clubhouseApi?.renderDeliveryCarryOverlay?.();
-    // Phase 6: the broom's own pass, last — nearest to the face.
-    broomVm.render();
+    // Phase 6 → I1: the held rig's own pass, last — nearest to the face.
+    // Every rig's render() no-ops unless it is the active one.
+    for (const rig of Object.values(toolRigs)) rig.render();
   }
 
   function resize() {
@@ -9835,7 +11058,7 @@ export function makeCourseScene(canvas, state) {
     renderer.setSize(wpx, hpx, false);
     camera.aspect = wpx / hpx;
     camera.updateProjectionMatrix();
-    broomVm.resize(camera.aspect);
+    for (const rig of Object.values(toolRigs)) rig.resize(camera.aspect);
     const pr = renderer.getPixelRatio();
     composer.setPixelRatio(pr);
     composer.setSize(wpx, hpx);
@@ -10252,7 +11475,7 @@ export function makeCourseScene(canvas, state) {
         return;
       }
       walkSetTool(tool);
-      if (walkHooks.toast) walkHooks.toast(`${label} selected. Press R for blades if fitted; hold LMB to work.`);
+      if (walkHooks.toast) walkHooks.toast(t('tool.selectedHint', { tool: label }));
     };
     const greensYard = { x: yardBx + 13.0, z: bz + 22.5 };
     pushedParkPose.greensMower = { ...greensYard, yaw: 0.25 };
@@ -10306,13 +11529,13 @@ export function makeCourseScene(canvas, state) {
     let leavesMesh = null;
     const leavesProp = {
       x: yardBx + 11.8, z: bz + 20.4, r: 2.4,
-      label: () => 'Old leaves and junk — [E] clear it out',
+      label: () => 'Old leaves and junk - [E] clear it out',
       action: () => {
         if (!tractorStep(state, 'cleared').ok) return;
         if (leavesMesh) tweenOut(leavesMesh, () => removeOwnedObject(leavesMesh));
         walkProps.splice(walkProps.indexOf(leavesProp), 1);
         play('thunk');
-        say('Junk cleared — you can get at the engine now.');
+        say('Junk cleared - you can get at the engine now.');
       },
     };
     putModel('vendor/models/leaves_pile.glb', 2.2, leavesProp.x, leavesProp.z, 0.4, (m) => { leavesMesh = m; });
@@ -10322,13 +11545,13 @@ export function makeCourseScene(canvas, state) {
     let canMesh = null;
     const canProp = {
       x: yardBx + 17.4, z: bz + 18.9, r: 2.0,
-      label: () => 'Fuel can — [E] fill the tractor’s tank',
+      label: () => 'Fuel can - [E] fill the tractor’s tank',
       action: () => {
         if (!tractorStep(state, 'fuel').ok) return;
         if (canMesh) tweenOut(canMesh, () => removeOwnedObject(canMesh));
         walkProps.splice(walkProps.indexOf(canProp), 1);
         play('thunk');
-        say('Tank filled — smells like a running machine already.');
+        say('Tank filled - smells like a running machine already.');
       },
     };
     putModel('vendor/models/gas_can.glb', 0.55, canProp.x, canProp.z, 0.9, (m) => { canMesh = m; });
@@ -10338,13 +11561,13 @@ export function makeCourseScene(canvas, state) {
     let beltMesh = null;
     const beltProp = {
       x: yardBx + 21.0, z: bz + 18.8, r: 2.0,
-      label: () => 'Drive belt — [E] fit it to the tractor',
+      label: () => 'Drive belt - [E] fit it to the tractor',
       action: () => {
         if (!tractorStep(state, 'belt').ok) return;
         if (beltMesh) tweenOut(beltMesh, () => removeOwnedObject(beltMesh));
         walkProps.splice(walkProps.indexOf(beltProp), 1);
         play('thunk');
-        say('Belt on the pulleys — one pull of the starter to go.');
+        say('Belt on the pulleys - one pull of the starter to go.');
       },
     };
     putModel('vendor/models/belt.glb', 0.7, beltProp.x, beltProp.z, 0.3, (m) => { beltMesh = m; });
@@ -10355,8 +11578,8 @@ export function makeCourseScene(canvas, state) {
       x: yard.x, z: yard.z, r: 3.4,
       label: () => {
         const left = tractorRemaining(state);
-        if (left.length) return `Broken tractor — needs ${left.map((s) => STEP_LABEL[s]).join(', ')}`;
-        return 'Broken tractor — [E] get her running';
+        if (left.length) return `Broken tractor - needs ${left.map((s) => STEP_LABEL[s]).join(', ')}`;
+        return 'Broken tractor - [E] get her running';
       },
       action: () => {
         if (!repairTractor(state).ok) return;
@@ -10371,7 +11594,7 @@ export function makeCourseScene(canvas, state) {
         placeCartMesh();
         attachMower();
         play('chime');
-        say('She lives! The tractor is yours — mower deck hitched. [E] to take the wheel.');
+        say('She lives! The tractor is yours - mower deck hitched. [E] to take the wheel.');
       },
     };
     walkProps.push(tractorProp);
@@ -10585,14 +11808,14 @@ export function makeCourseScene(canvas, state) {
       let mesh = null;
       const prop = {
         x: wx, z: wz, r: 2.6,
-        label: () => 'Storm debris — [E] haul it away',
+        label: () => 'Storm debris - [E] haul it away',
         action: () => {
           if (!clearLitter(state, idx).ok) return;
           if (mesh) tweenOut(mesh, () => removeOwnedObject(mesh));
           walkProps.splice(walkProps.indexOf(prop), 1);
           updateTurf(state); // the flattened grass under it recovers
           if (walkHooks.sfx) walkHooks.sfx('thunk');
-          if (walkHooks.toast) walkHooks.toast('Debris hauled off — the grass under it can breathe.');
+          if (walkHooks.toast) walkHooks.toast(t('world.debrisHauledOffThe'));
         },
       };
       putModel('vendor/models/leaves_pile.glb', 1.9, wx, wz, (idx * 1.7) % 6.28, (m) => { mesh = m; });
@@ -10623,7 +11846,7 @@ export function makeCourseScene(canvas, state) {
     if (!props.teeSignFixed) {
       const signProp = {
         x: sx, z: sz, r: 2.6,
-        label: () => `Broken tee sign — [E] repair it (${PROPS.signRepairCost} dollars)`,
+        label: () => `Broken tee sign - [E] repair it (${PROPS.signRepairCost} dollars)`,
         action: () => {
           const res = fixTeeSign(state);
           if (!res.ok) {
@@ -10633,7 +11856,7 @@ export function makeCourseScene(canvas, state) {
           placeSign(false);
           walkProps.splice(walkProps.indexOf(signProp), 1);
           if (walkHooks.sfx) walkHooks.sfx('chime');
-          if (walkHooks.toast) walkHooks.toast('Tee sign restored — first impressions matter.');
+          if (walkHooks.toast) walkHooks.toast(t('world.teeSignRestoredFirst'));
         },
       };
       walkProps.push(signProp);
@@ -10754,7 +11977,7 @@ export function makeCourseScene(canvas, state) {
         propColliders.push({ minX: bx - 40, maxX: bx - 20, minZ: bz + 21, maxZ: bz + 33 });
         walkProps.push({
           x: bx - 30, z: bz + 24, r: 4.5,
-          label: () => "The groundskeeper's house — someone kept a nicer yard than the course",
+          label: () => "The groundskeeper's house - someone kept a nicer yard than the course",
           action: null,
         });
       }
@@ -10790,29 +12013,197 @@ export function makeCourseScene(canvas, state) {
   // --- prewarm: compile every shader program + upload every texture behind the loading
   // veil so the first real look-around never hitches on lazy GPU work (356ms freezes
   // were measured on the first cold 360° turn before this existed)
+  // PER-PHASE LOAD TIMING. PHASE_1_CLASSIFICATION §"The 18.2 s load, explained"
+  // named every phase below and then said, correctly, that "which step dominates
+  // is UNVERIFIED; no per-step timing exists". Ranking a budget without
+  // measuring it is how the last three optimisation passes picked the wrong
+  // target. Costs about a microsecond per phase and is read by
+  // tools/qa/load-time-profile.js.
+  // how far from the spawn eye counts as "the player will see this in the first
+  // minute" — used only to report the near/far split of the warm set
+  const PREWARM_NEAR_RADIUS_YD = 60;
+  let programKeyBreakdown = null;
+  let assetIdleReport = null;
+  let firstDoorVisibilityReport = null;
+  const prewarmTimings = [];
+  function markPrewarm(label, sinceMs) {
+    prewarmTimings.push({ label, ms: +(performance.now() - sinceMs).toFixed(1) });
+    return performance.now();
+  }
+
   async function prewarm(onStep) {
     const tick = () => new Promise((res) => requestAnimationFrame(res));
     const alive = () => !sceneDisposed;
     const step = (label) => { if (alive() && onStep) onStep(label); };
     if (!alive()) return false;
+    prewarmTimings.length = 0;
+    const prewarmStartedAt = performance.now();
+    let phaseAt = prewarmStartedAt;
     step('Loading models');
-    await whenAssetsIdle(8000);
+    const prewarmClubhouse = clubhouseApi;
+    const [nextAssetIdleReport, doorVisibilityReport] = await Promise.all([
+      whenAssetsIdle(8000),
+      prewarmClubhouse?.firstDoorVisibilityReady || Promise.resolve(null),
+    ]);
+    assetIdleReport = nextAssetIdleReport;
+    firstDoorVisibilityReport = doorVisibilityReport;
+    phaseAt = markPrewarm('assets-and-door-visibility-runtimes-ready', phaseAt);
     if (!alive()) return false;
+    // A timed-out source can still mount geometry after the forced draws. Do
+    // not certify that scene as warm or unveil it. Fully settled fallbacks are
+    // safe to compile and are reported as `degraded` instead.
+    if (assetIdleReport?.safeToPrewarm !== true
+      || (prewarmClubhouse && doorVisibilityReport?.safeToPrewarm !== true)) {
+      const error = new Error(assetIdleReport?.safeToPrewarm !== true
+        ? 'Global asset loading did not settle safely.'
+        : 'First-door visibility loaders did not settle safely.');
+      error.name = 'FirstDoorVisibilityPrewarmError';
+      error.code = assetIdleReport?.safeToPrewarm !== true
+        ? 'GLOBAL_ASSET_IDLE_UNSAFE'
+        : 'FIRST_DOOR_VISIBILITY_UNSAFE';
+      error.assetIdleReport = assetIdleReport;
+      error.firstDoorVisibilityReport = doorVisibilityReport;
+      throw error;
+    }
+    // Construction seeds the clubhouse at a neutral 10:00 lighting preset, but
+    // the first live frame immediately applies the serialized clock. At a fresh
+    // 06:00 campaign that transition enables the porch PointLight: prewarm used
+    // to realize the hidden/detail set with three point lights, then the first
+    // doorway reveal requested the four-light variants and compiled six programs
+    // in a 424.6 ms render frame. Apply the exact persisted render state before
+    // ANY compile or forced draw. This changes lights only; it does not advance
+    // the clock, weather, customers, deliveries, or transactions.
+    const prewarmClockMinutes = Number(state.clock?.minutes);
+    const prewarmMinuteOfDay = Number.isFinite(prewarmClockMinutes)
+      ? ((Math.floor(prewarmClockMinutes) % 1440) + 1440) % 1440
+      : 720;
+    applyTimeWeather(prewarmMinuteOfDay, state.weather);
+    phaseAt = markPrewarm('authoritative-time-weather', phaseAt);
+    // The normal clubhouse update loop is suspended behind the loading veil.
+    // Apply its simulation-owned ceiling-circuit gate before ANY compile or
+    // forced draw, so the representative/detail materials are realized under
+    // the same light signature as the first shipping frame.
+    clubhouseApi?.syncCeilingCircuitPower?.();
+    phaseAt = markPrewarm('authoritative-ceiling-circuit', phaseAt);
     // DefaultLoadingManager deliberately fails open after eight seconds. Give
     // checkout's exact cash prototypes their own bounded readiness handshake so
     // a slow local GLB decode cannot turn an empty representative root into a
     // false-success warm-up and permanently defer the cost to first tender.
-    await clubhouseApi?.register?.waitForCashGpuPrewarmRepresentatives?.(12000);
+    const paymentPrewarmReady = await clubhouseApi?.register
+      ?.waitForCashGpuPrewarmRepresentatives?.(12000);
+    if (clubhouseApi?.register?.waitForCashGpuPrewarmRepresentatives
+        && !(paymentPrewarmReady?.ready === true
+          && Number(paymentPrewarmReady.built) === Number(paymentPrewarmReady.expected)
+          && Number(paymentPrewarmReady.expected) > 0
+          && Number(paymentPrewarmReady.expectedDrawUnits) > 0)) {
+      const aborted = clubhouseApi.register.releaseCashGpuPrewarmRepresentatives?.({
+        abort: true,
+        cause: 'representatives-not-ready',
+      });
+      const error = new Error('Checkout payment representatives were not ready for the opaque warm-up.');
+      error.name = 'CheckoutPaymentPrewarmError';
+      error.code = 'PAYMENT_GPU_PREWARM_NOT_READY';
+      error.paymentGpuPrewarm = aborted || paymentPrewarmReady || null;
+      throw error;
+    }
+    phaseAt = markPrewarm('cash-kit-handshake', phaseAt);
     if (!alive()) return false;
     await tick();
     if (!alive()) return false;
     step('Compiling shaders');
     await tick();
     if (!alive()) return false;
+    phaseAt = performance.now();
+    // TRIED AND REJECTED, 2026-08-03: renderer.compileAsync(). It polls
+    // KHR_parallel_shader_compile so the driver can compile off-thread, which
+    // should have been exactly right for a load dominated by 132 program
+    // compiles. Measured, it cost 1,350 ms here (against 107 ms for the sync
+    // link) and returned only ~200 ms of the warm draw — a net 0.5 s LOSS. The
+    // extension is either absent on this path or the HLSL compile still lands
+    // at first draw regardless. Recorded so nobody spends the afternoon on it
+    // twice.
     renderer.compile(scene, camera);
+    phaseAt = markPrewarm('renderer.compile', phaseAt);
+    // A3 (Goal 17): compile() walks only VISIBLE objects, and the ledger's page
+    // faces live inside a closed book. So the first thing the player opens was
+    // the one thing this whole pass could not reach: measured, its first open
+    // cost 1624 ms to ink with a 1.4-2.8 s frozen frame, against 146 ms for
+    // every reopen. The book reveals its open subtree for the length of one
+    // compile and puts it back.
+    if (alive()) {
+      clubhouseApi?.ledgerBook?.prewarmVisual?.(renderer, camera, scene);
+      phaseAt = markPrewarm('ledger-first-visibility', phaseAt);
+    }
+    // A1 (Goal 17) — AND THE SAME MECHANISM, GENERALISED.
+    //
+    // compile() walks traverseVisible, so NOTHING hidden at load has ever been
+    // warmed by this pass. The ledger's page faces were one instance; measured
+    // across a plain 30-second walk in a settled session, seven more programs
+    // still compiled, and the two frames that carried them took 1600.0 ms and
+    // 2201.7 ms with zero new geometries and zero new textures. That is the
+    // "far laggier" the brief opens with, arriving minutes into play.
+    //
+    // So every hidden object is revealed for the length of one compile.
+    //
+    // LIGHTS ARE DELIBERATELY EXCLUDED. A program's cache key carries the
+    // scene's light counts (A3 proved that the expensive way), so revealing a
+    // hidden light here would warm programs keyed to a light list that never
+    // occurs in play AND leave the real ones cold - strictly worse than doing
+    // nothing.
+    if (alive()) {
+      const forced = [];
+      scene.traverse((object) => {
+        if (!object.visible && !object.isLight) {
+          forced.push(object);
+          object.visible = true;
+        }
+      });
+      if (forced.length) {
+        renderer.compile(scene, camera);
+        // ...AND THEN DRAW THEM, which is the half this phase was missing.
+        //
+        // compile() builds PROGRAMS. It does not upload geometry: a buffer
+        // reaches the GPU on its first real draw, and these objects are hidden
+        // again the moment the compile returns, so their first draw is still the
+        // frame the player triggers. Measured on the ledger, which is the loudest
+        // instance: with this phase reporting 'ledger-first-visibility' done and
+        // compile() run over the revealed subtree, the first OPEN still uploaded
+        // +25 geometries and the first PAGE TURN +2 with a fresh `basic`
+        // program, at 33.7 ms against a 6 ms median. That is the owner's "lag
+        // whenever I turn the page for the first time", and it survived three
+        // rounds of warms because every one of them compiled without drawing.
+        //
+        // One composer frame with everything revealed pays both halves at once:
+        // the geometry uploads, and the program that compiles is the one the
+        // real frame will ask for, because it is the real pipeline drawing it.
+        // Lights stay excluded above for the reason given there.
+        //
+        // FRUSTUM CULLING OFF FOR THE WARM DRAW. A revealed object still has to
+        // be IN FRAME to be drawn, and the prewarm camera is not looking at the
+        // reading desk -- so the ledger's leaf uploaded its geometry from a
+        // later full-scene pass but never compiled its own program here. One
+        // `basic` shader was still arriving on the first page turn because of
+        // it. Submitting everything regardless of frame is what the
+        // forced-full-draw phase below already does for the same reason.
+        for (const object of forced) {
+          object.userData.__warmCulled = object.frustumCulled;
+          object.frustumCulled = false;
+        }
+        guardCourseWaterReflection.beginFrame();
+        try { composer.render(); } catch { renderer.render(scene, camera); }
+        for (const object of forced) {
+          object.visible = false;
+          object.frustumCulled = object.userData.__warmCulled !== false;
+          delete object.userData.__warmCulled;
+        }
+      }
+      prewarmTimings.push({ label: 'hidden-objects-revealed', ms: forced.length });
+      phaseAt = markPrewarm('compile-hidden', phaseAt);
+    }
     await tick();
     if (!alive()) return false;
     step('Uploading textures');
+    phaseAt = performance.now();
     const seen = new Set();
     const texKeys = ['map', 'emissiveMap', 'roughnessMap', 'metalnessMap', 'normalMap', 'aoMap', 'alphaMap', 'bumpMap'];
     const pending = [];
@@ -10837,17 +12228,250 @@ export function makeCourseScene(canvas, state) {
       await tick();
       if (!alive()) return false;
     }
+    prewarmTimings.push({ label: 'texture-count', ms: pending.length });
+    phaseAt = markPrewarm('initTexture-batches', phaseAt);
     step('Warming the view');
     // linking programs is not enough — Windows/ANGLE drivers defer the real compile to a
     // program's FIRST DRAW. One frame with frustum culling off forces a draw of every
     // visible material (and uploads its geometry); fragments off-screen are clipped.
+    // ONE REPRESENTATIVE PER PROGRAM, NOT EVERY OBJECT IN THE SCENE.
+    //
+    // Measured 2026-08-03 (tools/qa/load-time-profile.js): this single phase
+    // cost 9,720 ms of an 18,578 ms load — 52% of the whole wait, and 77% of
+    // prewarm. It disabled frustum culling on 5,310 objects and then drew all
+    // of them, twice over, because the forced draw carries a full shadow bake
+    // and the depth pass submits the same set.
+    //
+    // The reason the phase exists is that Windows/ANGLE defers a program's real
+    // compile to its FIRST DRAW. But a program is a function of the MATERIAL and
+    // the geometry's shape (skinned, instanced, morphed, vertex-coloured) — not
+    // of the object. Five thousand fence posts sharing one material compile one
+    // program between them, and drawing the other 5,309 buys nothing.
+    //
+    // So the warm set is deduplicated by that key. Anything already inside the
+    // frustum draws normally and is left alone. If a program is somehow missed,
+    // the cost is its own first draw later — the same hitch this phase trades
+    // load time to avoid, for a vanishing subset instead of all of it.
     const culled = [];
+    const warmedPrograms = new Set();
+    // THIS KEY HAS TO BE AT LEAST AS FINE AS THREE'S OWN, or the phase warms one
+    // representative of a group that is really several programs and the rest
+    // compile later, in front of the player.
+    //
+    // It was not. Measured in Electron on pine-hills-v2 2026-08-06
+    // (tools/qa/electron-stall-attribution.js): 42 programs arrived AFTER the
+    // load veil lifted, 36 of them `physical`, and diffing each late cacheKey
+    // against its nearest already-warm twin named the field that differed —
+    // `morphAttributeCount` on 35 of the 42, going 1→2, 3→2 and 6→2. The old key
+    // collapsed every morph count into one 'm' flag, so a material used by two
+    // geometries with different numbers of morph targets warmed ONE of them.
+    //
+    // The bill for the rest landed on the first walk into the shop: 2,460 ms of
+    // stalls across eight frames, worst 1,290 ms, against 232 ms for the
+    // identical spin once they were resident. A control that forces twenty
+    // brand-new programs in front of the eye costs 684 ms, so ~34 ms a program
+    // is the going rate on an RTX 5080 and these numbers are the right size.
+    //
+    // Morph COUNTS (not a boolean), and the two shadow flags, are the parameters
+    // three keys on that an object can differ in while sharing a material. The
+    // rest of its key is a function of the material, the renderer and the light
+    // set, which the representative already carries.
+    const programKey = (object, material) => {
+      const g = object.geometry;
+      const morph = g?.morphAttributes || null;
+      // KEYED ON THE MATERIAL INSTANCE, DELIBERATELY, AND IT IS NOT A PROGRAM
+      // COUNT. Two materials with identical flags share ONE GL program, so this
+      // set is an over-estimate by design: 846 keys covered 135 real programs
+      // when measured. That is the SAFE direction for a warm pass - over-warming
+      // costs a few extra draws behind the veil, under-warming ships a hitch at
+      // the moment the player first sees the object - so the key stays as it is
+      // and the LABEL was the thing that was wrong. See 'material-instances'
+      // below, which used to be reported as 'distinct-programs'.
+      return [
+        material.uuid,
+        object.isSkinnedMesh ? 's' : '',
+        object.isInstancedMesh ? 'i' : '',
+        // the count, and which attributes are morphed — three bakes both into the shader
+        morph?.position?.length || 0,
+        morph?.normal?.length || 0,
+        morph?.color?.length || 0,
+        g?.attributes?.color ? 'c' : '',
+        g?.attributes?.uv2 ? '2' : '',
+        object.receiveShadow ? 'r' : '',
+        object.castShadow ? 'C' : '',
+      ].join('|');
+    };
+    const _warmPos = new THREE.Vector3();
+    const eyeNow = camera.getWorldPosition(new THREE.Vector3());
+    let nearWarmed = 0;
     scene.traverse((o) => {
-      if (o.frustumCulled) { culled.push(o); o.frustumCulled = false; }
+      const forceExactPaymentRepresentative = typeof o.userData?.gpuPrewarmDrawUnit === 'string';
+      if (!forceExactPaymentRepresentative && !o.frustumCulled) return;
+      if (!o.material) return;
+      const mats = Array.isArray(o.material) ? o.material : [o.material];
+      let needed = forceExactPaymentRepresentative;
+      for (const m of mats) {
+        if (!m) continue;
+        const key = programKey(o, m);
+        if (warmedPrograms.has(key)) continue;
+        warmedPrograms.add(key);
+        needed = true;
+      }
+      if (!needed) return;
+      o.getWorldPosition(_warmPos);
+      if (_warmPos.distanceTo(eyeNow) <= PREWARM_NEAR_RADIUS_YD) nearWarmed += 1;
+      if (o.frustumCulled) {
+        culled.push(o);
+        o.frustumCulled = false;
+      }
     });
+    prewarmTimings.push({ label: 'near-warm-objects', ms: nearWarmed });
+    phaseAt = markPrewarm('warm-traverse', phaseAt);
     renderer.shadowMap.needsUpdate = true; // bake once here so depth-pass programs compile behind the veil
     guardCourseWaterReflection.beginFrame();
     try { composer.render(); } catch (e) { renderer.render(scene, camera); }
+    // WHAT THIS FRAME COSTS, AND WHY (measured 2026-08-03):
+    //   this render                     9,741 ms
+    //   the IDENTICAL render after it      51 ms
+    // So the bill is one-time program compilation — 132 GL programs at ~73 ms
+    // each, ANGLE translating to HLSL and D3D compiling, serialized on the JS
+    // thread because a program's real compile lands on its first draw. It is
+    // not geometry throughput (cutting the submitted set from 5,310 objects to
+    // 887 moved it by nothing), it is not the shadow bake or the post chain
+    // (both are in that 51 ms repeat), and it is not distant course work
+    // (785 of the 887 are within 60 yd of the spawn eye). The repeat draw was a
+    // diagnostic and is not shipped; its number is recorded here instead.
+    phaseAt = markPrewarm('warm-composer-render', phaseAt);
+    prewarmTimings.push({ label: 'uncalled-object-count', ms: culled.length });
+    prewarmTimings.push({ label: 'gl-programs', ms: renderer.info.programs?.length ?? -1 });
+    // NOT 'distinct-programs'. This counts material INSTANCES warmed, which
+    // over-states the program count roughly six-fold. The real figure is
+    // renderer.info.programs, reported as 'gl-programs' above.
+    prewarmTimings.push({ label: 'material-instances', ms: warmedPrograms.size });
+    // A1: WHERE THE 132 PROGRAMS COME FROM.
+    //
+    // The load is dominated by one-time program compilation - measured at ~73 ms
+    // each, serialized on the JS thread because a program's real compile lands on
+    // its first draw. compileAsync was tried and cost more than it saved (see the
+    // note above), so the only lever left is COMPILING FEWER, and nothing had
+    // ever measured which axis of the key is generating the permutations.
+    //
+    // This breaks the warmed keys down by field so the biggest reducible axis is
+    // a number rather than a guess. Diagnostic only: it reads keys already
+    // collected and adds no GL work.
+    programKeyBreakdown = (() => {
+      const axes = {
+        type: new Map(), lights: new Map(), morph: new Map(),
+        vertexColor: new Map(), uv2: new Map(), shadow: new Map(),
+      };
+      const bump = (map, k) => map.set(k, (map.get(k) || 0) + 1);
+      for (const key of warmedPrograms) {
+        const f = String(key).split('|');
+        bump(axes.type, f[0] ?? '?');
+        bump(axes.lights, f[1] ?? '?');
+        bump(axes.morph, `${f[2] ?? '?'}/${f[3] ?? '?'}`);
+        bump(axes.vertexColor, f[4] ? 'yes' : 'no');
+        bump(axes.uv2, f[5] ? 'yes' : 'no');
+        bump(axes.shadow, `${f[6] ? 'r' : '-'}${f[7] ? 'C' : '-'}`);
+      }
+      const top = (map) => [...map.entries()]
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 8)
+        .map(([k, n]) => ({ value: k, programs: n }));
+      return {
+        total: warmedPrograms.size,
+        // how many DISTINCT values each axis takes: an axis with one value
+        // costs nothing, an axis with eight is multiplying the others
+        spread: Object.fromEntries(
+          Object.entries(axes).map(([name, map]) => [name, map.size]),
+        ),
+        byAxis: Object.fromEntries(
+          Object.entries(axes).map(([name, map]) => [name, top(map)]),
+        ),
+      };
+    })();
+    phaseAt = markPrewarm('forced-full-draw', phaseAt);
+
+    // THE SHOP FLOOR, WARMED FROM INSIDE IT.
+    //
+    // The forced draw above disables frustum culling, so it submits every warm
+    // representative whatever the camera is looking at — geometry coverage is
+    // complete from one pose. But a GL program's cache key is not a function of
+    // the geometry alone: it carries the NUMBER of lights of each type, the
+    // shadow-map type and the clipping-plane count, all of which are properties
+    // of the FRAME. Standing at the spawn, outdoors, that frame has the exterior
+    // light set. Walking into the shop is a different frame, and every physical
+    // program in the world is a different program in it.
+    //
+    // Measured in Electron on pine-hills-v2 2026-08-06
+    // (tools/qa/electron-stall-attribution.js): the first spin on the shop floor
+    // cost 2.5-4.8 s across six to eight stalled frames, the worst 1,290 ms. The
+    // IDENTICAL spin immediately afterwards cost 43-330 ms with no program
+    // arrivals at all, and a fresh OUTDOOR pose — where the spawn warm stood —
+    // cost nothing. Standing still at the spawn for twelve seconds with the world
+    // running cost nothing either, so it is not the living world's churn.
+    //
+    // So: two more forced draws, one with the eye in the middle of the interior
+    // and one with the interior hidden, to compile both light states behind the
+    // veil. Geometry is already resident, so the marginal cost is the programs
+    // themselves. clubhouse.update() is deliberately NOT called — that would
+    // advance customers, deliveries and checkout state behind the veil, which is
+    // the mistake the editor-camera warm below documents.
+    const warmInterior = clubhouseApi?.interior || null;
+    if (warmInterior) {
+      const savedWarm = {
+        position: camera.position.clone(),
+        quaternion: camera.quaternion.clone(),
+        interiorVisible: warmInterior.visible,
+        walkActive: walk.active,
+        walkX: walk.x,
+        walkZ: walk.z,
+      };
+      const anchor = warmInterior.getWorldPosition(new THREE.Vector3());
+      // eye height above the floor the interior sits on, looking level
+      camera.position.set(anchor.x, anchor.y + 1.7, anchor.z);
+      camera.rotation.set(0, 0, 0, 'YXZ');
+      camera.updateMatrixWorld(true);
+      // walk mode picks the ±120yd fitted shadow box rather than the whole-course
+      // 4096 — a different shadowMapType/size and therefore different programs.
+      // fitSunShadow centres that box on walk.x/walk.z, NOT on the camera, so
+      // moving the eye alone leaves the shadow box back at the spawn and the
+      // interior's own depth pass never warms. (It did exactly that on the first
+      // attempt, which is why that attempt measured as doing nothing.)
+      walk.active = true;
+      walk.x = anchor.x;
+      walk.z = anchor.z;
+      for (const yaw of [0, Math.PI / 2, Math.PI, -Math.PI / 2]) {
+        if (!alive()) return false;
+        camera.rotation.set(0, yaw, 0, 'YXZ');
+        camera.updateMatrixWorld(true);
+        clubhouseApi?.syncCameraVisibility?.();
+        fitSunShadow();
+        renderer.shadowMap.needsUpdate = true;
+        guardCourseWaterReflection.beginFrame();
+        try { composer.render(); } catch (e) { renderer.render(scene, camera); }
+      }
+      prewarmTimings.push({ label: 'gl-programs-after-interior', ms: renderer.info.programs?.length ?? -1 });
+      // ...and the other side of the same switch: the exterior light set with the
+      // interior explicitly down, so stepping back out of the door is warm too.
+      warmInterior.visible = false;
+      camera.position.copy(savedWarm.position);
+      camera.quaternion.copy(savedWarm.quaternion);
+      camera.updateMatrixWorld(true);
+      walk.x = savedWarm.walkX;
+      walk.z = savedWarm.walkZ;
+      fitSunShadow();
+      renderer.shadowMap.needsUpdate = true;
+      guardCourseWaterReflection.beginFrame();
+      try { composer.render(); } catch (e) { renderer.render(scene, camera); }
+      warmInterior.visible = savedWarm.interiorVisible;
+      walk.active = savedWarm.walkActive;
+      camera.updateMatrixWorld(true);
+      prewarmTimings.push({ label: 'gl-programs-after-both', ms: renderer.info.programs?.length ?? -1 });
+      phaseAt = markPrewarm('interior-camera-warm', phaseAt);
+      await tick();
+      if (!alive()) return false;
+    }
 
     // The editor camera can move beyond the clubhouse's draw radius. That hides
     // its interior PointLights and changes the light-count defines on every
@@ -10899,6 +12523,7 @@ export function makeCourseScene(canvas, state) {
     renderer.shadowMap.needsUpdate = true;
     guardCourseWaterReflection.beginFrame();
     try { composer.render(); } catch (e) { renderer.render(scene, camera); }
+    phaseAt = markPrewarm('editor-camera-warm', phaseAt);
     walk.active = savedView.walkActive;
     heldRoot.visible = savedView.heldVisible;
     editorShadowFocus = savedView.editorShadowFocus;
@@ -10920,10 +12545,15 @@ export function makeCourseScene(canvas, state) {
     if (clubhouseApi?.interior && typeof savedView.clubhouseInteriorVisible === 'boolean') {
       clubhouseApi.interior.visible = savedView.clubhouseInteriorVisible;
     }
+    // The editor warm leaves render-only visibility at its distant camera.
+    // Reapply the restored shipping camera before the settling frames so no
+    // detail or light state leaks past the loading veil.
+    clubhouseApi?.syncCameraVisibility?.();
     floraLodUpdate?.(true);
     fitSunShadow();
     renderer.shadowMap.needsUpdate = true;
     for (const o of culled) o.frustumCulled = true;
+    phaseAt = markPrewarm('restore-pose', phaseAt);
     await tick();
     if (!alive()) return false;
     // A couple of normal frames settle the AO history and bloom targets. Keep
@@ -10939,24 +12569,281 @@ export function makeCourseScene(canvas, state) {
       await tick();
       if (!alive()) return false;
     }
+    phaseAt = markPrewarm('three-spin-frames', phaseAt);
     camera.quaternion.copy(settledQuaternion);
     camera.updateMatrixWorld(true);
+
+    // ROUND 7 — THE GESTURES THEMSELVES, BEHIND THE VEIL.
+    //
+    // Everything above this line warms by APPROXIMATION: reveal the object,
+    // compile against it, draw it with culling off. Seventeen variations of that
+    // idea have now been tried and the owner's reading of why they keep missing
+    // is the one that survived measurement -- three keys a program on the RENDER
+    // CONTEXT, not on the material, so "the mesh drew during the warm" and "the
+    // program the gesture needs exists" are different claims.
+    //
+    // This phase closes the gap by doing the thing instead of resembling it: the
+    // ledger really opens and really turns a page, and every belt tool is really
+    // equipped, each with a real composer frame drawn on it. Whatever the
+    // gesture's first frame would have paid for, it pays here.
+    //
+    // It runs LAST, deliberately. By this point the shadow bake has happened,
+    // the pose is restored and the settling frames have run, so the render
+    // context these programs are keyed to is the one the player's first frame
+    // will use. Run earlier -- as prewarmVisual is, before the first bake -- and
+    // it would warm programs against a context that no longer exists by the time
+    // the veil lifts, which is exactly the bug this session found.
+    if (alive()) {
+      // A REAL FRAME IS TWO PASSES, and a warm that runs one of them warms one
+      // of them. render() above submits the composer; a rig tool (broom, mop)
+      // then draws through its OWN lens on the viewmodel layer, in the separate
+      // pass at the bottom of the frame loop. Measured: with only the composer
+      // call here, the mop's first equip still cost +1 program and +8 geometries
+      // -- its strand meshes had never been submitted by anything, because the
+      // only camera that can see their layer is one this warm never used.
+      // Mirrors the real loop's `for (const rig of ...) rig.render()` exactly,
+      // including running every rig: the inactive ones return immediately.
+      const drawWarmFrame = () => {
+        guardCourseWaterReflection.beginFrame();
+        try { composer.render(); } catch { renderer.render(scene, camera); }
+        try { for (const rig of Object.values(toolRigs)) rig.render(); } catch { /* rig pays its own */ }
+      };
+      // SETTLE THE SHADOW STATE BEFORE ANY GESTURE COMPILES AGAINST IT.
+      //
+      // three's deprecation rewrite of PCFSoftShadowMap (see the shadowMap.type
+      // note where the renderer is built) happens inside a shadow bake, and
+      // shadowMapType is part of every program's cache key -- so a gesture warmed
+      // before the rewrite builds programs the player's frame will not ask for.
+      // Measured exactly that way: with the ledger gesture first, the first page
+      // turn STILL compiled one program and the two keys on that material
+      // differed by `shadowMapType 2 -> 1` alone.
+      //
+      // LOOPED, NOT ASSUMED, and that distinction was earned. A single
+      // needsUpdate + frame here made the page turn clean on one run and left it
+      // red on the next: WebGLShadowMap.render() returns before the rewrite
+      // unless the bake actually runs, which needs shadow-casting lights in the
+      // render state as well as the flag. So this waits for the OUTCOME -- the
+      // type no longer being the deprecated value -- instead of for a call that
+      // may have returned early. Normally one iteration; the cap keeps a scene
+      // with no shadow-casting light from spinning.
+      let shadowSettleFrames = 0;
+      while (shadowSettleFrames < 6 && renderer.shadowMap.type === THREE.PCFSoftShadowMap) {
+        fitSunShadow();
+        renderer.shadowMap.needsUpdate = true;
+        drawWarmFrame();
+        shadowSettleFrames += 1;
+      }
+      // Reported so a driver can tell "the warm ran on the settled side" from
+      // "the warm ran and the type never moved", which look identical downstream.
+      const settleLabel = `gesture-shadow-settled-${renderer.shadowMap.type}`;
+      prewarmTimings.push({ label: settleLabel, ms: shadowSettleFrames });
+      // The ledger: open, turn forward, turn back, close. It restores its own
+      // pose and suppresses its paper cue; see prewarmGesture in ledgerBook.js.
+      try {
+        clubhouseApi?.ledgerBook?.prewarmGesture?.(drawWarmFrame);
+      } catch { /* the book simply pays its own first open, as it used to */ }
+      phaseAt = markPrewarm('gesture-ledger', phaseAt);
+      await tick();
+      if (!alive()) return false;
+
+      // Every belt tool, equipped for real. ALL of them, not the one tool a warm
+      // happens to touch: the deferred warm in main.js equips 'dustpan' and
+      // nothing else, which is why every probe that measured the dustpan
+      // reported the tools warm -- it was measuring the intervention's own
+      // target. Measured across the whole belt
+      // (qa/electron/firstuse-cachekey/cachekey-diff.json), the mop still
+      // arrived with +1 program and +8 geometries on its first equip.
+      //
+      // NO PREFETCH HERE, and it was tried: an await over
+      // the held-asset registry's ensure path for the belt. The manifest holds
+      // only hose/divot/rake, so ensure() returned Promise.resolve(null) for
+      // every cleaning tool and the loop warmed nothing while breaking the
+      // one-ensure-call contract in course-held-tool-lazy-loading.test.js. The
+      // belt's models are already resident by this point; equipping and drawing
+      // is the whole of what they needed.
+      const beltTools = BELT_ORDER.filter((tool) => tool && CLEANING_TOOLS[tool]);
+      const savedHeld = {
+        tool: walkTool,
+        visible: heldRoot.visible,
+        position: heldRoot.position.clone(),
+        rotation: heldRoot.rotation.clone(),
+        animShow: heldAnim.show,
+        animT: heldAnim.t,
+        animSettle: heldAnim.settle,
+        // A warm behind the veil is not a tool change the player made. Left
+        // stamped, toolChangeDiagnostics() would report nine switches to any
+        // driver that asks whether the player has touched the belt.
+        changeSequence: toolChangeSequence,
+        lastChange: lastToolChange,
+      };
+      let warmedTools = 0;
+      for (const tool of beltTools) {
+        if (!alive()) break;
+        // walkSetTool, not the debounced belt entry point: a loop through the
+        // debounce would collapse into one switch and warm one tool.
+        walkSetTool(tool);
+        // The rise ANIMATION is skipped -- heldRoot is a child of the camera, so
+        // placing it at its settled rest pose is where the player sees the tool
+        // once the 0.26 s equip completes. The equip itself is not skipped: the
+        // registry, the viewmodel, the grips, the hands and the rigs have all
+        // run by the time this draws.
+        heldRoot.visible = true;
+        heldAnim.show = true;
+        heldAnim.t = 1;
+        heldAnim.settle = 1;
+        heldRoot.position.set(0, 0, 0);
+        heldRoot.rotation.set(0, 0, 0);
+        camera.updateMatrixWorld(true);
+        // TWO FRAMES, and the shadow bake asked for explicitly.
+        //
+        // The passes in a frame do not all run every frame: the shadow map is
+        // baked on a throttle (autoUpdate is off; render() sets needsUpdate at
+        // its own rate) and the AO history is built across frames. A single warm
+        // frame per tool therefore lands somewhere in that cadence by luck.
+        //
+        // Measured, and it is the reason this is not one call: two runs of the
+        // identical build disagreed. The first had every tool at +0 programs;
+        // the second had the vacuum compiling FIVE, all of them `depth` shaders
+        // -- the shadow/AO pass, not the colour pass -- and the cache-key diff
+        // put a light count on them that only the main pass carries. Nothing
+        // about the tool changed between those runs; which passes ran on its one
+        // frame did.
+        renderer.shadowMap.needsUpdate = true;
+        drawWarmFrame();
+        renderer.shadowMap.needsUpdate = true;
+        drawWarmFrame();
+        warmedTools += 1;
+      }
+      walkSetTool(savedHeld.tool || null);
+      heldRoot.visible = savedHeld.visible;
+      heldRoot.position.copy(savedHeld.position);
+      heldRoot.rotation.copy(savedHeld.rotation);
+      heldAnim.show = savedHeld.animShow;
+      heldAnim.t = savedHeld.animT;
+      heldAnim.settle = savedHeld.animSettle;
+      toolChangeSequence = savedHeld.changeSequence;
+      lastToolChange = savedHeld.lastChange;
+      camera.updateMatrixWorld(true);
+      // Shorthand `{ label, ms }`, matching markPrewarm above. The strings
+      // ratchet treats a label key followed by a quote as player prose, and a
+      // prewarm diagnostics key is not text any player reads. (The first draft
+      // of this comment SPELLED OUT the pattern and tripped the scanner itself,
+      // which is a fair reminder that it matches text, not intent.)
+      const label = 'gesture-tools-warmed';
+      prewarmTimings.push({ label, ms: warmedTools });
+      phaseAt = markPrewarm('gesture-tools', phaseAt);
+
+      // THE TEE DESK. Its prop label reads "Tee desk - [E] arrivals, check-ins
+      // and walk-ins" and its action is register.enter(), so the gesture to warm
+      // is the entry itself.
+      //
+      // Measured in the owner's own save (tools/qa/electron-tee-desk-press.js):
+      // the first press cost a 71.8 ms frame against a 21.4 ms idle worst, with
+      // +0 programs, +0 textures and +56 GEOMETRIES. Nothing compiles -- the
+      // register's meshes simply reach the GPU for the first time on the frame
+      // the player opens it. The second and third presses cost 25.4 and 22.3 ms.
+      //
+      // enter() is gated only on `active`, not on where the player is standing,
+      // so it can be driven from here. Camera pose and FOV are captured around it
+      // regardless of what leave() restores: the veil is about to lift on this
+      // frame and a register entry that leaked its close-up camera would be worse
+      // than the stall it removes.
+      let registerWarmed = 'skipped';
+      try {
+        const reg = clubhouseApi?.register;
+        if (typeof reg?.enter === 'function' && typeof reg?.leave === 'function') {
+          const camFov = camera.fov;
+          const camPos = camera.position.clone();
+          const camQuat = camera.quaternion.clone();
+          if (reg.enter()) {
+            // TICKED, not held still. Two static frames took the first press
+            // from +56 geometries to +31: the register's entry is ANIMATED --
+            // the camera settles into the workspace and the reader and drawer
+            // move into place -- so a frozen warm draws only what is on screen
+            // at t=0 and the rest still arrives in the player's frame. Driving
+            // its own update between frames lets the entry actually play out.
+            renderer.shadowMap.needsUpdate = true;
+            for (let step = 0; step < 8; step += 1) {
+              try { reg.update?.(1 / 30); } catch { /* a stage that will not tick still draws */ }
+              drawWarmFrame();
+            }
+            reg.leave({ restorePointer: false });
+            registerWarmed = 'entered';
+          } else {
+            registerWarmed = 'refused';
+          }
+          camera.fov = camFov;
+          camera.position.copy(camPos);
+          camera.quaternion.copy(camQuat);
+          camera.updateProjectionMatrix();
+          camera.updateMatrixWorld(true);
+        }
+      } catch {
+        registerWarmed = 'failed';
+      }
+      const registerLabel = `gesture-register-${registerWarmed}`;
+      prewarmTimings.push({ label: registerLabel, ms: 0 });
+      markPrewarm('gesture-register', phaseAt);
+      await tick();
+      if (!alive()) return false;
+      // Put the frame back to the settled pose the veil is about to lift on.
+      guardCourseWaterReflection.beginFrame();
+      try { composer.render(); } catch { renderer.render(scene, camera); }
+    }
+
+    prewarmTimings.push({ label: 'TOTAL', ms: +(performance.now() - prewarmStartedAt).toFixed(1) });
     // Checkout cash representatives share the exact kit geometry/materials and
     // existed only so the forced warm-up draw above could realize them behind
     // the opaque veil. Keep the GPU residency, but remove their scene nodes
     // before the first player frame and before lifecycle baselines are sampled.
-    clubhouseApi?.register?.releaseCashGpuPrewarmRepresentatives?.({ drawn: true });
+    const paymentPrewarmReleased = clubhouseApi?.register
+      ?.releaseCashGpuPrewarmRepresentatives?.();
+    if (clubhouseApi?.register?.releaseCashGpuPrewarmRepresentatives
+        && !(paymentPrewarmReleased?.released === true
+          && paymentPrewarmReleased?.complete === true
+          && paymentPrewarmReleased?.aborted === false)) {
+      const aborted = clubhouseApi.register.releaseCashGpuPrewarmRepresentatives({
+        abort: true,
+        cause: 'representatives-not-observed',
+      });
+      const error = new Error('Checkout payment representatives did not all draw behind the loading veil.');
+      error.name = 'CheckoutPaymentPrewarmError';
+      error.code = 'PAYMENT_GPU_PREWARM_NOT_OBSERVED';
+      error.paymentGpuPrewarm = aborted || paymentPrewarmReleased || null;
+      throw error;
+    }
     return true;
   }
+
+  const postApi = { composer, gtao, bloom, sun };
+  Object.defineProperty(postApi, 'stats', {
+    enumerable: true,
+    configurable: false,
+    writable: false,
+    value: () => Object.freeze({ shadowBakes, composedRenders }),
+  });
 
   return {
     renderer,
     scene,
+    // X4 (Goal 21): the APP tells the scene when the overview is up.
+    // activeCourseCamera looks like the right signal and is not -- nothing
+    // writes it when the player presses Tab, so a pin gated on it never once
+    // existed while the game was demonstrably in overview mode.
+    setOverviewPin: (on) => { overviewPinWanted = !!on; },
     prewarm,
+    assetIdleReport: () => assetIdleReport,
+    firstDoorVisibilityReport: () => firstDoorVisibilityReport,
+    // Ranked, measured load cost. Empty until prewarm has run once.
+    prewarmTimings: () => prewarmTimings.map((entry) => ({ ...entry })),
+    // A1: which axis of the program key is generating the permutations that
+    // dominate the load. Null until a prewarm has run.
+    programKeyBreakdown: () => (programKeyBreakdown
+      ? JSON.parse(JSON.stringify(programKeyBreakdown)) : null),
     whenAssetsIdle: () => whenAssetsIdle(10000),
     camera,
     rig,
-    post: { composer, gtao, bloom, sun, stats: () => ({ shadowBakes }) },
+    post: postApi,
     // Texture-memory infrastructure, exposed so the QA harness can assert that
     // sharing and compression are actually happening rather than assume it.
     textureMemory: () => ({ ktx2: ktx2Diagnostics(), shared: sharedTextureDiagnostics() }),
@@ -11033,6 +12920,11 @@ export function makeCourseScene(canvas, state) {
     golferCount: () => golfers.length,
     setGolfersVisible: (v) => { golferGroup.visible = !!v; },
     setEditorShadowFocus,
+    setShadowQuality,
+    setPostEnabled,
+    setAntialiasSamples,
+    antialiasSamples,
+    postDiag,
     assetBarrier: (timeoutMs = 12000) => ({
       idle: !assetsInFlight,
       promise: whenAssetsIdle(timeoutMs),
@@ -11044,6 +12936,24 @@ export function makeCourseScene(canvas, state) {
       update: walkUpdate,
       interact: walkInteract,
       interactSecondary: walkInteractSecondary,
+      // 9.2 QA: WHAT the prompt names AND WHERE that thing is. The first version
+      // of the sticky-prompt driver measured the angle to the station the player
+      // was standing at rather than to the prop the prompt actually named, so a
+      // correct prompt about the laptop scored as a 180-degree lie about the tee
+      // desk. Reporting the named prop's own position is what makes the angle
+      // mean what the check claims it means.
+      focusInfo: () => {
+        if (!walkFocus) return null;
+        const prop = walkFocus.kind === 'prop' ? walkFocus.prop : null;
+        return {
+          kind: walkFocus.kind,
+          label: typeof walkFocus.label === 'function' ? walkFocus.label() : walkFocus.label,
+          viaCrosshair: walkFocus.viaCrosshair === true,
+          x: prop ? prop.x : null,
+          z: prop ? prop.z : null,
+          r: prop ? prop.r : null,
+        };
+      },
       getFocusLabel: () => {
         if (!walkFocus) return null;
         const secondary = walkFocus.kind === 'prop'
@@ -11060,6 +12970,26 @@ export function makeCourseScene(canvas, state) {
       // apart from "the key arrived and the walker ignored it" — the exact
       // ambiguity that let two D-key harnesses pass a broken D key.
       heldKeys: () => [...walkHeld],
+      // K (Goal 23) — HOW FAR CAN I ACTUALLY WALK THAT WAY?
+      //
+      // A collision driver aimed itself with clubhouse.isInside(), which answers
+      // about the ROOM ENVELOPE and is blind to furniture -- so its "clearest"
+      // direction walked into a shelf and its reference leg travelled 1.15 yd
+      // against wall legs of 3.4 and 5.7. Every verdict it produced was
+      // unreadable.
+      //
+      // walkFreeAt is the predicate the PLAYER'S OWN movement is resolved
+      // against, props included. Asking it along a bearing is the only honest
+      // way to find open floor.
+      clearRun: (yaw, maxYd = 14, step = 0.2) => {
+        const r = walk.radius;
+        for (let d = step; d <= maxYd; d += step) {
+          const x = walk.x - Math.sin(yaw) * d;
+          const z = walk.z - Math.cos(yaw) * d;
+          if (!walkFreeAt(x, z, r)) return +(d - step).toFixed(2);
+        }
+        return maxYd;
+      },
       // Diagnostics for the stranded-modifier class: how many phantoms the
       // reconcile has caught, and which. Non-empty means the page WAS carrying a
       // modifier the OS had already released.
@@ -11120,7 +13050,124 @@ export function makeCourseScene(canvas, state) {
       toggleLights: toggleGolfCartLights,
       toggleVehicleCamera: toggleGolfCartCamera,
       setTool: walkSetToolDebounced,
+      // PLAYTEST 5 P0 — "I start every game with a cleaning dustpan already in
+      // my hand." The deferred GPU warm equips a tool, draws three frames, and
+      // puts it back. Its restore went through walkSetToolDebounced, which
+      // inside TOOL_SWITCH_DEBOUNCE (120 ms -- three frames can be a fifth of
+      // that at high refresh) does not apply the switch at all: it parks it in
+      // pendingBeltTool, and the ONLY thing that drains that queue is
+      // updateHeldFeel, which runs from walkUpdate. Stand at the laptop, the
+      // desk screen, the register or the overview when the warm fires and the
+      // queue is never drained, so the warm's dustpan stays in the player's
+      // hands for the rest of the session.
+      //
+      // The debounce exists to stop a player mashing the belt. The warm is not
+      // a player, so it is given a door that does not queue -- and it clears
+      // any queued switch on the way through, so a warm cannot leave one of its
+      // own behind either.
+      setToolImmediate: (tool) => {
+        pendingBeltTool = undefined;
+        hasPendingBeltTool = false;
+        toolSwitchCooldown = 0;
+        walkSetTool(tool);
+      },
       getTool: () => walkTool,
+      // PLAYTEST 4, ITEM 3b: is the mop equipped, and is the solver in its mopping
+      // mode right now? Without this a clip cannot tell "the yarn held still"
+      // from "no yarn was ever in the frame".
+      strandRigDiagnostics: (id) => toolViewmodels.strandRigDiagnostics?.(id) ?? null,
+      // E1 — the six axes the broom was fixed against, readable for EVERY tool
+      // from the live rig rather than from its registry entry. The registry
+      // says what a tool declares; this says where its geometry actually ended
+      // up after the frame posed it.
+      // I5: the hand-tool clamp's last applied pull per tool (yd). 0 = free.
+      handToolClampDiagnostics: () => ({ ...handToolClampDebug }),
+      floorAnchorDiagnostics: () => ({
+        frame: floorAnchorDebug.frame,
+        anchoredTools: FLOOR_ANCHORED_TOOLS,
+        tools: JSON.parse(JSON.stringify(floorAnchorDebug.tools)),
+        // What the group actually carries NOW, read from outside the frame. If
+        // this disagrees with `applied` above, something downstream is
+        // overwriting the solve and the solve is not the thing to fix.
+        live: FLOOR_ANCHORED_TOOLS.map((id) => {
+          const g = heldGroups[id];
+          const rest = g?.userData?.cleaningRestPosition;
+          return {
+            id,
+            visible: !!g?.visible,
+            positionY: g ? +g.position.y.toFixed(4) : null,
+            restY: rest ? +rest.y.toFixed(4) : null,
+            offsetY: g && rest ? +(g.position.y - rest.y).toFixed(4) : null,
+            restIsPosition: !!(g && rest === g.position),
+          };
+        }),
+        walkAt: { x: +walk.x.toFixed(3), z: +walk.z.toFixed(3) },
+        groundYAtWalk: clubhouseApi?.groundYAt ? +clubhouseApi.groundYAt(walk.x, walk.z).toFixed(4) : null,
+      }),
+      heldToolGeometry: () => {
+        if (!walkTool) return null;
+        const def = CLEANING_TOOLS[walkTool];
+        const g = heldGroups[walkTool];
+        if (!def || !g) return null;
+        const contactName = def.sockets?.contact ? 'contact' : (def.sockets?.nozzle ? 'nozzle' : null);
+        const contact = contactName ? socketWorld(g, contactName, new THREE.Vector3()) : null;
+        const floorY = clubhouseApi?.groundYAt ? clubhouseApi.groundYAt(walk.x, walk.z) : null;
+        const box = new THREE.Box3().setFromObject(g);
+        const ndc = contact ? contact.clone().project(camera) : null;
+        // hands: are they parented INTO this tool, and does the arm carry a
+        // sleeve/cuff rather than ending in a bare stub?
+        let handMeshes = 0;
+        let sleeveMeshes = 0;
+        g.traverse((o) => {
+          if (/FirstPerson(Right|Left)Hand/.test(o.name || '')) handMeshes += 1;
+          if (/Sleeve|Cuff|Forearm/i.test(o.name || '')) sleeveMeshes += 1;
+        });
+        return {
+          tool: walkTool,
+          floorAnchored: !!def.floorAnchored,
+          worldPitch: def.worldPitch ?? null,
+          contactSocket: contactName,
+          contactWorldY: contact ? +contact.y.toFixed(4) : null,
+          contactWorld: contact
+            ? { x: +contact.x.toFixed(4), y: +contact.y.toFixed(4), z: +contact.z.toFixed(4) }
+            : null,
+          contactAboveFloor: (contact && floorY != null) ? +(contact.y - floorY).toFixed(4) : null,
+          contactNdc: ndc ? { x: +ndc.x.toFixed(3), y: +ndc.y.toFixed(3) } : null,
+          boxMinY: box.isEmpty() ? null : +box.min.y.toFixed(4),
+          boxMaxY: box.isEmpty() ? null : +box.max.y.toFixed(4),
+          // the group's own local pose, so an animation can be detected as a
+          // spread of poses rather than assumed from the presence of a hook
+          localPose: [
+            +g.position.x.toFixed(4), +g.position.y.toFixed(4), +g.position.z.toFixed(4),
+            +g.rotation.x.toFixed(4), +g.rotation.y.toFixed(4), +g.rotation.z.toFixed(4),
+          ],
+          handMeshes,
+          sleeveMeshes,
+          hasGrip: !!def.grip,
+          hasSupport: !!def.support,
+          geomSource: rigFor(walkTool)?.isActive() ? rigFor(walkTool).diagnostics().geomSource : null,
+        };
+      },
+      // C10 — what is drawn in the hands, from every pass that can draw it, so
+      // a driver can check the station stow without trusting one flag.
+      heldToolDiagnostics: () => ({
+        tool: walkTool,
+        stationOpen: !!clubhouseApi?.register?.isActive?.(),
+        stationStowedTool,
+        heldRootVisible: heldRoot.visible,
+        broomPassActive: Object.values(toolRigs).some((rig) => rig.isActive()),
+        visibleHeldGroups: Object.entries(heldGroups)
+          .filter(([, g]) => g.visible).map(([name]) => name),
+        animation: {
+          show: heldAnim.show,
+          progress: heldAnim.t,
+          settleProgress: heldAnim.settle,
+          settled: heldAnim.show
+            ? heldAnim.t >= 1 && (walk.reducedMotion || heldAnim.settle >= 1)
+            : heldAnim.t >= 1 && !heldRoot.visible,
+        },
+      }),
+      toolChangeDiagnostics: () => (lastToolChange ? { ...lastToolChange } : null),
       heldAssetDiagnostics: heldAssetRegistry.diagnostics,
       toolViewmodelDiagnostics: () => ({
         loadResults: toolViewmodelsAuthored,
@@ -11138,6 +13185,21 @@ export function makeCourseScene(canvas, state) {
           camera.updateProjectionMatrix();
         }
       },
+      // E7: WHAT configure() ACTUALLY TOOK. Three camera settings — sensitivity,
+      // invert-Y and head bob — were delivered here by applySettings and then
+      // vanished into closure variables nothing could read, so an audit asking
+      // "does this control do anything" got null for all three and could not
+      // tell a working setting from a dead one. A setting the game cannot be
+      // asked about is a setting nobody can verify.
+      diagnostics: () => ({
+        sensitivity: walk.sens,
+        fov: walk.fov,
+        invertY: !!walk.invertY,
+        cameraBob: !!walk.cameraBob,
+        reducedMotion: !!walk.reducedMotion,
+        active: !!walk.active,
+        tool: walkTool,
+      }),
       setSpraying: walkSetSpraying,
       isSpraying: () => walkSpraying,
       setSoaping: walkSetSoaping,
@@ -11157,12 +13219,79 @@ export function makeCourseScene(canvas, state) {
       // pitch, reach, clamp state, tilt, intensity). Null-safe for QA that
       // probes before the rig exists.
       broomDiagnostics: () => broomVm.diagnostics(),
+      // I1: the same instrument surface, addressable per rig tool. Null for a
+      // tool the rig does not own, so a driver cannot mistake "no rig" for a
+      // healthy pose.
+      toolRigDiagnostics: (id) => (toolRigs[id] ? toolRigs[id].diagnostics() : null),
+      // WHICH AUTHORED TOOL ASSETS ACTUALLY ADOPTED, AND WHY NOT.
+      //
+      // `adoptAuthored()` resolves an array of {id, ok, reason} and the result
+      // was assigned to a closure variable that NOTHING READ. A tool whose GLB
+      // fails to load falls back to its procedural stand-in on purpose - "not
+      // fatal, the procedural tool is already on screen and fully playable" -
+      // so the failure is invisible on screen AND unreadable from a driver.
+      //
+      // That combination is what cost this session's tool-beat investigation:
+      // every asset-socket diagnostic (shaftDrop, assetHeadNdc, headAboveFloor)
+      // returns null when the authored asset is absent, and qa-boot's
+      // `toolIsLive` reads that null as "the rig is not running". The one fact
+      // that separates "broken rig" from "asset never adopted" existed and was
+      // thrown away.
+      //
+      // null here means adoption has not resolved yet, which is itself an
+      // answer a driver needs to be able to tell apart from failure.
+      // First-invocation cost of every lazy builder, in call order. Empty until
+      // one actually builds, which is itself the answer to "does this fire on
+      // the first step at all?"
+      lazyBuildTimings: () => lazyBuildTimings.map((r) => ({ ...r })),
+      // null until adoption resolves. Any object here was built inside the
+      // compile block, so its presence proves the block ran.
+      toolPrecompileInfo: () => (toolPrecompile ? { ...toolPrecompile } : null),
+      toolAuthoredResults: () => (toolViewmodelsAuthored
+        ? toolViewmodelsAuthored.map((r) => ({ id: r.id, ok: r.ok, reason: r.reason ?? null }))
+        : null),
+      // B2 — the tuning overlay's surface. toolFeelLive hands back the LIVE
+      // mutable clone (the overlay writes leaves directly and calls refresh
+      // for the constructor-captured set); toolFeelSet is the path-string
+      // form the QA driver uses so its writes go through the same door.
+      toolFeelLive: (id) => liveToolFeel[id] || null,
+      toolFeelSet: (id, path, value) => {
+        const feel = liveToolFeel[id];
+        if (!feel || typeof path !== 'string') return null;
+        const keys = path.split('.');
+        let node = feel;
+        for (let i = 0; i < keys.length - 1; i += 1) {
+          if (node[keys[i]] == null || typeof node[keys[i]] !== 'object') return null;
+          node = node[keys[i]];
+        }
+        const leaf = keys[keys.length - 1];
+        const idx = Number(leaf);
+        if (Array.isArray(node) && Number.isInteger(idx)) node[idx] = Number(value);
+        else node[leaf] = typeof node[leaf] === 'number' ? Number(value) : value;
+        toolRigs[id]?.refreshFromFeel?.();
+        if (path.startsWith('strands')) pushStrandParams(id);
+        return true;
+      },
+      toolFeelRefresh: (id) => (toolRigs[id]?.refreshFromFeel ? toolRigs[id].refreshFromFeel() : false),
+      toolFeelSnapshot: () => JSON.parse(JSON.stringify(liveToolFeel)),
+      toolFeelApplyOverrides: (overrides) => applyToolFeelOverrides(overrides),
+      strandRigFor: (id) => heldGroups[id]?.userData?.strandRig || null,
+      // D (Goal 23): forwarded so the yarn sweep can rebuild between shots.
+      rebuildYarn: (id, overrides) => toolViewmodels.rebuildYarn(id, overrides),
+      pushStrandParams,
+      // B3/B4: the framing sweep sets a tool's hand anchor live and reads the
+      // head's plant back, so the two constraints can be satisfied together
+      // instead of one being tuned until the other breaks.
+      toolRigSetGripAnchor: (id, next) => (
+        toolRigs[id]?.setGripAnchorOverride ? toolRigs[id].setGripAnchorOverride(next) : null
+      ),
+      toolRigIds: () => Object.keys(toolRigs),
       // Dirt sense: the held-key reveal's own state, plus what the crosshair is
       // currently over. Both are what the acceptance driver reads.
       dirtSense: () => ({
-        key: DIRT_SENSE.key,
+        key: boundWalkKey('dirtSense'),
         alpha: +dirtSenseAlpha.toFixed(3),
-        held: walkHeld.has(DIRT_SENSE.key),
+        held: heldAction('dirtSense'),
         linger: +dirtSenseLinger.toFixed(2),
         aimed: dirtSenseAimed
           ? { kind: dirtSenseAimed.kind || 'grit', dist: +dirtSenseAimed.dist.toFixed(2) }
@@ -11182,6 +13311,12 @@ export function makeCourseScene(canvas, state) {
       // that measures where a part lands ON SCREEN must project through this
       // camera, not the world one.
       broomViewmodelCamera: () => broomVm.vmCamera,
+      // ...and there is one rig PER STICK TOOL, each with its own lens. Asking
+      // the broom's camera where the dustpan landed projects through a lens
+      // that did not draw it, which is how a tool with no dustpan in frame
+      // measured 6.1% of screen and ranked mid-table. This returns the lens
+      // that actually rendered `id`, or the world camera when no rig owns it.
+      toolDrawCamera: (id) => (toolRigs[id]?.isActive() ? toolRigs[id].vmCamera : camera),
       clearKeys: walkBlur, // a mode change drops whatever was held, so you never resume walking into a wall
       unstick: walkUnstick, // the pause menu's manual fallback; returns how it got you out, or null
       isFree: (x, z, r) => walkFreeAt(x, z, r ?? walk.radius), // also what placement validation asks
@@ -11191,6 +13326,14 @@ export function makeCourseScene(canvas, state) {
       aimCell: walkAimCell,
       isActive: () => walk.active,
       state: walk, // position/yaw/pitch — also the QA hook
+      // F1 read-only QA surface: where the work stations are, and whether one
+      // outranks the tool prompt right now — the driver asserts the same
+      // predicate the focus scan uses instead of reverse-engineering it.
+      stations: () => walkProps.filter((p) => p.station).map((p) => ({ x: p.x, z: p.z, r: p.r })),
+      stationInReach: () => {
+        const p = walkStationPropInReach();
+        return p ? { x: p.x, z: p.z, r: p.r } : null;
+      },
       cart, // cart state, same purpose
       // read-only for QA. `props` is what the clubhouse and the facilities
       // register into — the list that decides whether a doorway is walkable, and

@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { makeRng } from '../src/core/utils.js';
 import { newGame, serialize, deserialize } from '../src/sim/state.js';
 import { calendarOf } from '../src/sim/time.js';
-import {
+import { configureTeeSheet,
   TEE_SHEET,
   ensureReservations,
   configureReservations,
@@ -25,12 +25,15 @@ import {
   markReservationNoShow,
   checkInReservation,
   RESERVATION_DEPOSIT_TYPE,
+  RESERVATION_DEPOSIT_SKU,
   RESERVATION_NO_SHOW_FEE_TYPE,
+  RESERVATION_NO_SHOW_FEE_SKU,
   reservationDepositReference,
   reservationNoShowFeeReference,
   walkInAvailability,
   selectWalkInSlot,
 } from '../src/sim/reservations.js';
+import { bankServiceCharge } from '../src/sim/register.js';
 
 const today = (state) => calendarOf(state.clock.minutes).dayAbs;
 
@@ -192,8 +195,9 @@ test('arrival windows stagger customers and persisted transitions are idempotent
   assert.equal(saved.currentDestination, 'front-desk');
 });
 
-test('overdue reservations become no-shows and the policy fee can bank only once', () => {
+test('timeline no-show charging fails closed when the booking has no persisted card authority', () => {
   const state = newGame('relaxed', 3105);
+  configureTeeSheet(state, { autoBookings: false });
   const dayAbs = today(state) + 1;
   const reservation = bookReservation(state, {
     dayAbs,
@@ -202,25 +206,68 @@ test('overdue reservations become no-shows and the policy fee can bank only once
     partySize: 2,
     noShowFee: 17.5,
   }).res;
+  assert.equal(reservation.payment.cardOnFile, false);
   const deadline = reservation.teeTimeAbs + reservationConfig(state).noShowGraceMin;
-  const processed = processReservationTimeline(state, { at: deadline + 1 });
+  const cashBefore = state.cash;
+  const revenueBefore = state.ledger.today.revenue.greenFees;
+  const ledgerRowsBefore = state.ledger.entries.length;
+  const ticketsBefore = state.shop.transactionHistory.length;
+
+  const processed = processReservationTimeline(state, { at: deadline + 1, chargeFees: true });
   assert.deepEqual(processed.noShows.map((r) => r.id), [reservation.id]);
   assert.equal(reservation.status, 'noShow');
   assert.equal(reservation.noShowFeeStatus, 'pending');
+  assert.equal(state.cash, cashBefore);
+  assert.equal(state.ledger.today.revenue.greenFees, revenueBefore);
+  assert.equal(state.ledger.entries.length, ledgerRowsBefore);
+  assert.equal(state.shop.transactionHistory.length, ticketsBefore);
+  assert.equal(reservation.noShowFeeReferenceId ?? null, null);
 
-  const cashBefore = state.cash;
-  const revenueBefore = state.ledger.today.revenue.greenFees;
-  const first = chargeNoShowFee(state, reservation.id, { at: deadline + 2 });
-  const second = chargeNoShowFee(state, reservation.id, { at: deadline + 3 });
-  assert.ok(first.ok);
-  assert.equal(second.already, true);
-  assert.equal(state.cash, cashBefore + 17.5);
-  assert.equal(state.ledger.today.revenue.greenFees, revenueBefore + 17.5);
-  assert.equal(reservation.noShowFeeChargeKey, `reservation:${reservation.id}:no-show-fee`);
-  assert.equal(processReservationTimeline(state, { at: deadline + 50 }).noShows.length, 0, 'timeline replay is exact-once');
+  const direct = chargeNoShowFee(state, reservation.id, { at: deadline + 2 });
+  assert.equal(direct.ok, false);
+  assert.match(direct.diagnostic || direct.reason, /persisted card-on-file authorization/i);
+  assert.equal(state.cash, cashBefore);
+  assert.equal(state.ledger.today.revenue.greenFees, revenueBefore);
+});
+
+test('persisted explicit card authority lets timeline bank one exact no-show fee', () => {
+  const state = newGame('relaxed', 'authorized-no-show-timeline');
+  configureTeeSheet(state, { autoBookings: false });
+  const made = bookReservation(state, {
+    dayAbs: today(state) + 1,
+    minute: 480,
+    name: 'Authorized No Show Golfer',
+    partySize: 2,
+    noShowFee: 17.5,
+    cardOnFile: true,
+  });
+  assert.equal(made.ok, true, made.reason);
 
   const loaded = deserialize(serialize(state));
-  const saved = loaded.reservations.booked.find((r) => r.id === reservation.id);
+  const reservation = loaded.reservations.booked.find((entry) => entry.id === made.res.id);
+  assert.equal(reservation.payment.cardOnFile, true, 'explicit authority survives save/load');
+  const deadline = reservation.teeTimeAbs + reservationConfig(loaded).noShowGraceMin;
+  const cashBefore = loaded.cash;
+  const revenueBefore = loaded.ledger.today.revenue.greenFees;
+
+  const processed = processReservationTimeline(loaded, { at: deadline + 1, chargeFees: true });
+  assert.deepEqual(processed.noShows.map((entry) => entry.id), [reservation.id]);
+  assert.equal(reservation.noShowFeeStatus, 'charged');
+  assert.equal(loaded.cash, cashBefore + 17.5);
+  assert.equal(loaded.ledger.today.revenue.greenFees, revenueBefore + 17.5);
+  assert.equal(reservation.noShowFeeChargeKey, `reservation:${reservation.id}:no-show-fee`);
+  const ticket = loaded.shop.transactionHistory.find(
+    (entry) => entry.type === RESERVATION_NO_SHOW_FEE_TYPE,
+  );
+  assert.ok(ticket);
+  assert.equal(ticket.total, 17.5);
+
+  assert.equal(processReservationTimeline(loaded, { at: deadline + 50, chargeFees: true }).noShows.length, 0,
+    'timeline replay is exact-once');
+  assert.equal(loaded.cash, cashBefore + 17.5);
+
+  const savedAgain = deserialize(serialize(loaded));
+  const saved = savedAgain.reservations.booked.find((entry) => entry.id === reservation.id);
   assert.equal(saved.noShowFeeStatus, 'charged');
   assert.equal(saved.noShowFeeChargeKey, reservation.noShowFeeChargeKey);
 });
@@ -276,8 +323,270 @@ test('a reservation deposit banks one durable ticket and replay after save/load 
   assert.equal(loaded.ledger.today.revenue.greenFees, revenueBefore + 100);
 });
 
+test('a valid direct deposit ticket recovers a torn reservation tail using its original ledger time', () => {
+  const state = newGame('relaxed', 3114);
+  const dayAbs = today(state) + 1;
+  const reservation = bookReservation(state, {
+    dayAbs,
+    minute: 540,
+    name: 'Deposit Tail Recovery',
+    partySize: 1,
+    totalFee: 100,
+    deposit: 25,
+    bankDeposit: false,
+  }).res;
+  const referenceId = reservationDepositReference(reservation.id);
+  const originalMinute = state.clock.minutes + 17;
+  const cashBefore = state.cash;
+  const banked = bankServiceCharge(state, {
+    type: RESERVATION_DEPOSIT_TYPE,
+    referenceId,
+    revenueKey: 'greenFees',
+    amount: 25,
+    customer: reservation.fullName || reservation.name,
+    customerId: reservation.customerId,
+    method: 'manual-online-card',
+    skuId: RESERVATION_DEPOSIT_SKU,
+    itemName: 'Reservation Deposit',
+    minute: originalMinute,
+    details: {
+      reservationId: reservation.id,
+      customerId: reservation.customerId,
+      dayAbs: reservation.dayAbs,
+      minute: reservation.minute,
+      totalFee: reservation.fee,
+    },
+  });
+  assert.equal(banked.ok, true, banked.reason);
+  assert.equal(reservation.depositStatus, 'pending', 'the banked ticket precedes its reservation tail');
+  assert.equal(state.cash, cashBefore + 25);
+
+  const recovered = bankReservationDeposit(state, reservation.id, {
+    amount: 25,
+    at: originalMinute + 200,
+  });
+  assert.equal(recovered.ok, true, recovered.reason);
+  assert.equal(recovered.already, true);
+  assert.equal(recovered.ticket.number, banked.ticket.number);
+  assert.equal(reservation.depositStatus, 'paid');
+  assert.equal(reservation.depositPaid, 25);
+  assert.equal(reservation.depositPaidAt, originalMinute);
+  assert.equal(reservation.depositPaymentMethod, 'manual-online-card');
+  assert.equal(state.cash, cashBefore + 25, 'recovery does not bank the ledger twice');
+});
+
+test('paid reservation projections fail closed when their exact ticket or ledger is missing', () => {
+  for (const failure of ['ticket', 'ledger']) {
+    const state = newGame('relaxed', `deposit-provenance-${failure}`);
+    const reservation = bookReservation(state, {
+      dayAbs: today(state) + 1,
+      minute: 570,
+      name: `Deposit ${failure} Provenance`,
+      partySize: 1,
+      totalFee: 100,
+      deposit: 25,
+    }).res;
+    const ticket = state.shop.transactionHistory.find(
+      (entry) => entry.type === RESERVATION_DEPOSIT_TYPE,
+    );
+    assert.ok(ticket);
+    if (failure === 'ticket') state.shop.transactionHistory = [];
+    else {
+      const entry = state.ledger.entries.find((row) => row.id === ticket.ledgerEntryId);
+      entry.description = 'forged deposit ledger row';
+    }
+    const before = structuredClone(state);
+
+    const replay = bankReservationDeposit(state, reservation.id);
+    assert.equal(replay.ok, false);
+    assert.match(replay.diagnostic || replay.reason, /provenance|different posting/i);
+    assert.deepEqual(state, before);
+  }
+});
+
+test('no-show deposit credits require exact paid state, reference, ticket, and ledger authority', () => {
+  for (const failure of ['invented', 'legacy-untracked', 'state', 'reference', 'ticket', 'ledger']) {
+    const state = newGame('relaxed', `no-show-deposit-credit-${failure}`);
+    const untracked = failure === 'invented' || failure === 'legacy-untracked';
+    const reservation = bookReservation(state, {
+      dayAbs: today(state) + 1,
+      minute: 600,
+      name: `No Show Deposit Credit ${failure}`,
+      partySize: 1,
+      totalFee: 100,
+      deposit: untracked ? 0 : 25,
+      noShowFee: 35,
+    }).res;
+
+    if (untracked) {
+      reservation.depositPaid = 25;
+      if (failure === 'legacy-untracked') {
+        reservation.deposit = 25;
+        reservation.depositStatus = 'legacy-untracked';
+        reservation.balanceDue = 75;
+        reservation.remainingBalance = 75;
+      }
+    } else if (failure === 'state') {
+      reservation.depositStatus = 'pending';
+    } else if (failure === 'reference') {
+      reservation.depositReferenceId = 'reservation:forged:deposit';
+    } else {
+      const ticket = state.shop.transactionHistory.find(
+        (entry) => entry.type === RESERVATION_DEPOSIT_TYPE,
+      );
+      assert.ok(ticket);
+      if (failure === 'ticket') {
+        state.shop.transactionHistory = [];
+      } else {
+        const entry = state.ledger.entries.find((row) => row.id === ticket.ledgerEntryId);
+        entry.description = 'forged no-show deposit ledger row';
+      }
+    }
+
+    markReservationNoShow(state, reservation.id, { at: reservation.teeTimeAbs + 30 });
+    assert.equal(reservation.noShowDepositCredit, 25, 'the forged projection reaches the guarded path');
+    const before = structuredClone(state);
+
+    const charged = chargeNoShowFee(state, reservation.id, { at: reservation.teeTimeAbs + 31 });
+    assert.equal(charged.ok, false, failure);
+    assert.match(charged.diagnostic || charged.reason, /deposit credit.*paid-deposit provenance/i, failure);
+    assert.deepEqual(state, before, `${failure} authority failure cannot bank or project a fee`);
+  }
+});
+
+test('completed no-show projections fail closed when their exact ticket or ledger is missing', () => {
+  for (const failure of ['ticket', 'ledger']) {
+    const state = newGame('relaxed', `no-show-provenance-${failure}`);
+    const reservation = bookReservation(state, {
+      dayAbs: today(state) + 1,
+      minute: 600,
+      name: `No Show ${failure} Provenance`,
+      partySize: 1,
+      totalFee: 100,
+      noShowFee: 20,
+      cardOnFile: true,
+    }).res;
+    markReservationNoShow(state, reservation.id, { at: reservation.teeTimeAbs + 30 });
+    const first = chargeNoShowFee(state, reservation.id, {
+      at: reservation.teeTimeAbs + 31,
+    });
+    assert.equal(first.ok, true, first.reason);
+    const ticket = first.ticket;
+    if (failure === 'ticket') state.shop.transactionHistory = [];
+    else {
+      const entry = state.ledger.entries.find((row) => row.id === ticket.ledgerEntryId);
+      entry.metadata = { ...entry.metadata, method: 'forged-method' };
+    }
+    const before = structuredClone(state);
+
+    const replay = chargeNoShowFee(state, reservation.id);
+    assert.equal(replay.ok, false);
+    assert.match(replay.diagnostic || replay.reason, /provenance|different posting/i);
+    assert.deepEqual(state, before);
+  }
+});
+
+test('a valid no-show ticket recovers a torn reservation tail with exact method and time', () => {
+  const state = newGame('relaxed', 3117);
+  const reservation = bookReservation(state, {
+    dayAbs: today(state) + 1,
+    minute: 660,
+    name: 'No Show Tail Recovery',
+    partySize: 1,
+    totalFee: 100,
+    noShowFee: 20,
+    cardOnFile: true,
+  }).res;
+  markReservationNoShow(state, reservation.id, { at: reservation.teeTimeAbs + 30 });
+  const referenceId = reservationNoShowFeeReference(reservation.id);
+  const originalMinute = reservation.teeTimeAbs + 31;
+  const cashBefore = state.cash;
+  const banked = bankServiceCharge(state, {
+    type: RESERVATION_NO_SHOW_FEE_TYPE,
+    referenceId,
+    revenueKey: 'greenFees',
+    amount: 20,
+    customer: reservation.fullName || reservation.name,
+    customerId: reservation.customerId,
+    method: 'manual-card-on-file',
+    skuId: RESERVATION_NO_SHOW_FEE_SKU,
+    itemName: 'Reservation No-Show Fee',
+    minute: originalMinute,
+    details: {
+      reservationId: reservation.id,
+      customerId: reservation.customerId,
+      dayAbs: reservation.dayAbs,
+      minute: reservation.minute,
+      grossFee: 20,
+      depositCredit: 0,
+    },
+  });
+  assert.equal(banked.ok, true, banked.reason);
+  assert.equal(reservation.noShowFeeStatus, 'pending');
+
+  const recovered = chargeNoShowFee(state, reservation.id, { at: originalMinute + 100 });
+  assert.equal(recovered.ok, true, recovered.reason);
+  assert.equal(recovered.already, true);
+  assert.equal(recovered.ticket.method, 'manual-card-on-file');
+  assert.equal(reservation.noShowFeeStatus, 'charged');
+  assert.equal(reservation.noShowFeeChargedAt, originalMinute);
+  assert.equal(state.cash, cashBefore + 20);
+});
+
+test('frozen deposit and no-show projections reject before any direct charge banks', () => {
+  const depositState = newGame('relaxed', 3115);
+  const depositReservation = bookReservation(depositState, {
+    dayAbs: today(depositState) + 1,
+    minute: 600,
+    name: 'Frozen Deposit Projection',
+    partySize: 1,
+    totalFee: 100,
+    deposit: 25,
+    bankDeposit: false,
+  }).res;
+  Object.defineProperty(depositReservation.payment, 'amountPaid', {
+    value: depositReservation.payment.amountPaid,
+    writable: false,
+    enumerable: true,
+    configurable: true,
+  });
+  const depositBefore = structuredClone(depositState);
+  const deposit = bankReservationDeposit(depositState, depositReservation.id);
+  assert.equal(deposit.ok, false);
+  assert.match(deposit.diagnostic || deposit.reason, /payment authority.*not writable/i);
+  assert.deepEqual(depositState, depositBefore);
+
+  const noShowState = newGame('relaxed', 3116);
+  const noShowReservation = bookReservation(noShowState, {
+    dayAbs: today(noShowState) + 1,
+    minute: 630,
+    name: 'Frozen No Show Projection',
+    partySize: 1,
+    totalFee: 100,
+    noShowFee: 20,
+    cardOnFile: true,
+  }).res;
+  markReservationNoShow(noShowState, noShowReservation.id, {
+    at: noShowReservation.teeTimeAbs + 30,
+  });
+  Object.defineProperty(noShowReservation, 'noShowFeeStatus', {
+    value: noShowReservation.noShowFeeStatus,
+    writable: false,
+    enumerable: true,
+    configurable: true,
+  });
+  const noShowBefore = structuredClone(noShowState);
+  const charged = chargeNoShowFee(noShowState, noShowReservation.id, {
+    at: noShowReservation.teeTimeAbs + 31,
+  });
+  assert.equal(charged.ok, false);
+  assert.match(charged.diagnostic || charged.reason, /projection.*not writable/i);
+  assert.deepEqual(noShowState, noShowBefore);
+});
+
 test('minute-zero generated deposits defer into the new ledger window and then bank once', () => {
   const state = newGame('relaxed', 3113);
+  configureTeeSheet(state, { autoBookings: false }); // exact-once deposit accounting
   state.clock.minutes = 1440;
   const cashBefore = state.cash;
   const revenueBefore = state.ledger.today.revenue.greenFees;
@@ -318,6 +627,7 @@ test('no-show accounting credits a retained deposit and tickets only the additio
     totalFee: 100,
     deposit: 20,
     noShowFee: 35,
+    cardOnFile: true,
   });
   assert.ok(made.ok);
   const reservation = made.res;

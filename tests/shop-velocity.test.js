@@ -54,7 +54,7 @@ test('a line that never sells has infinite supply, not a divide-by-zero', () => 
   s.shop.inventory.balls1.back = 0;
   rollSalesWindow(s);
   assert.equal(velocity(s, 'balls1'), 0);
-  assert.equal(daysOfSupply(s, 'balls1'), Infinity, 'dead stock lasts forever — that IS the finding');
+  assert.equal(daysOfSupply(s, 'balls1'), Infinity, 'dead stock lasts forever - that IS the finding');
 });
 
 test('and a line with nothing on hand and nothing moving is simply out', () => {
@@ -65,7 +65,7 @@ test('and a line with nothing on hand and nothing moving is simply out', () => {
   assert.equal(daysOfSupply(s, 'balls1'), 0);
 });
 
-test('today is not yet in the window — it is still today', () => {
+test('today is not yet in the window - it is still today', () => {
   const s = newGame(1);
   recordSale(s, 'balls1', 5);
   assert.equal(velocity(s, 'balls1'), 0, 'no closed days yet');

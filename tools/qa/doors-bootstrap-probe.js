@@ -13,7 +13,7 @@ async (page) => {
   await page.goto(process.env.QA_BASE_URL || 'http://localhost:8457/', { waitUntil: 'domcontentloaded' });
   const imported = await page.evaluate(async () => {
     try {
-      const module = await import('/src/sim/empire.js');
+      const module = await import(new URL('src/sim/empire.js', document.baseURI).href);
       return { ok: true, exports: Object.keys(module) };
     } catch (error) {
       return {

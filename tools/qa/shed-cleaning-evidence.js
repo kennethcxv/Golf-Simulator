@@ -65,7 +65,7 @@ async (page) => {
   ];
   const TOOL_ORDER = await page.evaluate(async (fallback) => {
     try {
-      const mod = await import('/src/data/cleaningTools.js');
+      const mod = await import(new URL('src/data/cleaningTools.js', document.baseURI).href);
       const order = (mod.BELT_ORDER || []).filter(Boolean);
       return order.length ? order : fallback;
     } catch (_) {
@@ -75,7 +75,7 @@ async (page) => {
   // The full material palette, not a hand-picked subset — "label each swatch with its key name"
   // only makes sense read straight off PALETTE's own keys.
   const PALETTE_ENTRIES = await page.evaluate(async () => {
-    const mod = await import('/src/data/cleaningTools.js');
+    const mod = await import(new URL('src/data/cleaningTools.js', document.baseURI).href);
     return Object.entries(mod.PALETTE || {}).map(([key, spec]) => ({
       key,
       hex: `#${(spec.color >>> 0).toString(16).padStart(6, '0')}`,

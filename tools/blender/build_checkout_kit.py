@@ -419,6 +419,13 @@ def _segment_label(name, glyph, size, loc, mat, parent):
     lines = [segments[s] for s in patterns.get(glyph, "")]
     if glyph == "X":
         lines = [((x0, z0), (x1, z1)), ((x0, z1), (x1, z0))]
+    if glyph == "V":
+        # A TICK, NOT A LETTER. The confirm key used to carry "O", and "O" and
+        # "0" are the same six segments — so the green key read as a second zero
+        # sitting beside the real one on the same row. Found by looking at the
+        # C3 preview render, not by any test.
+        lines = [((x0, 0.08 * h), (x0 * 0.30, z0 * 0.88)),
+                 ((x0 * 0.30, z0 * 0.88), (x1, z1 * 0.88))]
     bm = bmesh.new()
     half_t = h * 0.065
     for (ax, az), (bx, bz) in lines:
@@ -470,8 +477,14 @@ def build_payment_terminal(M):
     _label("FAIRHOLLOW", 0.0046, 0.0005, (0, -BD / 2 - 0.0006, scr_z - scr_h / 2 - 0.0105), M["sage"], body,
            rot=(math.radians(90), 0, 0), name="t_brand")
 
-    # keypad: 3x3 digits, colour row on the same columns, wide correction bar,
-    # all seated in a recessed black deck like a production pad
+    # The chip slot is BUILT below, but its top edge bounds the keypad, so the
+    # numbers live here and both sites read them.
+    SLOT_Z, SLOT_H = 0.011, 0.010
+    SLOT_TOP = SLOT_Z + SLOT_H / 2
+
+    # keypad: 3x3 digits, colour row on the same columns, a correction key the
+    # same size as a digit below them, all seated in a recessed black deck like
+    # a production pad
     keypad = K.empty("Terminal_Keypad", (0, 0, 0), parent=body, props={"component": "keypad"})
     key_w, key_h, key_d = 0.0225, 0.0125, 0.0045
     pitch_x, pitch_z = 0.0265, 0.0155
@@ -497,8 +510,34 @@ def build_payment_terminal(M):
     zb = z0 - 3 * pitch_z
     key("Terminal_CancelButton", M["btn_red"], "X", -pitch_x, zb)
     key("Terminal_Key_0", M["key_dark"], "0", 0, zb)
-    key("Terminal_ConfirmButton", M["btn_green"], "O", pitch_x, zb)
-    key("Terminal_BackButton", M["btn_yellow"], "-", 0, zb - pitch_z, w=key_w, h=0.0095, glyph_px=0.0068)
+    key("Terminal_ConfirmButton", M["btn_green"], "V", pitch_x, zb)
+    # THE CORRECTION KEY IS A KEY (C3, 2026-08-04).
+    #
+    # Three versions of this now, and the ruling settles it: identical width and
+    # height to a digit key.
+    #
+    #   shipped   0.0225 x 0.0095 — 76% of a digit's height, alone on the row
+    #             below the colour keys and hard against the card-slot lip.
+    #             Playtest: "half-occluded by the device body". It was never
+    #             literally occluded, but three quarters the height of its
+    #             neighbours at the bottom of a sloped deck READS as eaten.
+    #   A3        0.0715 x 0.0125 — full height, spanning all three columns,
+    #             because the comment above had always claimed a "wide
+    #             correction bar". Legible, but a bar among keys.
+    #   C3        0.0225 x 0.0125 — a digit key, and nothing else.
+    #
+    # WHAT DOES CARRY OVER is A3's clearance, and it is not optional. On the
+    # pitch grid this key would centre at z0 - 4*pitch_z, dropping its lower
+    # edge to 0.01375 — and the chip slot's top is 0.016, sitting 4.5 mm PROUD
+    # of the key faces, so it would eat the bottom 2.3 mm and make the reported
+    # half-occlusion literally true. (The shipped short key was already 0.75 mm
+    # behind the slot; it got away with it by being short.) So the key is
+    # centred in the 13.25 mm clear band between the slot top and the colour
+    # row, derived from both. Anything that moves the slot or the pitch moves
+    # this with it.
+    back_cz = (SLOT_TOP + (zb - key_h / 2)) / 2
+    key("Terminal_BackButton", M["btn_yellow"], "-", 0, back_cz,
+        w=key_w, h=key_h, glyph_px=0.0072)
 
     # Visible contactless target plus a named locator for a future tap path.
     nfc_z = scr_z - scr_h / 2 - 0.011
@@ -518,7 +557,7 @@ def build_payment_terminal(M):
             parent=body, size=0.022, props={"socket": "payment_card", "mode": "contactless"})
 
     # chip slot at the bottom front + card socket (card 85.6 x 54 mm enters short-edge first)
-    slot = L.box("Terminal_ChipSlot", (0.062, 0.020, 0.010), (0, -BD / 2 + 0.002, 0.011), M["black"], bevel=0.002, parent=body)
+    slot = L.box("Terminal_ChipSlot", (0.062, 0.020, SLOT_H), (0, -BD / 2 + 0.002, SLOT_Z), M["black"], bevel=0.002, parent=body)
     L.box("t_slotgap", (0.058, 0.016, 0.0028), (0, -BD / 2 - 0.004, 0.008), M["black"], bevel=0.0, parent=body)
     L.box("t_slotlip", (0.066, 0.0045, 0.0022), (0, -BD / 2 - 0.0035, 0.0145), M["alu"], bevel=0.0008, parent=body)
     L.cyl("t_slotled", 0.0016, 0.002, (0.036, -BD / 2 - 0.0008, 0.011), M["led_green"], rot=(math.radians(90), 0, 0), verts=10, bevel=0, parent=body)
@@ -799,8 +838,18 @@ def build_shopping_bag(M):
     # Alias anchors shared by the live register and customer handoff paths.
     K.empty("ANCHOR_BagDrop", (0, 0, BH + 0.010), parent=root, size=0.04,
             props={"socket": "bag_drop"})
-    K.empty("ANCHOR_BagContents", (0, 0, 0.055), parent=root, size=0.04,
-            props={"socket": "bag_contents"})
+    # C1 (Goal 19): the anchor IS the contents volume. Its position is the
+    # CENTRE of the space goods may occupy and its props carry the interior
+    # half-extents, so the register can place and CLAMP whole bodies inside
+    # the paper instead of guessing offsets. The old point (0,0,0.055) sat by
+    # the floor and the runtime never used it — goods packed at a hardcoded
+    # local offset poked out of the mouth whenever the bag lay on its side.
+    # Mouth-axis half 0.36*BH keeps the topmost content 8+ cm below the rim.
+    K.empty("ANCHOR_BagContents", (0, 0, BH * 0.40), parent=root, size=0.04,
+            props={"socket": "bag_contents",
+                   "interior_half_x": round(BW / 2 - 0.025, 4),
+                   "interior_half_depth": round(BD / 2 - 0.020, 4),
+                   "interior_half_mouth": round(BH * 0.36, 4)})
     K.empty("ANCHOR_BagHandoff", (0, 0, BH + 0.055), parent=root, size=0.04,
             props={"socket": "bag_handoff"})
     K.empty("ANCHOR_ReceiptPocket", (0.075, -BD / 2 - 0.004, BH * 0.70), parent=root, size=0.025,
@@ -1165,11 +1214,10 @@ def build_scannable_product_box(M):
     L.parent_keep(box, root)
     # top flap seam groove
     L.box("box_seam", (0.0025, BD - 0.01, 0.0018), (0, 0, BH + 0.0002), K.m_flat("M_BoxSeam", (0.16, 0.10, 0.05), rough=0.8), bevel=0.0, parent=root)
-    # dedicated barcode plane (slightly proud on -X side) for easy scanner alignment
-    bc = K.uv_plane("PRODUCT_BARCODE", 0.052, 0.028, (0, 0, 0), K.m_tex("M_BoxBarcode", K.barcode_img("BoxBarcode"), rough=0.6))
-    bc.rotation_euler = (0, 0, math.radians(90))
-    bc.location = (-BW / 2 - 0.0006, 0, 0.032)
-    L.parent_keep(bc, root)
+    # TAGS (2026-08-06): the dedicated 52 x 28 mm barcode plane is gone. It was
+    # a printed code standing proud of the -X face of every delivery box in the
+    # shop, and the scan has been a click-slide since 2026-07-30, so nothing
+    # ever read it. The grab socket below is what the box is actually for.
     K.empty("PRODUCT_GRAB_SOCKET", (0, 0, BH * 0.55), parent=root, size=0.04, props={"socket": "grab"})
     K.collision_box("COL_ProductBox", (BW, BD, BH), (0, 0, BH / 2), M, root)
     return root

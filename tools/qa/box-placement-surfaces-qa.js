@@ -88,9 +88,8 @@ async (page) => {
   };
 
   async function waitForGame() {
-    const continueButton = page.getByText('Continue', { exact: true });
-    await continueButton.waitFor({ state: 'visible', timeout: 30000 });
-    await continueButton.click();
+    const { clickThroughMenu } = await import(`file:///${process.cwd().replace(/\\/g, '/')}/tools/qa/lib/qa-boot.mjs`);
+    await clickThroughMenu(page);
     await page.waitForFunction(() => window.__fw?.scene3d?.clubhouse?.(), null, { timeout: 90000 });
     await page.waitForFunction(() => {
       const veil = document.querySelector('.load-veil');
@@ -304,8 +303,8 @@ async (page) => {
 
   async function stageFixture() {
     const staged = await page.evaluate(async ({ orderId, obstacleOrderId, obstacleTarget }) => {
-      const D = await import('/src/sim/deliveries.js');
-      const S = await import('/src/sim/shop.js');
+      const D = await import(new URL('src/sim/deliveries.js', document.baseURI).href);
+      const S = await import(new URL('src/sim/shop.js', document.baseURI).href);
       const app = window.__fw;
       const state = app.state;
       D.ensureDeliveries(state);
@@ -407,7 +406,7 @@ async (page) => {
 
   async function surfacePoint(surfaceId, local = { x: 0, z: 0 }) {
     return page.evaluate(async ({ id, offset }) => {
-      const P = await import('/src/sim/boxPlacement.js');
+      const P = await import(new URL('src/sim/boxPlacement.js', document.baseURI).href);
       const app = window.__fw;
       const clubhouse = app.scene3d.clubhouse();
       const surface = P.surfaceById(app.state, id);
@@ -537,7 +536,7 @@ async (page) => {
 
   async function aimAtBox(boxId, options = {}) {
     const point = await page.evaluate(async (id) => {
-      const B = await import('/src/data/boxes.js');
+      const B = await import(new URL('src/data/boxes.js', document.baseURI).href);
       const app = window.__fw;
       const box = app.state.shop.deliveries.boxes.find((candidate) => candidate.id === id);
       const root = app.scene3d.scene.getObjectByName(`DeliveryBox_${id}`)

@@ -22,7 +22,7 @@ export const TUTORIAL_STEPS = [
     id: 'look',
     chapter: 'Arrival',
     title: 'Take a look around',
-    hint: 'Click to capture the mouse and look around — this run-down course is yours now.',
+    hint: 'Click to capture the mouse and look around - this run-down course is yours now.',
     check: (st) => !!st.tutorial.flags.lookedAround,
   },
   {
@@ -36,14 +36,14 @@ export const TUTORIAL_STEPS = [
     id: 'front-door',
     chapter: 'Arrival',
     title: 'Open the shop door',
-    hint: 'Face the green door and press E. Real hinges — it swings in ahead of you.',
+    hint: 'Face the green door and press E. Real hinges - it swings in ahead of you.',
     check: (st) => !!st.tutorial.flags.doorOpened,
   },
   {
     id: 'walk-in',
     chapter: 'Arrival',
     title: 'Step inside',
-    hint: 'Through the door — this pro shop is the business end of the property.',
+    hint: 'Through the door - this pro shop is the business end of the property.',
     check: (st) => !!st.tutorial.flags.shopWalked,
   },
   // — Chapter 2: Take stock of the mess —
@@ -58,7 +58,7 @@ export const TUTORIAL_STEPS = [
     id: 'wipe-window',
     chapter: 'The mess',
     title: 'Clean a window',
-    hint: 'Face a filmed-over pane and press E a few times — daylight is free merchandising.',
+    hint: 'Face a filmed-over pane and press E a few times - daylight is free merchandising.',
     check: (st) => !!st.tutorial.flags.windowWiped,
   },
   // — Chapter 3: Management —
@@ -66,7 +66,7 @@ export const TUTORIAL_STEPS = [
     id: 'laptop-open',
     chapter: 'Management',
     title: 'Open the laptop',
-    hint: 'Find the open laptop on the front desk and press E — the lid opens fully and it boots.',
+    hint: 'Find the open laptop on the front desk and press E - the lid opens fully and it boots.',
     check: (st) => !!st.tutorial.flags.laptopOpened,
   },
   {
@@ -118,7 +118,7 @@ export const TUTORIAL_STEPS = [
     id: 'save-game',
     chapter: 'Keep it running',
     title: 'Save your progress',
-    hint: 'Esc opens the pause menu — save to a slot. The autosave has your back at day close.',
+    hint: 'Esc opens the pause menu - save to a slot. The autosave has your back at day close.',
     check: (st) => !!st.tutorial.flags.savedGame,
   },
   {
@@ -152,7 +152,7 @@ export const TUTORIAL_STEPS = [
   {
     id: 'prestige-30',
     title: 'Get noticed',
-    hint: 'Reach prestige 30. The tournament ladder starts at 50 — the Open waits at the top.',
+    hint: 'Reach prestige 30. The tournament ladder starts at 50 - the Open waits at the top.',
     check: (st) => st.progression && st.progression.prestige >= 30,
   },
 ];
@@ -325,10 +325,11 @@ export function currentContextTutorial(state, context) {
   return lesson;
 }
 
-export function currentStep(state) {
+export function currentStep(state, campaignSnapshot = undefined) {
   if (state.campaign?.enabled) {
-    const task = campaignView(state)?.currentTask;
-    return task ? { ...task, chapter: campaignView(state).mainObjective } : null;
+    const view = campaignSnapshot === undefined ? campaignView(state) : campaignSnapshot;
+    const task = view?.currentTask;
+    return task ? { ...task, chapter: view.mainObjective } : null;
   }
   if (!state.tutorial || state.tutorial.complete) return null;
   return TUTORIAL_STEPS[state.tutorial.step] || null;
@@ -338,7 +339,7 @@ export function currentStep(state) {
 export function tickTutorial(state) {
   if (state.campaign?.enabled) {
     const result = tickCampaign(state);
-    const view = campaignView(state);
+    const view = result.view ?? campaignView(state);
     if (state.tutorial && view) {
       state.tutorial.step = view.completedCount;
       state.tutorial.complete = !!state.campaign.firstDayComplete;

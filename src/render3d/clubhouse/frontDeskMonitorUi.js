@@ -53,7 +53,8 @@ function text(value, fallback = '') {
 function canonicalApp(value) {
   const app = text(value, 'home').trim().toLowerCase().replaceAll('_', '-');
   if (app === 'checkin') return 'check-in';
-  if (app === 'check-in' || app === 'checkout' || app === 'cash') return app;
+  if (app === 'teesheet') return 'tee-sheet';
+  if (app === 'check-in' || app === 'checkout' || app === 'cash' || app === 'tee-sheet') return app;
   return 'home';
 }
 
@@ -94,9 +95,108 @@ function setFont(ctx, size, weight = 500) {
   ctx.font = `${weight} ${Math.round(size * scale)}px Arial, sans-serif`;
 }
 
+// EVERY STRING THIS SCREEN HAS EVER HAD TO CUT.
+//
+// F1/C7: two of the complaints in this brief are the same defect seen twice —
+// "Tee times read 'x am ...'" and "'Customer rec...' on overpay is cut off".
+// Both are this function doing its job on copy that was written without checking
+// it fits. There was no way to find the others except by opening every screen in
+// every state and reading them, so now the screen remembers: anything it
+// truncates is recorded once, with the width it had and the width it needed.
+// tests/front-desk-monitor-fits.test.js reads this and fails on a new one.
+export const MONITOR_TRUNCATIONS = [];
+const seenTruncations = new Set();
+
+// F2 (Full_Goal_16): EVERY RECT THIS SCREEN DRAWS, while the audit is on.
+// Same idea as the truncation ledger above and the ledger book's overlap
+// recorder (C3): the screen remembers what it drew, and a scan after each
+// frame pairs any two rects that intersect. Exemption rule, stated before
+// the first run: a text rect fully inside a BUTTON is that button's own
+// label; everything else that crosses is an overlap. Off unless
+// window.__monitorRectAudit is truthy; zero cost in normal play.
+export const MONITOR_OVERLAPS = [];
+// audit telemetry: proves the recorder actually RAN in the register's own
+// draw path (the planted control cannot be debugged from silence)
+export const MONITOR_AUDIT_STATS = { draws: 0, rects: 0, lastScreen: null, plants: 0 };
+const monitorOverlapSeen = new Set();
+const monitorAuditRects = [];
+
+// CLEARING THE OUTPUT IS NOT THE SAME AS RESETTING THE AUDIT.
+//
+// The recorder de-duplicates by (screen, labelA, labelB) so a screen redrawn at
+// 60 fps reports each overlap once. That set is module-level and outlives any
+// single sweep, so a caller that empties MONITOR_OVERLAPS and draws again gets
+// SILENCE - every overlap it would have found is suppressed as already seen.
+// A sweep that clears only the array therefore reports clean forever after its
+// first run, which is indistinguishable from a screen with no overlaps.
+// The rects the LAST draw recorded, for callers that need to measure padding
+// rather than intersection. Returns copies: the live array is cleared on the
+// next draw.
+export function monitorAuditRectSnapshot() {
+  return monitorAuditRects.map((r) => ({ ...r }));
+}
+
+export function resetMonitorAudit() {
+  MONITOR_OVERLAPS.length = 0;
+  MONITOR_TRUNCATIONS.length = 0;
+  monitorOverlapSeen.clear();
+  seenTruncations.clear();
+  monitorAuditRects.length = 0;
+  MONITOR_AUDIT_STATS.draws = 0;
+  MONITOR_AUDIT_STATS.rects = 0;
+  MONITOR_AUDIT_STATS.plants = 0;
+  MONITOR_AUDIT_STATS.lastScreen = null;
+}
+function monitorAuditOn() {
+  return typeof window !== 'undefined' && !!window.__monitorRectAudit;
+}
+function monitorRectContains(outer, inner) {
+  return inner.x >= outer.x - 1 && inner.y >= outer.y - 1
+    && inner.x + inner.w <= outer.x + outer.w + 1
+    && inner.y + inner.h <= outer.y + outer.h + 1;
+}
+function scanMonitorOverlaps(screen) {
+  const M = 1; // kissing borders are not overlaps
+  for (let i = 0; i < monitorAuditRects.length; i += 1) {
+    for (let j = i + 1; j < monitorAuditRects.length; j += 1) {
+      const a = monitorAuditRects[i];
+      const b = monitorAuditRects[j];
+      if ((a.kind === 'button' && b.kind === 'text' && monitorRectContains(a, b))
+        || (b.kind === 'button' && a.kind === 'text' && monitorRectContains(b, a))) continue;
+      const x = Math.max(a.x + M, b.x + M);
+      const y = Math.max(a.y + M, b.y + M);
+      const r = Math.min(a.x + a.w - M, b.x + b.w - M);
+      const bottom = Math.min(a.y + a.h - M, b.y + b.h - M);
+      if (r > x && bottom > y) {
+        const key = `${screen}|${a.label}|${b.label}`;
+        if (!monitorOverlapSeen.has(key)) {
+          monitorOverlapSeen.add(key);
+          MONITOR_OVERLAPS.push({
+            screen,
+            a: { kind: a.kind, label: a.label, x: Math.round(a.x), y: Math.round(a.y), w: Math.round(a.w), h: Math.round(a.h) },
+            b: { kind: b.kind, label: b.label, x: Math.round(b.x), y: Math.round(b.y), w: Math.round(b.w), h: Math.round(b.h) },
+            overlapW: Math.round(r - x),
+            overlapH: Math.round(bottom - y),
+          });
+        }
+      }
+    }
+  }
+}
+
 function fitText(ctx, value, maxWidth) {
   const source = text(value);
-  if (ctx.measureText(source).width <= maxWidth) return source;
+  const full = ctx.measureText(source).width;
+  if (full <= maxWidth) return source;
+  if (!seenTruncations.has(source)) {
+    seenTruncations.add(source);
+    MONITOR_TRUNCATIONS.push({
+      text: source,
+      maxWidth,
+      neededWidth: Math.round(full),
+      overBy: Math.round(full - maxWidth),
+    });
+  }
   const suffix = '...';
   let low = 0;
   let high = source.length;
@@ -240,6 +340,22 @@ export function createFrontDeskMonitorUi(canvas) {
 
   canvas.width = FRONT_DESK_MONITOR_WIDTH;
   canvas.height = FRONT_DESK_MONITOR_HEIGHT;
+  // F2 rect audit: record every drawn string's rect while the audit is on
+  const rawFillText = ctx.fillText.bind(ctx);
+  ctx.fillText = (str, x, y, maxWidth) => {
+    if (monitorAuditOn()) {
+      const m = ctx.measureText(String(str));
+      const w = Math.min(m.width, maxWidth === undefined ? Infinity : maxWidth);
+      const asc = Number.isFinite(m.actualBoundingBoxAscent) ? m.actualBoundingBoxAscent : 12;
+      const desc = Number.isFinite(m.actualBoundingBoxDescent) ? m.actualBoundingBoxDescent : 4;
+      let left = x;
+      if (ctx.textAlign === 'center') left = x - w / 2;
+      else if (ctx.textAlign === 'right' || ctx.textAlign === 'end') left = x - w;
+      const top = ctx.textBaseline === 'middle' ? y - (asc + desc) / 2 : y - asc;
+      monitorAuditRects.push({ kind: 'text', label: String(str).slice(0, 44), x: left, y: top, w, h: asc + desc });
+    }
+    return maxWidth === undefined ? rawFillText(str, x, y) : rawFillText(str, x, y, maxWidth);
+  };
 
   let activeHotspots = [];
   let targetPadding = 0;
@@ -261,6 +377,9 @@ export function createFrontDeskMonitorUi(canvas) {
 
   function drawButton(action, x, y, width, height) {
     const [background, foreground, stroke] = buttonPalette(action.kind, action.disabled);
+    if (monitorAuditOn()) {
+      monitorAuditRects.push({ kind: 'button', label: String(action.label || action.id).slice(0, 44), x, y, w: width, h: height });
+    }
     fillRound(ctx, x, y, width, height, 10, background, stroke, 2);
     setFont(ctx, height >= 54 ? 18 : 16, 700);
     ctx.fillStyle = foreground;
@@ -278,25 +397,34 @@ export function createFrontDeskMonitorUi(canvas) {
     ctx.fillStyle = COLORS.white;
     ctx.textAlign = 'left';
     ctx.textBaseline = 'middle';
+    // THE CLUB'S OWN NAME WAS BEING CUT. "PINE HILLS MUNICIPAL GOLF" needs
+    // 383px at 22px bold and the box was 322, so the default club in the default
+    // save drew its own masthead as "PINE HILLS MUNICIPAL G...". The bar runs
+    // the full 1024 and the Exit button starts at 886, so the width was simply
+    // never checked against the name it ships with. 560 leaves the button clear
+    // and still truncates a genuinely long custom name rather than colliding.
     ctx.fillText(
-      fitText(ctx, text(clubName, 'Pine Hills Municipal Golf').toUpperCase(), 322),
+      fitText(ctx, text(clubName, 'Pine Hills Municipal Golf').toUpperCase(), 560),
       24,
       29,
     );
     setFont(ctx, 14, 600);
     ctx.fillStyle = COLORS.brassPale;
     ctx.fillText('GOLF CLUB  /  FRONT DESK', 24, 54);
-    addHotspot('home', 'Home', 'nav', 16, 10, 330, 58);
 
     drawButton({ id: 'exit', label: 'Exit', kind: 'secondary', disabled: false }, 886, 17, 114, 46);
 
     // The cash exchange owns the full screen below the brand bar; offering tab
-    // navigation mid-count would only orphan the open drawer.
+    // navigation mid-count would only orphan the open drawer. VERIFY2_L: the
+    // brand block's own 'home' hotspot has to sit behind this gate too - it
+    // was the one live control that could swap the glass off a cash count.
     if (app === 'cash') return;
+    addHotspot('home', 'Home', 'nav', 16, 10, 330, 58);
 
     const tabs = [
       { id: 'tab-check-in', label: 'Check In', app: 'check-in', x: 24 },
       { id: 'tab-checkout', label: 'Checkout', app: 'checkout', x: 224 },
+      { id: 'tab-tee-sheet', label: 'Tee Sheet', app: 'tee-sheet', x: 424 },
     ];
     for (const tab of tabs) {
       const selected = app === tab.app;
@@ -312,13 +440,17 @@ export function createFrontDeskMonitorUi(canvas) {
     }
   }
 
-  function drawActionGrid(actions, x, y, width, height) {
+  function drawActionGrid(actions, x, y, width, height, forcedColumns = null) {
     // Four choices keep every control legible at the physical monitor's size.
     // Multi-step denomination selection belongs to the physical drawer, not a
     // wall of tiny POS buttons.
     const visible = normalizeActions(actions).slice(0, 4);
     if (!visible.length) return;
-    const columns = visible.length <= 2 || height < 100 ? visible.length : 2;
+    // A caller with a narrow column can insist on one button per row. Splitting
+    // 308px between two buttons left "Ready for the next customer" rendering as
+    // "READY FOR T..." — a control the player cannot read is not a control.
+    const columns = forcedColumns
+      || (visible.length <= 2 || height < 100 ? visible.length : 2);
     const rows = Math.ceil(visible.length / columns);
     const gap = 10;
     const cellWidth = (width - gap * (columns - 1)) / columns;
@@ -444,7 +576,23 @@ export function createFrontDeskMonitorUi(canvas) {
       setFont(ctx, 16, 500);
       ctx.fillStyle = COLORS.muted;
       ctx.fillText('Guest details and check-in actions appear here.', 729, 376);
-      drawActionGrid(model.actions, 482, 528, 494, 64);
+      // F1 — THIS IS WHERE "x am ..." COMES FROM.
+      //
+      // The walk-in flow offers up to four buttons here (two slot times, the
+      // full sheet, and turn away) and this strip was 64px tall, so the grid's
+      // height heuristic put all four ACROSS: 92px a button. A slot label is
+      // built as `${fmtSlot(minute)} asked` and needs 187px, so "11:30 AM
+      // ASKED" drew as "11:30 AM ..." - which is the reported defect, verbatim.
+      // A bare "11:48 AM" needs 104 and did not fit either.
+      //
+      // No font size puts fourteen characters in 92px, so the strip gets two
+      // columns over two rows instead. It runs to 616, which is the detail
+      // panel's own bottom edge, and each button is 242px - room for the
+      // longest label with margin.
+      // G2: the grid used to end at 616, 24px off the page edge, while the left
+      // column's pager ends at 602 with 38px. The tighter of the two was the one
+      // the brief called out. Both columns now end on the same bottom line.
+      drawActionGrid(model.actions, 482, 500, 494, 102, 2);
       return;
     }
 
@@ -480,12 +628,21 @@ export function createFrontDeskMonitorUi(canvas) {
 
     const note = text(reservation.note ?? reservation.notes);
     if (note) {
+      // F2 (Full_Goal_16): the note owns the 482-500 band; the grid starts at
+      // 512. The old pair (baseline 502 over a grid at 500) drew the note
+      // INSIDE the first button.
       setFont(ctx, 14, 500);
       ctx.fillStyle = COLORS.muted;
       ctx.textAlign = 'left';
-      ctx.fillText(fitText(ctx, note, 494), 482, 502);
+      ctx.fillText(fitText(ctx, note, 494), 482, 496);
     }
-    drawActionGrid(model.actions, 482, 518, 494, 74);
+    // F1: the same two-columns-over-two-rows as the walk-in strip above. At 74px
+    // tall the grid put four buttons across at 92px each and every label with a
+    // time in it truncated. F2 moved it to 512/104 (same 616 bottom line).
+    // G2: same bottom line as every other column - 602, a 38px page margin.
+    // Moved up 4px as well as shortened so the buttons keep 42px of height
+    // rather than being squeezed to pay for the padding.
+    drawActionGrid(model.actions, 482, 508, 494, 94, 2);
   }
 
   function drawCheckIn(model) {
@@ -498,9 +655,61 @@ export function createFrontDeskMonitorUi(canvas) {
     fillRound(ctx, 24, 162, 606, 454, 14, COLORS.paper, COLORS.line, 2);
     // Reference column order: Product | Price | Unit | Total.
     drawLabel(ctx, 'Product', 46, 196);
-    drawLabel(ctx, 'Price', 434, 196, COLORS.muted, 12);
-    drawLabel(ctx, 'Unit', 506, 196, COLORS.muted, 12);
-    drawLabel(ctx, 'Total', 566, 196, COLORS.muted, 12);
+
+    // D3 (Goal 20) — THE COLUMNS ARE MEASURED, NOT ASSUMED.
+    //
+    // Price, Unit and Total used to be right-aligned at three hard-coded x
+    // positions (476, 530, 604). A total is drawn at 20px bold, so "$279.00" is
+    // about 78px wide and begins near x=526 — four pixels INSIDE the unit
+    // column's right edge at 530. The screen printed "1$279.00" and the two
+    // numbers read as one. A bigger total moves its left edge further left, so
+    // the fault was going to get worse with every sale, not better.
+    //
+    // summaryRow() a few lines below already learned this ("the figure is
+    // measured FIRST... sizing them independently is what printed CHANGE
+    // D$21.78"). The lesson just never reached this table. Now every numeric
+    // column is as wide as the widest thing in it — its own header included —
+    // and the columns are laid out right to left with a guaranteed gap, so
+    // nothing can touch whatever the numbers grow to.
+    const ROW_RIGHT = 604;
+    const NAME_LEFT = 76;
+    const COL_GAP = 18;
+    const cells = items.map((item) => {
+      const quantity = Math.max(1, Math.round(finite(item.qty ?? item.quantity, 1)));
+      return {
+        item,
+        quantity,
+        price: money(item.unitPrice ?? item.price),
+        qty: String(quantity),
+        total: money(item.subtotal ?? finite(item.unitPrice ?? item.price) * quantity),
+      };
+    });
+    const widest = (pick, header) => {
+      setFont(ctx, 20, 700);
+      let w = cells.reduce((max, c) => Math.max(max, ctx.measureText(pick(c)).width), 0);
+      setFont(ctx, 12, 700);
+      return Math.max(w, ctx.measureText(header).width);
+    };
+    const colTotal = { right: ROW_RIGHT, width: widest((c) => c.total, 'TOTAL') };
+    const colUnit = {
+      right: colTotal.right - colTotal.width - COL_GAP,
+      width: widest((c) => c.qty, 'UNIT'),
+    };
+    const colPrice = {
+      right: colUnit.right - colUnit.width - COL_GAP,
+      width: widest((c) => c.price, 'PRICE'),
+    };
+    const nameMax = Math.max(120, colPrice.right - colPrice.width - COL_GAP - NAME_LEFT);
+
+    // Headers sit over their own columns, right-aligned the way a numeric
+    // column header has to be if it is to stay over the figures beneath it.
+    setFont(ctx, 12, 700);
+    ctx.fillStyle = COLORS.muted;
+    ctx.textAlign = 'right';
+    ctx.textBaseline = 'alphabetic';
+    ctx.fillText('PRICE', colPrice.right, 196);
+    ctx.fillText('UNIT', colUnit.right, 196);
+    ctx.fillText('TOTAL', colTotal.right, 196);
 
     if (!items.length) {
       setFont(ctx, 21, 700);
@@ -513,7 +722,8 @@ export function createFrontDeskMonitorUi(canvas) {
       return;
     }
 
-    items.forEach((item, index) => {
+    cells.forEach((cell, index) => {
+      const { item } = cell;
       const y = 214 + index * 55;
       const scanned = Boolean(item.scanned || item.status === 'scanned');
       ctx.fillStyle = index % 2 ? COLORS.cream : COLORS.white;
@@ -526,15 +736,17 @@ export function createFrontDeskMonitorUi(canvas) {
       ctx.fillStyle = scanned ? COLORS.muted : COLORS.charcoal;
       ctx.textAlign = 'left';
       ctx.textBaseline = 'middle';
-      ctx.fillText(fitText(ctx, text(item.name ?? item.label ?? item.sku, 'Product'), 336), 76, y + 24);
+      ctx.fillText(
+        fitText(ctx, text(item.name ?? item.label ?? item.sku, 'Product'), nameMax),
+        NAME_LEFT, y + 24,
+      );
       setFont(ctx, 20, 700);
       ctx.textAlign = 'right';
-      const quantity = Math.max(1, Math.round(finite(item.qty ?? item.quantity, 1)));
-      ctx.fillText(money(item.unitPrice ?? item.price), 476, y + 24);
+      ctx.fillText(cell.price, colPrice.right, y + 24);
       ctx.fillStyle = COLORS.muted;
-      ctx.fillText(String(quantity), 530, y + 24);
+      ctx.fillText(cell.qty, colUnit.right, y + 24);
       ctx.fillStyle = COLORS.green;
-      ctx.fillText(money(item.subtotal ?? finite(item.unitPrice ?? item.price) * quantity), 604, y + 24);
+      ctx.fillText(cell.total, colTotal.right, y + 24);
     });
 
     if (data.itemsRemaining !== undefined) {
@@ -543,100 +755,237 @@ export function createFrontDeskMonitorUi(canvas) {
     }
   }
 
-  function summaryRow(label, value, x, y, strong = false, color = COLORS.charcoal) {
-    setFont(ctx, strong ? 18 : 16, strong ? 800 : 600);
+  function summaryRow(label, value, x, y, width, strong = false, color = COLORS.charcoal, compact = false) {
+    // In a paired cell the label and the figure share half the column, so the
+    // figure is measured FIRST and the label gets what is left. Sizing them
+    // independently is what printed "CHANGE D$21.78" over itself.
+    const valueSize = compact ? 17 : (strong ? 26 : 19);
+    setFont(ctx, valueSize, strong ? 800 : 700);
+    const valueWidth = ctx.measureText(value).width;
+    setFont(ctx, compact ? 13 : (strong ? 18 : 16), strong ? 800 : 600);
     ctx.fillStyle = strong ? COLORS.charcoal : COLORS.muted;
     ctx.textAlign = 'left';
     ctx.textBaseline = 'alphabetic';
-    ctx.fillText(label.toUpperCase(), x, y);
-    setFont(ctx, strong ? 26 : 19, strong ? 800 : 700);
+    ctx.fillText(fitText(ctx, label.toUpperCase(), Math.max(30, width - valueWidth - 10)), x, y);
+    setFont(ctx, valueSize, strong ? 800 : 700);
     ctx.fillStyle = color;
     ctx.textAlign = 'right';
-    ctx.fillText(value, x + 300, y);
+    ctx.fillText(value, x + width, y);
   }
 
+  // THE SUMMARY COLUMN, LAID OUT RATHER THAN NUDGED (round 10, 2026-08-03).
+  //
+  // Every block in here used to be a literal y plus a stack of hand-added
+  // corrections — `choiceOffset` when the customer had picked a method,
+  // `taxOffset` because the sales-tax line was added later — so the column's
+  // real height depended on which optional rows happened to be present, and
+  // nothing checked where the bottom landed. With a payment choice showing, the
+  // action grid solved to y=604 with height 38: 642 on a 640-tall canvas. The
+  // primary button was six pixels outside its own panel card and two pixels off
+  // the bottom of the screen. Reported three sessions running as "flush against
+  // the bottom with no margin" and "the panel reads cluttered".
+  //
+  // It is a top-down cursor inside a padded panel now, with the actions ANCHORED
+  // to the panel's bottom padding and the money block sitting just above them.
+  // Optional rows move the cursor instead of shifting a stack of literals, so no
+  // arrangement can reach the edge: the edge is where the layout stops. The
+  // rhythm below is a scale rather than per-element guesses, which is most of
+  // what "breathing room" means on a panel this size.
+  const SUMMARY = Object.freeze({
+    x: 648, y: 162, w: 352, h: 454, pad: 22,
+    gapXs: 10, gapSm: 16, gapMd: 26, gapLg: 34,
+  });
+
   function drawCheckoutSummary(data) {
-    fillRound(ctx, 648, 162, 352, 454, 14, COLORS.paper, COLORS.line, 2);
+    const x = SUMMARY.x + SUMMARY.pad;
+    const width = SUMMARY.w - SUMMARY.pad * 2;
+    const right = x + width;
+    const top = SUMMARY.y + SUMMARY.pad;
+    const floor = SUMMARY.y + SUMMARY.h - SUMMARY.pad;
+    fillRound(ctx, SUMMARY.x, SUMMARY.y, SUMMARY.w, SUMMARY.h, 14, COLORS.paper, COLORS.line, 2);
+
     const stage = canonicalStage(data.stage);
     const stageCopy = STAGE_COPY[stage] ?? [text(data.stage, 'CHECKOUT').toUpperCase(), 'Follow the on-screen instructions.'];
+    const choice = customerPaymentChoice(data);
+    const status = paymentChoiceStatus(data, stage, stageCopy, choice);
+    const instruction = paymentChoiceInstruction(data, stageCopy, choice);
 
-    drawLabel(ctx, 'Current transaction', 670, 194);
+    // --- WHAT THERE IS TO SAY ------------------------------------------------
+    const discount = Math.abs(finite(data.discount));
+    const taxRate = finite(data.taxRate);
+    const taxLabel = taxRate > 0
+      ? `Sales tax ${(taxRate * 100).toFixed(2).replace(/0+$/, '').replace(/\.$/, '')}%`
+      // "Sales tax (none in state)" needed 263px in a 246px column and drew as
+      // "Sales tax (none in st...". A parenthetical is the first thing to go.
+      : 'Sales tax - none';
+    const breakdown = [['Subtotal', money(data.subtotal)]];
+    // A "DISCOUNT $0.00" row on every single sale is the clutter, not the
+    // spacing. It appears when there IS one.
+    if (discount > 0) breakdown.push(['Discount', `-${money(discount)}`]);
+    breakdown.push([taxLabel, money(finite(data.tax))]);
+
+    // Each tender row carries how load-bearing it is, because a column that has
+    // to shed rows must shed the right ones. What the customer still has coming
+    // back to them outranks how they paid.
+    const tail = [];
+    if (data.payment || data.paymentMethod) {
+      tail.push({
+        label: 'Payment', value: text(data.payment ?? data.paymentMethod).toUpperCase(),
+        color: COLORS.charcoal, keep: 1,
+      });
+    }
+    if (data.tendered !== undefined || data.amountPaid !== undefined) {
+      tail.push({
+        label: 'Tendered', value: money(data.tendered ?? data.amountPaid),
+        color: COLORS.charcoal, keep: 2,
+      });
+    }
+    if (data.changeDue !== undefined) {
+      tail.push({ label: 'Change due', value: money(data.changeDue), color: COLORS.green, keep: 4 });
+    }
+    if (data.selectedChange !== undefined || data.selected !== undefined) {
+      tail.push({
+        label: 'Selected', value: money(data.selectedChange ?? data.selected),
+        color: COLORS.charcoal, keep: 3,
+      });
+    }
+
+    // --- SOLVE THE COLUMN BEFORE DRAWING ANY OF IT ---------------------------
+    // Measure first, draw second. Solving as it drew is what left the money
+    // block computing its own position from whatever the status card happened to
+    // have consumed, which put it either over the status card or under the
+    // buttons depending on the state. Now nothing is painted until the whole
+    // column is known to fit, and the ways it may give — in order — are: a
+    // tighter row pitch, tender rows paired two to a line, a one-line
+    // instruction, then dropping the least load-bearing tender rows.
+    setFont(ctx, 16, 600);
+    const instructionLines = wrapLines(ctx, instruction, width - 32, 2);
+    const headerHeight = 44;
+    const choiceHeight = choice ? 57 : 0;
+    const TOTAL_BLOCK = 44;
+    const actionCount = normalizeActions(data.actions).slice(0, 4).length;
+    const actionColumns = actionCount <= 2 ? 1 : 2;
+    const actionRows = Math.ceil(actionCount / actionColumns) || 0;
+    const actionHeight = actionCount ? actionRows * 46 + (actionRows - 1) * 10 : 0;
+
+    const fit = { pitch: 25, lines: instructionLines.length, tailColumns: 1, tail: [...tail] };
+    const statusHeight = () => 44 + fit.lines * 20;
+    const tailRows = () => Math.ceil(fit.tail.length / fit.tailColumns);
+    const used = () => headerHeight + choiceHeight + SUMMARY.gapSm + statusHeight()
+      + SUMMARY.gapSm
+      + (breakdown.length + tailRows()) * fit.pitch + TOTAL_BLOCK + SUMMARY.gapSm
+      + (actionHeight ? SUMMARY.gapSm + actionHeight : 0);
+    const available = floor - top;
+    const concessions = [
+      () => { if (fit.pitch === 25) { fit.pitch = 22; return true; } return false; },
+      () => { if (fit.tail.length >= 3 && fit.tailColumns === 1) { fit.tailColumns = 2; return true; } return false; },
+      () => { if (fit.lines > 1) { fit.lines = 1; return true; } return false; },
+      () => {
+        if (!fit.tail.length) return false;
+        let weakest = 0;
+        for (let index = 1; index < fit.tail.length; index += 1) {
+          if (fit.tail[index].keep < fit.tail[weakest].keep) weakest = index;
+        }
+        fit.tail.splice(weakest, 1);
+        return true;
+      },
+    ];
+    for (const concede of concessions) {
+      while (used() > available && concede()) { /* give one thing at a time */ }
+      if (used() <= available) break;
+    }
+
+    // --- DRAW ----------------------------------------------------------------
+    let y = top + 12;
+    drawLabel(ctx, 'Current transaction', x, y);
+    y += SUMMARY.gapMd + 6;
     setFont(ctx, 22, 800);
     ctx.fillStyle = COLORS.green;
     ctx.textAlign = 'left';
-    ctx.fillText(fitText(ctx, customerName(data), 206), 670, 226);
+    ctx.fillText(fitText(ctx, customerName(data), width - 60), x, y);
     setFont(ctx, 13, 700);
     ctx.fillStyle = COLORS.muted;
     ctx.textAlign = 'right';
-    ctx.fillText(`#${text(data.transactionNumber ?? data.txNumber ?? data.id, '--')}`, 976, 224);
+    ctx.fillText(`#${text(data.transactionNumber ?? data.txNumber ?? data.id, '--')}`, right, y - 2);
 
-    const choice = customerPaymentChoice(data);
-    const choiceOffset = choice ? 32 : 0;
     if (choice) {
-      drawPill(ctx, `CUSTOMER CHOSE ${choice}`, 670, 238, 306);
+      // Tight, because this block is a caption on the one above it rather than a
+      // section of its own: the pill and the line the customer said belong
+      // together, and every pixel spent separating them is a pixel the money
+      // block does not get.
+      y += SUMMARY.gapXs;
+      drawPill(ctx, `CUSTOMER CHOSE ${choice}`, x, y, width);
+      y += 34;
       setFont(ctx, 14, 650);
       ctx.fillStyle = COLORS.muted;
       ctx.textAlign = 'left';
       ctx.textBaseline = 'alphabetic';
-      ctx.fillText(fitText(ctx, paymentChoiceDialogueFor(data, choice), 306), 670, 282);
+      ctx.fillText(fitText(ctx, paymentChoiceDialogueFor(data, choice), width), x, y + 13);
+      y += 13;
     }
 
-    const statusY = choice ? 292 : 246;
-    const status = paymentChoiceStatus(data, stage, stageCopy, choice);
-    const instruction = paymentChoiceInstruction(data, stageCopy, choice);
+    y += SUMMARY.gapSm;
+    const lines = instructionLines.slice(0, fit.lines);
     const [statusBackground, statusForeground] = statusPalette(status);
-    fillRound(ctx, 670, statusY, 306, 82, 10, statusBackground);
-    setFont(ctx, 19, 800);
+    fillRound(ctx, x, y, width, statusHeight(), 10, statusBackground);
+    // The heading shrinks before it truncates: "TRANSACTION COMPLETE" is the
+    // longest state string and was rendering as "TRANSACTION COMPLE...", which
+    // hides the one word that says whether the sale went through.
     ctx.fillStyle = statusForeground;
     ctx.textAlign = 'left';
-    ctx.fillText(fitText(ctx, status, 278), 686, statusY + 27);
+    ctx.textBaseline = 'alphabetic';
+    for (const size of [19, 18, 17, 16, 15]) {
+      setFont(ctx, size, 800);
+      if (ctx.measureText(status).width <= width - 32 || size === 15) break;
+    }
+    ctx.fillText(fitText(ctx, status, width - 32), x + 16, y + 28);
     setFont(ctx, 16, 600);
-    const lines = wrapLines(ctx, instruction, 278, 2);
-    lines.forEach((line, index) => ctx.fillText(line, 686, statusY + 53 + index * 18));
+    lines.forEach((line, index) => ctx.fillText(line, x + 16, y + 52 + index * 20));
+    y += statusHeight() + SUMMARY.gapSm;
 
-    // SUBTOTAL, DISCOUNT, SALES TAX, then the total. Three lines where there were two, so the
-    // block below TOTAL shifts down by one row height — hence taxOffset threaded through the
-    // rest of this column rather than each y being nudged by hand.
-    summaryRow('Subtotal', money(data.subtotal), 670, 351 + choiceOffset);
-    const discount = Math.abs(finite(data.discount));
-    summaryRow('Discount', discount > 0 ? `-${money(discount)}` : money(0), 670, 377 + choiceOffset);
-    const taxRate = finite(data.taxRate);
-    const taxLabel = taxRate > 0
-      ? `Sales tax ${(taxRate * 100).toFixed(2).replace(/0+$/, '').replace(/\.$/, '')}%`
-      : 'Sales tax (none in state)';
-    summaryRow(taxLabel, money(finite(data.tax)), 670, 403 + choiceOffset);
-    const taxOffset = 26;
+    // the money block flows straight on from the status card, and the controls
+    // are pinned to the bottom padding — the fit above guarantees they clear
+    const actionsY = floor - actionHeight;
+    const ruleY = y + breakdown.length * fit.pitch + 6;
+    const totalBaseline = ruleY + 32;
+    breakdown.forEach(([label, value], index) => {
+      summaryRow(label, value, x, y + (index + 1) * fit.pitch - 6, width);
+    });
+
     ctx.strokeStyle = COLORS.line;
     ctx.lineWidth = 2;
     ctx.beginPath();
-    ctx.moveTo(670, 390 + choiceOffset + taxOffset);
-    ctx.lineTo(976, 390 + choiceOffset + taxOffset);
+    ctx.moveTo(x, ruleY);
+    ctx.lineTo(right, ruleY);
     ctx.stroke();
-    // Prominent total block, matching the reference's emphasis.
+
     setFont(ctx, 20, 800);
     ctx.fillStyle = COLORS.charcoal;
     ctx.textAlign = 'left';
     ctx.textBaseline = 'alphabetic';
-    ctx.fillText('TOTAL', 670, 421 + choiceOffset + taxOffset);
+    ctx.fillText('TOTAL', x, totalBaseline);
     setFont(ctx, 38, 800);
     ctx.fillStyle = COLORS.green;
     ctx.textAlign = 'right';
-    ctx.fillText(money(data.total), 976, 424 + choiceOffset + taxOffset);
+    ctx.fillText(money(data.total), right, totalBaseline + 3);
 
-    if (data.payment || data.paymentMethod) {
-      summaryRow('Payment', text(data.payment ?? data.paymentMethod).toUpperCase(), 670, 446 + choiceOffset + taxOffset);
-    }
-    if (data.tendered !== undefined || data.amountPaid !== undefined) {
-      summaryRow('Tendered', money(data.tendered ?? data.amountPaid), 670, 472 + choiceOffset + taxOffset);
-    }
-    if (data.changeDue !== undefined) {
-      summaryRow('Change due', money(data.changeDue), 670, 498 + choiceOffset + taxOffset, false, COLORS.green);
-    }
-    if (data.selectedChange !== undefined || data.selected !== undefined) {
-      summaryRow('Selected', money(data.selectedChange ?? data.selected), 670, 524 + choiceOffset + taxOffset);
-    }
+    const tailCellWidth = fit.tailColumns === 2
+      ? Math.floor((width - SUMMARY.gapMd) / 2)
+      : width;
+    fit.tail.forEach((entry, index) => {
+      const column = index % fit.tailColumns;
+      const row = Math.floor(index / fit.tailColumns);
+      summaryRow(
+        entry.label, entry.value,
+        x + column * (tailCellWidth + SUMMARY.gapMd),
+        totalBaseline + SUMMARY.gapSm + (row + 1) * fit.pitch - 6,
+        tailCellWidth, false, entry.color, fit.tailColumns === 2,
+      );
+    });
 
-    drawActionGrid(data.actions, 670, 546 + choiceOffset + taxOffset, 306, choice ? 38 : 50);
+    if (actionHeight) {
+      drawActionGrid(data.actions, x, actionsY, width, actionHeight, actionColumns);
+    }
   }
 
   function drawCheckout(model) {
@@ -705,10 +1054,15 @@ export function createFrontDeskMonitorUi(canvas) {
     const deltaCents = Math.abs(Math.round(finite(model.givingDeltaCents)));
     const deltaText = `$${(deltaCents / 100).toFixed(2)}`;
     let caption;
-    if (model.awaitingCash) caption = 'CLICK THE CUSTOMER’S CASH TO TAKE IT';
+    // C7/F1: 36 characters at 24px bold in a 500px box drew as "CLICK THE
+    // CUSTOMER'S CASH TO ..." in the shipping build. Photographed, not guessed.
+    if (model.awaitingCash) caption = 'CLICK THEIR CASH TO TAKE IT';
     else if (givingState === 'exact') caption = 'EXACT CHANGE';
-    else if (givingState === 'over') caption = `OVER BY ${deltaText} — CUSTOMER RECEIVES EXTRA CHANGE`;
-    else if (givingState === 'excess') caption = 'TOO MUCH — MAX EXTRA IS $5.00';
+    // C7: "OVER BY $2.50 - CUSTOMER RECEIVES EXTRA CHANGE" is 45 characters at
+    // 24px bold and the box is 500px, so it drew as "...CUSTOMER REC...". The
+    // captions either side of it are three words; this one was a sentence.
+    else if (givingState === 'over') caption = `${deltaText} OVER - THEY KEEP IT`;
+    else if (givingState === 'excess') caption = 'TOO MUCH - MAX EXTRA IS $5.00';
     else caption = finite(model.givingDeltaCents) === 0 && !model.deposited
       ? 'SORTING THE RECEIVED CASH'
       : `SHORT BY ${deltaText}`;
@@ -722,6 +1076,104 @@ export function createFrontDeskMonitorUi(canvas) {
     drawActionGrid(model.actions, 560, 540, 440, 56);
   }
 
+  // L2 — THE TEE SHEET IS A SHEET. Every slot of the day on one screen, the
+  // way a paper starter's sheet reads: a time column, one seat pip per place
+  // in the slot (filled = booked), holder names beside them, closed rows said
+  // plainly, a rule at the current time. Open rows become booking hotspots
+  // whenever the model marks them bookable (a walk-in is selected at the desk
+  // head); the action id is the same select-walkin-slot the check-in tab
+  // uses, so this is one flow with two surfaces.
+  function drawTeeSheet(model) {
+    const slots = Array.isArray(model.sheet) ? model.sheet : [];
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'alphabetic';
+    setFont(ctx, 26, 800);
+    ctx.fillStyle = COLORS.charcoal;
+    ctx.fillText(fitText(ctx, text(model.heading, 'Tee sheet'), 560), 36, 192);
+    setFont(ctx, 16, 500);
+    ctx.fillStyle = COLORS.muted;
+    ctx.fillText(fitText(ctx, text(model.context), 700), 36, 218);
+    if (!slots.length) {
+      setFont(ctx, 20, 600);
+      ctx.fillStyle = COLORS.muted;
+      ctx.textAlign = 'center';
+      ctx.fillText('The course is closed today.', FRONT_DESK_MONITOR_WIDTH / 2, 380);
+      return;
+    }
+
+    const top = 240;
+    const bottom = model.note ? 596 : 616;
+    const columnX = [24, 524];
+    const columnWidth = 476;
+    const perColumn = Math.ceil(slots.length / columnX.length);
+    const rowHeight = Math.max(22, Math.min(34, (bottom - top) / perColumn));
+    ctx.textBaseline = 'middle';
+    slots.forEach((slot, index) => {
+      const column = Math.floor(index / perColumn);
+      const row = index % perColumn;
+      const x = columnX[column];
+      const y = top + row * rowHeight;
+      const middle = y + rowHeight / 2;
+      const dim = slot.past || slot.closed;
+      // the asked slot wears a pale brass ground; the now line is a brass rule
+      if (slot.asked && !dim) {
+        fillRound(ctx, x, y + 1, columnWidth, rowHeight - 2, 6, COLORS.brassPale);
+      }
+      if (slot.now) {
+        ctx.fillStyle = COLORS.brass;
+        ctx.fillRect(x, y - 1, columnWidth, 2);
+      }
+      setFont(ctx, 15, 700);
+      ctx.textAlign = 'left';
+      ctx.fillStyle = dim ? COLORS.muted : COLORS.green;
+      ctx.fillText(text(slot.label), x + 10, middle + 1);
+      // seat pips: one box per place, filled for each booked player
+      const capacity = Math.max(0, Math.min(6, finite(slot.capacity, 4)));
+      const booked = Math.max(0, Math.min(capacity, finite(slot.booked, 0)));
+      const pipSize = Math.min(13, rowHeight - 10);
+      for (let seat = 0; seat < capacity; seat += 1) {
+        const pipX = x + 98 + seat * (pipSize + 5);
+        const pipY = middle - pipSize / 2;
+        roundedPath(ctx, pipX, pipY, pipSize, pipSize, 3);
+        if (slot.closed) {
+          ctx.strokeStyle = COLORS.line;
+          ctx.lineWidth = 1.5;
+          ctx.stroke();
+        } else if (seat < booked) {
+          ctx.fillStyle = dim ? COLORS.sage : COLORS.greenSoft;
+          ctx.fill();
+        } else {
+          ctx.strokeStyle = dim ? COLORS.line : COLORS.sage;
+          ctx.lineWidth = 1.5;
+          ctx.stroke();
+        }
+      }
+      // names, or the slot's state, in the remaining width
+      const textX = x + 98 + 6 * (pipSize + 5) + 8;
+      const textWidth = x + columnWidth - 10 - textX;
+      setFont(ctx, 13, 500);
+      if (slot.closed) {
+        ctx.fillStyle = COLORS.muted;
+        ctx.fillText('CLOSED', textX, middle + 1);
+      } else if (slot.names && slot.names.length) {
+        ctx.fillStyle = dim ? COLORS.muted : COLORS.charcoal;
+        ctx.fillText(fitText(ctx, slot.names.join(', '), textWidth), textX, middle + 1);
+      } else if (!slot.past) {
+        ctx.fillStyle = slot.actionId ? COLORS.success : COLORS.sage;
+        ctx.fillText(slot.actionId ? `${finite(slot.openSeats, 0)} open · book` : `${finite(slot.openSeats, 0)} open`, textX, middle + 1);
+      }
+      if (slot.actionId) {
+        addHotspot(slot.actionId, `Book ${slot.label}`, 'slot', x, y, columnWidth, rowHeight, false);
+      }
+    });
+    if (model.note) {
+      setFont(ctx, 15, 600);
+      ctx.textAlign = 'left';
+      ctx.fillStyle = COLORS.brass;
+      ctx.fillText(fitText(ctx, text(model.note), 952), 36, 616);
+    }
+  }
+
   function draw(model = {}) {
     activeHotspots = [];
     const accessibility = model.accessibility && typeof model.accessibility === 'object'
@@ -731,6 +1183,7 @@ export function createFrontDeskMonitorUi(canvas) {
     targetPadding = Math.max(0, Math.min(12, finite(accessibility.targetPadding, 0)));
     const app = canonicalApp(model.app ?? model.tab ?? model.view);
     ctx.save();
+    if (monitorAuditOn()) { monitorAuditRects.length = 0; MONITOR_AUDIT_STATS.draws += 1; }
     ctx.clearRect(0, 0, FRONT_DESK_MONITOR_WIDTH, FRONT_DESK_MONITOR_HEIGHT);
     ctx.fillStyle = COLORS.cream;
     ctx.fillRect(0, 0, FRONT_DESK_MONITOR_WIDTH, FRONT_DESK_MONITOR_HEIGHT);
@@ -738,7 +1191,26 @@ export function createFrontDeskMonitorUi(canvas) {
     if (app === 'check-in') drawCheckIn(model);
     else if (app === 'checkout') drawCheckout(model);
     else if (app === 'cash') drawCashScreen(model);
+    else if (app === 'tee-sheet') drawTeeSheet(model);
     else drawHome(model);
+    if (monitorAuditOn()) {
+      // negative control: a deliberately planted string across the action
+      // grid must be caught, or the clean sweep is not believable
+      if (typeof window !== 'undefined' && window.__monitorPlantOverlap && app === 'check-in') {
+        // SELF-PAIRING: two planted strings at overlapping rects, so the
+        // control cannot depend on what else the screen happened to draw
+        setFont(ctx, 14, 500);
+        ctx.fillStyle = '#c22222';
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'alphabetic';
+        ctx.fillText('PLANTED OVERLAP CONTROL', 500, 530);
+        ctx.fillText('PLANTED OVERLAP PARTNER', 508, 534);
+        MONITOR_AUDIT_STATS.plants += 1;
+      }
+      MONITOR_AUDIT_STATS.rects = monitorAuditRects.length;
+      MONITOR_AUDIT_STATS.lastScreen = app;
+      scanMonitorOverlaps(app);
+    }
     ctx.restore();
     return api;
   }

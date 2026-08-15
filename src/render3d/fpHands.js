@@ -38,13 +38,39 @@ const AUTHORED_GRIP_REST_INV = AUTHORED_GRIP_REST.clone().invert();
 const REST_TARGET = {
   wrap: new THREE.Euler(0.40, 0.30, 0.02),
   trigger: new THREE.Euler(0.30, 0.26, 0.00),
-  flat: new THREE.Euler(1.12, 0.20, 0.02),
+  // B4: 1.12 STOOD THE HAND UP ON THE PAD. At that pitch the wrist rose vertically
+  // out of the cloth and the fingers splayed straight into the air — a hand waving
+  // beside a sponge, not one holding it, on both the cloth and the sponge, idle and
+  // in use. Item 9 had already raised `flat`'s curl from 0.46 to 0.94 chasing the
+  // same symptom; the curl was never the problem, the rest ORIENTATION was.
+  //
+  // The pad grip wants the SAME rest orientation as the shaft grip: palm down,
+  // knuckles to the lower right. Swept seven candidates in one run
+  // (tools/qa/electron-flat-grip-sweep.js) and this is the one where the palm lies
+  // on the sponge with the fingers across it. Rolling the wrist instead (z = -1.3
+  // or +1.3) puts the hand on its edge, which is worse.
+  flat: new THREE.Euler(0.42, 0.28, 0.02),
   hook: new THREE.Euler(1.02, 0.24, 0.04),
   pinch: new THREE.Euler(0.34, 0.22, 0.04),
 };
 const GRIP_ALIGN = {};
-for (const [name, euler] of Object.entries(REST_TARGET)) {
-  GRIP_ALIGN[name] = AUTHORED_GRIP_REST_INV.clone().multiply(new THREE.Quaternion().setFromEuler(euler));
+function rebuildGripAlign() {
+  for (const [name, euler] of Object.entries(REST_TARGET)) {
+    GRIP_ALIGN[name] = AUTHORED_GRIP_REST_INV.clone().multiply(new THREE.Quaternion().setFromEuler(euler));
+  }
+}
+rebuildGripAlign();
+
+// A grip's rest orientation is the hardest number in this file to reason about
+// — it is a hand orientation expressed in a tool frame that is itself defined
+// by a builder convention — and every one of them was found by looking at the
+// screen, not by deriving it. So make that loop cheap: a driver can sweep
+// candidates in ONE Electron run instead of one run per guess.
+export function setGripRestTarget(pose, x, y, z) {
+  if (!REST_TARGET[pose]) return null;
+  REST_TARGET[pose].set(x, y, z);
+  rebuildGripAlign();
+  return { pose, x, y, z };
 }
 // A per-pose nudge that lands the palm SURFACE (not the wrist origin) on the socket, in hand-local
 // coordinates so it rides the grip orientation.
@@ -89,9 +115,17 @@ function orientHand(hand, grip, poseName, mirror) {
 // How a hand closes. `curl` drives the finger chain, `thumb` the thumb, `spread` the fan across
 // the knuckles, and `index` lets one finger stay out on a trigger while the rest wrap.
 export const POSES = {
-  wrap: { curl: 1.18, thumb: 0.92, spread: 0.025, index: 1.15 }, // a shaft or a handle
+  // A8: closed HARDER round a shaft. At 1.18 the chain bent ~156 deg total, which lays
+  // the fingers along the top of a handle rather than round it - on screen the shaft ran
+  // in front of the fingertips and the hand read as resting on the pole, not gripping it.
+  // The reference the player supplied has the fingers meeting the palm on the far side
+  // with the thumb crossing over them. ~177 deg does that, and the thumb comes up to match.
+  wrap: { curl: 1.34, thumb: 1.06, spread: 0.025, index: 1.30 }, // a shaft or a handle
   trigger: { curl: 1.08, thumb: 0.78, spread: 0.022, index: 0.30 }, // finger on the trigger
-  flat: { curl: 0.46, thumb: 0.52, spread: 0.008, index: 0.42 }, // fingers draped over a cloth pad
+  // ITEM 9: at curl 0.46 the fingers barely bend, so once the palm was lifted
+  // clear of the sponge they stood straight up off it and the hand read as
+  // waving rather than holding. A hand on a pad drapes over its front edge.
+  flat: { curl: 0.94, thumb: 0.84, spread: 0.010, index: 0.88 }, // fingers draped over a cloth pad
   hook: { curl: 1.06, thumb: 1.05, spread: 0.006, index: 1.02 }, // curled through the neck of a bag
   pinch: { curl: 0.60, thumb: 1.00, spread: 0.02, index: 0.55 },
 };
@@ -155,35 +189,74 @@ export const GRIPS = buildGripTable();
 
 // A finger is two segments hinged at the knuckle, so it can actually close around something
 // instead of being a single rotated slab.
+// 5.3 (Goal 26) — "FINGERS THAT READ AS FINGERS AT VIEWMODEL DISTANCE...
+// CONSISTENT SKIN MATERIAL."
+//
+// Two faults, and the second is named in the brief:
+//
+//   TWO SEGMENTS, NOT THREE. A finger was a proximal capsule and a distal one.
+//   A real finger curls on THREE phalanges, and around a shaft that middle joint
+//   is the one doing the wrapping -- with two, the fingertip swings out on a long
+//   arc instead of closing onto the pole, which is what makes a two-bone finger
+//   read as a sausage. The reference image shows four fingers whose middle
+//   knuckles are the widest part of the grip.
+//
+//   THE MATERIAL CHANGED HALFWAY ALONG. The proximal segment used the per-finger
+//   skin variant (four subtly different tones, so adjacent fingers separate) and
+//   the distal used ONE shared `mats.shade` -- so every fingertip in both hands
+//   was the same colour while every base was not. 5.3 asks for "consistent skin
+//   material" in as many words. The whole finger is now one material, and the
+//   knuckles read from geometry and lighting instead of from a colour break.
+//
+// Cost: three capsules and a nail per finger, so four draw calls -- well inside
+// 5.3's "not dozens of draw calls per finger", and unchanged in material count
+// because the nail and skin were already shared.
 function makeFinger(mats, len, thick, skinMat, withNail) {
   const skin = skinMat || mats.skin;
   const root = new THREE.Group();
+
+  // proximal: base to first knuckle, the thickest segment
   const prox = new THREE.Mesh(
-    new THREE.CapsuleGeometry(thick * 0.47, Math.max(0.002, len * 0.56 - thick), 4, 12), skin,
+    new THREE.CapsuleGeometry(thick * 0.47, Math.max(0.002, len * 0.40 - thick * 0.5), 4, 12), skin,
   );
   prox.rotation.x = Math.PI / 2;
-  prox.position.z = -len * 0.28;
+  prox.position.z = -len * 0.20;
   root.add(prox);
 
+  // THE MIDDLE JOINT — the one that actually wraps a shaft.
   const knuckle = new THREE.Group();
-  knuckle.position.z = -len * 0.56;
+  knuckle.position.z = -len * 0.40;
   root.add(knuckle);
 
+  const mid = new THREE.Mesh(
+    new THREE.CapsuleGeometry(thick * 0.44, Math.max(0.002, len * 0.34 - thick * 0.5), 4, 12), skin,
+  );
+  mid.rotation.x = Math.PI / 2;
+  mid.position.z = -len * 0.17;
+  knuckle.add(mid);
+
+  // distal: the fingertip, on its own joint so it can flatten against the pole
+  const tipJoint = new THREE.Group();
+  tipJoint.position.z = -len * 0.34;
+  knuckle.add(tipJoint);
+
   const dist = new THREE.Mesh(
-    new THREE.CapsuleGeometry(thick * 0.43, Math.max(0.002, len * 0.44 - thick), 4, 12), mats.shade,
+    new THREE.CapsuleGeometry(thick * 0.40, Math.max(0.002, len * 0.26 - thick * 0.5), 4, 12), skin,
   );
   dist.rotation.x = Math.PI / 2;
-  dist.position.z = -len * 0.22;
-  knuckle.add(dist);
+  dist.position.z = -len * 0.13;
+  tipJoint.add(dist);
 
-  // A lighter flattened nail on the back of the fingertip separates index/middle from the rest.
-  if (withNail) {
-    const nail = new THREE.Mesh(new THREE.BoxGeometry(thick * 0.62, 0.0028, len * 0.20), mats.nail);
-    nail.position.set(0, thick * 0.40, -len * 0.34);
-    knuckle.add(nail);
+  // A nail on EVERY finger. It used to be index and middle only, which is the
+  // sort of saving that reads as two fingers being a different kind of object.
+  if (withNail !== false) {
+    const nail = new THREE.Mesh(new THREE.BoxGeometry(thick * 0.58, 0.0026, len * 0.15), mats.nail);
+    nail.name = 'FingerNail';
+    nail.position.set(0, thick * 0.36, -len * 0.17);
+    tipJoint.add(nail);
   }
 
-  return { root, knuckle };
+  return { root, knuckle, tip: tipJoint };
 }
 
 function makeHand(mats, mirror = 1) {
@@ -194,6 +267,7 @@ function makeHand(mats, mirror = 1) {
   // straight through the near plane and fill the screen with a tan cylinder — which is exactly
   // what the first draft did. Slightly tapered so it reads as an arm, not a pipe.
   const forearm = new THREE.Mesh(new THREE.CylinderGeometry(0.033, 0.037, 0.11, 12), mats.skin);
+  forearm.name = 'Forearm';
   forearm.rotation.x = Math.PI / 2;
   forearm.position.z = 0.072;
   g.add(forearm);
@@ -205,18 +279,36 @@ function makeHand(mats, mirror = 1) {
   const sleeve = new THREE.Group();
   sleeve.position.z = 0.138;
   const sleeveBody = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.038, 0.05, 12), mats.cuff);
+  sleeveBody.name = 'HandCuffBody';
   sleeveBody.rotation.x = Math.PI / 2;
   sleeve.add(sleeveBody);
   const cuffRoll = new THREE.Mesh(new THREE.TorusGeometry(0.043, 0.012, 8, 18), mats.cuff);
+  cuffRoll.name = 'HandCuffRoll';
   cuffRoll.position.z = 0.024; // at the opening rim, toward the camera; torus axis already faces +Z
   sleeve.add(cuffRoll);
   const cuffInner = new THREE.Mesh(new THREE.CircleGeometry(0.036, 18), mats.cuffDark);
+  cuffInner.name = 'HandCuffInner';
   cuffInner.position.z = 0.020;
   sleeve.add(cuffInner);
   g.add(sleeve);
 
+  // D2: THE BACK OF THE HAND IS WHAT YOU ACTUALLY LOOK AT, AND IT WAS AN EGG.
+  //
+  // "Lower hand reads as an ovoid with a thumb." The two hands are the same
+  // mesh; what differs is the roll about the shaft (broomFeel handRollUpper
+  // 0.10 vs handRollLower -2.95, i.e. nearly half a turn). The upper hand shows
+  // its fingers and reads as a fist; the lower one presents its DORSUM, and the
+  // dorsum had no features at all — one smooth ellipsoid with the knuckle bumps
+  // buried inside it. Measured against the old ellipsoid, the middle knuckle
+  // cleared the palm surface by 0.003 yd: three pixels at the distance a hand
+  // is actually viewed from.
+  //
+  // A back of a hand reads from three things, in this order: it is FLAT rather
+  // than round, the metacarpals run as ridges from wrist to knuckles, and the
+  // knuckle line breaks the silhouette. All three below.
   const palm = new THREE.Mesh(new THREE.SphereGeometry(0.05, 14, 10), mats.skin);
-  palm.scale.set(0.9, 0.52, 1.08);
+  palm.name = 'Palm';
+  palm.scale.set(0.96, 0.44, 1.06); // flatter and a touch wider — a slab, not an egg
   palm.position.set(0, 0, 0.012);
   g.add(palm);
 
@@ -226,30 +318,73 @@ function makeHand(mats, mirror = 1) {
   thenar.position.set(0.03 * mirror, -0.006, -0.004);
   g.add(thenar);
 
+  // …and the hypothenar on the pinky side, which was simply missing. Without it
+  // the silhouette is one symmetrical oval; with it the hand has the two lobes
+  // and the narrowing toward the wrist that say "hand" before any detail does.
+  const hypothenar = new THREE.Mesh(new THREE.SphereGeometry(0.016, 10, 8), mats.skin);
+  hypothenar.scale.set(0.95, 0.78, 1.5);
+  hypothenar.position.set(-0.030 * mirror, -0.004, 0.016);
+  g.add(hypothenar);
+
+  // The knuckle row is an ARC, not a straight line: the middle knuckle stands
+  // most distal and the pinky's sits well back. Applied to the finger roots and
+  // their bumps together so the two cannot separate.
+  const KNUCKLE_Z = -0.033;
+  const knuckleArc = [-0.002, -0.004, -0.001, 0.005]; // index, middle, ring, pinky
+  const RIDGE_Y = 0.016; // dorsal side; the palm's own half-height is now 0.022
+  const RIDGE_R = 0.008; // I4: was 0.0065 - crested the palm by ~0.0005 and read flat
+
   // four fingers across the knuckle line, index outermost on the thumb side
   const fingers = [];
   const lens = [0.070, 0.076, 0.072, 0.062];
   for (let i = 0; i < 4; i++) {
-    const f = makeFinger(mats, lens[i], 0.019, fingerSkins[i], i === 0 || i === 1);
-    f.root.position.set((0.0285 - i * 0.019) * mirror, -0.004, -0.040);
+    const kx = (0.0285 - i * 0.019) * mirror;
+    const kz = KNUCKLE_Z + knuckleArc[i];
+    const f = makeFinger(mats, lens[i], 0.019, fingerSkins[i], true);
+    f.root.position.set(kx, -0.004, kz - 0.007);
     g.add(f.root);
     fingers.push(f);
-    // a knuckle-ridge bump at each finger root, on the back of the hand
-    const knuckleBump = new THREE.Mesh(new THREE.SphereGeometry(0.0115, 8, 6), fingerSkins[i]);
-    knuckleBump.scale.set(1, 0.8, 1);
-    knuckleBump.position.set((0.0285 - i * 0.019) * mirror, 0.007, -0.033);
+    // a knuckle-ridge bump at each finger root, on the back of the hand. Raised
+    // and enlarged so it CRESTS the flattened palm instead of sitting inside it.
+    const knuckleBump = new THREE.Mesh(new THREE.SphereGeometry(0.0145, 8, 6), fingerSkins[i]);
+    knuckleBump.scale.set(1, 0.78, 1);
+    knuckleBump.position.set(kx, 0.013, kz); // I4: crest 0.024 vs palm top 0.022 - proud for real
     g.add(knuckleBump);
+
+    // The metacarpal running back from that knuckle toward the wrist. These are
+    // what turn a flat slab into a back of a hand — four soft parallel ridges
+    // converging slightly as they go, catching light along their length.
+    const wx = kx * 0.5;
+    const wz = 0.034;
+    const run = Math.hypot(kx - wx, kz - wz);
+    const meta = new THREE.Group();
+    meta.position.set((kx + wx) / 2, RIDGE_Y, (kz + wz) / 2);
+    meta.rotation.y = Math.atan2(kx - wx, kz - wz);
+    const bone = new THREE.Mesh(
+      new THREE.CapsuleGeometry(RIDGE_R, Math.max(0.002, run - RIDGE_R * 2), 4, 10),
+      fingerSkins[i],
+    );
+    bone.rotation.x = Math.PI / 2;
+    meta.add(bone);
+    g.add(meta);
   }
 
   const thumb = new THREE.Group();
   const thumbProx = new THREE.Mesh(new THREE.CapsuleGeometry(0.010, 0.022, 4, 12), mats.skin);
+  thumbProx.name = 'ThumbProx';
   thumbProx.rotation.x = Math.PI / 2;
   thumbProx.position.z = -0.021;
   thumb.add(thumbProx);
   const thumbKnuckle = new THREE.Group();
   thumbKnuckle.position.z = -0.042;
   thumb.add(thumbKnuckle);
-  const thumbDist = new THREE.Mesh(new THREE.CapsuleGeometry(0.009, 0.016, 4, 12), mats.shade);
+  // THE THUMB WAS MISSED. 5.3's "consistent skin material" was applied to the
+  // four fingers -- each got its own per-finger skin instead of a shared darker
+  // one for every distal -- and the thumb tip was left on `mats.shade`, so the
+  // one part of the hand nearest the camera on a shaft grip was the one part
+  // still a different colour from the hand it belongs to.
+  const thumbDist = new THREE.Mesh(new THREE.CapsuleGeometry(0.009, 0.016, 4, 12), mats.skin);
+  thumbDist.name = 'ThumbDist';
   thumbDist.rotation.x = Math.PI / 2;
   thumbDist.position.z = -0.017;
   thumbKnuckle.add(thumbDist);
@@ -266,8 +401,13 @@ function makeHand(mats, mirror = 1) {
       const amount = i === 0 ? p.index : p.curl;
       // the outer fingers close a touch harder — a real hand does not curl as one plate
       const bias = 1 + (i - 1.5) * 0.045;
-      f.root.rotation.x = 1.05 * amount * bias;
-      f.knuckle.rotation.x = 1.25 * amount * bias;
+      // THREE JOINTS NOW, and the curl is distributed across them the way a hand
+      // closes: the middle knuckle leads, the base follows, the tip finishes. A
+      // single big rotation at two joints is what made the old fingertip swing
+      // wide of the shaft instead of closing onto it.
+      f.root.rotation.x = 0.85 * amount * bias;
+      f.knuckle.rotation.x = 1.05 * amount * bias;
+      if (f.tip) f.tip.rotation.x = 0.75 * amount * bias;
       f.root.rotation.y = (i - 1.5) * p.spread * mirror;
     }
     thumb.rotation.set(0.55 * p.thumb, -0.95 * p.thumb * mirror, -0.35 * mirror);
@@ -317,6 +457,14 @@ export function makeFpHands() {
   // Phase 6: a full-arm rig (the broom's viewmodel) replaces the short stub
   // forearm + cuff; while it owns the frame the stubs stay hidden.
   let armStubsSuppressed = false;
+  // B4: some tools are DRAWN BARE - the tool sits in view with no hand on it.
+  // Declared per tool by `hands: false` in the registry, which is the single
+  // source; this flag is just how that reaches the hand rig. It is applied on
+  // top of the normal visibility rules rather than replacing them, so nothing
+  // else has to know about it and clearing it restores whatever the grip logic
+  // wanted.
+  let handsSuppressed = false;
+  let savedVisibility = null;
 
   // What the held RIG should do because of the trigger. The caller owns heldRoot; writing recoil
   // here would slide the hands along the tool they are gripping.
@@ -328,7 +476,7 @@ export function makeFpHands() {
     const primary = authored?.grip || g.grip;
     const support = authored?.support === undefined ? g.support : authored.support;
     const primaryPose = primary.pose || g.grip.pose || 'wrap';
-    left.group.visible = !!support;
+    left.group.visible = !!support && !handsSuppressed;
 
     // Position AND orientation update every frame so the hands ride live (equip/work) sockets. When
     // a grip carries an authored quaternion, the palm orientation is derived from it; otherwise the
@@ -363,6 +511,24 @@ export function makeFpHands() {
     root,
     rigOffset,
 
+    // THE HAND MATERIALS, SHARED RATHER THAN REBUILT.
+    //
+    // `broomViewmodel.js` was constructing its own `skin`, `cuff` and
+    // `cuffDark` from the same SKIN / CUFF / CUFF_DARK constants at the same
+    // roughness — identical materials, built twice, and once PER RIG because
+    // createBroomViewmodel runs for every stick tool.
+    //
+    // Measured cost: the first tool equip compiled 9 programs for 9 distinct
+    // but structurally identical MeshStandardMaterials (same type, shading,
+    // side, no maps, differing only in colour and roughness, neither of which
+    // enters a three.js program key) — 333 to 7855 ms on the first tool a
+    // player takes out. Nine attempts to pre-compile those programs all failed,
+    // because the nine existed by duplication, not by timing.
+    //
+    // Exposing the set lets the rigs reuse it. Appearance is unchanged: the
+    // colours were already the same constants.
+    mats,
+
     // which tool are we holding? null puts the hands away.
     setTool(next, authored = null) {
       tool = GRIPS[next] ? next : null;
@@ -374,6 +540,47 @@ export function makeFpHands() {
       right.sleeve.visible = !armStubsSuppressed;
       applyGrips(authored, true);
     },
+
+    // A full-arm viewmodel may want the hands read at a different size from the
+    // held-out-at-arm's-length default. Scales the HAND GROUPS, preserving each
+    // one's mirror; the root is left alone because callers subtract its
+    // position when seating a hand on a solved grip, and scaling it there would
+    // move every one of those seats.
+    setHandScale(scale) {
+      const value = Number.isFinite(scale) && scale > 0 ? scale : 1;
+      const base = 0.88;
+      right.group.scale.set(base * value, base * value, base * value);
+      left.group.scale.set(-base * value, base * value, base * value);
+    },
+
+    // B4: draw this tool BARE, with no hand on it. Both hand groups are hit
+    // directly rather than only the root, because a viewmodel rig REPARENTS
+    // `right.group`/`left.group` out of the root into its own group — hiding
+    // the root alone would leave a rig-held hand on screen, which is exactly
+    // the washer's case.
+    // It must be SYMMETRIC. Forcing the groups hidden and then only clearing a
+    // flag leaves them hidden for whatever tool comes next: the first version
+    // of this took the hands off the mop, the vacuum and the dustpan as well,
+    // and only the broom kept them because the broom happened to be equipped
+    // before any bare tool was. So the previous visibility is saved and put
+    // back, rather than guessed at on the way out.
+    setHandsSuppressed(on) {
+      const next = !!on;
+      if (next === handsSuppressed) return;
+      handsSuppressed = next;
+      if (handsSuppressed) {
+        savedVisibility = { right: right.group.visible, left: left.group.visible, root: root.visible };
+        right.group.visible = false;
+        left.group.visible = false;
+        root.visible = false;
+      } else if (savedVisibility) {
+        right.group.visible = savedVisibility.right;
+        left.group.visible = savedVisibility.left;
+        root.visible = savedVisibility.root;
+        savedVisibility = null;
+      }
+    },
+    handsAreSuppressed: () => handsSuppressed,
 
     // Phase 6: hide/show the stub forearms + cuffs on BOTH hands while a
     // full-arm viewmodel rig owns them.
@@ -402,7 +609,7 @@ export function makeFpHands() {
       // Retain the last valid pose while the hands ease below the camera. A
       // null tool starts the holster motion; it must not hide the rig in the
       // same frame and turn the authored lowering into a visual snap.
-      root.visible = show > 0.01 && !!pose;
+      root.visible = show > 0.01 && !!pose && !handsSuppressed;
 
       if (using) recoil = Math.min(1, recoil + dt * 7);
       else recoil = Math.max(0, recoil - dt * 5);

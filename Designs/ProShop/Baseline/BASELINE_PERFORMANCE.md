@@ -207,6 +207,13 @@ Stated only where the evidence supports them.
    the interior in the general case.
 4. **Load time (18.2 s to first interactive frame) is the weakest measured number**,
    and about 13 s of it sits after the clubhouse already exists.
+   **Profiled 2026-08-03 (LOAD-1):** 9.7 s of that 13 s is a single forced warm
+   render, and all of it is one-time compilation of 132 GL programs at ~73 ms
+   each — the identical render immediately after costs 51 ms. It does not scale
+   with objects submitted (5,310 → 887 changed nothing) and it is not deferrable
+   distant work (785 of 887 warm objects are within 60 yd of spawn). See
+   PHASE_1_CLASSIFICATION §9. **This number is a defect to fix, not a budget to
+   preserve.**
 5. **`broom-sweeping` is cheap** — 119.7 avg / 96.5 1 % low, the *best* 1 % low of any
    scenario. Cleaning feedback is not a performance problem today.
 

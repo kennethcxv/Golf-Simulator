@@ -74,7 +74,7 @@ async (page) => {
 
   const t0 = Date.now();
   const pre = await page.evaluate(async () => {
-    const { vacuumOwned } = await import('/src/sim/shop.js');
+    const { vacuumOwned } = await import(new URL('src/sim/shop.js', document.baseURI).href);
     const app = window.__fw;
     return {
       cleaningKitOwned: !!vacuumOwned(app.state),

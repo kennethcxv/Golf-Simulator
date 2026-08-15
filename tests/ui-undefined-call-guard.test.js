@@ -166,7 +166,7 @@ for (const file of FILES) {
     const missing = [];
     for (const [name, line] of calledNames(code)) {
       if (declared.has(name) || RUNTIME_GLOBALS.has(name)) continue;
-      missing.push(`${file}:${line} calls ${name}() — not declared, imported, or a runtime global`);
+      missing.push(`${file}:${line} calls ${name}() - not declared, imported, or a runtime global`);
     }
     assert.deepEqual(missing, [], `undefined callee(s):\n  ${missing.join('\n  ')}`);
   });

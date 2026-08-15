@@ -33,6 +33,12 @@ import { ensureShedScene } from '../../sim/shedScene.js';
 import {
   cleaningStatus, serviceMop, changeBucketWater, emptyPanIntoBag, tieBag, disposeTiedBag,
 } from '../../sim/cleaningToolState.js';
+import {
+  collectMaterialResources,
+  collectRenderableResources,
+  disposeRenderableResources,
+  mergeRenderableResources,
+} from './resourceLifecycle.js';
 
 const round3 = (v) => Math.round(v * 1000) / 1000;
 const clamp01 = (v) => Math.min(1, Math.max(0, v));
@@ -85,10 +91,28 @@ export function createShedInterior({
   const ownedTex = [];
   const props = [];
   const kitRoots = [];      // authored GLB kit props (own their loader-clone resources)
+  const kitLoads = [];
+  const kitFailures = [];
+  let kitSettled = 0;
   let disposed = false;
+  let disposalResult = null;
   const geo = (g) => { ownedGeo.push(g); return g; };
   const mat = (m) => { ownedMat.push(m); return m; };
   const tex = (t) => { ownedTex.push(t); return t; };
+
+  // The shed owns its procedural render resources and every resource returned
+  // by its raw GLTFLoader. Clubhouse materials passed through `mats` remain
+  // borrowed: including the whole Object3D subtree here would protect those
+  // caller-owned materials from their real teardown and leak them.
+  const ownedResources = () => mergeRenderableResources(
+    {
+      geometries: new Set(ownedGeo),
+      materials: new Set(),
+      textures: new Set(ownedTex),
+    },
+    collectMaterialResources(ownedMat),
+    collectRenderableResources(kitRoots),
+  );
 
   const wood = mats.rawWood || mat(new THREE.MeshStandardMaterial({ color: 0xcaa877, roughness: 0.9 }));
   const darkWood = mats.walnutDark || mat(new THREE.MeshStandardMaterial({ color: 0x3c2a1c, roughness: 0.85 }));
@@ -238,18 +262,59 @@ export function createShedInterior({
   }
 
   function mountKit(part, parent, pose, { y = 0, scale = 1.0, onReady } = {}) {
-    loader.load(`${KIT_DIR}shed_${part}.glb`, (gltf) => {
-      if (disposed) return;
-      const root = gltf.scene;
-      root.name = `SHED_Kit_${part}`;
-      root.scale.setScalar(scale);
-      root.position.set(pose.x || 0, y, pose.z || 0);
-      root.rotation.y = pose.ry || 0;
-      prepKit(root);
-      (parent || group).add(root);
-      kitRoots.push(root);
-      if (onReady) onReady(root);
-    }, undefined, () => { /* a missing kit GLB leaves the placeholder in place */ });
+    const url = `${KIT_DIR}shed_${part}.glb`;
+    const requestIndex = kitLoads.length;
+    const pending = new Promise((resolve) => {
+      let settled = false;
+      const settle = (status, cause = null) => {
+        if (settled) return;
+        settled = true;
+        kitSettled += 1;
+        const message = cause == null
+          ? null
+          : String(cause?.message || cause || 'unknown load failure');
+        const result = Object.freeze({ requestIndex, part, url, status, error: message });
+        if (status === 'fallback') kitFailures.push(result);
+        resolve(result);
+      };
+      try {
+        loader.load(url, (gltf) => {
+          if (settled) return;
+          if (disposed) {
+            disposeRenderableResources(collectRenderableResources(gltf?.scene));
+            settle('disposed');
+            return;
+          }
+          const root = gltf?.scene || null;
+          try {
+            if (!root) throw new TypeError(`Shed kit loader returned no scene: ${url}`);
+            root.name = `SHED_Kit_${part}`;
+            root.scale.setScalar(scale);
+            root.position.set(pose.x || 0, y, pose.z || 0);
+            root.rotation.y = pose.ry || 0;
+            prepKit(root);
+            (parent || group).add(root);
+            if (onReady) onReady(root);
+            kitRoots.push(root);
+            settle('loaded');
+          } catch (cause) {
+            // Adoption is transactional for the acquired GLTF tree: a failed
+            // prep, mount, or presentation callback cannot leave partial
+            // geometry under the live shed or leak its render resources.
+            root?.removeFromParent?.();
+            disposeRenderableResources(collectRenderableResources(root));
+            settle('fallback', cause);
+          }
+        }, undefined, (cause) => {
+          // A missing kit GLB deliberately leaves its functional placeholder in place.
+          settle(disposed ? 'disposed' : 'fallback', disposed ? null : cause);
+        });
+      } catch (cause) {
+        settle('fallback', cause);
+      }
+    });
+    kitLoads.push(pending);
+    return pending;
   }
 
   // Tool wall rack: mount under SHED_ToolRack (panel centre at y 1.4, facing east off the
@@ -331,6 +396,18 @@ export function createShedInterior({
       },
     });
   });
+
+  // All authored kit requests start during construction. Exposing their single
+  // settlement joins the first-door barrier without serializing any load or
+  // delaying the functional placeholders used on failure.
+  const ready = Promise.all(kitLoads).then((settlements) => Object.freeze({
+    lifecycle: disposed ? 'disposed' : (kitFailures.length > 0 ? 'fallback' : 'ready'),
+    expected: kitLoads.length,
+    loaded: settlements.filter((entry) => entry.status === 'loaded').length,
+    failed: kitFailures.length,
+    failures: Object.freeze([...kitFailures]),
+    settlements: Object.freeze([...settlements]),
+  }));
 
   // ==========================================================================
   //  TARGET VISUALS — one per SHED_TARGET_IDS entry (windows excepted; their
@@ -853,10 +930,10 @@ export function createShedInterior({
         if (!c) return 'Mop bucket';
         if (hooks.getTool?.() === 'mop') {
           return c.bucket.level > 0.02
-            ? `Mop bucket · ${c.bucket.water} water — [E] wring the mop`
-            : 'Mop bucket empty — [X] change the water';
+            ? `Mop bucket · ${c.bucket.water} water - [E] wring the mop`
+            : 'Mop bucket empty - [X] change the water';
         }
-        return `Mop bucket · ${c.bucket.water} water — equip the mop to wring`;
+        return `Mop bucket · ${c.bucket.water} water - equip the mop to wring`;
       },
       get secondaryLabel() { return hooks.getTool?.() === 'mop' ? 'change bucket water' : null; },
       secondaryAction: () => {
@@ -865,7 +942,7 @@ export function createShedInterior({
       action: () => {
         if (hooks.getTool?.() !== 'mop') { say('Equip the mop to wring it here.', 'warn'); return; }
         const result = serviceMop(state);
-        if (!result.ok) { say('The bucket is empty — press [X] here to change the water.', 'warn'); return; }
+        if (!result.ok) { say('The bucket is empty - press [X] here to change the water.', 'warn'); return; }
         hooks.sfx?.('mopStart');
         say(`Mop wrung and ready · bucket water ${result.water}.`);
       },
@@ -880,9 +957,9 @@ export function createShedInterior({
       label: () => {
         const c = cleaningStatus(state);
         if (!c) return 'Waste bin';
-        if (c.pan.load > 0) return `Waste bin — [E] empty the dustpan (${c.pan.load.toFixed(1)})`;
-        if (c.bag.tied) return 'Waste bin — [E] dispose the tied bag';
-        if (c.bag.load > 0) return `Waste bin — [E] tie & dispose the bag (${c.bag.load.toFixed(1)})`;
+        if (c.pan.load > 0) return `Waste bin - [E] empty the dustpan (${c.pan.load.toFixed(1)})`;
+        if (c.bag.tied) return 'Waste bin - [E] dispose the tied bag';
+        if (c.bag.load > 0) return `Waste bin - [E] tie & dispose the bag (${c.bag.load.toFixed(1)})`;
         return 'Waste bin';
       },
       action: () => {
@@ -921,7 +998,7 @@ export function createShedInterior({
     const w = L2W(p.x, p.z);
     const pizzaProp = {
       x: w.x, z: w.z, r: p.radius, aimY: crateTop + 0.1,
-      label: () => (targetProgress('trash:pizza-box') >= 1 ? null : 'Greasy pizza box — [E] throw it out'),
+      label: () => (targetProgress('trash:pizza-box') >= 1 ? null : 'Greasy pizza box - [E] throw it out'),
       action: () => {
         if (targetProgress('trash:pizza-box') >= 1) return;
         shedTargetAction(state, { targetId: 'trash:pizza-box', progress: 1 });
@@ -953,7 +1030,7 @@ export function createShedInterior({
     if (introPending && hooks.toast) {
       introPending = false;
       introShown = true;
-      hooks.toast("This shed hasn't been touched in years — clean it out. Tap F for tools.");
+      hooks.toast("This shed hasn't been touched in years - clean it out. Tap F for tools.");
     }
     swayClock += step;
     cobwebSway.forEach((g, i) => {
@@ -971,28 +1048,34 @@ export function createShedInterior({
   // ==========================================================================
   return {
     group,
+    ready,
     refresh,
     applyCleaningTool,
     update,
     roots: () => [group],
+    ownedResources,
     diagnostics: () => ({
       targets: SHED_TARGET_IDS.length,
       films: WINDOWS.length, // single source: the authoritative shed-window count (one dirt film per window)
       stations: STATION_COUNT,
       furniture: FURNITURE_COUNT,
+      authoredKit: {
+        expected: kitLoads.length,
+        settled: kitSettled,
+        loaded: kitRoots.length,
+        failed: kitFailures.length,
+        failures: [...kitFailures],
+      },
       introShown,
       completed: completedFired,
     }),
     dispose() {
+      if (disposed) return Object.freeze({ ...disposalResult, alreadyDisposed: true });
       disposed = true;
       for (const p of props) removeProp(p);
+      const kitResources = collectRenderableResources(kitRoots);
+      const releasedKitResources = disposeRenderableResources(kitResources);
       for (const root of kitRoots) {
-        root.traverse((o) => {
-          if (!o.isMesh) return;
-          o.geometry?.dispose();
-          const materials = Array.isArray(o.material) ? o.material : [o.material];
-          for (const material of materials) material?.dispose();
-        });
         root.removeFromParent();
       }
       kitRoots.length = 0;
@@ -1000,7 +1083,13 @@ export function createShedInterior({
       for (const g of ownedGeo) g.dispose();
       for (const m of ownedMat) m.dispose();
       for (const t of ownedTex) t.dispose();
-      return { furniture: FURNITURE_COUNT, targets: SHED_TARGET_IDS.length };
+      disposalResult = Object.freeze({
+        alreadyDisposed: false,
+        furniture: FURNITURE_COUNT,
+        targets: SHED_TARGET_IDS.length,
+        authoredKitResources: Object.freeze({ ...releasedKitResources }),
+      });
+      return disposalResult;
     },
   };
 }

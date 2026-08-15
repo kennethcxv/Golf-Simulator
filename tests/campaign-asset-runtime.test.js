@@ -35,6 +35,30 @@ function immediateLoader() {
   };
 }
 
+function twoDrawLoader() {
+  return {
+    load(_url, onLoad) {
+      const scene = socketScene();
+      const material = new THREE.MeshStandardMaterial({ color: 0x665b4c, roughness: 0.78 });
+      scene.add(
+        new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.2, 0.2), material),
+        new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.16, 0.16), material),
+      );
+      onLoad({ scene, animations: [] });
+    },
+  };
+}
+
+function deferredLoader() {
+  const requests = [];
+  return {
+    requests,
+    load(url, onLoad, _progress, onError) {
+      requests.push({ url, onLoad, onError });
+    },
+  };
+}
+
 function oneDrawMerchBake() {
   const material = new THREE.MeshStandardMaterial({ color: 0x6f6658, roughness: 0.8 });
   return {
@@ -87,10 +111,11 @@ test('Sheet 7 campaign runtime leaves Asset 61 unified and lands the authored of
 
 test('Assets 71-100 can refresh campaign visibility without reloading or duplicating roots', async () => {
   const interior = new THREE.Group();
-  const visible = new Set([71, 100]);
+  const visible = new Set([71, 86, 100]);
   const props = buildProps({
     interior,
-    loader: immediateLoader(),
+    loader: twoDrawLoader(),
+    merch: oneDrawMerchBake(),
     visibilityForAsset: (number) => visible.has(number),
   });
   await props.ready;
@@ -98,11 +123,118 @@ test('Assets 71-100 can refresh campaign visibility without reloading or duplica
   assert.equal(props.getRoot(71).visible, true);
   assert.equal(props.getRoot(81).visible, false);
   assert.equal(props.getRoot(100).visible, true);
+  assert.deepEqual(props.diagnostics().placedStaticBatchAssetNumbers, [],
+    'a dynamic visibility authority keeps every root out of the immutable global batch');
+  assert.equal(interior.getObjectByName('Assets61to100PlacedStaticBatch'), undefined);
+  let dynamicallySuppressedSources = 0;
+  props.getRoot(86).traverse((object) => {
+    if (object.userData.assetRuntimePlacedStaticRenderSuppressed === true) {
+      dynamicallySuppressedSources += 1;
+    }
+  });
+  assert.equal(dynamicallySuppressedSources, 0,
+    'the independently visible Asset 86 source was not copied into a global batch');
+
+  visible.delete(86);
+  props.refreshVisibility();
+  assert.equal(props.getRoot(86).visible, false,
+    'a previously visible inert asset can still be hidden after loading');
+  visible.add(86);
+  props.refreshVisibility();
+  assert.equal(props.getRoot(86).visible, true,
+    'the same independent root can become visible again without stale batched geometry');
 
   visible.add(81);
   props.refreshVisibility();
   assert.equal(props.getRoot(81).visible, true);
   assert.equal(props.diagnostics().placed, 40, 'refreshing does not instantiate a second prop set');
+  props.dispose();
+});
+
+test('disposed prop runtime ignores every late loader completion', async () => {
+  const interior = new THREE.Group();
+  const loader = deferredLoader();
+  const colliders = [];
+  const registeredProps = [];
+  const props = buildProps({
+    interior,
+    loader,
+    addCol: (collider) => colliders.push(collider),
+    addProp: (prop) => registeredProps.push(prop),
+  });
+  assert.equal(loader.requests.length, 40);
+
+  props.dispose();
+  for (const request of loader.requests) {
+    request.onLoad({ scene: socketScene(), animations: [] });
+  }
+  const result = await props.ready;
+
+  assert.deepEqual(result, { placed: 0, instances: 0, superseded: [] });
+  assert.equal(props.diagnostics().placed, 0);
+  assert.equal(colliders.length, 0);
+  assert.equal(registeredProps.length, 0);
+  assert.equal(interior.children.length, 0,
+    'late loader callbacks cannot remount the disposed runtime group');
+});
+
+test('fixed Pine Hills suppression is snapshotted once and batches only assets 65, 86, and 87', async () => {
+  const interior = new THREE.Group();
+  const suppressed = new Set([
+    61, 62, 63, 67, 68, 69, 70, 85, 88, 89, 90, 91, 93, 96, 98, 99,
+  ]);
+  const evaluations = new Map();
+  const props = buildProps({
+    interior,
+    loader: twoDrawLoader(),
+    merch: oneDrawMerchBake(),
+    fixedVisibilityForAsset(number) {
+      evaluations.set(number, (evaluations.get(number) || 0) + 1);
+      return !suppressed.has(number);
+    },
+  });
+  await props.ready;
+
+  const diagnostics = props.diagnostics();
+  assert.deepEqual(diagnostics.placedStaticBatchAssetNumbers, [65, 86, 87]);
+  assert.ok(diagnostics.placedStaticBatchSavedDrawCalls > 0,
+    'the fixed allowed cohort creates a real draw-reducing global batch');
+  assert.ok(interior.getObjectByName('Assets61to100PlacedStaticBatch'));
+  assert.equal(props.getRoot(62).visible, false);
+  assert.equal(props.getRoot(86).visible, true);
+  for (const number of [65, 86, 87]) {
+    let globallyBatchedSources = 0;
+    props.getRoot(number).traverse((object) => {
+      if (object.userData.assetRuntimePlacedStaticRenderSuppressed === true) {
+        globallyBatchedSources += 1;
+      }
+    });
+    assert.ok(globallyBatchedSources > 0,
+      `Asset ${number} source geometry was copied into the fixed global batch`);
+  }
+  let suppressedAssetSources = 0;
+  props.getRoot(62).traverse((object) => {
+    if (object.userData.assetRuntimePlacedStaticRenderSuppressed === true) {
+      suppressedAssetSources += 1;
+    }
+  });
+  assert.equal(suppressedAssetSources, 0,
+    'fixed-hidden Asset 62 remains outside the visible global geometry snapshot');
+  assert.equal(evaluations.size, 40);
+  assert.equal([...evaluations.values()].every((count) => count === 1), true,
+    'fixed policy is evaluated once per placement before asynchronous loading settles');
+
+  suppressed.delete(62);
+  suppressed.add(86);
+  props.refreshVisibility();
+  assert.equal(props.getRoot(62).visible, false,
+    'later caller mutation cannot reveal an asset excluded from the construction snapshot');
+  assert.equal(props.getRoot(86).visible, true,
+    'later caller mutation cannot hide geometry already copied into the global batch');
+  assert.deepEqual(props.diagnostics().placedStaticBatchAssetNumbers, [65, 86, 87]);
+  assert.equal([...evaluations.values()].every((count) => count === 1), true,
+    'refresh never re-evaluates the immutable policy');
+  props.dispose();
 });
 
 test('the premium fitting booth stays out of the basic Pine Hills cooler sightline', async () => {

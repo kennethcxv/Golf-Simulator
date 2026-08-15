@@ -1,0 +1,16 @@
+{
+  "note": "Missing-key count per locale. SHRINK-ONLY, like tools/lint-baseline.json. A locale may never carry MORE untranslated keys than it does here. Raising a number is a deliberate act that shows up in a diff and needs a reason in the commit message; it is not something a build should be able to do quietly. See Designs/ProShop/FOUND_FALSE.md, row `translations`: the old check counted keys ADDED and never the denominator, so nine locales sat at 168/282 for four sessions while every run reported green.",
+  "generated": "Goal 21, section G",
+  "missing": {
+    "en": 0,
+    "es": 0,
+    "fr": 0,
+    "de": 0,
+    "pt-BR": 0,
+    "ru": 0,
+    "zh-Hans": 0,
+    "ja": 0,
+    "ko": 0,
+    "tr": 0
+  }
+}

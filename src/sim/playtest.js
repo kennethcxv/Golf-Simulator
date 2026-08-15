@@ -227,7 +227,7 @@ function handleHazards(pt, zone) {
   if (zone === ZONE.WATER) {
     pt.penalties += 1;
     pt.strokes += 1; // penalty stroke
-    pt.events.push('Splash — penalty drop.');
+    pt.events.push('Splash - penalty drop.');
     b.x = pt.lastRest.x;
     b.z = pt.lastRest.z;
     b.y = pt.hooks.heightAt(b.x, b.z) + 0.03;
@@ -240,7 +240,7 @@ function handleHazards(pt, zone) {
   if (pt.hooks.inBoundsWorld && !pt.hooks.inBoundsWorld(b.x, b.z)) {
     pt.penalties += 1;
     pt.strokes += 1;
-    pt.events.push('Out of bounds — replay from the drop.');
+    pt.events.push('Out of bounds - replay from the drop.');
     b.x = pt.lastRest.x;
     b.z = pt.lastRest.z;
     b.y = pt.hooks.heightAt(b.x, b.z) + 0.03;

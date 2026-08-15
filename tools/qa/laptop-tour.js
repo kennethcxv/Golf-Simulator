@@ -23,15 +23,12 @@ async (page) => {
   await page.waitForTimeout(1200);
   // Continue when the profile has a save; a fresh profile founds an empire and buys the
   // cheapest listed course — the same two clicks a new player makes.
-  const cont = page.getByText('Continue', { exact: true });
-  if (await cont.isEnabled().catch(() => false)) {
-    await cont.click();
-  } else {
-    // Live menu flow (2026-07-28): New game → difficulty card → confirm.
-    await page.getByRole('button', { name: /New game/i }).click();
-    await page.locator('.difficulty-card').filter({ hasText: 'Relaxed' }).click();
-    const confirmStart = page.getByRole('button', { name: /^(Start|Confirm|Yes)/i }).first();
-    if (await confirmStart.isVisible({ timeout: 1500 }).catch(() => false)) await confirmStart.click();
+  // The menu itself is the shared boot now (qa-boot.mjs); what stays here is
+  // the part that is this driver's own — a fresh profile must also BUY the
+  // cheapest listed course before there is anything to tour.
+  const { clickThroughMenu } = await import(`file:///${process.cwd().replace(/\\/g, '/')}/tools/qa/lib/qa-boot.mjs`);
+  const bootMode = await clickThroughMenu(page);
+  if (bootMode === 'new-game') {
     await page.waitForTimeout(900);
     const buy = await page.evaluate(() => {
       const btns = [...document.querySelectorAll('button')]
@@ -53,10 +50,10 @@ async (page) => {
   await page.evaluate(async () => {
     const app = window.__fw;
     const st = app.state;
-    const shop = await import('/src/sim/shop.js');
-    const staff = await import('/src/sim/staff.js');
-    const resv = await import('/src/sim/reservations.js');
-    const time = await import('/src/sim/time.js');
+    const shop = await import(new URL('src/sim/shop.js', document.baseURI).href);
+    const staff = await import(new URL('src/sim/staff.js', document.baseURI).href);
+    const resv = await import(new URL('src/sim/reservations.js', document.baseURI).href);
+    const time = await import(new URL('src/sim/time.js', document.baseURI).href);
 
     st.cash = 60000;
     st.shop.unlockedTier = 3;
@@ -114,10 +111,27 @@ async (page) => {
     for (const stand of ['chair', 'north']) {
       await page.evaluate(async (which) => {
         const app = window.__fw;
-        const L = await import('/src/data/shopLayout.js');
+        const L = await import(new URL('src/data/shopLayout.js', document.baseURI).href);
         const o = app.scene3d.clubhouse().interior.position;
         const w = app.scene3d.walk.state;
-        const laptop = L.FRONT_DESK.laptop;
+        const laptop = (() => {
+        // D1: the LIVE rig rather than the layout datum.
+        //
+        // NOT because the datum was stale — it was the first hypothesis and it
+        // is wrong. Measured 2026-08-04: the rig sits at interior-local
+        // (-2.550, 1.557) and FRONT_DESK.laptop reads (-2.550, 1.557). B8 moved
+        // the datum with the machine. This is here so a future move of one
+        // without the other cannot silently re-open the same investigation; the
+        // interior group carries no rotation, so local == world - origin, which
+        // is the frame the surrounding maths is already written in.
+        const ch = app.scene3d.clubhouse();
+        const rig = ch.laptopRig ? ch.laptopRig() : null;
+        const node = rig && rig.object;
+        if (!node) return L.FRONT_DESK.laptop;
+        ch.interior.updateMatrixWorld(true);
+        const m = node.matrixWorld.elements;
+        return { x: m[12] - ch.interior.position.x, z: m[14] - ch.interior.position.z };
+      })();
         const seat = which === 'north'
           ? { x: laptop.x, z: laptop.z + 0.95 }
           : { x: L.FRONT_DESK.staffChair.x, z: L.FRONT_DESK.staffChair.z };
@@ -131,7 +145,7 @@ async (page) => {
       }, stand);
       await page.waitForTimeout(600);
       await page.keyboard.press('e');
-      opened = await page.waitForFunction(() => window.__fw.laptopOpen === true, null, { timeout: 6000 })
+      opened = await page.waitForFunction(() => (() => { const a = window.__fw; if (!a || a.laptopOpen !== true) return false; const s = document.querySelector('.laptop-screen'); if (!s || s.style.display === 'none') return false; const f = document.querySelector('.lt-frame'); if (!f) return false; const r = f.getBoundingClientRect(); if (!(r.width > 100 && r.height > 60)) return false; const p = window.__qaLtFrame || {}; window.__qaLtFrame = { x: r.left, w: r.width }; return Math.abs((p.x ?? -1e6) - r.left) < 0.5 && Math.abs((p.w ?? -1e6) - r.width) < 0.5; })(), null, { timeout: 6000 })
         .then(() => true).catch(() => false);
       if (opened) break;
     }

@@ -17,6 +17,7 @@
 import * as THREE from 'three';
 import { RENO } from '../../sim/shop.js';
 import { SHED_ROOM, insideShedRoom } from '../../data/shedLayout.js';
+import { collectRenderableResources } from './resourceLifecycle.js';
 
 const hash01 = (n) => {
   const s = Math.sin(n * 12.9898 + 78.233) * 43758.5453;
@@ -313,5 +314,11 @@ export function buildShedDirt(B, windowDefs) {
     return { films: films.length };
   }
 
-  return { repaintGrime, refreshFilms, grimePlane, dispose };
+  // The plane lives under the interior root while the films live under shell
+  // window holders. Expose one exact ownership set so makeClubhouse can keep
+  // both branches out of its broad procedural release, then delegate them to
+  // this runtime's existing teardown.
+  const ownedResources = () => collectRenderableResources([grimePlane, ...films]);
+
+  return { repaintGrime, refreshFilms, grimePlane, ownedResources, dispose };
 }

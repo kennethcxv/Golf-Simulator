@@ -52,9 +52,8 @@ async (page) => {
   });
 
   async function waitForGame() {
-    const continueButton = page.getByText('Continue', { exact: true });
-    await continueButton.waitFor({ state: 'visible', timeout: 30000 });
-    await continueButton.click();
+    const { clickThroughMenu } = await import(`file:///${process.cwd().replace(/\\/g, '/')}/tools/qa/lib/qa-boot.mjs`);
+    await clickThroughMenu(page);
     await page.waitForFunction(() => window.__fw?.scene3d?.clubhouse?.(), null, { timeout: 90000 });
     await page.waitForFunction(() => {
       const veil = document.querySelector('.load-veil');
@@ -133,7 +132,7 @@ async (page) => {
 
   async function stageHero() {
     const staged = await page.evaluate(async ({ orderId, qty, spot }) => {
-      const D = await import('/src/sim/deliveries.js');
+      const D = await import(new URL('src/sim/deliveries.js', document.baseURI).href);
       const app = window.__fw;
       const state = app.state;
       D.ensureDeliveries(state);
@@ -177,7 +176,7 @@ async (page) => {
 
   async function liveSnapshot(boxId) {
     return page.evaluate(async (id) => {
-      const D = await import('/src/sim/deliveries.js');
+      const D = await import(new URL('src/sim/deliveries.js', document.baseURI).href);
       const state = window.__fw.state;
       D.ensureDeliveries(state);
       const delivery = state.shop.deliveries;

@@ -329,7 +329,7 @@ async (page) => {
       const clubhouse = app.scene3d.clubhouse();
       clubhouse.setOrganicWalkins?.(false);
       clubhouse.clearWalkins?.();
-      const layout = await import('/src/data/shopLayout.js');
+      const layout = await import(new URL('src/data/shopLayout.js', document.baseURI).href);
       return {
         runnerBootstrapSeed: app.empire?.seed ?? null,
         stateSeed: state.seed ?? null,
@@ -352,8 +352,8 @@ async (page) => {
 
   async function inventorySnapshot(label) {
     return page.evaluate(async (snapshotLabel) => {
-      const starter = await import('/src/sim/clubhouseStarterStock.js');
-      const lifecycle = await import('/src/sim/inventoryLifecycle.js');
+      const starter = await import(new URL('src/sim/clubhouseStarterStock.js', document.baseURI).href);
+      const lifecycle = await import(new URL('src/sim/inventoryLifecycle.js', document.baseURI).href);
       const state = window.__fw.state;
       const boxes = (state.shop.deliveries?.boxes || []).filter((box) => (
         box.starterRestockVersion === starter.STARTER_RESTOCK_VERSION
@@ -409,10 +409,10 @@ async (page) => {
 
   async function starterCartonCensus() {
     return page.evaluate(async () => {
-      const starter = await import('/src/sim/clubhouseStarterStock.js');
-      const placement = await import('/src/sim/boxPlacement.js');
-      const lifecycle = await import('/src/sim/inventoryLifecycle.js');
-      const layout = await import('/src/data/shopLayout.js');
+      const starter = await import(new URL('src/sim/clubhouseStarterStock.js', document.baseURI).href);
+      const placement = await import(new URL('src/sim/boxPlacement.js', document.baseURI).href);
+      const lifecycle = await import(new URL('src/sim/inventoryLifecycle.js', document.baseURI).href);
+      const layout = await import(new URL('src/data/shopLayout.js', document.baseURI).href);
       const state = window.__fw.state;
       const scene = window.__fw.scene3d.scene;
       const fixtureById = new Map(layout.FIXTURES.map((entry) => [entry.id, entry]));
@@ -525,8 +525,8 @@ async (page) => {
 
   async function boxSnapshot(boxId) {
     return page.evaluate(async (id) => {
-      const deliveries = await import('/src/sim/deliveries.js');
-      const placement = await import('/src/sim/boxPlacement.js');
+      const deliveries = await import(new URL('src/sim/deliveries.js', document.baseURI).href);
+      const placement = await import(new URL('src/sim/boxPlacement.js', document.baseURI).href);
       const box = deliveries.findBox(window.__fw.state, id);
       if (!box) return { exists: false, id };
       return {
@@ -589,7 +589,7 @@ async (page) => {
 
   async function cartonApproachCandidates(boxId, distance = 1.34) {
     return page.evaluate(async ({ id, requestedDistance }) => {
-      const boxes = await import('/src/data/boxes.js');
+      const boxes = await import(new URL('src/data/boxes.js', document.baseURI).href);
       const app = window.__fw;
       const box = app.state.shop.deliveries.boxes.find((entry) => entry.id === id);
       const root = app.scene3d.scene.getObjectByName(`DeliveryBox_${id}`)
@@ -706,7 +706,7 @@ async (page) => {
 
   async function fixtureApproachPoses(fixtureId, aimY = 1.05) {
     return page.evaluate(async ({ id, targetY }) => {
-      const layout = await import('/src/data/shopLayout.js');
+      const layout = await import(new URL('src/data/shopLayout.js', document.baseURI).href);
       const app = window.__fw;
       const fixture = layout.FIXTURES.find((entry) => entry.id === id);
       if (!fixture) return [];
@@ -761,7 +761,7 @@ async (page) => {
 
   async function coolerSnapshot(label) {
     return page.evaluate(async (snapshotLabel) => {
-      const coolerModule = await import('/src/sim/openingDrinksCooler.js');
+      const coolerModule = await import(new URL('src/sim/openingDrinksCooler.js', document.baseURI).href);
       const app = window.__fw;
       const state = coolerModule.openingDrinksCoolerSnapshot(app.state);
       const anchor = app.scene3d.scene.getObjectByName('PineHillsOpeningDrinksCoolerAnchor');
@@ -1017,9 +1017,9 @@ async (page) => {
 
   async function deriveStockroomPlacementCandidates(boxId) {
     return page.evaluate(async (id) => {
-      const layout = await import('/src/data/shopLayout.js');
-      const placement = await import('/src/sim/boxPlacement.js');
-      const surfaces = await import('/src/data/boxPlacementSurfaces.js');
+      const layout = await import(new URL('src/data/shopLayout.js', document.baseURI).href);
+      const placement = await import(new URL('src/sim/boxPlacement.js', document.baseURI).href);
+      const surfaces = await import(new URL('src/data/boxPlacementSurfaces.js', document.baseURI).href);
       const app = window.__fw;
       const box = app.state.shop.deliveries.boxes.find((entry) => entry.id === id);
       if (!box) return [];
@@ -1206,8 +1206,8 @@ async (page) => {
 
   async function restorationRewardSnapshot(label) {
     return page.evaluate(async (snapshotLabel) => {
-      const starter = await import('/src/sim/clubhouseStarterStock.js');
-      const restoration = await import('/src/sim/clubhouseRestoration.js');
+      const starter = await import(new URL('src/sim/clubhouseStarterStock.js', document.baseURI).href);
+      const restoration = await import(new URL('src/sim/clubhouseRestoration.js', document.baseURI).href);
       const state = window.__fw.state;
       const snapshot = restoration.restorationSnapshot(state);
       const groupIds = Object.keys(starter.STARTER_RETAIL_GROUPS);
@@ -1252,8 +1252,8 @@ async (page) => {
 
   async function starterSkuRoute(skuId) {
     return page.evaluate(async (id) => {
-      const starter = await import('/src/sim/clubhouseStarterStock.js');
-      const slots = await import('/src/data/fixtureSlots.js');
+      const starter = await import(new URL('src/sim/clubhouseStarterStock.js', document.baseURI).href);
+      const slots = await import(new URL('src/data/fixtureSlots.js', document.baseURI).href);
       const fixture = slots.homeFixture(id);
       const groupId = Object.entries(starter.STARTER_RETAIL_GROUPS)
         .find(([, skuIds]) => skuIds.includes(id))?.[0] || null;

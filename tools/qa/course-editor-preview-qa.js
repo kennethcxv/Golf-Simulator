@@ -54,7 +54,7 @@ async (page) => {
   };
 
   const findPlacement = (feature, options = {}) => page.evaluate(async ({ featureName, featureOptions }) => {
-    const { featurePlacementOk } = await import('/src/sim/courseEditor.js');
+    const { featurePlacementOk } = await import(new URL('src/sim/courseEditor.js', document.baseURI).href);
     const THREE = await import('three');
     const app = window.__fw;
     const scene = app.scene3d;
@@ -96,7 +96,7 @@ async (page) => {
   }, { featureName: feature, featureOptions: options });
 
   const findZone = (zoneKey) => page.evaluate(async (key) => {
-    const { ZONE } = await import('/src/sim/constants.js');
+    const { ZONE } = await import(new URL('src/sim/constants.js', document.baseURI).href);
     const THREE = await import('three');
     const scene = window.__fw.scene3d;
     const course = window.__fw.state.course;

@@ -37,7 +37,7 @@ async (page) => {
   await page.waitForTimeout(400);
 
   const measured = await page.evaluate(async () => {
-    const { makeAudio } = await import('/src/core/audio.js');
+    const { makeAudio } = await import(new URL('src/core/audio.js', document.baseURI).href);
     const SR = 44100;
     const SECONDS = 1.0;
 

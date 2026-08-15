@@ -1,0 +1,20 @@
+{
+  "idle": {
+    "samples": 34,
+    "swingSpanRad": 0,
+    "headScreenSpanNdc": 0,
+    "reversals": 0,
+    "peakIntensity": 0
+  },
+  "swept": {
+    "samples": 40,
+    "swingSpanRad": 0.58,
+    "headScreenSpanNdc": 0.215,
+    "reversals": 6,
+    "peakIntensity": 0.887
+  },
+  "idleIsQuiet": true,
+  "oscillates": true,
+  "arcRadUsed": true,
+  "ok": true
+}

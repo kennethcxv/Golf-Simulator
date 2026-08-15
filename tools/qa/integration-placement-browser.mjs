@@ -53,7 +53,7 @@ async function aimAt(id) {
   const result = await page.evaluate(async (objectId) => {
     const app = window.__fw;
     const THREE = await import('three');
-    const { objectById } = await import('/src/sim/layout.js');
+    const { objectById } = await import(new URL('src/sim/layout.js', document.baseURI).href);
     const scene = app.scene3d.scene;
     const clubhouse = app.scene3d.clubhouse();
     const walk = app.scene3d.walk;
@@ -115,7 +115,7 @@ async function aimAt(id) {
 
 async function transformFor(id) {
   return page.evaluate(async (objectId) => {
-    const { objectById } = await import('/src/sim/layout.js');
+    const { objectById } = await import(new URL('src/sim/layout.js', document.baseURI).href);
     return structuredClone(objectById(window.__fw.state, objectId).transform);
   }, id);
 }
@@ -186,7 +186,8 @@ try {
   await page.evaluate(() => window.__fw.autosave());
   report.controls.push('normal autosave');
   await page.reload({ waitUntil: 'domcontentloaded', timeout: 60_000 });
-  await page.getByText('Continue', { exact: true }).click();
+  const { clickThroughMenu } = await import(`file:///${process.cwd().replace(/\\/g, '/')}/tools/qa/lib/qa-boot.mjs`);
+  await clickThroughMenu(page);
   await waitForGame();
   report.afterReload = await transformFor(id);
   assert.deepEqual(report.afterReload, expected, 'save/reload preserves the exact committed transform');

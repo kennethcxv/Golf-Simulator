@@ -46,8 +46,8 @@ async function startNewProperty(page) {
 async function installFixture(page) {
   return page.evaluate(async ({ tier, hour }) => {
     const app = window.__fw;
-    const { ensureGolfDay } = await import('/src/sim/golfDay.js');
-    const { disableCampaign } = await import('/src/sim/campaign.js');
+    const { ensureGolfDay } = await import(new URL('src/sim/golfDay.js', document.baseURI).href);
+    const { disableCampaign } = await import(new URL('src/sim/campaign.js', document.baseURI).href);
     disableCampaign(app.state);
     const day = ensureGolfDay(app.state);
     app.state.tutorial.complete = true;
@@ -246,7 +246,7 @@ async function snapshot(page, cartId) {
 
 async function restoredCartSnapshot(page, cartId) {
   return page.evaluate(async (id) => {
-    const { serialize, deserialize } = await import('/src/sim/state.js');
+    const { serialize, deserialize } = await import(new URL('src/sim/state.js', document.baseURI).href);
     const restored = deserialize(serialize(window.__fw.state));
     const cart = restored.golfDay.carts.find((entry) => entry.id === id);
     return JSON.parse(JSON.stringify(cart));

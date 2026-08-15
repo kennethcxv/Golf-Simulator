@@ -39,7 +39,7 @@ async (page) => {
   }, null, { timeout: 90000 });
 
   const fixture = await page.evaluate(async () => {
-    const restoration = await import('/src/sim/clubhouseRestoration.js');
+    const restoration = await import(new URL('src/sim/clubhouseRestoration.js', document.baseURI).href);
     const app = window.__fw;
     const clubhouse = app.scene3d.clubhouse();
     const production = typeof clubhouse.sheet06Production === 'function'

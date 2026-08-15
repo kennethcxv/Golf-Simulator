@@ -40,7 +40,7 @@ async (page) => {
   };
 
   const clearUi = async () => page.evaluate(async () => {
-    const ui = await import('/src/ui/ui.js');
+    const ui = await import(new URL('src/ui/ui.js', document.baseURI).href);
     ui.clearNotifications();
     ui.clearToasts();
     window.__fw.scene3d.clubhouse().interior.traverse((object) => {
@@ -223,7 +223,7 @@ async (page) => {
 
   const baselineFixture = await page.evaluate(async () => {
     const app = window.__fw;
-    const layout = await import('/src/sim/layout.js');
+    const layout = await import(new URL('src/sim/layout.js', document.baseURI).href);
     const state = app.state;
     const clubhouse = app.scene3d.clubhouse();
     app.speedIdx = 0;
@@ -279,11 +279,11 @@ async (page) => {
 
   const fixture = await page.evaluate(async () => {
     const app = window.__fw;
-    const inventory = await import('/src/sim/propertyInventory.js');
-    const shop = await import('/src/sim/shop.js');
-    const placement = await import('/src/sim/propertyPlacement.js');
-    const placeables = await import('/src/data/placeableItems.js');
-    const layout = await import('/src/data/shopLayout.js');
+    const inventory = await import(new URL('src/sim/propertyInventory.js', document.baseURI).href);
+    const shop = await import(new URL('src/sim/shop.js', document.baseURI).href);
+    const placement = await import(new URL('src/sim/propertyPlacement.js', document.baseURI).href);
+    const placeables = await import(new URL('src/data/placeableItems.js', document.baseURI).href);
+    const layout = await import(new URL('src/data/shopLayout.js', document.baseURI).href);
     const state = app.state;
     const north = -layout.INTERIOR.d / 2 + 0.02;
     const highEndSpec = placeables.placeableSpecBySkuId('furn-freestanding-shelving-luxury');
@@ -423,8 +423,8 @@ async (page) => {
     ))?.id || null
   ));
   await page.evaluate(async (placementId) => {
-    const lifecycle = await import('/src/sim/inventoryLifecycle.js');
-    const stocking = await import('/src/sim/stocking.js');
+    const lifecycle = await import(new URL('src/sim/inventoryLifecycle.js', document.baseURI).href);
+    const stocking = await import(new URL('src/sim/stocking.js', document.baseURI).href);
     const adopted = lifecycle.adoptExternalInventory(window.__fw.state, {
       skuId: 'balls2', quantity: 1, stage: lifecycle.INVENTORY_STAGE.RESERVE,
       note: `Browser QA stock for ${placementId}`,
@@ -443,9 +443,9 @@ async (page) => {
 
   const stockingFixture = await page.evaluate(async () => {
     const app = window.__fw;
-    const lifecycle = await import('/src/sim/inventoryLifecycle.js');
-    const stocking = await import('/src/sim/stocking.js');
-    const retail = await import('/src/sim/retailShelfStocking.js');
+    const lifecycle = await import(new URL('src/sim/inventoryLifecycle.js', document.baseURI).href);
+    const stocking = await import(new URL('src/sim/stocking.js', document.baseURI).href);
+    const retail = await import(new URL('src/sim/retailShelfStocking.js', document.baseURI).href);
     const state = app.state;
     const linesByTier = {
       basic: [['balls2', 2]],
@@ -531,7 +531,7 @@ async (page) => {
 
   if (debugStock) {
     const debug = await page.evaluate(async () => {
-      const { Raycaster } = await import('/vendor/three.module.js');
+      const { Raycaster } = await import(new URL('vendor/three.module.js', document.baseURI).href);
       const app = window.__fw;
       const camera = app.scene3d.camera;
       const projected = [];
@@ -758,8 +758,8 @@ async (page) => {
     ))?.id || null
   ));
   await page.evaluate(async (placementId) => {
-    const lifecycle = await import('/src/sim/inventoryLifecycle.js');
-    const stocking = await import('/src/sim/stocking.js');
+    const lifecycle = await import(new URL('src/sim/inventoryLifecycle.js', document.baseURI).href);
+    const stocking = await import(new URL('src/sim/stocking.js', document.baseURI).href);
     const adopted = lifecycle.adoptExternalInventory(window.__fw.state, {
       skuId: 'range2', quantity: 1, stage: lifecycle.INVENTORY_STAGE.RESERVE,
       note: `Browser QA cabinet stock for ${placementId}`,
@@ -846,8 +846,8 @@ async (page) => {
     ))?.id || null
   ));
   await page.evaluate(async (placementId) => {
-    const lifecycle = await import('/src/sim/inventoryLifecycle.js');
-    const stocking = await import('/src/sim/stocking.js');
+    const lifecycle = await import(new URL('src/sim/inventoryLifecycle.js', document.baseURI).href);
+    const stocking = await import(new URL('src/sim/stocking.js', document.baseURI).href);
     const adopted = lifecycle.adoptExternalInventory(window.__fw.state, {
       skuId: 'range2', quantity: 1, stage: lifecycle.INVENTORY_STAGE.RESERVE,
       note: `Browser QA luxury cabinet stock for ${placementId}`,
@@ -987,9 +987,9 @@ async (page) => {
   collision.stoppedBeforeMesh = collision.end.z >= collision.bounds.maxZ - 0.02;
 
   const placementValidation = await page.evaluate(async () => {
-    const placementAuthority = await import('/src/sim/propertyPlacement.js');
-    const placeables = await import('/src/data/placeableItems.js');
-    const layout = await import('/src/data/shopLayout.js');
+    const placementAuthority = await import(new URL('src/sim/propertyPlacement.js', document.baseURI).href);
+    const placeables = await import(new URL('src/data/placeableItems.js', document.baseURI).href);
+    const layout = await import(new URL('src/data/shopLayout.js', document.baseURI).href);
     const state = window.__fw.state;
     const clonedEmptyState = structuredClone(state);
     clonedEmptyState.propertyInventory.placements = [];
@@ -1034,9 +1034,9 @@ async (page) => {
   });
 
   const runtimeDiagnostics = await page.evaluate(async () => {
-    const placementAuthority = await import('/src/sim/propertyPlacement.js');
-    const placeables = await import('/src/data/placeableItems.js');
-    const layout = await import('/src/data/shopLayout.js');
+    const placementAuthority = await import(new URL('src/sim/propertyPlacement.js', document.baseURI).href);
+    const placeables = await import(new URL('src/data/placeableItems.js', document.baseURI).href);
+    const layout = await import(new URL('src/data/shopLayout.js', document.baseURI).href);
     const app = window.__fw;
     const placed = app.state.propertyInventory.placements;
     const results = [];
@@ -1174,7 +1174,7 @@ async (page) => {
   });
 
   const saveRoundTrip = await page.evaluate(async () => {
-    const empire = await import('/src/sim/empire.js');
+    const empire = await import(new URL('src/sim/empire.js', document.baseURI).href);
     const snapshot = empire.empireSnapshot(window.__fw.empire);
     const restored = empire.deserializeEmpire(JSON.stringify(snapshot));
     const state = empire.activeState(restored);

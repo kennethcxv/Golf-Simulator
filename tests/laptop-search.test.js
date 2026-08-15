@@ -42,7 +42,7 @@ test('an exact keyword outranks a name that merely contains the word', () => {
   assert.ok(hits[0].score > hits[1].score, 'an exact keyword must still win');
 });
 
-test('the ranking is total and stable — the same query never reshuffles', () => {
+test('the ranking is total and stable - the same query never reshuffles', () => {
   // A result list that reorders between keystrokes cannot be clicked.
   const entries = [
     { label: 'Vinyl flooring', keywords: [] },

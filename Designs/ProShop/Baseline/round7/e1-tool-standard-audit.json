@@ -1,0 +1,725 @@
+{
+  "rows": [
+    {
+      "id": "washer",
+      "label": "Pressure washer",
+      "floorAnchored": false,
+      "workPitch": -0.55,
+      "indoorOnly": false,
+      "hasFpGlb": true,
+      "declaredAudio": [
+        "loop",
+        "start",
+        "stop"
+      ],
+      "reach": {
+        "contactAboveFloorYd": 0.9769,
+        "contactSocket": "nozzle"
+      },
+      "visibleAtWorkPitch": true,
+      "contactNdcAtWorkPitch": {
+        "x": 0.214,
+        "y": -0.102
+      },
+      "referenceFrame": {
+        "contactHeightSpreadYd": 1.367,
+        "fullRangeSpreadYd": 2.555,
+        "floorReferenced": false,
+        "byPitch": [
+          {
+            "pitch": -1.2,
+            "h": 0.4741
+          },
+          {
+            "pitch": -0.9,
+            "h": 0.6492
+          },
+          {
+            "pitch": -0.6,
+            "h": 0.923
+          },
+          {
+            "pitch": -0.3,
+            "h": 1.2713
+          },
+          {
+            "pitch": 0,
+            "h": 1.6626
+          },
+          {
+            "pitch": 0.35,
+            "h": 2.1256
+          },
+          {
+            "pitch": 0.7,
+            "h": 2.5418
+          },
+          {
+            "pitch": 1.05,
+            "h": 2.8614
+          },
+          {
+            "pitch": 1.35,
+            "h": 3.0293
+          }
+        ]
+      },
+      "hands": {
+        "handMeshes": 2,
+        "sleeveMeshes": 4,
+        "hasGrip": true,
+        "hasSupport": true
+      },
+      "animation": {
+        "frames": 127,
+        "distinct": 1,
+        "isAnimated": false
+      },
+      "collision": {
+        "probed": true,
+        "worstInsideYd": 0.324
+      }
+    },
+    {
+      "id": "vacuum",
+      "label": "Shop vacuum",
+      "floorAnchored": true,
+      "workPitch": -0.6,
+      "indoorOnly": true,
+      "hasFpGlb": true,
+      "declaredAudio": [
+        "loop",
+        "start",
+        "stop",
+        "pickup"
+      ],
+      "reach": {
+        "contactAboveFloorYd": 0.2649,
+        "contactSocket": "nozzle"
+      },
+      "visibleAtWorkPitch": true,
+      "contactNdcAtWorkPitch": {
+        "x": 0.196,
+        "y": -0.294
+      },
+      "referenceFrame": {
+        "contactHeightSpreadYd": 0.611,
+        "fullRangeSpreadYd": 0.815,
+        "floorReferenced": false,
+        "byPitch": [
+          {
+            "pitch": -1.2,
+            "h": 0.2494
+          },
+          {
+            "pitch": -0.9,
+            "h": 0.2365
+          },
+          {
+            "pitch": -0.6,
+            "h": 0.2667
+          },
+          {
+            "pitch": -0.3,
+            "h": 0.3366
+          },
+          {
+            "pitch": 0,
+            "h": 0.4404
+          },
+          {
+            "pitch": 0.35,
+            "h": 0.593
+          },
+          {
+            "pitch": 0.7,
+            "h": 0.7624
+          },
+          {
+            "pitch": 1.05,
+            "h": 0.9282
+          },
+          {
+            "pitch": 1.35,
+            "h": 1.0515
+          }
+        ]
+      },
+      "hands": {
+        "handMeshes": 2,
+        "sleeveMeshes": 4,
+        "hasGrip": true,
+        "hasSupport": false
+      },
+      "animation": {
+        "frames": 126,
+        "distinct": 89,
+        "isAnimated": true
+      },
+      "collision": {
+        "probed": true,
+        "worstInsideYd": 0.705
+      }
+    },
+    {
+      "id": "mop",
+      "label": "Mop",
+      "floorAnchored": true,
+      "workPitch": -0.62,
+      "indoorOnly": true,
+      "hasFpGlb": true,
+      "declaredAudio": [
+        "loop",
+        "start",
+        "stop"
+      ],
+      "reach": {
+        "contactAboveFloorYd": 0.0808,
+        "contactSocket": "contact"
+      },
+      "visibleAtWorkPitch": true,
+      "contactNdcAtWorkPitch": {
+        "x": 0.181,
+        "y": -0.261
+      },
+      "referenceFrame": {
+        "contactHeightSpreadYd": 0.631,
+        "fullRangeSpreadYd": 0.855,
+        "floorReferenced": false,
+        "byPitch": [
+          {
+            "pitch": -1.2,
+            "h": 0.057
+          },
+          {
+            "pitch": -0.9,
+            "h": 0.0457
+          },
+          {
+            "pitch": -0.6,
+            "h": 0.0795
+          },
+          {
+            "pitch": -0.3,
+            "h": 0.1561
+          },
+          {
+            "pitch": 0,
+            "h": 0.2691
+          },
+          {
+            "pitch": 0.35,
+            "h": 0.4325
+          },
+          {
+            "pitch": 0.7,
+            "h": 0.6099
+          },
+          {
+            "pitch": 1.05,
+            "h": 0.7785
+          },
+          {
+            "pitch": 1.35,
+            "h": 0.9004
+          }
+        ]
+      },
+      "hands": {
+        "handMeshes": 2,
+        "sleeveMeshes": 4,
+        "hasGrip": true,
+        "hasSupport": true
+      },
+      "animation": {
+        "frames": 137,
+        "distinct": 137,
+        "isAnimated": true
+      },
+      "collision": {
+        "probed": true,
+        "worstInsideYd": 0.755
+      }
+    },
+    {
+      "id": "broom",
+      "label": "Push broom",
+      "floorAnchored": true,
+      "workPitch": -0.62,
+      "indoorOnly": false,
+      "hasFpGlb": true,
+      "declaredAudio": [
+        "loop",
+        "start",
+        "stop"
+      ],
+      "reach": {
+        "contactAboveFloorYd": 0.0117,
+        "contactSocket": "contact"
+      },
+      "visibleAtWorkPitch": true,
+      "contactNdcAtWorkPitch": {
+        "x": 0.02,
+        "y": -0.514
+      },
+      "referenceFrame": {
+        "contactHeightSpreadYd": 0.003,
+        "fullRangeSpreadYd": 0.59,
+        "floorReferenced": true,
+        "byPitch": [
+          {
+            "pitch": -1.2,
+            "h": 0.0118
+          },
+          {
+            "pitch": -0.9,
+            "h": 0.0118
+          },
+          {
+            "pitch": -0.6,
+            "h": 0.0128
+          },
+          {
+            "pitch": -0.3,
+            "h": 0.1646
+          },
+          {
+            "pitch": 0,
+            "h": 0.5986
+          },
+          {
+            "pitch": 0.35,
+            "h": 0.6018
+          },
+          {
+            "pitch": 0.7,
+            "h": 0.6016
+          },
+          {
+            "pitch": 1.05,
+            "h": 0.6009
+          },
+          {
+            "pitch": 1.35,
+            "h": 0.6001
+          }
+        ]
+      },
+      "hands": {
+        "handMeshes": 2,
+        "sleeveMeshes": 4,
+        "hasGrip": true,
+        "hasSupport": true
+      },
+      "animation": {
+        "frames": 112,
+        "distinct": 112,
+        "isAnimated": true
+      },
+      "collision": {
+        "probed": true,
+        "worstInsideYd": 0
+      }
+    },
+    {
+      "id": "dustpan",
+      "label": "Dustpan",
+      "floorAnchored": true,
+      "workPitch": -0.66,
+      "indoorOnly": false,
+      "hasFpGlb": true,
+      "declaredAudio": [
+        "loop",
+        "start",
+        "stop"
+      ],
+      "reach": {
+        "contactAboveFloorYd": 0.2347,
+        "contactSocket": "contact"
+      },
+      "visibleAtWorkPitch": true,
+      "contactNdcAtWorkPitch": {
+        "x": 0.198,
+        "y": -0.269
+      },
+      "referenceFrame": {
+        "contactHeightSpreadYd": 0.64,
+        "fullRangeSpreadYd": 0.855,
+        "floorReferenced": false,
+        "byPitch": [
+          {
+            "pitch": -1.2,
+            "h": 0.2235
+          },
+          {
+            "pitch": -0.9,
+            "h": 0.2108
+          },
+          {
+            "pitch": -0.6,
+            "h": 0.2429
+          },
+          {
+            "pitch": -0.3,
+            "h": 0.3166
+          },
+          {
+            "pitch": 0,
+            "h": 0.4263
+          },
+          {
+            "pitch": 0.35,
+            "h": 0.5878
+          },
+          {
+            "pitch": 0.7,
+            "h": 0.7662
+          },
+          {
+            "pitch": 1.05,
+            "h": 0.9391
+          },
+          {
+            "pitch": 1.35,
+            "h": 1.066
+          }
+        ]
+      },
+      "hands": {
+        "handMeshes": 2,
+        "sleeveMeshes": 4,
+        "hasGrip": true,
+        "hasSupport": false
+      },
+      "animation": {
+        "frames": 165,
+        "distinct": 1,
+        "isAnimated": false
+      },
+      "collision": {
+        "probed": true,
+        "worstInsideYd": 0.603
+      }
+    },
+    {
+      "id": "spray",
+      "label": "All-purpose cleaner",
+      "floorAnchored": false,
+      "workPitch": -0.55,
+      "indoorOnly": false,
+      "hasFpGlb": true,
+      "declaredAudio": [
+        "loop",
+        "start",
+        "stop"
+      ],
+      "reach": {
+        "contactAboveFloorYd": 1.2927,
+        "contactSocket": "nozzle"
+      },
+      "visibleAtWorkPitch": true,
+      "contactNdcAtWorkPitch": {
+        "x": 0.209,
+        "y": -0.161
+      },
+      "referenceFrame": {
+        "contactHeightSpreadYd": 0.789,
+        "fullRangeSpreadYd": 1.435,
+        "floorReferenced": false,
+        "byPitch": [
+          {
+            "pitch": -1.2,
+            "h": 1.0246
+          },
+          {
+            "pitch": -0.9,
+            "h": 1.1143
+          },
+          {
+            "pitch": -0.6,
+            "h": 1.2612
+          },
+          {
+            "pitch": -0.3,
+            "h": 1.4525
+          },
+          {
+            "pitch": 0,
+            "h": 1.6712
+          },
+          {
+            "pitch": 0.35,
+            "h": 1.9333
+          },
+          {
+            "pitch": 0.7,
+            "h": 2.1721
+          },
+          {
+            "pitch": 1.05,
+            "h": 2.3585
+          },
+          {
+            "pitch": 1.35,
+            "h": 2.4598
+          }
+        ]
+      },
+      "hands": {
+        "handMeshes": 2,
+        "sleeveMeshes": 4,
+        "hasGrip": true,
+        "hasSupport": false
+      },
+      "animation": {
+        "frames": 131,
+        "distinct": 1,
+        "isAnimated": false
+      },
+      "collision": {
+        "probed": true,
+        "worstInsideYd": 0
+      }
+    },
+    {
+      "id": "cloth",
+      "label": "Microfibre cloth",
+      "floorAnchored": false,
+      "workPitch": -0.55,
+      "indoorOnly": false,
+      "hasFpGlb": true,
+      "declaredAudio": [
+        "loop",
+        "start",
+        "stop"
+      ],
+      "reach": {
+        "contactAboveFloorYd": 1.1586,
+        "contactSocket": "contact"
+      },
+      "visibleAtWorkPitch": true,
+      "contactNdcAtWorkPitch": {
+        "x": 0.286,
+        "y": -0.792
+      },
+      "referenceFrame": {
+        "contactHeightSpreadYd": 0.845,
+        "fullRangeSpreadYd": 1.22,
+        "floorReferenced": false,
+        "byPitch": [
+          {
+            "pitch": -1.2,
+            "h": 1.0627
+          },
+          {
+            "pitch": -0.9,
+            "h": 1.0738
+          },
+          {
+            "pitch": -0.6,
+            "h": 1.1455
+          },
+          {
+            "pitch": -0.3,
+            "h": 1.2707
+          },
+          {
+            "pitch": 0,
+            "h": 1.4377
+          },
+          {
+            "pitch": 0.35,
+            "h": 1.6661
+          },
+          {
+            "pitch": 0.7,
+            "h": 1.9052
+          },
+          {
+            "pitch": 1.05,
+            "h": 2.1269
+          },
+          {
+            "pitch": 1.35,
+            "h": 2.2824
+          }
+        ]
+      },
+      "hands": {
+        "handMeshes": 2,
+        "sleeveMeshes": 4,
+        "hasGrip": true,
+        "hasSupport": false
+      },
+      "animation": {
+        "frames": 130,
+        "distinct": 129,
+        "isAnimated": true
+      },
+      "collision": {
+        "probed": true,
+        "worstInsideYd": 0
+      }
+    },
+    {
+      "id": "sponge",
+      "label": "Scouring sponge",
+      "floorAnchored": false,
+      "workPitch": -0.55,
+      "indoorOnly": false,
+      "hasFpGlb": true,
+      "declaredAudio": [
+        "loop",
+        "start",
+        "stop"
+      ],
+      "reach": {
+        "contactAboveFloorYd": 1.1719,
+        "contactSocket": "contact"
+      },
+      "visibleAtWorkPitch": true,
+      "contactNdcAtWorkPitch": {
+        "x": 0.283,
+        "y": -0.779
+      },
+      "referenceFrame": {
+        "contactHeightSpreadYd": 0.838,
+        "fullRangeSpreadYd": 1.201,
+        "floorReferenced": false,
+        "byPitch": [
+          {
+            "pitch": -1.2,
+            "h": 1.0733
+          },
+          {
+            "pitch": -0.9,
+            "h": 1.0824
+          },
+          {
+            "pitch": -0.6,
+            "h": 1.1503
+          },
+          {
+            "pitch": -0.3,
+            "h": 1.2716
+          },
+          {
+            "pitch": 0,
+            "h": 1.4364
+          },
+          {
+            "pitch": 0.35,
+            "h": 1.6643
+          },
+          {
+            "pitch": 0.7,
+            "h": 1.903
+          },
+          {
+            "pitch": 1.05,
+            "h": 2.1225
+          },
+          {
+            "pitch": 1.35,
+            "h": 2.2743
+          }
+        ]
+      },
+      "hands": {
+        "handMeshes": 2,
+        "sleeveMeshes": 4,
+        "hasGrip": true,
+        "hasSupport": false
+      },
+      "animation": {
+        "frames": 129,
+        "distinct": 122,
+        "isAnimated": true
+      },
+      "collision": {
+        "probed": true,
+        "worstInsideYd": 0
+      }
+    },
+    {
+      "id": "trashbag",
+      "label": "Trash bag",
+      "floorAnchored": false,
+      "workPitch": -0.55,
+      "indoorOnly": false,
+      "hasFpGlb": true,
+      "declaredAudio": [
+        "loop",
+        "start",
+        "stop"
+      ],
+      "reach": {
+        "contactAboveFloorYd": 0.5417,
+        "contactSocket": "contact"
+      },
+      "visibleAtWorkPitch": true,
+      "contactNdcAtWorkPitch": {
+        "x": 0.297,
+        "y": -0.927
+      },
+      "referenceFrame": {
+        "contactHeightSpreadYd": 1.676,
+        "fullRangeSpreadYd": 2.329,
+        "floorReferenced": false,
+        "byPitch": [
+          {
+            "pitch": -1.2,
+            "h": 0.409
+          },
+          {
+            "pitch": -0.9,
+            "h": 0.4015
+          },
+          {
+            "pitch": -0.6,
+            "h": 0.5154
+          },
+          {
+            "pitch": -0.3,
+            "h": 0.7402
+          },
+          {
+            "pitch": 0,
+            "h": 1.0549
+          },
+          {
+            "pitch": 0.35,
+            "h": 1.4965
+          },
+          {
+            "pitch": 0.7,
+            "h": 1.9674
+          },
+          {
+            "pitch": 1.05,
+            "h": 2.4116
+          },
+          {
+            "pitch": 1.35,
+            "h": 2.7309
+          }
+        ]
+      },
+      "hands": {
+        "handMeshes": 2,
+        "sleeveMeshes": 4,
+        "hasGrip": true,
+        "hasSupport": false
+      },
+      "animation": {
+        "frames": 134,
+        "distinct": 1,
+        "isAnimated": false
+      },
+      "collision": {
+        "probed": true,
+        "worstInsideYd": 0
+      }
+    }
+  ]
+}

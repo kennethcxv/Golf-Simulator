@@ -128,9 +128,9 @@ async (page) => {
     return page.evaluate(async () => {
       const app = window.__fw;
       const [{ placedFixtures }, { shopProgressionSummary }, { appraisalBreakdown }] = await Promise.all([
-        import('/src/sim/layout.js'),
-        import('/src/sim/shopProgression.js'),
-        import('/src/sim/valuation.js'),
+        import(new URL('src/sim/layout.js', document.baseURI).href),
+        import(new URL('src/sim/shopProgression.js', document.baseURI).href),
+        import(new URL('src/sim/valuation.js', document.baseURI).href),
       ]);
       const summary = shopProgressionSummary(app.state);
       return {
@@ -185,7 +185,7 @@ async (page) => {
 
   async function advanceConstructionDays(days) {
     const steps = await page.evaluate(async (count) => {
-      const { update } = await import('/src/sim/state.js');
+      const { update } = await import(new URL('src/sim/state.js', document.baseURI).href);
       const app = window.__fw;
       const steps = [];
       for (let index = 0; index < count; index += 1) {

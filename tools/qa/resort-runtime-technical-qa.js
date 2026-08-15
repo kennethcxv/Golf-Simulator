@@ -8,7 +8,7 @@ async (page) => {
   await page.setViewportSize({ width: 1600, height: 900 });
   const diagnostics = await page.evaluate(async () => {
     const THREE = await import('three');
-    const { createResortClubhouse } = await import('/src/render3d/clubhouse/resortClubhouse.js');
+    const { createResortClubhouse } = await import(new URL('src/render3d/clubhouse/resortClubhouse.js', document.baseURI).href);
     const renderer = new THREE.WebGLRenderer({ canvas: document.querySelector('#preview'), antialias: true });
     renderer.setPixelRatio(1);
     renderer.setSize(innerWidth, innerHeight, false);

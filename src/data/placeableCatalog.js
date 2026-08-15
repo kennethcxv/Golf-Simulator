@@ -378,7 +378,13 @@ export const PROTECTED_ZONES = deepFreeze([
   { id: 'receiving-door', label: 'receiving entrance', ...BACKDOOR_CLEARWAY, critical: true },
   { id: 'checkout-staff', label: 'checkout employee area', ...frontDeskRect({ minX: -FRONT_DESK_FRAME.frontLength / 2 - 0.30, maxX: FRONT_DESK_FRAME.frontLength / 2 + 0.30, minZ: FRONT_DESK_FRAME.frontDepth / 2, maxZ: Math.max(FRONT_DESK_FRAME.frontDepth / 2 + 1.1, FRONT_DESK_FRAME.returnStaffExtent) }), critical: true },
   { id: 'checkout-customer', label: 'checkout customer area', ...frontDeskRect({ minX: -FRONT_DESK_FRAME.frontLength / 2 - 0.45, maxX: FRONT_DESK_FRAME.frontLength / 2 + 0.45, minZ: -FRONT_DESK_FRAME.frontDepth / 2 - 1.0, maxZ: -FRONT_DESK_FRAME.frontDepth / 2 }), critical: true },
-  { id: 'laptop-seat', label: 'laptop interaction position', minX: FRONT_DESK.staffChair.x - 0.55, maxX: FRONT_DESK.staffChair.x + 0.55, minZ: FRONT_DESK.staffChair.z - 0.55, maxZ: FRONT_DESK.staffChair.z + 0.55, critical: true },
+  // B-STAND (B8, 2026-08-03): this rect protects where the player STANDS to use
+  // the laptop, so it follows the laptop rather than the chair. It was derived
+  // from staffChair back when the chair was the laptop's seat; after the move
+  // that would have kept a keep-clear zone 3.5 yd from the machine it exists for
+  // and left the actual working spot placeable-over. The chair keeps its own
+  // seat by being the desk's chair, which is the whole point of B-stand.
+  { id: 'laptop-stand', label: 'laptop interaction position', minX: FRONT_DESK.laptop.x - 0.55, maxX: FRONT_DESK.laptop.x + 0.55, minZ: FRONT_DESK.laptop.z + 0.10, maxZ: FRONT_DESK.laptop.z + 1.10, critical: true },
   { id: 'stockroom-access', label: 'stockroom access', minX: DOOR_STOCK.x - DOOR_STOCK.w / 2 - 0.45, maxX: DOOR_STOCK.x + DOOR_STOCK.w / 2 + 0.45, minZ: DOOR_STOCK.z - 0.8, maxZ: DOOR_STOCK.z + 0.8, critical: true },
 ]);
 

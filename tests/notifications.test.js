@@ -29,7 +29,7 @@ test('a dedupe key files a fact once, however often it recurs', () => {
   assert.equal(st.notifications.items.length, 1);
 });
 
-test('the feed is bounded at NOTIF_CAP — newest wins', () => {
+test('the feed is bounded at NOTIF_CAP - newest wins', () => {
   const st = newGame('relaxed', 43);
   for (let i = 0; i < NOTIF_CAP + 15; i++) notify(st, { text: `event ${i}` });
   assert.equal(st.notifications.items.length, NOTIF_CAP);

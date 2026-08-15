@@ -10,6 +10,7 @@
 // owns a derived camera, and the receipt texture turns in place rather than the mesh.
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
 import { readFileSync } from 'node:fs';
 
 const character = readFileSync(new URL('../src/render3d/characterAsset.js', import.meta.url), 'utf8');
@@ -21,7 +22,12 @@ test('PayCash and PayCard are real poses, not names that fall through to slack a
   // neither existed in the rig — the unknown name fell to the default pose, so the tender fan
   // hung in the air beside a customer whose arms were at their sides.
   assert.match(character, /char\.mode === 'PayCash' \|\| char\.mode === 'PayCard'/);
-  assert.match(customers, /setMode\(entity\.payMethod === 'cash' \? 'PayCash' : 'PayCard'\)/);
+  // F6 (Full_Goal_16): cash is a TWO-BEAT gesture — reach while the tender
+  // lands, then the arm comes back (CashLaid) while awaiting change. The
+  // card stays held out. The controller routes cash by its landing timer.
+  assert.match(character, /char\.mode === 'CashLaid'/);
+  assert.match(customers, /\? \(actor\.stateTimer > 0\.9 \? 'CashLaid' : 'PayCash'\)/);
+  assert.match(customers, /: 'PayCard'\)/);
   // The register presents with the SAME modes, or the two controllers stomp each other's
   // arms every other frame.
   assert.match(register, /poseCustomerForCheckout\('PayCash'\)/);
@@ -35,7 +41,7 @@ test('the held reach does not breathe, because the fan is laid out once at the g
   const end = character.indexOf("char.mode === 'Receive'", start);
   const branch = character.slice(start, end);
   assert.match(branch, /shR = -1\.12;/, 'the arm reaches');
-  assert.ok(!branch.includes('Math.sin'), 'and holds still — a bobbing wrist detaches the cash');
+  assert.ok(!branch.includes('Math.sin'), 'and holds still - a bobbing wrist detaches the cash');
 });
 
 test('the checkout camera holds one frame; only the drawer and check-in move it', () => {
@@ -66,11 +72,73 @@ test('the receipt files silently and payment flows straight into the bag transfe
   assert.match(begin, /printReceipt\(tx\)/, 'the sim receipt still files');
   assert.ok(!begin.includes('ensureReceiptMesh'), 'no paper strip is modelled');
   assert.match(begin, /return finishAutomaticFulfillment\(\)/,
-    'payment flows straight into fulfilment — there is no hand-over beat to wait for');
+    'payment flows straight into fulfilment - there is no hand-over beat to wait for');
   const delivery = register.slice(register.indexOf('function updateDelivery'), register.indexOf('function updateCashMotions'));
   assert.ok(!delivery.includes('receipt-deliver'), 'no receipt travel leg survives');
   assert.match(delivery, /deliveryPhase === 'bag-deliver'/, 'the bag transfer is the one physical delivery');
   const fulfil = register.slice(register.indexOf('function finishAutomaticFulfillment'), register.indexOf('function setBagPickable'));
   assert.match(fulfil, /packReceipt\(tx\)/, 'the paperwork still packs on the sim side');
   assert.match(fulfil, /beginBagDeliveryOrRelease\(\)/, 'fulfilment lands on the bag transfer');
+});
+
+// A5 — THE CHECKOUT STATUS PANEL (2026-08-03). Reported three sessions running:
+// "'Ready for next' sits flush against the bottom with no margin, and the panel
+// reads cluttered."
+//
+// The cause was that every block in the summary column was a literal y plus a
+// stack of hand-added corrections (`choiceOffset` when the customer had picked
+// a method, `taxOffset` because the sales-tax line arrived later), so the
+// column's height depended on which optional rows happened to be present and
+// nothing knew where the bottom landed. With a payment choice showing, the
+// action grid solved to y=604 with height 38 — 642 on a 640-tall canvas.
+//
+// tools/qa/checkout-monitor-layout.js renders the real canvas for the states
+// the report names plus a deliberately over-stuffed control and measures the
+// lowest drawn pixel. These pin the layout POLICY that makes that possible.
+test('the checkout summary column is laid out from its panel, not from literals', () => {
+  const source = fs.readFileSync(
+    new URL('../src/render3d/clubhouse/frontDeskMonitorUi.js', import.meta.url),
+    'utf8',
+  ).replaceAll('\r\n', '\n');
+  const start = source.indexOf('  function drawCheckoutSummary(data) {');
+  const end = source.indexOf('\n  function drawCheckout(', start);
+  assert.ok(start >= 0 && end > start, 'drawCheckoutSummary still exists');
+  const column = source.slice(start, end);
+
+  assert.ok(!column.includes('choiceOffset') && !column.includes('taxOffset'),
+    'the per-optional-row offsets are gone; blocks move the cursor instead');
+  assert.match(column, /const floor = SUMMARY\.y \+ SUMMARY\.h - SUMMARY\.pad;/,
+    'the column knows where its own bottom padding is');
+  assert.match(column, /const actionsY = floor - actionHeight;/,
+    'the controls are anchored to that padding, so the bottom margin is guaranteed');
+  // …and the middle cannot collide, which anchoring alone does not give you:
+  // the whole column is solved before a pixel of it is painted.
+  assert.match(column, /const available = floor - top;/, 'the column knows its own budget');
+  assert.ok(column.includes('for (const concede of concessions)'),
+    'and gives ground in a defined order rather than drawing over itself');
+  assert.ok(column.includes('if (fit.pitch === 25) { fit.pitch = 22; return true; }'),
+    'tighter rows before anything is lost');
+  assert.ok(column.includes('if (fit.lines > 1) { fit.lines = 1; return true; }'),
+    'a shorter instruction before a number disappears');
+  assert.ok(column.includes('if (fit.tail[index].keep < fit.tail[weakest].keep) weakest = index;'),
+    'and when a tender row must go it is the LEAST load-bearing one - dropping '
+    + 'the topmost lost CHANGE DUE while SELECTED survived, on the one screen '
+    + 'where the player is counting change');
+  assert.match(column, /if \(discount > 0\) breakdown\.push/,
+    'a DISCOUNT $0.00 row on every sale is the clutter, not the spacing');
+});
+
+test('a control the player cannot read is not a control', () => {
+  const source = fs.readFileSync(
+    new URL('../src/render3d/clubhouse/frontDeskMonitorUi.js', import.meta.url),
+    'utf8',
+  ).replaceAll('\r\n', '\n');
+  // Two buttons split across 308px rendered "Ready for the next customer" as
+  // "READY FOR T...". One per row while there are two or fewer.
+  assert.match(source, /const actionColumns = actionCount <= 2 \? 1 : 2;/,
+    'the narrow summary column stacks its buttons');
+  assert.match(source, /function drawActionGrid\(actions, x, y, width, height, forcedColumns = null\)/,
+    'and the grid accepts that instruction');
+  assert.match(source, /for \(const size of \[19, 18, 17, 16, 15\]\)/,
+    'the status heading shrinks before it truncates - "TRANSACTION COMPLETE" is the longest');
 });

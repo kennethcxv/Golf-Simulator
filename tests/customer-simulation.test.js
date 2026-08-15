@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import { newGame, serialize, deserialize } from '../src/sim/state.js';
-import {
+import { configureTeeSheet,
   bookSlot,
   cancelReservation,
   checkInReservation,
@@ -222,6 +222,7 @@ test('canonical tee-time moves update one physical arrival and active cancellati
 
 test('a physical walk-in claims one canonical prepaid booking without duplicate revenue or lead customers', () => {
   const state = newGame('relaxed', 919);
+  configureTeeSheet(state, { autoBookings: false }); // controlled sheet: this test counts canonical bookings
   const walkIn = createFixtureCustomer(state, CUSTOMER_INTENT.WALK_IN_TEE_TIME, { name: 'Waiting Walk-in' });
   joinServiceQueue(state, walkIn);
   transitionCustomer(state, walkIn, CUSTOMER_STATE.FRONT_DESK_INQUIRY, 'waiting at the physical desk', state.clock.minutes, { force: true });
@@ -246,6 +247,8 @@ test('a physical walk-in claims one canonical prepaid booking without duplicate 
   assert.equal(state.cash, cashAfterBooking, 'physical binding never charges the booking again');
   assert.equal(state.reservations.financeEntries.length, financeCountAfterBooking);
 
+  // D2: check-in is windowed; the desk answers the clock now
+  state.clock.minutes = 8 * 60 + 30;
   assert.equal(confirmReservation(state, booked.res.id).ok, true);
   assert.equal(checkInReservation(state, booked.res.id).ok, true);
   const cashAfterCheckIn = state.cash;

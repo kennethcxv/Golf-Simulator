@@ -4,12 +4,46 @@
 // preferences own volume, accessibility, and lifecycle policy.
 
 import { BROOM_FEEL } from '../data/broomFeel.js';
+import { CLEANING_TOOLS } from '../data/cleaningTools.js';
+import { createSampleBank } from './sampleBank.js';
+// PLAYTEST 5, ITEM 5: which denominations are PAPER, from the module that owns
+// the answer, so the register and the audio cannot disagree about whether a 5 is
+// a note. Imported rather than restated — a second copy of this list is exactly
+// how a coin comes to sound like paper.
+import { BILLS } from '../sim/register.js';
+
+const BILL_DENOMINATIONS = new Set(BILLS);
+
+// PLAYTEST 5, ITEM 5 — pick the variant whose RECORDING matches the denomination
+// in the player's hand. Two cues hold recordings of both materials and the bank
+// chooses among a cue's variants at random, which is why coin and paper "cross
+// over" rather than being consistently wrong:
+//
+//   changeSelect  2 x paper, 1 x "Coins.wav"
+//   cashPickup    2 x coins, 1 x "Cash Money sounds"
+//
+// The title is the ground truth and travels from the manifest through
+// sampleBank's meta, so no file is renamed and nothing is re-encoded. Returns an
+// empty object for a caller that does not know the denomination — every existing
+// call site keeps its old behaviour rather than silently getting a filter.
+function materialPick(denomination) {
+  const denom = Number(denomination);
+  if (!Number.isFinite(denom)) return {};
+  const wantsPaper = BILL_DENOMINATIONS.has(denom);
+  return { pick: (entry) => /coin/i.test(entry?.title || '') !== wantsPaper };
+}
 
 export const CHECKOUT_CUE_APIS = Object.freeze([
   'productPlace', 'productPickup', 'productRotate',
   'scannerActivate', 'scanSuccess', 'scanInvalid', 'posAdd',
   'cardMove', 'cardSwipe', 'cardInsert', 'cardProcessing', 'cardApproved', 'cardDeclined',
   'cashPresent', 'billHandle', 'coinHandle',
+  // PLAYTEST 3 item 2: picking cash back up, which had no voice of its own
+  'cashPickup',
+  // H2 (Goal 20): notes and coins landing are two different events
+  'notesDown', 'coinsDown', 'cardOut',
+  // G2 (Goal 23): money landing IN THE DRAWER, on top of what is already there
+  'billDeposit', 'coinDeposit',
   'drawerUnlock', 'drawerOpen', 'drawerClose',
   'changeSelect', 'changeHandoff',
   'receiptPrint', 'receiptTear',
@@ -45,11 +79,27 @@ export function makeAudio(preferences = null) {
   let sfxBus = null;
   let capture = null;
   let uiBus = null;
+  let musicBus = null;
+  let sampleBank = null;
+
+  // Ask the bank first. `true` means a recording played and the caller must
+  // return; `false` means synthesise, which is the normal path today.
+  function sampled(cue, bus, options = {}) {
+    if (!sampleBank || !ctx) return false;
+    return sampleBank.play(cue, { ctx, destination: bus || sfxBus, ...options });
+  }
   let paused = false;
   let lifecycleActive = true;
 
   let rainGain = null;
   let mowerGain = null;
+  // The mower passes rather than drones (see update). A settle delay means no
+  // sustained ambience can start on the load frame, which is the specific
+  // complaint 1.6 is about.
+  const MOWER_SETTLE_SECONDS = 25;
+  let mowerPassTimer = 0;
+  let mowerPassUntil = 0;
+  let mowerSettleIn = MOWER_SETTLE_SECONDS;
   let birdTimer = 0;
   let strikeTimer = 0;
   const checkoutCueLastAt = new Map();
@@ -64,6 +114,13 @@ export function makeAudio(preferences = null) {
     if (ambientBus) ambientBus.gain.value = value.ambience * (paused ? 0.18 : 1);
     if (sfxBus) sfxBus.gain.value = value.effects * (paused ? 0.35 : 1);
     if (uiBus) uiBus.gain.value = value.ui;
+    // 1.5 — "sitting below UI and customer sounds, respecting volume and mute".
+    // Music rides the ambience slider (there is no separate music preference to
+    // read, and inventing one would strand every existing save with it unset) at
+    // a fixed 0.34 of it, which is what puts it UNDER the effects and UI buses
+    // rather than merely quiet in absolute terms. Because it hangs off the same
+    // master as everything else, mute is already handled one level up.
+    if (musicBus) musicBus.gain.value = value.ambience * 0.34 * (paused ? 0.5 : 1);
   }
 
   // must be called from a user gesture
@@ -80,6 +137,35 @@ export function makeAudio(preferences = null) {
     } catch {
       return;
     }
+    // F2 (Goal 17) — PITCH VARIATION FOR EVERY VOICE, FROM ONE PLACE.
+    //
+    // Audited: of 92 voices, only 20 varied their pitch. The other 72 played
+    // the identical note every time - footsteps, box handling, product sounds,
+    // shelf stocking, all of which repeat constantly. That is exactly the
+    // condition F2 names: "pitch-varied so repeats do not grate."
+    //
+    // The obvious fix is seventy-two edits. This is one: every voice in the
+    // module builds its sound from ctx.createOscillator(), so wrapping that
+    // once gives all of them a small random detune. Fix the class, not the
+    // instance.
+    //
+    // +/-14 cents is deliberately below the threshold where a listener hears a
+    // note as WRONG (roughly a quarter-tone, 50 cents) and well above the
+    // threshold where repeats stop sounding machine-stamped. Chimes and musical
+    // cues stay in tune; a boot on a board stops being the same boot.
+    //
+    // Detune is used rather than frequency so a voice that RAMPS its frequency
+    // keeps its whole ramp intact - the offset rides on top instead of
+    // replacing the first value.
+    if (typeof ctx.createOscillator === 'function' && !ctx.__fwDetuned) {
+      const makeOsc = ctx.createOscillator.bind(ctx);
+      ctx.createOscillator = () => {
+        const osc = makeOsc();
+        try { osc.detune.value = (Math.random() * 2 - 1) * 14; } catch { /* no detune param */ }
+        return osc;
+      };
+      ctx.__fwDetuned = true;
+    }
     master = ctx.createGain();
     master.connect(ctx.destination);
     ambientBus = ctx.createGain();
@@ -88,7 +174,74 @@ export function makeAudio(preferences = null) {
     sfxBus.connect(master);
     uiBus = ctx.createGain();
     uiBus.connect(master);
+    musicBus = ctx.createGain();
+    musicBus.connect(master);
     applyVolume();
+
+    // G3 (Goal 23) — THE SAMPLE PLAYER, BESIDE THE SYNTH.
+    //
+    // Every cue below is oscillators and filtered noise, which is why the game
+    // sounds electric. The bank serves a cue from a real recording when one has
+    // been vendored for it, and REFUSES otherwise, so each cue keeps its synth
+    // voice until a sample earns its place. Nothing goes silent because a file
+    // failed to decode.
+    //
+    // Assets/audio/manifest.json is currently EMPTY and this therefore changes
+    // nothing you can hear today. It is the plumbing and the licence gate; the
+    // recordings need a source with a credential (see Assets/audio/CREDITS.md).
+    //
+    // Guarded on `document` and `fetch`: audio.js is constructed head-less by
+    // the test fixtures, and reaching for document.baseURI there took five
+    // audio tests down with "document is not defined". A player that only
+    // exists in a browser has no business being built anywhere else.
+    const hasDom = typeof document !== 'undefined' && typeof fetch === 'function';
+    if (hasDom) {
+      sampleBank = createSampleBank({
+        decode: (data) => ctx.decodeAudioData(data),
+        fetchFn: async (url) => {
+          const res = await fetch(new URL(url, document.baseURI).href);
+          if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+          return res.arrayBuffer();
+        },
+        now: () => ctx.currentTime,
+      });
+      fetch(new URL('Assets/audio/manifest.json', document.baseURI).href)
+        .then((r) => (r.ok ? r.json() : { samples: [] }))
+        .then((m) => sampleBank.loadAll(m.samples || []))
+        .then(() => {
+          // PLAYTEST 3, ITEM 1 — RE-APPLY THE OWNER'S AUDITION PICKS.
+          //
+          // The pins live in preferences and the bank is rebuilt on every boot,
+          // so without this the picker works beautifully for one session and
+          // forgets the winner overnight. Applied here, at the one moment the
+          // options exist, rather than from the settings panel -- the panel may
+          // never be opened, and the pick has to hold anyway.
+          try {
+            const pins = settings()?.sfx || {};
+            for (const [family, option] of Object.entries(pins)) {
+              if (option) sampleBank.setFamilyOption(family, option);
+            }
+            const track = settings()?.musicTrack;
+            if (track && track !== 'off') sampleBank.setFamilyOption('music', track);
+          } catch { /* a bad pin must never stop the bank from finishing */ }
+          // 1.5 — THE MUSIC'S ONE AND ONLY CALL SITE.
+          //
+          // Started here, from the moment the bank finishes decoding, for the
+          // reason 1.5 asks for: "not restarting on scene transitions". Anything
+          // that starts music from a SCREEN restarts it every time the screen
+          // changes, and this codebase has already shipped one audio fix that
+          // was attached to setVisible(true) on a menu that is born visible, so
+          // the listener was never installed at all (FOUND_FALSE, main menu
+          // sound, appearance 2). One call, at the one moment the buffer is
+          // first available, outside every screen's lifecycle.
+          //
+          // It is also the moment that keeps "not decoded on a gameplay-critical
+          // frame" true: this runs at menu time, off the back of the first user
+          // gesture, before any gameplay frame exists.
+          musicStart();
+        })
+        .catch(() => { /* the synth covers every cue the bank cannot serve */ });
+    }
 
     // rain: looped noise through a low-pass, gain driven by weather
     const noiseBuf = ctx.createBuffer(1, ctx.sampleRate * 2, ctx.sampleRate);
@@ -369,13 +522,65 @@ export function makeAudio(preferences = null) {
     }
   }
 
+  // A1 (Goal 19) — the pocket phone's ringtone: a bright double trill,
+  // unmistakably a phone against the doorbell's two-note chime. One call
+  // plays one trill; the ring loop retriggers it while the caller waits.
+  function phoneRing() {
+    if (!ctx) return;
+    const t0 = ctx.currentTime;
+    for (const [freq, at] of [[1046.5, 0], [1318.5, 0.085], [1046.5, 0.26], [1318.5, 0.345]]) {
+      const osc = ctx.createOscillator();
+      osc.type = 'triangle';
+      osc.frequency.value = freq;
+      const g = ctx.createGain();
+      g.gain.setValueAtTime(0, t0 + at);
+      g.gain.linearRampToValueAtTime(0.075, t0 + at + 0.015);
+      g.gain.exponentialRampToValueAtTime(0.0001, t0 + at + 0.22);
+      osc.connect(g).connect(sfxBus);
+      osc.start(t0 + at);
+      osc.stop(t0 + at + 0.24);
+    }
+  }
+
+  let lastUiTickAt = -1;
   function uiTick() {
     if (!ctx) return;
     const t0 = ctx.currentTime;
+    // E1: one click per press. The button factory speaks on pointerdown and
+    // several surfaces still fire their own tick on click a few ms later;
+    // within one press-window only the first speaks.
+    //
+    // THE GUARD RUNS BEFORE THE BANK, and that ordering is the whole point. When
+    // the sample lookup came first it RETURNED first, so the recorded click
+    // skipped this window entirely and fell back on the bank's own 20 ms gap --
+    // which is short enough for one press to speak twice. Adopting a sample
+    // silently weakened the double-fire protection E1 exists to provide, and
+    // 1.4 asks for exactly one event per control.
+    if (t0 - lastUiTickAt < 0.12) return;
+    lastUiTickAt = t0;
+    if (sampled('uiTick', uiBus)) return;
     const osc = ctx.createOscillator();
     osc.frequency.value = 520;
     const g = ctx.createGain();
-    g.gain.setValueAtTime(0.05, t0);
+    // G1 (Goal 23) — MEASURED, NOT GUESSED.
+    //
+    // At 0.05 this cue peaked at 0.0509 on the master bus against a clean zero
+    // floor: −25.9 dBFS. That is why "I can barely hear them". The transfer is
+    // linear, so 0.16 lands it near −16 dBFS, which is where a UI click belongs
+    // — audible over a menu with nothing else playing, and not a slap.
+    // tools/qa/electron-g1-menu-loudness.js re-measures it.
+    //
+    // THE MENU AND THE IN-GAME CLICKS ARE THE SAME CALL. window.__fwUiClick
+    // routes every button in the game to uiTick, so "match them to the in-game
+    // UI clicks" was already true and both were too quiet together. Raising
+    // this raises both, which is the only way they stay matched.
+    //
+    // The first measurement of this was NOT trustworthy and the fix was to the
+    // instrument, not the gain: one shot read −33.7 dBFS on one run and −29.4
+    // on the next with no code change between them, because the cue decays over
+    // 50 ms and the tap polls on animation frames. The driver fires eight shots
+    // per window now and takes the max.
+    g.gain.setValueAtTime(0.16, t0);
     g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.05);
     osc.connect(g).connect(uiBus);
     osc.start(t0);
@@ -383,6 +588,7 @@ export function makeAudio(preferences = null) {
   }
 
   function uiConfirm() {
+    if (sampled('uiConfirm', uiBus)) return;
     if (!ctx) return;
     const t0 = ctx.currentTime;
     for (const [frequency, offset] of [[520, 0], [700, 0.065]]) {
@@ -398,8 +604,37 @@ export function makeAudio(preferences = null) {
     }
   }
 
+  // 1.4's cancel/destructive variant. Shares uiTick's press window, because a
+  // cancel button is still a button and "exactly one event per press" does not
+  // stop applying because the sound is different.
+  function uiCancel() {
+    if (!ctx) return;
+    const t0 = ctx.currentTime;
+    if (t0 - lastUiTickAt < 0.12) return;
+    lastUiTickAt = t0;
+    if (sampled('uiCancel', uiBus)) return;
+    // synth fallback: uiTick's click, dropped a fourth, so it reads as a step back
+    const osc = ctx.createOscillator();
+    osc.frequency.setValueAtTime(390, t0);
+    osc.frequency.exponentialRampToValueAtTime(300, t0 + 0.06);
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.16, t0);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.07);
+    osc.connect(g).connect(uiBus);
+    osc.start(t0);
+    osc.stop(t0 + 0.08);
+  }
+
   function uiError() {
     if (!ctx) return;
+    // PLAYTEST 4, ITEM 1 — this was the last synth beep left in the menu.
+    //
+    // uiTick, uiConfirm and uiCancel all ask the bank first; uiError never did,
+    // so `ui-error-warm-1.ogg` was fetched, decoded and shipped while the player
+    // heard two triangle oscillators at 260 and 220 Hz. Measured in Electron:
+    // firing uiError started ZERO buffer sources. A pair of detuned triangles is
+    // the exact character the P0 asked to be replaced rather than tuned.
+    if (sampled('uiError', uiBus)) return;
     const t0 = ctx.currentTime;
     for (const [frequency, offset] of [[260, 0], [220, 0.08]]) {
       const osc = ctx.createOscillator();
@@ -412,6 +647,247 @@ export function makeAudio(preferences = null) {
       osc.start(t0 + offset);
       osc.stop(t0 + offset + 0.17);
     }
+  }
+
+
+  // A QA-pollable tap on the same post-volume master node the capture
+  // analyser reads: instantaneous RMS/peak plus the context state, so a
+  // driver can put a floor under "this click made sound within 50 ms"
+  // instead of trusting dispatch counters. Costs nothing until called.
+  function qaMasterTap() {
+    if (!ctx || !master) return null;
+    const analyser = ctx.createAnalyser();
+    // 2048 bins ≈ 42 ms of history per read: a poll ANY time within 40 ms of
+    // a short burst still carries its energy — at 512 a 25 ms tick lived or
+    // died by 4 ms polling luck
+    analyser.fftSize = 2048;
+    master.connect(analyser);
+    const data = new Float32Array(analyser.fftSize);
+    return {
+      read() {
+        analyser.getFloatTimeDomainData(data);
+        let peak = 0;
+        let sum = 0;
+        for (let i = 0; i < data.length; i += 1) {
+          const v = data[i];
+          peak = Math.max(peak, Math.abs(v));
+          sum += v * v;
+        }
+        return { rms: Math.sqrt(sum / data.length), peak, state: ctx.state };
+      },
+      stop() {
+        try { master.disconnect(analyser); } catch { /* already gone */ }
+      },
+    };
+  }
+
+  // --- the walking body and the rooms it works in (E, Full_Goal_16) --------------------
+
+  // A footfall is a pitched heel thud plus a surface voice: boards knock in a
+  // tight woody band, turf presses low with a faint grass hiss on top. One
+  // shared shape, two voices, narrow variation so a walk reads as a gait and
+  // never as a metronome.
+  function footstep(surface = 'turf', intensity = 1) {
+    if (!ctx) return;
+    const t0 = ctx.currentTime;
+    const level = Math.max(0.25, Math.min(1.35, Number(intensity) || 1));
+    const boards = surface === 'boards';
+    const osc = ctx.createOscillator();
+    osc.type = 'sine';
+    const f0 = varied(boards ? 132 : 88, 0.06);
+    osc.frequency.setValueAtTime(f0, t0);
+    osc.frequency.exponentialRampToValueAtTime(Math.max(40, f0 * 0.55), t0 + 0.07);
+    const og = ctx.createGain();
+    og.gain.setValueAtTime((boards ? 0.065 : 0.05) * level, t0);
+    og.gain.exponentialRampToValueAtTime(0.0001, t0 + (boards ? 0.09 : 0.12));
+    osc.connect(og).connect(sfxBus);
+    osc.start(t0);
+    osc.stop(t0 + 0.14);
+    const dur = boards ? 0.06 : 0.11;
+    const buf = ctx.createBuffer(1, Math.ceil(ctx.sampleRate * dur), ctx.sampleRate);
+    const d = buf.getChannelData(0);
+    for (let i = 0; i < d.length; i += 1) {
+      const t = i / d.length;
+      d[i] = (Math.random() * 2 - 1) * Math.pow(1 - t, boards ? 3.5 : 2.0);
+    }
+    const src = ctx.createBufferSource();
+    src.buffer = buf;
+    const f = ctx.createBiquadFilter();
+    if (boards) {
+      f.type = 'bandpass';
+      f.frequency.value = varied(760, 0.08);
+      f.Q.value = 2.2;
+    } else {
+      f.type = 'lowpass';
+      f.frequency.value = varied(420, 0.08);
+    }
+    const g = ctx.createGain();
+    g.gain.value = (boards ? 0.05 : 0.045) * level;
+    src.connect(f).connect(g).connect(sfxBus);
+    src.start(t0);
+    src.stop(t0 + dur);
+    if (!boards) {
+      const hbuf = ctx.createBuffer(1, Math.ceil(ctx.sampleRate * 0.09), ctx.sampleRate);
+      const hd = hbuf.getChannelData(0);
+      for (let i = 0; i < hd.length; i += 1) {
+        const t = i / hd.length;
+        hd[i] = (Math.random() * 2 - 1) * Math.pow(1 - t, 1.6);
+      }
+      const hsrc = ctx.createBufferSource();
+      hsrc.buffer = hbuf;
+      const hp = ctx.createBiquadFilter();
+      hp.type = 'highpass';
+      hp.frequency.value = 3200;
+      const hg = ctx.createGain();
+      hg.gain.value = 0.011 * level;
+      hsrc.connect(hp).connect(hg).connect(sfxBus);
+      hsrc.start(t0 + 0.012);
+      hsrc.stop(t0 + 0.11);
+    }
+  }
+
+  // a short band of cloth movement; the shared body of stepping in and away
+  function clothSwish(t0, centre, peak, dur) {
+    const buf = ctx.createBuffer(1, Math.ceil(ctx.sampleRate * dur), ctx.sampleRate);
+    const d = buf.getChannelData(0);
+    for (let i = 0; i < d.length; i += 1) {
+      const t = i / d.length;
+      d[i] = (Math.random() * 2 - 1) * Math.sin(Math.PI * Math.min(1, t * 1.15)) ** 2;
+    }
+    const src = ctx.createBufferSource();
+    src.buffer = buf;
+    const f = ctx.createBiquadFilter();
+    f.type = 'bandpass';
+    f.frequency.value = varied(centre, 0.08);
+    f.Q.value = 0.9;
+    const g = ctx.createGain();
+    g.gain.value = peak;
+    src.connect(f).connect(g).connect(sfxBus);
+    src.start(t0);
+    src.stop(t0 + dur);
+  }
+
+  // stepping in behind the till: cloth settles, then one knuckle on the counter
+  function stationEnter() {
+    if (!ctx) return;
+    const t0 = ctx.currentTime;
+    clothSwish(t0, 1300, 0.055, 0.16);
+    const osc = ctx.createOscillator();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(varied(185, 0.05), t0 + 0.09);
+    osc.frequency.exponentialRampToValueAtTime(118, t0 + 0.16);
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.08, t0 + 0.09);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.2);
+    osc.connect(g).connect(sfxBus);
+    osc.start(t0 + 0.09);
+    osc.stop(t0 + 0.22);
+  }
+
+  // stepping away: the same cloth, lower and longer, and no knock
+  function stationLeave() {
+    if (!ctx) return;
+    clothSwish(ctx.currentTime, 950, 0.09, 0.2);
+  }
+
+  // a cardboard card on a string turned over: two quick flaps and a small swing
+  function signFlip() {
+    if (!ctx) return;
+    const t0 = ctx.currentTime;
+    for (const offset of [0, 0.07]) {
+      const buf = ctx.createBuffer(1, Math.ceil(ctx.sampleRate * 0.05), ctx.sampleRate);
+      const d = buf.getChannelData(0);
+      for (let i = 0; i < d.length; i += 1) {
+        const t = i / d.length;
+        d[i] = (Math.random() * 2 - 1) * Math.pow(1 - t, 2.6);
+      }
+      const src = ctx.createBufferSource();
+      src.buffer = buf;
+      const f = ctx.createBiquadFilter();
+      f.type = 'bandpass';
+      f.frequency.value = varied(1800, 0.07);
+      f.Q.value = 1.6;
+      const g = ctx.createGain();
+      g.gain.value = offset === 0 ? 0.14 : 0.10;
+      src.connect(f).connect(g).connect(sfxBus);
+      src.start(t0 + offset);
+      src.stop(t0 + offset + 0.05);
+    }
+    const osc = ctx.createOscillator();
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(96, t0 + 0.05);
+    osc.frequency.linearRampToValueAtTime(64, t0 + 0.3);
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.022, t0 + 0.05);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.32);
+    osc.connect(g).connect(sfxBus);
+    osc.start(t0 + 0.05);
+    osc.stop(t0 + 0.34);
+  }
+
+  // PLAYTEST 5, ITEM 5: `ledgerLeaf` — the synthesised paper hiss — used to sit
+  // here as the shared body of all three ledger cues' fallbacks. With the
+  // fallbacks removed on the owner's ruling it had no callers left, so it is
+  // deleted rather than kept warm: a synth voice nothing plays is exactly how
+  // one comes back.
+
+  // PLAYTEST 5, ITEM 5 — THE OLD SYNTH IS STILL PLAYING UNDERNEATH THE BOOK.
+  //
+  //   "When I turn a page I hear the static blip AND the new page turn. Remove
+  //    the synth fallback from EVERY ledger cue, not just page turns. If the
+  //    recording is missing, silence is better than the beep."
+  //
+  // Ruling applied to all three ledger cues below. And the mechanism is worth
+  // recording, because "AND" was the surprising word: `sampled()` returns FALSE
+  // when the bank refuses to play, and the caller then fell through to the
+  // synth. The bank refuses for a reason that has nothing to do with a missing
+  // recording — `minGapSec` is 0.02, so a second turn inside 20 ms is declined.
+  // The recording plays for the first turn, the rate limiter declines the
+  // second, and the second becomes a BLIP. The guard against double-triggering
+  // was converting the double trigger into the synth.
+  //
+  // Six ledger-turn recordings, two open and two close are on disk, so this is
+  // not a trade against silence in practice — but silence is the instruction if
+  // it ever becomes one.
+  function ledgerTurn() {
+    sampled('ledgerTurn');
+  }
+
+  // the clasp frees, the cover thuds open, the first leaf settles — recorded.
+  // Synth fallback removed: see the ruling on ledgerTurn.
+  function ledgerOpen() {
+    sampled('ledgerOpen');
+  }
+
+  // the leaves settle, then the cover shuts on them — recorded.
+  // Synth fallback removed: see the ruling on ledgerTurn.
+  function ledgerClose() {
+    sampled('ledgerClose');
+  }
+
+  // a terminal key: plastic under a finger — a tiny high tick over a short
+  // body tap, quieter and duller than the interface tick
+  function keypadTap() {
+    if (!ctx) return;
+    const t0 = ctx.currentTime;
+    const tick = ctx.createOscillator();
+    tick.type = 'square';
+    tick.frequency.value = varied(1850, 0.06);
+    const tg = ctx.createGain();
+    tg.gain.setValueAtTime(0.02, t0);
+    tg.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.025);
+    tick.connect(tg).connect(sfxBus);
+    tick.start(t0);
+    tick.stop(t0 + 0.03);
+    const body = ctx.createOscillator();
+    body.type = 'sine';
+    body.frequency.value = varied(210, 0.05);
+    const bg = ctx.createGain();
+    bg.gain.setValueAtTime(0.045, t0);
+    bg.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.05);
+    body.connect(bg).connect(sfxBus);
+    body.start(t0);
+    body.stop(t0 + 0.06);
   }
 
   // --- hand-tool audio (same procedural language as everything above) ------------
@@ -544,8 +1020,29 @@ export function makeAudio(preferences = null) {
     checkoutTone({ at: 0.012, freq: 2637, to: 2489, dur: 0.085, peak: 0.012 });
   }
 
+  // PLAYTEST 5, ITEM 5 — "The cash drawer opening and closing is too loud."
+  //
+  // It was 0.55 on both, and the number that makes the case is not the drawer's
+  // own level but what it sits next to. Read off the live audio graph
+  // (tools/qa/electron-money-cue-graph.js): drawerOpen peaked at 0.592 and
+  // drawerClose at 0.591, while `checkoutComplete` -- the sound that marks the
+  // END OF A SALE -- peaked at 0.032. A ratio of 18.5, about 25 dB. The loudest
+  // thing in the checkout was the furniture and the quietest was the outcome,
+  // which is why the same round asks for the drawer to come down AND for
+  // something to mark the sale: they are one mix problem seen from both ends.
+  //
+  // Down 4.7 dB. Deliberately a modest cut rather than a guess at the "right"
+  // level, because the till slide is a real recording chosen for its swell and
+  // burying it would be the opposite mistake.
+  const DRAWER_GAIN = 0.32;
+
   // the cash drawer: rolling slide, hard stop, and the till bell
   function drawer() {
+    // The recording IS the slide and the stop at the end of travel -- it was
+    // chosen for that (a ~500 ms swell into a hard transient). The bell is a
+    // separate cue because a real till rings on the sale, not on every drawer
+    // movement, and firing both together is what made this sound like a toy.
+    if (sampled('drawerOpen', sfxBus, { gain: DRAWER_GAIN })) return;
     if (!ctx) return;
     const t0 = ctx.currentTime;
     const buf = ctx.createBuffer(1, ctx.sampleRate * 0.16, ctx.sampleRate);
@@ -849,23 +1346,390 @@ export function makeAudio(preferences = null) {
     checkoutTone({ at: 0.025, freq: 196, to: 164.81, type: 'triangle', dur: 0.12, peak: 0.015, filter: 700 });
   }
 
+  // ITEM 2 — PICKING CASH BACK UP. Its own recording, because the cue that used
+  // to serve this was the same one that plays when cash goes DOWN: the two
+  // gestures were acoustically identical, which is why the owner heard nothing
+  // for one of them. Deliberately quiet -- it is a correction, not an event.
+  // PLAYTEST 5, ITEM 5: the SAME crossover as changeSelect, in the opposite
+  // direction. cashPickup's three recordings are "Coins.wav", "coins being
+  // handled, shaken, rattled" and "Cash Money sounds_fieldtapes" — two coin, one
+  // paper — and the bank chose among them at random, so taking a note back off
+  // the counter rattled two times in three. Same material filter; same source of
+  // truth, which is what the recording is of.
+  function cashPickup(denomination) {
+    if (sampled('cashPickup', sfxBus, { gain: 0.55, ...materialPick(denomination) })) return;
+    // No recording: the handle voice is a closer relative than silence. NOTE the
+    // local name -- `coinHandle` is the EXPORTED key for this function and does
+    // not exist as an identifier inside the module.
+    coin();
+  }
+
   function billHandle() {
     checkoutNoise({ dur: 0.135, band: 1150, toBand: 2150, q: 0.6, peak: 0.031, attack: 0.01 });
     checkoutTone({ at: 0.025, freq: 220, to: 196, type: 'triangle', dur: 0.075, peak: 0.009, filter: 650 });
   }
 
+  // H2 (Goal 20) — CASH GOING DOWN ON THE DESK, AND NOTES ARE NOT COINS.
+  //
+  // `cashPresent` played for every tender whatever it was made of, so a handful
+  // of quarters landed with the same soft paper sound as a twenty. These are two
+  // different events and the ear knows it immediately: paper is a broadband
+  // brush with a low wooden thud under it and nothing metallic; coins are
+  // several bright partials that arrive slightly apart, because they never land
+  // all at once.
+
+  // G2 (Goal 23) — THE MONEY GOING INTO THE DRAWER. ITS OWN VOICE.
+  //
+  // "Still cannot hear it. What I want is each note or coin LANDING ON THE ONE
+  // BEFORE IT — that stacking, satisfying sound. Not the handling rustle, which
+  // is what billHandle/coinHandle currently play."
+  //
+  // He is exactly right about the mechanism: settleTenderDrag, the one place a
+  // piece is actually deposited, fired `billHandle`/`coinHandle` — the sound of
+  // money being MOVED IN THE HAND. There was never a deposit sound at all, so
+  // the most satisfying moment in the whole checkout was scored with a rustle.
+  //
+  // What separates a landing from a handling is a TRANSIENT: a rustle is a
+  // sustained brush with no attack, a landing is an impact with a decay. And
+  // what makes it stack is the pile it lands on — the first note hits a wooden
+  // well and thuds; the tenth hits nine notes and barely does. `depth` (0..1,
+  // how full the compartment already is) shortens the thud and lifts the
+  // partials, which is the whole "on the one before it" effect.
+  function billDeposit(depth = 0) {
+    // Same two-recording split as coinDeposit: `billDepositEmpty` is a note laid
+    // onto a bare wooden surface, `billDeposit` is a note onto a stack of notes.
+    // The first note into an empty well genuinely thuds; the tenth does not.
+    const dd = Math.max(0, Math.min(1, Number(depth) || 0));
+    const empty = dd < 0.34 && sampleBank?.has?.('billDepositEmpty');
+    if (sampled(empty ? 'billDepositEmpty' : 'billDeposit', sfxBus, {
+      rate: 1 + 0.05 * dd, gain: 0.95 - 0.2 * dd,
+    })) return;
+    const d = dd;
+    // the slap of the note going flat onto the pile — short, broad, with attack
+    checkoutNoise({ dur: 0.055, band: 1750 + 500 * d, toBand: 850, q: 1.1, peak: 0.040, attack: 0.0015 });
+    // the well underneath, which is what a full drawer takes away
+    checkoutTone({
+      at: 0.004, freq: 128 - 22 * d, to: 82 - 14 * d, type: 'triangle',
+      dur: 0.085 - 0.03 * d, peak: 0.030 * (1 - 0.45 * d), filter: 480,
+    });
+    // and a short paper settle after it, so it reads as coming to rest
+    checkoutNoise({ at: 0.045, dur: 0.07, band: 2400, toBand: 1500, q: 0.7, peak: 0.014 });
+  }
+
+  function coinDeposit(depth = 0) {
+    // "The pile it lands on changes the sound: the first note hits a wooden well
+    // and thuds, the tenth hits nine notes and barely does."
+    //
+    // Those are two DIFFERENT RECORDINGS, not one recording pitched up. A coin
+    // striking bare wood and a coin striking a heap of coins differ in decay and
+    // in the whole upper spectrum, and a playbackRate tweak cannot manufacture
+    // that -- it moves the pitch and takes the duration with it. `coinDepositEmpty`
+    // is a coin onto an empty wooden well; `coinDeposit` is a coin onto coins.
+    // Depth chooses between them, and the rate jitter on top only stops the chosen
+    // file repeating identically.
+    const dd = Math.max(0, Math.min(1, Number(depth) || 0));
+    const empty = dd < 0.34 && sampleBank?.has?.('coinDepositEmpty');
+    if (sampled(empty ? 'coinDepositEmpty' : 'coinDeposit', sfxBus, {
+      rate: 1 + 0.05 * dd, gain: 0.9 - 0.2 * dd,
+    })) return;
+    const d = dd;
+    // metal on metal: two close partials, the second a beat later, because a
+    // coin never lands flat first time
+    checkoutTone({ freq: 2450 + 380 * d, to: 2180 + 380 * d, type: 'triangle', dur: 0.055, peak: 0.030, attack: 0.001 });
+    checkoutTone({ at: 0.013, freq: 3320 + 460 * d, to: 2960 + 460 * d, type: 'sine', dur: 0.075, peak: 0.020, attack: 0.001 });
+    // the ring it leaves behind — this is the part that says "on the one before"
+    checkoutTone({ at: 0.02, freq: 1560 + 240 * d, to: 1500 + 240 * d, type: 'sine', dur: 0.20, peak: 0.013, attack: 0.002 });
+    // the tray under it, fading out as the compartment fills
+    checkoutTone({ at: 0.002, freq: 190, to: 120, type: 'triangle', dur: 0.06, peak: 0.022 * (1 - 0.55 * d), filter: 620 });
+    // the little rattle of it settling against its neighbours
+    checkoutNoise({ at: 0.03, dur: 0.06, band: 4200, toBand: 3000, q: 1.6, peak: 0.010 * (0.4 + 0.6 * d) });
+  }
+
+  function notesDown() {
+    // the brush of the notes...
+    checkoutNoise({ dur: 0.16, band: 980, toBand: 1900, q: 0.5, peak: 0.030, attack: 0.008 });
+    checkoutNoise({ at: 0.055, dur: 0.13, band: 1700, toBand: 1050, q: 0.65, peak: 0.020 });
+    // ...and the counter under them. This is the half that says "on the desk".
+    checkoutTone({ at: 0.02, freq: 150, to: 96, type: 'triangle', dur: 0.13, peak: 0.024, filter: 520 });
+  }
+
+  function coinsDown() {
+    if (!ctx) return;
+    // A handful of coins is several impacts within about 90 ms, never one. The
+    // spread and the pitches are drawn from the shared varier so two payments
+    // are never the same handful, which is the whole reason a repeated sound
+    // grates.
+    const pieces = 3 + Math.floor(Math.random() * 3);
+    for (let i = 0; i < pieces; i += 1) {
+      const at = i * (0.018 + Math.random() * 0.026);
+      const f = 2100 + Math.random() * 1500;
+      checkoutTone({ at, freq: f, to: f * 0.72, type: 'triangle', dur: 0.075, peak: 0.013 });
+      checkoutTone({ at: at + 0.004, freq: f * 1.51, to: f * 1.1, type: 'sine', dur: 0.05, peak: 0.007 });
+    }
+    // the wood they land on, once, under the lot
+    checkoutTone({ at: 0.01, freq: 138, to: 88, type: 'triangle', dur: 0.11, peak: 0.019, filter: 500 });
+    checkoutNoise({ dur: 0.07, band: 2600, toBand: 3400, q: 1.2, peak: 0.010, attack: 0.004 });
+  }
+
+  // H2: the card COMING OUT — plastic sliding out of a wallet and being turned
+  // over, which is the gesture the player watches. Dry, short, no chirp: the
+  // terminal's own chirp is cardTap and the two must not be confused.
+  function cardOut() {
+    checkoutNoise({ dur: 0.11, band: 2400, toBand: 3600, q: 1.4, peak: 0.016, attack: 0.006 });
+    checkoutTone({ at: 0.05, freq: 640, to: 880, type: 'triangle', dur: 0.055, peak: 0.010, filter: 2200 });
+  }
+
   function drawerUnlock() {
+    if (sampled('drawerUnlock', sfxBus, { gain: 0.5 })) return;
     checkoutTone({ freq: 980, to: 620, type: 'square', dur: 0.045, peak: 0.017, filter: 1800 });
     checkoutTone({ at: 0.024, freq: 142, to: 88, type: 'triangle', dur: 0.085, peak: 0.026, filter: 650 });
   }
 
   function drawerClose() {
+    if (sampled('drawerClose', sfxBus, { gain: DRAWER_GAIN })) return;
     checkoutNoise({ dur: 0.18, band: 720, toBand: 390, q: 0.55, peak: 0.027, attack: 0.008 });
     checkoutTone({ at: 0.045, freq: 120, to: 64, type: 'triangle', dur: 0.14, peak: 0.035, filter: 520 });
     checkoutTone({ at: 0.15, freq: 920, to: 610, type: 'square', dur: 0.042, peak: 0.015, filter: 1500 });
   }
 
-  function changeSelect() {
+  // --- 1.2 THE CASH RUN ---------------------------------------------------------
+  //
+  // "Cash going in: a continuous run, 'tchhhhh', for as long as money is going in,
+  // stopping when the last piece lands. Not one impact."
+  //
+  // Every other cue in this file is a one-shot, which is precisely why the money
+  // has never sounded like anything: eight notes going into a drawer fired eight
+  // separate impacts with silence between them. A run is a SUSTAINED voice whose
+  // lifetime the caller owns -- it starts when the first piece leaves the hand,
+  // holds while pieces are in the air, and stops when the last one lands.
+  //
+  // It must also cancel cleanly. A transaction can be interrupted mid-deposit (the
+  // drawer force-closed, register mode left, the till reset), and a looping node
+  // that outlives its transaction is a stuck sound the player cannot stop. So
+  // there is exactly one voice, `stop` is idempotent, and every exit path calls it.
+  let cashRunVoice = null;
+
+  function cashRunStart({ intensity = 1 } = {}) {
+    if (!ctx) return false;
+    // Already running: lift the level toward the new intensity rather than
+    // stacking a second loop on top of the first.
+    if (cashRunVoice) {
+      cashRunVoice.gain.gain.cancelScheduledValues(ctx.currentTime);
+      cashRunVoice.gain.gain.setTargetAtTime(
+        cashRunVoice.peak * Math.max(0.4, Math.min(1.6, intensity)), ctx.currentTime, 0.05,
+      );
+      return true;
+    }
+    const t0 = ctx.currentTime;
+    const gain = ctx.createGain();
+    // MEASURED, not guessed. At 0.30 the run read -26.3 dBFS on the master bus
+    // against impacts landing at -12 to -16 — audible, but sitting under the
+    // thing it is supposed to be the body of. 0.78 puts it near -18 dBFS: below
+    // the individual landings, which still have to punch through it, and clearly
+    // present as the continuous run 1.2 asks for.
+    // tools/qa/electron-phase1-audio-gate.js re-measures it.
+    // ITEM 2: "Lower the overall level. It is fighting everything else." 0.78 put
+    // the run near -18 dBFS, which was solved against the OLD landings; the
+    // deposit cues are quieter now and the run has to sit under them, not over.
+    const peak = 0.46;
+    gain.gain.setValueAtTime(0.0001, t0);
+    gain.gain.linearRampToValueAtTime(peak * Math.max(0.4, Math.min(1.6, intensity)), t0 + 0.045);
+    gain.connect(sfxBus);
+
+    const buffer = sampleBank?.buffer?.('cashRun') || null;
+    let source;
+    if (buffer) {
+      source = ctx.createBufferSource();
+      source.buffer = buffer;
+      source.loop = true;
+      // Loop INSIDE the recording rather than over the whole file: the head and
+      // tail of a riffle are the hand arriving and leaving, and looping those
+      // gives an audible bump every cycle. Trimming a tenth off each end puts the
+      // seam in continuous material.
+      const edge = Math.min(0.12, buffer.duration * 0.1);
+      source.loopStart = edge;
+      source.loopEnd = Math.max(edge + 0.05, buffer.duration - edge);
+      source.playbackRate.value = 0.94 + Math.random() * 0.12;
+      source.connect(gain);
+      source.start(t0);
+    } else {
+      // No recording: a filtered noise run, so the cue is never silent. Same
+      // shape, same lifetime, so the caller cannot tell the difference.
+      const noise = ctx.createBuffer(1, Math.ceil(ctx.sampleRate * 0.5), ctx.sampleRate);
+      const d = noise.getChannelData(0);
+      for (let i = 0; i < d.length; i += 1) d[i] = (Math.random() * 2 - 1) * (0.55 + 0.45 * Math.sin(i * 0.011));
+      source = ctx.createBufferSource();
+      source.buffer = noise;
+      source.loop = true;
+      const bp = ctx.createBiquadFilter();
+      bp.type = 'bandpass';
+      bp.frequency.value = 2100;
+      bp.Q.value = 0.7;
+      source.connect(bp).connect(gain);
+      source.start(t0);
+    }
+    cashRunVoice = { source, gain, peak, startedAt: t0, sampled: !!buffer };
+    return true;
+  }
+
+  // PLAYTEST 3, ITEM 2 — HOW LONG IS THIS CUE?
+  //
+  // "The drawer opens. Its sound FINISHES. Then the cash starts going in." That
+  // is a timing the CALLER has to honour, because the cash also has to move on
+  // screen -- and the caller cannot honour it without knowing how long the
+  // drawer takes. Read from the buffer the bank would actually pick, so a
+  // different audition option with a different length re-times the sequence
+  // instead of desynchronising it.
+  function cueSeconds(cue) {
+    const buffer = sampleBank?.buffer?.(cue);
+    return buffer ? buffer.duration : null;
+  }
+
+  // ITEM 2 — THE DRAWER, IN ORDER: the latch, then the slide, then the money.
+  //
+  // All three used to fire in the same millisecond -- `drawerUnlock`,
+  // `drawerOpen` and `billHandle` on three consecutive lines -- and three
+  // impacts at one instant is not a drawer opening, it is a bang. Each waits for
+  // the one before it.
+  //
+  // PLAYTEST 4 — WHAT IT RETURNS CHANGED, DELIBERATELY.
+  //
+  // It used to return `openAt + openSec`: the moment the drawer had finished
+  // SPEAKING, which the register used to hold the cash back. Measured on a real
+  // sale that put the first note in the air 1.72 s after the slide began, and
+  // the owner's verdict was "the sequence is now too generous... the cash should
+  // start close behind the drawer, not after a pause."
+  //
+  // So it returns the CASH ENTRY POINT instead: the slide's attack plus a short
+  // beat. A real till does not wait for the drawer to stop rattling before the
+  // hand moves — the hand is already moving while it travels. 0.20 s is enough
+  // that the two attacks are separate events rather than one bang, which was the
+  // Playtest 3 complaint, and short enough that the money reads as following the
+  // drawer rather than answering it.
+  const CASH_FOLLOWS_SLIDE_BY = 0.2;
+  function drawerOpenSequence() {
+    if (!ctx) return 0;
+    const unlockSec = cueSeconds('drawerUnlock') ?? 0.42;
+    drawerUnlock();
+    // 0.82 rather than 1.0: a latch's tail is decay, and the slide beginning as
+    // the click dies is what a real till does. Nothing OVERLAPS the attack,
+    // which is the part that was reading as a bang.
+    const openAt = Math.max(0.05, unlockSec * 0.82);
+    // `drawer` is the local function; `drawerOpen` is only its exported name.
+    setTimeout(() => { drawer(); }, Math.round(openAt * 1000));
+    return openAt + CASH_FOLLOWS_SLIDE_BY;
+  }
+
+  /** Stop the run. Safe to call when nothing is running, and safe to call twice. */
+  function cashRunStop({ fade = 0.06 } = {}) {
+    // ITEM 2: "it starts late and runs past". 0.13 s of tail after the final
+    // piece has landed is heard as the run outliving the money.
+    const voice = cashRunVoice;
+    if (!voice || !ctx) return false;
+    cashRunVoice = null;
+    const t0 = ctx.currentTime;
+    try {
+      voice.gain.gain.cancelScheduledValues(t0);
+      voice.gain.gain.setValueAtTime(Math.max(0.0001, voice.gain.gain.value), t0);
+      voice.gain.gain.exponentialRampToValueAtTime(0.0001, t0 + fade);
+      voice.source.stop(t0 + fade + 0.02);
+    } catch { /* a node that already stopped is the state we wanted */ }
+    return true;
+  }
+
+  const cashRunActive = () => !!cashRunVoice;
+
+  // --- 1.5 BACKGROUND MUSIC -----------------------------------------------------
+  //
+  // "Quiet, loopable, unobtrusive... Seamless loop with no click at the boundary,
+  // sitting below UI and customer sounds, respecting volume and mute, not
+  // restarting on scene transitions, not decoded on a gameplay-critical frame."
+  //
+  // Every clause there is a lifetime requirement rather than a sound-design one,
+  // so this is deliberately ONE voice created ONCE. "Not restarting on scene
+  // transitions" is the clause that decides the shape: if music were started by
+  // whatever screen is showing, every transition would restart it, so nothing
+  // outside these three functions may touch it, and start() on an already-running
+  // voice is a no-op rather than a restart.
+  //
+  // The buffer is decoded with the rest of the bank at context creation -- menu
+  // time, before any gameplay frame exists -- which is what keeps 1.5's last
+  // clause and 1.7 true without a special case.
+  let musicVoice = null;
+
+  function musicStart() {
+    if (!ctx || !musicBus) return false;
+    if (musicVoice) return true; // already playing: NOT a restart
+    const buffer = sampleBank?.buffer?.('music');
+    if (!buffer) return false; // no synth fallback: silence beats a synthetic drone
+    const t0 = ctx.currentTime;
+    const source = ctx.createBufferSource();
+    source.buffer = buffer;
+    source.loop = true;
+    // The recording is already an authored loop, so the seam is the file's own
+    // start and end and looping the WHOLE buffer is what keeps it seamless.
+    // Trimming edges here — right for the cash run, where the seam is arbitrary —
+    // would cut the musical phrase and put a click where there is none.
+    source.loopStart = 0;
+    source.loopEnd = buffer.duration;
+    const gain = ctx.createGain();
+    gain.gain.setValueAtTime(0.0001, t0);
+    gain.gain.linearRampToValueAtTime(1, t0 + 2.5); // fade in, never a hard entry
+    source.connect(gain).connect(musicBus);
+    source.start(t0);
+    musicVoice = { source, gain, startedAt: t0 };
+    return true;
+  }
+
+  function musicStop({ fade = 1.2 } = {}) {
+    const voice = musicVoice;
+    if (!voice || !ctx) return false;
+    musicVoice = null;
+    const t0 = ctx.currentTime;
+    try {
+      voice.gain.gain.cancelScheduledValues(t0);
+      voice.gain.gain.setValueAtTime(Math.max(0.0001, voice.gain.gain.value), t0);
+      voice.gain.gain.exponentialRampToValueAtTime(0.0001, t0 + fade);
+      voice.source.stop(t0 + fade + 0.05);
+    } catch { /* already gone */ }
+    return true;
+  }
+
+  const musicActive = () => !!musicVoice;
+  const musicElapsed = () => (musicVoice && ctx ? +(ctx.currentTime - musicVoice.startedAt).toFixed(2) : null);
+
+  // 1.2's "settling — the little rattle of a coin against its neighbours". A real
+  // recording of coins moving against each other; the synth fallback is the
+  // rattle tail that coinDeposit already builds.
+  function coinSettle() {
+    if (sampled('coinSettle', sfxBus, { gain: 0.8 })) return;
+    checkoutNoise({ dur: 0.09, band: 4000, toBand: 2800, q: 1.5, peak: 0.012 });
+    checkoutTone({ at: 0.02, freq: 2600, to: 2400, type: 'sine', dur: 0.09, peak: 0.008 });
+  }
+
+  // PLAYTEST 5, ITEM 5 — "Coin and cash cues are firing on the wrong clicks.
+  // The coin sound should play only when I press a coin; the cash sound only
+  // when I click a note. They are crossing over."
+  //
+  // They were, and the manifest says so in plain English. `changeSelect` holds
+  // three recordings:
+  //
+  //   change-lift-1.ogg  "dollar bills flipping counting.wav"   paper
+  //   change-lift-2.ogg  "counting_paper_money"                 paper
+  //   change-lift-3.ogg  "Coins.wav by pinchos"                 COINS
+  //
+  // ...and sampleBank.play picks among a cue's variants AT RANDOM. So pressing a
+  // quarter played paper two times in three, and clicking a twenty played the
+  // coin recording one time in three. Random is exactly why it reads as
+  // "crossing over" rather than as consistently wrong.
+  //
+  // The gesture keeps its own voice — Playtest 4 was right that lifting change
+  // out of a drawer is neither depositing nor picking up off the counter — but
+  // the variant is now chosen by what the recording IS. The title travels from
+  // the manifest through the bank for this; no file is renamed and nothing is
+  // re-encoded.
+  function changeSelect(denomination) {
+    if (sampled('changeSelect', sfxBus, materialPick(denomination))) return;
     checkoutTone({ freq: 1320, to: 1110, type: 'triangle', dur: 0.052, peak: 0.016 });
     checkoutTone({ at: 0.026, freq: 660, to: 622.25, type: 'sine', dur: 0.07, peak: 0.009 });
   }
@@ -895,8 +1759,23 @@ export function makeAudio(preferences = null) {
     checkoutTone({ at: 0.055, freq: 293.66, to: 440, type: 'sine', dur: 0.18, peak: 0.019 });
   }
 
+  // PLAYTEST 5, ITEM 5 — "Add a transaction-complete sound. There is nothing
+  // marking the end of a sale."
+  //
+  // There IS one, and it has been firing: simplifiedRegisterMode calls
+  // `sfx('checkoutComplete')` at the end of finalizeTransaction. It was simply
+  // inaudible. Measured on the graph, its three tones peaked at 0.032 against
+  // the cash drawer's 0.592 in the same checkout -- 18.5x, about 25 dB. A
+  // three-note figure that quiet under a till slide that loud is not a cue, it
+  // is a rumour.
+  //
+  // So this is not a new sound; it is the existing one raised to where a person
+  // can hear it, at roughly a third of the (now reduced) drawer rather than a
+  // eighteenth of the old one. It asks the bank first, like every other cue, so
+  // a recording can replace the arpeggio later without touching a call site.
   function checkoutComplete() {
-    for (const [at, freq, peak] of [[0, 587.33, 0.026], [0.095, 739.99, 0.028], [0.19, 880, 0.032]]) {
+    if (sampled('checkoutComplete', sfxBus)) return;
+    for (const [at, freq, peak] of [[0, 587.33, 0.10], [0.095, 739.99, 0.11], [0.19, 880, 0.125]]) {
       checkoutTone({ at, freq, to: freq * 1.006, type: 'sine', dur: 0.29, peak, attack: 0.012 });
     }
   }
@@ -1709,6 +2588,49 @@ export function makeAudio(preferences = null) {
     }
   }
 
+  // E3 — THE OTHER EIGHT TOOLS GET A CONTACT LAYER.
+  //
+  // Every tool declares audio.start and audio.stop; 26 of the 27 declared names
+  // did not exist, so only the broom made a sound when it bit and when it lifted.
+  // The rest played one flat loop from button-down to button-up, which is why
+  // the kit sounded like one machine with the pitch changed.
+  //
+  // One renderer, driven by the SHAPE each tool declares (cleaningTools.js
+  // `tone`), rather than eight hand-written functions — the same reason
+  // `useMotion` is data. The broom is untouched: it has its own authored pair
+  // below and it is the standard the rest are being brought up to.
+  function shapedBurst(hz, q, gain, seconds) {
+    if (!ctx) return;
+    const t = ctx.currentTime;
+    const buf = ctx.createBuffer(1, Math.max(1, Math.floor(ctx.sampleRate * seconds)), ctx.sampleRate);
+    const data = buf.getChannelData(0);
+    for (let i = 0; i < data.length; i += 1) data[i] = (Math.random() * 2 - 1) * (1 - i / data.length);
+    const src = ctx.createBufferSource();
+    src.buffer = buf;
+    const band = ctx.createBiquadFilter();
+    band.type = 'bandpass';
+    band.frequency.value = hz;
+    band.Q.value = q;
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(Math.max(0.0002, gain), t);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + seconds);
+    src.connect(band).connect(g).connect(sfxBus);
+    src.start(t);
+    src.stop(t + seconds + 0.01);
+  }
+
+  function toolContactStart(kind) {
+    const tone = CLEANING_TOOLS[kind]?.tone;
+    if (!ctx || !tone) return;
+    shapedBurst(tone.startHz, tone.q, tone.startGain, 0.10);
+  }
+
+  function toolContactStop(kind) {
+    const tone = CLEANING_TOOLS[kind]?.tone;
+    if (!ctx || !tone) return;
+    shapedBurst(tone.stopHz, tone.q * 0.8, tone.startGain * 0.55, tone.stopTail);
+  }
+
   function broomStart() {
     if (!ctx) return;
     const t = ctx.currentTime;
@@ -1752,6 +2674,12 @@ export function makeAudio(preferences = null) {
     src.stop(t + tail + 0.02);
   }
 
+  // The last context `update` was driven with, and the ambient gains that came
+  // out of it. 1.6 asks for the SOURCE of a drone, and a probe that reasons from
+  // the clock to the gate to the gain is three inferences away from the node the
+  // player actually hears -- this reports the node.
+  let lastAmbient = null;
+
   // called ~once per second with live game context
   function update(dt, { minuteOfDay = 720, rainIn = 0, golfersVisible = 0, inShop = false, tempHiF = 70 } = {}) {
     if (!ctx || paused || !lifecycleActive) return;
@@ -1759,8 +2687,44 @@ export function makeAudio(preferences = null) {
 
     if (rainGain) rainGain.gain.setTargetAtTime(Math.min(0.35, rainIn * 0.4) * (inShop ? 0.35 : 1), ctx.currentTime, 0.6);
 
-    const mowerOn = !inShop && minuteOfDay >= 300 && minuteOfDay <= 420; // the 5–7 AM shift
+    // 1.6 — THE MOWER-LIKE STATIC ON LOAD.
+    //
+    // This was two detuned sawtooths at 92 and 95.5 Hz held open for the whole
+    // 5-7 AM window. The game starts at 6 AM (Phase 9.3 of this brief says so
+    // about the lighting), so on every new game outdoors the first thing the
+    // player heard was a two-hour unbroken drone at mower pitch -- which is
+    // exactly the report, and 1.5 names "mower timbre" as the thing background
+    // audio must never be.
+    //
+    // A real mower is not a drone; it is a machine that passes. So the gate now
+    // opens for SHORT PASSES separated by long gaps, and the first pass cannot
+    // begin until the player has been outdoors a while -- nothing sustained
+    // starts on the load frame. The window itself is unchanged: mowing still
+    // happens on the early shift, and it is still not audible indoors.
+    const inMowWindow = !inShop && minuteOfDay >= 300 && minuteOfDay <= 420;
+    if (!inMowWindow) {
+      mowerPassTimer = 0;
+      mowerPassUntil = 0;
+      mowerSettleIn = MOWER_SETTLE_SECONDS;
+    } else if (mowerSettleIn > 0) {
+      mowerSettleIn = Math.max(0, mowerSettleIn - dt);
+    } else {
+      mowerPassTimer -= dt;
+      if (mowerPassTimer <= 0) {
+        // a pass every 40-90 s, lasting 7-13 s: audible as a machine working
+        // somewhere on the course rather than as a tone sitting on the mix
+        mowerPassTimer = 40 + Math.random() * 50;
+        mowerPassUntil = ctx.currentTime + 7 + Math.random() * 6;
+      }
+    }
+    const mowerOn = inMowWindow && mowerPassUntil > ctx.currentTime;
     if (mowerGain) mowerGain.gain.setTargetAtTime(mowerOn ? 0.05 : 0, ctx.currentTime, 1.2);
+    lastAmbient = {
+      minuteOfDay, inShop, rainIn, inMowWindow, mowerOn,
+      mowerGain: mowerGain ? +mowerGain.gain.value.toFixed(5) : null,
+      rainGain: rainGain ? +rainGain.gain.value.toFixed(5) : null,
+      mowerSettleIn: +mowerSettleIn.toFixed(2),
+    };
 
     birdTimer -= dt;
     if (birdTimer <= 0) {
@@ -1790,11 +2754,77 @@ export function makeAudio(preferences = null) {
     cardApproved: approve,
     cardDeclined: decline,
     cashPresent,
+    notesDown,
+    coinsDown,
+    cardOut,
     billHandle,
     coinHandle: coin,
+    billDeposit,
+    coinDeposit,
     drawerUnlock,
     drawerOpen: drawer,
     drawerClose,
+    // 1.2's continuous run. Three verbs rather than one cue name because the
+    // caller owns the lifetime: the register starts it when the first piece
+    // leaves the hand, stops it when the last one lands, and every interruption
+    // path calls stop. `cashRunActive` exists so a probe can ask whether the
+    // voice is up rather than inferring it from a node count.
+    cashRunStart,
+    // ITEM 2: the drawer's ordered voice, and the length query it needs
+    drawerOpenSequence,
+    cueSeconds,
+    cashPickup,
+    cashRunStop,
+    cashRunActive,
+    coinSettle,
+    musicStart,
+    musicStop,
+    musicActive,
+    musicElapsed,
+    // QA handles. A gate that cannot reach the live context has to build a second
+    // one, and two contexts measure two different signals — which is how an audio
+    // check ends up certifying a graph the player never hears.
+    qaContext: () => ctx,
+    qaSampleBankDiagnostics: () => (sampleBank?.diagnostics ? sampleBank.diagnostics() : null),
+
+    // PLAYTEST 3, ITEM 1 — THE AUDITION SWITCHER, from the settings panel's side.
+    //
+    // The panel must not reach into the bank directly: the bank is created lazily
+    // when the context unlocks, so a panel holding a reference from construction
+    // would be holding null on every fresh boot. These three go through the live
+    // binding each call.
+    sfxFamilies: () => (sampleBank?.families ? sampleBank.families() : []),
+    sfxSetFamilyOption: (family, optionId) => (
+      sampleBank?.setFamilyOption ? sampleBank.setFamilyOption(family, optionId) : false
+    ),
+    /**
+     * Play one option ONCE so the owner can hear it, without pinning it.
+     *
+     * Auditioning has to be audible on the spot -- a picker you have to close,
+     * go and click a button, and come back to is one nobody uses past the third
+     * comparison. So the pin is applied, the cue fired, and the pin put back,
+     * all inside the call. It routes through the ordinary sfx bus, which means
+     * what is heard here is what will be heard in the game, at the same level.
+     */
+    sfxPreview: (family, optionId, cue) => {
+      if (!sampleBank || !ctx) return false;
+      const was = sampleBank.familyOption(family);
+      if (!sampleBank.setFamilyOption(family, optionId)) return false;
+      try {
+        // minGapSec 0: an audition is deliberate repetition, and the retrigger
+        // guard exists to stop a handful of coins machine-gunning one file --
+        // applying it here would silently swallow the second press of Preview.
+        return sampleBank.play(cue, { ctx, destination: sfxBus, minGapSec: 0 });
+      } finally {
+        // Restored even when play throws: an audition that leaves the family
+        // pinned to whatever was last hovered would silently change the game.
+        sampleBank.setFamilyOption(family, was);
+      }
+    },
+    // The ambient gains as they actually stand, plus the inputs that set them.
+    // Reading the node closes the gap between "the gate should be shut" and "the
+    // player hears nothing".
+    qaAmbient: () => (lastAmbient ? { ...lastAmbient } : null),
     changeSelect,
     changeHandoff,
     receiptPrint: receipt,
@@ -1805,9 +2835,21 @@ export function makeAudio(preferences = null) {
     bagHandoff,
     checkoutComplete,
     doorbell,
+    phoneRing,
     uiTick,
     uiConfirm,
+    uiCancel,
     uiError,
+    // E (Full_Goal_16): the walking body and the rooms it works in
+    qaMasterTap,
+    footstep,
+    stationEnter,
+    stationLeave,
+    signFlip,
+    ledgerOpen,
+    ledgerTurn,
+    ledgerClose,
+    keypadTap,
     doorSwing,
     doorShut,
     scanBeep,
@@ -1830,6 +2872,8 @@ export function makeAudio(preferences = null) {
     // Task-4 stroke/spray hooks (main.js routes them via the generic audio[name]
     // pattern); cleanSparkle/vacuumPickup are fired by cue mappings and particles.
     strokeAccent,
+    toolContactStart,
+    toolContactStop,
     sprayPulse,
     cleanSparkle,
     vacuumPickup,

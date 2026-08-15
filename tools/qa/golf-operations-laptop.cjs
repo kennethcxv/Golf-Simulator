@@ -159,8 +159,8 @@ async function main() {
 
     const fixture = await page.evaluate(async () => {
       const app = window.__fw;
-      const operations = await import('/src/sim/reservations.js');
-      const { calendarOf } = await import('/src/sim/time.js');
+      const operations = await import(new URL('src/sim/reservations.js', document.baseURI).href);
+      const { calendarOf } = await import(new URL('src/sim/time.js', document.baseURI).href);
       const cal = calendarOf(app.state.clock.minutes);
       const qaDay = cal.dayAbs + 1;
       const productionDays = [...app.state.reservations.generator.generatedDays];

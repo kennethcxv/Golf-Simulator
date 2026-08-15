@@ -48,7 +48,7 @@ async (page) => {
   const fixture = await page.evaluate(async () => {
     const app = window.__fw;
     const st = app.state;
-    const { ZONE } = await import('/src/sim/constants.js');
+    const { ZONE } = await import(new URL('src/sim/constants.js', document.baseURI).href);
     st.tutorial.complete = true;
     st.tutorial.hidden = true;
     st.tractor.repaired = true;
@@ -177,8 +177,8 @@ async (page) => {
 
   const beforeDrive = await page.evaluate(async () => {
     const app = window.__fw;
-    const { BALANCE } = await import('/src/sim/balance.js');
-    const { ZONE } = await import('/src/sim/constants.js');
+    const { BALANCE } = await import(new URL('src/sim/balance.js', document.baseURI).href);
+    const { ZONE } = await import(new URL('src/sim/constants.js', document.baseURI).href);
     const target = {
       [ZONE.GREEN]: BALANCE.turf.ideal.green.height,
       [ZONE.TEE]: BALANCE.turf.ideal.tee.height,
@@ -229,8 +229,8 @@ async (page) => {
 
   const afterDrive = await page.evaluate(async () => {
     const app = window.__fw;
-    const { BALANCE } = await import('/src/sim/balance.js');
-    const { ZONE } = await import('/src/sim/constants.js');
+    const { BALANCE } = await import(new URL('src/sim/balance.js', document.baseURI).href);
+    const { ZONE } = await import(new URL('src/sim/constants.js', document.baseURI).href);
     const target = {
       [ZONE.GREEN]: BALANCE.turf.ideal.green.height,
       [ZONE.TEE]: BALANCE.turf.ideal.tee.height,

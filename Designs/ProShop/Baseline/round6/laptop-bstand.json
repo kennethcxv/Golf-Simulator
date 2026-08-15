@@ -1,0 +1,45 @@
+{
+  "preMoveLocal": {
+    "x": -1.72,
+    "z": 0.08
+  },
+  "anchorLocal": {
+    "x": 1.7499999999999998,
+    "z": 0.24
+  },
+  "printerLocal": {
+    "x": 0.14000000000000007,
+    "z": 0.3599999999999999
+  },
+  "chairLocal": {
+    "x": -1,
+    "z": 1.05
+  },
+  "laptopFound": true,
+  "laptopWorld": {
+    "x": -362.55,
+    "y": -0.742,
+    "z": 5.557
+  },
+  "seatPose": {
+    "x": -362.55,
+    "y": -0.508,
+    "z": 5.652,
+    "yaw": 0,
+    "pitch": -0.2992
+  },
+  "seatDistanceToLaptop": 0.252,
+  "focusLabel": "Laptop — [E] open GOLF SIMULATOR",
+  "opened": {
+    "laptopOpen": true,
+    "lidAngle": 1.8690263737315205
+  },
+  "saved": {
+    "keys": [
+      "golfempire:autosave",
+      "golfempire:preferences:v1",
+      "golfempire:autosave-meta"
+    ],
+    "layoutRevision": 23
+  }
+}

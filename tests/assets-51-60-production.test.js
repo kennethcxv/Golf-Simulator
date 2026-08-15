@@ -610,7 +610,7 @@ test('Assets 55-60 export separable top-level runtime variants with exactly one 
   }
 });
 
-test('Asset 52 has no boarded apertures — deleted 2026-07-29, and it stays deleted', () => {
+test('Asset 52 has no boarded apertures - deleted 2026-07-29, and it stays deleted', () => {
   // Reported: "Still walk-through, and I do not want them at all. Delete the
   // boarded-aperture geometry rather than giving it a collider."
   //

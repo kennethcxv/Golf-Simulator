@@ -20,6 +20,9 @@ export const NOTIF_KINDS = {
   event: { icon: '🏆', page: 'events' },
   staff: { icon: '👥', page: 'employees' },
   system: { icon: '⚙', page: 'home' },
+  // A2/A4 (Goal 19): the bell is how a player LEARNS mail exists — one line
+  // per message, pointing at the Mail page; the content itself lives there.
+  mail: { icon: '✉', page: 'mail' },
 };
 
 export function initNotifications(state) {

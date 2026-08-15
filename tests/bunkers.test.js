@@ -36,7 +36,7 @@ test('play traffic footprints the sand, up to a cap; quiet days leave it alone',
   assert.equal(state.turf.wear[cells[0]], BUNKER_MESS.cap, 'a season of neglect hits the cap');
 });
 
-test('footprints land on sand only — turf wear is untouched', () => {
+test('footprints land on sand only - turf wear is untouched', () => {
   const state = newGame('relaxed', 42);
   const fairwayIdx = state.course.zones.findIndex((z) => z === ZONE.FAIRWAY);
   const before = state.turf.wear[fairwayIdx];

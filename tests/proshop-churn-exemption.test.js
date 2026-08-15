@@ -50,35 +50,55 @@ test('every waived defect id is filed in DEFECTS.md', () => {
   }
 });
 
-test('a waived defect is still OPEN — the exemption expires when it is fixed', () => {
+test('a waived defect is still OPEN - the exemption expires when it is fixed', () => {
   for (const id of waivedIds(harness)) {
     assert.equal(
       statusOf(defects, id),
       'OPEN',
       `${id} is no longer OPEN in DEFECTS.md, but the customer-day gate still waives `
       + 'episodes attributed to it. Delete the DEFECT_EXEMPTIONS entry in the same commit '
-      + 'that closes the defect — the episodes it was covering must now face the 20s cap '
+      + 'that closes the defect - the episodes it was covering must now face the 20s cap '
       + 'and the recovery floor.',
     );
   }
 });
 
-test('NAV-WAIT-001 is filed, and the churn gate records why it is waived', () => {
-  // The ruling that produced this waiver: the browse-stand stack is a missing
-  // feature, not a threshold problem. Both halves must survive in the record —
-  // the defect entry AND the unchanged thresholds it is an exception to.
-  assert.equal(statusOf(defects, 'NAV-WAIT-001'), 'OPEN');
-  assert.match(defects, /NAV-WAIT-001 — NPCs have nowhere to wait for an occupied browse stand/);
+test('NAV-WAIT-001 is fixed, and its waiver went with it', () => {
+  // The other half of the pairing. While the defect was open this test asserted
+  // the waiver was PRESENT; now that it is fixed the same test asserts the
+  // waiver is GONE, so neither state can drift silently.
+  //
+  // The ruling that produced the waiver: the browse-stand stack is a missing
+  // feature, not a threshold problem. It was closed by building the feature —
+  // an occupancy claim and spaced hold points — and measured on the instrument
+  // it was filed against: 95 episodes to 0 (neglected), 82 to 1 (restored),
+  // with the survivor judged rather than waived.
+  assert.equal(statusOf(defects, 'NAV-WAIT-001'), 'FIXED');
   assert.ok(
-    waivedIds(harness).includes('NAV-WAIT-001'),
-    'the gate must carry the waiver while the defect is open, or the ruled exemption is lost',
+    !waivedIds(harness).includes('NAV-WAIT-001'),
+    'the defect is fixed, so the gate must no longer waive episodes attributed to it - '
+    + 'those episodes now face the 20s cap and the recovery floor like every other block',
   );
-  // The thresholds themselves were explicitly NOT relaxed by the ruling.
+  // The thresholds were never relaxed to accommodate the defect, and must not
+  // be relaxed now that it is gone either.
   assert.match(harness, /const BLOCK_CAP_WALL_S = 20;/);
   assert.match(harness, /const RECOVERY_FLOOR = 0\.75;/);
 });
 
-test('attribution stays narrow — a waived episode must be a stand wait, not any block', () => {
+test('nothing is exempt from the churn gate any more', () => {
+  // The list is empty and should stay that way. This is not a style rule: an
+  // exemption is the one thing that can make a green gate meaningless, so
+  // re-adding one should be a deliberate act that turns this test red and
+  // forces a filed defect alongside it.
+  assert.deepEqual(
+    waivedIds(harness), [],
+    'a new exemption was added to the churn gate. That is allowed, but it is a debt: '
+    + 'file the defect in DEFECTS.md, keep attribution narrow, and update this test '
+    + 'so the waiver cannot outlive its cause.',
+  );
+});
+
+test('attribution stays narrow - a waived episode must be a stand wait, not any block', () => {
   // If these conditions ever loosen into "anything near a fixture", the waiver
   // becomes the class-wide exemption the ruling rejected. Pin the shape.
   assert.match(harness, /const STAND_OCCUPIED_YD = 0\.45;/);

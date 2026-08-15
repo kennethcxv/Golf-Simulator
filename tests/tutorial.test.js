@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { MINUTES_PER_DAY } from '../src/sim/constants.js';
 import { newGame, update, serialize, deserialize } from '../src/sim/state.js';
 import {
-  TUTORIAL_STEPS, tickTutorial, tutorialFlag, skipTutorial, replayTutorial,
+  TUTORIAL_STEPS, currentStep, tickTutorial, tutorialFlag, skipTutorial, replayTutorial,
 } from '../src/sim/tutorial.js';
 import { placeOrder, deliverOrdersDue, clearClutter } from '../src/sim/shop.js';
 import { openBox } from '../src/sim/deliveries.js';
@@ -42,6 +42,19 @@ test('tutorial exists, starts at the beginning, and has a chaptered arc', () => 
   for (const s of TUTORIAL_STEPS) {
     assert.ok(s.id && s.title && s.hint && typeof s.check === 'function');
   }
+});
+
+test('campaign tutorial ticks hand one derived objective snapshot to presentation consumers', () => {
+  const st = newGame('relaxed', 424242, { campaign: true });
+  const result = tickTutorial(st);
+
+  assert.ok(result.view?.currentTask, 'campaign tick exposes its derived view in memory');
+  assert.equal(Object.keys(result).includes('view'), false, 'view does not change the serializable result shape');
+  assert.equal(JSON.stringify(result).includes('"view"'), false);
+  assert.deepEqual(currentStep(st, result.view), {
+    ...result.view.currentTask,
+    chapter: result.view.mainObjective,
+  });
 });
 
 test('the opening chain follows the physical clubhouse loop, in order', () => {

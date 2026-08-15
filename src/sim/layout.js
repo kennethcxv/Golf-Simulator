@@ -803,7 +803,7 @@ function validateFloor(state, meta, candidate, result, options) {
   if (meta.collision?.blocksPlayer || meta.collision?.blocksCustomers) {
     for (const zone of PROTECTED_ZONES) {
       if (meta.id === 'core-checkout-counter'
-        && (zone.id.startsWith('checkout-') || zone.id === 'laptop-seat')) continue;
+        && (zone.id.startsWith('checkout-') || zone.id === 'laptop-stand')) continue;
       if (rectsOverlap(rect, zone)) {
         addReason(result, `protected-${zone.id}`, `That blocks the ${zone.label}.`);
         break;
@@ -864,7 +864,7 @@ export function validateObjectPlacement(state, id, candidateValue, options = {})
   if (!result.reasons.length && candidate.surface === 'floor' && meta.collision?.blocksCustomers
     && (meta.fixture || meta.render?.kind !== 'existing')
     && !routesIntact(state, { id: meta.id, place: candidate })) {
-    addReason(result, 'navigation-blocked', 'That would cut the shop off — customers could not reach a required area.');
+    addReason(result, 'navigation-blocked', 'That would cut the shop off - customers could not reach a required area.');
   }
   result.ok = result.reasons.length === 0;
   return result;
@@ -1011,6 +1011,20 @@ export function restoreObject(state, id, candidateValue = null, options = {}) {
 
 export function restoreFixture(state, id) {
   const result = restoreObject(state, id, null, { skipValidation: true });
+  return result.ok ? fixtureById(state, id) : null;
+}
+
+// Campaign construction installs the known-safe furnished plan; it is not a
+// player-authored move. Keep its grid-normalized placement in the v2 object
+// record, but do not manufacture a legacy `layout.moved` override merely
+// because an authored coordinate (for example z=-1.55) lands on the physical
+// placement grid. A real player override already has a sparse moved record and
+// is deliberately retained so normal load validation continues to audit it.
+export function restoreAuthoredFixture(state, id) {
+  const layout = ensureLayout(state);
+  const hadPlayerOverride = Object.prototype.hasOwnProperty.call(layout.moved, id);
+  const result = restoreObject(state, id, null, { skipValidation: true });
+  if (result.ok && !hadPlayerOverride) delete ensureLayout(state).moved[id];
   return result.ok ? fixtureById(state, id) : null;
 }
 

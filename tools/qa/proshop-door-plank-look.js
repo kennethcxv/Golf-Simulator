@@ -32,7 +32,7 @@
   await page.waitForTimeout(600);
   await page.evaluate(async (seed) => {
     localStorage.clear();
-    const E = await import('/src/sim/empire.js');
+    const E = await import(new URL('src/sim/empire.js', document.baseURI).href);
     localStorage.setItem('golfempire:autosave', JSON.stringify(E.empireSnapshot(E.newStarterEmpire('relaxed', seed))));
   }, SEED);
   await page.reload({ waitUntil: 'domcontentloaded' });
@@ -43,7 +43,7 @@
   await page.waitForTimeout(3000);
 
   const damageReport = () => page.evaluate(async () => {
-    const THREE = await import('/vendor/three.module.js');
+    const THREE = await import(new URL('vendor/three.module.js', document.baseURI).href);
     const ch = window.__fw.scene3d.clubhouse();
     const camera = window.__fw.scene3d.camera;
     const rows = [];
@@ -82,7 +82,7 @@
   // requiring it inside the frame. A shot that does not contain its subject is
   // reported as a miss, not filed as evidence.
   const facing = async (openDoors) => page.evaluate(async (open) => {
-    const THREE = await import('/vendor/three.module.js');
+    const THREE = await import(new URL('vendor/three.module.js', document.baseURI).href);
     const app = window.__fw;
     const ch = app.scene3d.clubhouse();
     const walk = app.scene3d.walk;
@@ -128,7 +128,7 @@
   // facing() and got doorNdc.z = 1.088 -- the door behind a camera that had not
   // turned yet -- which would have failed a shot that was in fact correct.
   const checkAim = async () => page.evaluate(async () => {
-    const THREE = await import('/vendor/three.module.js');
+    const THREE = await import(new URL('vendor/three.module.js', document.baseURI).href);
     const app = window.__fw;
     const ch = app.scene3d.clubhouse();
     const camera = app.scene3d.camera;

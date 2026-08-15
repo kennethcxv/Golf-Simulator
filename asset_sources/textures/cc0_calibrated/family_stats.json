@@ -1,0 +1,176 @@
+{
+  "procedure": "ART_BIBLE.md \u00a77.4.1, source-measured form",
+  "note": "Targets are solved by the builder from the colour it already authors.",
+  "families": {
+    "Fabric030": {
+      "family": "Fabric030",
+      "variant": "1K-JPG",
+      "sourceColor": "asset_sources/textures/cc0_spike/Fabric030_1K-JPG_Color.jpg",
+      "calibratedMap": "asset_sources/textures/cc0_calibrated/Fabric030_calibrated_Color.jpg",
+      "maps": [
+        "Color",
+        "NormalGL",
+        "Roughness"
+      ],
+      "meanLuma": 0.111495,
+      "lumaP10": 0.054599,
+      "lumaP90": 0.184753,
+      "lumaP99": 0.294659,
+      "contrastP90overP10": 3.384,
+      "exposureGain": 3.2241,
+      "roughnessMapMean": 0.728292,
+      "roughnessMapP10": 0.596078,
+      "roughnessMapP90": 0.878431,
+      "bake": null
+    },
+    "Foam001": {
+      "family": "Foam001",
+      "variant": "1K-JPG",
+      "sourceColor": "asset_sources/textures/cc0_spike/Foam001_1K-JPG_Color.jpg",
+      "calibratedMap": "asset_sources/textures/cc0_calibrated/Foam001_calibrated_Color.jpg",
+      "maps": [
+        "Color",
+        "NormalGL",
+        "Roughness"
+      ],
+      "meanLuma": 0.161729,
+      "lumaP10": 0.017642,
+      "lumaP90": 0.313511,
+      "lumaP99": 0.46901,
+      "contrastP90overP10": 17.771,
+      "exposureGain": 2.0255,
+      "roughnessMapMean": 0.170005,
+      "roughnessMapP10": 0.058824,
+      "roughnessMapP90": 0.32549,
+      "bake": null
+    },
+    "Leather011": {
+      "family": "Leather011",
+      "variant": "1K-JPG",
+      "sourceColor": "asset_sources/textures/cc0_spike/Leather011_1K-JPG_Color.jpg",
+      "calibratedMap": "asset_sources/textures/cc0_calibrated/Leather011_calibrated_Color.jpg",
+      "maps": [
+        "Color",
+        "NormalGL",
+        "Roughness"
+      ],
+      "meanLuma": 0.015615,
+      "lumaP10": 0.011175,
+      "lumaP90": 0.019289,
+      "lumaP99": 0.021682,
+      "contrastP90overP10": 1.726,
+      "exposureGain": 43.8151,
+      "roughnessMapMean": 0.356574,
+      "roughnessMapP10": 0.27451,
+      "roughnessMapP90": 0.415686,
+      "bake": null
+    },
+    "Metal032": {
+      "family": "Metal032",
+      "variant": "1K-JPG",
+      "sourceColor": "asset_sources/textures/cc0_spike/Metal032_1K-JPG_Color.jpg",
+      "calibratedMap": "asset_sources/textures/cc0_calibrated/Metal032_calibrated_Color.jpg",
+      "maps": [
+        "Color",
+        "Metalness",
+        "NormalGL",
+        "Roughness"
+      ],
+      "meanLuma": 0.242532,
+      "lumaP10": 0.225931,
+      "lumaP90": 0.256785,
+      "lumaP99": 0.274764,
+      "contrastP90overP10": 1.137,
+      "exposureGain": 3.4575,
+      "roughnessMapMean": 0.408123,
+      "roughnessMapP10": 0.388235,
+      "roughnessMapP90": 0.427451,
+      "bake": null
+    },
+    "PaintedMetal001": {
+      "family": "PaintedMetal001",
+      "variant": "1K-JPG",
+      "sourceColor": "asset_sources/textures/cc0_spike/PaintedMetal001_1K-JPG_Color.jpg",
+      "calibratedMap": "asset_sources/textures/cc0_calibrated/PaintedMetal001_calibrated_Color.jpg",
+      "maps": [
+        "Color",
+        "Metalness",
+        "NormalGL",
+        "Roughness"
+      ],
+      "meanLuma": 0.516389,
+      "lumaP10": 0.407325,
+      "lumaP90": 0.626652,
+      "lumaP99": 0.708398,
+      "contrastP90overP10": 1.538,
+      "exposureGain": 1.3411,
+      "roughnessMapMean": 0.222144,
+      "roughnessMapP10": 0.184314,
+      "roughnessMapP90": 0.258824,
+      "bake": null
+    },
+    "Rubber004": {
+      "family": "Rubber004",
+      "variant": "1K-JPG",
+      "sourceColor": "asset_sources/textures/cc0_spike/Rubber004_1K-JPG_Color.jpg",
+      "calibratedMap": "asset_sources/textures/cc0_calibrated/Rubber004_calibrated_Color.jpg",
+      "maps": [
+        "Color",
+        "NormalGL",
+        "Roughness"
+      ],
+      "meanLuma": 0.025403,
+      "lumaP10": 0.015955,
+      "lumaP90": 0.036579,
+      "lumaP99": 0.043864,
+      "contrastP90overP10": 2.293,
+      "exposureGain": 21.6579,
+      "roughnessMapMean": 0.590684,
+      "roughnessMapP10": 0.52549,
+      "roughnessMapP90": 0.658824,
+      "bake": null
+    },
+    "Wood051": {
+      "family": "Wood051",
+      "variant": "1K-JPG",
+      "sourceColor": "asset_sources/textures/cc0_spike/Wood051_1K-JPG_Color.jpg",
+      "calibratedMap": "asset_sources/textures/cc0_calibrated/Wood051_calibrated_Color.jpg",
+      "maps": [
+        "Color",
+        "NormalGL",
+        "Roughness"
+      ],
+      "meanLuma": 0.038826,
+      "lumaP10": 0.026447,
+      "lumaP90": 0.051603,
+      "lumaP99": 0.06319,
+      "contrastP90overP10": 1.951,
+      "exposureGain": 15.034,
+      "roughnessMapMean": 0.543144,
+      "roughnessMapP10": 0.478431,
+      "roughnessMapP90": 0.607843,
+      "bake": null
+    },
+    "Wood062": {
+      "family": "Wood062",
+      "variant": "1K-JPG",
+      "sourceColor": "asset_sources/textures/cc0_spike/Wood062_1K-JPG_Color.jpg",
+      "calibratedMap": "asset_sources/textures/cc0_calibrated/Wood062_calibrated_Color.jpg",
+      "maps": [
+        "Color",
+        "NormalGL",
+        "Roughness"
+      ],
+      "meanLuma": 0.095525,
+      "lumaP10": 0.046871,
+      "lumaP90": 0.148426,
+      "lumaP99": 0.216494,
+      "contrastP90overP10": 3.167,
+      "exposureGain": 4.3881,
+      "roughnessMapMean": 0.677294,
+      "roughnessMapP10": 0.596078,
+      "roughnessMapP90": 0.768627,
+      "bake": null
+    }
+  }
+}

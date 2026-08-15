@@ -16,35 +16,35 @@ export const SHOP_TIER_ORDER = Object.freeze(['basic', 'standard', 'premium', 'l
 export const SHOP_TIERS = Object.freeze({
   basic: Object.freeze({
     id: 'basic', label: 'BASIC', name: 'Starter shop', cost: 0, days: 0,
-    customerCapacity: 2, supplierTier: 1, propertyValue: 0,
+    customerCapacity: 5, supplierTier: 1, propertyValue: 0,
     categories: Object.freeze(['balls', 'apparel', 'accessories']),
     finish: 'Painted boards · utility lighting · starter counter',
     summary: 'A compact sales bay, one stock run, and the original laptop counter.',
-    unlocks: Object.freeze(['Compact retail bay', 'Four starter displays', 'Basic stock shelving', '2-customer floor']),
+    unlocks: Object.freeze(['Compact retail bay', 'Four starter displays', 'Basic stock shelving', '5-customer floor']),
   }),
   standard: Object.freeze({
     id: 'standard', label: 'STANDARD', name: 'Working pro shop', cost: 6500, days: 2,
-    customerCapacity: 4, supplierTier: 2, propertyValue: 7500,
+    customerCapacity: 8, supplierTier: 2, propertyValue: 7500,
     categories: Object.freeze(['balls', 'apparel', 'accessories', 'clubs', 'provisions']),
     finish: 'Natural oak · improved worktop · full sales lighting',
     summary: 'Opens the main retail floor, expands receiving, and adds value and standard suppliers.',
-    unlocks: Object.freeze(['Main retail floor', 'Club and apparel fixtures', 'Expanded stockroom', 'Tier-2 suppliers', '4-customer floor']),
+    unlocks: Object.freeze(['Main retail floor', 'Club and apparel fixtures', 'Expanded stockroom', 'Tier-2 suppliers', '8-customer floor']),
   }),
   premium: Object.freeze({
     id: 'premium', label: 'PREMIUM', name: 'Full-service pro shop', cost: 16000, days: 4,
-    customerCapacity: 6, supplierTier: 3, propertyValue: 20000,
+    customerCapacity: 10, supplierTier: 3, propertyValue: 20000,
     categories: Object.freeze(['balls', 'apparel', 'accessories', 'clubs', 'provisions']),
     finish: 'Medium walnut · deep green · focused display lighting',
     summary: 'Completes the premium display floor, fitting area, member lounge, and supplier range.',
-    unlocks: Object.freeze(['Premium displays', 'Fitting and shoe area', 'Member lounge', 'Feature merchandising', 'Tier-3 suppliers', '6-customer floor']),
+    unlocks: Object.freeze(['Premium displays', 'Fitting and shoe area', 'Member lounge', 'Feature merchandising', 'Tier-3 suppliers', '10-customer floor']),
   }),
   luxury: Object.freeze({
     id: 'luxury', label: 'LUXURY', name: 'Club retail destination', cost: 35000, days: 6,
-    customerCapacity: 8, supplierTier: 3, propertyValue: 45000,
+    customerCapacity: 12, supplierTier: 3, propertyValue: 45000,
     categories: Object.freeze(['balls', 'apparel', 'accessories', 'clubs', 'provisions']),
     finish: 'Select walnut · restrained brass · showcase lighting',
     summary: 'Turns the finished shop into a destination with luxury trim, entrance presence, and maximum service capacity.',
-    unlocks: Object.freeze(['Luxury finish package', 'Brass checkout frontage', 'Showcase entrance', 'Trophy presentation', '8-customer floor']),
+    unlocks: Object.freeze(['Luxury finish package', 'Brass checkout frontage', 'Showcase entrance', 'Trophy presentation', '12-customer floor']),
   }),
 });
 
@@ -208,7 +208,7 @@ export function beginShopExpansion(state, targetId) {
   };
   notify(state, {
     kind: 'money',
-    text: `${target.label} pro-shop construction started — ${target.days} days.`,
+    text: `${target.label} pro-shop construction started - ${target.days} days.`,
     dedupeKey: `shop-tier-start:${target.id}:${progression.pending.startedDay}`,
   });
   return { ok: true, target, pending: progression.pending };

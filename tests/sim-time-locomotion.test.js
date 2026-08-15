@@ -27,7 +27,7 @@ test('locomotion follows the speed rung and nothing else', () => {
       `rung ${idx} must move bodies at the rung the player selected`);
   }
   assert.equal(simSpeedMultipliers(1).locomotion, 1,
-    'the DEFAULT rung must be wall rate — this is the number that broke');
+    'the DEFAULT rung must be wall rate - this is the number that broke');
 });
 
 // THE NEGATIVE CONTROL. Break the thing the instrument measures: quadruple the
@@ -45,7 +45,7 @@ test('changing the day length moves decisions and leaves locomotion alone', () =
     assert.equal(slow.decision, base.decision / 8, `rung ${idx}: decisions track the day both ways`);
 
     assert.equal(quick.locomotion, base.locomotion,
-      `rung ${idx}: a shorter day must not speed walking up — this is the regression`);
+      `rung ${idx}: a shorter day must not speed walking up - this is the regression`);
     assert.equal(slow.locomotion, base.locomotion,
       `rung ${idx}: a longer day must not slow walking down either`);
   }

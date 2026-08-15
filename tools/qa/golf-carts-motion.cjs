@@ -48,10 +48,10 @@ async function startNewProperty(page) {
 async function installRideFixture(page) {
   return page.evaluate(async () => {
     const app = window.__fw;
-    const reservations = await import('/src/sim/reservations.js');
-    const golf = await import('/src/sim/golfDay.js');
-    const time = await import('/src/sim/time.js');
-    const campaign = await import('/src/sim/campaign.js');
+    const reservations = await import(new URL('src/sim/reservations.js', document.baseURI).href);
+    const golf = await import(new URL('src/sim/golfDay.js', document.baseURI).href);
+    const time = await import(new URL('src/sim/time.js', document.baseURI).href);
+    const campaign = await import(new URL('src/sim/campaign.js', document.baseURI).href);
     campaign.disableCampaign(app.state);
     app.state.tutorial.complete = true;
     app.state.tutorial.hidden = true;
@@ -135,7 +135,7 @@ async function installRideFixture(page) {
 async function tickAndSample(page, fixture, localMinute) {
   await page.evaluate(async ({ dayAbs, minute }) => {
     const app = window.__fw;
-    const golf = await import('/src/sim/golfDay.js');
+    const golf = await import(new URL('src/sim/golfDay.js', document.baseURI).href);
     const absolute = dayAbs * 1440 + minute;
     app.state.clock.minutes = absolute;
     golf.golfDayTick(app.state, absolute);

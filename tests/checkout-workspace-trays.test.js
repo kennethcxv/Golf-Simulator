@@ -98,7 +98,7 @@ test('the replaceable checkout shell bakes without any task-surface tray batch',
   });
 
   assert.equal(bakes.length, 2,
-    'only the static return and the replaceable shell are baked — no tray batch');
+    'only the static return and the replaceable shell are baked - no tray batch');
   assert.ok(bakes.every((bake) => bake.parentAtBake === null),
     'batch sources remain outside the translated interior root');
   assert.ok(bakes.every((bake) => bake.options.visibleOnly === true));

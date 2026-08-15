@@ -122,7 +122,7 @@
   await page.waitForFunction(() => document.readyState === 'complete');
   await page.evaluate(async (seed) => {
     localStorage.clear();
-    const E = await import('/src/sim/empire.js');
+    const E = await import(new URL('src/sim/empire.js', document.baseURI).href);
     localStorage.setItem('golfempire:autosave', JSON.stringify(E.empireSnapshot(E.newStarterEmpire('relaxed', seed))));
   }, SEED);
   await page.reload({ waitUntil: 'domcontentloaded' });
@@ -167,7 +167,7 @@
   // correct; the wait was not. Polling both sides until they agree removes the
   // race, and the assertion below then means what it says.
   const simPowered = await page.evaluate(async () => {
-    const R = await import('/src/sim/clubhouseRestoration.js');
+    const R = await import(new URL('src/sim/clubhouseRestoration.js', document.baseURI).href);
     return R.ceilingCircuitPowered(window.__fw.state);
   });
   void powered;

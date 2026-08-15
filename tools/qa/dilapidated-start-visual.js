@@ -44,7 +44,7 @@ async (page) => {
   };
 
   const facts = await page.evaluate(async () => {
-    const { campaignRepairStatus, openingReadiness } = await import('/src/sim/campaign.js');
+    const { campaignRepairStatus, openingReadiness } = await import(new URL('src/sim/campaign.js', document.baseURI).href);
     const state = window.__fw.state;
     return {
       components: Object.fromEntries(Object.entries(state.shop.reno.architecture.components)

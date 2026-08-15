@@ -32,8 +32,8 @@ async (page) => {
     walk.pitch = -0.35;
   });
   const snapshot = () => page.evaluate(async () => {
-    const lifecycle = await import('/src/sim/inventoryLifecycle.js');
-    const delivery = await import('/src/sim/deliveries.js');
+    const lifecycle = await import(new URL('src/sim/inventoryLifecycle.js', document.baseURI).href);
+    const delivery = await import(new URL('src/sim/deliveries.js', document.baseURI).href);
     const app = window.__fw;
     const reconciliation = lifecycle.reconcileInventory(app.state, {
       qa: true,
@@ -86,8 +86,8 @@ async (page) => {
   await page.goto(baseUrl, { waitUntil: 'domcontentloaded' });
   await boot();
   const fixture = await page.evaluate(async () => {
-    const lifecycle = await import('/src/sim/inventoryLifecycle.js');
-    const delivery = await import('/src/sim/deliveries.js');
+    const lifecycle = await import(new URL('src/sim/inventoryLifecycle.js', document.baseURI).href);
+    const delivery = await import(new URL('src/sim/deliveries.js', document.baseURI).href);
     const app = window.__fw;
     app.state.cash = 250000;
     app.empire.cash = 250000;

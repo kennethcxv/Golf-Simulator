@@ -58,10 +58,15 @@ const EXPECT_INVISIBLE = new Map([
   ['97:Cylinder_1', 'keys behind the key-cabinet door; door opens'],
   // The door-gated shelf — same reveal family, called out by name in the brief.
   ['62:MESH_InternalShelf', 'builder marks it visible_when_door_open; behind the cabinet doors'],
-  // Deferred structural burials — real defects, recorded in ASSEMBLY_FIXES.md, waiting
-  // until after Phase 3 because 061 IS the reception counter Phase 3 may relocate.
-  ['61:MESH_StaffDivider', 'DEFERRED: buried in the solid CounterCarcass; staff-bay carve waits until after Phase 3 settles the counter'],
-  ['99:MESH_StandDrainTray', 'DEFERRED: sits inside a faked solid bore; no cavity exists to see into'],
+  // The two DEFERRED structural burials are GONE, fixed 2026-08-03 (B7):
+  //   61:MESH_StaffDivider  — the carcass was one solid slab filling the whole
+  //     volume. It is now panels AROUND an open staff bay: a solid drawer bank,
+  //     a customer-side wall, an end panel and a deck. Nothing moved toward the
+  //     +Y aisle, so staff_corridor_clear still holds by construction.
+  //   99:MESH_StandDrainTray — the hollow was faked TWICE, by a solid black
+  //     bore standing inside the wall and by a solid disc capping the top. Both
+  //     are real geometry now: the wall is bored past the tray's top face and
+  //     the rim is a ring.
   // Residual by geometry, not defect.
   ['71:MESH_VacHeadWheelL', 'genuine inboard caster: the drum flank owns the left wheel\'s whole viewing hemisphere'],
   // Pre-existing faked-cavity family, recorded in ASSEMBLY_FIXES.md, left alone.
@@ -72,7 +77,7 @@ const EXPECT_INVISIBLE = new Map([
 // exactly as buried as the StaffDivider but escapes the probe by z-fighting its own
 // coplanar rear face — a depth tie that must not be allowed to flake the suite.
 const TOLERATED = new Map([
-  ['61:MESH_StaffLowerShelf', 'buried; survives only by z-fighting its coplanar rear face — a depth-tie flip is not a regression'],
+  ['61:MESH_StaffLowerShelf', 'buried; survives only by z-fighting its coplanar rear face - a depth-tie flip is not a regression'],
 ]);
 
 // --- gates, pure over injected inputs so the teeth are themselves testable ---------
@@ -82,16 +87,16 @@ export function auditPartVisibility({ data, disk, expectInvisible, tolerated }) 
   for (const [file, info] of disk) {
     const swept = byFile.get(file);
     if (!swept) {
-      problems.push(`unswept: ${file} is on disk but absent from part-visibility.json — run: ${RERUN}`);
+      problems.push(`unswept: ${file} is on disk but absent from part-visibility.json - run: ${RERUN}`);
       continue;
     }
     if (swept.sha256 !== info.sha256) {
-      problems.push(`stale: ${file} changed since the sweep — run: ${RERUN}`);
+      problems.push(`stale: ${file} changed since the sweep - run: ${RERUN}`);
     }
   }
   for (const entry of data.results) {
     if (!disk.has(entry.file)) {
-      problems.push(`ghost: ${entry.file} is in part-visibility.json but no longer on disk — run: ${RERUN}`);
+      problems.push(`ghost: ${entry.file} is in part-visibility.json but no longer on disk - run: ${RERUN}`);
     }
   }
   for (const entry of data.results) {
@@ -100,7 +105,7 @@ export function auditPartVisibility({ data, disk, expectInvisible, tolerated }) 
       if (expectInvisible.has(key) || tolerated.has(key)) continue;
       problems.push(
         `buried: asset_${String(entry.n).padStart(3, '0')} part "${name}" renders zero pixels `
-        + `from all ${data.directions} directions — the 087 class. Fix the assembly, or `
+        + `from all ${data.directions} directions - the 087 class. Fix the assembly, or `
         + 'whitelist it in tests/proshop-part-visibility.test.js with a one-line reason.',
       );
     }
@@ -111,12 +116,12 @@ export function auditPartVisibility({ data, disk, expectInvisible, tolerated }) 
     const name = key.slice(split + 1);
     const entry = data.results.find((candidate) => candidate.n === n);
     if (!entry) {
-      problems.push(`whitelist rot: ${key} names an asset the sweep no longer contains — remove the entry`);
+      problems.push(`whitelist rot: ${key} names an asset the sweep no longer contains - remove the entry`);
       continue;
     }
     if (!entry.invisible.includes(name)) {
       problems.push(
-        `whitelist rot: ${key} is no longer invisible — the burial was fixed or the part `
+        `whitelist rot: ${key} is no longer invisible - the burial was fixed or the part `
         + 'renamed. Remove or update the entry so it cannot shield the next real defect.',
       );
     }
@@ -161,9 +166,9 @@ test('the whitelist cannot rot: every expected-invisible entry still matches the
 test('the sweep contract holds: 26 directions at 512^2 over the full population', () => {
   assert.equal(data.directions, 26);
   assert.equal(data.size, 512);
-  assert.ok(data.results.length >= 40, `population shrank to ${data.results.length} — the sweep must cover every asset >= 061`);
+  assert.ok(data.results.length >= 40, `population shrank to ${data.results.length} - the sweep must cover every asset >= 061`);
   for (const entry of data.results) {
-    assert.match(entry.sha256 || '', /^[0-9a-f]{64}$/, `asset_${entry.n} carries no sha256 — instrument predates the hash contract; run: ${RERUN}`);
+    assert.match(entry.sha256 || '', /^[0-9a-f]{64}$/, `asset_${entry.n} carries no sha256 - instrument predates the hash contract; run: ${RERUN}`);
   }
 });
 

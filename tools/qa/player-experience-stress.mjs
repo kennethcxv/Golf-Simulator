@@ -338,7 +338,7 @@ try {
 
   // Notification burst: cap, priority queue, dedupe count, and cleanup.
   result.stress.notifications = await page.evaluate(async () => {
-    const ui = await import('/src/ui/ui.js');
+    const ui = await import(new URL('src/ui/ui.js', document.baseURI).href);
     for (let index = 0; index < 70; index += 1) ui.notify({ message: 'Repeated stock update', category: 'low-stock', duration: 250, dedupeKey: 'qa-repeat' });
     for (let index = 0; index < 30; index += 1) ui.notify({ message: `QA burst ${index}`, category: index % 7 === 0 ? 'invalid' : 'info', duration: 80, dedupeKey: `qa-${index}` });
     await new Promise((resolve) => setTimeout(resolve, 20));

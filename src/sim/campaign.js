@@ -31,7 +31,7 @@ import {
 import {
   ensureLayout,
   fixtureById,
-  restoreFixture,
+  restoreAuthoredFixture,
   routesIntact,
 } from './layout.js';
 import {
@@ -339,7 +339,7 @@ function migrateFurnishedStart(state, campaign) {
   const facilities = ensureCampaignFacilities(state, { installed: true });
   for (const id of Object.keys(CAMPAIGN_FACILITIES)) facilities[id] = true;
   ensureLayout(state);
-  for (const id of FURNISHED_START_FIXTURES) restoreFixture(state, id);
+  for (const id of FURNISHED_START_FIXTURES) restoreAuthoredFixture(state, id);
   ensureCampaignRepairs(state, { restored: true });
   const architecture = ensureClubhouseArchitecture(state);
   for (const id of ARCHITECTURE_COMPONENTS) architecture.components[id].restored = true;
@@ -365,7 +365,7 @@ function seedFreshCampaignWorld(state) {
     finite(state.shop.inventory[CAMPAIGN_SKUS.repair].back),
   );
   ensureLayout(state);
-  for (const id of FURNISHED_START_FIXTURES) restoreFixture(state, id);
+  for (const id of FURNISHED_START_FIXTURES) restoreAuthoredFixture(state, id);
 
   ensureDebris(state);
   if (state.shop.reno.debris.length === 0 && !state.shop.reno.debrisSeeded) {
@@ -463,7 +463,7 @@ export function disableCampaign(state) {
   const facilities = ensureCampaignFacilities(state, { installed: true });
   for (const id of Object.keys(facilities)) facilities[id] = true;
   ensureCampaignRepairs(state, { restored: true });
-  for (const id of FURNISHED_START_FIXTURES) restoreFixture(state, id);
+  for (const id of FURNISHED_START_FIXTURES) restoreAuthoredFixture(state, id);
   return campaign;
 }
 
@@ -637,11 +637,11 @@ export function installCampaignFacility(state, id) {
   }
   facilities[id] = true;
   if (id === 'displayShelves') {
-    for (const fixtureId of ['shelf_balls', 'shelf_acc', 'shelf_small']) restoreFixture(state, fixtureId);
+    for (const fixtureId of ['shelf_balls', 'shelf_acc', 'shelf_small']) restoreAuthoredFixture(state, fixtureId);
   } else if (id === 'stockroomShelves') {
-    for (const fixtureId of ['backshelf_n', 'backshelf_e', 'backshelf_e2']) restoreFixture(state, fixtureId);
+    for (const fixtureId of ['backshelf_n', 'backshelf_e', 'backshelf_e2']) restoreAuthoredFixture(state, fixtureId);
   } else if (id === 'frontCounter') {
-    restoreFixture(state, 'backcounter');
+    restoreAuthoredFixture(state, 'backcounter');
   }
   return { ok: true, id, label: spec.label, consumedFrom: consumed.from };
 }
@@ -792,7 +792,7 @@ export function openingReadiness(state) {
     && finite(state.shop.reno.pan) <= 0.001
     && finite(state.shop.reno.bag) <= 0.001;
   const requirements = [
-    { id: 'furnished', label: 'Furnished workstations and displays available', ok: furnished, reason: 'Recover any missing authored workstation or display from storage.' },
+    { id: 'furnished', label: 'Furnished workstations and displays available', ok: furnished, reason: 'Bring any missing workstation or display back out of storage.' },
     { id: 'laptop', label: 'Pine Hills front-desk tee-sheet usable', ok: laptopReadiness(state).ready, reason: laptopReadiness(state).requirements.find((item) => !item.ok)?.reason || '' },
     { id: 'cleanup-details', label: 'Neglected clubhouse details cleaned', ok: !!restoration?.complete.discreteCleanup, reason: 'Clear each marked mess, scuff, cobweb, and disordered furnishing.' },
     { id: 'cleanup-systems', label: 'Floors, windows, clutter, and debris cleaned', ok: !!restoration?.complete.existingCleanupSystems, reason: 'Finish the floor, windows, general clutter, and loose-debris cleanup.' },
@@ -1034,7 +1034,7 @@ function objectiveList(state) {
       blocked: entered
         ? (ceilingCircuitPowered(state)
           ? null
-          : 'The ceiling circuit is dead — finish the office power and ceiling repair first.')
+          : 'The ceiling circuit is dead - finish the office power and ceiling repair first.')
         : 'Enter the clubhouse to inspect the ceiling panels.',
       tool: 'Ceiling light repair interaction',
       hint: ceilingCircuitPowered(state)
@@ -1127,14 +1127,27 @@ function phaseFor(state) {
   return 'setup';
 }
 
+// K (Goal 23) — THE PHASE IS A CHAPTER, NOT THE TASK AGAIN.
+//
+// "The task card is double-printed." It is not, structurally: one card, one
+// title, printed once (tools/qa/electron-k-hud-card.js reads the DOM). What it
+// IS, is the same instruction twice in different words, stacked -- the very
+// first thing a new player reads was
+//
+//   Inspect the furnished but neglected property     <- phase
+//   Survey the neglected property                    <- task
+//
+// A phase is the chapter you are in; the task is what to do next. When the
+// chapter restates the task the card wastes its most valuable line and reads as
+// a stutter, which is exactly what it looked like to someone seeing it cold.
 const PHASE_TITLES = Object.freeze({
-  arrival: 'Inspect the furnished but neglected property',
-  'restore-office': 'Inspect the clubhouse workstations',
+  arrival: 'Arriving at Pine Hills',
+  'restore-office': 'Getting the office running',
   repairs: 'Clean and repair the clubhouse',
-  setup: 'Organize and restock the pro shop',
-  'ready-to-open': 'Open for business',
-  'opening-day': 'Serve the first business day',
-  complete: 'Build on opening day',
+  setup: 'Stocking the shop',
+  'ready-to-open': 'Ready to open',
+  'opening-day': 'Opening day',
+  complete: 'Running the club',
 });
 
 export function campaignView(state) {
@@ -1167,6 +1180,15 @@ export function tickCampaign(state) {
   const result = { advanced: [], phaseChanged: null, firstDayCompleted: false };
   if (!campaign || !campaign.enabled) return result;
   const view = campaignView(state);
+  // A campaign tick and its immediate presentation consumers all describe the
+  // same state boundary. Preserve that derived snapshot as a non-enumerable
+  // hand-off so the HUD does not rebuild the full objective/readiness graph
+  // several more times in the same production frame. Keeping it non-enumerable
+  // preserves the long-standing serializable result shape.
+  Object.defineProperty(result, 'view', {
+    value: view,
+    enumerable: false,
+  });
   const known = new Set(campaign.completedObjectiveIds);
   for (const task of view.tasks) {
     if (!task.complete || known.has(task.id)) continue;
@@ -1288,17 +1310,17 @@ export function recoverAllCampaignItems(state) {
 export function recoverOpeningLayout(state) {
   const facilities = ensureCampaignFacilities(state);
   if (facilities.displayShelves) {
-    for (const id of ['shelf_balls', 'shelf_acc', 'shelf_small']) restoreFixture(state, id);
+    for (const id of ['shelf_balls', 'shelf_acc', 'shelf_small']) restoreAuthoredFixture(state, id);
   }
   if (facilities.stockroomShelves) {
-    for (const id of ['backshelf_n', 'backshelf_e', 'backshelf_e2']) restoreFixture(state, id);
+    for (const id of ['backshelf_n', 'backshelf_e', 'backshelf_e2']) restoreAuthoredFixture(state, id);
   }
-  if (facilities.frontCounter) restoreFixture(state, 'backcounter');
+  if (facilities.frontCounter) restoreAuthoredFixture(state, 'backcounter');
   if (routesIntact(state)) return { ok: true, reset: [] };
   const layout = ensureLayout(state);
   const reset = Object.keys(layout.moved);
   layout.moved = {};
   return routesIntact(state)
     ? { ok: true, reset }
-    : { ok: false, reset, reason: 'A non-movable object still blocks the authored safe layout. Move delivery cartons out of the marked clearways.' };
+    : { ok: false, reset, reason: 'Something that cannot be moved is still blocking a walkway. Move delivery cartons out of the marked clearways.' };
 }

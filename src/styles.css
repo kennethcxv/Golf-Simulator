@@ -182,7 +182,76 @@ canvas#game {
   transition: opacity 0.4s ease;
 }
 
-.load-veil-card { text-align: center; width: min(420px, 80vw); }
+/* E (Goal 21): a REAL PHOTOGRAPH of this club behind the card, a different one
+   every load. The slow push is what stops a still image reading as a frozen
+   game: barely perceptible frame to frame, unmistakable across a long wait. */
+.load-veil-plate {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background-position: center;
+  background-size: cover;
+  background-repeat: no-repeat;
+  pointer-events: none;
+  animation: load-plate-drift 26s ease-out both;
+  /* J (Goal 23): two layers cross-fade, so the plate changes without a pop.
+     The fade is long enough to read as a dissolve and short enough that a
+     six-second plate is mostly its own picture rather than a transition. */
+  opacity: 0;
+  transition: opacity 1.4s ease-in-out;
+}
+
+@keyframes load-plate-drift {
+  from { transform: scale(1.06) translate3d(0, 0, 0); }
+  to { transform: scale(1.13) translate3d(-1.1%, -0.8%, 0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .load-veil-plate { animation: none; transform: scale(1.06); }
+}
+
+/* The scrim is what makes the type legible over ANY plate, rather than tuning
+   each photograph until the text happens to land on something dark. Darkest
+   through the middle where the card sits, and along the bottom for the caption. */
+.load-veil-scrim {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(58% 46% at 50% 52%, rgba(8, 12, 9, 0.86) 0%, rgba(8, 12, 9, 0.55) 55%, rgba(8, 12, 9, 0.22) 100%),
+    linear-gradient(180deg, rgba(8, 12, 9, 0.55) 0%, rgba(8, 12, 9, 0.10) 30%, rgba(8, 12, 9, 0.20) 62%, rgba(8, 12, 9, 0.78) 100%);
+}
+
+/* where you are, bottom left, in the club's own voice */
+.load-veil-place {
+  position: absolute;
+  left: 26px;
+  bottom: 20px;
+  z-index: 1;
+  color: rgba(226, 235, 219, 0.74);
+  font: italic 500 0.74rem/1.4 Georgia, 'Times New Roman', serif;
+  letter-spacing: 0.02em;
+  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.75);
+  pointer-events: none;
+}
+
+.load-veil-card {
+  position: relative;
+  z-index: 1;
+  text-align: center;
+  width: min(560px, 84vw);
+}
+
+/* the club you are arriving at, named under the game's own name */
+.load-veil-club {
+  font-family: var(--font-brand);
+  font-size: 13px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #9fb394;
+  margin-bottom: 10px;
+}
 
 .load-veil-logo {
   font-family: var(--font-brand);
@@ -218,7 +287,7 @@ canvas#game {
   color: #aab5aa;
   font-size: 12px;
   line-height: 1.5;
-  max-width: 360px;
+  max-width: 470px;  /* I (Goal 20): the tips teach now, so they are longer */
 }
 
 button {
@@ -474,21 +543,32 @@ select:focus-visible,
 .shop-prompt {
   position: absolute;
   left: 50%;
-  bottom: 28px;
+  /* G2: THE PROMPT SAT ON TOP OF THE CONTROLS LINE.
+     .shop-lockhint is pinned at bottom:18px and stands about 33px tall once its
+     6px padding, border and line box are counted, so it occupies 18-51px. A
+     prompt at bottom:28px started INSIDE that band, and the [E] key chip drew
+     over the hint text - measured at 17x12px of overlap. Clearing the hint's top
+     with room to spare. */
+  bottom: 64px;
   transform: translateX(-50%);
   background: rgba(16, 23, 19, 0.9);
   border: 1px solid rgba(151, 174, 153, 0.42);
   border-radius: 10px;
   padding: 8px 13px;
-  transition: opacity 0.15s;
   max-width: min(680px, 78vw);
   text-align: center;
   color: var(--cream);
   font-size: 0.86rem;
   line-height: 1.4;
   box-shadow: 0 10px 28px rgba(0, 0, 0, 0.25);
+  opacity: 0.004;
+  contain: layout paint style;
+  isolation: isolate;
+  will-change: opacity;
 }
 
+.setting-keycap { min-width: 5.5em; font-variant-numeric: tabular-nums; }
+.setting-keycap.is-capturing { outline: 2px solid #b58a42; opacity: 0.85; }
 .prompt-key {
   display: inline-block;
   min-width: 1.65em;
@@ -550,6 +630,53 @@ select:focus-visible,
   border-radius: 8px;
   border: 1px solid var(--line);
   font-size: 0.86rem;
+  /* Keep this imperceptibly paintable so Chromium pre-rasters the layer before
+     the first doorway reveal instead of fencing the cold GPU queue there. */
+  opacity: 0.004;
+  pointer-events: none;
+  contain: layout paint style;
+  isolation: isolate;
+  transform: translateZ(0);
+  will-change: opacity;
+}
+
+/* GOAL 25 legibility — the line-is-stopped note. Sits under the condition chip,
+   same right rail, but warm rather than dim: it appears only when the player is
+   blocked and needs to be read, not lived with. */
+.shop-queue-note {
+  position: absolute;
+  top: 144px;
+  right: 12px;
+  max-width: min(420px, calc(100vw - 24px));
+  color: var(--text);
+  background: rgba(38, 28, 10, 0.88);
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid #b8892f;
+  font-size: 0.86rem;
+  line-height: 1.35;
+  text-align: right;
+  pointer-events: none;
+  /* Same prepainted-opacity-layer discipline as .shop-cond: a base above one
+     8-bit alpha step so the blend is exercised before the first doorway reveal,
+     never display:none, never a transition on opacity. */
+  opacity: 0.004;
+  contain: layout paint style;
+  isolation: isolate;
+  transform: translateZ(0);
+  will-change: opacity;
+}
+
+.shop-queue-note.is-visible {
+  opacity: 0.996;
+}
+
+.shop-cond.is-visible {
+  /* Stay on the translucent compositor path used by the prepainted state.
+     Exact 1 lets Chromium switch the layer to its opaque pipeline on the first
+     doorway reveal; 0.996 is visually indistinguishable but preserves the
+     already-warmed blend program. */
+  opacity: 0.996;
 }
 
 /* --- renovation / furniture placement -------------------------------------- */
@@ -1992,12 +2119,57 @@ button.build-swatch.selected { color: #fff; border-color: #d2b86f; box-shadow: 0
 
 /* Shared settings surface used by both menu and pause. */
 .settings-dialog { width: min(940px, 94vw); }
-.settings-shell { display: flex; flex-direction: column; min-height: 0; }
-.settings-tabs { display: flex; gap: 5px; padding-bottom: 10px; border-bottom: 1px solid #29312c; overflow-x: auto; }
-.settings-tab { flex: 1; min-width: 110px; background: transparent; border-color: transparent; color: var(--text-dim); padding: 8px 10px; }
+.settings-shell { display: flex; flex-direction: column; min-height: 0; flex: 1 1 auto; }
+/* D4 (Full_Goal_16): the SCROLLBAR belongs to the section that scrolls.
+   The hosts (.pause-content / .modal) used to own the bar, so it framed the
+   entire panel - tabs, title, footer - while only the page body moved.
+   While a settings shell is mounted, the host stops scrolling and
+   .settings-page takes the bar; the tab strip no longer needs its sticky
+   hack because it simply never moves. */
+.pause-content:has(.settings-shell) { overflow: hidden; }
+.modal:has(.settings-shell) { overflow: hidden; display: flex; flex-direction: column; }
+.modal:has(.settings-shell) .settings-shell { flex: 1 1 auto; }
+/* E1: THE NAV WRAPS, AND IT STAYS PUT.
+   Seven tabs at a 110px floor is 770px plus gaps in a panel narrower than that,
+   so `overflow-x: auto` gave every player a horizontal scroll bar under the
+   tabs. And the nav scrolled away with the page, so the Controls list - the
+   longest page in the panel - pushed it out of reach. Wrapping removes the
+   first; sticky removes the second. The background is opaque because a sticky
+   bar that shows the list sliding under it is worse than one that hides it. */
+.settings-tabs {
+  display: flex; flex-wrap: wrap; gap: 5px; padding: 2px 0 10px;
+  border-bottom: 1px solid #29312c;
+  position: sticky; top: 0; z-index: 3; background: var(--panel, #151b17);
+}
+.settings-tab {
+  flex: 1 1 auto; min-width: 88px; background: transparent; border-color: transparent;
+  color: var(--text-dim); padding: 8px 10px; white-space: nowrap;
+}
 .settings-tab.is-active { color: var(--cream); background: #213427; border-color: #3d6045; }
-.settings-page { padding-top: 9px; }
-.settings-group { display: flex; flex-direction: column; }
+/* E3 (Goal 17): the right padding was scrollbar clearance and the left was
+   never written, so every group, heading and row sat flush against the page's
+   left edge - measured at the shipped 2560x1370 window, ten elements at gapL 0
+   with gapR 8. One-sided padding is exactly the "controls flush to edges" class
+   E3 names, and Standing Invariant 4 says everything has margin. The reset row
+   the brief calls out by name was already fine at 191.7 px, which is how an
+   instance gets fixed and a family does not. */
+/* E2 (Goal 17): "The scrollbar is in the wrong place. It wraps the whole panel,
+   so it looks like the entire page scrolls when only the movement section does.
+   Put it inside the scrolling section and nowhere else."
+
+   Measured before changing anything (tools/qa/electron-e2-settings-scroll.js):
+   at 2560x1370 nothing in the panel scrolls at all — 0 of 54 elements — and at
+   1280x620 exactly one does: .settings-page, overflowing by 23 px, 831 px wide
+   inside an 831 px shell. A scroller whose width IS the panel's width is the
+   whole complaint; its bar can only render at the panel's edge.
+
+   So the page stops scrolling and the GROUPS do. In a flex column they shrink
+   from their natural height and each one that overflows carries its own bar,
+   inside the page's padding rather than at the panel edge — which is what "in
+   the scrolling section and nowhere else" asks for. Groups that fit are
+   untouched, so a short panel still shows no bars anywhere. */
+.settings-page { padding-top: 9px; overflow-y: hidden; min-height: 0; flex: 1 1 auto; display: flex; flex-direction: column; padding-left: 8px; padding-right: 8px; padding-bottom: 16px; }
+.settings-group { display: flex; flex-direction: column; min-height: 0; overflow-y: auto; }
 .settings-group-head { margin-bottom: 2px; }
 .settings-group-head h3 { margin: 0; color: var(--cream); font: 1.15rem Georgia, serif; text-transform: none; letter-spacing: 0; }
 .settings-group-head p { margin: 3px 0 8px; color: var(--text-dim); font-size: 0.76rem; line-height: 1.4; }
@@ -2013,6 +2185,22 @@ button.build-swatch.selected { color: #fff; border-color: #d2b86f; box-shadow: 0
 .setting-toggle.is-on { background: #285b3a; border-color: #477b53; color: #fff; }
 .setting-control select { min-width: 160px; }
 .setting-native-status { display: contents; }
+.settings-note { margin: 2px 2px 8px; color: #9aa79c; font-size: 0.74rem; line-height: 1.4; font-style: italic; }
+/* E4: the way back, on every page. Quiet until it is armed. */
+.settings-footer {
+  display: flex; align-items: center; justify-content: space-between; gap: 14px;
+  margin-top: 14px; padding-top: 11px; border-top: 1px solid #29312c;
+  /* D5: the reset row used to sit flush on the panel's bottom edge */
+  margin-bottom: 10px; padding-bottom: 6px;
+}
+.settings-footer .setting-description { margin: 0; flex: 1 1 auto; }
+.setting-reset { flex: 0 0 auto; background: transparent; border-color: #3a4740; color: var(--text-dim); }
+.setting-reset:hover { color: var(--cream); border-color: #5b7a63; }
+.setting-reset.is-confirming { background: #5a2b23; border-color: #8a4436; color: #ffe9e2; }
+/* E5: an action left without a key reads as a job, not as a rendering fault. */
+.keycap.is-unbound, .setting-keycap.is-unbound {
+  color: #e0a08e; border-color: #7a4438; background: #2a1c19; font-style: italic;
+}
 
 /* Reviews: what people said, and the factors they judged you on. The bar chart is the
    to-do list — whatever is red is the next job. */
@@ -2698,3 +2886,346 @@ body.register-mode .view-toggle { display: none !important; }
   white-space: nowrap;
   pointer-events: none;
 }
+
+/* H2: the autosave chip. Small, bottom-right, gone in under two seconds —
+   the save itself is the feature, this is just the proof it happened. */
+.hud-autosave {
+  position: fixed;
+  right: 16px;
+  bottom: 14px;
+  z-index: 60;
+  padding: 5px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  color: #dfe8d9;
+  background: rgba(20, 32, 24, 0.82);
+  border: 1px solid rgba(202, 174, 104, 0.35);
+  opacity: 0;
+  transform: translateY(6px);
+  transition: opacity 220ms ease, transform 220ms ease;
+  pointer-events: none;
+}
+.hud-autosave.show {
+  opacity: 1;
+  transform: none;
+}
+
+/* J2: the reveal's legend chips - the same colours the markers use, from the
+   same authority, naming what the held tool can shift. */
+.dirt-sense-media {
+  display: inline-flex;
+  gap: 10px;
+  margin-left: 10px;
+}
+.dirt-medium-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11.5px;
+  color: #e8e4d4;
+  white-space: nowrap;
+}
+.dirt-medium-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  box-shadow: 0 0 6px rgba(255, 255, 255, 0.25);
+}
+
+/* A4: the quality rebuild says what it is doing. Deliberately a small corner
+   label rather than a modal veil - Requirement 5 forbids taking control away,
+   and the player can keep looking around while it lands. */
+.quality-applying {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  z-index: 70;
+  padding: 10px 16px;
+  border-radius: 4px;
+  background: rgba(20, 26, 18, 0.92);
+  border: 1px solid #4b5a50;
+  color: #dfd8c2;
+  font: 14px/1.3 system-ui, sans-serif;
+  pointer-events: none;
+}
+
+/* --- the pocket phone (A1, Goal 19) ---------------------------------------- */
+
+.phone-dock {
+  position: absolute;
+  right: 20px;
+  bottom: 62px;
+  pointer-events: none;
+  z-index: 30;
+}
+.phone-dock.open { pointer-events: auto; }
+.phone-body {
+  width: 252px;
+  height: 456px;
+  border-radius: 22px;
+  background: linear-gradient(160deg, #171d19, #0c100d);
+  border: 1px solid rgba(190, 158, 92, 0.5);
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.55), inset 0 1px rgba(255, 255, 255, 0.06);
+  padding: 10px 10px 8px;
+  display: flex;
+  flex-direction: column;
+  transform: translateY(140%);
+  opacity: 0;
+  transition: transform 0.22s ease-out, opacity 0.18s ease-out;
+}
+.phone-body.up { transform: translateY(0); opacity: 1; }
+.phone-status {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  color: #cfc7ae;
+  font: 700 0.72rem/1.4 ui-monospace, Consolas, monospace;
+  padding: 2px 6px 6px;
+  border-bottom: 1px solid rgba(151, 174, 153, 0.22);
+}
+.phone-carrier { letter-spacing: 0.08em; font-size: 0.62rem; color: #97ae99; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 60%; }
+.phone-view { flex: 1; overflow: hidden auto; padding: 8px 4px; display: flex; flex-direction: column; gap: 6px; }
+.phone-footline {
+  color: #8b9a8d;
+  font-size: 0.62rem;
+  text-align: center;
+  padding-top: 5px;
+  border-top: 1px solid rgba(151, 174, 153, 0.18);
+}
+.phone-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 10px 6px; }
+.phone-appbtn {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 14px 6px 10px;
+  background: rgba(40, 49, 44, 0.85);
+  border: 1px solid rgba(151, 174, 153, 0.3);
+  border-radius: 14px;
+  color: #f3edda;
+  cursor: pointer;
+  font: 600 0.72rem/1.2 system-ui, sans-serif;
+}
+.phone-appbtn .phone-appglyph { font-size: 1.5rem; line-height: 1; }
+.phone-appbtn.focus, .phone-action.focus, .phone-back.focus {
+  outline: 2px solid #b58a42;
+  outline-offset: 1px;
+}
+.phone-badge {
+  position: absolute;
+  top: 6px;
+  right: 8px;
+  min-width: 1.35em;
+  padding: 0.06em 0.3em;
+  border-radius: 999px;
+  background: #a5372c;
+  color: #fff;
+  font: 700 0.62rem/1.5 system-ui, sans-serif;
+  text-align: center;
+}
+.phone-pocket { position: relative; }
+.phone-pocket .phone-badge { top: -7px; right: -8px; }
+.phone-apphead {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: #e9dcba;
+  font: 700 0.82rem/1.3 Georgia, serif;
+  padding: 0 4px 4px;
+}
+.phone-back {
+  background: rgba(40, 49, 44, 0.85);
+  border: 1px solid rgba(151, 174, 153, 0.3);
+  border-radius: 8px;
+  color: #cfc7ae;
+  font-size: 0.66rem;
+  padding: 3px 9px;
+  cursor: pointer;
+}
+.phone-list { display: flex; flex-direction: column; gap: 5px; }
+.phone-row {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  background: rgba(24, 31, 26, 0.85);
+  border: 1px solid rgba(151, 174, 153, 0.16);
+  border-radius: 10px;
+  padding: 7px 9px;
+}
+.phone-row-glyph { font-size: 0.86rem; line-height: 1.3; }
+.phone-row-glyph.bad { color: #d4645a; }
+.phone-row-glyph.good { color: #7fb069; }
+.phone-row-glyph.dim { color: #8b9a8d; }
+.phone-row-body { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.phone-row-name { color: #f3edda; font: 600 0.76rem/1.3 system-ui, sans-serif; }
+.phone-row-sub { color: #a9b4a6; font-size: 0.66rem; line-height: 1.35; }
+.phone-row-when { color: #77857a; font-size: 0.6rem; }
+/* C2 (Goal 20): a missed call you can act on is a BUTTON, so the shell's own
+   arrow-key focus finds it. It must be indistinguishable from the plain rows
+   around it until it is focused — a phone log is not a form. */
+button.phone-row {
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+button.phone-row.focus {
+  border-color: rgba(191, 214, 176, 0.55);
+  background: rgba(38, 50, 40, 0.95);
+}
+.phone-row-action {
+  color: #bfd6b0;
+  font: 600 0.62rem/1.4 system-ui, sans-serif;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  margin-top: 2px;
+}
+.phone-row-voicemail {
+  color: #ded7c0;
+  font: italic 0.66rem/1.4 Georgia, 'Times New Roman', serif;
+  margin-top: 3px;
+  padding-left: 7px;
+  border-left: 2px solid rgba(191, 214, 176, 0.35);
+}
+.phone-row-note { color: #e6c98a; font-size: 0.63rem; line-height: 1.4; margin-top: 3px; }
+.phone-empty { color: #8b9a8d; text-align: center; font-size: 0.72rem; padding: 26px 8px; }
+.phone-incoming-label {
+  text-align: center;
+  color: #b58a42;
+  font: 700 0.66rem/1.3 system-ui, sans-serif;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  padding-top: 14px;
+}
+.phone-caller { text-align: center; color: #f7f2e6; font: 700 1.12rem/1.3 Georgia, serif; padding: 4px 6px 0; }
+.phone-callwant { text-align: center; color: #cfc7ae; font-size: 0.72rem; padding: 2px 8px 12px; }
+.phone-actions { display: flex; flex-direction: column; gap: 8px; padding: 4px 10px; }
+.phone-action {
+  background: rgba(40, 49, 44, 0.9);
+  border: 1px solid rgba(151, 174, 153, 0.32);
+  border-radius: 10px;
+  color: #f3edda;
+  font: 600 0.78rem/1.4 system-ui, sans-serif;
+  padding: 9px 10px;
+  cursor: pointer;
+}
+.phone-action.good { border-color: rgba(127, 176, 105, 0.6); color: #cfe6c2; }
+.phone-action.bad { border-color: rgba(212, 100, 90, 0.55); color: #eec5c0; }
+.phone-action.dim { color: #a9b4a6; }
+.phone-card {
+  margin: auto 10px;
+  text-align: center;
+  color: #f3edda;
+  background: rgba(40, 49, 44, 0.9);
+  border: 1px solid rgba(190, 158, 92, 0.4);
+  border-radius: 12px;
+  padding: 18px 12px;
+  font: 600 0.8rem/1.5 system-ui, sans-serif;
+}
+.phone-pocket {
+  position: absolute;
+  right: 2px;
+  bottom: -44px;
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  color: #cfc7ae;
+  background: rgba(14, 20, 16, 0.86);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 5px 10px;
+  font-size: 0.72rem;
+  pointer-events: none;
+}
+.phone-pocket-key {
+  display: inline-block;
+  min-width: 1.5em;
+  padding: 0.04em 0.34em;
+  border: 1px solid #66766b;
+  border-bottom-width: 2px;
+  border-radius: 5px;
+  background: #28312c;
+  color: #f7f2e6;
+  font: 700 0.68rem/1.4 ui-monospace, Consolas, monospace;
+  text-align: center;
+}
+
+/* --- laptop Mail page (A2, Goal 19) ---------------------------------------- */
+
+.lt-mail { display: flex; gap: 14px; align-items: stretch; min-height: 340px; }
+.lt-maillist {
+  width: 40%;
+  min-width: 230px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  overflow-y: auto;
+  max-height: 430px;
+}
+.lt-mailrow {
+  display: flex;
+  gap: 9px;
+  align-items: flex-start;
+  text-align: left;
+  background: #fff;
+  border: 1px solid #e3e1d8;
+  border-radius: 10px;
+  padding: 9px 11px;
+  cursor: pointer;
+  font: inherit;
+}
+.lt-mailrow:hover { border-color: #b9c6cf; }
+.lt-mailrow.sel { border-color: #4c7ea8; box-shadow: 0 0 0 1px #4c7ea8 inset; }
+.lt-maildot {
+  width: 8px;
+  height: 8px;
+  margin-top: 6px;
+  border-radius: 50%;
+  background: #4c7ea8;
+  flex: none;
+}
+.lt-mailrow:not(.unread) .lt-maildot, .lt-maildot.read { background: #d8d5ca; }
+.lt-mailmeta { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.lt-mailfrom { font-weight: 700; font-size: 0.82em; color: #2c3238; }
+.lt-mailrow.unread .lt-mailfrom { color: #14384f; }
+.lt-mailsubj { font-size: 0.78em; color: #4a5157; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 240px; }
+.lt-mailwhen { font-size: 0.68em; color: #8b9096; }
+.lt-mailread {
+  flex: 1;
+  background: #fff;
+  border: 1px solid #e3e1d8;
+  border-radius: 12px;
+  padding: 16px 18px;
+  overflow-y: auto;
+  max-height: 430px;
+}
+.lt-mailbody { margin-top: 12px; font-size: 0.86em; line-height: 1.55; color: #33393f; }
+.lt-mailbody p { margin: 0 0 10px; }
+.lt-mailquote { font-style: italic; color: #4a5157; border-left: 3px solid #d8d5ca; padding-left: 10px; }
+.lt-mailstatus { margin-top: 6px; }
+.lt-mailalts { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 8px; }
+
+/* --- F1 (Goal 19): every scrolling surface wears the game's own scrollbar --
+   The native OS bar (Image 8) read as a foreign object flush against the
+   pane's top edge. One global treatment in the game palette: slim rounded
+   thumb, transparent track with breathing room at both ends so the bar never
+   touches an edge. The laptop's light surfaces get their own quiet variant. */
+*::-webkit-scrollbar { width: 10px; height: 10px; }
+*::-webkit-scrollbar-track { background: transparent; margin: 10px 4px; }
+*::-webkit-scrollbar-thumb {
+  background: #5c6c61;
+  border-radius: 8px;
+  border: 2px solid rgba(14, 20, 16, 0.55);
+  background-clip: padding-box;
+}
+*::-webkit-scrollbar-thumb:hover { background: #97ae99; }
+*::-webkit-scrollbar-corner { background: transparent; }
+.lt-frame *::-webkit-scrollbar-thumb {
+  background: #c8cbc2;
+  border: 2px solid rgba(255, 255, 255, 0.7);
+  background-clip: padding-box;
+}
+.lt-frame *::-webkit-scrollbar-thumb:hover { background: #9aa79b; }

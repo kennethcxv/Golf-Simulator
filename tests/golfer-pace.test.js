@@ -36,18 +36,29 @@ test('on the shipped balance, the default rung reads at the authored rates', () 
   assert.ok(Math.abs(cart - 105 / 60) < 1e-9, `cart reads ${cart.toFixed(3)} yd/s`);
 });
 
-test('fast-forward moves bodies up to the cap and no further', () => {
-  for (const rung of [1, 2, 4]) {
-    const foot = wallRate(58, rung, BALANCE);
-    assert.ok(Math.abs(foot - (58 / 60) * rung) < 1e-9,
-      `rung ${rung}: bodies follow fast-forward below the cap (got ${foot.toFixed(3)})`);
+test('A3: one running speed, and legacy rungs cannot re-price a route', () => {
+  // The ladder above 1x is deleted (Full_Goal_16 A3): the game clock only
+  // ever advances at rung 1, so the body pin is the 1x wall rate — and
+  // saves that still CARRY old speedRung values (2/4/16) must not change
+  // route pricing, or a legacy save walks ghosts until the first frame
+  // overwrites it. (wallRate's rung parameter models the old clock and is
+  // a counterfactual above 1 now; pricing inertness is asserted on
+  // golferPaceScale directly.)
+  const foot = wallRate(58, 1, BALANCE);
+  assert.ok(Math.abs(foot - 58 / 60) < 1e-9,
+    `1x wall rate reads ${foot.toFixed(3)} yd/s, expected ${(58 / 60).toFixed(3)}`);
+  for (const rung of [2, 4, 16]) {
+    assert.ok(
+      Math.abs(golferPaceScale(rung, BALANCE) - golferPaceScale(1, BALANCE)) < 1e-12,
+      `legacy rung ${rung} must price routes exactly like 1x`,
+    );
   }
-  const at16 = wallRate(58, 16, BALANCE);
-  assert.ok(Math.abs(at16 - (58 / 60) * GOLFER_LOCOMOTION_SPEED_CAP) < 1e-9,
-    `rung 16 is capped at x${GOLFER_LOCOMOTION_SPEED_CAP} (got ${(at16 / (58 / 60)).toFixed(2)}x)`);
+  // the historical cap symbol survives for documentation; it must never
+  // matter again
+  assert.ok(GOLFER_LOCOMOTION_SPEED_CAP >= 1);
 });
 
-test('a doctored day length cannot move the wall rate — the shopper-split control', () => {
+test('a doctored day length cannot move the wall rate - the shopper-split control', () => {
   // The exact control the locomotion pin uses: change ONLY the day length and
   // prove the body's wall speed does not move. If pace read the compression
   // wrong, this is where it shows.

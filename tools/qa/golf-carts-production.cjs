@@ -46,8 +46,8 @@ async function startNewProperty(page) {
 async function installFixture(page) {
   return page.evaluate(async () => {
     const app = window.__fw;
-    const { ensureGolfDay } = await import('/src/sim/golfDay.js');
-    const { disableCampaign } = await import('/src/sim/campaign.js');
+    const { ensureGolfDay } = await import(new URL('src/sim/golfDay.js', document.baseURI).href);
+    const { disableCampaign } = await import(new URL('src/sim/campaign.js', document.baseURI).href);
     disableCampaign(app.state);
     const day = ensureGolfDay(app.state);
     app.state.cash = 250000;
@@ -254,7 +254,7 @@ async function openPhysicalLaptop(page) {
   for (const offset of candidates) {
     focused = await page.evaluate(async ([offsetX, offsetZ]) => {
       const app = window.__fw;
-      const { FRONT_DESK } = await import('/src/data/shopLayout.js');
+      const { FRONT_DESK } = await import(new URL('src/data/shopLayout.js', document.baseURI).href);
       const origin = app.scene3d.clubhouse().interior.position;
       const targetX = origin.x + FRONT_DESK.laptop.x;
       const targetZ = origin.z + FRONT_DESK.laptop.z;
@@ -333,7 +333,7 @@ async function fleetUiDiagnostics(page) {
 
 async function saveRoundTrip(page) {
   return page.evaluate(async () => {
-    const { serialize, deserialize } = await import('/src/sim/state.js');
+    const { serialize, deserialize } = await import(new URL('src/sim/state.js', document.baseURI).href);
     const before = window.__fw.state.golfDay.carts.map((cart) => ({
       id: cart.id,
       tierId: cart.tierId,

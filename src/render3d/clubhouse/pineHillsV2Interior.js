@@ -284,20 +284,25 @@ export function createPineHillsV2Interior({
     slab.receiveShadow = true;
     deskRoot.add(slab);
 
-    const returnSpan = FRONT_DESK_FRAME.returnStaffExtent - depthHalf;
-    const returnCentre = frontDeskPoint(
-      -frontHalf + FRONT_DESK_FRAME.returnCollisionWidth / 2,
-      depthHalf + returnSpan / 2,
-    );
-    const returnRun = new THREE.Mesh(
-      box(FRONT_DESK_FRAME.returnCollisionWidth, COUNTER_TOP, returnSpan), grey,
-    );
-    returnRun.name = 'GREY_frontCounterReturn';
-    returnRun.position.set(returnCentre.x, COUNTER_TOP / 2, returnCentre.z);
-    returnRun.rotation.y = FRONT_DESK_FRAME.ry;
-    deskRoot.add(returnRun);
     greyStaticRoots.set(slab.name, slab);
-    greyStaticRoots.set(returnRun.name, returnRun);
+    // C5: no return leg under pine-hills-v2 — this slab was the west wall of the
+    // pocket that made the till unreachable. A non-positive span means the desk
+    // is an I and its near end is the staff pass-through.
+    const returnSpan = FRONT_DESK_FRAME.returnStaffExtent - depthHalf;
+    if (returnSpan > 0.01) {
+      const returnCentre = frontDeskPoint(
+        -frontHalf + FRONT_DESK_FRAME.returnCollisionWidth / 2,
+        depthHalf + returnSpan / 2,
+      );
+      const returnRun = new THREE.Mesh(
+        box(FRONT_DESK_FRAME.returnCollisionWidth, COUNTER_TOP, returnSpan), grey,
+      );
+      returnRun.name = 'GREY_frontCounterReturn';
+      returnRun.position.set(returnCentre.x, COUNTER_TOP / 2, returnCentre.z);
+      returnRun.rotation.y = FRONT_DESK_FRAME.ry;
+      deskRoot.add(returnRun);
+      greyStaticRoots.set(returnRun.name, returnRun);
+    }
   }
 
   // Wall boards: grey panels on the real wall plane at the frame-local x positions.
@@ -464,12 +469,12 @@ export function createPineHillsV2Interior({
     // The west seal: cabinet-height fillets closing the Z-channel behind the
     // return (see the layout's corridorWestSeal note). Cabinetry: medium
     // walnut, grain up the panel.
+    // Driven off the layout's own key set rather than a hand-listed three, so
+    // deleting a fillet (C5 removed returnBackFill to open the staff pass-
+    // through) takes its geometry with it instead of throwing on a missing rect.
     const westSeal = PINE_HILLS_V2_LAYOUT.corridorWestSeal;
-    for (const [name, rect] of [
-      ['GREY_ReturnBackFill', westSeal.returnBackFill],
-      ['GREY_HutchGapFill', westSeal.hutchGapFill],
-      ['GREY_HutchEastFill', westSeal.hutchEastFill],
-    ]) {
+    const fillName = (key) => `GREY_${key.charAt(0).toUpperCase()}${key.slice(1)}`;
+    for (const [name, rect] of Object.entries(westSeal).map(([k, v]) => [fillName(k), v])) {
       // Size the repeat to the LARGEST face the piece presents, not to its x
       // extent: the hutch-east sliver is 0.20 wide by 0.60 deep and the
       // corridor sees its depth face, so keying off the width under-supplied
@@ -663,7 +668,7 @@ export function createPineHillsV2Interior({
       ...pose,
       r: pose.radius,
       label: () => restorationSnapshot(state)?.targetProgress[targetId] < 1
-        ? `${verb[0].toUpperCase()}${verb.slice(1)} — [E]`
+        ? `${verb[0].toUpperCase()}${verb.slice(1)} - [E]`
         : null,
       action: () => completeTarget(targetId),
     });
@@ -750,12 +755,12 @@ export function createPineHillsV2Interior({
           const progress = restorationSnapshot(state)?.componentRepairProgress?.[site.id] || 0;
           const percent = progress > 0 ? ` (${Math.round(progress * 100)}%)` : '';
           return units > 0
-            ? `${siteLabel} — hold [E] to repair${percent} · ${units} repair components ready`
-            : `${siteLabel} — bring repair components to fix${percent}`;
+            ? `${siteLabel} - hold [E] to repair${percent} · ${units} repair components ready`
+            : `${siteLabel} - bring repair components to fix${percent}`;
         }
         const next = nextFinishOf(component);
         const nextLabel = ARCHITECTURE_FINISH_LABELS[next] || next;
-        return `${siteLabel} — [E] refinish: ${nextLabel} ($${ARCHITECTURE_PAINT_COSTS[site.id]})`;
+        return `${siteLabel} - [E] refinish: ${nextLabel} ($${ARCHITECTURE_PAINT_COSTS[site.id]})`;
       },
       hold: (dt) => {
         if (state.campaign?.enabled) return;
@@ -797,7 +802,7 @@ export function createPineHillsV2Interior({
     r: 1.55,
     aimY: 1.64,
     focusBias: 2.25,
-    label: () => 'Today\'s tee-time board — [E] open reservations',
+    label: () => 'Today\'s tee-time board - [E] open reservations',
     action: () => hooks.openLaptop?.('reservations'),
   });
 

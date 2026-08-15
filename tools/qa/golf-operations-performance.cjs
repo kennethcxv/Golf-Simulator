@@ -64,8 +64,8 @@ async function main() {
     await page.waitForTimeout(2000);
     const fixture = await page.evaluate(async () => {
       const app = window.__fw;
-      const reservations = await import('/src/sim/reservations.js');
-      const { calendarOf } = await import('/src/sim/time.js');
+      const reservations = await import(new URL('src/sim/reservations.js', document.baseURI).href);
+      const { calendarOf } = await import(new URL('src/sim/time.js', document.baseURI).href);
       const cal = calendarOf(app.state.clock.minutes);
       reservations.initReservations(app.state);
       const created = [600, 630, 660].map((minute, index) => reservations.bookSlot(

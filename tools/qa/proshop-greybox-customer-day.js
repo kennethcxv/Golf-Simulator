@@ -99,11 +99,17 @@
   // tests/proshop-churn-exemption.test.js fails if that file says FIXED while
   // this list still carries the ID (and vice versa). An exemption cannot
   // outlive the thing it excuses by accident.
-  const DEFECT_EXEMPTIONS = Object.freeze([Object.freeze({
-    id: 'NAV-WAIT-001',
-    reason: 'NPCs have nowhere to wait for an occupied browse stand',
-    expiresWhenFixed: true,
-  })]);
+  // EMPTY, and that is the point. NAV-WAIT-001 was the only entry this list
+  // ever carried; it was fixed 2026-08-02 (browse stands got an occupancy claim
+  // and spaced hold points) and its waiver was deleted in the same commit that
+  // flipped the status, which is the pairing this file's header promises.
+  // Measured on the same instrument, window and speed as the signature it was
+  // filed against: 95 episodes to 0 (neglected) and 82 to 1 (restored), and the
+  // one survivor is judged rather than waived. Nothing in this room is exempt
+  // from the cap or the floor now. An entry added here is a debt, not a
+  // setting: file the defect first, keep attribution narrow, and expect the
+  // suite to force its removal the day the defect closes.
+  const DEFECT_EXEMPTIONS = Object.freeze([]);
   const EXEMPT_IDS = new Set(DEFECT_EXEMPTIONS.map((d) => d.id));
   // Attribution is deliberately narrow. A walker qualifies only if it is
   // BLOCKED IN THE APPROACH TO A STAND SOMEONE ELSE IS STANDING AT, for
@@ -126,7 +132,7 @@
   await page.waitForTimeout(600);
   await page.evaluate(async (seed) => {
     localStorage.clear();
-    const E = await import('/src/sim/empire.js');
+    const E = await import(new URL('src/sim/empire.js', document.baseURI).href);
     const empire = E.newStarterEmpire('relaxed', seed);
     localStorage.setItem('golfempire:autosave', JSON.stringify(E.empireSnapshot(empire)));
   }, SEED);
@@ -151,7 +157,7 @@
     // only a center genuinely inside the sealed volume does.
     let zones = [];
     if (cfg.isV2) {
-      const L = await import('/src/data/shopLayout.js');
+      const L = await import(new URL('src/data/shopLayout.js', document.baseURI).href);
       const V2 = L.PINE_HILLS_V2_LAYOUT;
       const seal = V2.corridorSeal;
       const west = V2.corridorWestSeal;
@@ -159,7 +165,13 @@
       zones = [
         // The sealed staff corridor: behind the desk's staff edge, west of the
         // partition line, down to the return/hutch back band.
-        { name: 'staff-corridor', ...inset({ minX: west.returnBackFill.minX, maxX: V2.publicBounds.maxX, minZ: seal.zTo, maxZ: west.returnBackFill.maxZ }, 0.15) },
+        // C5 (2026-08-04) opened the desk's west end as the staff pass-through,
+        // so the corridor is no longer customer-forbidden by construction and
+        // returnBackFill no longer exists. The zone now starts at the hutch-gap
+        // fillet's west face, which is still the first thing a customer has no
+        // business being behind, and the pass-through column itself is legal
+        // floor for anybody.
+        { name: 'staff-corridor', ...inset({ minX: west.hutchGapFill.minX, maxX: V2.publicBounds.maxX, minZ: seal.zTo, maxZ: west.hutchGapFill.maxZ }, 0.15) },
         // East of the public bound = the service wing. 5.60 is the partition
         // band's west face; a customer center past it is inside or beyond the
         // partition line (the staff mouth included â€” no customer path exists
@@ -169,7 +181,6 @@
         { name: 'service-wing', minX: 5.60, maxX: V2.publicBounds.maxX + 6, minZ: seal.zFrom, maxZ: V2.publicBounds.maxZ + V2.wallT },
         // Sealed slabs â€” inside any of these means the walker pierced a solid.
         { name: 'seal-east-stub', ...inset({ minX: seal.x - seal.t / 2, maxX: seal.x + seal.t / 2, minZ: seal.zFrom, maxZ: seal.zTo }, 0.02) },
-        { name: 'seal-return-back', ...inset(west.returnBackFill, 0.05) },
         { name: 'seal-hutch-gap', ...inset(west.hutchGapFill, 0.05) },
         { name: 'seal-hutch-east', ...inset(west.hutchEastFill, 0.05) },
       ];
@@ -207,6 +218,12 @@
     // stand, it stalled inside that stand's approach (not at it, not across the
     // room), and another body held the stand for essentially the whole episode.
     // Anything short of that is an unattributed block and still faces the cap.
+    //
+    // DORMANT since 2026-08-02: DEFECT_EXEMPTIONS is empty, so the first line
+    // below returns null for every episode and nothing is waived. It is kept,
+    // not deleted, because it is the worked example of what a narrow waiver has
+    // to look like — the next one that is ever proposed should have to match
+    // this shape rather than reinvent a looser one.
     const attribute = (epi, samples, occupied) => {
       if (!cfg.exemptIds.includes('NAV-WAIT-001')) return null;
       if (!epi.fixtureId || !Number.isFinite(epi.stopX)) return null;
@@ -489,7 +506,7 @@
   const restoreAll = async () => {
     await page.evaluate(async () => {
       const app = window.__fw;
-      const R = await import('/src/sim/clubhouseRestoration.js');
+      const R = await import(new URL('src/sim/clubhouseRestoration.js', document.baseURI).href);
       const snapshot = R.restorationSnapshot(app.state);
       for (const targetId of Object.keys(snapshot?.targetProgress || {})) {
         R.restorationAction(app.state, { type: 'set-target-progress', targetId, progress: 1 });

@@ -98,7 +98,7 @@ test('the framing solver can pin the eye height and solve only the standoff', ()
   assert.match(solver, /framingBackFlat/, 'the standoff walked under the constraint is horizontal');
   const solved = functionBody('derivedWorkingPose');
   assert.match(solved, /eyeY: interior\.position\.y \+ CHECKOUT_WORKING_EYE_Y/,
-    'the working frame uses it — poses are interior-local, the solve is world');
+    'the working frame uses it - poses are interior-local, the solve is world');
 });
 
 test('the working frame stops asking to contain the customer\'s head', () => {
@@ -187,7 +187,7 @@ test('the carrier is authored on its face with its mouth down-counter', () => {
   // The model's +Y is its mouth, +Z its printed front face, +X its width.
   const mouth = axis(0, 1, 0);
   const face = axis(0, 0, 1);
-  assert.ok(face.y > 0.999, 'the printed face turns UP — the bag lies on its front');
+  assert.ok(face.y > 0.999, 'the printed face turns UP - the bag lies on its front');
   assert.ok(Math.abs(mouth.y) < 0.001, 'the mouth points along the counter, not at the ceiling');
   // Desk-local +x is where the staged goods are; the mouth must aim at them.
   // frontDeskLocalPoint takes a world POINT, so offset the direction by the
@@ -277,7 +277,9 @@ test('the interior reads as a cavity and the front of the bag is real paper', ()
   assert.match(style, /liner/, 'the authored liner is darkened so the mouth reads as an opening');
   assert.match(source, /const BAG_LINER_COLOR = 0x[0-9a-f]{6}/);
   const liner = Number.parseInt(source.match(/const BAG_LINER_COLOR = (0x[0-9a-f]{6})/)[1], 16);
-  const kraft = 0xc09a65;
+  // read the kraft from the styler rather than restating it — the paper was
+  // warmed in round 10 and a literal here would have gone quietly stale
+  const kraft = Number.parseInt(style.match(/liner \? BAG_LINER_COLOR : (0x[0-9a-f]{6})/)[1], 16);
   const luma = (hex) => ((hex >> 16) & 255) * 0.3 + ((hex >> 8) & 255) * 0.59 + (hex & 255) * 0.11;
   assert.ok(luma(liner) < luma(kraft) * 0.6, 'the cavity is clearly darker than the paper around it');
   assert.match(style, /styled\.map = null/,
@@ -292,5 +294,5 @@ test('the interior reads as a cavity and the front of the bag is real paper', ()
 test('a bag lifted to the customer is righted from its resting pose, not snapped', () => {
   const delivery = functionBody('updateDelivery');
   assert.match(delivery, /bagGroup\.quaternion\.copy\(bagCounterQuaternion\(\)\)\s*\n\s*\.slerp\(/,
-    'the handoff interpolates FROM the laid pose — identity would snap it upright');
+    'the handoff interpolates FROM the laid pose - identity would snap it upright');
 });

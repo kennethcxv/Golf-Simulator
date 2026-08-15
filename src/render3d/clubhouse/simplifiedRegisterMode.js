@@ -8,6 +8,9 @@
 // simulator reference and keep the shared counter readable.
 
 import * as THREE from 'three';
+import { PAYMENT_CARDS, DEFAULT_PAYMENT_CARD, paymentCardFor } from '../../data/paymentCards.js';
+import { t } from '../../core/i18n.js';
+import { reportFault } from '../../core/faultGuard.js';
 import {
   FRONT_DESK_FRAME, REGISTER, COUNTER, COUNTER_TOP,
   frontDeskLocalPoint, frontDeskPoint, frontDeskVector, queueSlot,
@@ -26,35 +29,36 @@ import {
   printReceipt, takeReceipt, packReceipt, bagItem, allBagged,
   handOverGoods, completeSale, voidTx, newDrawer, migrateDrawer, drawerContents,
   stackTotal, makeChange, makeChangeFrom, segmentHitsBox, netOf, taxOf,
+  goodsLinesOf,
 } from '../../sim/register.js';
 import { salesTaxRate, taxJurisdictionLabel } from '../../sim/salesTax.js';
 import {
   createCheckoutFlow, transitionCheckout, checkoutStateTimedOut,
-  recoverTimedOutCheckout, resumeCheckout,
+  recoverTimedOutCheckout, resumeCheckout, abandonCheckoutRecovery,
 } from '../../sim/registerFlow.js';
 import {
   checkoutAnimationDelta, checkoutMonitorAccessibility, checkoutPreferences,
   shouldAutoConfirmExactChange,
 } from '../../sim/checkoutPreferences.js';
-import { dueForCheckIn, fmtSlot } from '../../sim/reservations.js';
+import { dueForCheckIn, fmtSlot, daySheet } from '../../sim/reservations.js';
 import {
-  createReservationCheckInTx, finalizeReservationCheckIn,
+  createReservationCheckInTx, finalizeReservationCheckIn, attachGreenFeeToTx,
 } from '../../sim/reservationCheckIn.js';
-import { BARCODE_MSG, barcodeFor, judgeBarcodeRead } from '../../sim/barcode.js';
+import { barcodeFor } from '../../sim/barcode.js';
 import { createRegisterItemResources } from './registerItemResources.js';
 import {
   buildCatalogProductProxy, catalogCheckoutLayout,
 } from './catalogProductVisual.js';
-import {
-  barcodeBits, CHECKOUT_SCAN_TARGET,
-  scanChoreographyAt, scanDuration, scannerReadFacts,
-} from './checkoutScanPresentation.js';
 import {
   changeBundleLayout, changeHandoffPoint, customerCardPoint,
   presentedTenderLayout, selectedChangeLayout as physicalChangeLayout,
 } from './checkoutPaymentPresentation.js';
 import { makeCashierHands } from './cashierHands.js';
 import { createFrontDeskMonitorUi } from './frontDeskMonitorUi.js';
+import {
+  createPaidBagResourceLedger, paidBagAttachedToCustomer, retainedPaidBagDisposalStatus,
+  retryRetainedPaidBagDisposals, salvagePaidBagToCustomer,
+} from './customerPaidBag.js';
 import {
   billFit, billLayout, clipFillRatio, coinLayout,
 } from './drawerMoneyLayout.js';
@@ -110,6 +114,65 @@ export const CHECKOUT_DISPLAY_BRAND_PRESENTATION = Object.freeze({
 });
 const DEFAULT_DISPLAY_BRAND = CHECKOUT_DISPLAY_BRAND_PRESENTATION.defaultClubName;
 
+export function runCheckoutCleanupSteps(steps) {
+  const failures = [];
+  for (const step of steps || []) {
+    const stage = String(step?.stage || 'checkout-cleanup');
+    try {
+      step?.run?.();
+    } catch (error) {
+      failures.push({ stage, error });
+    }
+  }
+  return failures;
+}
+
+export function runPaidCustomerAuthoritativeRelease({
+  actorRelease = null,
+  bridgeRelease = null,
+  attempt = null,
+} = {}) {
+  const safeAttempt = typeof attempt === 'function'
+    ? attempt
+    : (stage, operation) => {
+      try {
+        return { ok: true, value: operation(), stage };
+      } catch (error) {
+        return { ok: false, error, stage };
+      }
+    };
+  const invoke = (stage, operation) => {
+    if (typeof operation !== 'function') {
+      return { ok: false, value: false, missing: true, stage };
+    }
+    try {
+      return safeAttempt(stage, () => {
+        const value = operation();
+        if (value !== true) {
+          throw new Error(`${stage} did not confirm release.`);
+        }
+        return true;
+      });
+    } catch (error) {
+      // A diagnostic wrapper is not allowed to defeat the independent bridge.
+      return { ok: false, error, stage };
+    }
+  };
+
+  const actor = invoke('paid-customer-authoritative-release', actorRelease);
+  if (actor.ok && actor.value === true) {
+    return { ...actor, source: 'actor', actor, bridge: null };
+  }
+
+  const bridge = invoke('paid-customer-authoritative-release-bridge', bridgeRelease);
+  return {
+    ...bridge,
+    source: bridge.ok && bridge.value === true ? 'bridge' : null,
+    actor,
+    bridge,
+  };
+}
+
 export function checkoutDisplayClubName(state) {
   const value = String(state?.clubName || '').trim();
   return value || DEFAULT_DISPLAY_BRAND;
@@ -163,6 +226,92 @@ export function suppressLegacyCheckoutBrandNodes(root, surface) {
     suppressed.push(object.name);
   });
   return suppressed;
+}
+
+// D1 (Goal 20) — WHO IS ON THE CHECK-IN LIST, AND WHAT IT SAYS ABOUT THEM.
+//
+// Pulled out of the render closure so it can be tested without a clubhouse: the
+// two rules the owner stated are pure functions of one customer's position, and
+// both of them regressed inside a 3,000-line module where nothing could reach
+// them.
+//
+//   1. The list is THE LINE. A walk-in who is not in the counter queue is not
+//      on it at all — someone who came in ten minutes ago and is browsing the
+//      shelves used to sit here reading WALKING UP for as long as they shopped.
+//   2. IN QUEUE means standing in the line RIGHT NOW (`atSlot`, measured body
+//      to slot), and you only learn the time they want when they are AT DESK in
+//      front of you asking for it.
+// A1 (Goal 21) — "IN QUEUE" IS DELETED, NOT FIXED.
+//
+// Three sessions were spent making that badge tell the truth. The owner's answer
+// is that the badge should not exist: the check-in screen shows the person AT
+// THE DESK and nobody else, because everybody behind them has not asked for
+// anything yet. A row for someone who has not spoken is a row the player can
+// plan against before the conversation happens, which is the thing that kept
+// reading wrong however accurate the label became.
+//
+// So this returns exactly one status or nothing at all.
+export const WALK_IN_QUEUE_STATUS = Object.freeze({ atDesk: 'AT DESK' });
+
+export function walkInQueueStatus(customer) {
+  if (!customer) return null;
+  return customer.queueIndex === 0 && customer.atSlot ? WALK_IN_QUEUE_STATUS.atDesk : null;
+}
+
+export function walkInShowsAsk(customer) {
+  return walkInQueueStatus(customer) === WALK_IN_QUEUE_STATUS.atDesk
+    && Number.isFinite(customer?.requestedTeeMinute);
+}
+
+// E1 (Goal 20) — A LONG ITEM STICKS OUT OF THE MOUTH, NEVER THROUGH A SIDE.
+//
+// The packing rule clamped a body into the authored interior. That is fine for
+// anything that fits and wrong for anything that does not, in a way that got
+// worse rather than better: `clamp(v, -(halfX - bodyHalfX), halfX - bodyHalfX)`
+// INVERTS ITS OWN BOUNDS the moment bodyHalfX exceeds halfX, so a long item was
+// shoved sideways by its own overflow and cut through the paper on BOTH walls at
+// once. Goal 19 fixed the mouth and this replaced it.
+//
+// A club or an umbrella in a bag stands UP and leans out of the top. So: if a
+// body will not lie down inside the interior, its longest axis is rotated onto
+// the mouth axis and it is stood on the interior floor, where the only thing it
+// can overflow is the one opening the bag has.
+//
+// Pure and exported because it is geometry, and because the fault it replaces
+// was a clamp nothing headless could reach.
+export function bagFitPlan(body, interior) {
+  const hx = Math.max(0, body?.x || 0);
+  const hy = Math.max(0, body?.y || 0);
+  const hz = Math.max(0, body?.z || 0);
+  const fitsLying = hx <= interior.halfX && hy <= interior.halfMouth && hz <= interior.halfDepth;
+  if (fitsLying) return { standUp: false, axis: null, half: { x: hx, y: hy, z: hz } };
+  // longest axis goes up the mouth; the remaining two become width and depth
+  const ranked = [['x', hx], ['y', hy], ['z', hz]].sort((a, b) => b[1] - a[1]);
+  const axis = ranked[0][0];
+  const half = axis === 'x' ? { x: hy, y: hx, z: hz }
+    : axis === 'z' ? { x: hx, y: hz, z: hy }
+      : { x: hx, y: hy, z: hz };
+  return { standUp: true, axis, half };
+}
+
+// Where the body's centre goes, given the plan. Stood-up bodies sit on the
+// interior FLOOR and are centred across the width, so the overflow can only
+// leave through the mouth. Lying bodies keep the two-column stack.
+export function bagPlacementFor(plan, interior, { index = 0, centreY = 0, layerStep = 0.075 } = {}) {
+  const floorY = centreY - interior.halfMouth;
+  if (plan.standUp) {
+    return { x: 0, y: floorY + plan.half.y, z: 0 };
+  }
+  const column = index % 2;
+  const layer = Math.floor(index / 2);
+  // slack, never a reversed clamp: with no room the body simply centres
+  const slackX = Math.max(0, interior.halfX - plan.half.x);
+  const x = Math.min(slackX, Math.max(-slackX, (column ? 1 : -1) * 0.055));
+  const y = Math.min(
+    floorY + plan.half.y + layer * Math.min(layerStep, plan.half.y * 2 + 0.006),
+    centreY + interior.halfMouth - plan.half.y,
+  );
+  return { x, y, z: 0 };
 }
 
 export function terminalBusyDotPhase(elapsedSeconds) {
@@ -236,8 +385,10 @@ const CARD_TIME = 1.15;
 // sim still prints/files its durable record inside beginAutomaticReceipt, but
 // no paper exists, so payment flows straight into the bag delivery.
 const BAG_DELIVER_TIME = 0.78;
+// C4 — daylight between the carrier and the slab while it is still over it.
+// Small on purpose: the point is that it does not intersect, not that it flies.
+const BAG_COUNTER_CLEARANCE = 0.02;
 const BAG_CUSTOMER_HOLD = 1.25;
-const CARD_STOW_TIME = 0.44;
 const CARD_INSERT_TIME = 0.72;
 const AUTO_PAYMENT_HOLD = 0.38;
 
@@ -248,7 +399,9 @@ export const SIMPLIFIED_REGISTER_WATCHDOG_STATES = Object.freeze([
   'EnteringCashierMode',
   'ProductHeld', 'ProductScanning', 'ProductScanned',
   'AllProductsScanned', 'ChoosingPayment',
-  'CardPresented', 'CardInsertReady', 'CardInserting', 'CardProcessing', 'CardApproved',
+  // CardInsertReady is deliberately absent: it waits for the player to click
+  // the offered card, so it carries no contract timeout to watch (2026-08-03).
+  'CardPresented', 'CardInserting', 'CardProcessing', 'CardApproved',
   'CashAccepted', 'DrawerOpening', 'DepositingCash', 'GivingChange',
   'PaymentComplete', 'ReceiptPrinting', 'Bagging', 'BagHandoff', 'CustomerLeaving',
 ]);
@@ -258,6 +411,31 @@ const CARD_WIDTH = 0.086;
 const CARD_HEIGHT = 0.054;
 const CARD_THICKNESS = 0.0014;
 export const CARD_HELD_PITCH = 0.62;
+// BIGGER THAN LIFE SIZE, ON PURPOSE (C12, 2026-08-04).
+//
+// Three sizes now. 0.78 was chosen in round 5 when the counter was busier and
+// the working frame sat further back. 1.00 followed the 2026-08-03 playtest
+// ("the bag reads small and plain next to everything else on the counter now")
+// on the reasoning that the kit's carrier is already a believable 0.26 x 0.30.
+// It still read small: "You took it to life size last session and it still
+// reads small on that counter. Go bigger than life size — it is a presentation
+// object, not a measurement."
+//
+// So it was tied to the reader (TERMINAL_HARDWARE_SCALE, 1.85) — and K1
+// (2026-08-05) untied it: "Make the bag smaller than it is now. Larger than
+// the original. Judge it against the monitor and the reader." At 1.85 the
+// laid carrier covered 20% of the working frame — 1.7x the POS glass and
+// 2.3x the floating reader (measured, tools/qa/bag-presentation-shots.js).
+// 1.35 sits between the two devices' own draw scales (POS 1.55, reader 1.85
+// at the face), keeps the bag above life size (1.00) and far above round 5's
+// 0.78, and in the frame it now reads as the largest PROP while both DEVICES
+// out-present it.
+//
+// The lift below is DERIVED from this and the flatten factor rather than
+// baked, which is what made the previous size change land the flank through
+// the counter top.
+const BAG_PRESENTATION_SCALE = 1.35;
+const BAG_PRESENTATION_FLATTEN = 0.55;
 export const CHECKOUT_BAG_PRESENTATION = Object.freeze({
   // FLAT, LONG, AND OPEN TOWARD THE COUNTER SPACE. Playtest round 5
   // (2026-07-30): "look at how the bag is laid flat and it's long, opened, and
@@ -283,7 +461,7 @@ export const CHECKOUT_BAG_PRESENTATION = Object.freeze({
   // What must read is the OPENING.
   pitch: -Math.PI / 2,
   roll: -Math.PI / 2,
-  scale: 0.78,
+  scale: BAG_PRESENTATION_SCALE,
   // "SMALL HEIGHT". The authored carrier is a 0.18 deep standing bag; laid on
   // its face that is 56% of its own length off the counter, which is a carton's
   // proportion, not a paper bag's. Every reference bag is squashed to about a
@@ -291,11 +469,18 @@ export const CHECKOUT_BAG_PRESENTATION = Object.freeze({
   // model's own depth axis is flattened by this factor inside the group, so the
   // group keeps a uniform scale and every authored anchor (mouth, contents,
   // handoff — all on the depth-free centre line) stays exactly where it was.
-  flatten: 0.55,
-  // Half the flattened gusset depth (0.097 hem + 0.004 grommet) at the counter
-  // scale, plus a paper-thin seat, so the laid flank rests ON the top instead
-  // of through it — the sink the previous side-lying attempt was rejected for.
-  counterLift: 0.101 * 0.55 * 0.78 + 0.003,
+  flatten: BAG_PRESENTATION_FLATTEN,
+  // Half the flattened gusset depth at the counter scale, plus a paper-thin
+  // seat, so the laid flank rests ON the top instead of through it — the sink
+  // the previous side-lying attempt was rejected for.
+  //
+  // 0.116, not the 0.101 that was here. Solved from the round-5 bag test's own
+  // reading when the size changed: at 0.78 the flank already sat 3.4 mm below
+  // the top and only passed on the 4 mm tolerance, and at life size the same
+  // half-depth put it 5.3 mm under. min.y = COUNTER_TOP + lift - h*flatten*scale
+  // with the measured min.y gives h = 0.116, which seats it 3 mm proud at any
+  // scale instead of hiding an error inside a tolerance.
+  counterLift: 0.116 * BAG_PRESENTATION_FLATTEN * BAG_PRESENTATION_SCALE + 0.003,
   // A rung-up item lands flat in the mouth; the bag's own roll must not tip it.
   itemRoll: 0,
 });
@@ -482,20 +667,560 @@ export function checkoutMoneyGpuPrewarmStems(denoms = DENOMS) {
   ])];
 }
 
-export function cashGpuPrewarmReleaseReady({ ready, built, expected, drawn } = {}) {
+export function checkoutPaymentGpuPrewarmStems(denoms = DENOMS) {
+  return [...checkoutMoneyGpuPrewarmStems(denoms), 'payment_card'];
+}
+
+export function checkoutPaymentCardGpuPrewarmVariantIds(cards = PAYMENT_CARDS) {
+  const seen = new Set();
+  const ids = [];
+  for (const card of cards || []) {
+    const id = typeof card?.id === 'string' ? card.id : '';
+    if (!id || seen.has(id)) continue;
+    seen.add(id);
+    ids.push(id);
+  }
+  return ids;
+}
+
+const CHECKOUT_CARD_OWNED_TEXTURE_KEYS = Object.freeze([
+  'map', 'emissiveMap', 'roughnessMap', 'metalnessMap', 'normalMap',
+]);
+
+/**
+ * Identity-based owner for resources minted by a live payment-card mesh.
+ *
+ * The authored GLB geometry/material and the cached branded face texture are
+ * borrowed and never marked. Fallback geometry/materials and the dynamic face
+ * plane are marked through this ledger. Failed identities and failed detach
+ * roots stay strongly reachable so a card can be cleared from gameplay without
+ * making its WebGL cleanup authority disappear.
+ */
+export function createCardMeshResourceLedger() {
+  const knownGeometries = new WeakSet();
+  const knownMaterials = new WeakSet();
+  const knownTextures = new WeakSet();
+  const disposedGeometries = new WeakSet();
+  const disposedMaterials = new WeakSet();
+  const disposedTextures = new WeakSet();
+  // Live identities are strongly held from the instant they are marked. That
+  // covers construction faults before the local card root reaches `cardMesh`,
+  // while retained* below distinguishes identities whose disposer failed.
+  const liveGeometries = new Set();
+  const liveMaterials = new Set();
+  const liveTextures = new Set();
+  const retainedGeometries = new Set();
+  const retainedMaterials = new Set();
+  const retainedTextures = new Set();
+  const retainedRoots = new Set();
+  const counts = {
+    geometriesCreated: 0,
+    geometriesDisposed: 0,
+    materialsCreated: 0,
+    materialsDisposed: 0,
+    texturesCreated: 0,
+    texturesDisposed: 0,
+    disposalErrors: 0,
+  };
+
+  const own = (resource, known, live, disposedSet, countKey) => {
+    if (!resource || (typeof resource !== 'object' && typeof resource !== 'function')) {
+      return resource;
+    }
+    if (!known.has(resource)) {
+      known.add(resource);
+      counts[countKey] += 1;
+    }
+    if (!disposedSet.has(resource)) live.add(resource);
+    return resource;
+  };
+  const ownGeometry = (resource) => own(
+    resource, knownGeometries, liveGeometries, disposedGeometries, 'geometriesCreated',
+  );
+  const ownMaterial = (resource) => own(
+    resource, knownMaterials, liveMaterials, disposedMaterials, 'materialsCreated',
+  );
+  const ownTexture = (resource) => own(
+    resource, knownTextures, liveTextures, disposedTextures, 'texturesCreated',
+  );
+  const status = () => {
+    return {
+      ...counts,
+      liveGeometries: liveGeometries.size,
+      liveMaterials: liveMaterials.size,
+      liveTextures: liveTextures.size,
+      retainedGeometries: retainedGeometries.size,
+      retainedMaterials: retainedMaterials.size,
+      retainedTextures: retainedTextures.size,
+      retainedRoots: retainedRoots.size,
+      retainedResources: retainedGeometries.size
+        + retainedMaterials.size + retainedTextures.size,
+      disposed: liveGeometries.size === 0 && liveMaterials.size === 0
+        && liveTextures.size === 0
+        && retainedRoots.size === 0,
+    };
+  };
+  const mark = (object, { geometry = true, material = false } = {}) => {
+    if (!object) return object;
+    if (geometry && object.geometry) {
+      if (!object.userData?.checkoutCardOwnedGeometry) {
+        object.userData = { ...object.userData, checkoutCardOwnedGeometry: true };
+      }
+      ownGeometry(object.geometry);
+    }
+    if (material && object.material) {
+      if (!object.userData?.checkoutCardOwnedMaterial) {
+        object.userData = { ...object.userData, checkoutCardOwnedMaterial: true };
+      }
+      const materials = Array.isArray(object.material) ? object.material : [object.material];
+      for (const ownedMaterial of new Set(materials.filter(Boolean))) {
+        ownMaterial(ownedMaterial);
+        for (const key of CHECKOUT_CARD_OWNED_TEXTURE_KEYS) {
+          if (ownedMaterial?.[key]?.isTexture) ownTexture(ownedMaterial[key]);
+        }
+      }
+    }
+    return object;
+  };
+  const dispose = (root = null, { onError = null } = {}) => {
+    const geometries = new Set(liveGeometries);
+    const materials = new Set(liveMaterials);
+    const textures = new Set(liveTextures);
+    const roots = new Set(retainedRoots);
+    if (root) roots.add(root);
+    const failures = [];
+    const report = (stage, error, resource = null) => {
+      counts.disposalErrors += 1;
+      const failure = { stage, error, resource };
+      failures.push(failure);
+      if (typeof onError === 'function') {
+        try {
+          onError(stage, error);
+        } catch (reportError) {
+          failures.push({ stage: 'card-disposal-reporter', error: reportError, resource });
+        }
+      }
+    };
+    for (const candidateRoot of roots) {
+      let traversed = false;
+      try {
+        if (typeof candidateRoot?.traverse === 'function') {
+          candidateRoot.traverse((object) => {
+            if (object.userData?.checkoutCardOwnedGeometry && object.geometry) {
+              ownGeometry(object.geometry);
+              geometries.add(object.geometry);
+            }
+            if (!object.userData?.checkoutCardOwnedMaterial || !object.material) return;
+            const ownedMaterials = Array.isArray(object.material)
+              ? object.material : [object.material];
+            for (const ownedMaterial of ownedMaterials) {
+              if (!ownedMaterial) continue;
+              ownMaterial(ownedMaterial);
+              materials.add(ownedMaterial);
+              for (const key of CHECKOUT_CARD_OWNED_TEXTURE_KEYS) {
+                if (ownedMaterial[key]?.isTexture) {
+                  ownTexture(ownedMaterial[key]);
+                  textures.add(ownedMaterial[key]);
+                }
+              }
+            }
+          });
+        }
+        traversed = true;
+      } catch (error) {
+        retainedRoots.add(candidateRoot);
+        report('card-resource-collect', error, candidateRoot);
+      }
+      try {
+        candidateRoot?.removeFromParent?.();
+        if (traversed) retainedRoots.delete(candidateRoot);
+      } catch (error) {
+        retainedRoots.add(candidateRoot);
+        report('card-detach', error, candidateRoot);
+      }
+    }
+
+    const released = { geometries: 0, materials: 0, textures: 0 };
+    const release = (
+      stage, resource, live, retained, disposedSet, disposedKey, releasedKey,
+    ) => {
+      if (disposedSet.has(resource)) {
+        live.delete(resource);
+        retained.delete(resource);
+        return;
+      }
+      try {
+        resource.dispose();
+        live.delete(resource);
+        retained.delete(resource);
+        disposedSet.add(resource);
+        counts[disposedKey] += 1;
+        released[releasedKey] += 1;
+      } catch (error) {
+        retained.add(resource);
+        report(stage, error, resource);
+      }
+    };
+    for (const texture of textures) {
+      release(
+        'card-texture', texture, liveTextures, retainedTextures, disposedTextures,
+        'texturesDisposed', 'textures',
+      );
+    }
+    for (const material of materials) {
+      release(
+        'card-material', material, liveMaterials, retainedMaterials, disposedMaterials,
+        'materialsDisposed', 'materials',
+      );
+    }
+    for (const geometry of geometries) {
+      release(
+        'card-geometry', geometry, liveGeometries, retainedGeometries, disposedGeometries,
+        'geometriesDisposed', 'geometries',
+      );
+    }
+    const result = { ...status(), released, errors: failures.map(({ stage, error }) => ({
+      stage, message: String(error?.message || error),
+    })) };
+    if (failures.length > 0 && typeof onError !== 'function') {
+      const aggregate = new AggregateError(
+        failures.map((failure) => failure.error),
+        'Payment-card resource disposal failed after exhausting owned siblings.',
+      );
+      aggregate.result = result;
+      throw aggregate;
+    }
+    return result;
+  };
+
+  return Object.freeze({ mark, dispose, retry: (options = {}) => dispose(null, options), status });
+}
+
+/**
+ * Explicit ownership for the denomination-tinted material clones used by both
+ * GPU prewarm representatives and live cash. The clones borrow their maps from
+ * merchandise GLBs, so this owner releases materials only. References are
+ * detached from the register tree first so the clubhouse's later broad scene
+ * walk cannot discover and dispose the same clone a second time.
+ */
+export function createKitMoneyMaterialCache() {
+  const entries = new Map();
+  const knownMaterials = new WeakSet();
+  let materialsCreated = 0;
+  let disposedMaterials = 0;
+  let disposalErrors = 0;
+  let closing = false;
+  let disposed = false;
+
+  const liveMaterials = () => new Set(entries.values());
+  const status = () => ({
+    disposed,
+    closing,
+    entries: entries.size,
+    materialsCreated,
+    disposedMaterials,
+    liveMaterials: liveMaterials().size,
+    disposalErrors,
+  });
+  const getOrCreate = (key, factory) => {
+    if (closing || disposed) throw new Error('Kit-money material cache is disposing or disposed.');
+    if (entries.has(key)) return entries.get(key);
+    const material = factory();
+    if (!material) return material;
+    entries.set(key, material);
+    if (!knownMaterials.has(material)) {
+      knownMaterials.add(material);
+      materialsCreated += 1;
+    }
+    return material;
+  };
+  const detachOwnedReferences = (roots, owned) => {
+    const source = Array.isArray(roots) ? roots : [roots];
+    for (const root of source) {
+      if (!root || typeof root.traverse !== 'function') continue;
+      root.traverse((object) => {
+        if (!object || !object.material) return;
+        if (Array.isArray(object.material)) {
+          object.material = object.material.map((material) => (
+            owned.has(material) ? null : material
+          ));
+        } else if (owned.has(object.material)) {
+          object.material = null;
+        }
+      });
+    }
+  };
+  const dispose = ({ detachFrom = null } = {}) => {
+    if (disposed) return { ...status(), releasedMaterials: 0, errors: [], alreadyDisposed: true };
+    closing = true;
+    const owned = liveMaterials();
+    detachOwnedReferences(detachFrom, owned);
+    const errors = [];
+    let releasedMaterials = 0;
+    for (const material of owned) {
+      try {
+        material?.dispose?.();
+        for (const [key, candidate] of entries) {
+          if (candidate === material) entries.delete(key);
+        }
+        disposedMaterials += 1;
+        releasedMaterials += 1;
+      } catch (error) {
+        disposalErrors += 1;
+        errors.push({
+          materialName: material?.name || null,
+          message: String(error?.message || error),
+        });
+      }
+    }
+    disposed = entries.size === 0;
+    return { ...status(), releasedMaterials, errors, alreadyDisposed: false };
+  };
+
+  return Object.freeze({ getOrCreate, status, dispose });
+}
+
+// The six payment-card canvases are scene-owned resources, not per-transaction
+// resources. Keeping them here means the opaque startup draw uploads the exact
+// Texture objects that syncPhysicalBrand later assigns to the live shared card
+// material. A customer change is therefore a map pointer swap, not a repaint,
+// upload, or dispose/recreate cycle on the first card presentation.
+export function createPaymentCardTextureCache(textureFactory = paymentCardTexture) {
+  const textures = new Map(); // cache key -> { texture, designId, clubScoped }
+  const knownTextures = new WeakSet();
+  let texturesCreated = 0;
+  let disposed = false;
+  let closing = false;
+  let disposedTextures = 0;
+  let disposalErrors = 0;
+  let evictedTextures = 0;
+
+  const descriptor = (clubName, design) => {
+    const club = checkoutDisplayClubName({ clubName });
+    const card = design || DEFAULT_PAYMENT_CARD;
+    // Issuer cards contain no club-dependent pixels. Keeping those five maps
+    // under stable design-only keys means renaming the club can replace exactly
+    // one member-card texture instead of retaining another full six-card deck.
+    const clubScoped = !card.issuer;
+    return {
+      key: clubScoped ? `club:${club}\u0000${card.id}` : `issuer:${card.id}`,
+      designId: card.id,
+      clubScoped,
+    };
+  };
+  const uniqueTextures = () => new Set([...textures.values()].map((entry) => entry.texture));
+  const status = () => ({
+    disposed,
+    closing,
+    entries: textures.size,
+    liveTextures: uniqueTextures().size,
+    keys: [...textures.keys()].sort(),
+    texturesCreated,
+    disposedTextures,
+    evictedTextures,
+    disposalErrors,
+  });
+  const releaseTexture = (texture, { cause, keys }) => {
+    const targetKeys = new Set(keys);
+    const identityKeys = [...textures.entries()]
+      .filter(([, entry]) => entry.texture === texture)
+      .map(([key]) => key);
+    const borrowedKeys = identityKeys.filter((key) => !targetKeys.has(key));
+    if (borrowedKeys.length > 0) {
+      // Dropping one cache alias must not dispose the same Texture identity
+      // while an issuer/member entry still owns it. Factories normally return
+      // distinct CanvasTextures, but treating identity as the ownership unit
+      // keeps custom/test factories and exceptional rename cleanup safe too.
+      for (const key of targetKeys) {
+        if (textures.get(key)?.texture === texture) textures.delete(key);
+      }
+      return { ok: true, disposed: false };
+    }
+    try {
+      texture?.dispose?.();
+      for (const key of identityKeys) textures.delete(key);
+      disposedTextures += 1;
+      if (cause === 'club-rename') evictedTextures += 1;
+      return { ok: true, disposed: true };
+    } catch (error) {
+      disposalErrors += 1;
+      return {
+        ok: false,
+        error: {
+          cause,
+          keys: [...keys],
+          message: String(error?.message || error),
+        },
+      };
+    }
+  };
+  const get = (clubName, design = DEFAULT_PAYMENT_CARD) => {
+    if (disposed || closing) throw new Error('Payment-card texture cache is disposing or disposed.');
+    const card = design || DEFAULT_PAYMENT_CARD;
+    const wanted = descriptor(clubName, card);
+    if (textures.has(wanted.key)) return textures.get(wanted.key).texture;
+    const pendingReplacementKey = `pending-replacement:${wanted.designId}`;
+    const obsoleteClubEntries = () => [...textures.entries()].filter(([, entry]) => (
+      entry.clubScoped && entry.designId === wanted.designId
+    ));
+    const releaseObsoleteClubTextures = () => {
+      const obsolete = obsoleteClubEntries();
+      for (const previousTexture of new Set(obsolete.map(([, entry]) => entry.texture))) {
+        const keys = obsolete
+          .filter(([, entry]) => entry.texture === previousTexture)
+          .map(([key]) => key);
+        const released = releaseTexture(previousTexture, { cause: 'club-rename', keys });
+        if (!released.ok) return released;
+      }
+      return { ok: true };
+    };
+    if (wanted.clubScoped && textures.has(pendingReplacementKey)) {
+      const pending = textures.get(pendingReplacementKey);
+      // Retry the old owner before allocating another canvas. A permanently
+      // throwing old texture therefore retains exactly one usable replacement
+      // per card design, even if every frame presents a different club name.
+      const obsoleteReleased = releaseObsoleteClubTextures();
+      if (!obsoleteReleased.ok) {
+        throw new Error(
+          `Payment-card pending replacement is still live: ${obsoleteReleased.error.message}`,
+        );
+      }
+      if (pending.targetKey === wanted.key) {
+        textures.delete(pendingReplacementKey);
+        textures.set(wanted.key, { texture: pending.texture, ...wanted });
+        return pending.texture;
+      }
+      // The old owner is gone, but this request targets a newer club name than
+      // the retained painted canvas. Release that one bounded pending identity
+      // before painting the current name. Shared aliases remain protected by
+      // releaseTexture's identity-level borrower check.
+      const pendingReleased = releaseTexture(pending.texture, {
+        cause: 'stale-pending-replacement',
+        keys: [pendingReplacementKey],
+      });
+      if (!pendingReleased.ok) {
+        throw new Error(
+          `Payment-card pending replacement is still live: ${pendingReleased.error.message}`,
+        );
+      }
+    }
+
+    // Paint first. If the canvas factory fails during a rename, the prior
+    // member texture remains cached, live, and retryable under its old key.
+    const texture = textureFactory(clubName, card);
+    if (!texture || typeof texture.dispose !== 'function') {
+      throw new TypeError('Payment-card texture factory returned no disposable texture.');
+    }
+    if (texture && !knownTextures.has(texture)) {
+      knownTextures.add(texture);
+      texturesCreated += 1;
+    }
+    if (wanted.clubScoped) {
+      const obsolete = obsoleteClubEntries();
+      for (const previousTexture of new Set(obsolete.map(([, entry]) => entry.texture))) {
+        const previousKeys = obsolete
+          .filter(([, entry]) => entry.texture === previousTexture)
+          .map(([key]) => key);
+        // A factory may deliberately repaint and return the same CanvasTexture.
+        // Rekey that identity without disposing the map live presentation uses.
+        if (previousTexture === texture) {
+          for (const key of previousKeys) textures.delete(key);
+          continue;
+        }
+        const released = releaseTexture(previousTexture, {
+          cause: 'club-rename',
+          keys: previousKeys,
+        });
+        if (!released.ok) {
+          // Keep the already-painted replacement usable and strongly owned.
+          // The next request retries the old identity before it can paint or
+          // retain anything else, bounding both memory and canvas churn.
+          textures.set(pendingReplacementKey, {
+            texture,
+            designId: wanted.designId,
+            clubScoped: false,
+            targetKey: wanted.key,
+          });
+          throw new Error(`Payment-card club texture could not be replaced: ${released.error.message}`);
+        }
+      }
+    }
+
+    textures.set(wanted.key, { texture, ...wanted });
+    return texture;
+  };
+  const prime = (clubName, cards = PAYMENT_CARDS) => {
+    const unique = new Map();
+    for (const card of cards || []) {
+      if (!card?.id || unique.has(card.id)) continue;
+      unique.set(card.id, card);
+    }
+    return [...unique.values()].map((design) => ({
+      id: design.id,
+      design,
+      texture: get(clubName, design),
+    }));
+  };
+  const dispose = () => {
+    if (disposed) return { ...status(), alreadyDisposed: true };
+    closing = true;
+    const errors = [];
+    let releasedTextures = 0;
+    for (const texture of uniqueTextures()) {
+      const keys = [...textures.entries()]
+        .filter(([, entry]) => entry.texture === texture)
+        .map(([key]) => key);
+      const released = releaseTexture(texture, { cause: 'teardown', keys });
+      if (released.ok) releasedTextures += 1;
+      else errors.push(released.error);
+    }
+    disposed = textures.size === 0;
+    return {
+      ...status(), releasedTextures, errors, alreadyDisposed: false,
+    };
+  };
+
+  return Object.freeze({ get, prime, status, dispose });
+}
+
+function sameExactStringSet(left, right) {
+  if (!Array.isArray(left) || !Array.isArray(right)) return false;
+  const a = [...new Set(left.map(String))].sort();
+  const b = [...new Set(right.map(String))].sort();
+  return a.length === b.length && a.every((value, index) => value === b[index]);
+}
+
+export function cashGpuPrewarmReleaseReady({
+  ready, built, expected, drawn, expectedDrawUnits, observedDrawUnits,
+  expectedCardVariants, observedCardVariants,
+  expectedCardVariantIds, observedCardVariantIds,
+} = {}) {
   const expectedCount = Number(expected);
-  return ready === true
+  const modelsReady = ready === true
     && Number.isInteger(expectedCount)
     && expectedCount > 0
     && Number(built) === expectedCount
     && Number(drawn) === expectedCount;
+  if (!modelsReady) return false;
+  const unitCount = Number(expectedDrawUnits);
+  const cardVariantCount = Number(expectedCardVariants);
+  const cardVariantsReady = Number.isInteger(cardVariantCount)
+    && cardVariantCount > 0
+    && Number(observedCardVariants) === cardVariantCount
+    && Array.isArray(expectedCardVariantIds)
+    && expectedCardVariantIds.length === cardVariantCount
+    && Array.isArray(observedCardVariantIds)
+    && observedCardVariantIds.length === cardVariantCount
+    && sameExactStringSet(expectedCardVariantIds, observedCardVariantIds);
+  return Number.isInteger(unitCount) && unitCount > 0
+    && Number(observedDrawUnits) === unitCount
+    && cardVariantsReady;
 }
 
-export function cashGpuPrewarmShouldRelease(status, { renderFinished = false } = {}) {
-  // A bounded asset wait may expire before the merchandise callback fires. Once
-  // the opaque warm-up render has finished, the offscreen representative root
-  // must still be retired so late model readiness cannot leak hidden scene nodes.
-  return renderFinished === true || cashGpuPrewarmReleaseReady(status);
+export function cashGpuPrewarmShouldRelease(status, { abort = false } = {}) {
+  // Normal retirement is evidence-driven. Abort is a distinct cleanup path so
+  // a readiness timeout can never masquerade as a successful GPU draw.
+  return abort === true || cashGpuPrewarmReleaseReady(status);
 }
 
 export function shouldPrewarmDrawerCoin(denom) {
@@ -609,40 +1334,14 @@ function textTexture(text, {
   return texture;
 }
 
-function productBarcodeTexture(code) {
-  const canvas = document.createElement('canvas');
-  canvas.width = 512;
-  canvas.height = 256;
-  const ctx = canvas.getContext('2d');
-  const bits = barcodeBits(code);
-  ctx.fillStyle = '#fffdf5';
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-  ctx.fillStyle = '#171916';
-  const quiet = 34;
-  const top = 18;
-  const barHeight = 176;
-  const moduleWidth = (canvas.width - quiet * 2) / Math.max(1, bits.length);
-  for (let index = 0; index < bits.length; index += 1) {
-    if (bits[index] !== '1') continue;
-    const guard = index < 3 || index >= bits.length - 3
-      || Math.abs(index - bits.length / 2) < 3;
-    ctx.fillRect(
-      quiet + index * moduleWidth,
-      top,
-      Math.max(1, Math.ceil(moduleWidth)),
-      guard ? barHeight + 13 : barHeight,
-    );
-  }
-  ctx.fillStyle = '#173f2d';
-  ctx.font = '600 27px monospace';
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.fillText(String(code), canvas.width / 2, 226);
-  const texture = new THREE.CanvasTexture(canvas);
-  texture.colorSpace = THREE.SRGBColorSpace;
-  texture.anisotropy = 4;
-  return texture;
-}
+// NO PRINTED LABEL ON ANY PRODUCT. productBarcodeTexture used to paint a
+// 512x256 white barcode canvas and buildItemMesh mounted it as an unlit
+// 74 x 40 mm plane on every item that crossed the counter. Two earlier passes
+// called the tags "gone" while this one stayed, because it was classed as
+// packaging rather than signage — and the H3 driver was written to ASSERT it
+// existed, so the sweep shipped green with the label still in frame. The
+// barcode STRING survives as transaction data (barcodeFor -> POS + evidence);
+// nothing draws it.
 
 function billTexture(denom, clubName = DEFAULT_DISPLAY_BRAND) {
   const canvas = document.createElement('canvas');
@@ -722,43 +1421,130 @@ function coinTexture(denom) {
   return texture;
 }
 
-function paymentCardTexture(clubName = DEFAULT_DISPLAY_BRAND) {
+// H (Goal 23) — THE NETWORK DEVICE, DRAWN FROM PRIMITIVES.
+//
+// Deliberately unlike every real scheme's mark: no interlocking circles, no
+// split oval, no blue-and-gold roundel. Each of these is a plain geometric
+// device any designer would arrive at independently. See the note at the top of
+// src/data/paymentCards.js for why that matters.
+function drawCardMark(ctx, kind, x, y, w, h, colour) {
+  ctx.save();
+  ctx.fillStyle = colour;
+  ctx.strokeStyle = colour;
+  ctx.lineWidth = Math.max(3, h * 0.13);
+  ctx.lineCap = 'round';
+  if (kind === 'chevrons') {
+    for (let i = 0; i < 3; i += 1) {
+      const off = i * h * 0.3;
+      ctx.beginPath();
+      ctx.moveTo(x, y + off + h * 0.22);
+      ctx.lineTo(x + w / 2, y + off);
+      ctx.lineTo(x + w, y + off + h * 0.22);
+      ctx.stroke();
+    }
+  } else if (kind === 'ring-bar') {
+    ctx.beginPath();
+    ctx.arc(x + w / 2, y + h / 2, Math.min(w, h) * 0.42, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(x + w * 0.08, y + h / 2);
+    ctx.lineTo(x + w * 0.92, y + h / 2);
+    ctx.stroke();
+  } else if (kind === 'lattice') {
+    const cols = 4;
+    const cw = w / cols;
+    for (let i = 0; i < cols; i += 1) {
+      ctx.beginPath();
+      ctx.moveTo(x + i * cw, y + h);
+      ctx.lineTo(x + i * cw + cw / 2, y);
+      ctx.lineTo(x + (i + 1) * cw, y + h);
+      ctx.closePath();
+      if (i % 2 === 0) ctx.fill(); else ctx.stroke();
+    }
+  } else if (kind === 'wave') {
+    for (let k = 0; k < 2; k += 1) {
+      ctx.beginPath();
+      for (let i = 0; i <= 24; i += 1) {
+        const t = i / 24;
+        const px = x + t * w;
+        const py = y + h / 2 + Math.sin(t * Math.PI * 2 + k * 0.9) * h * 0.3;
+        if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+      }
+      ctx.stroke();
+    }
+  } else { // keystone
+    ctx.beginPath();
+    ctx.moveTo(x + w * 0.12, y);
+    ctx.lineTo(x + w * 0.88, y);
+    ctx.lineTo(x + w * 0.7, y + h);
+    ctx.lineTo(x + w * 0.3, y + h);
+    ctx.closePath();
+    ctx.fill();
+  }
+  ctx.restore();
+}
+
+// H (Goal 23) — ONE PAINTER, ANY ROW.
+//
+// This used to hard-code the club's green-and-gold membership panel, so every
+// customer in the shop paid with a card from the shop they were standing in.
+// It now paints whichever row it is handed; a new card is a new row in
+// src/data/paymentCards.js and nothing else.
+function paymentCardTexture(clubName = DEFAULT_DISPLAY_BRAND, design = DEFAULT_PAYMENT_CARD) {
+  const d = design || DEFAULT_PAYMENT_CARD;
   const canvas = document.createElement('canvas');
   canvas.width = 768;
   canvas.height = 480;
   const ctx = canvas.getContext('2d');
   const gradient = ctx.createLinearGradient(0, 0, 768, 480);
-  gradient.addColorStop(0, '#173f2d');
-  gradient.addColorStop(1, '#0e2d21');
+  gradient.addColorStop(0, d.base);
+  gradient.addColorStop(1, d.baseEnd);
   ctx.fillStyle = gradient;
   ctx.fillRect(0, 0, 768, 480);
-  ctx.strokeStyle = '#b9974e';
+  ctx.strokeStyle = d.accent;
   ctx.lineWidth = 8;
   ctx.strokeRect(20, 20, 728, 440);
-  ctx.fillStyle = '#f8f0dc';
-  const brand = checkoutDisplayClubName({ clubName }).toUpperCase();
-  setFittedCanvasFont(ctx, brand, {
-    maxWidth: 650,
-    startSize: 52,
-    minimumSize: 28,
-    weight: 700,
-    family: 'Georgia, serif',
+
+  // The issuer sits where a bank's name sits: top left, largest thing on the
+  // card. The club card has no issuer and wears the club's name there instead.
+  const issuer = (d.issuer || checkoutDisplayClubName({ clubName })).toUpperCase();
+  ctx.fillStyle = d.ink;
+  setFittedCanvasFont(ctx, issuer, {
+    maxWidth: 520, startSize: 52, minimumSize: 26, weight: 700, family: 'Georgia, serif',
   });
-  ctx.fillText(brand, 58, 105);
-  ctx.fillStyle = '#d6bd81';
+  ctx.fillText(issuer, 58, 105);
+  ctx.fillStyle = d.accent;
   ctx.font = '700 24px Arial, sans-serif';
-  ctx.fillText('FAIRWAY MEMBER', 60, 150);
-  ctx.fillStyle = '#d9bd76';
+  ctx.fillText(String(d.tier || '').toUpperCase(), 60, 150);
+
+  // chip
+  ctx.fillStyle = d.chip;
   ctx.fillRect(62, 210, 145, 105);
-  ctx.strokeStyle = '#73551f';
+  ctx.strokeStyle = 'rgba(0,0,0,0.45)';
   ctx.lineWidth = 4;
   ctx.strokeRect(62, 210, 145, 105);
-  ctx.fillStyle = '#f8f0dc';
+  ctx.beginPath();
+  for (let i = 1; i < 3; i += 1) {
+    ctx.moveTo(62, 210 + (105 * i) / 3);
+    ctx.lineTo(207, 210 + (105 * i) / 3);
+  }
+  ctx.moveTo(62 + 145 / 2, 210);
+  ctx.lineTo(62 + 145 / 2, 315);
+  ctx.lineWidth = 3;
+  ctx.stroke();
+
+  ctx.fillStyle = d.ink;
   ctx.font = '600 27px monospace';
-  ctx.fillText('MEMBER 042 718', 62, 382);
-  ctx.fillStyle = '#d6bd81';
-  ctx.font = 'italic 22px Georgia, serif';
-  ctx.fillText('Play the long game.', 510, 410);
+  ctx.fillText(String(d.numberMask || ''), 62, 382);
+
+  // the network device and its name, bottom right, where a scheme mark lives
+  drawCardMark(ctx, d.mark, 566, 250, 150, 84, d.accent);
+  ctx.fillStyle = d.ink;
+  ctx.font = '700 26px Arial, sans-serif';
+  ctx.textAlign = 'right';
+  ctx.fillText(String(d.network || '').toUpperCase(), 716, 372);
+  ctx.textAlign = 'left';
+
   const texture = new THREE.CanvasTexture(canvas);
   texture.colorSpace = THREE.SRGBColorSpace;
   texture.anisotropy = 8;
@@ -792,18 +1578,36 @@ function displayBrandTexture(clubName, {
   const lines = checkoutDisplayBrandLines(clubName);
   const lineSize = lines.length === 1 ? height * 0.22 : height * 0.17;
   lines.forEach((line, index) => {
-    setFittedCanvasFont(ctx, line, {
+    // K1: the floor is a FIT floor, not a taste floor. On the portrait bag
+    // stamp (640x760) the old height*0.10 minimum was 76 px, at which
+    // "MUNICIPAL GOLF" measured ~660 px on a 640 px canvas — the fitter gave
+    // up above the canvas width and the stamp printed cut off mid-letter on
+    // every bag (photographed, qa/electron/bag-presentation-k1/before).
+    let fitted = setFittedCanvasFont(ctx, line, {
       maxWidth: width - 100,
       startSize: lineSize,
-      minimumSize: height * 0.10,
+      minimumSize: height * 0.04,
       weight: 700,
       family: 'Georgia, serif',
     });
+    // VERIFY2_K: a 58-character single WORD still overflowed at the floor and
+    // printed amputated at both edges. On a stamp, FIT beats taste every
+    // time — keep shrinking past the floor until the line actually fits.
+    while (ctx.measureText(line).width > width - 100 && fitted > 9) {
+      fitted -= 2;
+      ctx.font = `700 ${Math.round(fitted)}px Georgia, serif`;
+    }
     const offset = lines.length === 1 ? 0 : (index === 0 ? -height * 0.10 : height * 0.10);
     ctx.fillText(line, width / 2, height * 0.44 + offset);
   });
   ctx.fillStyle = subtitle;
-  ctx.font = `700 ${Math.round(height * 0.072)}px Arial, sans-serif`;
+  // the subtitle got no fitting at all — same clipped fate on narrow canvases
+  setFittedCanvasFont(ctx, 'PRO SHOP  ·  FIRST TEE', {
+    maxWidth: width - 110,
+    startSize: height * 0.072,
+    minimumSize: height * 0.035,
+    weight: 700,
+  });
   ctx.fillText('PRO SHOP  ·  FIRST TEE', width / 2, height * 0.76);
   const texture = new THREE.CanvasTexture(canvas);
   texture.colorSpace = THREE.SRGBColorSpace;
@@ -829,9 +1633,23 @@ export function createRegisterMode(B) {
   const canvas = B.ctx.canvas || document.querySelector('canvas');
   const focusOn = B.ctx.focusOn || (() => {});
   const clearFocus = B.ctx.clearFocus || (() => {});
-  const sfx = (name) => { if (hooks.sfx) hooks.sfx(name); };
+  const sfx = (name, ...args) => (hooks.sfx ? hooks.sfx(name, ...args) : undefined);
   const toast = (message, kind) => (hooks.toast ? hooks.toast(message, kind) : null);
+  // Declared HERE rather than 900 lines down, because syncPhysicalBrand() runs
+  // during setup and currentPaymentCard() reads this: with the declaration
+  // below, that was a temporal dead zone and three teardown tests died with
+  // "Cannot access 'cust' before initialization".
+  let cust = null;
   const displayClubName = () => checkoutDisplayClubName(state);
+  // H (Goal 23): whose card is at the reader. Keyed on the customer's stable
+  // identity rather than their name, so two people called Ray Falk do not share
+  // a bank account. QA can pin it with __qaPaymentCardId.
+  const currentPaymentCard = () => {
+    const forced = typeof window !== 'undefined' && window.__qaPaymentCardId;
+    if (forced) return PAYMENT_CARDS.find((c) => c.id === forced) || DEFAULT_PAYMENT_CARD;
+    const who = cust && (cust.customerId ?? cust.fullName ?? cust.name);
+    return who == null ? DEFAULT_PAYMENT_CARD : paymentCardFor(who);
+  };
   const activeRegisterGtaoOverride = createScopedBooleanOverride({
     read: B.ctx.postEffects?.getGtaoEnabled,
     write: B.ctx.postEffects?.setGtaoEnabled,
@@ -849,7 +1667,9 @@ export function createRegisterMode(B) {
   const root = new THREE.Group();
   root.name = 'SimplifiedFrontDeskRegister';
   interior.add(root);
-  let physicalBrandSignature = '';
+  const cardTextureCache = createPaymentCardTextureCache();
+  let bagBrandSignature = '';
+  let cardBrandSignature = '';
   const bagBrandMaterial = new THREE.MeshBasicMaterial({
     toneMapped: false,
     side: THREE.DoubleSide,
@@ -859,28 +1679,39 @@ export function createRegisterMode(B) {
     side: THREE.DoubleSide,
   });
   function syncPhysicalBrand() {
-    const signature = displayClubName();
-    if (signature === physicalBrandSignature) return false;
-    bagBrandMaterial.map?.dispose();
-    cardBrandMaterial.map?.dispose();
-    bagBrandMaterial.map = displayBrandTexture(signature, {
-      width: 640,
-      height: 760,
-      background: '#c3a06d',
-      backgroundEnd: '#a77f4e',
-      border: '#6c4b29',
-      foreground: '#173f2d',
-      subtitle: '#294f37',
-    });
+    const clubSignature = displayClubName();
+    const paymentCard = currentPaymentCard();
+    const nextCardSignature = `${clubSignature}\u0000${paymentCard.id}`;
+    let changed = false;
+    if (clubSignature !== bagBrandSignature) {
+      bagBrandMaterial.map?.dispose();
+      bagBrandMaterial.map = displayBrandTexture(clubSignature, {
+        width: 640,
+        height: 760,
+        background: '#c3a06d',
+        backgroundEnd: '#a77f4e',
+        border: '#6c4b29',
+        foreground: '#173f2d',
+        subtitle: '#294f37',
+      });
+      bagBrandMaterial.needsUpdate = true;
+      bagBrandSignature = clubSignature;
+      changed = true;
+    }
     // The card wears an actual CARD face — chip, member number, brand — not
     // the shop wordmark panel. Round 7: "make the card look better when
     // inserted": the wordmark read as a green sliver in the reader's slot;
     // the bank-card layout reads as a card at any protrusion.
-    cardBrandMaterial.map = paymentCardTexture(signature);
-    bagBrandMaterial.needsUpdate = true;
-    cardBrandMaterial.needsUpdate = true;
-    physicalBrandSignature = signature;
-    return true;
+    // H (Goal 23): the card at the reader is the card THIS customer carries,
+    // chosen deterministically from their own identity so a person who pays
+    // twice does not change bank between visits.
+    if (nextCardSignature !== cardBrandSignature) {
+      cardBrandMaterial.map = cardTextureCache.get(clubSignature, paymentCard);
+      cardBrandMaterial.needsUpdate = true;
+      cardBrandSignature = nextCardSignature;
+      changed = true;
+    }
+    return changed;
   }
   syncPhysicalBrand();
   const cashierHands = makeCashierHands(root);
@@ -922,9 +1753,11 @@ export function createRegisterMode(B) {
   termCanvas.width = TERM_CANVAS_W;
   termCanvas.height = TERM_CANVAS_H;
   const termContext = termCanvas.getContext('2d');
+  // K5: the light theme's idle ground — a top-lit LCD grey-green, not the
+  // near-black it replaced (judged "too dark" at the counter)
   const termGlow = termContext.createLinearGradient(0, 0, 0, TERM_CANVAS_H);
-  termGlow.addColorStop(0, '#16211c');
-  termGlow.addColorStop(1, '#0b110e');
+  termGlow.addColorStop(0, '#E9EEE9');
+  termGlow.addColorStop(1, '#D6DDD6');
   const termTexture = new THREE.CanvasTexture(termCanvas);
   termTexture.colorSpace = THREE.SRGBColorSpace;
   termTexture.anisotropy = 8;
@@ -970,12 +1803,26 @@ export function createRegisterMode(B) {
   // A few degrees of roll: the reference unit is canted like something held,
   // not bolted. Facing stays yaw-only (playtest 2026-07-30 round 2) so the
   // glass never rakes away from the eye.
-  const TERMINAL_FLOAT_ROLL = -0.075;
+  // ROUND 9: 0. "The reader screen is tilted. Straighten it. Do not rotate the
+  // reader." -0.075 rad is 4.3 degrees of roll about the device's own face
+  // axis, which is exactly enough to read as a crooked screen without reading
+  // as a deliberate angle — every horizontal in the UI (the status strip, the
+  // keypad rows, the amount) sloped together. Note the comment at the facing
+  // solve already claimed "a yaw-only facing, no pitch or roll" while this
+  // constant was quietly rolling it; the claim is now true.
+  //
+  // Straightening the SCREEN is done by removing the roll rather than by
+  // counter-rotating the screen inside the device, because the device is one
+  // rigid object: rolling the body and unrolling the glass would put the
+  // keypad and the card slot back out of true instead.
+  const TERMINAL_FLOAT_ROLL = 0;
   let terminalFloat = 0;                    // 0 seated .. 1 at the face
   let termCentreOffsetY = 0.10;             // origin(base) -> device centre, measured at attach
   let terminalFloatAnchor = null;           // frozen at lift-off; null when seated
   let termSeatPosition = null;
   let termSeatQuaternion = null;
+  // scratch for the rise/descent curve; allocated once, this runs every frame
+  const _termPathControl = new THREE.Vector3();
   let termBaseScale = TERMINAL_HARDWARE_SCALE; // working size; parked shrinks by BAY.parkScale
   let cardMeshOnTerminal = false;
 
@@ -1072,7 +1919,36 @@ export function createRegisterMode(B) {
       };
     }
     const ease = THREE.MathUtils.smoothstep(terminalFloat, 0, 1);
-    termObject.position.lerpVectors(termSeatPosition, terminalFloatAnchor.position, ease);
+    // OUT OF THE BAY FIRST, THEN UP — AND THE SAME CURVE BACK DOWN.
+    //
+    // Reported as "the reader phases through the counter on its way home". Two
+    // geometric tests (corner containment by ray parity, and a swept-segment
+    // test between consecutive frames, both against the VISIBLE counter meshes)
+    // found zero crossings on the straight lerp — the honest finding is in
+    // OVERNIGHT_REPORT_6. What the straight lerp DOES do is travel diagonally
+    // from the under-counter bay to the face, which passes very close to the
+    // slab edge and reads as going through it as the device shrinks away.
+    //
+    // A quadratic Bezier through a control point at SEAT HEIGHT but at the
+    // face's horizontal position turns that diagonal into a rounded L: the
+    // device slides forward out of the bay while still low, clears the
+    // counter's front edge, and only then climbs. Coming home it runs the same
+    // curve in reverse. No new constants — the control point is derived from
+    // the two ends the animation already had.
+    const control = _termPathControl.set(
+      terminalFloatAnchor.position.x,
+      termSeatPosition.y,
+      terminalFloatAnchor.position.z,
+    );
+    const inv = 1 - ease;
+    const a = inv * inv;
+    const b = 2 * inv * ease;
+    const c = ease * ease;
+    termObject.position.set(
+      a * termSeatPosition.x + b * control.x + c * terminalFloatAnchor.position.x,
+      a * termSeatPosition.y + b * control.y + c * terminalFloatAnchor.position.y,
+      a * termSeatPosition.z + b * control.z + c * terminalFloatAnchor.position.z,
+    );
     termObject.quaternion.slerpQuaternions(termSeatQuaternion, terminalFloatAnchor.quaternion, ease);
     // pocket-sized in the bay, working-sized at the face
     const park = CHECKOUT_TERMINAL_BAY.parkScale;
@@ -1285,6 +2161,15 @@ export function createRegisterMode(B) {
   let bagGroup = null;
   let bagContentsNode = null;
   let bagHandoffNode = null;
+  const paidBagResourceCounts = {
+    transferredBags: 0,
+    successfullyDisposedBags: 0,
+    failedDisposals: 0,
+    ownedGeometriesTransferred: 0,
+    ownedMaterialsTransferred: 0,
+    ownedGeometriesDisposed: 0,
+    ownedMaterialsDisposed: 0,
+  };
   const BAG_COUNTER_SCALE = CHECKOUT_BAG_PRESENTATION.scale;
   const BAG_FLATTEN = CHECKOUT_BAG_PRESENTATION.flatten;
   const bagCounterQuaternion = () => frontDeskQuaternion(
@@ -1293,6 +2178,170 @@ export function createRegisterMode(B) {
   const bagHandoffLocal = new THREE.Vector3(0, 0.30, 0);
   const bagDeliverAnchorFrom = new THREE.Vector3();
   const bagDeliverAnchorAt = new THREE.Vector3();
+  const _bagClearScratch = new THREE.Vector3();
+
+  // C1 (Goal 19) — ONE packing rule for every path. The bag's authored
+  // ANCHOR_BagContents is the CONTENTS VOLUME: its position is the centre of
+  // the space goods may occupy, and its userData carries the interior
+  // half-extents (interior_half_x / _depth / _mouth, authored in
+  // build_checkout_kit.py). Every packed body is measured (a bag-frame AABB;
+  // the pack pose is quaternion.identity, so the item's own box IS its
+  // bag-frame box — child rotations inside product proxies are ignored and
+  // said so) and CLAMPED whole inside the volume, so nothing can sit proud
+  // of the mouth whatever the bag's world pose. Three sites used to place by
+  // hand — (0, 0.15, 0) twice and a third ad-hoc stack — and image 1 of
+  // Full_Goal_19 (a good lying ON the carrier) is what that looked like.
+  const _packBox = new THREE.Box3();
+  const _packPt = new THREE.Vector3();
+  const _packCentre = new THREE.Vector3();
+  const _packCentre2 = new THREE.Vector3();
+  const _packQuat = new THREE.Quaternion();
+  // E1: the two axes a long body can be rotated onto the mouth about
+  const _packAxisZ = new THREE.Vector3(0, 0, 1);
+  const _packAxisX = new THREE.Vector3(1, 0, 0);
+  const _packOne = new THREE.Vector3(1, 1, 1);
+  function bagLocalBoxOf(object) {
+    _packBox.makeEmpty();
+    const visit = (node, px, py, pz, sx, sy, sz) => {
+      if (node.isMesh && node.geometry) {
+        if (!node.geometry.boundingBox) node.geometry.computeBoundingBox();
+        const b = node.geometry.boundingBox;
+        _packBox.expandByPoint(_packPt.set(px + b.min.x * sx, py + b.min.y * sy, pz + b.min.z * sz));
+        _packBox.expandByPoint(_packPt.set(px + b.max.x * sx, py + b.max.y * sy, pz + b.max.z * sz));
+      }
+      for (const child of node.children) {
+        visit(
+          child,
+          px + child.position.x * sx,
+          py + child.position.y * sy,
+          pz + child.position.z * sz,
+          sx * child.scale.x,
+          sy * child.scale.y,
+          sz * child.scale.z,
+        );
+      }
+    };
+    visit(object, 0, 0, 0, object.scale.x, object.scale.y, object.scale.z);
+    return _packBox;
+  }
+  // F (Goal 23) — THE BAG IS FAKED NOW, AND THAT IS THE INSTRUCTION.
+  //
+  // "Stop trying to physically contain items. Four sessions have gone into
+  // geometry that clamps, inverts, stands up and still pokes through. Make it
+  // LOOK like the item goes in, and then it is gone."
+  //
+  // This overturns G4.2 ("packed goods STAY VISIBLE at FULL SIZE — no path may
+  // switch a packed good off") on purpose. G4.2 was itself a correction of a
+  // worse fault: items used to SHRINK AND POP OUT in full view above the rim,
+  // which read as fake. That objection is about WHERE the item disappears, not
+  // whether it does — and it is fully answered by the two-leg motion the drop
+  // already runs: the good travels to the mouth, then sinks DOWN INSIDE at full
+  // size, and only then, already behind the paper, stops being drawn.
+  //
+  // Nothing pops, nothing shrinks, and no body has to fit. Any size, any shape,
+  // always clean.
+  //
+  // This comment used to end "the bag reads as full through `bagFill`, below."
+  // It does not: `bagFill` was deleted in Goal 24 because the owner could see the
+  // block through the mouth, and nothing replaced it — a bag with goods in it
+  // reads as full because the goods are IN it, which is the whole point of the
+  // two-leg motion above. The stale half-sentence survived the deletion and would
+  // send the next reader hunting for a fill that no longer exists.
+  // `tests/bag-drop-nothing-shrinks.test.js` holds the removal.
+  function packMeshIntoBag(mesh, { scale = null } = {}) {
+    if (!bagGroup || !mesh) return;
+    bagGroup.add(mesh);
+    mesh.visible = true;
+    mesh.scale.copy(scale || mesh.userData.originalScale || _packOne);
+    mesh.quaternion.identity();
+    const index = bagGroup.children.filter(
+      (c) => c !== mesh && c.userData?.checkoutVisualState === 'packed-in-bag',
+    ).length;
+    _packCentre.set(0, 0.14, 0);
+    let halfX = 0.125;
+    let halfMouth = 0.126;
+    if (bagContentsNode) {
+      bagGroup.updateWorldMatrix(true, false);
+      _packCentre.copy(bagGroup.worldToLocal(bagContentsNode.getWorldPosition(_packPt)));
+      const authored = bagContentsNode.userData || {};
+      if (Number.isFinite(authored.interior_half_x)) halfX = authored.interior_half_x;
+      if (Number.isFinite(authored.interior_half_mouth)) halfMouth = authored.interior_half_mouth;
+    }
+    const box = bagLocalBoxOf(mesh);
+    const bodyHalfY = Math.max(0.005, (box.max.y - box.min.y) / 2);
+    const bodyHalfX = Math.max(0.005, (box.max.x - box.min.x) / 2);
+    const bodyHalfZ = Math.max(0.005, (box.max.z - box.min.z) / 2);
+    // The DEPTH axis is flattened at runtime (model.scale.z = BAG_FLATTEN),
+    // so a body deeper than the collapsed gusset would graze through a face.
+    const authoredHalfDepth = Number.isFinite(bagContentsNode?.userData?.interior_half_depth)
+      ? bagContentsNode.userData.interior_half_depth : 0.07;
+    const flatten = bagContentsNode
+      ? Math.abs(bagContentsNode.getWorldScale(_packPt).z)
+        / Math.max(1e-6, Math.abs(bagGroup.getWorldScale(_packCentre2).z))
+      : 1;
+    const effHalfDepth = Math.max(0.01, authoredHalfDepth * flatten);
+
+    // E1 (Goal 20): does it lie down, or does it have to stand up?
+    const interior = { halfX, halfMouth, halfDepth: effHalfDepth };
+    const plan = bagFitPlan({ x: bodyHalfX, y: bodyHalfY, z: bodyHalfZ }, interior);
+    if (plan.standUp && plan.axis !== 'y') {
+      // rotate the longest axis onto the bag's mouth axis (+Y). bagLocalBoxOf
+      // walks positions and scales only, so the box is in the body's own frame
+      // and the rotation has to be applied to it here rather than re-measured.
+      _packQuat.setFromAxisAngle(
+        plan.axis === 'x' ? _packAxisZ : _packAxisX,
+        plan.axis === 'x' ? Math.PI / 2 : -Math.PI / 2,
+      );
+      mesh.quaternion.copy(_packQuat);
+    }
+    const target = bagPlacementFor(plan, interior, { index, centreY: _packCentre.y });
+    let targetZ = target.z;
+    if (!plan.standUp) {
+      // Whatever overflows in depth is pushed toward the face the bag RESTS ON —
+      // the counter hides that side; the first live run photographed two ball
+      // domes peeking through the upper paper when this was left centred.
+      const depthOverflow = bodyHalfZ - effHalfDepth;
+      if (depthOverflow > 0) {
+        _packPt.set(0, 0, 1).applyQuaternion(bagGroup.getWorldQuaternion(_packQuat));
+        targetZ = _packPt.y >= 0 ? -depthOverflow : depthOverflow;
+      }
+    }
+    // the body's own centre, carried through whatever rotation was applied
+    _packPt.set(
+      (box.min.x + box.max.x) / 2,
+      (box.min.y + box.max.y) / 2,
+      (box.min.z + box.max.z) / 2,
+    ).applyQuaternion(mesh.quaternion);
+    mesh.position.set(
+      target.x - _packPt.x,
+      target.y - _packPt.y,
+      targetZ - _packPt.z,
+    );
+    mesh.userData.checkoutVisualState = 'packed-in-bag';
+    mesh.userData.checkoutOwner = 'bag';
+    // It is inside and behind the paper. Stop drawing it — this is the line
+    // four sessions of containment geometry were standing in for.
+    mesh.visible = false;
+  }
+
+  // A (Goal 24) — THERE IS NO FILL. THE BAG LOOKS THE SAME EMPTY OR FULL.
+  //
+  // `bagFill` used to live here: one kraft-coloured block at the mouth that grew
+  // with each item, added in Goal 23 on the reasoning that "a carrier that
+  // swallows three items and looks exactly as empty as it did at the start is a
+  // worse lie than a ball poking through the side". That reasoning was mine and
+  // it was wrong. The owner identified the block on sight as the flat layer he
+  // had been complaining about for two goals — the thing being reported as a
+  // symptom WAS the thing I had added as a fix.
+  //
+  // So the instruction is now literal and there is no case that escapes it: an
+  // item travels to the mouth, sinks in, stops being drawn, and NOTHING appears
+  // in its place. No block, no mass, no contents. Anything reintroduced here to
+  // make the bag "read as full" is the same mistake with a different shape.
+  //
+  // Enforced by tests/bag-drop-nothing-shrinks.test.js (no fill authority may
+  // exist in this file) and by the Electron check, which photographs the bag
+  // empty and again with items in it and requires the two frames to match.
   let bagDeliverScaleFrom = BAG_COUNTER_SCALE;
   // The laid carrier's CLOSED BASE sits exactly on its authored layout point —
   // the counter's LEFT end, on the staff half, left of every staged item — and
@@ -1307,6 +2356,12 @@ export function createRegisterMode(B) {
       CHECKOUT_BAG_PRESENTATION.pitch, 0, CHECKOUT_BAG_PRESENTATION.roll,
     ))
     .add(BAG_POS);
+
+  // How far down the bag an item sinks before it is hidden, as a fraction of the
+  // rim height. 0.34 puts it about two thirds of the way below the rim - past
+  // the point where the near wall covers it from the player's seated angle, with
+  // room to spare rather than exactly at the line.
+  const BAG_SWALLOW_DEPTH = 0.34;
 
   // --- THE DEVICE BAY ------------------------------------------------------
   // A CLOSED ALCOVE: back panel, floor, ceiling and two side walls, opening
@@ -1358,58 +2413,22 @@ export function createRegisterMode(B) {
       wall.position.set(x, y, z);
       terminalBay.add(wall);
     }
-    // the second small device from the reference: a white-faced pin pad
-    // standing on the alcove floor, leaning back against the lit panel. Sized
-    // from the opening so it cannot poke through any wall.
-    const padH = Math.min(0.108, BAY.height - 0.03);
-    const pinPad = new THREE.Group();
-    const pinBody = new THREE.Mesh(
-      new THREE.BoxGeometry(0.062, padH, 0.017),
-      new THREE.MeshStandardMaterial({ color: 0x2a2e33, roughness: 0.5 }),
-    );
-    const pinFaceCanvas = document.createElement('canvas');
-    pinFaceCanvas.width = 96;
-    pinFaceCanvas.height = 160;
-    {
-      const c2 = pinFaceCanvas.getContext('2d');
-      c2.fillStyle = '#eef0ec';
-      c2.fillRect(0, 0, 96, 160);
-      c2.fillStyle = '#20241f';
-      c2.fillRect(10, 10, 76, 34); // its own little screen
-      c2.fillStyle = '#c2c7c0';
-      for (let row = 0; row < 4; row += 1) {
-        for (let col = 0; col < 3; col += 1) {
-          c2.fillRect(12 + col * 26, 56 + row * 25, 20, 17);
-        }
-      }
-    }
-    const pinFaceTexture = new THREE.CanvasTexture(pinFaceCanvas);
-    pinFaceTexture.colorSpace = THREE.SRGBColorSpace;
-    const pinFace = new THREE.Mesh(
-      new THREE.PlaneGeometry(0.054, padH - 0.008),
-      new THREE.MeshBasicMaterial({ map: pinFaceTexture, toneMapped: false }),
-    );
-    pinFace.position.z = 0.0091;
-    pinPad.add(pinBody, pinFace);
-    // stand it on the floor: half its leaned height above the floor plane,
-    // and far enough forward that leaning back keeps it clear of the panel
-    const lean = BAY.seatPitch;
-    const padRise = (padH / 2) * Math.cos(lean);
-    const padSet = (padH / 2) * Math.abs(Math.sin(lean));
-    pinPad.position.set(
-      BAY.pinPadOffsetX,
-      -halfH + padRise + 0.004,
-      Math.min(BAY.reach - 0.02, 0.014 + padSet + 0.012),
-    );
-    pinPad.rotation.x = lean;
-    terminalBay.add(pinPad);
+    // C6 — THE WHITE PIN PAD IS GONE, AND THE BLACK READER STAYS.
+    //
+    // A second white-faced device stood on the alcove floor beside the parked
+    // card reader, built from the reference sheet. Two terminals in one shelf
+    // reads as clutter rather than as a till, and the white face was the
+    // brightest thing in a dark bay - the eye went to the device that does
+    // nothing over the one the whole card flow runs through. The bay keeps its
+    // lit back panel and the reader keeps its seat; BAY.pinPadOffsetX is left
+    // in the config because a future second device would want the same slot.
     suppressInteriorSunShadows(terminalBay);
     root.add(terminalBay);
   }
 
   const itemResources = createRegisterItemResources();
   const itemMeshes = new Map();
-  // One representative of every authored cash model sits well outside the
+  // One representative of every authored payment model sits well outside the
   // player frustum only while courseScene performs its opaque-veil GPU warm-up.
   // That warm-up temporarily disables frustum culling, so the exact shared
   // geometry/materials used by later tender clones receive one real draw. The
@@ -1418,12 +2437,26 @@ export function createRegisterMode(B) {
   cashGpuPrewarmRoot.name = 'CheckoutCashGpuPrewarm';
   cashGpuPrewarmRoot.position.set(0, -1000, 0);
   root.add(cashGpuPrewarmRoot);
-  const cashGpuPrewarmExpected = checkoutMoneyGpuPrewarmStems().length;
+  const cashGpuPrewarmExpected = checkoutPaymentGpuPrewarmStems().length;
   let cashGpuPrewarmReleased = false;
   let cashGpuPrewarmReady = false;
   let cashGpuPrewarmBuilt = 0;
   let cashGpuPrewarmDrawn = 0;
+  const cashGpuPrewarmDrawnStems = new Set();
+  const cashGpuPrewarmExactVariantStems = new Set();
+  const cashGpuPrewarmExpectedDrawUnits = new Set();
+  const cashGpuPrewarmObservedDrawUnits = new Set();
+  const cashGpuPrewarmExpectedCardVariantIds = new Set(
+    checkoutPaymentCardGpuPrewarmVariantIds(),
+  );
+  const cashGpuPrewarmObservedCardVariantIds = new Set();
+  const cashGpuPrewarmRenderObservers = [];
+  let cashGpuPrewarmAborted = false;
+  let cashGpuPrewarmAbortReason = null;
   let cashGpuPrewarmReleasedCount = 0;
+  const cashGpuPrewarmOwnedGeometries = new Set();
+  const cashGpuPrewarmOwnedMaterials = new Set();
+  const cashGpuPrewarmReleaseErrors = [];
   const cashGpuPrewarmWaiters = new Set();
   let drawerPrewarmToken = 0;
   let drawerPrewarm = {
@@ -1447,40 +2480,126 @@ export function createRegisterMode(B) {
   // THE GRABBABLE HIGHLIGHT IS AN OUTLINE. Round 5's green Box3Helper cage and
   // round 6's emissive brightening + additive halo were both rejected — round
   // 7: "make sure that the highlight for selecting a card or cash is just an
-  // outline of the card or cash, not a full blob over it." So the payment's
-  // own SILHOUETTE is traced: every mesh gets an inverted-hull shell — the
-  // same geometry, back faces only, grown by a fixed rim — which the object's
-  // own front faces cover everywhere except a few millimetres around its edge.
-  // Nothing about the money's own surface changes.
+  // outline of the card or cash, not a full blob over it."
+  //
+  // K3 (2026-08-05): the round-7 answer — an inverted-hull shell grown by a
+  // fixed rim on EVERY axis — degenerates on exactly the geometry it exists
+  // for. A note is a 2.2 mm slab of paper; growing it 4.5 mm per side makes an
+  // 11 mm shell five times the note's own thickness, and from the register's
+  // glancing view its walls and flipped faces render as blank cream SHEETS
+  // lying over the money (photographed: qa/electron/cash-hover-k3, the run
+  // that failed). So flat meshes now get a border FRAME instead: a thin ring
+  // hugging the face's footprint, floating a hair off each face, which reads
+  // as a true outline from every angle. Chunky meshes keep the inverted hull,
+  // which is correct for them. Nothing about the money's own surface changes.
   const GRAB_OUTLINE_COLOR = 0xffe9a8;   // warm paper-gold rim
-  const GRAB_OUTLINE_RIM = 0.0045;       // metres of visible edge, every axis
+  const GRAB_OUTLINE_RIM = 0.0045;       // metres of visible edge
+  const GRAB_OUTLINE_LIFT = 0.0012;      // frame's clearance off a flat face
   const grabOutlineMaterial = new THREE.MeshBasicMaterial({
     color: GRAB_OUTLINE_COLOR,
     side: THREE.BackSide,
     toneMapped: false,
   });
+  const grabOutlineFlatMaterial = new THREE.MeshBasicMaterial({
+    color: GRAB_OUTLINE_COLOR,
+    side: THREE.DoubleSide,
+    toneMapped: false,
+  });
   const grabOutlineShells = []; // shells parented onto the highlighted meshes
   function clearGrabHighlight() {
-    for (const shell of grabOutlineShells) shell.removeFromParent();
+    for (const shell of grabOutlineShells) {
+      shell.removeFromParent();
+      // frames own their ShapeGeometry; hull shells borrow the mesh's own
+      if (shell.userData.grabOutlineOwnsGeometry) shell.geometry.dispose();
+    }
     grabOutlineShells.length = 0;
+  }
+  // The ring geometry for one flat face: outer edge `rim` outside the
+  // footprint, inner edge exactly on it, elliptical for coin-like rounds.
+  function grabOutlineFrameGeometry(halfX, halfY, round, rim) {
+    const shape = new THREE.Shape();
+    const hole = new THREE.Path();
+    if (round) {
+      shape.absellipse(0, 0, halfX + rim, halfY + rim, 0, Math.PI * 2);
+      hole.absellipse(0, 0, halfX, halfY, 0, Math.PI * 2, true);
+    } else {
+      const ox = halfX + rim;
+      const oy = halfY + rim;
+      shape.moveTo(-ox, -oy); shape.lineTo(ox, -oy);
+      shape.lineTo(ox, oy); shape.lineTo(-ox, oy); shape.closePath();
+      hole.moveTo(-halfX, -halfY); hole.lineTo(-halfX, halfY);
+      hole.lineTo(halfX, halfY); hole.lineTo(halfX, -halfY); hole.closePath();
+    }
+    shape.holes.push(hole);
+    return new THREE.ShapeGeometry(shape, round ? 48 : 2);
   }
   function applyGrabHighlight(list) {
     for (const object of list) {
+      // VERIFY2_K pass 1: measure every flat mesh first. The presented card
+      // carries its CHIP as its own small flat mesh, and framing the chip
+      // painted a patch in the middle of the card's face — a flat mesh only
+      // gets a frame when its footprint is a real share of the piece.
+      const flats = [];
       object.traverse((mesh) => {
         if (!mesh.isMesh || !mesh.geometry) return;
         if (mesh.userData.grabOutlineShell) return; // never outline an outline
         if (!mesh.geometry.boundingBox) mesh.geometry.computeBoundingBox();
         const box = mesh.geometry.boundingBox;
         if (!box || box.isEmpty()) return;
-        const shell = new THREE.Mesh(mesh.geometry, grabOutlineMaterial);
-        shell.userData = { grabOutlineShell: true, pick: false };
-        // Grow by an ABSOLUTE rim per axis, so a paper-thin note and a chunky
-        // card carry the same visible edge instead of a proportional one that
-        // vanishes on thin geometry. The scale is about the geometry origin;
-        // for these small centred props the rim error that introduces is far
-        // below the rim itself.
         const size = new THREE.Vector3();
         box.getSize(size);
+        const centre = new THREE.Vector3();
+        box.getCenter(centre);
+        const axes = ['x', 'y', 'z'].sort((a, b) => size[a] - size[b]);
+        const thin = axes[0];
+        const flat = size[thin] < Math.max(size[axes[1]], 1e-6) * 0.35;
+        const area = size[axes[1]] * size[axes[2]];
+        flats.push({ mesh, size, centre, thin, flat, area });
+      });
+      const maxFlatArea = flats.reduce((max, f) => (f.flat ? Math.max(max, f.area) : max), 0);
+      for (const entry of flats) {
+        const { mesh, size, centre, thin, flat } = entry;
+        if (flat) {
+          if (maxFlatArea > 0 && entry.area < maxFlatArea * 0.3) continue; // the chip, not the card
+          let halfX; let halfY; let rotate = null;
+          if (thin === 'y') {
+            halfX = size.x / 2; halfY = size.z / 2;
+            rotate = (g) => g.rotateX(Math.PI / 2);
+          } else if (thin === 'x') {
+            halfX = size.z / 2; halfY = size.y / 2;
+            rotate = (g) => g.rotateY(Math.PI / 2);
+          } else {
+            halfX = size.x / 2; halfY = size.y / 2;
+          }
+          // VERIFY2_K: roundness from the FOOTPRINT, not the geometry class —
+          // kit coins are GLTF BufferGeometry, so the CylinderGeometry test
+          // was a dead branch and every coin wore a square. A near-equal
+          // footprint is a round piece; a note is 2.3:1.
+          const round = Math.abs(halfX - halfY) < Math.max(halfX, halfY) * 0.25;
+          // small pieces get a proportional rim - 4.5mm around a 14mm coin
+          // read as a hoop, not an outline
+          const rim = Math.min(GRAB_OUTLINE_RIM, Math.min(halfX, halfY) * 0.3);
+          // a note or card reads from both sides; a coin on the desk needs
+          // only its up-side ring (the second one doubled its edge)
+          for (const sign of round ? [1] : [1, -1]) {
+            const geometry = grabOutlineFrameGeometry(halfX, halfY, round, rim);
+            if (rotate) rotate(geometry);
+            const frame = new THREE.Mesh(geometry, grabOutlineFlatMaterial);
+            frame.userData = { grabOutlineShell: true, grabOutlineOwnsGeometry: true, pick: false };
+            frame.position.copy(centre);
+            frame.position[thin] += sign * (size[thin] / 2 + GRAB_OUTLINE_LIFT);
+            frame.raycast = () => {}; // the outline must never eat the click
+            mesh.add(frame);
+            grabOutlineShells.push(frame);
+          }
+          continue;
+        }
+        const shell = new THREE.Mesh(mesh.geometry, grabOutlineMaterial);
+        shell.userData = { grabOutlineShell: true, pick: false };
+        // Grow by an ABSOLUTE rim per axis, so small and large props carry the
+        // same visible edge. The scale is about the geometry origin; for these
+        // small centred props the rim error that introduces is far below the
+        // rim itself.
         shell.scale.set(
           size.x > 1e-6 ? (size.x + GRAB_OUTLINE_RIM * 2) / size.x : 1,
           size.y > 1e-6 ? (size.y + GRAB_OUTLINE_RIM * 2) / size.y : 1,
@@ -1489,7 +2608,7 @@ export function createRegisterMode(B) {
         shell.raycast = () => {}; // the outline must never eat the click
         mesh.add(shell);
         grabOutlineShells.push(shell);
-      });
+      }
     }
   }
 
@@ -1538,7 +2657,6 @@ export function createRegisterMode(B) {
 
   let active = false;
   let tx = null;
-  let cust = null;
   let transactionKind = 'retail';
   let activeTab = 'checkout';
   let workspace = 'monitor';
@@ -1585,6 +2703,11 @@ export function createRegisterMode(B) {
   const dragPlaneNormal = new THREE.Vector3();
   const dragPlanePoint = new THREE.Vector3();
   const dragHit = new THREE.Vector3();
+  // How long the customer's hand stays on the cash after it reaches the desk,
+  // before the arm comes back. Long enough to read as PLACING it rather than
+  // dropping it, short enough that they are not standing there holding it out.
+  const CASH_LAY_SECONDS = 0.55;
+  let cashLaidTimer = 0;
   const bagDropMotions = [];
   let scanReturnTimer = 0;
   let paymentAutoTimer = 0;
@@ -1592,6 +2715,19 @@ export function createRegisterMode(B) {
   let hoveredItem = null;
 
   let cardMesh = null;
+  const cardOwnedResources = createCardMeshResourceLedger();
+  // C2 (Goal 19) scratch for the world-authored in-hand card pose
+  const _cardPoseEye = new THREE.Vector3();
+  const _cardPoseGrip = new THREE.Vector3();
+  const _cardPoseFwd = new THREE.Vector3();
+  const _cardPoseUp = new THREE.Vector3();
+  const _cardPoseWorldUp = new THREE.Vector3();
+  const _cardPoseLong = new THREE.Vector3();
+  const _cardPoseShort = new THREE.Vector3();
+  const _cardPoseAt = new THREE.Vector3();
+  const _cardPoseBasis = new THREE.Matrix4();
+  const _cardPoseQuat = new THREE.Quaternion();
+  const _cardPoseGripQuat = new THREE.Quaternion();
   let cardU = 0;
   let cardPresentationTimer = 0;
   let cardInsertTimer = 0;
@@ -1620,6 +2756,11 @@ export function createRegisterMode(B) {
   let selectedChangeMeshes = [];
   let cashMotions = [];
   let cashMotionRefillPending = false;
+  // Whether the sustained cash run is currently up. Tracked so the stop is sent
+  // ONCE on the frame the last piece lands rather than every frame afterwards --
+  // a stop per frame would re-trigger the fade and is the kind of thing that
+  // looks harmless until an audio-graph probe counts the events.
+  let cashRunRunning = false;
   let exactChangeAssistancePending = false;
   let cashAutoConfirmPhase = 'idle'; // idle | waiting | fired
   let cashAutoConfirmTimer = 0;
@@ -1633,12 +2774,16 @@ export function createRegisterMode(B) {
   let checkoutWatchdogRunning = false;
   let checkoutWatchdogPostResume = null;
   const checkoutWatchdogEvents = [];
+  const checkoutPostBankFailures = [];
+  const checkoutPostBankRecoveries = [];
+  let qaBankHelperReturnFault = null;
 
-  function clearCashValidationToast() {
-    if (cashValidationToast && typeof cashValidationToast.remove === 'function') {
-      cashValidationToast.remove();
-    }
+  function clearCashValidationToast(onError = null) {
+    const removing = cashValidationToast;
     cashValidationToast = null;
+    if (removing && typeof removing.remove === 'function') {
+      try { removing.remove(); } catch (error) { onError?.('cash-validation-toast', error); }
+    }
   }
 
   function cashValidationWarning(message) {
@@ -1655,6 +2800,42 @@ export function createRegisterMode(B) {
     || (cust && (cust.payMethod === 'cash' || cust.payMethod === 'card') && cust.payMethod)
     || 'card'
   );
+
+  // F3 (Goal 18): a line when the sale completes, chosen from what actually
+  // happened - not random flavour. Price wins over speed wins over plain
+  // thanks. PRICE compares the pre-tax subtotal the customer just paid with
+  // the catalogue MSRP of the same goods (the game's recorded value baseline
+  // for every item); SPEED is wall-clock from ticket start to payment
+  // complete - the player's own hands. Computed once and frozen on the tx so
+  // the same sale never re-rolls its verdict.
+  function farewellLine() {
+    if (!tx || !cust) return '';
+    if (!['receipt', 'bagging', 'done'].includes(tx.stage)) return '';
+    if (!tx.farewell) {
+      const name = cust.fullName || cust.name || 'Customer';
+      let subtotal = 0;
+      let msrp = 0;
+      for (const item of tx.items) {
+        subtotal += Number(item.price) || 0;
+        const sku = skuById(item.skuId || item.sku || item.id);
+        msrp += Number(sku?.msrp) || Number(item.price) || 0;
+      }
+      const ratio = msrp > 0 ? subtotal / msrp : 1;
+      const seconds = tx.startedAtMs ? (performance.now() - tx.startedAtMs) / 1000 : null;
+      tx.farewell = ratio > 1.12 ? `${name}: $${subtotal.toFixed(2)} for this? That's steep.`
+        : ratio < 0.88 ? `${name}: Cheap enough. I'll be back.`
+          : seconds != null && seconds < 25 ? `${name}: That was quick, thanks.`
+            : seconds != null && seconds > 75 ? `${name}: You took your time back there.`
+              : `${name}: Thanks. See you on the course.`;
+      tx.farewellFacts = {
+        subtotal: +subtotal.toFixed(2),
+        msrp: +msrp.toFixed(2),
+        ratio: +ratio.toFixed(3),
+        seconds: seconds == null ? null : +seconds.toFixed(1),
+      };
+    }
+    return tx.farewell;
+  }
 
   function paymentChoiceLine() {
     const name = cust && (cust.fullName || cust.name) ? (cust.fullName || cust.name) : 'Customer';
@@ -1889,6 +3070,12 @@ export function createRegisterMode(B) {
     return root.worldToLocal(grip.getWorldPosition(new THREE.Vector3()));
   }
 
+
+  // G-i18n: the payment method is a WORD the player reads, so it is looked up
+  // rather than interpolated raw. Substituting the bare token would put an
+  // English 'card' inside a translated sentence.
+  const payMethodWord = (pref) => (pref === 'cash' ? t('till.method.cash') : t('till.method.card'));
+
   function poseCustomerForCheckout(mode) {
     const char = cust && cust.mesh && cust.mesh.userData && cust.mesh.userData.char;
     if (!char) return false;
@@ -1934,11 +3121,19 @@ export function createRegisterMode(B) {
     selectedChangeMeshes = [];
     cashMotions = [];
     cashMotionRefillPending = false;
+    // The run is derived from the motion list, and the list was just emptied
+    // without a frame in between. Stop it here so an interrupted deposit cannot
+    // leave a looping voice running with nothing to explain it.
+    if (cashRunRunning) { sfx('cashRunStop'); cashRunRunning = false; }
     clearTenderHandful();
+    // C4: the customer's own cash, on the CUSTOMER half beside the goods they
+    // put down — not on changeHandoff, which is where the player counts change
+    // back to them. Sharing one anchor put two different piles of notes in one
+    // place and neither read as belonging to anybody.
     const bundle = new THREE.Vector3(
-      REGISTER.changeHandoff.x,
+      REGISTER.customerTender.x,
       COUNTER_TOP + 0.13,
-      REGISTER.changeHandoff.z,
+      REGISTER.customerTender.z,
     ).add(frontDeskOffsetVector3(0, 0, 0.01));
     let pieceIndex = 0;
     for (const [rawDenom, count] of Object.entries(tx.tendered || {})) {
@@ -2031,14 +3226,20 @@ export function createRegisterMode(B) {
         const rollback = recoverUnresolvedCardAuthorization(tx);
         if (!rollback.ok) return rollback;
       }
-      if (tx.method !== 'card' || tx.stage !== 'card-present') {
+      // 'card-ready' counts. A card the customer is HOLDING OUT is every bit as
+      // unresolved as one about to be drawn — insisting on 'card-present' made
+      // every CardInsertReady/CardInserting recovery unreconcilable, which is
+      // what parked the flow in Recovery and killed the till (2026-08-03).
+      // Re-presenting from 'card-ready' is the same beat: the presentation
+      // timer's else-branch re-arms CardInsertReady and, with cardAccepted
+      // cleared below, puts the card back in the customer's hand.
+      if (tx.method !== 'card' || !['card-present', 'card-ready'].includes(tx.stage)) {
         return { ok: false, reason: 'Card presentation recovery has no unresolved card.' };
       }
-      if (cardMesh) cardMesh.removeFromParent();
-      cardMesh = null;
+      disposeCardMesh();
       createCardMesh();
       cardPresentationTimer = 0.55;
-    cardAccepted = false;
+      cardAccepted = false;
       setWorkspace('card');
       return { ok: true };
     }
@@ -2065,8 +3266,7 @@ export function createRegisterMode(B) {
         return { ok: false, reason: 'Paid presentation recovery has no authorization checkpoint.' };
       }
       clearCardWatchdogWork();
-      if (cardMesh) cardMesh.removeFromParent();
-      cardMesh = null;
+      disposeCardMesh();
       deliveryTimer = 0;
       finalizeTimer = 0;
       if (resumeState === 'Bagging') {
@@ -2134,13 +3334,63 @@ export function createRegisterMode(B) {
     if (cashRecoveryTimer > 0) return true;
     layoutAcceptedTender();
     setWorkspace('cash');
-    toast('Cash restored safely. Press D to reopen the drawer.');
+    toast(t('till.cashIsBackD'));
     return true;
+  }
+
+  // The last resort behind the watchdog: give the player a working till back.
+  // No money has moved (abandonCheckoutRecovery refuses an authorized sale), so
+  // the card run is pulled at the domain level and the flow returns to the scan
+  // checkpoint with the basket intact — the same place the reader's X lands.
+  function releaseUnreconcilableRecovery(nowMs) {
+    const flow = tx && tx.checkoutFlow;
+    if (!flow) return { ok: false, reason: 'No checkout flow to release.' };
+    const facts = checkoutWatchdogFacts();
+    const released = abandonCheckoutRecovery(flow, { nowMs: nowMs + 0.001, facts });
+    if (!released.ok) return released;
+    if (tx.method === 'card') {
+      // pre-submit pulls the run; anything later already failed the authorized
+      // guard above, so cancelCard is the honest fallback for a card-stage tx
+      if (!abandonCardBeforeSubmit(tx).ok && String(tx.stage).startsWith('card')) {
+        cancelCard(tx);
+      }
+    }
+    syncFlow(released.flow);
+    clearCardWatchdogWork();
+    disposeCardMesh();
+    cardAccepted = false;
+    cardPresentationTimer = 0;
+    // …and re-arm the automatic payment beat, or the sale would sit at a
+    // post-scan monitor that never asks for payment again.
+    paymentAutoTimer = AUTO_PAYMENT_HOLD;
+    paymentAutoSuppressed = false;
+    customerPalm.visible = false;
+    setWorkspace('monitor');
+    return released;
   }
 
   function recoverCheckoutWatchdog(nowMs = flowNow()) {
     const flow = tx && tx.checkoutFlow;
     if (!flow || checkoutWatchdogRunning
+        // AllProductsScanned normally owns only a short automatic-payment
+        // hold. A combined visitor deliberately extends that same state while
+        // the cashier answers the tee-time request on the desk screen. That is
+        // player-owned progress, not a stuck animation: recovering here redraws
+        // the monitor during a real row click and can make the selection miss.
+        // Resume the bounded watchdog as soon as the answer clears the errand.
+        || (flow.state === 'AllProductsScanned' && (
+          deskErrandOutstanding()
+          || (paymentAutoTimer > 0 && !paymentAutoSuppressed
+            && tx?.stage === 'scanning' && unscannedCount(tx) === 0 && !scanMotion)
+        ))
+        // The contract watchdog uses wall time while authored motion advances
+        // with capped frame delta. On a genuinely slow render process, the
+        // 0.55-second card handoff can therefore still be making measurable
+        // progress after its wall-clock deadline. Let that owned timer finish;
+        // if presentCard then fails, the timer is zero and the next frame may
+        // recover the unresolved CardPresented checkpoint normally.
+        || (flow.state === 'CardPresented'
+          && tx?.stage === 'card-present' && cardPresentationTimer > 0)
         || !SIMPLIFIED_REGISTER_WATCHDOG_SET.has(flow.state)
         || !checkoutStateTimedOut(flow, nowMs)) return false;
     checkoutWatchdogRunning = true;
@@ -2155,19 +3405,28 @@ export function createRegisterMode(B) {
       const resumeState = entered.flow.recovery.resumeState;
       const reconciled = reconcileCheckoutWatchdog(fromState, resumeState);
       if (!reconciled.ok) {
+        // NEVER PARK HERE. Recovery only permits its stored resume state, so a
+        // checkpoint the renderer cannot rebuild used to leave every later verb
+        // refused — a dead register with a customer still at it. Let go instead:
+        // pull the unauthorized card run and drop back to the scan checkpoint.
+        const released = releaseUnreconcilableRecovery(nowMs);
         checkoutWatchdogEvents.push({
           atMs: nowMs, fromState, resumeState, ok: false, reason: reconciled.reason,
+          released: released.ok, releasedTo: released.resumeState || null,
+          releaseReason: released.ok ? null : released.reason,
           recoverySequence: entered.flow.sequence,
         });
         checkoutWatchdogEvents.splice(0, Math.max(0, checkoutWatchdogEvents.length - 16));
-        toast(`Checkout recovery paused safely: ${reconciled.reason}`, 'warn');
+        toast(released.ok
+          ? `Checkout recovered to the scanned basket: ${reconciled.reason}`
+          : `Checkout recovery paused safely: ${reconciled.reason}`, 'warn');
         drawScreen();
         drawTerm();
         return true;
       }
       const resumed = resumeCheckout(tx.checkoutFlow, { nowMs: nowMs + 0.001 });
       if (!resumed.ok) {
-        toast(`Checkout recovery could not resume: ${resumed.reason}`, 'warn');
+        toast(t('till.resumeFailed', { reason: resumed.reason }), 'warn');
         return true;
       }
       syncFlow(resumed.flow);
@@ -2181,7 +3440,11 @@ export function createRegisterMode(B) {
         resumeSequence: resumed.flow.sequence,
       });
       checkoutWatchdogEvents.splice(0, Math.max(0, checkoutWatchdogEvents.length - 16));
-      toast(`Checkout recovered from ${fromState}.`);
+      // `fromState` is deliberately NOT passed: it is an internal flow state
+      // (`CardProcessing` and friends) and it was reaching the player's screen.
+      // It is already recorded in the checkoutWatchdogEvents push above, which
+      // is where a diagnostic belongs.
+      toast(t('till.recovered'));
       drawScreen();
       drawTerm();
       return true;
@@ -2253,6 +3516,15 @@ export function createRegisterMode(B) {
       : [];
   }
 
+  // L1: the resolver's verdict on the customer's asked time — exact / near /
+  // nothing-close — so the detail panel can say what the buttons mean.
+  function walkInAsk(customerId) {
+    const bridge = reservationBridge();
+    return bridge && typeof bridge.walkInAskFor === 'function'
+      ? bridge.walkInAskFor(customerId)
+      : null;
+  }
+
   function activeReservation() {
     return reservationsWaiting().find((reservation) => reservation.id === selectedReservationId) || null;
   }
@@ -2295,7 +3567,15 @@ export function createRegisterMode(B) {
     if (tx.stage === 'card-busy') return 'PROCESSING';
     if (tx.stage === 'card-declined') return tx.cardResult === 'timeout' ? 'CARD TIMEOUT' : 'CARD DECLINED';
     if (tx.stage === 'receipt' || tx.stage === 'bagging') return 'PAYMENT ACCEPTED';
-    if (tx.stage === 'done') return autoFulfilled ? 'HANDOFF IN PROGRESS' : 'HANDOFF PAUSED';
+    // GOAL 25 legibility — "HANDOFF PAUSED" named the animation, not the money.
+    //
+    // The owner's second reason the sale looked broken: the ticket sits at `done`
+    // and the takings do not move, because `finalizeTransaction()` — the thing
+    // that actually banks it — only runs once `deliveryPhase === 'released'`,
+    // which only happens when the bag reaches the customer's palm. A player
+    // watching an accepted payment fail to appear in the day's money is reading a
+    // status line that talks about a handoff and says nothing about the money.
+    if (tx.stage === 'done') return autoFulfilled ? 'HANDOFF IN PROGRESS' : 'SALE NOT BANKED YET';
     if (tx.stage === 'cash-drawer' && tx.deposited) {
       if (cashMotions.some((motion) => motion.kind === 'cash-deposit')) return 'STOWING CASH';
       const delta = Math.round((handTotal(tx) - changeDue(tx)) * 100);
@@ -2306,7 +3586,16 @@ export function createRegisterMode(B) {
     if (tx.stage === 'card-ready') return 'INSERTING CARD';
     if (tx.stage === 'card-entry') return 'ENTER CARD TOTAL';
     if (tx.stage === 'card-present') return 'CARD PRESENTED';
-    if (unscannedCount(tx) === 0) return 'ALL ITEMS BAGGED';
+    // B3 (Goal 24) — SAY WHAT THE HOLD-UP IS.
+    //
+    // "All items are bagged, the customer's cash is being prepared" was a lie
+    // whenever a tee time was outstanding: nothing was being prepared, the
+    // payment advance was deliberately held for the question the customer had
+    // just asked, and the screen described the state the register WOULD be in if
+    // it were not waiting. The player is owed the reason they are stuck.
+    if (unscannedCount(tx) === 0) {
+      return deskErrandOutstanding() ? 'TEE TIME REQUESTED' : 'ALL ITEMS BAGGED';
+    }
     return workspace === 'scan' ? 'RINGING PRODUCTS' : 'PRODUCTS READY';
   }
 
@@ -2314,6 +3603,13 @@ export function createRegisterMode(B) {
     if (!tx) return 'The register is ready for the next customer.';
     if (tx.stage === 'scanning') {
       if (unscannedCount(tx)) return 'Click each product once to ring it up and place it in the bag.';
+      // B3: the tee time is why payment has not started. Name it, and name the
+      // two ways out — both of which end in the customer paying for the goods.
+      if (deskErrandOutstanding()) {
+        const asked = Number.isFinite(cust?.requestedTeeMinute)
+          ? ` (${fmtSlot(cust.requestedTeeMinute)})` : '';
+        return `Items bagged. The customer wants a tee time${asked}. Book it on Check In to put it on this ticket, or turn it down and they pay for the goods.`;
+      }
       return `All items are bagged. The customer’s ${preferredPayment() === 'cash' ? 'cash' : 'card'} is being prepared.`;
     }
     if (tx.stage === 'card-present') return 'The customer is handing their card across the counter.';
@@ -2344,7 +3640,10 @@ export function createRegisterMode(B) {
         ? 'Drag full-size purchases to the customer\'s free hand; put compact goods in the shopping bag.'
         : 'Drag every paid product into the shopping bag.';
     }
-    if (tx.stage === 'done') return 'Grip the bag handles and drag them to the customer’s open palm.';
+    // The instruction said what to do and never said what it was FOR. Both halves
+    // now, cause first: the drag is not a flourish after the sale, it IS the last
+    // step of the sale.
+    if (tx.stage === 'done') return 'The sale banks when the customer has the bag. Grip the handles and drag them to their open palm.';
     return 'Follow the front-desk prompts.';
   }
 
@@ -2422,7 +3721,21 @@ export function createRegisterMode(B) {
     if (activeTab === 'check-in') {
       const selected = activeReservation();
       const selectedWalkIn = activeWalkIn();
-      const locked = !!tx;
+      // B2 (Goal 23) — THE FOURTH WALL, AND THE LAST ONE.
+      //
+      // This was `!!tx`: every reservation row on the desk went grey the moment
+      // a ticket existed. So a customer with goods on the counter -- which is
+      // the ENTIRE combined visit -- could never have their booking selected.
+      //
+      // And it contradicts the handler two thousand lines below, which has
+      // allowed exactly this since Goal 22: "A ticket that is still being
+      // scanned can take a tee time on it, so selecting one is exactly what the
+      // player is here to do. Only a ticket that has started payment is too
+      // late to add to." The action was open and the row was painted shut.
+      //
+      // One rule now, and it is the handler's: a ticket still being scanned can
+      // take a tee time; one that has started payment cannot.
+      const locked = !!tx && (tx.stage !== 'scanning' || !!tx.banked);
       const selectedReady = selected ? !!readyReservationCustomer(selected.id) : false;
       const reservationRows = reservationsWaiting().map((reservation) => ({
         id: reservation.id,
@@ -2435,16 +3748,37 @@ export function createRegisterMode(B) {
             : reservation.arrivalStatus === 'arrived' ? 'ARRIVING' : 'EN ROUTE',
         disabled: locked,
       }));
-      const walkInRows = walkInsWaiting().map((customer) => ({
-        id: `walkin:${customer.customerId}`,
-        actionId: `select-walkin:${customer.customerId}`,
-        name: customer.fullName || customer.name,
-        time: 'Walk-in tee request',
-        partySize: customer.partySize || 1,
-        status: customer.queueIndex === 0 ? 'AT DESK' : 'IN QUEUE',
-        disabled: locked,
-      }));
+      // D1 (Goal 20) — THE LIST IS THE LINE, AND NOTHING ELSE.
+      //
+      // Goal 19 got the STATUS right and left the MEMBERSHIP wrong: walkIns()
+      // hands over every open walk-in in the building, so a golfer who came in
+      // ten minutes ago and is browsing the shelves sat on the check-in list
+      // reading WALKING UP for as long as they shopped. They are not walking
+      // up. They are shopping. Requiring a queue index means the list contains
+      // the people standing in the line and the people joining it, which is
+      // what the player is looking at when they look at the desk.
+      const walkInRows = walkInsWaiting()
+        .filter((customer) => walkInQueueStatus(customer) !== null)
+        .map((customer) => {
+          const status = walkInQueueStatus(customer);
+          return {
+            id: `walkin:${customer.customerId}`,
+            actionId: `select-walkin:${customer.customerId}`,
+            name: customer.fullName || customer.name,
+            // D1, second rule: you only learn what time they want when they are
+            // IN FRONT OF YOU ASKING FOR IT. A person in the line has not asked
+            // yet, and printing their ask over their head turned the queue into
+            // a spreadsheet the player could plan against before anyone spoke.
+            time: walkInShowsAsk(customer)
+              ? `Asks ${fmtSlot(customer.requestedTeeMinute)}`
+              : 'Walk-in tee request',
+            partySize: customer.partySize || 1,
+            status,
+            disabled: locked,
+          };
+        });
       const slots = selectedWalkIn ? walkInSlots(selectedWalkIn.customerId).slice(0, 3) : [];
+      const ask = selectedWalkIn ? walkInAsk(selectedWalkIn.customerId) : null;
       const allRows = [...walkInRows, ...reservationRows];
       const rowsPerPage = 5;
       const pageCount = Math.max(1, Math.ceil(allRows.length / rowsPerPage));
@@ -2458,14 +3792,24 @@ export function createRegisterMode(B) {
         selectedReservation: selectedWalkIn ? {
           id: `walkin:${selectedWalkIn.customerId}`,
           name: selectedWalkIn.fullName || selectedWalkIn.name,
-          time: 'Choose an available tee time',
+          // F1: "Choose an available tee time" needed 350px in a 300px row.
+          time: ask ? `Asking for ${fmtSlot(ask.asked)}` : 'Pick a tee time',
           partySize: selectedWalkIn.partySize || 1,
           visit: 'Walk-in tee request',
-          extras: 'Manual same-day slot selection',
+          extras: 'Book a same-day time',
           depositPaid: 0,
           balanceDue: (state.club ? state.club.greenFee : 0) * (selectedWalkIn.partySize || 1),
-          status: selectedWalkIn.queueIndex === 0 ? 'READY AT DESK' : 'WAITING IN QUEUE',
-          note: slots.length ? 'Choose one of the next capacity-safe openings.' : 'No same-day capacity remains.',
+          status: selectedWalkIn.queueIndex === 0 && selectedWalkIn.atSlot ? 'READY AT DESK'
+            : selectedWalkIn.atSlot ? 'WAITING IN QUEUE' : 'WALKING UP',
+          // L1: the note states the resolver's verdict on the ask, so the
+          // player knows whether the top button IS the asked time
+          note: ask
+            ? (ask.verdict?.exact
+              ? `${fmtSlot(ask.asked)} is open. The first time below books their ask.`
+              : ask.verdict?.ok
+                ? `${fmtSlot(ask.asked)} is not available. The nearest open time is ${fmtSlot(ask.verdict.slot.minute)}.`
+                : ask.verdict?.reason || 'Nothing near their asked time remains.')
+            : slots.length ? 'Pick one of the next open times.' : 'Nothing left today.',
         } : selected ? {
           ...selected,
           name: selected.fullName || selected.name,
@@ -2478,15 +3822,28 @@ export function createRegisterMode(B) {
           status: selectedReady ? 'READY AT DESK' : 'WAITING FOR GUEST',
         } : null,
         actions: selectedWalkIn ? [
-          ...slots.map((slot) => ({
+          // L2: two offers that FIT their buttons, the ask flagged on its
+          // face; every other slot lives on the Tee Sheet tab, which books
+          // through the identical action
+          ...slots.slice(0, 2).map((slot) => ({
             id: `select-walkin-slot:${selectedWalkIn.customerId}:${slot.dayAbs}:${slot.minute}`,
-            label: `${fmtSlot(slot.minute)} · ${slot.remainingCapacity} open`,
+            label: slot.askedExact
+              ? `${fmtSlot(slot.minute)} asked`
+              : fmtSlot(slot.minute),
             kind: 'primary',
             disabled: locked || selectedWalkIn.queueIndex !== 0,
           })),
+          ...(slots.length ? [{
+            id: 'tab-tee-sheet',
+            label: 'Full Sheet',
+            kind: 'secondary',
+            disabled: false,
+          }] : []),
           {
             id: 'reject-walkin',
-            label: slots.length ? 'Cannot Accommodate' : 'No Times Available',
+            // F1: "No Times Available" needed 262px in a 92px button. Even at
+            // two columns it is the longest thing on the row for no gain.
+            label: slots.length ? 'Turn Away' : 'None Today',
             kind: 'danger',
             disabled: locked || selectedWalkIn.queueIndex !== 0,
           },
@@ -2496,6 +3853,65 @@ export function createRegisterMode(B) {
           kind: selected.paymentPreference === 'cash' ? 'cash' : 'primary',
           disabled: locked || !selectedReady,
         }] : [],
+      };
+    }
+
+    // L2 (2026-08-05): THE TEE SHEET IS A SHEET. The day's every slot on one
+    // screen — time, seat pips, holder names, closed rows, the now line —
+    // instead of three anonymous buttons. Booking rides the same
+    // select-walkin-slot action the check-in tab uses, so the sheet is a
+    // surface over the identical flow, not a second booking path.
+    if (activeTab === 'tee-sheet') {
+      const dayAbs = Math.floor(state.clock.minutes / 1440);
+      const nowMinute = state.clock.minutes % 1440;
+      const selectedWalkIn = activeWalkIn();
+      const ask = selectedWalkIn ? walkInAsk(selectedWalkIn.customerId) : null;
+      // B1 (Goal 24): `!tx` here was the same wall on the Full Sheet tab -- the
+      // grid the check-in panel's own "Full Sheet" button sends you to, greyed
+      // out for the one customer who needs it. Same rule as everywhere else now.
+      const bookable = !!selectedWalkIn && selectedWalkIn.queueIndex === 0
+        && (!tx || (tx.stage === 'scanning' && !tx.banked));
+      const party = selectedWalkIn ? (selectedWalkIn.partySize || 1) : 1;
+      let nowMarked = false;
+      const rawSheet = daySheet(state, dayAbs);
+      const dateKey = rawSheet[0]?.dateKey || '';
+      const sheet = rawSheet.map((slot) => {
+        const past = slot.minute < nowMinute;
+        const now = !past && !nowMarked ? (nowMarked = true) : false;
+        return {
+          minute: slot.minute,
+          label: fmtSlot(slot.minute),
+          capacity: slot.capacity,
+          booked: slot.bookedPlayers ?? slot.reservedSeats ?? 0,
+          names: (slot.reservations || [])
+            .map((r) => r.holder || r.fullName || r.name)
+            .filter(Boolean),
+          closed: !!slot.closed,
+          past,
+          now,
+          asked: !!ask && slot.minute === ask.asked,
+          openSeats: slot.availableSeats ?? Math.max(0, slot.capacity - (slot.reservedSeats || 0)),
+          actionId: bookable && slot.available && !past
+            && (slot.availableSeats ?? 0) >= party
+            ? `select-walkin-slot:${selectedWalkIn.customerId}:${slot.dayAbs}:${slot.minute}`
+            : null,
+        };
+      });
+      return {
+        app: 'tee-sheet',
+        heading: dateKey ? `Tee sheet · ${dateKey}` : 'Tee sheet',
+        dateKey,
+        context: selectedWalkIn
+          ? `Booking ${selectedWalkIn.fullName || selectedWalkIn.name}${ask ? ` · asks ${fmtSlot(ask.asked)}` : ''}${bookable ? '' : ' · waiting in queue'}`
+          : 'Pick a walk-in on Check In to book from this sheet.',
+        note: ask
+          ? (ask.verdict?.exact
+            ? `${fmtSlot(ask.asked)} is open. Click it to book their ask.`
+            : ask.verdict?.ok
+              ? `${fmtSlot(ask.asked)} is not available. The nearest open time is ${fmtSlot(ask.verdict.slot.minute)}.`
+              : ask.verdict?.reason || 'Nothing near their asked time remains.')
+          : null,
+        sheet,
       };
     }
 
@@ -2537,7 +3953,7 @@ export function createRegisterMode(B) {
       total: tx ? dueOf(tx) : (display.total || 0),
       payment: tx ? (tx.method || null) : display.method,
       customerChoice: paymentChoiceVisible() ? (tx ? preferredPayment() : display.method) : null,
-      paymentDialogue: paymentChoiceVisible() && cust ? paymentChoiceLine() : '',
+      paymentDialogue: farewellLine() || (paymentChoiceVisible() && cust ? paymentChoiceLine() : ''),
       tendered: tx && tx.method === 'cash'
         ? (tx.tenderedTotal != null ? tx.tenderedTotal : stackTotal(tx.tendered || {}))
         : undefined,
@@ -2600,104 +4016,206 @@ export function createRegisterMode(B) {
     ctx.arcTo(x, y, x + w, y, r);
     ctx.closePath();
   }
+  // THE READER'S FACE (round 10, 2026-08-03).
+  //
+  // What this replaced: a stack of full-bleed gradient bands — a slate status
+  // strip, a mid-blue caption band, a navy amount band, and the prompt in a
+  // tinted pill. Four competing backgrounds on a 70 mm screen, with the amount
+  // no more prominent than the word above it. Reported as "the DUE / TOTAL
+  // panel reads dated".
+  //
+  // What replaces it is how a current payment terminal actually reads: ONE
+  // ground, and hierarchy carried by type and space instead of by coloured
+  // boxes. A quiet status line at the top; a small letterspaced eyebrow naming
+  // what the figure is; the figure itself dominant, left-aligned on a real
+  // margin; a hairline; the prompt small and muted underneath. Colour appears
+  // once, as the accent — green normally, red on a decline or an entry error —
+  // and never as a background.
+  //
+  // K5 (2026-08-05): that ground was near-black (#0D1211, luma 17/255) and was
+  // judged "too dark. Lighten it. Keep the amount dominant." Lightening a dark
+  // ground under a near-white figure can only CUT the figure's contrast, so
+  // the theme flips polarity instead — light glass, near-black amount — the
+  // way a real terminal's light mode reads. Both themes are measured on the
+  // live canvas by tools/qa/reader-theme-shots.js (K5_LEG=before|after); the
+  // measured deltas live in qa/electron/reader-theme-k5/. The hierarchy
+  // (152 px figure over a 52 px KEYED line) is untouched.
+  const TERM_INK = '#0B100D';
+  const TERM_INK_MUTED = '#5E6C64';
+  const TERM_ACCENT = '#178A52';
+  const TERM_WARN = '#BC3F30';
+  // canvas letterSpacing is Chromium-only; the caps still read without it
+  const setTermTracking = (ctx, px) => {
+    try { ctx.letterSpacing = `${px}px`; } catch { /* older canvas */ }
+  };
   function paintTermBandedFace(ctx, W, H, {
-    caption, amount, amountInk = '#ffffff', footer, footerInk, caret = false,
-    captionTop = '#63a0c4', captionBottom = '#4d84a6',
-    amountTop = '#24446b', amountBottom = '#182f4c',
+    caption, amount, footer, caret = false, accent = TERM_ACCENT,
+    // C13 — the running entry, drawn UNDER the dominant figure rather than in
+    // place of it. `caret` follows this line when it is present.
+    entry = null, entryLabel = 'KEYED',
+    // retained so the older call shape stays valid; the face no longer paints
+    // bands, so these only pick the accent
+    footerInk = null, amountInk = null,
   }) {
+    const tone = footerInk || accent;
     const x0 = TERM_PAD;
     const w = W - TERM_PAD * 2;
     const inner = H - TERM_PAD * 2;
-    // the glass card, rounded, with a whisper of inner shadow at the edges
+    const left = x0 + 34;              // the margin everything hangs off
     ctx.save();
-    termRoundedPath(ctx, x0, TERM_PAD, w, inner, 14);
-    ctx.fillStyle = '#eef1f2';
+    // Q2 (2026-08-06): "the card reader ui is a bit too boring make it a bit
+    // cooler and a bit more modern with the ui and not too bright white."
+    //
+    // K5 already ruled OUT going back to a near-black ground, so the answer is
+    // neither pole: a cool off-white glass with a real vertical gradient and a
+    // seated inner panel, the way a current terminal reads, instead of one
+    // flat #F4F7F4 rectangle. The amount stays dominant and near-black, which
+    // is C13's ruling and is not up for renegotiation.
+    termRoundedPath(ctx, x0, TERM_PAD, w, inner, 20);
+    const glass = ctx.createLinearGradient(0, TERM_PAD, 0, TERM_PAD + inner);
+    glass.addColorStop(0, '#EDF2EF');
+    glass.addColorStop(0.55, '#E3EAE6');
+    glass.addColorStop(1, '#D8E1DC');
+    ctx.fillStyle = glass;
     ctx.fill();
     ctx.clip();
-    // status strip
-    const statusH = Math.round(inner * 0.135);
-    const statusGrad = ctx.createLinearGradient(0, TERM_PAD, 0, TERM_PAD + statusH);
-    statusGrad.addColorStop(0, '#23272a');
-    statusGrad.addColorStop(1, '#141719');
-    ctx.fillStyle = statusGrad;
-    ctx.fillRect(x0, TERM_PAD, w, statusH);
-    // THE REFERENCE'S TITLE BAR (154618) reads "Payment" beside a small user
-    // glyph, with the operator's mark pushed to the right — round 8 restores
-    // exactly that order; the club name had been sitting where "Payment"
-    // belongs and the strip read like a shop sign rather than a status line.
+    // a soft top sheen, so the glass reads as glass rather than as paper
+    const sheen = ctx.createLinearGradient(0, TERM_PAD, 0, TERM_PAD + inner * 0.34);
+    sheen.addColorStop(0, 'rgba(255,255,255,0.55)');
+    sheen.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.fillStyle = sheen;
+    ctx.fillRect(x0, TERM_PAD, w, inner * 0.34);
+
+    // --- status line ---------------------------------------------------------
+    const statusY = TERM_PAD + 40;
     ctx.textAlign = 'left';
-    ctx.fillStyle = '#59d68a';
-    ctx.font = '700 30px Arial, sans-serif';
-    ctx.fillText('●', x0 + 18, TERM_PAD + statusH / 2 + 1);
-    ctx.fillStyle = '#e6ebe8';
-    ctx.font = '600 27px Arial, sans-serif';
-    ctx.fillText('Payment', x0 + 44, TERM_PAD + statusH / 2 + 1);
+    ctx.textBaseline = 'middle';
+    ctx.beginPath();
+    ctx.arc(left + 5, statusY, 6, 0, Math.PI * 2);
+    ctx.fillStyle = accent;
+    ctx.fill();
+    setTermTracking(ctx, 2.2);
+    ctx.font = '600 21px Arial, sans-serif';
+    ctx.fillStyle = TERM_INK_MUTED;
+    ctx.fillText('PAYMENT', left + 24, statusY + 1);
+    // measured while the tracked font is still set, or the gap is understated
+    const paymentEnd = left + 24 + ctx.measureText('PAYMENT').width;
+    setTermTracking(ctx, 0);
+    // …and the club name after it, clear of BOTH neighbours. The cancel X is
+    // drawn last over everything, so a name right-aligned to the glass edge
+    // vanishes under it; a name sized only against the X ran into "PAYMENT"
+    // instead. Give it the measured gap on the left and the badge on the right,
+    // and let it shrink into whatever is actually free.
+    const brandRight = TERM_X_BOX.x0 - 18;
+    const brandLeft = paymentEnd + 34;
+    const brandName = displayClubName().toUpperCase();
     ctx.textAlign = 'right';
-    ctx.fillStyle = '#93a09a';
-    setFittedCanvasFont(ctx, displayClubName().toUpperCase(), {
-      maxWidth: w * 0.42, startSize: 20, minimumSize: 13, weight: 600,
+    ctx.fillStyle = 'rgba(94,108,100,0.80)';
+    setFittedCanvasFont(ctx, brandName, {
+      maxWidth: Math.max(60, brandRight - brandLeft), startSize: 18, minimumSize: 11, weight: 600,
     });
-    ctx.fillText(displayClubName().toUpperCase(), x0 + w - 18, TERM_PAD + statusH / 2 + 1);
-    // caption band
-    const capY = TERM_PAD + statusH;
-    const capH = Math.round(inner * 0.215);
-    const capGrad = ctx.createLinearGradient(0, capY, 0, capY + capH);
-    capGrad.addColorStop(0, captionTop);
-    capGrad.addColorStop(1, captionBottom);
-    ctx.fillStyle = capGrad;
-    ctx.fillRect(x0, capY, w, capH);
+    ctx.fillText(brandName, brandRight, statusY + 1);
+    ctx.fillStyle = 'rgba(15,23,18,0.14)';
+    ctx.fillRect(left, statusY + 30, w - 68, 2);
+
+    // --- the amount PANEL: the figure sits on something ----------------------
+    // A modern terminal seats the number on a card rather than floating it on
+    // the ground. The panel is a shade lighter than the glass with a hairline,
+    // so the hierarchy reads even before the type does.
+    const panelTop = statusY + 52;
+    const panelH = inner - (panelTop - TERM_PAD) - 66;
+    termRoundedPath(ctx, left - 18, panelTop, w - 68 + 36, panelH, 14);
+    ctx.fillStyle = 'rgba(255,255,255,0.62)';
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(15,23,18,0.09)';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    // --- the eyebrow: what the figure below IS -------------------------------
+    // with the accent as a short bar beside it, which is where the colour
+    // budget goes on a modern reader
+    ctx.fillStyle = tone;
+    termRoundedPath(ctx, left, statusY + 74, 5, 20, 2.5);
+    ctx.fill();
     ctx.textAlign = 'left';
-    ctx.fillStyle = '#ffffff';
-    setFittedCanvasFont(ctx, caption, {
-      maxWidth: w - 44, startSize: 60, minimumSize: 30, weight: 700,
+    setTermTracking(ctx, 3.4);
+    ctx.font = '700 22px Arial, sans-serif';
+    ctx.fillStyle = tone;
+    ctx.fillText(String(caption).toUpperCase(), left + 18, statusY + 88);
+    setTermTracking(ctx, 0);
+
+    // --- the figure, dominant ------------------------------------------------
+    // C13: 118 -> 152. This is the only number on the glass that decides
+    // anything, and at 118 it shared the frame with a 25 px line carrying the
+    // amount owed. It is fitted, so a five-figure ticket still shrinks to fit
+    // rather than running off the edge.
+    const amountY = statusY + (entry ? 158 : 176);
+    ctx.fillStyle = amountInk || TERM_INK;
+    const amountSize = setFittedCanvasFont(ctx, amount, {
+      maxWidth: w - 68 - (caret && !entry ? 26 : 0), startSize: 152, minimumSize: 46, weight: 800,
     });
-    ctx.fillText(caption, x0 + 22, capY + capH / 2 + 2);
-    // amount band
-    const amtY = capY + capH;
-    const amtH = Math.round(inner * 0.36);
-    const amtGrad = ctx.createLinearGradient(0, amtY, 0, amtY + amtH);
-    amtGrad.addColorStop(0, amountTop);
-    amtGrad.addColorStop(1, amountBottom);
-    ctx.fillStyle = amtGrad;
-    ctx.fillRect(x0, amtY, w, amtH);
-    ctx.fillStyle = amountInk;
-    setFittedCanvasFont(ctx, amount, {
-      maxWidth: w - (caret ? 76 : 44), startSize: 116, minimumSize: 40, weight: 800,
-    });
-    ctx.fillText(amount, x0 + 22, amtY + amtH / 2 + 4);
-    if (caret) {
-      // the entry caret: a bright block right after the running figure, so
-      // "this is where your digits go" reads even in a still frame
-      const typedWidth = ctx.measureText(amount).width;
-      ctx.fillStyle = '#8fd0ff';
-      ctx.fillRect(x0 + 30 + typedWidth, amtY + amtH * 0.24, 10, amtH * 0.52);
+    ctx.fillText(amount, left, amountY);
+    if (caret && !entry) {
+      // where the next digit lands, sized off the figure it follows
+      ctx.fillStyle = accent;
+      ctx.fillRect(
+        left + ctx.measureText(amount).width + 12,
+        amountY - amountSize * 0.36,
+        8,
+        amountSize * 0.72,
+      );
     }
-    // a hairline under the amount band grounds it on the pale glass
-    ctx.fillStyle = 'rgba(20, 34, 52, 0.18)';
-    ctx.fillRect(x0, amtY + amtH, w, 3);
-    if (footer) {
-      // the hint rides in a pill chip instead of floating as bare text
-      ctx.textAlign = 'center';
-      setFittedCanvasFont(ctx, footer, {
-        maxWidth: w - 90, startSize: 30, minimumSize: 19, weight: 700,
+
+    // --- the running entry, clearly legible but not the headline -------------
+    let tailY = amountY;
+    if (entry) {
+      // +96, not +76: the dominant figure is 152 px, so its glyphs reach about
+      // 55 px below its baseline and a label 46 px under it was drawn straight
+      // into them. Photographed at the counter before the gap was widened.
+      const entryY = amountY + 96;
+      setTermTracking(ctx, 2.6);
+      ctx.font = '700 20px Arial, sans-serif';
+      ctx.fillStyle = TERM_INK_MUTED;
+      ctx.fillText(entryLabel, left, entryY - 34);
+      setTermTracking(ctx, 0);
+      ctx.fillStyle = amountInk || TERM_INK;
+      const entrySize = setFittedCanvasFont(ctx, entry, {
+        maxWidth: w - 68 - (caret ? 26 : 0), startSize: 52, minimumSize: 26, weight: 700,
       });
-      const footerWidth = ctx.measureText(footer).width;
-      const pillY = amtY + amtH + (H - TERM_PAD - (amtY + amtH)) / 2;
-      const pillH = 52;
-      termRoundedPath(ctx, W / 2 - footerWidth / 2 - 26, pillY - pillH / 2, footerWidth + 52, pillH, pillH / 2);
-      ctx.fillStyle = footerInk ? 'rgba(179, 54, 42, 0.12)' : 'rgba(31, 58, 92, 0.10)';
-      ctx.fill();
-      ctx.fillStyle = footerInk || '#3c5168';
-      ctx.fillText(footer, W / 2, pillY + 1);
+      ctx.fillText(entry, left, entryY);
+      if (caret) {
+        ctx.fillStyle = accent;
+        ctx.fillRect(
+          left + ctx.measureText(entry).width + 10,
+          entryY - entrySize * 0.36,
+          6,
+          entrySize * 0.72,
+        );
+      }
+      tailY = entryY;
     }
-    // the inner edge shadow, drawn last inside the clip
-    termRoundedPath(ctx, x0 + 2, TERM_PAD + 2, w - 4, inner - 4, 12);
-    ctx.strokeStyle = 'rgba(10, 16, 20, 0.35)';
-    ctx.lineWidth = 4;
+
+    // --- the prompt, secondary ----------------------------------------------
+    if (footer) {
+      ctx.fillStyle = 'rgba(15,23,18,0.14)';
+      ctx.fillRect(left, tailY + 44, w - 68, 2);
+      setTermTracking(ctx, 1.4);
+      ctx.fillStyle = footerInk ? tone : TERM_INK_MUTED;
+      setFittedCanvasFont(ctx, footer, {
+        maxWidth: w - 68, startSize: 25, minimumSize: 16, weight: 600,
+      });
+      ctx.fillText(footer, left, tailY + 78);
+      setTermTracking(ctx, 0);
+    }
+
+    // a single hairline edge, so the glass reads as glass and not as a hole
+    termRoundedPath(ctx, x0 + 1.5, TERM_PAD + 1.5, w - 3, inner - 3, 15);
+    ctx.strokeStyle = 'rgba(15,23,18,0.20)';
+    ctx.lineWidth = 3;
     ctx.stroke();
     ctx.restore();
-    return amtY + amtH;
   }
+
 
   function drawTerm() {
     const signature = terminalVisualSignature();
@@ -2705,7 +4223,7 @@ export function createRegisterMode(B) {
     const ctx = termContext;
     const W = termCanvas.width;
     const H = termCanvas.height;
-    ctx.fillStyle = '#0e1512';
+    ctx.fillStyle = '#1A211D';
     ctx.fillRect(0, 0, W, H);
     ctx.fillStyle = termGlow;
     ctx.fillRect(6, 6, W - 12, H - 12);
@@ -2715,14 +4233,14 @@ export function createRegisterMode(B) {
     const cardActive = !!(tx && tx.method === 'card');
     if (!cardActive) {
       const brand = displayClubName().toUpperCase();
-      ctx.fillStyle = '#e9e2cc';
+      ctx.fillStyle = '#1B241F';
       setFittedCanvasFont(ctx, brand, {
         maxWidth: W - 70,
         startSize: 58,
         minimumSize: 28,
       });
       ctx.fillText(brand, W / 2, H * 0.40);
-      ctx.fillStyle = '#7d8b81';
+      ctx.fillStyle = '#5E6C64';
       ctx.font = '600 34px Arial, sans-serif';
       ctx.fillText('READY', W / 2, H * 0.62);
       termRenderSignature = signature;
@@ -2743,56 +4261,56 @@ export function createRegisterMode(B) {
       // floating at the face, hiding the entry made keying the total feel like
       // guesswork. The keypad stays physical — the canvas draws no keys — but
       // the running figure renders live as it is typed (2026-07-30 ruling).
-      // The TOTAL is the prompt — the slate banner up top, reference-style,
-      // with the running entry HUGE and dark on the light face.
+      // C13 reverses which of the two is the headline. Round 10 made the
+      // eyebrow name the big figure - the amount being KEYED - which pushed
+      // what is OWED into a 25 px footer line. "It is the one number that
+      // matters on that display and it should dominate everything else on the
+      // glass": the amount due is the target you are keying toward, and it was
+      // the smallest text on the face. It is the 152 px figure now.
+      //
+      // Round 10's finding still holds and is NOT undone - hiding the entry
+      // made keying the total feel like guesswork - so the running figure
+      // stays live, labelled KEYED and carrying the caret. At 52 px it is
+      // plainly readable and plainly not the headline.
       const typed = String(tx.cardEntryDigits || '').length
         ? `$${cardEnteredAmount(tx).toFixed(2)}`
         : '$0.00';
-      // Reference caption is the single word "Total" over the figure; the
-      // amount owed rides the hint chip so the band stays uncluttered.
       paintTermBandedFace(ctx, W, H, {
-        caption: 'Total',
-        amount: typed,
+        caption: 'Amount due',
+        amount: `$${totalOf(tx).toFixed(2)}`,
+        entry: typed,
+        entryLabel: 'KEYED',
         caret: true,
-        footer: tx.cardEntryError
-          ? tx.cardEntryError.toUpperCase()
-          : `DUE $${totalOf(tx).toFixed(2)} \u00b7 GREEN OK`,
-        footerInk: tx.cardEntryError ? '#b3362a' : null,
+        accent: tx.cardEntryError ? TERM_WARN : TERM_ACCENT,
+        footer: tx.cardEntryError ? tx.cardEntryError.toUpperCase() : 'PRESS OK TO SUBMIT',
+        footerInk: tx.cardEntryError ? TERM_WARN : null,
       });
     } else if (stage === 'card-busy') {
       const dots = '.'.repeat(1 + (Math.floor(termDotsTimer * 3) % 3));
       paintTermBandedFace(ctx, W, H, {
         caption: `Processing${dots}`,
         amount: `$${totalOf(tx).toFixed(2)}`,
-        footer: 'AUTHORIZING — DO NOT REMOVE THE CARD',
+        footer: 'AUTHORIZING - DO NOT REMOVE THE CARD',
       });
     } else if (stage === 'card-declined') {
       paintTermBandedFace(ctx, W, H, {
         caption: tx.cardResult === 'timeout' ? 'Timeout' : 'Declined',
         amount: `$${totalOf(tx).toFixed(2)}`,
-        amountInk: '#ffc7be',
-        captionTop: '#b0554a',
-        captionBottom: '#8e392f',
-        amountTop: '#5c2620',
-        amountBottom: '#421a16',
+        accent: TERM_WARN,
         footer: 'TRY ANOTHER CARD OR CASH',
-        footerInk: '#b3362a',
+        footerInk: TERM_WARN,
       });
     } else if (['receipt', 'bagging', 'done'].includes(stage)) {
       paintTermBandedFace(ctx, W, H, {
         caption: 'Approved',
         amount: `$${totalOf(tx).toFixed(2)}`,
-        amountInk: '#a9f4c4',
-        captionTop: '#3f9e68',
-        captionBottom: '#2c7f50',
-        amountTop: '#1d4a33',
-        amountBottom: '#123526',
+        accent: TERM_ACCENT,
         footer: 'THANK YOU',
-        footerInk: '#1f8a4c',
+        footerInk: TERM_ACCENT,
       });
     } else {
       const brand = displayClubName().toUpperCase();
-      ctx.fillStyle = '#e9e2cc';
+      ctx.fillStyle = '#1B241F';
       setFittedCanvasFont(ctx, brand, {
         maxWidth: W - 70,
         startSize: 50,
@@ -2935,7 +4453,7 @@ export function createRegisterMode(B) {
       toast(result?.reason || 'That key is unavailable.', 'warn');
       sfx('thunk');
     } else if (action !== 'confirm') {
-      sfx('uiTick');
+      sfx('keypadTap'); // E2: a terminal key is plastic under a finger, not a menu row
     }
     if (result?.ok) pulseTerminalKey(action); // the physical key visibly gives
     drawTerm();
@@ -2953,8 +4471,7 @@ export function createRegisterMode(B) {
     if (checkoutFlowState() && checkoutFlowState().startsWith('Card')) {
       flowTo('AllProductsScanned', 'cashier-pulled-card-at-reader');
     }
-    if (cardMesh) cardMesh.removeFromParent();
-    cardMesh = null;
+    disposeCardMesh();
     cardU = 0;
     cardMessage = '';
     cardPresentationTimer = 0;
@@ -3123,6 +4640,18 @@ export function createRegisterMode(B) {
   // The customer-held pose stays independent from the reader. The authored
   // chip socket below anchors one short automatic insertion.
   const HELD_QUAT = frontDeskQuaternion(CARD_HELD_PITCH, 0, 0);
+  // C11 — where a finished card lies: flat on the counter beside the reader, on
+  // the customer's side of the goods lane, a card's thickness proud of the top
+  // so it reads as resting rather than inlaid.
+  //
+  // Pitch ZERO, not -PI/2. The card model is already thin in its own Y (the
+  // fallback is BoxGeometry(w, CARD_THICKNESS, h)), so identity IS flat and a
+  // quarter turn stands it on edge — measured 38.4 mm of vertical extent and
+  // 15.5 mm below the counter top before this was corrected.
+  const CARD_FLAT_QUAT = frontDeskQuaternion(0, 0, 0);
+  const cardDeskRest = new THREE.Vector3(
+    CARD_STATION.x, COUNTER_TOP + 0.004, CARD_STATION.z,
+  ).add(frontDeskOffsetVector3(0.22, 0, -0.20));
   const cardReady = new THREE.Vector3(
     CARD_STATION.x, COUNTER_TOP + 0.22, CARD_STATION.z,
   ).add(frontDeskOffsetVector3(0.30, 0, -0.12));
@@ -3177,7 +4706,34 @@ export function createRegisterMode(B) {
     // flew it off the reader entirely and landed it on the counter. Round 7
     // nudged it out a little further so the card FACE (chip and brand) reads
     // below the base instead of a bare edge.
-    cardInserted.copy(root.worldToLocal(socketWorld.clone().addScaledVector(out, 0.062)));
+    // THE CARD HAS TO BE THE READER'S SCALE, NOT THE WORLD'S. Both assets are
+    // authored life-size — payment_card.glb measures 0.0856 x 0.054 (a real
+    // credit card) and payment_terminal.glb 0.100 wide — so a card in that slot
+    // should be about 86% of the reader's width. It was rendering at roughly a
+    // quarter of it, because the reader is presented at TERMINAL_HARDWARE_SCALE
+    // (1.85x life size, growing from parkScale as it rises to the face) while
+    // the card hangs off `root` at 1.0 and inherited none of that. Life-size
+    // beside a 1.85x reader is 54% too small, which is the "the card is too
+    // small and does not read as inserted" note.
+    //
+    // Matching termObject's CURRENT scale keeps the pair in proportion through
+    // the whole rise rather than only when parked or only when floated, and the
+    // seating offset scales with it so the card does not swim in the slot.
+    const termScale = termObject ? termObject.scale.x || 1 : 1;
+    if (cardMesh) cardMesh.scale.setScalar(termScale);
+    // SEATED MEANS THE HEAD IS AT THE CONTACTS. 0.062 was hand-tuned when the
+    // card still drew at world scale; against the 1.85x reader it left only 7.9%
+    // of the card inside the device (measured 2026-08-03, tools/qa/checkout-
+    // reader-geometry.js) with the rest hanging in mid-air below it — "it sits
+    // against the reader rather than in it". Offsetting by the card's own
+    // HALF-LENGTH puts its top edge exactly on the authored socket, which the
+    // kit places 0.0148 above the deck origin inside Terminal_ChipSlot. Just
+    // under a third of the card is then swallowed and the rest shows, which is
+    // what a chip card in a terminal looks like — and it stays right at any
+    // scale, because it is the card's own measurement rather than a constant.
+    cardInserted.copy(root.worldToLocal(
+      socketWorld.clone().addScaledVector(out, (CARD_WIDTH / 2) * termScale),
+    ));
     return true;
   }
 
@@ -3202,7 +4758,41 @@ export function createRegisterMode(B) {
     if (!cardMesh || !grip || cardMesh.parent === grip) return false;
     root.updateMatrixWorld(true);
     grip.updateWorldMatrix(true, true);
+    // Back to life size in a hand. The reader's presentation scale belongs to
+    // the reader; a card held by a person is measured against the person.
+    cardMesh.scale.setScalar(1);
     grip.attach(cardMesh);
+    // C2 (Goal 18): attach() preserves the WORLD pose, so the card kept the
+    // air gap it had at the ready point and floated beside the fingers.
+    //
+    // C2 (Goal 19): the Goal-18 fix authored grip-LOCAL constants and trusted
+    // the fist bone's frame — which stands the card up like a little sign
+    // (image 1). A handed-over card is held FLAT, pinched between finger and
+    // thumb, angled toward the receiver — so the pose is authored in WORLD
+    // terms at the moment of attach and converted into the grip's frame:
+    // face normal mostly up and tipped ~34° toward the cashier's eye, long
+    // edge across, the far short edge in the pinch.
+    const eye = camera.getWorldPosition(_cardPoseEye);
+    const gripAt = grip.getWorldPosition(_cardPoseGrip);
+    const toEye = _cardPoseFwd.subVectors(eye, gripAt);
+    toEye.y = 0;
+    if (toEye.lengthSq() < 1e-6) toEye.set(0, 0, 1);
+    toEye.normalize();
+    const TILT = 0.6; // radians the face tips from flat toward the receiver
+    const normal = _cardPoseUp.set(0, 1, 0).multiplyScalar(Math.cos(TILT))
+      .addScaledVector(toEye, Math.sin(TILT)).normalize();
+    const longAxis = _cardPoseLong.crossVectors(_cardPoseWorldUp.set(0, 1, 0), toEye).normalize();
+    const shortAxis = _cardPoseShort.crossVectors(longAxis, normal).normalize();
+    _cardPoseBasis.makeBasis(longAxis, normal, shortAxis);
+    _cardPoseQuat.setFromRotationMatrix(_cardPoseBasis);
+    // world orientation into the grip's local frame
+    grip.getWorldQuaternion(_cardPoseGripQuat).invert();
+    cardMesh.quaternion.copy(_cardPoseGripQuat).multiply(_cardPoseQuat);
+    // the pinch: card centre a few centimetres out of the fist toward the
+    // cashier, slightly above the fingers, so the digits close on the near
+    // edge instead of passing through the middle of the plastic
+    _cardPoseAt.copy(gripAt).addScaledVector(toEye, 0.05).addScaledVector(_cardPoseWorldUp.set(0, 1, 0), 0.012);
+    cardMesh.position.copy(grip.worldToLocal(_cardPoseAt));
     return true;
   }
 
@@ -3358,50 +4948,9 @@ export function createRegisterMode(B) {
     const sku = skuById(item.skuId);
     const built = buildCatalogProductProxy({ sku, merch, mats, resources: itemResources });
     const mesh = built.root;
+    // The barcode is a transaction string, not a thing you can see. Nothing is
+    // mounted on the product: no sticker, no tag, no tether, no backing.
     const barcode = barcodeFor(item.skuId, item.price);
-    const barcodeTexture = itemResources.texture(productBarcodeTexture(barcode));
-    const barcodeCarrier = new THREE.Group();
-    barcodeCarrier.name = 'RuntimeProductBarcodeCarrier';
-    // A restrained 9.5 cm retail swing keeps the label outside every product
-    // silhouette at the reader. The scanner still validates the label plane's
-    // real transform; this is a physical affordance, not an overlay.
-    barcodeCarrier.position.x = 0.095;
-    const barcodeTether = new THREE.Mesh(
-      itemResources.geometry(new THREE.BoxGeometry(0.095, 0.005, 0.002)),
-      itemResources.material(new THREE.MeshBasicMaterial({
-        color: 0xb9974e,
-        toneMapped: false,
-      })),
-    );
-    barcodeTether.name = 'RuntimeProductBarcodeTether';
-    barcodeTether.position.x = 0.0475;
-    built.barcodeAnchor.add(barcodeTether);
-    const barcodeBacking = new THREE.Mesh(
-      itemResources.geometry(new THREE.PlaneGeometry(0.086, 0.052)),
-      itemResources.material(new THREE.MeshBasicMaterial({
-        color: 0x173f2d,
-        toneMapped: false,
-        side: THREE.DoubleSide,
-      })),
-    );
-    barcodeBacking.name = 'RuntimeProductBarcodeBacking';
-    barcodeBacking.position.z = -0.001;
-    barcodeCarrier.add(barcodeBacking);
-    const barcodeMesh = new THREE.Mesh(
-      itemResources.geometry(new THREE.PlaneGeometry(0.074, 0.040)),
-      itemResources.material(new THREE.MeshBasicMaterial({
-        map: barcodeTexture,
-        toneMapped: false,
-        side: THREE.DoubleSide,
-        polygonOffset: true,
-        polygonOffsetFactor: -2,
-      })),
-    );
-    barcodeMesh.name = 'RuntimeProductBarcode';
-    barcodeMesh.position.z = 0.001;
-    barcodeMesh.userData = { barcode, itemUid: item.uid };
-    barcodeCarrier.add(barcodeMesh);
-    built.barcodeAnchor.add(barcodeCarrier);
     mesh.userData = {
       ...mesh.userData,
       pick: true,
@@ -3410,9 +4959,6 @@ export function createRegisterMode(B) {
       skuId: item.skuId,
       originalScale: mesh.scale.clone(),
       barcode,
-      barcodeAnchor: built.barcodeAnchor,
-      barcodeCarrier,
-      barcodeMesh,
     };
     // A generous invisible click pad wrapping the whole product. A driver is a
     // centimetre-thin shaft — asking the player to hit that exact cylinder is
@@ -3538,12 +5084,45 @@ export function createRegisterMode(B) {
     requestAnimationFrame(warmNext);
   }
 
+  // The keep-out every goods layout uses: the live bag when there is one, the
+  // authored rect when there is not. One place, so the two call sites cannot
+  // drift apart -- they already had, which is how the customer path and the
+  // register path ended up keeping out of different things.
+  function counterBagFootprint() {
+    if (!bagGroup || !bagGroup.visible || !root.parent) return REGISTER.bagging;
+    const world = new THREE.Box3().setFromObject(bagGroup);
+    if (world.isEmpty()) return REGISTER.bagging;
+    const corner = new THREE.Vector3();
+    let minX = Infinity; let maxX = -Infinity; let minZ = Infinity; let maxZ = -Infinity;
+    for (let i = 0; i < 8; i += 1) {
+      corner.set(
+        i & 1 ? world.max.x : world.min.x,
+        i & 2 ? world.max.y : world.min.y,
+        i & 4 ? world.max.z : world.min.z,
+      );
+      root.parent.worldToLocal(corner);
+      if (corner.x < minX) minX = corner.x;
+      if (corner.x > maxX) maxX = corner.x;
+      if (corner.z < minZ) minZ = corner.z;
+      if (corner.z > maxZ) maxZ = corner.z;
+    }
+    return { minX, maxX, minZ, maxZ };
+  }
+
   function layoutGoods() {
     if (!tx || transactionKind !== 'retail') return;
     const poses = catalogCheckoutLayout(
       tx.items.map((item) => ({ sku: skuById(item.skuId) })),
       REGISTER.staging,
       REST_Y,
+      // ITEM 6: the bag's own footprint is a keep-out. The strip already starts
+      // clear of it; what reached the bag was the OVERHANG 2.2 deliberately
+      // allows, so the layout needs to know where the bag actually is.
+      // PLAYTEST 4, ITEM 4: and "where the bag actually is" has to come from the
+      // BAG. The authored rect is the handoff zone and is 0.14 yd narrower and
+      // 0.21 yd shallower than the object, which is the whole of the overlap the
+      // owner kept seeing.
+      counterBagFootprint(),
     );
     tx.items.forEach((item, index) => {
       const mesh = itemMeshes.get(item.uid);
@@ -3586,7 +5165,7 @@ export function createRegisterMode(B) {
     0.5: 0xa4b4bc,    // half dollar: the largest silver
   };
   const MONEY_EMISSIVE = 0.15;
-  const kitMoneyMaterials = new Map(); // `${denom}|${sourceMaterial.uuid}` -> tinted clone
+  const kitMoneyMaterials = createKitMoneyMaterialCache();
 
   // Apply the denomination tint to an instantiated kit note/coin. Materials are
   // cloned once per (denomination, source material) so the tray costs a handful
@@ -3601,24 +5180,23 @@ export function createRegisterMode(B) {
       const applied = source.map((material) => {
         if (!material) return material;
         const key = `${denom}|${material.uuid}`;
-        let tinted = kitMoneyMaterials.get(key);
-        if (!tinted) {
-          tinted = material.clone();
-          if (tinted.color) tinted.color.setHex(tint);
-          if (tinted.emissive) {
-            tinted.emissive.setHex(tint);
-            tinted.emissiveMap = tinted.map || null;
-            tinted.emissiveIntensity = MONEY_EMISSIVE;
+        const tinted = kitMoneyMaterials.getOrCreate(key, () => {
+          const cloned = material.clone();
+          if (cloned.color) cloned.color.setHex(tint);
+          if (cloned.emissive) {
+            cloned.emissive.setHex(tint);
+            cloned.emissiveMap = cloned.map || null;
+            cloned.emissiveIntensity = MONEY_EMISSIVE;
           }
           // Fully metallic coins go BLACK anywhere the drawer light does not
           // reach. Half-metal keeps the mint sheen and still takes ambient.
-          if (coin && typeof tinted.metalness === 'number') {
-            tinted.metalness = Math.min(tinted.metalness, 0.45);
-            tinted.roughness = Math.min(Math.max(tinted.roughness ?? 0.4, 0.26), 0.5);
+          if (coin && typeof cloned.metalness === 'number') {
+            cloned.metalness = Math.min(cloned.metalness, 0.45);
+            cloned.roughness = Math.min(Math.max(cloned.roughness ?? 0.4, 0.26), 0.5);
           }
-          tinted.needsUpdate = true;
-          kitMoneyMaterials.set(key, tinted);
-        }
+          cloned.needsUpdate = true;
+          return cloned;
+        });
         return tinted;
       });
       object.material = Array.isArray(object.material) ? applied : applied[0];
@@ -3705,16 +5283,39 @@ export function createRegisterMode(B) {
   }
 
   function cashGpuPrewarmStatus() {
-    const complete = cashGpuPrewarmReady && cashGpuPrewarmBuilt === cashGpuPrewarmExpected;
-    return {
+    const expectedCardVariantIds = [...cashGpuPrewarmExpectedCardVariantIds].sort();
+    const observedCardVariantIds = [...cashGpuPrewarmObservedCardVariantIds].sort();
+    const cardCache = cardTextureCache.status();
+    const moneyMaterialCache = kitMoneyMaterials.status();
+    const status = {
       ready: cashGpuPrewarmReady,
-      complete,
       expected: cashGpuPrewarmExpected,
       built: cashGpuPrewarmBuilt,
       drawn: cashGpuPrewarmDrawn,
+      expectedDrawUnits: cashGpuPrewarmExpectedDrawUnits.size,
+      observedDrawUnits: cashGpuPrewarmObservedDrawUnits.size,
+      expectedCardVariants: expectedCardVariantIds.length,
+      observedCardVariants: observedCardVariantIds.length,
+      expectedCardVariantIds,
+      observedCardVariantIds,
+    };
+    const complete = cashGpuPrewarmReleaseReady(status);
+    return {
+      ...status,
+      complete,
       released: cashGpuPrewarmReleased,
-      aborted: cashGpuPrewarmReleased && !complete,
+      aborted: cashGpuPrewarmAborted,
+      abortReason: cashGpuPrewarmAbortReason,
+      observedStems: [...cashGpuPrewarmDrawnStems].sort(),
+      exactVariantStems: [...cashGpuPrewarmExactVariantStems].sort(),
+      cachedCardVariants: cardCache.entries,
+      cardTextureCacheDisposed: cardCache.disposed,
+      cachedMoneyMaterials: moneyMaterialCache.liveMaterials,
+      moneyMaterialCacheDisposed: moneyMaterialCache.disposed,
       releasedCount: cashGpuPrewarmReleasedCount,
+      retainedOwnedGeometries: cashGpuPrewarmOwnedGeometries.size,
+      retainedOwnedMaterials: cashGpuPrewarmOwnedMaterials.size,
+      releaseErrors: cashGpuPrewarmReleaseErrors.map((entry) => ({ ...entry })),
       representatives: cashGpuPrewarmRoot.children.length,
     };
   }
@@ -3743,13 +5344,79 @@ export function createRegisterMode(B) {
 
   function buildCashGpuPrewarmRepresentatives() {
     if (cashGpuPrewarmReleased || cashGpuPrewarmRoot.children.length || !merch?.instantiateKit) return;
-    for (const stem of checkoutMoneyGpuPrewarmStems()) {
-      const model = merch.instantiateKit(stem, { scale: MONEY_KIT_SCALE });
+    const cardVariants = cardTextureCache.prime(displayClubName(), PAYMENT_CARDS);
+    const moneySpecs = new Map(DENOMS.map((denom) => [
+      checkoutMoneyAssetStem(denom, 'drawer'), { denom, from: 'drawer' },
+    ]));
+    moneySpecs.set(checkoutMoneyAssetStem(0.05, 'tender'), { denom: 0.05, from: 'tender' });
+    for (const stem of checkoutPaymentGpuPrewarmStems()) {
+      // Warm the exact runtime variant. Live notes/coins do not render with
+      // the raw GLB material: makeMoney routes the denomination and reuses the
+      // tintKitMoney clone (including emissiveMap/program defines). Drawing a
+      // raw kit clone here can therefore green the startup gate while the first
+      // real cash interaction still compiles a different shader.
+      const moneySpec = moneySpecs.get(stem);
+      const model = moneySpec
+        ? makeMoney(moneySpec.denom, moneySpec.from)
+        : merch.instantiateKit(stem, { scale: MONEY_KIT_SCALE });
       if (!model) continue;
+      cashGpuPrewarmExactVariantStems.add(stem);
       model.name = `GPU_PREWARM_${stem}`;
+      if (stem === 'payment_card') {
+        // All finite designs draw simultaneously with the exact cached Texture
+        // objects the live shared material will later select. One shared live
+        // material cannot expose six maps in one render, so these short-lived,
+        // cache-borrowing materials exist only for the opaque startup draw.
+        // Their materials/geometries are prewarm-owned; their maps remain owned
+        // by cardTextureCache and stay GPU-resident for customer presentation.
+        cardVariants.forEach((variant, index) => {
+          const material = new THREE.MeshBasicMaterial({
+            map: variant.texture,
+            toneMapped: false,
+            side: THREE.DoubleSide,
+          });
+          const face = new THREE.Mesh(
+            new THREE.PlaneGeometry(CARD_WIDTH - 0.005, CARD_HEIGHT - 0.005),
+            material,
+          );
+          face.name = `GPU_PREWARM_payment_card_dynamic_face_${variant.id}`;
+          face.userData.gpuPrewarmOwnedGeometry = true;
+          face.userData.gpuPrewarmOwnedMaterial = true;
+          face.userData.gpuPrewarmCardVariantId = variant.id;
+          face.rotation.x = -Math.PI / 2;
+          face.position.y = 0.00102 + index * 0.000001;
+          model.add(face);
+        });
+      }
       model.traverse((object) => {
         if (!object.isMesh) return;
         object.userData = { ...object.userData, gpuPrewarm: stem };
+        let visibleThroughModel = true;
+        for (let ancestor = object; ancestor; ancestor = ancestor.parent) {
+          if (!ancestor.visible) visibleThroughModel = false;
+          if (ancestor === model) break;
+        }
+        if (!visibleThroughModel) return;
+        const drawUnit = `${stem}|${object.uuid}`;
+        object.userData.gpuPrewarmDrawUnit = drawUnit;
+        cashGpuPrewarmExpectedDrawUnits.add(drawUnit);
+        const hadOwn = Object.prototype.hasOwnProperty.call(object, 'onAfterRender');
+        const prior = object.onAfterRender;
+        const wrapper = function observePaymentGpuPrewarm(...args) {
+          let value;
+          try {
+            value = prior?.apply(this, args);
+          } finally {
+            cashGpuPrewarmDrawnStems.add(stem);
+            cashGpuPrewarmObservedDrawUnits.add(drawUnit);
+            const cardVariantId = object.userData?.gpuPrewarmCardVariantId;
+            if (cardVariantId) cashGpuPrewarmObservedCardVariantIds.add(cardVariantId);
+            cashGpuPrewarmDrawn = cashGpuPrewarmDrawnStems.size;
+          }
+          return value;
+        };
+        object.onAfterRender = wrapper;
+        cashGpuPrewarmRenderObservers.push({ object, hadOwn, prior, wrapper });
       });
       suppressInteriorSunShadows(model);
       cashGpuPrewarmRoot.add(model);
@@ -3759,23 +5426,136 @@ export function createRegisterMode(B) {
     resolveCashGpuPrewarmWaiters();
   }
 
-  function releaseCashGpuPrewarmRepresentatives({ drawn = false } = {}) {
+  function restoreCashGpuPrewarmRenderObservers() {
+    for (const observer of cashGpuPrewarmRenderObservers) {
+      if (observer.object.onAfterRender !== observer.wrapper) continue;
+      if (observer.hadOwn) observer.object.onAfterRender = observer.prior;
+      else delete observer.object.onAfterRender;
+    }
+    cashGpuPrewarmRenderObservers.length = 0;
+  }
+
+  function releaseCashGpuPrewarmRepresentatives({ abort = false, cause = null } = {}) {
     if (cashGpuPrewarmReleased) return cashGpuPrewarmStatus();
-    if (drawn) cashGpuPrewarmDrawn = cashGpuPrewarmRoot.children.length;
-    const status = {
-      ready: cashGpuPrewarmReady,
-      built: cashGpuPrewarmBuilt,
-      expected: cashGpuPrewarmExpected,
-      drawn: cashGpuPrewarmDrawn,
-    };
-    if (!cashGpuPrewarmShouldRelease(status, { renderFinished: drawn })) {
+    const status = cashGpuPrewarmStatus();
+    const retryingOwnedRelease = cashGpuPrewarmOwnedMaterials.size > 0
+      || cashGpuPrewarmOwnedGeometries.size > 0;
+    if (!retryingOwnedRelease && !cashGpuPrewarmShouldRelease(status, { abort })) {
       return cashGpuPrewarmStatus();
     }
-    cashGpuPrewarmReleasedCount = cashGpuPrewarmRoot.children.length;
-    cashGpuPrewarmReleased = true;
+    if (cashGpuPrewarmReleasedCount === 0) {
+      cashGpuPrewarmReleasedCount = cashGpuPrewarmRoot.children.length;
+    }
+    cashGpuPrewarmAborted = abort === true;
+    cashGpuPrewarmAbortReason = cashGpuPrewarmAborted ? String(cause || 'aborted') : null;
+    restoreCashGpuPrewarmRenderObservers();
+    cashGpuPrewarmRoot.traverse((object) => {
+      if (object.userData?.gpuPrewarmOwnedGeometry && object.geometry) {
+        cashGpuPrewarmOwnedGeometries.add(object.geometry);
+      }
+      if (object.userData?.gpuPrewarmOwnedMaterial && object.material) {
+        const materials = Array.isArray(object.material) ? object.material : [object.material];
+        for (const material of materials) if (material) cashGpuPrewarmOwnedMaterials.add(material);
+      }
+    });
     cashGpuPrewarmRoot.clear();
     cashGpuPrewarmRoot.removeFromParent();
+    const release = (kind, set, resource) => {
+      try {
+        resource.dispose();
+        set.delete(resource);
+      } catch (error) {
+        cashGpuPrewarmReleaseErrors.push({ kind, message: String(error?.message || error) });
+        if (cashGpuPrewarmReleaseErrors.length > 32) {
+          cashGpuPrewarmReleaseErrors.splice(0, cashGpuPrewarmReleaseErrors.length - 32);
+        }
+      }
+    };
+    for (const material of [...cashGpuPrewarmOwnedMaterials]) {
+      release('material', cashGpuPrewarmOwnedMaterials, material);
+    }
+    for (const geometry of [...cashGpuPrewarmOwnedGeometries]) {
+      release('geometry', cashGpuPrewarmOwnedGeometries, geometry);
+    }
+    cashGpuPrewarmReleased = cashGpuPrewarmOwnedMaterials.size === 0
+      && cashGpuPrewarmOwnedGeometries.size === 0;
+    if (cashGpuPrewarmReleased) resolveCashGpuPrewarmWaiters();
     return cashGpuPrewarmStatus();
+  }
+
+  let registerDisposalSummary = null;
+  let registerDisposalComplete = false;
+  function disposeRegisterModeResources() {
+    if (registerDisposalComplete && registerDisposalSummary) {
+      return { ...registerDisposalSummary, alreadyDisposed: true };
+    }
+    let paymentPrewarm = cashGpuPrewarmReleased
+      ? cashGpuPrewarmStatus()
+      : releaseCashGpuPrewarmRepresentatives({
+        abort: true,
+        cause: 'register-disposed',
+      });
+    let cardResources = disposeCardMesh(() => {}) || cardOwnedResources.status();
+    // Detach the one live map before disposing the cache so the outer scene
+    // resource walk cannot discover and dispose that same owned texture twice.
+    // The shared GLB geometry/materials remain untouched and stay under merch.
+    cardBrandMaterial.map = null;
+    cardBrandMaterial.needsUpdate = true;
+    cardBrandSignature = '';
+    let cardTextures = cardTextureCache.dispose();
+    // These are register-owned material clones. Their maps remain borrowed
+    // from merchandise prototypes and are never disposed here. Detaching exact
+    // clone identities before release prevents the clubhouse's later broad
+    // scene walk from releasing a live drawer clone for a second time.
+    let moneyMaterials = kitMoneyMaterials.dispose({ detachFrom: root });
+    // Customers are removed before register teardown. Any paid-bag ledger that
+    // could not finish during that removal is held by customerPaidBag's explicit
+    // retry owner, so it remains reachable here even though the actor is gone.
+    let retainedPaidBags = retryRetainedPaidBagDisposals();
+    let itemResourcesReleased = itemResources.retry({ onError: () => {} });
+    // The outer clubhouse owns a one-shot structural teardown, so finish
+    // retryable resource ledgers here while their exact identities remain in
+    // register-owned sets. Three attempts cover ordinary one-shot/transient
+    // disposer faults; permanent faults remain visible in the summary instead
+    // of being falsely marked complete or losing their last strong owner.
+    for (let attempt = 1; attempt < 3; attempt += 1) {
+      if (!cashGpuPrewarmReleased) {
+        paymentPrewarm = releaseCashGpuPrewarmRepresentatives({
+          abort: true,
+          cause: 'register-disposed-retry',
+        });
+      }
+      if (cardTextures.disposed !== true) cardTextures = cardTextureCache.dispose();
+      if (moneyMaterials.disposed !== true) {
+        moneyMaterials = kitMoneyMaterials.dispose({ detachFrom: root });
+      }
+      if (cardOwnedResources.status().disposed !== true) {
+        cardResources = retryCardMeshResources(() => {});
+      }
+      if (retainedPaidBags.retained > 0) retainedPaidBags = retryRetainedPaidBagDisposals();
+      if (itemResources.status().retainedResources > 0) {
+        itemResourcesReleased = itemResources.retry({ onError: () => {} });
+      }
+    }
+    const itemResourceStatus = itemResources.status();
+    const cardResourceStatus = cardOwnedResources.status();
+    registerDisposalComplete = paymentPrewarm.released === true
+      && cardTextures.disposed === true
+      && moneyMaterials.disposed === true
+      && cardResourceStatus.disposed === true
+      && retainedPaidBags.retained === 0
+      && itemResourceStatus.retainedResources === 0;
+    registerDisposalSummary = Object.freeze({
+      paymentPrewarm,
+      cardTextures,
+      moneyMaterials,
+      cardResources: { ...cardResourceStatus, released: cardResources?.released || null },
+      retainedPaidBags,
+      itemResources: { ...itemResourceStatus, released: itemResourcesReleased },
+      complete: registerDisposalComplete,
+      alreadyDisposed: false,
+    });
+    return registerDisposalSummary;
   }
 
   if (merch) merch.onReady(buildCashGpuPrewarmRepresentatives);
@@ -3798,12 +5578,51 @@ export function createRegisterMode(B) {
     return mesh;
   }
 
+
+  // C4 (Goal 18): a fresh bag ARRIVES rather than teleporting in. Of the two
+  // offered designs (arrival animation vs manual placement) the animation was
+  // chosen because the register's whole language is tactile automatic
+  // presentation — the reader rises from its bay, the drawer slides — and a
+  // manual placement click adds friction to every sale while deciding
+  // nothing. The bag comes up from below the counter lip, the same move as
+  // the reader, so it reads as the cashier reaching down for a new one.
+  let bagArrivalT = -1; // -1 idle; 0..BAG_ARRIVAL_TIME animating
+  const BAG_ARRIVAL_TIME = 0.45;
+  const BAG_ARRIVAL_DROP = 0.34;
+  // Recovery paths set this so their re-assert does not bounce the carrier;
+  // the flag lasts exactly one reset. Kept OUTSIDE the signature because the
+  // source contracts pin the bare resetBagAtCounter() call at those sites.
+  let nextBagResetIsQuiet = false;
+  function updateBagArrival(dt) {
+    if (bagArrivalT < 0 || !bagGroup) return;
+    bagArrivalT = Math.min(BAG_ARRIVAL_TIME, bagArrivalT + dt);
+    const u = bagArrivalT / BAG_ARRIVAL_TIME;
+    // ease-out cubic with a 4% overshoot that settles — a soft "set down"
+    const eased = 1 - Math.pow(1 - u, 3);
+    const overshoot = Math.sin(Math.min(1, u) * Math.PI) * 0.04;
+    bagGroup.position.copy(BAG_POS);
+    bagGroup.position.y = BAG_POS.y - BAG_ARRIVAL_DROP * (1 - eased) + overshoot * (1 - u);
+    if (bagArrivalT >= BAG_ARRIVAL_TIME) {
+      bagGroup.position.copy(BAG_POS);
+      bagArrivalT = -1;
+    }
+  }
   function resetBagAtCounter() {
     if (!bagGroup) return;
+    const quiet = nextBagResetIsQuiet;
+    nextBagResetIsQuiet = false;
+    const hadContents = bagGroup.children.some((c) => c.userData?.checkoutVisualState === 'packed-in-bag');
     bagGroup.visible = true;
     bagGroup.position.copy(BAG_POS);
     bagGroup.quaternion.copy(bagCounterQuaternion());
     bagGroup.scale.setScalar(BAG_COUNTER_SCALE);
+    // Animate only a genuinely NEW bag while the till is up. A mid-sale
+    // re-assert (recovery, retry, restore) must not bounce the carrier the
+    // customer's goods are already in.
+    if (!quiet && active && !hadContents) {
+      bagArrivalT = 0;
+      bagGroup.position.y = BAG_POS.y - BAG_ARRIVAL_DROP;
+    }
   }
 
   // Kraft outside, SHADOW inside. Laid on its face the bag is read almost
@@ -3814,20 +5633,75 @@ export function createRegisterMode(B) {
   // from the working frame; the ropes stay cord-brown; everything else is the
   // reference's warm kraft.
   const BAG_LINER_COLOR = 0x4a3823;
-  function applyKraftBagStyle(model) {
+  // K1: "add wrinkles to the bag to make it more like paper." One shared
+  // 256px bump source — long soft creases over a fine paper tooth — baked
+  // from a fixed LCG so every boot (and every screenshot) gets the same
+  // sheet. Height data, so it stays linear; never give a bump map sRGB.
+  let kraftWrinkleTexture = null;
+  function kraftWrinkleBump() {
+    if (kraftWrinkleTexture) return kraftWrinkleTexture;
+    const canvas = document.createElement('canvas');
+    canvas.width = 256;
+    canvas.height = 256;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#808080';
+    ctx.fillRect(0, 0, 256, 256);
+    let seed = 7;
+    const rnd = () => { seed = (seed * 9301 + 49297) % 233280; return seed / 233280; };
+    ctx.lineCap = 'round';
+    for (let crease = 0; crease < 46; crease += 1) {
+      ctx.strokeStyle = rnd() > 0.5 ? 'rgba(255,255,255,0.24)' : 'rgba(0,0,0,0.26)';
+      ctx.lineWidth = 0.7 + rnd() * 1.9;
+      ctx.beginPath();
+      let x = rnd() * 256;
+      let y = rnd() * 256;
+      ctx.moveTo(x, y);
+      const segments = 3 + Math.floor(rnd() * 4);
+      for (let s = 0; s < segments; s += 1) {
+        x += (rnd() - 0.5) * 130;
+        y += (rnd() - 0.5) * 130;
+        ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+    }
+    for (let grain = 0; grain < 1500; grain += 1) {
+      ctx.fillStyle = rnd() > 0.5 ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)';
+      ctx.fillRect(rnd() * 256, rnd() * 256, 1.5, 1.5);
+    }
+    kraftWrinkleTexture = new THREE.CanvasTexture(canvas);
+    kraftWrinkleTexture.wrapS = THREE.RepeatWrapping;
+    kraftWrinkleTexture.wrapT = THREE.RepeatWrapping;
+    return kraftWrinkleTexture;
+  }
+  function applyKraftBagStyle(model, ownedResources = null) {
     model.traverse((object) => {
       if (!object.isMesh || !object.material) return;
       const styleMaterial = (material) => {
         const styled = material.clone();
+        ownedResources?.ownMaterial(styled);
         const label = `${object.name || ''} ${material.name || ''}`.toLowerCase();
         const handle = /handle|cord|rope/.test(label);
         const liner = /liner/.test(label);
         if (styled.color) {
-          styled.color.setHex(handle ? 0x5b4026 : (liner ? BAG_LINER_COLOR : 0xc09a65));
+          styled.color.setHex(handle ? 0x5b4026 : (liner ? BAG_LINER_COLOR : 0xc7a271));
         }
-        if ('roughness' in styled) styled.roughness = handle ? 0.82 : 0.96;
+        // "Plain" was partly the finish. Kraft at 0.96 roughness is matte to the
+        // point of being unlit — it took no highlight off the counter lamp and
+        // read as a flat brown cut-out beside the terminal's glossy shell. Real
+        // kraft has a low sheen; 0.86 gives the laid flank a soft gradient
+        // across its width, which is what makes it read as a bag with a fold.
+        if ('roughness' in styled) styled.roughness = handle ? 0.82 : 0.86;
         if ('metalness' in styled) styled.metalness = 0;
         if (!handle) styled.map = null;
+        // K1: paper, not card — the creases catch the counter light on the
+        // laid flank. Ropes stay smooth cord.
+        if (!handle && 'bumpMap' in styled) {
+          styled.bumpMap = kraftWrinkleBump();
+          // bumpScale is a slope multiplier, not metres — 0.0025 was
+          // invisible (photographed); 0.55 puts soft creases in the counter
+          // light without reading as crumpled trash
+          styled.bumpScale = 0.55;
+        }
         styled.needsUpdate = true;
         return styled;
       };
@@ -3840,28 +5714,63 @@ export function createRegisterMode(B) {
   function buildBag() {
     if (bagGroup) return;
     const builtBag = new THREE.Group();
+    const ownedResources = createPaidBagResourceLedger();
     bagGroup = builtBag;
     builtBag.name = 'FrontDeskShoppingBag';
+    const disposeOwnedBagResources = () => {
+      const result = ownedResources.dispose();
+      if (builtBag.userData.checkoutPaidBagTransferCounted === true) {
+        paidBagResourceCounts.ownedGeometriesDisposed += result.geometries;
+        paidBagResourceCounts.ownedMaterialsDisposed += result.materials;
+        const failed = result.liveGeometries > 0 || result.liveMaterials > 0;
+        if (failed && builtBag.userData.checkoutPaidBagFailureRecorded !== true) {
+          paidBagResourceCounts.failedDisposals += 1;
+          builtBag.userData.checkoutPaidBagFailureRecorded = true;
+        } else if (!failed && builtBag.userData.checkoutPaidBagDisposalRecorded !== true) {
+          paidBagResourceCounts.successfullyDisposedBags += 1;
+          builtBag.userData.checkoutPaidBagDisposalRecorded = true;
+        }
+      }
+      return result;
+    };
     builtBag.userData = {
       pick: false,
       kind: 'bag',
       checkoutOwner: 'register',
+      disposeCheckoutPaidBagResources: disposeOwnedBagResources,
+      checkoutPaidBagResourceStatus: () => ownedResources.status(),
     };
     builtBag.position.copy(BAG_POS);
     builtBag.quaternion.copy(bagCounterQuaternion());
     builtBag.scale.setScalar(BAG_COUNTER_SCALE);
     root.add(builtBag);
     const fallback = new THREE.Mesh(
-      new THREE.BoxGeometry(0.26, 0.30, 0.17 * BAG_FLATTEN),
-      new THREE.MeshStandardMaterial({ color: 0xbda274, roughness: 0.92, metalness: 0.0 }),
+      ownedResources.ownGeometry(new THREE.BoxGeometry(0.26, 0.30, 0.17 * BAG_FLATTEN)),
+      ownedResources.ownMaterial(new THREE.MeshStandardMaterial({
+        color: 0xbda274, roughness: 0.92, metalness: 0.0,
+      })),
     );
     fallback.position.y = 0.15;
     fallback.name = 'BagFallback';
     fallback.userData.checkoutOwnedFallback = true;
     builtBag.add(fallback);
+    // F3 (Full_Goal_16): the reason an item can vanish INTO a paper bag at
+    // full size — a depth-only shell filling the cavity. It writes depth
+    // before the goods draw (renderOrder -5) and never writes colour, so
+    // whatever slides past the mouth is occluded by the bag being AROUND it,
+    // not by a scale. 2 cm shy of the lip: you see a little way in.
+    const interiorOccluder = new THREE.Mesh(
+      ownedResources.ownGeometry(new THREE.BoxGeometry(0.24, 0.33, 0.15 * BAG_FLATTEN)),
+      ownedResources.ownMaterial(new THREE.MeshBasicMaterial({ colorWrite: false })),
+    );
+    interiorOccluder.position.set(0, 0.175, 0);
+    interiorOccluder.renderOrder = -5;
+    interiorOccluder.name = 'BagInteriorOccluder';
+    interiorOccluder.userData = { pick: false, kind: 'bag-occluder' };
+    builtBag.add(interiorOccluder);
     const bagPanel = CHECKOUT_DISPLAY_BRAND_PRESENTATION.bagPanel;
     const brandPanel = new THREE.Mesh(
-      new THREE.PlaneGeometry(bagPanel.width, bagPanel.height),
+      ownedResources.ownGeometry(new THREE.PlaneGeometry(bagPanel.width, bagPanel.height)),
       bagBrandMaterial,
     );
     brandPanel.name = 'PineHillsDynamicBagBrand';
@@ -3878,16 +5787,18 @@ export function createRegisterMode(B) {
       merch.onReady(() => {
         // This callback can resolve after the previous customer has taken their
         // bag and a new counter wrapper exists. Never graft that late model (or
-        // its anchors) onto a different transaction's carrier.
-        if (bagGroup !== builtBag) return;
+        // its anchors) onto a different transaction's carrier. Ownership
+        // transfer is also a resource-accounting boundary: freeze a bag once
+        // the customer owns it so late readiness cannot change its ledger.
+        if (bagGroup !== builtBag || builtBag.userData.checkoutOwner !== 'register') return;
         const model = (merch.instantiateKit && merch.instantiateKit('shopping_bag', { scale: 1.0 }))
           || merch.instantiate('checkout_shopping_bag');
         if (!model) return;
         fallback.removeFromParent();
-        fallback.geometry.dispose();
-        fallback.material.dispose();
+        ownedResources.releaseGeometry(fallback.geometry);
+        ownedResources.releaseMaterial(fallback.material);
         suppressLegacyCheckoutBrandNodes(model, 'shoppingBag');
-        applyKraftBagStyle(model);
+        applyKraftBagStyle(model, ownedResources);
         suppressInteriorSunShadows(model);
         // Collapse the gusset. Scaling the MODEL rather than the group keeps the
         // group's scale uniform for every other consumer (handoff drag, delivery
@@ -4244,7 +6155,10 @@ export function createRegisterMode(B) {
   function tenderCounterPoint() {
     const at = customerLocalPosition();
     const local = frontDeskLocalPoint(at.x, at.z);
-    const spot = frontDeskPoint(THREE.MathUtils.clamp(local.x, -0.70, -0.15), -0.30);
+    // F5 (Full_Goal_16): the pile's left bound moved off the bag strip
+    // (-0.70 → -0.48; the mouth ends at -0.82) so presented cash can never
+    // wander behind the laid carrier from the cashier's frame.
+    const spot = frontDeskPoint(THREE.MathUtils.clamp(local.x, -0.48, -0.15), -0.30);
     return new THREE.Vector3(spot.x, COUNTER_TOP, spot.z);
   }
 
@@ -4363,15 +6277,22 @@ export function createRegisterMode(B) {
     root.add(tenderHandful);
   }
 
-  function clearTenderHandful() {
+  function clearTenderHandful(onError = null) {
     if (!tenderHandful) return;
-    tenderHandful.removeFromParent();
+    const removing = tenderHandful;
+    tenderHandful = null;
+    const release = (stage, operation) => {
+      try { operation(); } catch (error) { if (onError) onError(stage, error); else throw error; }
+    };
+    release('tender-handful-detach', () => removing.removeFromParent());
     // This generous invisible hit target is transaction-owned (unlike the
     // shared denomination meshes). Dispose it on every cancel/settlement so a
     // long cash-register session does not retain one sphere buffer per sale.
-    tenderHandful.geometry?.dispose();
-    tenderHandful.material?.dispose();
-    tenderHandful = null;
+    release('tender-handful-geometry', () => removing.geometry?.dispose());
+    const materials = Array.isArray(removing.material) ? removing.material : [removing.material];
+    for (const material of new Set(materials.filter(Boolean))) {
+      release('tender-handful-material', () => material.dispose());
+    }
   }
 
   // Selected change accumulates as a FLAT PILE on the bare counter left of the
@@ -4390,11 +6311,14 @@ export function createRegisterMode(B) {
     });
   }
 
-  function clearCashHandoffBundle() {
-    if (cashHandoffBundle) cashHandoffBundle.removeFromParent();
+  function clearCashHandoffBundle(onError = null) {
+    const removing = cashHandoffBundle;
     cashHandoffBundle = null;
     cashHandoffHoldTimer = 0;
     cashHandoffPhase = null;
+    if (removing) {
+      try { removing.removeFromParent(); } catch (error) { onError?.('cash-handoff-detach', error); }
+    }
   }
 
   function finishChangeHandoff(bundle = null) {
@@ -4468,6 +6392,10 @@ export function createRegisterMode(B) {
     resetCounterBag = true,
     preserveCustomerBag = false,
   } = {}) {
+    const steps = [];
+    const deferredFailures = [];
+    const addStep = (stage, run) => steps.push({ stage, run });
+    const capture = (stage, error) => deferredFailures.push({ stage, error });
     pendingChangeConfirmation = null;
     // Motions retain mesh references. Release them before any item can be
     // disposed, reparented to a customer, or replaced by the next transaction.
@@ -4482,51 +6410,82 @@ export function createRegisterMode(B) {
       complete: true,
     };
     const transferredProducts = [];
-    for (const mesh of itemMeshes.values()) {
+    const clearingItemMeshes = [...itemMeshes.values()];
+    itemMeshes.clear();
+    for (const mesh of clearingItemMeshes) {
       if (preserveCustomerBag
           && bagGroup?.userData.checkoutOwner === 'customer'
           && mesh.userData?.checkoutOwner === 'customer') {
         transferredProducts.push(mesh);
         continue;
       }
-      mesh.removeFromParent();
-      itemResources.dispose(mesh);
+      addStep('checkout-item-detach', () => mesh.removeFromParent());
+      addStep('checkout-item-resources', () => itemResources.dispose(mesh, {
+        onError: ({ kind, error }) => capture(`checkout-item-${kind}`, error),
+      }));
     }
     if (cust && transferredProducts.length) {
       cust.checkoutHandoffProducts = transferredProducts;
+      // createRegisterItemResources journals every error internally, attempts
+      // all owned siblings, and only then raises one AggregateError. The
+      // customer-removal funnel catches that deferred report after this exact
+      // transferred product has been exhausted.
       cust.checkoutHandoffProductDisposer = (mesh) => itemResources.dispose(mesh);
     }
-    itemMeshes.clear();
     loose.length = 0;
-    tenderMeshes.forEach((mesh) => mesh.removeFromParent());
+    const clearingTenderMeshes = tenderMeshes;
     tenderMeshes = [];
-    clearTenderHandful();
-    selectedChangeMeshes.forEach((mesh) => mesh.removeFromParent());
+    for (const mesh of clearingTenderMeshes) {
+      addStep('tender-mesh-detach', () => mesh.removeFromParent());
+    }
+    addStep('tender-handful-clear', () => clearTenderHandful(capture));
+    const clearingChangeMeshes = selectedChangeMeshes;
     selectedChangeMeshes = [];
-    clearCashHandoffBundle();
-    cashMotions.forEach((motion) => motion.mesh.removeFromParent());
+    for (const mesh of clearingChangeMeshes) {
+      addStep('change-mesh-detach', () => mesh.removeFromParent());
+    }
+    addStep('cash-handoff-clear', () => clearCashHandoffBundle(capture));
+    const clearingCashMotions = cashMotions;
     cashMotions = [];
+    for (const motion of clearingCashMotions) {
+      addStep('cash-motion-detach', () => motion.mesh?.removeFromParent());
+    }
     cashMotionRefillPending = false;
-    if (cardMesh) cardMesh.removeFromParent();
-    cardMesh = null;
+    // Same reason as restoreAcceptedTenderMeshes: the pieces this run was
+    // describing have just been taken out from under it.
+    if (cashRunRunning) { sfx('cashRunStop'); cashRunRunning = false; }
+    addStep('card-mesh-dispose', () => disposeCardMesh(capture));
     autoFulfilled = false;
     deliveryPhase = null;
     deliveryTimer = 0;
+    // G4.1: "A BAG IS ALWAYS PRESENT on the counter at the bagging position. The
+    // player never spawns one, never fetches one, and never waits for one."
+    // G4.4: "A fresh empty bag appears at the bagging position IMMEDIATELY."
+    //
+    // Three branches used to disagree about that. When the customer carried the
+    // bag out we dropped our reference and made no replacement, so the counter
+    // stood empty until something else happened to reset it; and the final
+    // branch simply hid the bag, which is the player waiting for one. Both are
+    // the same rule once it is stated: whatever just happened, the counter ends
+    // this function with a bag on it.
     if (preserveCustomerBag && bagGroup?.userData.checkoutOwner === 'customer') {
+      // The customer owns that one now - it leaves the shop in their hand.
       bagGroup = null;
       bagContentsNode = null;
       bagHandoffNode = null;
-    } else if (resetCounterBag) {
-      if (!bagGroup) buildBag();
-      resetBagAtCounter();
       if (cust) cust.checkoutHandoffBag = null;
-    } else if (bagGroup) {
-      bagGroup.visible = false;
+      addStep('counter-bag-build', () => buildBag());
+      addStep('counter-bag-reset', () => resetBagAtCounter());
+    } else {
+      nextBagResetIsQuiet = true; // recovery re-assert, not a new bag
+      if (resetCounterBag && cust) cust.checkoutHandoffBag = null;
+      if (!bagGroup) addStep('counter-bag-build', () => buildBag());
+      addStep('counter-bag-reset', () => resetBagAtCounter());
     }
     selectedItem = null;
     scanDrag = null;
     scanMotion = null;
-    setScannerFeedback('idle');
+    addStep('scanner-feedback-reset', () => setScannerFeedback('idle'));
     scanReturnTimer = 0;
     paymentAutoTimer = 0;
     paymentAutoSuppressed = false;
@@ -4546,19 +6505,26 @@ export function createRegisterMode(B) {
     checkoutWatchdogRunning = false;
     checkoutWatchdogPostResume = null;
     cashierCashAction = null;
-    cashierHands.hideImmediately();
-    clearCashValidationToast();
+    addStep('cashier-hands-reset', () => cashierHands.hideImmediately());
+    addStep('cash-validation-toast-clear', () => clearCashValidationToast(capture));
     drawerWant = 0;
     drawerAmount = 0;
     cashPoseCache = null;
-    if (drawerMotionRoot) {
-      drawerMotionRoot.position.z = 0;
-      drawerMotionRoot.visible = false;
-    }
-    if (drawerAssetSlide) drawerAssetSlide.position.z = drawerAssetSlideBaseZ;
-    setGrabOutline(null);
-    hideTip();
+    addStep('drawer-presentation-reset', () => {
+      if (drawerMotionRoot) {
+        drawerMotionRoot.position.z = 0;
+        drawerMotionRoot.visible = false;
+      }
+      if (drawerAssetSlide) drawerAssetSlide.position.z = drawerAssetSlideBaseZ;
+    });
+    addStep('grab-outline-clear', () => setGrabOutline(null));
+    addStep('tip-clear', () => hideTip());
     hoveredItem = null;
+    const failures = [
+      ...runCheckoutCleanupSteps(steps),
+      ...deferredFailures,
+    ];
+    return { ok: failures.length === 0, failures };
   }
 
   function begin(customer) {
@@ -4588,6 +6554,9 @@ export function createRegisterMode(B) {
       taxLabel: taxJurisdictionLabel(state),
     });
     tx.number = transactionNumber;
+    // F3 (Goal 18): the farewell reads the ACTUAL processing time, so the
+    // clock starts when the ticket does.
+    tx.startedAtMs = performance.now();
     tx.checkoutFlow = customer.checkoutFlow || createCheckoutFlow({
       state: 'WaitingForCashier',
       nowMs: flowNow(),
@@ -4640,12 +6609,56 @@ export function createRegisterMode(B) {
     return true;
   }
 
+  // A combined visitor temporarily borrows the register monitor for the desk
+  // answer, but the physical sale never left the till. Put the player back on
+  // that sale without rebuilding it or touching the already-armed automatic
+  // payment beat. `activeTab` drives the authored camera pose, so restoring the
+  // tab and monitor workspace together also brings the checkout/card target
+  // back into the player's view on the next frame.
+  function returnFromDeskAnswerToCheckout() {
+    selectedReservationId = null;
+    selectedWalkInCustomerId = null;
+    activeTab = 'checkout';
+    // The flow's AllProductsScanned timestamp can be minutes old if the player
+    // studies the tee sheet. Re-arm the normal readable handoff so the expired
+    // watchdog cannot race the first post-answer frame.
+    paymentAutoTimer = AUTO_PAYMENT_HOLD;
+    paymentAutoSuppressed = false;
+    setWorkspace('monitor');
+  }
+
   function beginReservationPayment(reservation) {
-    if (!reservation || tx) return false;
+    if (!reservation) return false;
+    // ONE VISIT, ONE PAYMENT. If the customer already has goods on the counter,
+    // the tee time joins THAT ticket instead of being refused. Refusing was what
+    // forced the player to ring two sales and the customer to pay twice for one
+    // trip to the desk.
+    if (tx) {
+      if (tx.stage !== 'scanning' || tx.banked) {
+        toast(t('till.addTheTeeTime'), 'warn');
+        return false;
+      }
+      const joined = attachGreenFeeToTx(state, tx, reservation.id);
+      if (!joined.ok) {
+        toast(joined.reason || 'That reservation cannot be added to this sale.', 'warn');
+        return false;
+      }
+      // ANSWERED. The desk errand is settled on this ticket, so the automatic
+      // payment advance may run again and the post-payment path must not send
+      // them back to the desk for the same errand.
+      if (cust) {
+        cust.deskErrandPending = false;
+        cust.deskErrandAwaitingAnswer = false;
+      }
+      layoutGoods();
+      returnFromDeskAnswerToCheckout();
+      toast(t('till.greenFeeAdded', { amount: joined.amount.toFixed(2) }), 'good');
+      return true;
+    }
     refreshAccessibilityPreferences();
     const waitingCustomer = readyReservationCustomer(reservation.id);
     if (!waitingCustomer) {
-      toast(`${reservation.fullName || reservation.name} has not reached the front desk yet.`, 'warn');
+      toast(t('till.notAtDeskYet', { name: reservation.fullName || reservation.name }), 'warn');
       drawScreen();
       return false;
     }
@@ -4704,6 +6717,14 @@ export function createRegisterMode(B) {
     active = true;
     let entered = false;
     try {
+      // C5 (Goal 18): the walk update stops while the till is up, so its
+      // per-frame stationOpen zeroing cannot clear a Q reveal lit at the
+      // moment of entry. Every mark Q made — markers, reveal, legend — goes
+      // out with the reveal alpha, here, at the transition. Held keys are
+      // cleared too: a keyup delivered while the walk is frozen is lost, and
+      // the stale hold relit the reveal the moment the player stepped away.
+      B.setDirtReveal?.(0);
+      B.walk?.clearKeys?.();
       // Checkout's fixed close cameras make the whole active register the
       // measured allocation hotspot, not only the card workspace. Hold the
       // player's exact prior AO setting once per entry and restore it on every
@@ -4742,6 +6763,7 @@ export function createRegisterMode(B) {
       document.body.classList.add('register-mode');
       drawScreen();
       drawTerm();
+      sfx('stationEnter'); // E2: stepping in behind the till
       entered = true;
       return true;
     } finally {
@@ -4766,6 +6788,7 @@ export function createRegisterMode(B) {
     }
     recoverInput('front-desk exit');
     active = false;
+    sfx('stationLeave'); // E2: stepping away from the till
     setWorkspace('monitor');
     clearFocus();
     setHoverCursor(false);
@@ -4837,9 +6860,69 @@ export function createRegisterMode(B) {
     drawTerm();
   }
 
+  function markCardOwnedResources(object, { geometry = true, material = false } = {}) {
+    return cardOwnedResources.mark(object, { geometry, material });
+  }
+
+  function disposeCardMesh(onError = null) {
+    const before = cardOwnedResources.status();
+    const liveResources = before.liveGeometries + before.liveMaterials + before.liveTextures;
+    if (!cardMesh && liveResources === 0 && before.retainedRoots === 0) return false;
+    const disposingCard = cardMesh;
+    cardMesh = null;
+    const failures = [];
+    const capture = (stage, error) => {
+      failures.push({ stage, error });
+      if (typeof onError === 'function') {
+        try { onError(stage, error); } catch (reportError) {
+          failures.push({ stage: 'card-disposal-reporter', error: reportError });
+        }
+      }
+    };
+    try {
+      setGrabOutline(null);
+    } catch (error) {
+      capture('card-outline-clear', error);
+    }
+    const result = cardOwnedResources.dispose(disposingCard, { onError: capture });
+    if (failures.length > 0 && typeof onError !== 'function') {
+      const aggregate = new AggregateError(
+        failures.map((failure) => failure.error),
+        'Payment-card cleanup failed after exhausting owned siblings.',
+      );
+      aggregate.result = result;
+      throw aggregate;
+    }
+    return result;
+  }
+
+  function retryCardMeshResources(onError = null) {
+    const failures = [];
+    const capture = (stage, error) => {
+      failures.push({ stage, error });
+      if (typeof onError === 'function') {
+        try {
+          onError(stage, error);
+        } catch (reportError) {
+          failures.push({ stage: 'card-disposal-reporter', error: reportError });
+        }
+      }
+    };
+    const result = cardOwnedResources.retry({ onError: capture });
+    if (failures.length > 0 && typeof onError !== 'function') {
+      const aggregate = new AggregateError(
+        failures.map((failure) => failure.error),
+        'Payment-card cleanup retry failed after exhausting owned siblings.',
+      );
+      aggregate.result = result;
+      throw aggregate;
+    }
+    return result;
+  }
+
   function createCardMesh() {
     cardReady.copy(customerCardReadyPoint());
-    if (cardMesh) cardMesh.removeFromParent();
+    disposeCardMesh();
     // The finished Fairhollow member card from the checkout kit; the
     // procedural card remains only as a fallback if the kit failed to load.
     let base = (merch && merch.instantiateKit)
@@ -4850,24 +6933,12 @@ export function createRegisterMode(B) {
         new THREE.BoxGeometry(CARD_WIDTH, CARD_THICKNESS, CARD_HEIGHT),
         new THREE.MeshStandardMaterial({ color: 0x173f2d, roughness: 0.36 }),
       );
-      const faceTexture = paymentCardTexture(displayClubName());
-      const face = new THREE.Mesh(
-        new THREE.PlaneGeometry(CARD_WIDTH - 0.004, CARD_HEIGHT - 0.004),
-        new THREE.MeshStandardMaterial({
-          map: faceTexture,
-          emissive: 0xffffff,
-          emissiveMap: faceTexture,
-          emissiveIntensity: 0.16,
-          roughness: 0.42,
-        }),
-      );
-      face.rotation.x = -Math.PI / 2;
-      face.position.y = CARD_THICKNESS / 2 + 0.0002;
-      base.add(face);
+      markCardOwnedResources(base, { material: true });
       const stripe = new THREE.Mesh(
         new THREE.BoxGeometry(CARD_WIDTH - 0.004, 0.0008, 0.014),
         new THREE.MeshStandardMaterial({ color: 0x111411, roughness: 0.5 }),
       );
+      markCardOwnedResources(stripe, { material: true });
       stripe.position.set(0, -CARD_THICKNESS / 2 - 0.0003, -0.016);
       base.add(stripe);
     }
@@ -4877,6 +6948,7 @@ export function createRegisterMode(B) {
       cardBrandMaterial,
     );
     brandPanel.name = 'PineHillsDynamicPaymentCardBrand';
+    markCardOwnedResources(brandPanel);
     brandPanel.rotation.x = -Math.PI / 2;
     brandPanel.position.y = 0.00102;
     base.add(brandPanel);
@@ -4887,21 +6959,29 @@ export function createRegisterMode(B) {
     // lifts the reader). Pick stays true through presentation; the accept
     // handler itself checks the stage.
     const data = { pick: true, kind: 'payment-card' };
-    base.userData = data;
+    base.userData = { ...base.userData, ...data };
     base.traverse((o) => { if (o.isMesh) o.userData = { ...o.userData, ...data }; });
     suppressInteriorSunShadows(base);
     root.add(base);
     cardMesh = base;
+    // H2: the card COMING OUT. The terminal chirp (cardTap) is a different
+    // event and must not stand in for the plastic leaving the wallet.
+    sfx('cardOut');
   }
 
   function createTender() {
+    // Reset here, not at the call sites: there are two of them (the normal cash
+    // route and the after-a-decline route) and a stale timer would start the
+    // customer with their hand already withdrawn from money they had not put
+    // down yet.
+    cashLaidTimer = 0;
     tenderMeshes.forEach((mesh) => mesh.removeFromParent());
     tenderMeshes = [];
     clearTenderHandful();
     customerCash(tx);
     if (!makeChangeFrom(drawerContents(tx, drawer), changeDue(tx))) {
       tx.tendered = makeChange(cashTotalOf(tx));
-      toast('The customer provides exact cash because the till cannot make that change.');
+      toast(t('till.theTillCannotMake'));
     }
     for (const [rawDenom, count] of Object.entries(tx.tendered || {})) {
       const denom = Number(rawDenom);
@@ -4912,7 +6992,24 @@ export function createRegisterMode(B) {
       }
     }
     presentTender();
-    sfx('cashPresent');
+    // H2 (Goal 20): notes and coins are not the same sound. cashPresent played
+    // for every tender whatever it was made of, so a handful of quarters landed
+    // with the same soft paper brush as a twenty. Both fire on a mixed tender,
+    // because that is what you hear.
+    const laid = Object.entries(tx.tendered || {})
+      .filter(([, n]) => Number(n) > 0)
+      .map(([denom]) => Number(denom));
+    const laidNotes = laid.some((denom) => BILLS.includes(denom));
+    const laidCoins = laid.some((denom) => !BILLS.includes(denom));
+    if (laidNotes) sfx('notesDown');
+    if (laidCoins) sfx('coinsDown');
+    if (!laidNotes && !laidCoins) sfx('cashPresent');
+  }
+
+  // Has the customer at this counter asked for something the player has not
+  // answered yet? Only true between the last barcode and the desk resolving it.
+  function deskErrandOutstanding() {
+    return !!(cust && cust.deskErrandRaisedMidSale && cust.deskErrandPending);
   }
 
   function choosePayment(method) {
@@ -5009,10 +7106,49 @@ export function createRegisterMode(B) {
     if (checkoutFlowState() === 'CashAccepted') {
       flowTo('DrawerOpening', 'cash-accepted-and-drawer-opened-automatically');
     }
+    // ITEM 2 — THE DRAWER SPEAKS FIRST, AND ITS LENGTH TIMES EVERYTHING ELSE.
+    //
+    // "The drawer opens. Its sound FINISHES. Then the cash starts going in."
+    // `drawerUnlock`, `drawerOpen` and `billHandle` used to fire on three
+    // consecutive lines -- in the same millisecond -- and three impacts at one
+    // instant is a bang, not a drawer. The sequence plays the latch, then the
+    // slide once the latch has died, and returns how long the pair takes.
+    //
+    // It has to run BEFORE the motions are queued, because they read the length.
+    // Queued first, they would take the PREVIOUS sale's value -- zero on the
+    // first sale of the session, which is exactly the overlap being removed.
+    const drawerVoiceSeconds = Number(sfx('drawerOpenSequence')) || 0;
+    // WHAT WAS ACTUALLY TENDERED. This fired `billHandle` unconditionally, so a
+    // customer paying with a fistful of coins rustled like paper notes. The
+    // handful is notes if there are any notes in it and coins otherwise, which
+    // is what a hand full of mixed change sounds like.
+    // The cue names are written out rather than held in a variable: the routing
+    // check greps the source for a literal inside an sfx() call, and an
+    // indirection it cannot see through reads to it as "this cue has no
+    // normal-play route at all". Defeating the instrument is not the same as
+    // satisfying it.
+    const tenderHasNotes = tenderMeshes.some((m) => BILLS.includes(Number(m.userData.denom)));
+    const playHandle = () => {
+      if (tenderHasNotes) sfx('billHandle');
+      else sfx('coinHandle');
+    };
+    if (drawerVoiceSeconds > 0) {
+      setTimeout(playHandle, Math.round(drawerVoiceSeconds * 1000));
+    } else {
+      // No audio engine (or no recordings): keep the old immediate voice rather
+      // than holding the cash back for a silence.
+      sfx('drawerUnlock');
+      sfx('drawerOpen');
+      playHandle();
+    }
     tenderMeshes.forEach((mesh, index) => {
       const denom = Number(mesh.userData.denom);
       queueCashMotion(mesh, drawerSlotPosition(denom, index * 0.00035), {
-        delay: 0.18 + index * 0.045,
+        // 0.18 s put the first note in the air while the drawer was still
+        // sliding, so the two ran together as noise. The hold comes from the
+        // drawer cue's REAL length, so auditioning a longer drawer moves the
+        // cash with it instead of desynchronising.
+        delay: drawerVoiceSeconds + index * 0.045,
         duration: 0.44,
         remove: true,
         kind: 'cash-deposit',
@@ -5031,10 +7167,7 @@ export function createRegisterMode(B) {
     }
     cashMotionRefillPending = true;
     setWorkspace('cash');
-    toast('Cash accepted. The drawer is opening; count the required change.');
-    sfx('drawerUnlock');
-    sfx('drawerOpen');
-    sfx('billHandle');
+    toast(t('till.cashTakenTheDrawer'));
     drawScreen();
     return true;
   }
@@ -5049,8 +7182,7 @@ export function createRegisterMode(B) {
     if (checkoutFlowState() === 'CardDeclined') flowTo('ChoosingPayment', 'customer-switched-to-cash');
     const changed = payCashInstead(tx);
     if (!changed.ok) return false;
-    if (cardMesh) cardMesh.removeFromParent();
-    cardMesh = null;
+    disposeCardMesh();
     if (checkoutFlowState() === 'ChoosingPayment') flowTo('CashPresented', 'customer-presented-cash-after-decline');
     poseCustomerForCheckout('PayCash');
     createTender();
@@ -5070,95 +7202,11 @@ export function createRegisterMode(B) {
     return true;
   }
 
-  function scanPoseFor(mesh) {
-    const barcodeAnchor = mesh?.userData?.barcodeAnchor;
-    const barcodeMesh = mesh?.userData?.barcodeMesh;
-    if (!barcodeAnchor || !barcodeMesh) return null;
-    mesh.updateWorldMatrix(true, true);
-    const barcodeLocalPosition = mesh.worldToLocal(
-      barcodeMesh.getWorldPosition(new THREE.Vector3()),
-    );
-    const meshWorldQuaternion = mesh.getWorldQuaternion(new THREE.Quaternion());
-    const barcodeLocalQuaternion = meshWorldQuaternion.clone().invert().multiply(
-      barcodeMesh.getWorldQuaternion(new THREE.Quaternion()),
-    );
-    const scanner = scannerRayPose();
-    const normal = scanner.direction.clone().multiplyScalar(-1).normalize();
-    let up = new THREE.Vector3(0, 1, 0);
-    if (Math.abs(up.dot(normal)) > 0.96) up = new THREE.Vector3(0, 0, 1);
-    const right = new THREE.Vector3().crossVectors(up, normal).normalize();
-    const correctedUp = new THREE.Vector3().crossVectors(normal, right).normalize();
-    const anchorQuaternion = new THREE.Quaternion().setFromRotationMatrix(
-      new THREE.Matrix4().makeBasis(right, correctedUp, normal),
-    );
-    const meshQuaternion = anchorQuaternion.clone().multiply(
-      barcodeLocalQuaternion.invert(),
-    );
-    const anchorOffset = barcodeLocalPosition
-      .multiply(mesh.scale)
-      .applyQuaternion(meshQuaternion);
-    const tangent = new THREE.Vector3().crossVectors(
-      new THREE.Vector3(0, 1, 0), scanner.direction,
-    ).normalize();
-    const centerTarget = scanner.origin.clone()
-      .addScaledVector(scanner.direction, CHECKOUT_SCAN_TARGET.distance)
-      .addScaledVector(tangent, CHECKOUT_SCAN_TARGET.sideOffset)
-      .addScaledVector(correctedUp, CHECKOUT_SCAN_TARGET.upOffset);
-    const entryTarget = centerTarget.clone()
-      .addScaledVector(tangent, -CHECKOUT_SCAN_TARGET.sweep);
-    const exitTarget = centerTarget.clone()
-      .addScaledVector(tangent, CHECKOUT_SCAN_TARGET.sweep);
-    return {
-      scanner,
-      quaternion: meshQuaternion,
-      entry: entryTarget.sub(anchorOffset),
-      center: centerTarget.sub(anchorOffset),
-      exit: exitTarget.sub(anchorOffset),
-    };
-  }
-
-  function scanReadFor(motion) {
-    root.updateMatrixWorld(true);
-    const barcodeMesh = motion.mesh.userData.barcodeMesh;
-    const barcodePosition = barcodeMesh.getWorldPosition(new THREE.Vector3());
-    const barcodeNormal = new THREE.Vector3(0, 0, 1).applyQuaternion(
-      barcodeMesh.getWorldQuaternion(new THREE.Quaternion()),
-    ).normalize();
-    const scanner = scannerRayPose();
-    const facts = scannerReadFacts({
-      barcodePosition: barcodePosition.toArray(),
-      barcodeNormal: barcodeNormal.toArray(),
-      rayOrigin: scanner.worldOrigin.toArray(),
-      rayDirection: scanner.worldDirection.toArray(),
-    });
-    const judgment = judgeBarcodeRead({
-      barcode: motion.barcode,
-      scanHit: facts.scanHit,
-      facingDot: facts.facingDot,
-      itemUid: motion.uid,
-      expectedUid: motion.item.uid,
-      alreadyScanned: motion.item.scanned,
-    });
-    lastScanEvidence = {
-      uid: motion.uid,
-      skuId: motion.item.skuId,
-      barcode: motion.barcode,
-      scannerSource: scanner.source,
-      phase: motion.phase,
-      ok: judgment.ok,
-      code: judgment.code,
-      scanHit: facts.scanHit,
-      facingDot: facts.facingDot,
-      distanceAlongRay: facts.distanceAlongRay,
-      lateralDistance: facts.lateralDistance,
-      barcodePosition: barcodePosition.toArray(),
-      barcodeNormal: barcodeNormal.toArray(),
-      rayOrigin: scanner.worldOrigin.toArray(),
-      rayDirection: scanner.worldDirection.toArray(),
-      capturedAtMs: performance.now(),
-    };
-    return { judgment, facts };
-  }
+  // The scan ARC is gone (2026-07-30 round two): the item never travels to a
+  // reader, so scanPoseFor/scanReadFor — which posed a product by its printed
+  // label and judged a ray against it — were dead the moment the label was.
+  // Removed with the label so nothing can quietly resurrect a visible barcode
+  // by asking for its transform.
 
   function rejectScanMotion(motion, message) {
     motion.mesh.position.copy(motion.from);
@@ -5204,6 +7252,19 @@ export function createRegisterMode(B) {
     setScannerFeedback('success', 0.55);
     sfx('scanSuccess');
     sfx('posAdd');
+    // B2 (Goal 23) — THE ASK BELONGS HERE, BEFORE THE PAYMENT.
+    //
+    // The combined visit raised its desk errand from the PAID-SALE site
+    // (clubhouse.js onCustomerPaid), which put the words "one more thing, I
+    // have a tee time" AFTER the money had already been taken. The merged
+    // ticket needs tx.stage === 'scanning' and an unbanked ticket, so one
+    // payment was unreachable in play no matter how correct the machinery was.
+    //
+    // The last barcode is the moment the owner's flow asks for: goods down,
+    // goods scanned, THEN the tee time, then one payment.
+    if (tx.items.length && tx.items.every((candidate) => candidate.scanned)) {
+      try { cust?.onGoodsScanned?.(tx); } catch { /* an ask must never void a scan */ }
+    }
     drawScreen();
     return true;
   }
@@ -5238,6 +7299,11 @@ export function createRegisterMode(B) {
     // into the low half of the flattened mouth with no climb at all.
     const mouth = bagMouth.clone();
     mouth.y = REST_Y;
+    // F3: the slide does not STOP at the lip — it carries on into the cavity
+    // so the interior shell swallows the good at FULL SIZE. What ends its
+    // visibility is the bag being around it, not a shrink.
+    const intoBag = BAG_POS.clone().sub(bagMouth).setY(0).normalize();
+    mouth.add(intoBag.multiplyScalar(0.34 * BAG_COUNTER_SCALE));
     const destination = separateHandoff
       ? new THREE.Vector3(oversizePoint.x, REST_Y, oversizePoint.z)
       : mouth;
@@ -5294,32 +7360,19 @@ export function createRegisterMode(B) {
     if (t >= 0.42 && !motion.committed) {
       if (!commitScanMotion(motion)) return;
     }
-    // Compact goods scale down as they pass through the mouth.
-    if (motion.destinationKind === 'bag' && t > 0.62) {
-      const shrink = 1 - ((t - 0.62) / 0.38) * 0.52;
-      motion.mesh.scale.copy(motion.fromScale).multiplyScalar(shrink);
-    }
+    // F3: NO shrink through the mouth — the interior shell occludes the
+    // item at full size as it passes the lip.
     if (motion.elapsed < motion.duration) return;
     scanMotion = null;
     const bagResult = bagScannedItem(tx, motion.uid);
     if (!bagResult.ok) toast(bagResult.reason, 'warn');
     setObjectPickable(motion.mesh, false);
     if (motion.destinationKind === 'bag') {
-      bagGroup.add(motion.mesh);
-      const contents = bagContentsNode
-        ? bagGroup.worldToLocal(bagContentsNode.getWorldPosition(new THREE.Vector3()))
-        : new THREE.Vector3(0, 0.18, 0);
-      const compactIndex = tx.items.filter((candidate) => candidate.bagged
-        && !itemMeshes.get(candidate.uid)?.userData?.catalogVisual?.separateHandoff).indexOf(motion.item);
-      motion.mesh.position.set(
-        contents.x + (compactIndex % 2 ? 0.04 : -0.04),
-        contents.y + 0.05 + Math.floor(Math.max(0, compactIndex) / 2) * 0.03,
-        contents.z,
-      );
-      motion.mesh.quaternion.identity();
-      motion.mesh.scale.copy(motion.fromScale).multiplyScalar(0.38);
-      motion.mesh.userData.checkoutVisualState = 'packed-in-bag';
-      motion.mesh.userData.checkoutOwner = 'bag';
+      // F3: fully past the mouth - the item now belongs to the carrier at FULL
+      // SIZE. G4.2 (Goal 17): it stays VISIBLE and the bag's own walls hide it.
+      // This is the SCAN-MOTION path; C1 (Goal 19) routed it through the one
+      // packing rule so it can never disagree with the drag or restore paths.
+      packMeshIntoBag(motion.mesh, { scale: motion.fromScale });
     } else {
       settleScannedProduct(motion.mesh);
     }
@@ -5435,7 +7488,7 @@ export function createRegisterMode(B) {
       drag.mesh.position.copy(drag.from);
       drag.mesh.quaternion.copy(drag.fromQuaternion);
       setObjectPickable(drag.mesh, true);
-      toast('Put that piece in its matching labelled drawer well.', 'warn');
+      toast(t('till.putThatPieceIn'), 'warn');
       sfx('thunk');
       return true;
     }
@@ -5450,7 +7503,20 @@ export function createRegisterMode(B) {
     drag.mesh.removeFromParent();
     tenderMeshes = tenderMeshes.filter((mesh) => mesh !== drag.mesh);
     refillDrawerMoney();
-    sfx(BILLS.includes(drag.denom) ? 'billHandle' : 'coinHandle');
+    // G2 (Goal 23) — THE DEPOSIT HAS ITS OWN VOICE NOW.
+    //
+    // This line played `billHandle`/`coinHandle`: the sound of money being
+    // MOVED IN THE HAND. There was no deposit sound anywhere in the build, so
+    // the most satisfying moment in the checkout was scored with a rustle --
+    // which is exactly what the owner reported twice.
+    //
+    // `depth` is how full that denomination's compartment already is, so the
+    // first note thuds into a wooden well and the tenth lands on nine notes.
+    // That is the "on the one before it" the brief asks for, and it is real
+    // rather than a fixed sample played over and over.
+    const stackedNow = Number(deposited.drawer?.[drag.denom]) || 1;
+    const depth = Math.max(0, Math.min(1, (stackedNow - 1) / 9));
+    sfx(BILLS.includes(drag.denom) ? 'billDeposit' : 'coinDeposit', depth);
     if (deposited.deposited) {
       if (checkoutFlowState() === 'DrawerOpening' && drawerAmount >= 0.98) {
         flowTo('DepositingCash', 'drawer-open-and-player-depositing-cash');
@@ -5458,7 +7524,7 @@ export function createRegisterMode(B) {
       if (checkoutFlowState() === 'DepositingCash') {
         flowTo('SelectingChange', 'player-secured-all-received-cash');
       }
-      toast('All received cash is secured. Count the change.');
+      toast(t('till.cashIsInCount'));
     }
     drawScreen();
     return true;
@@ -5485,7 +7551,11 @@ export function createRegisterMode(B) {
     layoutSelectedChange();
     pulseCashierHand(mesh, 'select-change', 0.08);
     refillDrawerMoney();
-    if (!silent) sfx('changeSelect');
+    // PLAYTEST 5, ITEM 5: the cue is handed the denomination so it can pick a
+    // recording of the right MATERIAL. `changeSelect` holds two paper takes and
+    // one of coins and the bank was choosing among them at random, so a quarter
+    // sounded like a twenty two times in three.
+    if (!silent) sfx('changeSelect', denom);
     if (!deferDraw) drawScreen();
     return true;
   }
@@ -5504,7 +7574,10 @@ export function createRegisterMode(B) {
     layoutSelectedChange();
     refillDrawerMoney();
     drawScreen();
-    sfx(BILLS.includes(mesh.userData.denom) ? 'billHandle' : 'coinHandle');
+    // ITEM 2: taking change back off the counter is a PICK-UP, and it used to
+    // play the same handle cue as laying it down. One gesture, two directions,
+    // one sound -- so neither direction read as itself.
+    sfx('cashPickup', mesh.userData.denom); // ITEM 5: coins for coins, paper for paper
     return true;
   }
 
@@ -5527,7 +7600,7 @@ export function createRegisterMode(B) {
     if (selectedChangeMeshes.length || handTotal(tx) > 0) return false;
     const plan = makeChangeFrom(drawerContents(tx, drawer), changeDue(tx));
     if (!plan) {
-      toast('The drawer cannot make exact change. Choose an allowed amount manually.', 'warn');
+      toast(t('till.theDrawerCannotMake'), 'warn');
       return false;
     }
     let pieces = 0;
@@ -5536,7 +7609,7 @@ export function createRegisterMode(B) {
       for (let index = 0; index < count; index += 1) {
         if (!selectChangeFromSlot(denom, { assisted: true, silent: true, deferDraw: true })) {
           clearSelectedChange();
-          toast('Exact-change assistance stopped before moving any money.', 'warn');
+          toast(t('till.stoppedCountingNoMoney'), 'warn');
           return false;
         }
         pieces += 1;
@@ -5591,13 +7664,13 @@ export function createRegisterMode(B) {
     if (!tx || tx.stage !== 'cash-drawer' || !tx.deposited) return false;
     const giving = changeGivingState(tx);
     if (giving.state === 'short') {
-      cashValidationWarning(`Short by $${(Math.abs(giving.deltaCents) / 100).toFixed(2)} — the customer must receive full change.`);
+      cashValidationWarning(`Short by $${(Math.abs(giving.deltaCents) / 100).toFixed(2)} - the customer must receive full change.`);
       sfx('thunk');
       drawScreen();
       return false;
     }
     if (giving.state === 'excess') {
-      cashValidationWarning('Too much — the register allows at most $5.00 extra.');
+      cashValidationWarning('Too much - the register allows at most $5.00 extra.');
       sfx('thunk');
       drawScreen();
       return false;
@@ -5621,7 +7694,7 @@ export function createRegisterMode(B) {
           return false;
         }
       }
-      if (!automatic) toast('Drawer is still opening. Change is queued.');
+      if (!automatic) toast(t('till.theDrawerIsStill'));
       return true;
     }
     if (readiness !== 'ready') return false;
@@ -5923,13 +7996,32 @@ export function createRegisterMode(B) {
       drawScreen();
       return true;
     }
+    const dropInto = BAG_POS.clone().sub(bagMouth).setY(0).normalize()
+      .multiplyScalar(0.30 * BAG_COUNTER_SCALE);
+    // G3: IT GOES OUT OF SIGHT BECAUSE THE BAG IS AROUND IT.
+    //
+    // The travel used to stop AT the mouth and then flip visible=false, which is
+    // a pop - the item blinks out in full view, above the rim, and reads as fake
+    // however carefully its size was preserved. The size was already held (F3);
+    // the disappearance was the remaining lie.
+    //
+    // Two legs now. Over the rim first, because a straight line from the counter
+    // to the inside would pass through the bag wall. Then DOWN into the bag,
+    // still at full size, still visible, until the bag's own walls have swallowed
+    // it. Only then is it hidden, and by that point hiding it changes nothing on
+    // screen.
+    const insideBag = BAG_POS.clone().add(
+      bagMouth.clone().sub(BAG_POS).multiplyScalar(BAG_SWALLOW_DEPTH),
+    ).add(dropInto.clone().multiplyScalar(0.5));
     bagDropMotions.push({
       mesh: drag.mesh,
       from: drag.mesh.position.clone(),
-      to: bagMouth.clone(),
+      to: bagMouth.clone().add(dropInto),
+      sink: insideBag,
       fromQuaternion: drag.mesh.quaternion.clone(),
       elapsed: 0,
       duration: 0.46,
+      sinkDuration: 0.22,
       baseScale: drag.fromScale.clone(),
     });
     drawScreen();
@@ -5987,7 +8079,7 @@ export function createRegisterMode(B) {
     setBagPickable(false);
     const deliveryStarted = beginBagDeliveryOrRelease();
     if (!deliveryStarted) {
-      toast('The customer handoff could not start. Try the bag handles again.', 'warn');
+      toast(t('till.thatDidNotTake'), 'warn');
       return false;
     }
     autoFulfilled = true;
@@ -5997,21 +8089,29 @@ export function createRegisterMode(B) {
   function updateBagDropMotions(dt) {
     for (let index = bagDropMotions.length - 1; index >= 0; index -= 1) {
       const motion = bagDropMotions[index];
-      motion.elapsed = Math.min(motion.duration, motion.elapsed + dt);
-      const t = THREE.MathUtils.smoothstep(motion.elapsed / motion.duration, 0, 1);
-      motion.mesh.position.lerpVectors(motion.from, motion.to, t);
+      const total = motion.duration + (motion.sinkDuration || 0);
+      motion.elapsed = Math.min(total, motion.elapsed + dt);
+      if (motion.elapsed <= motion.duration) {
+        // leg one: across the counter and over the rim
+        const t = THREE.MathUtils.smoothstep(motion.elapsed / motion.duration, 0, 1);
+        motion.mesh.position.lerpVectors(motion.from, motion.to, t);
+      } else if (motion.sink) {
+        // leg two: down inside, at full size, until the bag hides it
+        const st = THREE.MathUtils.smoothstep(
+          (motion.elapsed - motion.duration) / motion.sinkDuration, 0, 1,
+        );
+        motion.mesh.position.lerpVectors(motion.to, motion.sink, st);
+      }
       // Same rule as the clicked ring-up above: goods slide into the mouth,
-      // they are not lobbed over the rim.
-      motion.mesh.scale.copy(motion.baseScale).multiplyScalar(1 - t * 0.52);
-      if (motion.elapsed < motion.duration) continue;
+      // they are not lobbed over the rim — and per F3 they keep their size.
+      // NOTHING here touches motion.mesh.scale, on either leg, by design.
+      if (motion.elapsed < total) continue;
       bagDropMotions.splice(index, 1);
-      bagGroup.add(motion.mesh);
-      const contents = bagContentsNode
-        ? bagGroup.worldToLocal(bagContentsNode.getWorldPosition(new THREE.Vector3()))
-        : new THREE.Vector3(0, 0.18, 0);
-      motion.mesh.position.set(contents.x, contents.y + 0.08, contents.z);
-      motion.mesh.scale.copy(motion.baseScale).multiplyScalar(0.38);
-      motion.mesh.userData.checkoutVisualState = 'packed-in-bag';
+      // G4.2: "Scanned items go into that bag, one at a time, and STAY VISIBLE
+      // in it until the sale completes." C1 (Goal 19): the DRAG path packs
+      // through the same one rule as the scan and restore paths — measured
+      // body, clamped whole inside the anchor's authored contents volume.
+      packMeshIntoBag(motion.mesh, { scale: motion.baseScale });
       sfx('bagItem');
     }
   }
@@ -6055,6 +8155,7 @@ export function createRegisterMode(B) {
     bagDropMotions.length = 0;
     scanDrag = null;
     scanMotion = null;
+    nextBagResetIsQuiet = true; // retry reclaims the same carrier
     resetBagAtCounter();
     bagGroup.userData.checkoutOwner = 'register';
     if (cust) {
@@ -6096,21 +8197,14 @@ export function createRegisterMode(B) {
           oversizeIndex += 1;
           continue;
         }
-        bagGroup.add(mesh);
-        const contents = bagContentsNode
-          ? bagGroup.worldToLocal(bagContentsNode.getWorldPosition(new THREE.Vector3()))
-          : new THREE.Vector3(0, 0.18, 0);
-        const column = compactIndex % 2;
-        const row = Math.floor(compactIndex / 2);
-        mesh.position.set(
-          contents.x + (column ? 0.045 : -0.045),
-          contents.y + 0.055 + row * 0.035,
-          contents.z + (column ? 0.025 : -0.025),
-        );
-        mesh.quaternion.identity();
-        mesh.scale.copy(mesh.userData.originalScale || new THREE.Vector3(1, 1, 1))
-          .multiplyScalar(0.38);
-        mesh.userData.checkoutVisualState = 'packed-in-bag';
+        // F3: restored contents sit at FULL SIZE inside the carrier, exactly
+        // like freshly bagged ones - no miniature stack on resume. G4.2: and
+        // VISIBLE, because a resumed sale must look like the one it resumes.
+        // C1 (Goal 19): the RESTORE path packs through the same one rule —
+        // the anchor-volume placement — so a resumed bag looks like the live
+        // one. (The old code computed the anchor point here and then never
+        // used it.)
+        packMeshIntoBag(mesh);
         mesh.userData.checkoutOwner = 'bag';
         compactIndex += 1;
         continue;
@@ -6157,47 +8251,234 @@ export function createRegisterMode(B) {
     if (transactionKind === 'retail') {
       if (tx.stage === 'receipt' && !tx.receiptPrinted) return beginAutomaticReceipt();
       const projected = durableProjectRetailFulfillment();
-      if (projected) toast('Order handoff restored from the saved checkout progress.');
+      if (projected) toast(t('till.pickedTheSaleBack'));
       return projected;
     }
+    nextBagResetIsQuiet = true; // restarting a handoff, same bag
     resetBagAtCounter();
     const restarted = finishAutomaticFulfillment();
-    if (restarted) toast('Order handoff restarted safely.');
+    if (restarted) toast(t('till.handingItOverAgain'));
     return restarted;
+  }
+
+  function salvagePaidBagAfterPresentationFailure(customer) {
+    if (!bagGroup || bagGroup.userData?.checkoutOwner !== 'customer') return false;
+    if (salvagePaidBagToCustomer(customer, bagGroup)) return true;
+
+    // Do not report a green recovery for an arbitrary parent or a conflicting
+    // customer pointer. Reclaim the wrapper only when it can be put back under
+    // the register root; clearPhysicalTransaction can then remove its products
+    // and reset it as the counter carrier without leaving customer-owned nodes
+    // beneath the register.
+    try {
+      if (bagGroup.parent !== root) root.attach(bagGroup);
+      if (bagGroup.parent !== root) return false;
+      bagGroup.userData.checkoutOwner = 'register';
+      if (customer?.bagMesh === bagGroup) customer.bagMesh = null;
+      if (customer?.checkoutHandoffBag === bagGroup) customer.checkoutHandoffBag = null;
+    } catch {
+      return false;
+    }
+    return false;
   }
 
   function finalizeTransaction() {
     if (!tx || tx.stage !== 'done') {
-      toast('Finish payment before finalizing.', 'warn');
+      toast(t('till.finishPaymentBeforeFinalizing'), 'warn');
       return false;
     }
     if (checkoutFlowState() !== 'CustomerLeaving') {
-      toast('Finish the physical customer handoff before banking the sale.', 'warn');
+      toast(t('till.handTheCustomerTheir'), 'warn');
       return false;
     }
     const finishedTx = tx;
     const finishedCustomer = cust;
-    const finishedReservationId = transactionKind === 'reservation'
-      ? tx.servicePayment && tx.servicePayment.reservationId
+    // ROUTE ON WHAT THE TICKET CARRIES, NOT ON HOW IT STARTED.
+    //
+    // A visit that began as a shirt and picked up a tee time along the way is
+    // still a check-in, and `transactionKind` remembers only the first thing that
+    // happened. Asking the ticket means one question with one answer, so the
+    // booking cannot be banked as an anonymous sale and left un-checked-in.
+    const finishedReservationId = tx.servicePayment
+      ? tx.servicePayment.reservationId
       : null;
+    const carriedGoods = goodsLinesOf(tx).length > 0;
+    let postBankFailure = null;
+    let durablyBanked = false;
     let result;
-    if (transactionKind === 'reservation') {
-      result = finalizeReservationCheckIn(state, tx, finishedReservationId);
-    } else {
-      result = completeSale(state, tx, cust || 'A customer');
+    const recordPostBankFailure = (stage, error) => {
+      const failure = {
+        stage,
+        transactionNumber: finishedTx.number,
+        customerId: finishedCustomer?.customerId ?? null,
+        reservationId: finishedReservationId,
+        message: String(error?.message || error),
+      };
+      checkoutPostBankFailures.push(failure);
+      checkoutPostBankFailures.splice(0, Math.max(0, checkoutPostBankFailures.length - 16));
+      postBankFailure ||= failure;
+      return failure;
+    };
+    // P0 (Goal 25 round 2) — MAKE THE REFUSAL SAY WHICH REFUSAL IT WAS.
+    //
+    // The owner has now reported "Checkout records are unavailable right now"
+    // three times, and neither of us can act on it. That sentence
+    // (`checkout.integrityUnavailable`) has 277 call sites in src/, each with its
+    // own internal `diagnostic` naming the real cause, and every one of the four
+    // paths below throws that diagnostic away before the player sees anything.
+    // Last round I found ONE of the 277, reproduced it, and reported it as the
+    // cause; his save then ruled it out. That was a guess dressed as a finding.
+    //
+    // The diagnostic cannot go in the toast: player-facing copy is localized
+    // (tests/player-strings-ratchet.test.js) and an English machine code would
+    // show on all ten locale tables. So it goes where machine codes belong and
+    // where I can actually READ it -- reportFault writes through the preload
+    // bridge into userData/logs/crash.log, which is how I read his save this
+    // round. Rate-limited by origin+message inside reportFault, so a till that
+    // refuses every second cannot fill the disk.
+    const reportRefusal = (where, result) => {
+      const diagnostic = result?.diagnostic || result?.reason || 'no diagnostic reported';
+      reportFault(`checkout.refused.${where}`, new Error(String(diagnostic)), {
+        transactionNumber: finishedTx?.number ?? null,
+        customerId: finishedCustomer?.customerId ?? null,
+        reservationId: finishedReservationId ?? null,
+        banked: finishedTx?.banked === true,
+        commitPrepared: finishedTx?.commitPrepared === true,
+      });
+      return result;
+    };
+    const attempt = (stage, operation) => {
+      try {
+        return { ok: true, value: operation() };
+      } catch (error) {
+        recordPostBankFailure(stage, error);
+        return { ok: false, error };
+      }
+    };
+    try {
+    // Banking belongs inside the same recovery boundary as every later step.
+    // The QA seam interrupts the real write-ahead settlement after stock,
+    // drawer, ledger, and tax have committed but before a ticket is appended.
+    // The same live transaction then retries once against that durable plan.
+    try {
+      let injectedCoreFault = null;
+      if (qaBankHelperReturnFault
+          && Number(qaBankHelperReturnFault.transactionNumber) === Number(finishedTx.number)
+          && String(qaBankHelperReturnFault.customerId || '')
+            === String(finishedCustomer?.customerId || '')) {
+        injectedCoreFault = () => {
+          qaBankHelperReturnFault = null;
+          throw new Error('QA injected bank-helper interruption after core commit.');
+        };
+      }
+      if (finishedReservationId) {
+        result = finalizeReservationCheckIn(state, finishedTx, finishedReservationId, {
+          qaFaultAfterCoreCommit: injectedCoreFault,
+        });
+      } else {
+        result = completeSale(state, finishedTx, finishedCustomer || 'A customer', {
+          qaFaultAfterCoreCommit: injectedCoreFault,
+        });
+      }
+    } catch (error) {
+      // A prepared WAL is already an irreversible commit decision. Retain the
+      // actor and immediately finish it through the ordinary helper without the
+      // one-shot fault; only release once the final ticket is discoverable.
+      if (!finishedTx.banked && finishedTx.commitPrepared) {
+        recordPostBankFailure('bank-helper-partial-commit-recovered', error);
+        try {
+          if (finishedReservationId) {
+            result = finalizeReservationCheckIn(state, finishedTx, finishedReservationId);
+          } else {
+            result = completeSale(state, finishedTx, finishedCustomer || 'A customer');
+          }
+        } catch (retryError) {
+          recordPostBankFailure('bank-helper-retry-failed', retryError);
+          reportRefusal('retry-failed', { diagnostic: String(retryError?.message || retryError) });
+          toast(t('checkout.integrityUnavailable'), 'warn');
+          return false;
+        }
+      } else if (!finishedTx.banked) {
+        recordPostBankFailure('bank-helper-failed-before-commit', error);
+        reportRefusal('failed-before-commit', { diagnostic: String(error?.message || error) });
+        toast(t('checkout.integrityUnavailable'), 'warn');
+        return false;
+      } else {
+        durablyBanked = true;
+        recordPostBankFailure('bank-helper-return-after-commit', error);
+        result = { ok: true, recoveredAfterBankThrow: true };
+      }
     }
-    if (!result.ok) {
-      toast(result.reason, 'warn');
+    if (!result?.ok) {
+      if (!finishedTx.banked) {
+        reportRefusal('sale-refused', result);
+        toast(result?.reason || t('checkout.integrityUnavailable'), 'warn');
+        return false;
+      }
+      durablyBanked = true;
+      recordPostBankFailure(
+        'bank-helper-failed-after-commit',
+        new Error(result?.reason || 'The bank helper reported failure after committing the sale.'),
+      );
+    } else if (!finishedTx.banked) {
+      // ok:true and yet the transaction is not banked -- the one path here with
+      // no error object of its own, and so the one that told us least.
+      reportRefusal('ok-but-not-banked', { diagnostic: 'completeSale returned ok with tx.banked false' });
+      toast(t('checkout.integrityUnavailable'), 'warn');
       return false;
+    } else {
+      durablyBanked = true;
     }
-    if (transactionKind === 'reservation') {
+
+    // A combined ticket owes BOTH: the round is checked in above, and the goods
+    // still have to be handed to the customer who bought them. Transfer that
+    // ownership before the reservation bridge points the character at the exit;
+    // the exit safety net must never see a durably paid cart as unpaid stock.
+    if (carriedGoods && finishedCustomer) {
+      const ownership = typeof finishedCustomer.onPaidOwnership === 'function'
+        ? attempt('paid-goods-ownership', () => finishedCustomer.onPaidOwnership(finishedTx))
+        : { ok: false, value: false };
+      if (!ownership.ok || ownership.value === false) {
+        attempt('paid-goods-ownership-fallback', () => {
+          finishedCustomer.bought = true;
+          finishedCustomer.paymentStatus = 'paid';
+          finishedCustomer.cart = [];
+          finishedCustomer.awaitingCheckout = false;
+          finishedCustomer.checkoutPhase = 'complete';
+        });
+      }
+      if (finishedCustomer.onPaid) {
+        attempt('paid-customer-presentation', () => finishedCustomer.onPaid(finishedTx));
+      }
+      const customerRelease = typeof finishedCustomer.onPaidRelease === 'function'
+        ? attempt('paid-customer-route-release', () => finishedCustomer.onPaidRelease(finishedTx))
+        : { ok: false, value: false };
+      if (!customerRelease.ok || customerRelease.value === false) {
+        attempt('paid-customer-route-release-fallback', () => {
+          finishedCustomer.currentDestination = 'exit';
+          finishedCustomer.awaitingCheckout = false;
+          finishedCustomer.linger = 0;
+          finishedCustomer.path = null;
+          finishedCustomer.pathGoal = null;
+          const exitIdx = finishedCustomer.stops?.findIndex((stop) => stop.kind === 'exit') ?? -1;
+          if (exitIdx >= 0) finishedCustomer.stopIdx = exitIdx;
+        });
+      }
+    }
+    if (finishedReservationId) {
       const bridge = reservationBridge();
       if (bridge && typeof bridge.completeCustomer === 'function') {
-        bridge.completeCustomer(finishedReservationId);
+          const released = attempt(
+            'reservation-customer-release',
+            () => bridge.completeCustomer(finishedReservationId),
+          );
+          if (released.ok && released.value === false) {
+            attempt('reservation-customer-release-missing', () => {
+              throw new Error('The banked reservation customer could not be released.');
+            });
+          }
       }
-      sfx('doorbell');
-    } else if (finishedCustomer && finishedCustomer.onPaid) {
-      finishedCustomer.onPaid(finishedTx);
+      attempt('reservation-complete-sound', () => sfx('doorbell'));
     }
     if (finishedTx.checkoutFlow && finishedTx.checkoutFlow.state === 'CustomerLeaving') {
       const completed = transitionCheckout(finishedTx.checkoutFlow, 'TransactionComplete', {
@@ -6227,26 +8508,136 @@ export function createRegisterMode(B) {
     };
     // (the till already slid shut with its sound the moment the change was handed
     // over in confirmChange — see the drawerClose there; nothing to close here)
-    sfx('checkoutComplete');
-    clearPhysicalTransaction({
-      resetCounterBag: false,
-      preserveCustomerBag: true,
-    });
-    if (finishedCustomer) finishedCustomer.tx = null;
-    tx = null;
-    cust = null;
-    transactionKind = 'retail';
-    selectedReservationId = null;
-    activeTab = 'checkout';
-    assignWorkspace('monitor');
-    drawScreen();
-    drawTerm();
+    attempt('checkout-complete-sound', () => sfx('checkoutComplete'));
+    } catch (error) {
+      if (!durablyBanked && !finishedTx.banked) {
+        recordPostBankFailure('checkout-finalize-before-commit', error);
+        toast(t('checkout.integrityUnavailable'), 'warn');
+        return false;
+      }
+      durablyBanked = true;
+      recordPostBankFailure('post-bank-finalize', error);
+    } finally {
+    if (durablyBanked || finishedTx.banked) {
+      let salvage = null;
+      if (postBankFailure) {
+        salvage = attempt('paid-bag-salvage',
+          () => salvagePaidBagAfterPresentationFailure(finishedCustomer),
+        );
+      }
+      // This callback is a deliberately tiny, non-visual ownership boundary
+      // supplied by clubhouse. Invoke it even when the ordinary release hook
+      // succeeded: it is idempotent, and it is the last-resort guarantee that a
+      // paid customer cannot remain at the head of counterQueue.
+      const actorAuthoritativeRelease = typeof finishedCustomer
+        ?.onPaidReleaseAuthoritative === 'function'
+        ? () => finishedCustomer.onPaidReleaseAuthoritative(finishedTx)
+        : null;
+      const bridgeAuthoritativeRelease = typeof B
+        .releasePaidCustomerFromCheckoutAuthoritative === 'function'
+        ? () => B.releasePaidCustomerFromCheckoutAuthoritative(finishedCustomer, finishedTx)
+        : null;
+      const authoritativeRelease = carriedGoods && finishedCustomer
+        ? runPaidCustomerAuthoritativeRelease({
+          actorRelease: actorAuthoritativeRelease,
+          bridgeRelease: bridgeAuthoritativeRelease,
+          attempt,
+        })
+        : { ok: !carriedGoods || !finishedCustomer, value: !carriedGoods || !finishedCustomer };
+
+      const preCleanupEvidence = {
+        customerBagAttachedBeforeCleanup: paidBagAttachedToCustomer(finishedCustomer),
+        customerBagOwnerBeforeCleanup: finishedCustomer?.bagMesh
+          ?.userData?.checkoutOwner ?? null,
+        pendingHandoffBagClearedBeforeCleanup: finishedCustomer
+          ? finishedCustomer.checkoutHandoffBag == null
+          : null,
+        customerOwnedUnderRegisterBeforeCleanup: [],
+      };
+      root.traverse((object) => {
+        if (object !== root && object.userData?.checkoutOwner === 'customer') {
+          preCleanupEvidence.customerOwnedUnderRegisterBeforeCleanup.push(
+            object.name || object.type || 'unnamed',
+          );
+        }
+      });
+
+      const physicalCleanup = attempt('post-bank-physical-cleanup', () => clearPhysicalTransaction({
+        resetCounterBag: false,
+        preserveCustomerBag: true,
+      }));
+      if (physicalCleanup.ok) {
+        for (const failure of physicalCleanup.value?.failures || []) {
+          recordPostBankFailure(
+            `post-bank-physical-cleanup:${failure.stage}`,
+            failure.error,
+          );
+        }
+      }
+      if (finishedCustomer?.tx === finishedTx) finishedCustomer.tx = null;
+      if (tx === finishedTx) tx = null;
+      if (cust === finishedCustomer) cust = null;
+      transactionKind = 'retail';
+      selectedReservationId = null;
+      activeTab = 'checkout';
+      attempt('post-bank-monitor-reset', () => {
+        assignWorkspace('monitor');
+        drawScreen();
+        drawTerm();
+      });
+      const recovery = postBankFailure ? {
+        transactionNumber: finishedTx.number,
+        customerId: finishedCustomer?.customerId ?? null,
+        reservationId: finishedReservationId,
+        firstFailureStage: postBankFailure.stage,
+        salvageAttempted: !!salvage,
+        salvageSucceeded: salvage?.ok === true && salvage.value !== false,
+        authoritativeReleaseSucceeded: authoritativeRelease.ok === true
+          && authoritativeRelease.value !== false,
+        ...preCleanupEvidence,
+      } : null;
+      if (recovery) {
+        recovery.counterBagOwnerAfterCleanup = bagGroup?.userData?.checkoutOwner ?? null;
+        recovery.counterBagParentAfterCleanup = bagGroup?.parent?.name ?? null;
+        checkoutPostBankRecoveries.push(recovery);
+        checkoutPostBankRecoveries.splice(
+          0,
+          Math.max(0, checkoutPostBankRecoveries.length - 16),
+        );
+      }
+    }
+    }
+    if (!durablyBanked && !finishedTx.banked) return false;
+    if (postBankFailure) {
+      attempt('post-bank-warning', () => toast(
+        t('till.saleCompletedPresentationSkipped'),
+        'warn',
+      ));
+    }
     return true;
   }
+
+  // A machine-readable refusal code for deskAction, not a player-facing string.
+  // Held in a constant rather than written inline: the player-strings ratchet
+  // treats a quoted literal in that position as text that could reach a player,
+  // and raising a real baseline for a QA enum would spend a budget that exists
+  // for untranslated player text. (This comment is worded around the scanner's
+  // own pattern for the same reason -- the first version of it tripped the
+  // ratchet by quoting the pattern it was explaining.)
+  const DESK_REFUSED_INACTIVE = 'register-not-active';
 
   function handleMonitorAction(action) {
     if (!action) return false;
     if (action === 'exit') {
+      // PLAYTEST 4, ITEM 7b — "returns ok: true twenty-five times and does
+      // nothing. A control that reports success and changes nothing is worse
+      // than a disabled one."
+      //
+      // `leave()` returns early when the register is already inactive, and this
+      // returned `true` regardless, so every press reported success while
+      // nothing moved. Measured: 25 consecutive ok:true with the register
+      // inactive throughout. It now reports what actually happened.
+      if (!active) return false;
       leave();
       return true;
     }
@@ -6262,7 +8653,7 @@ export function createRegisterMode(B) {
     if (action === 'tab-checkout') {
       activeTab = 'checkout';
       if (!tx && !postSaleDisplay) {
-        toast('No shopper is ready at the checkout yet. The screen will update when a customer reaches the counter.');
+        toast(t('till.nobodyAtTheCounter'));
         setWorkspace('monitor');
       } else if (tx?.stage === 'scanning' && unscannedCount(tx) > 0) {
         setWorkspace('scan');
@@ -6281,10 +8672,34 @@ export function createRegisterMode(B) {
       drawScreen();
       return true;
     }
+    if (action === 'tab-tee-sheet') {
+      activeTab = 'tee-sheet';
+      drawScreen();
+      return true;
+    }
     if (action.startsWith('select-walkin:')) {
-      if (tx) {
-        toast('Finish the active transaction before helping another customer.', 'warn');
-        return true;
+      // B1 (Goal 24) — THE LAST WALL, AND IT IS THE SAME ONE AS LAST TIME.
+      //
+      // This was a bare `if (tx)`: selecting a walk-in was refused outright the
+      // moment any ticket existed. Goal 23 corrected exactly this for the desk
+      // ROWS 250 lines above -- "This was `!!tx`: every reservation row on the
+      // desk went grey the moment a ticket existed... One rule now, and it is
+      // the handler's" -- and the walk-in SELECT handler was not part of that
+      // change. So the row painted live, the click ran, and the handler threw
+      // it away. It is the reason the panel drew no slot buttons: nothing was
+      // ever selected.
+      //
+      // AND IT RETURNED TRUE. A handler that refuses and reports success is
+      // indistinguishable from one that acted, which is why the probe read
+      // `ok: true, result: true` while nothing happened. Refusal returns false
+      // now, so an instrument can tell the two apart.
+      //
+      // The rule is `select-reservation:`'s, verbatim: a ticket still being
+      // SCANNED can take a tee time on it -- that is the entire combined visit.
+      // Only a ticket that has started payment is too late to add to.
+      if (tx && (tx.stage !== 'scanning' || tx.banked)) {
+        toast(t('till.finishTheActiveTransaction'), 'warn');
+        return false;
       }
       selectedWalkInCustomerId = action.slice('select-walkin:'.length);
       selectedReservationId = null;
@@ -6292,7 +8707,9 @@ export function createRegisterMode(B) {
       return true;
     }
     if (action.startsWith('select-walkin-slot:')) {
-      if (tx) return false;
+      // Same rule as selecting a booked reservation: a ticket still being
+      // scanned can carry the fee for a slot booked right now at the counter.
+      if (tx && (tx.stage !== 'scanning' || tx.banked)) return false;
       const payload = action.slice('select-walkin-slot:'.length);
       const parts = payload.split(':');
       const minute = Number(parts.pop());
@@ -6309,7 +8726,10 @@ export function createRegisterMode(B) {
       }
       selectedWalkInCustomerId = null;
       selectedReservationId = booked.res.id;
-      toast(`${booked.res.fullName || booked.res.name}: I'll pay with ${booked.res.paymentPreference || 'card'}.`);
+      toast(t('till.iWillPayWith', {
+        name: booked.res.fullName || booked.res.name,
+        method: payMethodWord(booked.res.paymentPreference),
+      }));
       return beginReservationPayment(booked.res);
     }
     if (action === 'reject-walkin') {
@@ -6319,15 +8739,17 @@ export function createRegisterMode(B) {
         ? bridge.rejectWalkIn(walkIn.customerId)
         : false;
       if (rejected) {
-        toast(`No tee time was available for ${walkIn.fullName || walkIn.name}.`);
-        selectedWalkInCustomerId = null;
-        drawScreen();
+        toast(t('till.noTeeTimeFor', { name: walkIn.fullName || walkIn.name }));
+        returnFromDeskAnswerToCheckout();
       }
       return Boolean(rejected);
     }
     if (action.startsWith('select-reservation:')) {
-      if (tx) {
-        toast('Finish the active transaction before selecting another reservation.', 'warn');
+      // A ticket that is still being scanned can take a tee time on it, so
+      // selecting one is exactly what the player is here to do. Only a ticket
+      // that has started payment is too late to add to.
+      if (tx && (tx.stage !== 'scanning' || tx.banked)) {
+        toast(t('till.finishTheActiveTransaction26'), 'warn');
         return true;
       }
       const raw = action.slice('select-reservation:'.length);
@@ -6341,7 +8763,10 @@ export function createRegisterMode(B) {
     }
     if (action === 'reservation-check-in') {
       const reservation = activeReservation();
-      if (reservation) toast(`${reservation.fullName || reservation.name}: I'll pay with ${reservation.paymentPreference || 'card'}.`);
+      if (reservation) toast(t('till.iWillPayWith', {
+        name: reservation.fullName || reservation.name,
+        method: payMethodWord(reservation.paymentPreference),
+      }));
       return beginReservationPayment(reservation);
     }
     if (action === 'start-scanning') return startScanning();
@@ -6462,7 +8887,86 @@ export function createRegisterMode(B) {
 
   // Is this pick the payment the customer is holding out? Those get the green
   // grabbable rim; everything else keeps the brass working outline.
-  function offeredPaymentTarget(object) {
+  // ITEM 12 (2026-08-06): "hovering a note outlines THAT note only. Thin
+  // outline, no fill."
+  //
+  // It outlined the whole pile, because this returned `tenderMeshes` — every
+  // note the customer laid down — the moment the cursor touched any of them.
+  // And it had to: the pick that reaches here is usually `tenderHandful`, one
+  // generous invisible sphere over the entire pile, which exists so that
+  // taking a payment is not a hunt for a 2 mm note edge. A hit on the sphere
+  // says "the pile", never "which note".
+  //
+  // Both wants are satisfiable. The CLICK keeps the generous sphere — it takes
+  // the whole payment anyway, so precision there buys nothing. The OUTLINE
+  // resolves the note under the cursor for itself: a direct ray against the
+  // notes, and if the cursor is over the sphere but between notes, the note
+  // whose centre lies nearest the ray. One note, always.
+  function noteUnderCursor(event) {
+    if (!tenderMeshes.length) return null;
+    if (!event) return tenderMeshes[0];
+    setNdc(event);
+    ray.setFromCamera(ndc, camera);
+    const direct = ray.intersectObjects(tenderMeshes, false);
+    if (direct.length) return direct[0].object;
+    // nothing struck: fall back to the note closest to the cursor's ray, so a
+    // hover in the gaps between notes still names exactly one of them
+    let best = null;
+    let bestDistance = Infinity;
+    const centre = new THREE.Vector3();
+    for (const mesh of tenderMeshes) {
+      mesh.getWorldPosition(centre);
+      const distance = ray.ray.distanceToPoint(centre);
+      if (distance < bestDistance) { bestDistance = distance; best = mesh; }
+    }
+    return best;
+  }
+
+  // C1 — WHICH DRAWER NOTE THE CURSOR IS ON.
+  //
+  // The same resolve as noteUnderCursor, scoped to one well: the direct ray
+  // first, then the nearest note's centre to the ray so a cursor in the gap
+  // between two notes still names one of them. Scoped by DENOMINATION rather
+  // than by position, because the pick that gets here already knows which well
+  // was struck and the wells are adjacent — a nearest-centre search across the
+  // whole drawer would happily reach into the tray next door.
+  //
+  // Returns null when that well has no note meshes (a coin well, or an empty
+  // one), and the caller falls back to the labelled hotspot.
+  function noteInDrawerUnderCursor(event, denom) {
+    if (!event || !drawerMoney) return null;
+    const notes = [];
+    drawerMoney.traverse((o) => {
+      if (!o.isMesh) return;
+      if (o.userData.from !== 'drawer') return;
+      if (Number(o.userData.denom) !== Number(denom)) return;
+      notes.push(o);
+    });
+    if (!notes.length) return null;
+    // An authored note is a GLB subtree, so a hit lands on a child mesh. Climb
+    // to the piece drawerMoney actually holds, or the outline covers one face
+    // of a note instead of the note.
+    const wholeNote = (object) => {
+      let node = object;
+      while (node && node.parent && node.parent !== drawerMoney) node = node.parent;
+      return node && node.parent === drawerMoney ? node : object;
+    };
+    setNdc(event);
+    ray.setFromCamera(ndc, camera);
+    const direct = ray.intersectObjects(notes, false);
+    if (direct.length) return wholeNote(direct[0].object);
+    let best = null;
+    let bestDistance = Infinity;
+    const centre = new THREE.Vector3();
+    for (const mesh of notes) {
+      mesh.getWorldPosition(centre);
+      const distance = ray.ray.distanceToPoint(centre);
+      if (distance < bestDistance) { bestDistance = distance; best = mesh; }
+    }
+    return best ? wholeNote(best) : null;
+  }
+
+  function offeredPaymentTarget(object, event = null) {
     if (!object || !tx) return null;
     const kind = object.userData.kind;
     if (kind === 'payment-card' && tx.stage === 'card-ready' && cardMesh) {
@@ -6471,7 +8975,18 @@ export function createRegisterMode(B) {
     const offeredCash = tx.stage === 'cash-tender'
       || (tx.stage === 'cash-drawer' && !tx.deposited);
     if (kind === 'money' && object.userData.from === 'tender' && offeredCash) {
-      return tenderMeshes.length ? tenderMeshes : [object];
+      // C2 — THE WHOLE HANDFUL, NOT ONE NOTE OF IT.
+      //
+      // Item 12 made this outline exactly one note, because the ask then was
+      // "hovering a note outlines THAT note only". For the money the CUSTOMER
+      // is holding out that turned out to be the wrong read: the click takes
+      // the entire payment, so outlining one note of five promises a precision
+      // the verb does not have and invites a hunt for the right edge. What the
+      // outline should say is what the click will do.
+      //
+      // The per-note resolver stays and is used by C1 in the DRAWER, where
+      // clicking really does give one piece and the distinction is real.
+      return tenderMeshes.length ? [...tenderMeshes] : [object];
     }
     return null;
   }
@@ -6484,7 +8999,7 @@ export function createRegisterMode(B) {
     const object = physicalPick(event);
     let target = null;
     let tip = '';
-    const offered = offeredPaymentTarget(object);
+    const offered = offeredPaymentTarget(object, event);
     if (offered) {
       setGrabOutline(offered);
       showTip('Take payment', event);
@@ -6495,15 +9010,24 @@ export function createRegisterMode(B) {
       const kind = object.userData.kind;
       if (kind === 'drawer-slot' || (kind === 'money' && object.userData.from === 'drawer')) {
         if (tx && tx.deposited) {
-          target = slotHotspots.find(
-            (spot) => Number(spot.userData.denom) === Number(object.userData.denom),
-          ) || object;
-          tip = `${moneyLabel(Number(object.userData.denom))} — click: give one · right-click: take back`;
+          // C1 — THE NOTE UNDER THE CURSOR, NOT THE WHOLE WELL.
+          //
+          // This outlined the labelled well, which is a box the size of the
+          // denomination's whole stack. Clicking gives exactly ONE piece, so
+          // the outline was describing a bigger thing than the verb touches.
+          // A direct ray against that well's own notes names the one the
+          // cursor is on; the well remains the fallback when the cursor is on
+          // the tray itself rather than on any note.
+          const denom = Number(object.userData.denom);
+          target = noteInDrawerUnderCursor(event, denom)
+            || slotHotspots.find((spot) => Number(spot.userData.denom) === denom)
+            || object;
+          tip = `${moneyLabel(denom)} - click: give one · right-click: take back`;
         }
       } else if (kind === 'money') {
         target = object;
         if (object.userData.from === 'change') {
-          tip = `${moneyLabel(Number(object.userData.denom))} — click: take back`;
+          tip = `${moneyLabel(Number(object.userData.denom))} - click: take back`;
         }
       } else if (kind === 'payment-card' && tx?.stage === 'card-ready') {
         // the offered card reads as clickable before it is clicked
@@ -6623,7 +9147,7 @@ export function createRegisterMode(B) {
     if (workspace === 'card') {
       // the customer's offered card rims green under the cursor — the same
       // grabbable affordance the offered cash carries (reference 154506)
-      const offered = offeredPaymentTarget(physicalPick(event));
+      const offered = offeredPaymentTarget(physicalPick(event), event);
       setGrabOutline(offered);
       showTip(offered ? 'Take payment' : '', event);
       setHoverCursor(!!offered || !!terminalKeyAt(event) || terminalXHitAt(event)
@@ -6648,7 +9172,7 @@ export function createRegisterMode(B) {
       // direct click targets from the monitor view. The customer's offered
       // cash gets the bright-green grabbable rim; goods keep the brass box.
       const object = physicalPick(event);
-      const offered = offeredPaymentTarget(object);
+      const offered = offeredPaymentTarget(object, event);
       if (offered) {
         setGrabOutline(offered);
         showTip('Take payment', event);
@@ -6837,13 +9361,21 @@ export function createRegisterMode(B) {
       refreshCardInsertPath();
     }
     if (cardEjectTimer > 0) {
+      // C11 — NOTHING DECORATIVE ON THE WAY. This used to arc the card out of
+      // the reader (a +0.025 sin hop) back to the held-out pose, and then a
+      // second motion carried it down and across to the customer's side, where
+      // it faded out. Two travels and a hop for a card that is simply done.
+      //
+      // The reader still releases it over cardEjectTimer — that part is the
+      // machine giving the card back and it is not decoration — but it goes
+      // straight out of the slot and DOWN ONTO THE DESK, flat, and stays there.
+      // If the customer wants it they pick it up off the counter.
       cardEjectTimer = Math.max(0, cardEjectTimer - dt);
       const progress = THREE.MathUtils.smoothstep(1 - cardEjectTimer / 0.64, 0, 1);
       cardU = 1 - progress;
       if (cardMesh) {
-        cardMesh.position.lerpVectors(cardInserted, cardReady, progress);
-        cardMesh.position.y += Math.sin(progress * Math.PI) * 0.025;
-        cardMesh.quaternion.slerpQuaternions(cardInsertQuaternion, HELD_QUAT, progress);
+        cardMesh.position.lerpVectors(cardInserted, cardDeskRest, progress);
+        cardMesh.quaternion.slerpQuaternions(cardInsertQuaternion, CARD_FLAT_QUAT, progress);
       }
       if (cardEjectTimer === 0) cardU = 0;
     } else if (cardMesh && cardInsertTimer === 0
@@ -6877,17 +9409,10 @@ export function createRegisterMode(B) {
 
     if (cardResultTimer > 0) {
       cardResultTimer = Math.max(0, cardResultTimer - dt);
-      if (tx.stage === 'receipt' && cardMesh && cardEjectTimer === 0
-          && cardResultTimer <= CARD_STOW_TIME) {
-        const progress = 1 - cardResultTimer / CARD_STOW_TIME;
-        const eased = THREE.MathUtils.smoothstep(progress, 0, 1);
-        const stow = cardReady.clone().add(
-          frontDeskOffsetVector3(0.06, -0.24, -0.20),
-        );
-        cardMesh.position.lerpVectors(cardReady, stow, eased);
-        cardMesh.quaternion.copy(HELD_QUAT);
-        if (progress >= 0.98) cardMesh.visible = false;
-      }
+      // C11: the stow travel that used to live here is gone. The card was
+      // already put down by the eject above; it stays on the desk where the
+      // player can see it, rather than sliding off toward the customer and
+      // fading out mid-slide.
       if (cardResultTimer === 0) {
         setWorkspace('monitor');
         if (tx && tx.stage === 'receipt') beginAutomaticReceipt();
@@ -6916,6 +9441,14 @@ export function createRegisterMode(B) {
       ...bagGroup.userData,
       checkoutOwner: 'customer',
     };
+    cust.checkoutHandoffBag = bagGroup;
+    if (bagGroup.userData.checkoutPaidBagTransferCounted !== true) {
+      const owned = bagGroup.userData.checkoutPaidBagResourceStatus?.() || {};
+      paidBagResourceCounts.transferredBags += 1;
+      paidBagResourceCounts.ownedGeometriesTransferred += Number(owned.liveGeometries) || 0;
+      paidBagResourceCounts.ownedMaterialsTransferred += Number(owned.liveMaterials) || 0;
+      bagGroup.userData.checkoutPaidBagTransferCounted = true;
+    }
     const oversizeProducts = [];
     for (const item of tx?.items || []) {
       if (!item.bagged) continue;
@@ -6927,7 +9460,6 @@ export function createRegisterMode(B) {
         oversizeProducts.push(product);
       }
     }
-    cust.checkoutHandoffBag = bagGroup;
     cust.checkoutHandoffOversizeProducts = oversizeProducts;
     return true;
   }
@@ -6986,6 +9518,24 @@ export function createRegisterMode(B) {
         const to = customerAnchor(COUNTER_TOP + 0.10, 'L');
         bagDeliverAnchorAt.lerpVectors(bagDeliverAnchorFrom, to, eased);
         bagDeliverAnchorAt.y += Math.sin(t * Math.PI) * 0.14;
+        // C4: ROUTE IT OVER THE DESK, NOT THROUGH IT.
+        //
+        // The destination is the customer's LEFT carry grip, and that grip is on
+        // a hanging arm at hip height — well BELOW the counter top. A straight
+        // lerp from a bag resting on the slab to a point under the slab goes
+        // through it. Measured on a live card sale
+        // (tools/qa/checkout-bag-handoff-path.js): 0.375 yd of the carrier was
+        // under the counter top while its footprint was still on the counter,
+        // against 0.000 for the same bag resting on it. The old +0.14 arc was
+        // not close to covering that, and could not be — it is a constant, and
+        // the depth it has to clear is the bag's own height.
+        //
+        // So: a derived floor rather than a bigger arc, applied AFTER the pose
+        // so it is exact. Predicting the lift from the previous frame's box
+        // left 12.6 mm of sink once C12 scaled the carrier up — the bag is
+        // slerping upright through the handoff, so its hang below the handle
+        // changes every frame and last frame's number is always short. This
+        // measures what was actually drawn and corrects it.
         bagGroup.scale.setScalar(bagDeliverScaleFrom);
         // The carrier RESTS flat on the counter and is RIGHTED as it is lifted
         // into the customer's hand. Interpolating from identity would snap it
@@ -6998,6 +9548,28 @@ export function createRegisterMode(B) {
         bagGroup.updateWorldMatrix(true, true);
         const handle = bagHandlePoint();
         if (handle) bagGroup.position.add(bagDeliverAnchorAt).sub(handle);
+        {
+          bagGroup.updateWorldMatrix(true, true);
+          const box = new THREE.Box3().setFromObject(bagGroup);
+          if (!box.isEmpty()) {
+            // A POINT test cannot answer a question about a 0.5 yd wide object:
+            // the first version tested the anchor's desk-local z and let the
+            // bag's near face sit over the counter for another 0.13 yd. Test
+            // the footprint.
+            const planRadius = 0.5 * Math.max(box.max.x - box.min.x, box.max.z - box.min.z);
+            // WORLD -> ROOT before asking the desk frame anything. Box3 centres
+            // are world; frontDeskLocalPoint takes root/interior-local, and the
+            // interior sits ~360 yd out in x, so feeding it world coordinates
+            // silently answered "nowhere near the counter" for every frame.
+            const centre = root.worldToLocal(box.getCenter(_bagClearScratch));
+            const local = frontDeskLocalPoint(centre.x, centre.z);
+            if (Math.abs(local.z) - planRadius <= FRONT_DESK_FRAME.frontDepth / 2) {
+              const topWorld = root.getWorldPosition(_bagClearScratch).y + COUNTER_TOP;
+              const short = (topWorld + BAG_COUNTER_CLEARANCE) - box.min.y;
+              if (short > 0) bagGroup.position.y += short;
+            }
+          }
+        }
       }
       if (deliveryTimer === 0) {
         holdBagAtCustomer();
@@ -7062,8 +9634,42 @@ export function createRegisterMode(B) {
       if (motion.remove) motion.mesh.removeFromParent();
       else if (motion.enablePick) motion.mesh.userData.pick = true;
       cashMotions.splice(index, 1);
+      // 1.2 — EACH PIECE LANDS ON THE ONE BEFORE IT.
+      //
+      // The auto-deposit path flew every piece into the drawer in silence: the
+      // only deposit sound in the build was on the hand-dragged route through
+      // settleTenderDrag, and taking a customer's cash normally goes through
+      // HERE. So the most common way money enters the drawer was the one with no
+      // landing sound at all.
+      //
+      // `depositDepth` is how full that denomination's well already is, which
+      // picks the wooden-well recording for the first piece and the coins-on-coins
+      // recording once there is a pile.
+      if (motion.kind === 'cash-deposit' && motion.drawerDenom != null) {
+        const stacked = Number(drawer?.[motion.drawerDenom]) || 1;
+        const depth = Math.max(0, Math.min(1, (stacked - 1) / 9));
+        sfx(BILLS.includes(Number(motion.drawerDenom)) ? 'billDeposit' : 'coinDeposit', depth);
+      }
       if (typeof motion.onComplete === 'function') motion.onComplete(motion.mesh);
     }
+    // 1.2 — THE CONTINUOUS RUN, DRIVEN BY REAL ANIMATION PROGRESS.
+    //
+    // "a continuous run, tchhhhh, for as long as money is going in, stopping when
+    // the last piece lands... cancels cleanly if the transaction is interrupted."
+    //
+    // Deliberately derived from the motion list every frame rather than started
+    // and stopped at call sites. A start/stop pair scattered across the accept,
+    // cancel, reset and leave paths is how a looping voice ends up outliving its
+    // transaction and sticking on -- whereas "is a piece in the air right now?"
+    // has exactly one answer and every interruption already clears the list.
+    // Pieces still waiting out their stagger delay do NOT count: the run starts
+    // when money is actually moving.
+    const flying = cashMotions.reduce(
+      (n, motion) => n + (motion.kind === 'cash-deposit' && motion.delay <= 0 ? 1 : 0), 0,
+    );
+    if (flying > 0) sfx('cashRunStart', { intensity: Math.min(1.5, 0.65 + 0.2 * flying) });
+    else if (cashRunRunning) sfx('cashRunStop');
+    cashRunRunning = flying > 0;
     if (cashMotionRefillPending
         && !cashMotions.some((motion) => motion.kind === 'cash-deposit')) {
       cashMotionRefillPending = false;
@@ -7138,7 +9744,10 @@ export function createRegisterMode(B) {
     // camera moves left are the top-down drawer view — counting change on the
     // counter genuinely needs it — and the check-in glass.
     if (workspace === 'cash') return 'cash';
-    if (activeTab === 'check-in' && !(deliveryPhase && deliveryPhase !== 'released')) return 'checkin';
+    // the tee sheet is read off the same glass as check-in, so it shares the
+    // straight-at-the-screen pose (L2)
+    if ((activeTab === 'check-in' || activeTab === 'tee-sheet')
+      && !(deliveryPhase && deliveryPhase !== 'released')) return 'checkin';
     return 'overview';
   }
 
@@ -7597,6 +10206,7 @@ export function createRegisterMode(B) {
     updateTerminalKeyPulses(dt);
     updateTerminalFloat(dt);
     const animationDt = checkoutAnimationDelta(dt, accessibilityPrefs);
+    updateBagArrival(animationDt);
     // Settings are inaccessible while the register owns input, but a renderer
     // refresh can still replace the live value. Reassert without recapturing;
     // inactive front-desk play never reads or writes the player's setting.
@@ -7628,7 +10238,20 @@ export function createRegisterMode(B) {
         setWorkspace('monitor');
       }
     }
+    // B2 (Goal 23) — THE MERGE WINDOW WAS ZERO WIDTH.
+    //
+    // The customer asks for their tee time on the last barcode, and in the same
+    // gesture this timer started the payment. attachGreenFeeToTx requires
+    // tx.stage 'scanning', so by the time the words were on screen the ticket
+    // had already moved to 'card-present' and could not take the fee. The ask
+    // arrived and the door shut behind it in the same frame.
+    //
+    // Only the AUTOMATIC advance is held. The player can still choose a payment
+    // method on the monitor and go straight through — that is a decision to
+    // ignore the request, which is theirs to make. What the game may not do is
+    // race past a question the customer just asked.
     if (paymentAutoTimer > 0 && !paymentAutoSuppressed && tx?.stage === 'scanning'
+        && !deskErrandOutstanding()
         && unscannedCount(tx) === 0 && !scanMotion) {
       paymentAutoTimer = Math.max(0, paymentAutoTimer - animationDt);
       if (paymentAutoTimer === 0) choosePayment(preferredPayment());
@@ -7652,7 +10275,23 @@ export function createRegisterMode(B) {
     // fan is laid out at the grip, and a Stage-pose frame would pull the hand
     // away from underneath it (see the matching note in updateCard).
     if (tx && tx.method === 'cash' && tx.stage === 'cash-tender') {
-      poseCustomerForCheckout('PayCash');
+      // G7: CASH AND CARD ARE DIFFERENT GESTURES.
+      //
+      // "Cash: they lay it on the desk and take their hand back. They do not
+      // stand holding it out. Card: they hold it up and keep holding it until I
+      // take it."
+      //
+      // This line forced the held-out pose EVERY FRAME the tender was on the
+      // counter, so the customer stood with an arm out over money that was
+      // already lying on the desk - the card gesture, performed with cash. The
+      // pose that does the right thing (`CashLaid`, arm back, waiting for
+      // change) already existed and the ambient customer sim already used it;
+      // the register the player actually operates never did, and this per-frame
+      // write would have overwritten it if it had.
+      //
+      // The hand stays on the money while it is being put down, then comes back.
+      cashLaidTimer += animationDt;
+      poseCustomerForCheckout(cashLaidTimer >= CASH_LAY_SECONDS ? 'CashLaid' : 'PayCash');
     }
     updateCard(animationDt);
     updateDrawer(animationDt);
@@ -7791,12 +10430,42 @@ export function createRegisterMode(B) {
       inView: world.z >= -1 && world.z <= 1 && Math.abs(world.x) <= 1 && Math.abs(world.y) <= 1,
     };
   }
-  const presentedCashScreenPoint = () => meshScreenPoint(tenderHandful);
+  const presentedCashScreenPoint = () => {
+    const point = meshScreenPoint(tenderHandful);
+    return point ? { ...point, clickable: !!(tx && tx.stage === 'cash-tender') } : null;
+  };
+  const drawerSlotScreenPoint = (denom) => {
+    const value = Number(denom);
+    const hotspot = slotHotspots.find((candidate) => Number(candidate.userData?.denom) === value);
+    const visiblePieces = drawerMoney?.children?.filter((candidate) => (
+      candidate.userData?.from === 'drawer' && Number(candidate.userData?.denom) === value
+    )) || [];
+    const target = visiblePieces[visiblePieces.length - 1] || hotspot;
+    const point = meshScreenPoint(target);
+    return point ? {
+      ...point,
+      denom: value,
+      source: target === hotspot ? 'drawer-slot' : 'drawer-money',
+      visible: workspace === 'cash' && drawerAmount > 0.92,
+      clickable: !!(tx?.drawerOpen && tx?.deposited
+        && !cashMotions.some((motion) => motion.kind === 'cash-deposit')),
+    } : null;
+  };
   const presentedCardScreenPoint = () => {
     const point = meshScreenPoint(cardMesh);
     return point ? { ...point, clickable: !!(tx && tx.stage === 'card-ready') } : null;
   };
   const cardTerminalScreenPoint = () => meshScreenPoint(termScreenPlane);
+  // ITEM 12: the offered notes, each on its own, so a driver can hover ONE of
+  // them and check that only that one is outlined. The pile's click target is
+  // a single generous sphere, so there was no way to aim at an individual
+  // note from outside.
+  const presentedTenderScreenPoints = () => tenderMeshes
+    .map((mesh, index) => {
+      const point = meshScreenPoint(mesh);
+      return point ? { ...point, index, denom: mesh.userData?.denom ?? null, uuid: mesh.uuid } : null;
+    })
+    .filter(Boolean);
   const insertAt = () => ({
     start: { x: cardInsertStart.x, y: cardInsertStart.y, z: cardInsertStart.z },
     inserted: { x: cardInserted.x, y: cardInserted.y, z: cardInserted.z },
@@ -7879,8 +10548,62 @@ export function createRegisterMode(B) {
 
   return {
     simplified: true,
+    // PLAYTEST 4, ITEM 4 — THE BAG'S REAL FOOTPRINT, NOT THE NOMINAL RECT.
+    //
+    // SECOND REPORT: "I am still watching customers place items through the bag."
+    // The layout was already keeping out of `REGISTER.bagging` and doing it
+    // correctly -- measured on a real customer set-down, `tees1` landed at local
+    // x 2.5687 with a half-width of 0.0687, so its near edge sat at 2.500 against
+    // the rect's maxX of 2.48: clear by exactly the 0.02 clearance it was given.
+    //
+    // And it was still 0.1375 yd inside the bag, because `REGISTER.bagging` is
+    // the HANDOFF ZONE and not the bag. Measured off the object in the scene, the
+    // bag's world box is 0.54 x 0.45 yd; the rect is 0.40 x 0.24. The layout was
+    // obeying a keep-out 35% too narrow and 86% too shallow, which is why a check
+    // that compared the layout against that same rect passed twice.
+    //
+    // So the keep-out is READ OFF THE BAG. Returns interior-local {minX, maxX,
+    // minZ, maxZ} bounding the live group -- all eight corners transformed, so a
+    // rotated bag or a rotated interior cannot shrink the box -- and null when
+    // there is no bag, in which case callers fall back to the authored rect.
+    counterBagKeepOut: () => {
+      if (!bagGroup || !bagGroup.visible) return null;
+      const parent = root.parent;
+      if (!parent) return null;
+      const world = new THREE.Box3().setFromObject(bagGroup);
+      if (world.isEmpty()) return null;
+      const corner = new THREE.Vector3();
+      let minX = Infinity; let maxX = -Infinity; let minZ = Infinity; let maxZ = -Infinity;
+      for (let i = 0; i < 8; i += 1) {
+        corner.set(
+          i & 1 ? world.max.x : world.min.x,
+          i & 2 ? world.max.y : world.min.y,
+          i & 4 ? world.max.z : world.min.z,
+        );
+        parent.worldToLocal(corner);
+        if (corner.x < minX) minX = corner.x;
+        if (corner.x > maxX) maxX = corner.x;
+        if (corner.z < minZ) minZ = corner.z;
+        if (corner.z > maxZ) maxZ = corner.z;
+      }
+      return { minX, maxX, minZ, maxZ, measured: true };
+    },
     presentedCashScreenPoint,
+    drawerSlotScreenPoint,
     presentedCardScreenPoint,
+    // C2 (Goal 18): the gap between the presented card and the customer's
+    // grip, in metres, so "the card is in the hand" is measured, not eyeballed.
+    cardGripDiagnostics: () => {
+      const grip = customerGripNode('R');
+      if (!cardMesh || !grip) return { gap: null, cardParent: cardMesh?.parent?.name ?? null };
+      const cardWorld = cardMesh.getWorldPosition(new THREE.Vector3());
+      const gripWorld = grip.getWorldPosition(new THREE.Vector3());
+      return {
+        gap: +cardWorld.distanceTo(gripWorld).toFixed(4),
+        cardParent: cardMesh.parent === grip ? 'grip' : (cardMesh.parent?.name || 'other'),
+      };
+    },
+    presentedTenderScreenPoints,
     // QA-only: the game's own X hit-test and screen UV at a page point, so a
     // driver can measure the exact math a real click runs instead of rebuilding
     // it outside and diverging (which is how a probe blamed the wrong canvas).
@@ -7900,6 +10623,52 @@ export function createRegisterMode(B) {
       const solved = dynamicPose('overview');
       return { ...solved.pose, fov: solved.fov, poseKey: poseKey() };
     },
+    // QA-only pixel reads from the actual CanvasTexture sent to the physical
+    // monitor. These sample each tab's painted background away from text and
+    // rounded edges, so an acceptance driver can prove which UI the player is
+    // looking at instead of trusting an internal workspace string.
+    debugMonitorTabPixels: () => {
+      const context = screenCanvas.getContext('2d');
+      // One readback for the whole tab row. Three independent getImageData
+      // calls force repeated GPU/CPU synchronization in Chromium and can stall
+      // long enough to perturb the very payment animation this probe observes.
+      const row = context.getImageData(44, 104, 401, 1).data;
+      const pixel = (offset) => [...row.slice(offset * 4, offset * 4 + 4)];
+      return {
+        checkIn: pixel(0),
+        checkout: pixel(200),
+        teeSheet: pixel(400),
+      };
+    },
+    // QA-only: apply/clear the REAL hover highlight on the card mesh. The
+    // live pointer path is timing-gated - the customer's own card inserts
+    // itself within a second of being presented - so no mouse-driven capture
+    // protocol can hold the hover long enough to photograph its shape. This
+    // invokes the same setGrabOutline a pick would apply; the pick step
+    // itself is proven by the cash hover drivers on the identical pipeline.
+    debugCardGrabOutline: (on) => {
+      if (!on) { setGrabOutline(null); return { cleared: true }; }
+      if (!cardMesh) return false;
+      setGrabOutline(cardMesh);
+      // the structural half of the chip-suppression proof: every shell's
+      // OWNER footprint. The card body and its full-size brand panel are
+      // card-sized; the refuted build also framed the chip, whose footprint
+      // is a small fraction of the card's.
+      const footprint = (shell) => {
+        const owner = shell.parent;
+        if (!owner?.geometry) return null;
+        if (!owner.geometry.boundingBox) owner.geometry.computeBoundingBox();
+        const box = owner.geometry.boundingBox;
+        if (!box) return null;
+        const size = box.getSize(new THREE.Vector3());
+        return +Math.max(size.x, size.y, size.z).toFixed(4);
+      };
+      return {
+        applied: true,
+        shellCount: grabOutlineShells.length,
+        shellOwnerSpans: grabOutlineShells.map(footprint),
+      };
+    },
     insertAt,
     root,
     screenMaterial,
@@ -7911,15 +10680,132 @@ export function createRegisterMode(B) {
     isActive: () => active,
     hasTx: () => !!tx,
     getTx: () => tx,
+    // THE COUNTER BAG, EXPOSED RATHER THAN GUESSED AT.
+    //
+    // A driver that hunts the scene graph for /bag/i finds nothing when it walks
+    // the wrong subtree, and a scan that finds nothing looks exactly like a thing
+    // that is not there - which is how six mop drivers silently reported zero
+    // after the fibres went instanced. G4.1 says a bag is ALWAYS at the bagging
+    // position; anything checking that should ask, not search.
+    bagNode: () => bagGroup,
+    checkoutBagOwnershipStatus: () => {
+      const customerOwnedUnderRegister = [];
+      root.traverse((object) => {
+        if (object !== root && object.userData?.checkoutOwner === 'customer') {
+          customerOwnedUnderRegister.push(object.name || object.type || 'unnamed');
+        }
+      });
+      return {
+        customerOwnedUnderRegister,
+        counterBagOwner: bagGroup?.userData?.checkoutOwner ?? null,
+        counterBagParent: bagGroup?.parent?.name ?? null,
+      };
+    },
+    // C2 (Goal 19): the offered card, exposed for the same reason as bagNode
+    // — a driver that hunts the graph by name or size finds scorecard
+    // holders and wood chips (both happened tonight) and reports on them.
+    cardNode: () => cardMesh,
+    // H (Goal 23): repaint the card faces from the current design. The painter
+    // lives in this closure, so a driver photographing the four variants has to
+    // ask the register to repaint rather than reimplement the artwork — a
+    // driver's own copy of a painter proves nothing about the shipped one.
+    repaintBrand: () => {
+      bagBrandSignature = null;
+      cardBrandSignature = null;
+      return syncPhysicalBrand();
+    },
+    // The painted card FACE, available without entering the register. cardNode
+    // is null until a customer brings a sale, so a driver photographing the
+    // card artwork would otherwise have to stage a whole transaction to look at
+    // a texture that is painted at construction.
+    cardBrandCanvas: () => (cardBrandMaterial && cardBrandMaterial.map
+      && cardBrandMaterial.map.image ? cardBrandMaterial.map.image : null),
+    debugPaymentCardCanvas: (cardId) => {
+      const design = PAYMENT_CARDS.find((card) => card.id === cardId) || null;
+      if (!design) return null;
+      return cardTextureCache.get(displayClubName(), design)?.image || null;
+    },
+    cardOwnedResourceStatus: () => cardOwnedResources.status(),
+    paidBagResourceStatus: () => ({
+      ...paidBagResourceCounts,
+      livePaidBags: paidBagResourceCounts.transferredBags
+        - paidBagResourceCounts.successfullyDisposedBags,
+      retainedResourceDisposals: retainedPaidBagDisposalStatus(),
+    }),
+    // The mesh for a ticket line, by uid. Same reason as bagNode: a driver that
+    // hunts the scene graph for a product finds nothing when it guesses wrong,
+    // and a scan that finds nothing is indistinguishable from an empty counter.
+    itemMesh: (uid) => itemMeshes.get(uid) || null,
+    bagIsAtCounter: () => !!(bagGroup && bagGroup.visible
+      && bagGroup.userData?.checkoutOwner !== 'customer'),
     getCustomer: () => cust,
+    // THE DESK SCREEN, DRIVEN THE WAY THE PLAYER DRIVES IT (Goal 23).
+    //
+    // handleMonitorAction is only reachable through a raycast onto the screen
+    // plane, so a driver either hunts for pixel coordinates on a canvas texture
+    // or gives up and calls the sim underneath — and calling the sim underneath
+    // is exactly how "buy and book in one visit" was reported done twice while
+    // no player could do it.
+    //
+    // deskAction REFUSES an action that is not currently drawn and hit-testable.
+    // That is the whole point: it can only do what the player could do at this
+    // instant, so a green result means the row was on screen and the click
+    // would have landed.
+    // The hotspot record's field is `id`, not `action` -- addHotspot stores
+    // {id, label, kind, x, y, width, height, disabled}. Mapping h.action gave
+    // an array of undefined, filtered to empty, and an empty list is
+    // indistinguishable from a screen with nothing on it. That reading cost a
+    // whole write-up: "the row is on the list and not on the screen" was my
+    // accessor, not the game.
+    deskHitTargets: () => monitorUi.hotspots()
+      .map((h) => ({ id: h.id, kind: h.kind, disabled: h.disabled }))
+      .filter((h) => h.id),
+    // B3 (Goal 24): the words on the screen, so a check can read them
+    checkoutStatus: () => checkoutStatus(),
+    checkoutInstruction: () => checkoutInstruction(),
+    deskAction: (action) => {
+      // B1 (Goal 24): hotspots carry `id`, and have never carried `action`.
+      // `h.action === action` is therefore false for EVERY hotspot, so this
+      // reported 'not-on-screen' for things plainly on screen and could never
+      // dispatch anything. It is the same mistake the comment directly above
+      // records for deskHitTargets, made twice in one object.
+      //
+      // PLAYTEST 4, ITEM 7b: and the hotspot list SURVIVES the register closing.
+      // The screen keeps whatever it last drew, so with the player nowhere near
+      // the desk every row still reads as on-screen and hit-testable. The player
+      // cannot raycast a screen they are not standing at, so neither can this.
+      if (!active) return { ok: false, reason: DESK_REFUSED_INACTIVE, action };
+      const drawn = monitorUi.hotspots().some((h) => h.id === action);
+      if (!drawn) return { ok: false, reason: 'not-on-screen', action };
+      const result = handleMonitorAction(action);
+      return { ok: result !== false, action, result };
+    },
     getFlow: () => (tx && tx.checkoutFlow ? tx.checkoutFlow : null),
     checkoutWatchdogDiagnostics: () => ({
       managedStates: [...SIMPLIFIED_REGISTER_WATCHDOG_STATES],
       events: checkoutWatchdogEvents.map((entry) => ({ ...entry })),
+      postBankFailures: checkoutPostBankFailures.map((entry) => ({ ...entry })),
+      postBankRecoveries: checkoutPostBankRecoveries.map((entry) => ({
+        ...entry,
+        customerOwnedUnderRegisterBeforeCleanup: [
+          ...entry.customerOwnedUnderRegisterBeforeCleanup,
+        ],
+      })),
       running: checkoutWatchdogRunning,
       pendingPostResume: checkoutWatchdogPostResume,
       cashRecoveryPending: cashRecoveryTimer > 0,
     }),
+    debugFailNextBankHelperReturn: () => {
+      if (!tx || !cust || tx.banked) {
+        qaBankHelperReturnFault = null;
+        return { armed: false, transactionNumber: null, customerId: null };
+      }
+      qaBankHelperReturnFault = {
+        transactionNumber: tx.number,
+        customerId: cust.customerId,
+      };
+      return { armed: true, ...qaBankHelperReturnFault };
+    },
     accessibilityPreferences: () => ({ ...accessibilityPrefs }),
     scanPresentation,
     scanAlignment,
@@ -7929,6 +10815,8 @@ export function createRegisterMode(B) {
     cashGpuPrewarmStatus,
     waitForCashGpuPrewarmRepresentatives,
     releaseCashGpuPrewarmRepresentatives,
+    cardTextureCacheStatus: () => ({ ...cardTextureCache.status() }),
+    moneyMaterialCacheStatus: () => ({ ...kitMoneyMaterials.status() }),
     // Read-only choreography state for browser acceptance evidence. Gameplay
     // still advances this exclusively through updateReceipt/updateDelivery.
     deliveryPhase: () => deliveryPhase,
@@ -7966,6 +10854,7 @@ export function createRegisterMode(B) {
     onKey,
     recoverInput,
     tapTerminal,
+    dispose: disposeRegisterModeResources,
     drawScreen,
     label,
   };

@@ -25,11 +25,15 @@ async (page) => {
   page.on('pageerror', (e) => consoleErrors.push(`pageerror: ${String(e).slice(0, 300)}`));
 
   await page.setViewportSize({ width: 1600, height: 900 });
-  await page.goto(baseUrl, { waitUntil: 'domcontentloaded' });
+  // Under Electron the window is already on the app; navigating would swap it for an
+  // HTTP server that has to be running. Under Playwright the page starts blank.
+  if (!page.url().startsWith('file://')) {
+    await page.goto(baseUrl, { waitUntil: 'domcontentloaded' });
+  }
   await page.waitForTimeout(700);
   await page.evaluate(async (seed) => {
     localStorage.clear();
-    const E = await import('/src/sim/empire.js');
+    const E = await import(new URL('src/sim/empire.js', document.baseURI).href);
     const empire = E.newStarterEmpire('relaxed', seed);
     localStorage.setItem('golfempire:autosave', JSON.stringify(E.empireSnapshot(empire)));
   }, SEED);

@@ -1,0 +1,403 @@
+{
+  "_comment": "PHASE 1 (Goal 26). Which real recording serves which cue. Every id was found by tools/audio/freesound-fetch.mjs --search and its licence is re-verified on the sound's own page at download time, so this file is a shopping list and NOT the licence record — Assets/audio/manifest.json is. Several entries are deliberately compilation recordings ('various', 'open close'): one file yields several variants once sliced, which is how a cue stops sounding machine-stamped.",
+  "sounds": [
+    {
+      "cue": "drawerSlide",
+      "id": 217173,
+      "basename": "till-metal-slide-in-out",
+      "note": "Metal Till Cash Drawer Slide In And Out — the slide and the stop at the end of travel"
+    },
+    {
+      "cue": "drawerBell",
+      "id": 452572,
+      "basename": "register-antique-various",
+      "note": "antique register: open, close, drawer, bell — sliced into unlock/open/close/bell"
+    },
+    {
+      "cue": "drawerTill",
+      "id": 191436,
+      "basename": "till-open-close",
+      "note": "Till Open and Close — second drawer voice so repeats vary"
+    },
+    {
+      "cue": "drawerSlide2",
+      "id": 83874,
+      "basename": "cashier-slide",
+      "note": "cashierslidesnd — a third slide"
+    },
+    {
+      "cue": "cashRun",
+      "id": 40952,
+      "basename": "bills-flip-count",
+      "note": "dollar bills flipping counting — THE continuous tchhhhh"
+    },
+    {
+      "cue": "cashRun",
+      "id": 18623,
+      "basename": "money-count",
+      "note": "money count — second riffle voice"
+    },
+    {
+      "cue": "cashRun",
+      "id": 861806,
+      "basename": "counting-paper-money",
+      "note": "counting_paper_money — third riffle"
+    },
+    {
+      "cue": "billHandle",
+      "id": 271341,
+      "basename": "cash-money-fieldtapes",
+      "note": "note handling, single movements"
+    },
+    {
+      "cue": "billDeposit",
+      "id": 379888,
+      "basename": "paper-placed-on-bench",
+      "note": "paper placed on a surface — the note landing"
+    },
+    {
+      "cue": "billDeposit",
+      "id": 461890,
+      "basename": "money-counting-b",
+      "note": "paper money — sliced for single-note landings"
+    },
+    {
+      "cue": "coinDeposit",
+      "id": 788073,
+      "basename": "coin-drop-with-coins",
+      "note": "Coin_Drop_With_Coins — a coin landing ON coins, exactly what 1.2 asks for"
+    },
+    {
+      "cue": "coinDeposit",
+      "id": 391951,
+      "basename": "coins-dropped-on-wood",
+      "note": "coins on wood — the FIRST coin, hitting the empty well"
+    },
+    {
+      "cue": "coinDeposit",
+      "id": 510735,
+      "basename": "coin-on-table",
+      "note": "single coin on a table"
+    },
+    {
+      "cue": "coinDeposit",
+      "id": 608793,
+      "basename": "coins-drop-on-table",
+      "note": "more coin landings to slice"
+    },
+    {
+      "cue": "coinSettle",
+      "id": 391818,
+      "basename": "coins-handled-rattled",
+      "note": "coins shaken and rattled in hands — the settle"
+    },
+    {
+      "cue": "coinHandle",
+      "id": 444257,
+      "basename": "coins-handful",
+      "note": "a handful of coins moving"
+    },
+    {
+      "cue": "ledgerTurn",
+      "id": 450803,
+      "basename": "pages-flip-various",
+      "note": "paper sheets flip through turn page various — many turns in one file"
+    },
+    {
+      "cue": "ledgerTurn",
+      "id": 856497,
+      "basename": "page-turn-heavy",
+      "note": "Turning page (heavy paper) — a ledger is heavy paper"
+    },
+    {
+      "cue": "ledgerTurn",
+      "id": 382651,
+      "basename": "page-turn-plain",
+      "note": "Paper Page Turn"
+    },
+    {
+      "cue": "ledgerTurn",
+      "id": 656546,
+      "basename": "page-turn-ienba",
+      "note": "Page Turn — a fourth turn voice"
+    },
+    {
+      "cue": "ledgerClose",
+      "id": 862315,
+      "basename": "book-close-1",
+      "note": "Close Book 1 — hardback shutting"
+    },
+    {
+      "cue": "ledgerClose",
+      "id": 862316,
+      "basename": "book-close-2",
+      "note": "Close Book 2"
+    },
+    {
+      "cue": "ledgerOpen",
+      "id": 263120,
+      "basename": "pages-sounds",
+      "note": "PagesSounds — cover and leaves for the open"
+    },
+    {
+      "cue": "music",
+      "id": 826622,
+      "basename": "music-sweet-summer-loop",
+      "note": "Memories of a sweet summer (music) (loop) — calm, already a loop"
+    },
+    {
+      "cue": "music",
+      "id": 852235,
+      "basename": "music-lofi-loop",
+      "note": "Zambian Lo-fi Loop 70 BPM — second candidate, unobtrusive"
+    },
+    {
+      "cue": "optMenu",
+      "id": 848748,
+      "basename": "opt-menu-felt-tap",
+      "note": "tap on felt by emapuree — softest option, almost no attack"
+    },
+    {
+      "cue": "optDrawer",
+      "id": 364105,
+      "basename": "opt-drawer-wood-b",
+      "note": "Wooden_Drawer_open_close_2 by Rudmer_Rotteveel"
+    },
+    {
+      "cue": "optCash",
+      "id": 447458,
+      "basename": "opt-cash-paper",
+      "note": "paper money sound by florianreichelt"
+    },
+    {
+      "cue": "optClose",
+      "id": 399669,
+      "basename": "opt-close-book",
+      "note": "Close book by SoundsForHim"
+    },
+    {
+      "cue": "optMusic",
+      "id": 746329,
+      "basename": "opt-music-lofi",
+      "note": "Calm Lofi Ambient by FortHell0"
+    },
+    {
+      "cue": "optMusic",
+      "id": 239045,
+      "basename": "opt-music-piano-sparse",
+      "note": "piano loop 1212 by arseniiv"
+    },
+    {
+      "cue": "optMusic",
+      "id": 259946,
+      "basename": "opt-music-piano-warm",
+      "note": "s piano loop 3 by arseniiv"
+    },
+    {
+      "cue": "optMusic",
+      "id": 629178,
+      "basename": "opt-music-epiano",
+      "note": "Simple Lofi Vinyl E-Piano Loop 95 BPM by holizna"
+    },
+    {
+      "cue": "optTurn2",
+      "id": 840192,
+      "basename": "opt-turn2-in-book",
+      "note": "Turning a page in a book by pierreluclandry — one page, inside a bound book"
+    },
+    {
+      "cue": "optTurn2",
+      "id": 484968,
+      "basename": "opt-turn2-quiet",
+      "note": "Quiet Page Turn - 8 by SpaceJoe — the soft end of the range"
+    },
+    {
+      "cue": "optTurn2",
+      "id": 336373,
+      "basename": "opt-turn2-book-pages",
+      "note": "Book_Turning_Pages_02 by moai15 — heavier board-backed leaves"
+    },
+    {
+      "cue": "optTurn2",
+      "id": 749880,
+      "basename": "opt-turn2-single",
+      "note": "Page turned by Beussa — a single clean turn"
+    },
+    {
+      "cue": "optTurn2",
+      "id": 433862,
+      "basename": "opt-turn2-leather",
+      "note": "medium leather-covered book, flipping through by Nakhas — the flip section"
+    },
+    {
+      "cue": "optPick2",
+      "id": 584867,
+      "basename": "opt-pick2-pack",
+      "note": "Book Pack by Kawgrim — books lifted and set"
+    },
+    {
+      "cue": "optPick2",
+      "id": 319153,
+      "basename": "opt-pick2-lift",
+      "note": "Toss book (set down, land, pick up) by cmorris035 — the pick-up"
+    },
+    {
+      "cue": "optPick2",
+      "id": 542570,
+      "basename": "opt-pick2-handling",
+      "note": "book handling noises by sidequesting — a person handling a book"
+    },
+    {
+      "cue": "optPick2",
+      "id": 584864,
+      "basename": "opt-pick2-backpack",
+      "note": "Book Put into Old Backpack by Kawgrim — board and canvas"
+    },
+    {
+      "cue": "optPick2",
+      "id": 479348,
+      "basename": "opt-pick2-paper",
+      "note": "Paper handling - Paper movement by khenshom — pure paper"
+    }
+  ],
+  "_rejected": [
+    {
+      "basename": "opt-menu-wooden-button",
+      "family": "menuButton",
+      "why": "lost the audition to felt tap",
+      "id": 686544
+    },
+    {
+      "basename": "opt-menu-low-click",
+      "family": "menuButton",
+      "why": "lost the audition to felt tap",
+      "id": 669468
+    },
+    {
+      "basename": "opt-menu-wood-click",
+      "family": "menuButton",
+      "why": "lost the audition to felt tap",
+      "id": 321083
+    },
+    {
+      "basename": "opt-menu-typewriter",
+      "family": "menuButton",
+      "why": "lost the audition to felt tap",
+      "id": 335898
+    },
+    {
+      "basename": "opt-menu-latch",
+      "family": "menuButton",
+      "why": "lost the audition to felt tap",
+      "id": 815493
+    },
+    {
+      "basename": "opt-drawer-wood-a",
+      "family": "drawerOpen",
+      "why": "lost the audition to wood-deep",
+      "id": 756424
+    },
+    {
+      "basename": "opt-drawer-small",
+      "family": "drawerOpen",
+      "why": "lost the audition to wood-deep",
+      "id": 502771
+    },
+    {
+      "basename": "opt-drawer-old",
+      "family": "drawerOpen",
+      "why": "lost the audition to wood-deep",
+      "id": 614895
+    },
+    {
+      "basename": "opt-drawer-slide",
+      "family": "drawerOpen",
+      "why": "lost the audition to wood-deep",
+      "id": 455854
+    },
+    {
+      "basename": "opt-cash-coins-bright",
+      "family": "cashLand",
+      "why": "lost the audition to paper money",
+      "id": 458399
+    },
+    {
+      "basename": "opt-cash-banknotes",
+      "family": "cashLand",
+      "why": "lost the audition to paper money",
+      "id": 419942
+    },
+    {
+      "basename": "opt-cash-bowl",
+      "family": "cashLand",
+      "why": "lost the audition to paper money",
+      "id": 336585
+    },
+    {
+      "basename": "opt-close-soft",
+      "family": "ledgerClose",
+      "why": "lost the audition to book close",
+      "id": 195795
+    },
+    {
+      "basename": "opt-close-board",
+      "family": "ledgerClose",
+      "why": "lost the audition to book close",
+      "id": 123819
+    },
+    {
+      "basename": "opt-close-setdown",
+      "family": "ledgerClose",
+      "why": "lost the audition to book close",
+      "id": 436502
+    },
+    {
+      "basename": "opt-turn-crisp",
+      "family": "ledgerTurn",
+      "why": "rejected: none of this round was liked",
+      "id": 537872
+    },
+    {
+      "basename": "opt-turn-soft",
+      "family": "ledgerTurn",
+      "why": "rejected: none of this round was liked",
+      "id": 698636
+    },
+    {
+      "basename": "opt-turn-close",
+      "family": "ledgerTurn",
+      "why": "rejected: none of this round was liked",
+      "id": 119126
+    },
+    {
+      "basename": "opt-turn-airy",
+      "family": "ledgerTurn",
+      "why": "rejected: none of this round was liked",
+      "id": 641757
+    },
+    {
+      "basename": "opt-pickup-grab",
+      "family": "ledgerPickup",
+      "why": "rejected: none of this round was liked",
+      "id": 573200
+    },
+    {
+      "basename": "opt-pickup-handling",
+      "family": "ledgerPickup",
+      "why": "rejected: none of this round was liked",
+      "id": 382231
+    },
+    {
+      "basename": "opt-pickup-open",
+      "family": "ledgerPickup",
+      "why": "rejected: none of this round was liked",
+      "id": 426383
+    },
+    {
+      "basename": "opt-pickup-open-soft",
+      "family": "ledgerPickup",
+      "why": "rejected: none of this round was liked",
+      "id": 393844
+    }
+  ]
+}

@@ -46,7 +46,7 @@ test('the launch flag is used when there is no query', () => {
   assert.equal(r.source, 'launch-flag');
 });
 
-test('the persisted setting is used when nothing else asks — the case the brief needs', () => {
+test('the persisted setting is used when nothing else asks - the case the brief needs', () => {
   // This is the whole point: plain `npm run dev`, no query, no flag.
   const r = resolveClubhouseVariantRequest({ search: '', argv: [], stored: 'pine-hills-v2' });
   assert.equal(r.variant, 'pine-hills-v2');
@@ -199,7 +199,13 @@ test('preload exposes launchArgs synchronously, filtered to the planted flags', 
   // It has to be a preload global rather than an IPC call: shopLayout freezes its datums
   // at module-eval time and cannot await anything.
   const preload = read('../preload.cjs');
-  assert.match(preload, /FORWARDED_FLAG_PREFIXES = \['--fw-dev', '--fw-clubhouse='\]/);
+  assert.match(preload, /FORWARDED_FLAG_PREFIXES = \['--fw-dev', '--fw-clubhouse=', '--fw-qa'\]/);
+  // A (Goal 20): --fw-qa arms the virtual pointer lock, so the ONE thing that
+  // must never drift is where it can come from. main.cjs may plant it only
+  // behind FW_QA=1, which only tools/qa/run-electron.cjs sets.
+  const mainSrc = read('../main.cjs');
+  assert.match(mainSrc, /const QA_LAUNCH = process\.env\.FW_QA === '1'/);
+  assert.match(mainSrc, /\.\.\.\(QA_LAUNCH \? \['--fw-qa'\] : \[\]\)/);
   assert.match(preload, /process\.argv/);
   // Frozen copy — the live process object must not reach the page.
   assert.match(preload, /Object\.freeze\(/);
@@ -229,6 +235,11 @@ test('the Developer tab is wired into the settings panel', () => {
   assert.match(panel, /devSessionActive\(\) \? \{ developer: developerPage \} : \{\}/);
   assert.match(panel, /storeClubhouseVariant/);
   // The tab strip and the arrow-key handler must be driven from the same key list, or
-  // the conditional tab exists in one and not the other.
-  assert.match(panel, /Object\.keys\(pages\)\.map\(\(id\) => \[id, TAB_LABELS\[id\] \|\| id\]\)/);
+  // the conditional tab exists in one and not the other. Q3 moved the strip into
+  // buildTabs() so a language change can redraw it; the INTENT is unchanged and is
+  // what this pins - the buttons still come from Object.keys(pages).
+  assert.match(panel, /function buildTabs\(\)/);
+  assert.match(panel, /tabs\.replaceChildren\(\.\.\.Object\.keys\(pages\)\.map\(/);
+  // and a language change rebuilds it, or the strip keeps the language just left
+  assert.match(panel, /onLocaleChange\(\(\) => \{ buildTabs\(\); render\(\); \}\)/);
 });

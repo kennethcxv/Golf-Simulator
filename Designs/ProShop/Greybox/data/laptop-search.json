@@ -6,23 +6,23 @@
       "z": 4.4
     },
     "laptop": {
-      "x": 1.5799999999999998,
-      "z": 3.43
+      "x": 5.050000000000011,
+      "z": 3.59
     }
   },
   "opened": {
-    "laptopOpen": true,
+    "laptopOpen": false,
     "screenPresent": true,
-    "screenDisplay": ""
+    "screenDisplay": "none"
   },
   "measure": {
     "inDom": true,
-    "placeholder": "Search products, upgrades, materials…",
+    "placeholder": "Search the whole laptop…",
     "fieldBox": {
-      "x": 592.6,
-      "y": 186.3,
-      "width": 271.4,
-      "height": 19.2
+      "x": 0,
+      "y": 0,
+      "width": 0,
+      "height": 0
     },
     "fieldStyle": {
       "display": "block",
@@ -30,73 +30,64 @@
       "opacity": "1",
       "flexBasis": "180px",
       "minWidth": "120px",
-      "width": "311.203px",
+      "width": "auto",
       "background": "rgb(255, 255, 255)",
       "overflow": "clip"
     },
     "screenBox": {
       "x": 0,
       "y": 0,
-      "width": 1600,
-      "height": 900
+      "width": 0,
+      "height": 0
     },
     "statusBox": {
-      "x": 500,
-      "y": 170.9,
-      "width": 746.5,
-      "height": 41.4
+      "x": 0,
+      "y": 0,
+      "width": 0,
+      "height": 0
     },
     "statusChildren": [
       {
         "cls": "lt-statusslot",
-        "w": 59.5
+        "w": 0
       },
       {
         "cls": "lt-search",
-        "w": 271.4
+        "w": 0
       },
       {
         "cls": "lt-statusslot lt-statustrail",
-        "w": 349.4
+        "w": 0
       }
     ],
-    "hiddenBy": null,
+    "hiddenBy": "laptop-screen",
     "clippedBy": null,
-    "topmostAtCentre": {
-      "cls": "lt-search",
-      "isTheField": true
-    },
+    "topmostAtCentre": null,
     "viewport": {
       "w": 1600,
       "h": 900
     }
   },
-  "typed": {
-    "value": "towel",
-    "resultRows": 0,
-    "bodyText": "HomeDay 1 · 9:01 AMClosed$77,000Cash balanceSearch — \"towel\"?▦Bag towelProduct · accessories · $6 wholesaleGo"
-  },
+  "typed": null,
   "findings": {
     "shipped": true,
-    "renderedWithARealBox": true,
+    "renderedWithARealBox": false,
     "fieldBox": {
-      "x": 592.6,
-      "y": 186.3,
-      "width": 271.4,
-      "height": 19.2
+      "x": 0,
+      "y": 0,
+      "width": 0,
+      "height": 0
     },
-    "hiddenByAncestor": null,
+    "hiddenByAncestor": "laptop-screen",
     "clippedByAncestor": null,
     "coveredBy": null,
-    "laptopOpened": true,
-    "acceptsTyping": true,
-    "searchProducedResults": true
+    "laptopOpened": false,
+    "acceptsTyping": false,
+    "searchProducedResults": false
   },
   "shots": [
-    "laptop-search-full.png",
-    "laptop-search-field.png",
-    "laptop-search-typed.png"
+    "laptop-search-full.png"
   ],
   "errs": [],
-  "ok": true
+  "ok": false
 }

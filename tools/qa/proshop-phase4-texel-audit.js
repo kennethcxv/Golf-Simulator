@@ -38,7 +38,7 @@
   await page.waitForTimeout(700);
   await page.evaluate(async (seed) => {
     localStorage.clear();
-    const E = await import('/src/sim/empire.js');
+    const E = await import(new URL('src/sim/empire.js', document.baseURI).href);
     const empire = E.newStarterEmpire('relaxed', seed);
     localStorage.setItem('golfempire:autosave', JSON.stringify(E.empireSnapshot(empire)));
   }, SEED);
@@ -54,7 +54,7 @@
   // Power the room so nothing is measured through an unlit-state difference.
   await page.evaluate(async () => {
     const app = window.__fw;
-    const R = await import('/src/sim/clubhouseRestoration.js');
+    const R = await import(new URL('src/sim/clubhouseRestoration.js', document.baseURI).href);
     R.restorationAction(app.state, { type: 'repair-component', component: 'ceiling', progress: 1 });
     app.speedIdx = 0;
     app.scene3d.clubhouse().pineHillsInterior?.refresh?.();
@@ -62,7 +62,7 @@
   await page.waitForTimeout(1200);
 
   const result = await page.evaluate(async () => {
-    const THREE = await import('/vendor/three.module.js');
+    const THREE = await import(new URL('vendor/three.module.js', document.baseURI).href);
     const s3 = window.__fw.scene3d;
     const ch = s3.clubhouse();
     const origin = ch.interior.position;

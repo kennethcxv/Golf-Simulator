@@ -1,0 +1,41 @@
+{
+  "generatedFrom": "qa/electron/e-loading-plates",
+  "plates": [
+    {
+      "id": "approach",
+      "file": "approach.jpg",
+      "caption": "The approach, Pine Hills Municipal",
+      "bytes": 210330
+    },
+    {
+      "id": "fairway",
+      "file": "fairway.jpg",
+      "caption": "Looking down the first",
+      "bytes": 355833
+    },
+    {
+      "id": "green",
+      "file": "green.jpg",
+      "caption": "A green at first light",
+      "bytes": 393495
+    },
+    {
+      "id": "porch",
+      "file": "porch.jpg",
+      "caption": "The clubhouse porch, late light",
+      "bytes": 128572
+    },
+    {
+      "id": "shopfront",
+      "file": "shopfront.jpg",
+      "caption": "The pro shop windows",
+      "bytes": 106191
+    },
+    {
+      "id": "treeline",
+      "file": "treeline.jpg",
+      "caption": "The shed and the treeline",
+      "bytes": 209426
+    }
+  ]
+}

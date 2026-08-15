@@ -1,12 +1,18 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import { CARRY_RENDER_LAYER } from '../src/render3d/clubhouse.js';
 
 const source = fs.readFileSync(new URL('../src/render3d/clubhouse.js', import.meta.url), 'utf8');
 const courseSource = fs.readFileSync(new URL('../src/render3d/courseScene.js', import.meta.url), 'utf8');
 
 test('first-person delivery cargo renders in an isolated post-world layer and restores world layers', () => {
-  assert.match(source, /const DELIVERY_CARRY_RENDER_LAYER = 30/);
+  // D7: this used to grep the source for the literal `= 30`, which is a check
+  // that a number is TYPED somewhere rather than that the layer is what the
+  // renderer uses. The layer is exported now, so assert the value itself and
+  // leave the source-text check to the wiring below.
+  assert.equal(CARRY_RENDER_LAYER, 30, 'the carried-cargo overlay layer');
+  assert.match(source, /const DELIVERY_CARRY_RENDER_LAYER = CARRY_RENDER_LAYER/);
   assert.match(source, /object\.userData\.deliveryCarryBaseLayerMask = object\.layers\.mask/);
   assert.match(source, /object\.layers\.set\(DELIVERY_CARRY_RENDER_LAYER\)/);
   assert.match(source, /object\.layers\.mask = object\.userData\.deliveryCarryBaseLayerMask/);

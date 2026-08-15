@@ -1262,7 +1262,7 @@ export function createPineHillsInterior({
       ...pose,
       r: pose.radius,
       label: () => restorationSnapshot(state)?.targetProgress[targetId] < 1
-        ? `${verb[0].toUpperCase()}${verb.slice(1)} — [E]`
+        ? `${verb[0].toUpperCase()}${verb.slice(1)} - [E]`
         : null,
       action: () => completeTarget(targetId),
     });
@@ -1339,12 +1339,12 @@ export function createPineHillsInterior({
           const progress = restorationSnapshot(state)?.componentRepairProgress?.[site.id] || 0;
           const percent = progress > 0 ? ` (${Math.round(progress * 100)}%)` : '';
           return units > 0
-            ? `${siteLabel} — hold [E] to repair${percent} · ${units} repair components ready`
-            : `${siteLabel} — bring repair components to fix${percent}`;
+            ? `${siteLabel} - hold [E] to repair${percent} · ${units} repair components ready`
+            : `${siteLabel} - bring repair components to fix${percent}`;
         }
         const next = nextFinishOf(component);
         const nextLabel = ARCHITECTURE_FINISH_LABELS[next] || next;
-        return `${siteLabel} — [E] refinish: ${nextLabel} ($${ARCHITECTURE_PAINT_COSTS[site.id]})`;
+        return `${siteLabel} - [E] refinish: ${nextLabel} ($${ARCHITECTURE_PAINT_COSTS[site.id]})`;
       },
       hold: (dt) => {
         if (state.campaign?.enabled) return;
@@ -1393,7 +1393,7 @@ export function createPineHillsInterior({
     // A deliberate board aim must win without making the nearby chair's
     // authored swivel impossible from its much tighter interaction radius.
     focusBias: 2.25,
-    label: () => 'Today\'s tee-time board — [E] open reservations',
+    label: () => 'Today\'s tee-time board - [E] open reservations',
     action: () => hooks.openLaptop?.('reservations'),
   });
 
@@ -1427,8 +1427,8 @@ export function createPineHillsInterior({
     label: () => {
       const snapshot = openingDrinksCoolerSnapshot(state);
       return snapshot?.door.state === 'open'
-        ? 'Cold drinks cooler — [E] close door'
-        : 'Cold drinks cooler — [E] open door';
+        ? 'Cold drinks cooler - [E] close door'
+        : 'Cold drinks cooler - [E] open door';
     },
     action: () => {
       const result = toggleOpeningDrinksCoolerDoor(state);

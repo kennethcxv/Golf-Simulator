@@ -43,36 +43,27 @@ asset with a buried part cannot ship without anyone remembering to check.
 | `077` cloth set | `ClothFoldSeam` | Fold ridge buried 8 mm inside the upper cloth slab | **Fixed**: moved to the stack's front face (y −0.030 → −0.044). 0 → 5,914 px / 22 angles |
 | `082` filing cabinet | `CabinetPlinth` | Carcass ran to the floor past the recessed plinth — the authored shadow-gap reveal never existed on screen | **Fixed**: carcass bottom raised to the plinth top (same box, same 12 triangles, shorter — declared: this one is a one-box resize, not a translation). 0 → 37,222 px / 25 angles |
 | `093` security camera | `CameraLensBarrel` | Lens assembly fully inside the **opaque** dome — the measured cause of the ranking's "no visible lens" | **Fixed**: Lens pivot + barrel + glass dropped 30 mm; the barrel's lower flank and glass break the dome's underside. 0 → 6,052 px / 19 angles. `DIMENSIONS[93]` height pin 0.11 → 0.13 to match |
-| `061` counter shell | `StaffDivider` | Buried inside the **solid** `CounterCarcass`, which fills both counter faces; `StaffLowerShelf` is equally buried but escapes the instrument by z-fighting its coplanar rear face | **Reported, not fixed**: proud placement would breach the asset's own `staff_corridor_clear` contract; the staff bay needs carving open — new geometry, out of scope |
-| `099` umbrella stand | `StandDrainTray` | The stand's hollow is faked by a solid black bore cylinder; there is no cavity to see into | **Reported, not fixed**: dead geometry; deletion or true hollowing both out of scope |
+| `061` counter shell | `StaffDivider` | Buried inside the **solid** `CounterCarcass`, which fills both counter faces; `StaffLowerShelf` is equally buried but escapes the instrument by z-fighting its coplanar rear face | **FIXED 2026-08-03 (B7)**: the carcass is now the panels AROUND an open staff bay — a solid drawer bank (x -1.36..-0.55), a customer-side wall, a right end panel and a bay deck — instead of the one slab that filled the volume. Assembled from panels rather than bored: the cut is rectilinear and axis-aligned, so the panels ARE the boolean result without its material re-indexing, and every piece stays inside the old slab footprint, so `staff_corridor_clear` holds by construction. Sweep: 0 invisible of 14 parts |
+| `099` umbrella stand | `StandDrainTray` | The stand's hollow is faked by a solid black bore cylinder; there is no cavity to see into | **FIXED 2026-08-03 (B7)**: the hollow was faked TWICE — a solid black bore standing inside the wall AND a solid `StandRim` disc capping the top. Both are real geometry now: the wall is bored to 0.040, past the tray own top face at 0.048, and the rim is a ring at the same 0.152 radius. Sweep: 0 invisible of 7 parts. Three passes and a direct read of the exported buffers to find the lid — boring the wall alone changed nothing, which is exactly what the sweep kept reporting |
 
 Six is more than three, so fixes were applied per the brief; four of the six were
 repositionable.
 
-### The two structural cases are deferred until after Phase 3 — not forgotten
+### The two structural cases are FIXED (2026-08-03)
 
-`061 StaffDivider` and `099 StandDrainTray` need real geometry work (carving the staff
-bay open; boring a true cavity), not repositioning. Both are parked **until after
-Phase 3 lands**, deliberately: 061 *is* the reception counter, and Phase 3 may relocate
-or rebuild it — the entrance-sightline complaint in `PHASE_0_REPORT.md` §4 is about that
-counter's position. Cutting geometry into an asset the layout verdict may replace would
-be work done twice. 099 is the same class of work and waits with it. The suite carries
-both as named `DEFERRED` whitelist entries in `tests/proshop-part-visibility.test.js`,
-so the deferral is enforced and visible, not remembered.
+They were deferred because 061 *is* the reception counter and Phase 3 might have
+relocated or rebuilt it, so cutting geometry into it would have been work done twice.
+Phase 3 settled the layout and left the counter where it is, so the deferral expired
+and both were done as real geometry rather than repositioning:
 
-### Flagged by the instrument but NOT the class — hidden at bind pose, revealed by animation
+* **061** — the carcass became panels around an open staff bay. `StaffDivider` and
+  `StaffLowerShelf` now stand in a real recess rather than inside a solid slab.
+* **099** — the wall is bored past the drain tray and the rim is a ring. The hollow
+  had been faked twice, which is why the first two bores changed nothing.
 
-`062` `InternalShelf` (builder marks it `visible_when_door_open=True`), `082`
-`CabinetTopBox` (the top drawer's body, slides out), `084` `PrinterSheet` (the print clip
-drives it out of the slot), `092` shelves + supplies (door opens), `097` keys (door
-opens), `073` `WringerPressPlate` (tips out of the cage at the lever's open pose). These
-are interior parts positioned correctly for their reveal.
-
-### Pre-existing, noted
-
-`073`'s slat grate (5 slats, hard-black) is buried inside the solid wringer body — same
-family as `099`: the cavity it implies does not exist. Unfixable by repositioning;
-recorded here, left alone.
+The whitelist in `tests/proshop-part-visibility.test.js` **shrank by two** as a result:
+the sweep reports 0 invisible parts for both assets, and the population-wide count fell
+from 8 assets / 13 parts to **7 assets / 12 parts**.
 
 ## 3. Reproduction
 

@@ -156,7 +156,7 @@ export function purchaseConstructionFinish(state, categoryId, finishId, qualityI
   if (construction.owned.includes(variant.id)) {
     // Deliberately NOT an install. A "buy" that quietly fits the floor is how the
     // coupling got here; the caller asks for an install when it means one.
-    return { ...invalid('You already have this material — fit it from your materials.'), owned: true };
+    return { ...invalid('You already have this material - fit it from your materials.'), owned: true };
   }
   if (!Number.isFinite(state.cash) || state.cash < variant.cost) {
     return invalid('Not enough cash for this construction package.');

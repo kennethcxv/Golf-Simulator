@@ -21,8 +21,8 @@ async (page) => {
   await page.goto(baseUrl);
   await page.setViewportSize(viewport);
   await page.waitForTimeout(900);
-  const continueButton = page.getByText('Continue', { exact: true });
-  if (await continueButton.isEnabled().catch(() => false)) await continueButton.click();
+  const { clickThroughMenu } = await import(`file:///${process.cwd().replace(/\\/g, '/')}/tools/qa/lib/qa-boot.mjs`);
+  await clickThroughMenu(page);
   await page.waitForFunction(() => window.__fw?.scene3d?.clubhouse?.(), null, { timeout: 90000 });
   await page.waitForFunction(() => {
     const veil = document.querySelector('.load-veil');

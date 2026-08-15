@@ -127,8 +127,8 @@ async (page) => {
   // begins. This makes an unintegrated branch red for the right reason instead
   // of timing out later while waiting for authored nodes that cannot exist.
   const integrationContract = await page.evaluate(async () => {
-    const B = await import('/src/data/boxes.js');
-    const V = await import('/src/render3d/clubhouse/deliveryBoxVisual.js');
+    const B = await import(new URL('src/data/boxes.js', document.baseURI).href);
+    const V = await import(new URL('src/render3d/clubhouse/deliveryBoxVisual.js', document.baseURI).href);
     return {
       dimensions: B.boxDims('clubbox'),
       unitsPerBox: B.unitsPerBox({ id: 'driver1', cat: 'clubs' }),
@@ -184,7 +184,7 @@ async (page) => {
 
   async function deliveredBoxPickupCamera(boxId) {
     const pickup = await page.evaluate(async (id) => {
-      const S = await import('/src/data/deliveryStaging.js');
+      const S = await import(new URL('src/data/deliveryStaging.js', document.baseURI).href);
       const app = window.__fw;
       const origin = app.scene3d.clubhouse().interior.position;
       const scene = app.scene3d.scene;
@@ -241,7 +241,7 @@ async (page) => {
 
   async function boxSnapshot(id) {
     return page.evaluate(async (boxId) => {
-      const D = await import('/src/sim/deliveries.js');
+      const D = await import(new URL('src/sim/deliveries.js', document.baseURI).href);
       const box = D.findBox(window.__fw.state, boxId);
       if (!box) {
         const delivery = window.__fw.state.shop.deliveries;
@@ -296,7 +296,7 @@ async (page) => {
 
   async function stageClubBox({ orderId, qty, resetDelivery, spot = fixtureSpot, atPad = false }) {
     const staged = await page.evaluate(async ({ orderId: id, qty: units, spot, reset, pad }) => {
-      const D = await import('/src/sim/deliveries.js');
+      const D = await import(new URL('src/sim/deliveries.js', document.baseURI).href);
       const state = window.__fw.state;
       D.ensureDeliveries(state);
       const delivery = state.shop.deliveries;
@@ -338,8 +338,8 @@ async (page) => {
       clubhouse.refreshCondition?.();
       clubhouse.rebuildStock?.();
       clubhouse.rebuildBoxes();
-      const B = await import('/src/data/boxes.js');
-      const V = await import('/src/render3d/clubhouse/deliveryBoxVisual.js');
+      const B = await import(new URL('src/data/boxes.js', document.baseURI).href);
+      const V = await import(new URL('src/render3d/clubhouse/deliveryBoxVisual.js', document.baseURI).href);
       return {
         id: box.id,
         orderId: id,

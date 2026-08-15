@@ -93,7 +93,7 @@ test('opening is physical: cut the tape, open the flaps, take armfuls, flatten t
   const t1 = takeFromBox(state, box.id);
   assert.ok(t1.ok);
   assert.equal(t1.taken, 6, 'an armful, not the whole case');
-  assert.equal(box.qty, 6, 'half remains — a partial box');
+  assert.equal(box.qty, 6, 'half remains - a partial box');
   assert.equal(state.shop.inventory.balls2.back, 0, 'and it went into your ARMS, not the backroom');
   assert.equal(carriedGoods(state).qty, 6);
 

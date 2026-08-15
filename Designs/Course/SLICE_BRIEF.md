@@ -140,3 +140,14 @@ knows how to do.
   document deliberately does not pre-empt it.
 - Whether the cart route is authored, player-drawn, or free driving.
 - Whether tree placement costs money, time, or both.
+
+---
+
+## Tooling note (2026-08-10, Goal 18 H7)
+
+**Geometry Nodes is the tool for scattering grass and trees** across the
+course: density maps drive distribution, LOD variants come from the same
+node graph, and the scatter stays non-destructive in the .blend. Do not
+hand-place flora or write bespoke scatter scripts — a density-map-driven
+Geometry Nodes setup is the standing approach when course vegetation work
+begins.

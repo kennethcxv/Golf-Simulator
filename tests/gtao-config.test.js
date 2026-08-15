@@ -32,10 +32,18 @@ test('GTAO_CONFIG is the single source of truth for the pass setup', async () =>
     GTAO_CONFIG.radius > 0 && GTAO_CONFIG.radius <= 1.8,
     `GTAO radius ${GTAO_CONFIG.radius} is outside the tight-contact range; raising it spreads occlusion instead of grounding objects`,
   );
-  // Intensity and resolution are what buy grounding.
+  // Intensity is what buys grounding; sample count and resolution were
+  // re-graded by measurement on 2026-08-10 (A3). At 4K physical the old
+  // 24/16/full config cost 4.34 ms of an 8.17 ms GPU frame — over half the
+  // frame — and the per-rung screenshot sweep (qa/electron/a3-gtao-sweep)
+  // showed 12 samples / 8 pd / 0.75 scale keeps the box and counter contact
+  // shadows at the ledger-desk pose. The floor below is pinned instead: AO
+  // must not drop below the sweep's accepted rung, because BELOW it (half res
+  // with the old denoise) is where contact darkening visibly died.
   assert.ok(GTAO_CONFIG.blendIntensity > 0.4, 'blendIntensity must exceed the old 0.4, which left contact effectively absent');
-  assert.ok(GTAO_CONFIG.samples >= 24, 'sample count must stay at or above 24');
-  assert.equal(GTAO_CONFIG.resolutionScale, 1, 'AO must run at full resolution — half res was removing the only indoor contact darkening');
+  assert.ok(GTAO_CONFIG.samples >= 12, 'sample count must stay at or above the accepted sweep rung (12)');
+  assert.ok(GTAO_CONFIG.resolutionScale >= 0.75, 'AO resolution must stay at or above the accepted 0.75 rung - the cheaper half-res rung is where contact darkening was lost');
+  assert.ok(GTAO_CONFIG.pd.samples >= 8, 'denoise samples must stay at or above the accepted sweep rung (8)');
 });
 
 test('the live gtaoMaterial uniform matches the configured radius', async () => {
@@ -55,7 +63,7 @@ test('the live gtaoMaterial uniform matches the configured radius', async () => 
   const live = pass.gtaoMaterial?.uniforms?.radius?.value;
   assert.equal(
     live, GTAO_CONFIG.radius,
-    'the running shader uniform must equal the configured radius — if this fails, the value is being set somewhere that GTAOPass does not read',
+    'the running shader uniform must equal the configured radius - if this fails, the value is being set somewhere that GTAOPass does not read',
   );
   assert.equal(pass.blendIntensity, GTAO_CONFIG.blendIntensity);
 

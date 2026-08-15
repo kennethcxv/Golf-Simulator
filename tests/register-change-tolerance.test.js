@@ -106,7 +106,7 @@ test('the ceiling constant is five dollars in cents', () => {
 
 // --- the economy effect ------------------------------------------------------
 
-test('extra change leaves the drawer, reduces club cash, books an expense, and prints on the receipt — exactly once', () => {
+test('extra change leaves the drawer, reduces club cash, books an expense, and prints on the receipt - exactly once', () => {
   const state = newGame('relaxed', 4281);
   state.shop.drawer = newDrawer();
   const opening = stackTotal(state.shop.drawer);

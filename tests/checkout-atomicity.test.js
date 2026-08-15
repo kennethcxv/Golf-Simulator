@@ -106,7 +106,7 @@ test('completeSale preflights cash-over-short before consuming stock or committi
   const result = completeSale(state, tx, 'Atomic cash customer');
 
   assert.equal(result.ok, false);
-  assert.match(result.reason, /checkpoint is incomplete/i);
+  assert.match(result.diagnostic || result.reason, /checkpoint is incomplete/i);
   assert.notEqual(tx.banked, true);
   assert.equal(state.cash, before.cash);
   assert.deepEqual(state.shop.drawer, before.drawer);
@@ -132,7 +132,7 @@ test('checkoutSale preflights COGS before moving a direct-sale basket', () => {
 
   const result = checkoutSale(state, [item], 'Atomic direct customer', transactionId);
   assert.equal(result.ok, false);
-  assert.match(result.reason, /checkpoint is incomplete/i);
+  assert.match(result.diagnostic || result.reason, /checkpoint is incomplete/i);
   assert.equal(state.cash, before.cash);
   assert.deepEqual(heldUnits(state), before.held);
   assert.deepEqual(state.shop.inventory, before.inventory);
@@ -156,7 +156,7 @@ test('missing held allocations return provenance-incomplete instead of throwing'
     result = checkoutSale(state, [item], 'Corrupt save', 'corrupt-held-sale');
   });
   assert.equal(result.ok, false);
-  assert.match(result.reason, /provenance is incomplete/i);
+  assert.match(result.diagnostic || result.reason, /provenance is incomplete/i);
   assert.equal(state.cash, before.cash);
   assert.deepEqual(heldUnits(state), before.held);
   assert.deepEqual(state.shop.inventoryLifecycle, before.lifecycle);
@@ -180,7 +180,7 @@ test('ledger preflight is pure and rejects a mismatched idempotency checkpoint',
     relatedId: 'different',
   });
   assert.equal(result.ok, false);
-  assert.match(result.reason, /different posting/i);
+  assert.match(result.diagnostic || result.reason, /different posting/i);
   assert.deepEqual(state, before);
 });
 
@@ -231,6 +231,97 @@ test('direct service charges use their reference once and recover a missing tick
   assert.equal(state.ledger.entries.filter((entry) => entry.idempotencyKey === key).length, 1);
 });
 
+test('a forged existing service ticket cannot claim a direct charge identity', () => {
+  const state = newGame('relaxed', 1607);
+  const cashBefore = state.cash;
+  state.shop.transactionHistory.unshift({
+    type: 'forged-service-charge',
+    referenceId: 'forged-service-ref',
+    number: 41,
+    customer: 'Forged Customer',
+    method: 'card-on-file',
+    total: 25,
+    cash: 25,
+    lost: 0,
+    revenueKey: 'greenFees',
+    items: [],
+    details: {},
+    minute: state.clock.minutes,
+    ledgerEntryId: 'forged-ledger-id',
+  });
+  const before = structuredClone(state);
+
+  const result = bankServiceCharge(state, {
+    type: 'forged-service-charge',
+    referenceId: 'forged-service-ref',
+    amount: 25,
+    customer: 'Reference Customer',
+  });
+
+  assert.equal(result.ok, false);
+  assert.match(result.diagnostic || result.reason, /different charge|ledger provenance/i);
+  assert.equal(state.cash, cashBefore);
+  assert.deepEqual(state, before);
+});
+
+test('direct service banking preflights ticket publication before moving money', () => {
+  for (const field of ['transactionHistory', 'nextTransactionNo']) {
+    const state = newGame('relaxed', `service-publication-${field}`);
+    Object.defineProperty(state.shop, field, {
+      value: state.shop[field],
+      writable: false,
+      enumerable: true,
+      configurable: true,
+    });
+    const before = structuredClone(state);
+
+    const result = bankServiceCharge(state, {
+      type: `blocked-${field}`,
+      referenceId: `blocked-${field}-ref`,
+      amount: 25,
+      customer: 'Blocked Publication Customer',
+    });
+
+    assert.equal(result.ok, false);
+    assert.match(result.diagnostic || result.reason, /ticket authority.*not writable/i);
+    assert.deepEqual(state, before, `${field} rejects before cash or ledger mutation`);
+  }
+});
+
+test('direct service banking rejects an exhausted ticket sequence before moving money', () => {
+  const state = newGame('relaxed', 1610);
+  state.shop.transactionHistory.unshift({ number: Number.MAX_SAFE_INTEGER });
+  const before = structuredClone(state);
+
+  const result = bankServiceCharge(state, {
+    type: 'ticket-limit-service',
+    referenceId: 'ticket-limit-service-ref',
+    amount: 10,
+    customer: 'Counter Limit Golfer',
+  });
+
+  assert.equal(result.ok, false);
+  assert.match(result.diagnostic || result.reason, /ticket.*safe limit/i);
+  assert.deepEqual(state, before);
+});
+
+test('direct service banking rejects a cash projection outside safe-cent bounds', () => {
+  const state = newGame('relaxed', 1611);
+  state.cash = (Number.MAX_SAFE_INTEGER - 1) / 100;
+  const before = structuredClone(state);
+
+  const result = bankServiceCharge(state, {
+    type: 'cash-limit-service',
+    referenceId: 'cash-limit-service-ref',
+    amount: 0.02,
+    customer: 'Cash Limit Golfer',
+  });
+
+  assert.equal(result.ok, false);
+  assert.match(result.diagnostic || result.reason, /cash projection.*safe currency bounds/i);
+  assert.deepEqual(state, before);
+});
+
 test('a failed service preflight creates no ticket and never marks payment banked', () => {
   const state = newGame('relaxed', 1606);
   const reservation = reservationFor(state, 'Failed Preflight Golfer');
@@ -245,7 +336,7 @@ test('a failed service preflight creates no ticket and never marks payment banke
 
   const result = finalizeReservationCheckIn(state, tx);
   assert.equal(result.ok, false);
-  assert.match(result.reason, /checkpoint is incomplete/i);
+  assert.match(result.diagnostic || result.reason, /checkpoint is incomplete/i);
   assert.notEqual(tx.banked, true);
   assert.equal(reservation.status, 'booked');
   assert.equal(state.shop.transactionHistory.length, 0);

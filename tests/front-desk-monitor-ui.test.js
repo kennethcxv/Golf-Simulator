@@ -218,7 +218,12 @@ test('the cash screen shows the change window states with Undo/Clear/Done hotspo
   assert.ok(drawn.includes('CASH PAYMENT'));
   assert.ok(drawn.includes('$600.00'));
   assert.ok(drawn.includes('$25.00'));
-  assert.ok(drawn.some((value) => /OVER BY \$3\.00/.test(String(value))), 'the allowed overage is captioned');
+  // C7: the caption used to read "OVER BY $3.00 - CUSTOMER RECEIVES EXTRA
+  // CHANGE" and drew as "...CUSTOMER REC..." in its 500px box. The amount and
+  // the fact that they keep it are what the line has to carry; the wording
+  // around them is not what this test is for.
+  assert.ok(drawn.some((value) => /\$3\.00 OVER/.test(String(value))), 'the allowed overage is captioned');
+  assert.ok(drawn.some((value) => /KEEP IT/.test(String(value))), 'and says they keep it');
   for (const id of ['undo-change', 'clear-change', 'confirm-change']) {
     const point = ui.actionPoint(id);
     assert.ok(point, `${id} is clickable`);

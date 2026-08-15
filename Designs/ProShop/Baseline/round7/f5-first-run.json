@@ -1,0 +1,127 @@
+{
+  "notes": [
+    {
+      "beat": "title",
+      "buttons": [
+        {
+          "text": "ContinueNo Continue save yet",
+          "disabled": true
+        },
+        {
+          "text": "New gameChoose Relaxed or Realistic mode",
+          "disabled": false
+        },
+        {
+          "text": "Load gameChoose a manual save slot",
+          "disabled": true
+        },
+        {
+          "text": "SettingsAudio, camera, display, and acce",
+          "disabled": false
+        },
+        {
+          "text": "Credits",
+          "disabled": false
+        },
+        {
+          "text": "Test scene: Maintenance Shed",
+          "disabled": false
+        }
+      ],
+      "bodyText": "CLUB RESTORATION & MANAGEMENT\nGOLF EMPIRE\n\nBuy them broken. Bring them back. Build a club worth keeping.\n\nCURRENT RESTORATION\nNo active restoration\nStart with a distressed property and make the clubhouse yours.\nContinue\nNo Continue save yet\nNew game\nChoose Relaxed or Realistic mode\nLoad game\nChoose a manual save slot\nSettings\nAudio, camera, display, and accessibility\nCredits\nTest scene: Maintenanc"
+    },
+    {
+      "beat": "difficulty",
+      "cards": [
+        "RelaxedForgiving turf, softer finances, and simplified recovery.",
+        "RealisticTighter margins, full maintenance pressure, and manual cash handling."
+      ]
+    },
+    {
+      "beat": "load",
+      "msToWalkActive": 368,
+      "msToVeilGone": 13030
+    },
+    {
+      "beat": "hud",
+      "objectives": [
+        "INSPECT THE FURNISHED BUT NEGLECTED PROPERTY 2/18 × Survey the neglected property Look around, then walk toward the clubhouse. You keep control throughout."
+      ],
+      "toasts": [
+        "i UPDATE The old tractor sits by the shed, east of the porch — she’d run again with some work. ×"
+      ],
+      "walkOverlay": [],
+      "hud": [
+        "$76,500 Y1 · Spring · Day 1 · 6:00 AM ▶"
+      ],
+      "prompt": "Weeds — [E] pull them"
+    },
+    {
+      "beat": "offers-on-the-spot",
+      "distinct": [
+        "Weeds — [E] pull them"
+      ]
+    },
+    {
+      "beat": "campaign",
+      "campaignEnabled": true,
+      "businessOpen": false,
+      "money": null,
+      "day": 0,
+      "clock": 361.34005333333323,
+      "shopSignOpen": false,
+      "facilities": null,
+      "objectives": null
+    },
+    {
+      "beat": "belt",
+      "tools": [
+        {
+          "id": "washer",
+          "took": true,
+          "belt": true
+        },
+        {
+          "id": "vacuum",
+          "took": false,
+          "belt": true
+        },
+        {
+          "id": "mop",
+          "took": false,
+          "belt": true
+        },
+        {
+          "id": "broom",
+          "took": false,
+          "belt": true
+        },
+        {
+          "id": "dustpan",
+          "took": false,
+          "belt": true
+        },
+        {
+          "id": "spray",
+          "took": false,
+          "belt": true
+        },
+        {
+          "id": "cloth",
+          "took": false,
+          "belt": true
+        },
+        {
+          "id": "sponge",
+          "took": false,
+          "belt": true
+        },
+        {
+          "id": "trashbag",
+          "took": false,
+          "belt": true
+        }
+      ]
+    }
+  ]
+}

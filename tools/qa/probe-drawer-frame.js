@@ -59,7 +59,7 @@ async (page) => {
   }, null, { timeout: 5000 });
 
   const project = async (local) => page.evaluate(async (p) => {
-    const THREE = await import('/vendor/three.module.js');
+    const THREE = await import(new URL('vendor/three.module.js', document.baseURI).href);
     const app = window.__fw; const ch = app.scene3d.clubhouse();
     const v = new THREE.Vector3(p.x + ch.interior.position.x, p.y + ch.interior.position.y, p.z + ch.interior.position.z);
     v.project(app.scene3d.camera);
@@ -70,7 +70,7 @@ async (page) => {
   for (const uid of items) {
     // eslint-disable-next-line no-await-in-loop
     const pt = await page.evaluate(async (id) => {
-      const THREE = await import('/vendor/three.module.js');
+      const THREE = await import(new URL('vendor/three.module.js', document.baseURI).href);
       const app = window.__fw; const ch = app.scene3d.clubhouse();
       let obj = null;
       ch.interior.traverse((o) => { if (!obj && o.visible && o.userData && o.userData.kind === 'item' && o.userData.uid === id) obj = o; });
@@ -94,7 +94,7 @@ async (page) => {
 
   // dump each slot's screen position + world Y
   const slots = await page.evaluate(async () => {
-    const THREE = await import('/vendor/three.module.js');
+    const THREE = await import(new URL('vendor/three.module.js', document.baseURI).href);
     const app = window.__fw; const ch = app.scene3d.clubhouse();
     const rect = document.querySelector('canvas').getBoundingClientRect();
     const out = {};

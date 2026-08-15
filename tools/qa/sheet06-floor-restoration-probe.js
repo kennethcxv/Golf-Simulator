@@ -38,7 +38,7 @@ async (page) => {
       const clubhouse = app.scene3d.clubhouse();
       app.state.shop.reno.grime.fill(0);
       for (const clutter of app.state.shop.reno.clutter || []) clutter.cleared = true;
-      const restoration = await import('/src/sim/clubhouseRestoration.js');
+      const restoration = await import(new URL('src/sim/clubhouseRestoration.js', document.baseURI).href);
       const mutation = restoration.setFloorRestored(app.state, nextRestored);
       if (mutation?.ok !== true) {
         throw new Error(`Floor restoration mutation failed: ${JSON.stringify(mutation)}`);

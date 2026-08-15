@@ -74,7 +74,7 @@ async (page) => {
 
   const captures = [];
   const onboarding = await page.evaluate(async () => {
-    const tutorial = await import('/src/sim/tutorial.js');
+    const tutorial = await import(new URL('src/sim/tutorial.js', document.baseURI).href);
     const app = window.__fw;
     return {
       screen: app.screen,

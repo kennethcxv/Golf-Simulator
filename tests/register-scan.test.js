@@ -32,7 +32,7 @@ test('a new transaction starts with nothing scanned and no payment method', () =
   for (const it of tx.items) assert.equal(it.scanned, false);
 });
 
-test('scanning is per item — three items need three scans', () => {
+test('scanning is per item - three items need three scans', () => {
   const tx = createTx({ items: items() });
   assert.equal(scanItem(tx, 'a').ok, true);
   assert.equal(unscannedCount(tx), 2);

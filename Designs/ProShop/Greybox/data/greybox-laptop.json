@@ -1,5 +1,5 @@
 {
-  "seatPose": "COUNTER.staffStand → FRONT_DESK.laptop (live v2 datums)",
+  "seatPose": "COUNTER.staffStand â†’ FRONT_DESK.laptop (live v2 datums)",
   "lens": {
     "before": {
       "cameraFov": 66,
@@ -49,7 +49,7 @@
       "page": "Pro Shop",
       "clickLandedRight": true,
       "crashed": false,
-      "nodes": 330
+      "nodes": 331
     },
     {
       "page": "Course",
@@ -67,7 +67,7 @@
       "page": "Business",
       "clickLandedRight": true,
       "crashed": false,
-      "nodes": 51
+      "nodes": 66
     },
     {
       "page": "Settings",

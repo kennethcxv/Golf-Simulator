@@ -51,7 +51,7 @@ test('an incomplete ledger checkpoint refuses passive sales before stock or cash
   const accrual = shopDailyAccrual(state);
 
   assert.equal(accrual.ok, false);
-  assert.match(accrual.reason, /checkpoint is incomplete/i);
+  assert.match(accrual.diagnostic || accrual.reason, /checkpoint is incomplete/i);
   assert.deepEqual(state.shop.inventory, inventoryBefore);
   assert.equal(state.cash, cashBefore);
   assert.equal(state.ledger.entries.length, entriesBefore);

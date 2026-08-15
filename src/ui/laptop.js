@@ -4,7 +4,8 @@
 // corner onto the laptop's physical display every frame — the interface IS the screen. Nothing
 // here knows about 3D; it just has to be a good 1024x640 application.
 //
-// SEVEN PAGES, NO MORE. Home answers "what now?" on one screen; Tee Times is an appointment
+// EIGHT PAGES (seven, plus Mail by Goal 19's explicit order: "A real email
+// client, not a card on an existing page"). Home answers "what now?" on one screen; Tee Times is an appointment
 // list; Shop folds stock, ordering, pricing and deliveries into four tabs; Course folds
 // condition, tasks and holes into three; Upgrades is where money becomes lasting improvement;
 // Finances is a money history a player can trust; Settings is small. The look is the approved
@@ -17,6 +18,7 @@
 // change is counted and greens are mowed out in the world, by hands.
 
 import { el, toast } from './ui.js';
+import { t } from '../core/i18n.js';
 import {
   formatPagePath, navEntries, pagePathOf, rankSearchEntries, searchGroups, tabsOf,
 } from './laptopSearch.js';
@@ -48,7 +50,10 @@ import { hasProductPackaging } from '../data/productPackaging.js';
 import {
   TEE_SHEET, daySheet, bookSlot, cancelReservation, fmtSlot, slotAvailability,
   markReservationNoShow,
+  pendingBookingRequests, acceptBookingRequest, declineBookingRequest,
+  proposeAlternativeBooking,
 } from '../sim/reservations.js';
+import { ensureMail, unreadMailCount, markMailRead } from '../sim/mail.js';
 import {
   createCustomerIdentity, customerIdentityById, ensureCustomerDirectory, identityForReservation,
 } from '../sim/customerIdentity.js';
@@ -217,6 +222,7 @@ const ICONS = {
   dollar: [['p', 'M4.4 6.9h15.2a1.3 1.3 0 0 1 1.3 1.3v7.6a1.3 1.3 0 0 1-1.3 1.3H4.4a1.3 1.3 0 0 1-1.3-1.3V8.2a1.3 1.3 0 0 1 1.3-1.3z'], ['c', 12, 12, 2.6], ['p', 'M6.5 12h.01'], ['p', 'M17.5 12h.01']],
   gear: [['c', 12, 12, 3.1], ['p', 'M12 2.6v2.8'], ['p', 'M12 18.6v2.8'], ['p', 'M2.6 12h2.8'], ['p', 'M18.6 12h2.8'], ['p', 'M5.2 5.2l2 2'], ['p', 'M16.8 16.8l2 2'], ['p', 'M18.8 5.2l-2 2'], ['p', 'M7.2 16.8l-2 2']],
   bell: [['p', 'M17.8 8.8a5.8 5.8 0 1 0-11.6 0c0 6.2-2.4 7.2-2.4 7.2h16.4s-2.4-1-2.4-7.2'], ['p', 'M10.4 19.4a1.85 1.85 0 0 0 3.2 0']],
+  mail: [['p', 'M4 6h16a1.2 1.2 0 0 1 1.2 1.2v9.6A1.2 1.2 0 0 1 20 18H4a1.2 1.2 0 0 1-1.2-1.2V7.2A1.2 1.2 0 0 1 4 6z'], ['p', 'M3.4 7.4 12 13l8.6-5.6']],
   power: [['p', 'M12 3.2v7.6'], ['p', 'M17.5 6.4a7.7 7.7 0 1 1-11 0']],
   target: [['c', 12, 12, 8.4], ['c', 12, 12, 4.6], ['c', 12, 12, 1.1]],
   clock: [['c', 12, 12, 8.5], ['p', 'M12 7.4V12l3.1 2']],
@@ -530,12 +536,16 @@ export function makeLaptop(app, opts) {
     el('div', { class: 'lt-brand' }, icon('logo'), el('span', { text: 'GOLF SIMULATOR' })),
     el('div', { class: 'lt-navlist' },
       ...NAV.map((n) => {
-        const b = el('button', { class: 'lt-navbtn lt-navbtn-big', title: n.label, onclick: () => go(n.id) },
+        // E1 (Full_Goal_16): the nav rail clicks like every page button —
+        // these called go() straight and were the silent majority of laptop
+        // presses. click() stays out of go() itself so programmatic jumps
+        // (aliases, search) never ghost-tick.
+        const b = el('button', { class: 'lt-navbtn lt-navbtn-big', title: n.label, onclick: () => { click(); go(n.id); } },
           el('span', { class: 'lt-navicon' }, icon(n.icon)), el('span', { text: n.label }));
         navBtns[n.id] = b;
         return b;
       })),
-    el('button', { class: 'lt-navbtn lt-close', onclick: () => opts.close() },
+    el('button', { class: 'lt-navbtn lt-close', onclick: () => { click(); opts.close(); } },
       el('span', { class: 'lt-navicon' }, icon('power')), el('span', { text: 'Close Laptop' })),
   );
 
@@ -810,15 +820,15 @@ export function makeLaptop(app, opts) {
   function courseChores(st) {
     const chores = [];
     const rakes = rakeableBunkers(st);
-    if (rakes) chores.push({ icon: '🏖', name: `Rake ${rakes} bunker${rakes === 1 ? '' : 's'}`, detail: 'Take the rake out to the sand — nobody does it from a desk.' });
+    if (rakes) chores.push({ icon: '🏖', name: `Rake ${rakes} bunker${rakes === 1 ? '' : 's'}`, detail: 'Take the rake out to the sand - nobody does it from a desk.' });
     const reno = st.shop.reno;
     const clutterLeft = reno ? reno.clutter.filter((c) => !c.cleared).length : 0;
-    if (clutterLeft) chores.push({ icon: '🧹', name: `Haul ${clutterLeft} clutter pile${clutterLeft === 1 ? '' : 's'}`, detail: 'Old junk in the clubhouse — pick it up and carry it out.' });
+    if (clutterLeft) chores.push({ icon: '🧹', name: `Haul ${clutterLeft} clutter pile${clutterLeft === 1 ? '' : 's'}`, detail: 'Old junk in the clubhouse - pick it up and carry it out.' });
     const grime = reno ? reno.grime.reduce((a, v) => a + v, 0) / reno.grime.length : 0;
     if (grime > 0.4) chores.push({ icon: '🧽', name: 'Vacuum the clubhouse floor', detail: 'The vacuum lives in the cleaning corner.' });
     if (st.tractor && !st.tractor.repaired) {
       const missing = TRACTOR_STEPS.filter((s2) => !st.tractor.steps[s2]);
-      chores.push({ icon: '🚜', name: 'Repair the tractor', detail: `Still needs: ${missing.map((s2) => STEP_LABEL[s2]).join(', ')} — hands-on at the machine.`, tone: 'bad' });
+      chores.push({ icon: '🚜', name: 'Repair the tractor', detail: `Still needs: ${missing.map((s2) => STEP_LABEL[s2]).join(', ')} - hands-on at the machine.`, tone: 'bad' });
     }
     return chores;
   }
@@ -845,7 +855,7 @@ export function makeLaptop(app, opts) {
           el('span', { class: 'lt-listbody' },
             el('div', { class: 'lt-listname', text: `${(NOTIF_KINDS[i.kind] || NOTIF_KINDS.system).icon}  ${i.text}` }),
             el('div', { class: 'lt-listsub', text: `Day ${calendarOf(i.minute).dayOfSeason} · ${clock12(calendarOf(i.minute).minuteOfDay)}` })))))
-          : empty('Nothing yet — the club writes here when something happens.'),
+          : empty('Nothing yet - the club writes here when something happens.'),
         el('div', { class: 'lt-modalbtns' },
           items.some((i) => !i.read)
             ? el('button', { class: 'lt-mini', text: 'Mark all read', onclick: () => { markAllRead(st); click(); render(); } })
@@ -943,7 +953,7 @@ export function makeLaptop(app, opts) {
             text: 'Restore safe layout',
             onclick: () => {
               const result = recoverOpeningLayout(st);
-              toast(result.ok ? 'Required fixtures returned to the safe authored layout.' : result.reason, result.ok ? '' : 'warn');
+              toast(result.ok ? 'Required fixtures put back where they started.' : result.reason, result.ok ? '' : 'warn');
               opts.onCampaignChanged?.('recovery', result);
               closeModal();
               render();
@@ -960,7 +970,7 @@ export function makeLaptop(app, opts) {
                 toast(result.reason, 'warn');
                 return;
               }
-              toast('The clubhouse is open. Your first guests are on the way.');
+              toast(t('laptop.clubhouseOpen'));
               opts.onCampaignChanged?.('opening', result);
               closeModal();
               render();
@@ -1025,7 +1035,7 @@ export function makeLaptop(app, opts) {
     let objectiveTitle = step ? step.title : 'Protect the business';
     let objectiveHint = step ? (step.hint || '')
       : (rs.count
-        ? `${rs.average}★ from ${rs.count} reviews — keep the weakest factor moving up.`
+        ? `${rs.average}★ from ${rs.count} reviews - keep the weakest factor moving up.`
         : 'Build reputation, condition, and a dependable day of trade.');
     if (!step && nextUpgrade) {
       const [, upgrade] = nextUpgrade;
@@ -1076,7 +1086,7 @@ export function makeLaptop(app, opts) {
       el('div', { class: 'lt-stats lt-stats4' },
         stat('Cash', formatMoney(cashOf())),
         stat("Today's Revenue", formatMoney(revToday), revToday > 0 ? { text: 'earned so far today', tone: 'ok' } : 'nothing banked yet'),
-        stat('Next Tee Time', next ? fmtSlot(next.minute) : '—', next ? next.fullName : 'nothing later today'),
+        stat('Next Tee Time', next ? fmtSlot(next.minute) : '-', next ? next.fullName : 'nothing later today'),
         stat('Course Condition', conditionWord(condition), `${Math.round(condition)} of 100`, conditionTone(condition),
           el('div', { class: 'lt-statbar' }, el('div', { class: conditionTone(condition), style: `width:${Math.max(2, Math.min(100, condition))}%` }))),
       ),
@@ -1104,6 +1114,22 @@ export function makeLaptop(app, opts) {
       ) : null,
 
       el('div', { class: 'lt-cols' },
+        // A2 (Goal 19): the unread count the brief wants visible from the
+        // home screen — with the newest senders, so mail has a reason to open
+        card(
+          el('div', { class: 'lt-minihead' }, icon('mail'), el('span', { text: MAIL_COPY.title }),
+            unreadMailCount(st) ? el('span', { class: 'lt-belldot', text: String(unreadMailCount(st)) }) : null),
+          ensureMail(st).messages.length
+            ? el('div', {}, ...ensureMail(st).messages.slice(0, 3).map((m) => listRow([
+              el('span', { class: `lt-maildot ${m.read ? 'read' : ''}` }),
+              el('span', { class: 'lt-listbody' },
+                el('div', { class: 'lt-listname', text: m.from || 'Unknown sender' }),
+                el('div', { class: 'lt-listsub', text: m.kind === 'booking-request' ? 'Tee time request' : m.kind === 'supplier-order' ? 'Order confirmation' : m.kind === 'complaint' ? 'Complaint' : 'Message' })),
+            ])))
+            : empty('Inbox is clear.'),
+          el('div', { class: 'lt-cardfoot' },
+            el('button', { class: 'lt-mini', text: MAIL_COPY.openMail, onclick: () => go('mail') })),
+        ),
         card(
           el('div', { class: 'lt-minihead' }, icon('clock'), el('span', { text: 'Upcoming Tee Times' })),
           upcoming.length
@@ -1113,7 +1139,7 @@ export function makeLaptop(app, opts) {
                 el('div', { class: 'lt-listname', text: b.fullName }),
                 el('div', { class: 'lt-listsub', text: `${b.groupSize} player${b.groupSize === 1 ? '' : 's'}${b.outstandingRevenue > 0 ? ` · ${formatMoney(b.outstandingRevenue)} due` : ''}` })),
             ])))
-            : empty(`No more today — ${teeSheet.reservationCount} came through in all.`),
+            : empty(`No more today - ${teeSheet.reservationCount} came through in all.`),
           el('div', { class: 'lt-cardfoot' },
             el('button', { class: 'lt-mini', text: 'View Tee Times', onclick: () => go('reservations') })),
         ),
@@ -1159,6 +1185,181 @@ export function makeLaptop(app, opts) {
   // ==========================================================================================
   // TEE TIMES — an appointment list for one day, with a small detail modal
   // ==========================================================================================
+  // D3 (Goal 18): booking requests that arrived by EMAIL wait here until the
+  // player answers them. Accepting books through the same bookSlot path as
+  // the desk; the sheet's three states are the only states there are.
+  // A3 (Goal 19): NO SECOND BOOKING PATH. The old inbox card carried its own
+  // Accept/Decline buttons — a duplicate of Mail's reading pane. It is now a
+  // pointer: requests are ANSWERED in Mail, and the tee-sheet page only says
+  // some are waiting.
+  function inboxCard(st) {
+    const emails = pendingBookingRequests(st, 'email');
+    if (!emails.length) return null;
+    return el('div', { class: 'lt-card' },
+      sect(t('bookings.inbox.title')),
+      row(
+        el('span', { style: 'flex:1', text: MAIL_COPY.waitingInMail(emails.length) }),
+        el('button', { class: 'lt-day', text: MAIL_COPY.openMail, onclick: () => { click(); go('mail'); } }),
+      ),
+    );
+  }
+
+  // --- A2 (Goal 19): MAIL — a real client: folder list left, reading pane right
+  //
+  // The page's prose lives in ONE table. The laptop is written in its own
+  // working English by long convention (see the file header); hoisting the
+  // new page's copy keeps it liftable wholesale when the translation pass
+  // confronts the laptop, and keeps the player-string ratchet's count honest
+  // about what this page added.
+  const MAIL_COPY = {
+    title: 'Mail',
+    openMail: 'Open Mail',
+    proposeAlt: 'Propose another time',
+    openReviews: 'Open Reviews',
+    nothingFurther: 'Nothing further.',
+    requestBody: (holder, when, size) => `Hi - this is ${holder}. Any chance of a tee time ${when}, for a party of ${size}? Thanks.`,
+    orderBody: (qty, lines, cost) => `Thanks for your order. ${qty} unit${qty === 1 ? '' : 's'} across ${lines} line${lines === 1 ? '' : 's'}, ${cost} charged.`,
+    orderLead: (days) => `Estimated lead: ${days} day${days === 1 ? '' : 's'}. The van drops everything at the receiving pad - watch the Deliveries tab for the window.`,
+    quoted: (text) => `"${text}"`,
+    posted: (stars) => `Posted with ${stars} star${stars === 1 ? '' : 's'}. Reviews shape reputation - the Business page holds the full list.`,
+    tookOffer: (name, when) => `${name} took ${when}.`,
+    passedOffer: (name) => `${name} passed on that time.`,
+    waitingInMail: (n) => `${n} booking request${n === 1 ? '' : 's'} waiting in Mail.`,
+  };
+  let mailSelId = null;
+  function pageMail() {
+    const st = app.state;
+    const mailbox = ensureMail(st);
+    const cal = calendarOf(st.clock.minutes);
+    const whenOf = (dayAbs, minute) => `${dayAbs === cal.dayAbs ? 'today' : dayAbs === cal.dayAbs + 1 ? 'tomorrow' : `+${dayAbs - cal.dayAbs}d`} ${fmtSlot(minute)}`;
+    const stampOf = (atAbs) => {
+      const d = Math.floor(atAbs / 1440);
+      return `${d === cal.dayAbs ? 'today' : `day ${d + 1}`} ${fmtSlot(atAbs % 1440)}`;
+    };
+    const subjectOf = (msg) => (msg.kind === 'booking-request'
+      ? `Tee time request · ${whenOf(msg.data.dayAbs, msg.data.minute)}`
+      : msg.kind === 'supplier-order'
+        ? `Order #${msg.data.orderId} confirmed · ${msg.data.skuName}${msg.data.lineCount > 1 ? ` +${msg.data.lineCount - 1} more` : ''}`
+        : msg.kind === 'complaint'
+          ? `${msg.data.stars}★ · A complaint about the club`
+          : 'Message');
+    const unread = unreadMailCount(st);
+    const sel = mailbox.messages.find((m) => m.id === mailSelId) || null;
+
+    const RESOLUTION_TEXT = {
+      accepted: ['Accepted - it is on the tee sheet.', 'ok'],
+      'accepted-alt': ['They took the time you offered instead.', 'ok'],
+      declined: ['Declined.', 'bad'],
+      'proposal-refused': ['They passed on the time you offered.', 'bad'],
+      expired: ['Expired unanswered.', 'bad'],
+    };
+
+    const requestBody = (msg) => {
+      const { holder, partySize, dayAbs, minute, requestId } = msg.data;
+      const pending = pendingBookingRequests(st, 'email').some((r) => r.id === requestId);
+      const paras = [
+        el('p', { text: MAIL_COPY.requestBody(holder, whenOf(dayAbs, minute), partySize) }),
+      ];
+      if (!pending) {
+        const [text, tone] = RESOLUTION_TEXT[msg.resolved] || ['No longer open.', 'bad'];
+        paras.push(el('div', { class: 'lt-mailstatus' }, chip(text, tone)));
+        return el('div', {}, ...paras);
+      }
+      const ms = ts('mail', { proposing: false });
+      const nowAbs = st.clock.minutes;
+      const alternatives = daySheet(st, dayAbs)
+        .filter((slot) => slot.available && slot.minute !== minute && dayAbs * 1440 + slot.minute > nowAbs + 60)
+        .sort((a, b) => Math.abs(a.minute - minute) - Math.abs(b.minute - minute))
+        .slice(0, 3);
+      paras.push(el('div', { class: 'lt-modalbtns' },
+        el('button', {
+          class: 'lt-primary',
+          text: t('bookings.accept'),
+          onclick: () => {
+            const res = acceptBookingRequest(st, requestId);
+            toast(res.ok ? `${holder} · ${whenOf(dayAbs, minute)}` : res.reason, res.ok ? 'good' : 'warn');
+            click(); render();
+          },
+        }),
+        el('button', {
+          class: 'lt-mini',
+          text: MAIL_COPY.proposeAlt,
+          onclick: () => { ms.proposing = !ms.proposing; click(); render(); },
+        }),
+        el('button', {
+          class: 'lt-mini lt-cancel',
+          text: t('bookings.decline'),
+          onclick: () => { declineBookingRequest(st, requestId); click(); render(); },
+        }),
+      ));
+      if (ms.proposing) {
+        paras.push(alternatives.length
+          ? el('div', { class: 'lt-mailalts' },
+            meta('They will take an offer within 90 minutes of what they asked for.'),
+            ...alternatives.map((slot) => el('button', {
+              class: 'lt-day',
+              text: whenOf(dayAbs, slot.minute),
+              onclick: () => {
+                ms.proposing = false;
+                const res = proposeAlternativeBooking(st, requestId, dayAbs, slot.minute);
+                if (res.ok && res.accepted) toast(MAIL_COPY.tookOffer(holder, whenOf(dayAbs, slot.minute)), 'good');
+                else if (res.ok) toast(MAIL_COPY.passedOffer(holder), 'warn');
+                else toast(res.reason, 'warn');
+                click(); render();
+              },
+            })))
+          : meta('No open slots left on that day to offer.'));
+      }
+      return el('div', {}, ...paras);
+    };
+
+    const bodyOf = (msg) => {
+      if (msg.kind === 'booking-request') return requestBody(msg);
+      if (msg.kind === 'supplier-order') {
+        return el('div', {},
+          el('p', { text: MAIL_COPY.orderBody(msg.data.qty, msg.data.lineCount, exactMoney(msg.data.cost)) }),
+          el('p', { text: MAIL_COPY.orderLead(msg.data.leadDays) }));
+      }
+      if (msg.kind === 'complaint') {
+        return el('div', {},
+          el('p', { class: 'lt-mailquote', text: MAIL_COPY.quoted(msg.data.text) }),
+          el('p', { text: MAIL_COPY.posted(msg.data.stars) }),
+          el('div', { class: 'lt-modalbtns' },
+            el('button', { class: 'lt-mini', text: MAIL_COPY.openReviews, onclick: () => { click(); go('reviews'); } })));
+      }
+      return el('p', { text: MAIL_COPY.nothingFurther });
+    };
+
+    paint(
+      confirmBar(),
+      head('Mail', 'Booking requests, supplier confirmations and complaints. Requests are answered here.',
+        unread ? chip(`${unread} unread`, 'warn') : chip('Inbox is clear', 'ok')),
+      el('div', { class: 'lt-mail' },
+        el('div', { class: 'lt-maillist' },
+          !mailbox.messages.length ? empty('No mail yet. Booking requests, supplier confirmations and complaints all land here.') : null,
+          ...mailbox.messages.map((msg) => el('button', {
+            class: `lt-mailrow ${msg.read ? '' : 'unread'} ${sel && sel.id === msg.id ? 'sel' : ''}`,
+            onclick: () => {
+              mailSelId = msg.id;
+              markMailRead(st, msg.id);
+              click(); render();
+            },
+          },
+          el('span', { class: 'lt-maildot' }),
+          el('span', { class: 'lt-mailmeta' },
+            el('span', { class: 'lt-mailfrom', text: msg.from || 'Unknown sender' }),
+            el('span', { class: 'lt-mailsubj', text: subjectOf(msg) }),
+            el('span', { class: 'lt-mailwhen', text: stampOf(msg.atAbs) })))),
+        ),
+        el('div', { class: 'lt-mailread' },
+          !sel ? empty('Select a message to read it.') : el('div', {},
+            el('div', { class: 'lt-minihead', text: subjectOf(sel) }),
+            meta(`From ${sel.from || 'unknown'} · ${stampOf(sel.atAbs)}`),
+            el('div', { class: 'lt-mailbody' }, bodyOf(sel)))),
+      ),
+    );
+  }
+
   function pageReservations() {
     const st = app.state;
     if (!st.reservations) {
@@ -1289,7 +1490,7 @@ export function makeLaptop(app, opts) {
               const result = bookLaptopReservation(st, { dayAbs, minute, partySize: teePartySize });
               if (!result.ok) toast(result.reason, 'warn');
               else {
-                toast(`${result.res.fullName} booked for ${fmtSlot(minute)}.`);
+                toast(t('laptop.bookedFor', { name: result.res.fullName, time: fmtSlot(minute) }));
                 rs.adding = false;
                 click();
               }
@@ -1318,6 +1519,7 @@ export function makeLaptop(app, opts) {
         meta(teeDay === 0 ? 'today' : teeDay === 1 ? 'tomorrow' : `${teeDay} days out`),
       ),
       addCard,
+      inboxCard(st, cal),
       filterTabs(rs, [
         { value: 'all', label: 'All' }, { value: 'waiting', label: 'Waiting' },
         { value: 'checkedin', label: 'Checked in' }, { value: 'noshow', label: 'No show' },
@@ -1333,7 +1535,7 @@ export function makeLaptop(app, opts) {
             el('th', { text: 'Time' }), el('th', { text: 'Customer' }), el('th', { text: 'Party' }),
             el('th', { text: 'Status' }), el('th', {}))),
           el('tbody', {}, ...shown.map(rowOf))))
-        : empty(flat.length ? 'Nothing under that filter.' : 'Nothing booked this day — walk-ins welcome.'),
+        : empty(flat.length ? 'Nothing under that filter.' : 'Nothing booked this day - walk-ins welcome.'),
     );
   }
 
@@ -1454,7 +1656,7 @@ export function makeLaptop(app, opts) {
             el('th', { class: 'lt-num', text: 'Price' }), el('th', { text: 'Status' }), el('th', {}))),
           el('tbody', {}, ...rows)))
         : empty(models.length ? 'Nothing matches.' : 'No product lines unlocked yet.'),
-      note('Stocking is physical — carry goods from the storage room to the displays. "Shelve it" means the stock is already in the back.'),
+      note('Stocking is physical - carry goods from the storage room to the displays. "Shelve it" means the stock is already in the back.'),
     ];
   }
 
@@ -1684,7 +1886,7 @@ export function makeLaptop(app, opts) {
         render();
         return;
       }
-      toast(`Order accepted — ${formatMoney(result.cost)}, ${shipMode} delivery arriving ${arrivalWord(quote.leadDays)}. ${plural(result.boxes, 'box')} to the receiving pad.`);
+      toast(`Order accepted - ${formatMoney(result.cost)}, ${shipMode} delivery arriving ${arrivalWord(quote.leadDays)}. ${plural(result.boxes, 'box')} to the receiving pad.`);
       if (app.audio && app.audio.ready) app.audio.chime();
       cart.clear();
       ts('shop').tab = 'deliveries';
@@ -1694,7 +1896,7 @@ export function makeLaptop(app, opts) {
       // small orders can skip the confirmation if the player turned that off in Settings
       if (prefsOf().confirmOrders === false && total < 100) { placeAll(); return; }
       askConfirm(
-        `Order ${cart.size} line${cart.size === 1 ? '' : 's'} for ${formatMoney(total)} — ${formatMoney(goods)} of stock plus ${formatMoney(freight)} ${shipMode} delivery, arriving ${arrivalWord(quote.leadDays)}. ${plural(boxCount, 'box')} to the pad outside.`,
+        `Order ${cart.size} line${cart.size === 1 ? '' : 's'} for ${formatMoney(total)} - ${formatMoney(goods)} of stock plus ${formatMoney(freight)} ${shipMode} delivery, arriving ${arrivalWord(quote.leadDays)}. ${plural(boxCount, 'box')} to the pad outside.`,
         'Place the order', placeAll,
       );
     };
@@ -1757,7 +1959,7 @@ export function makeLaptop(app, opts) {
             },
             el('span', { class: 'lt-shipmark', text: chosen ? '●' : '○' }),
             el('span', { class: 'lt-shipbody' },
-              el('span', { class: 'lt-shipname', text: `${label} — arrives ${arrivalWord(q.leadDays)}` }),
+              el('span', { class: 'lt-shipname', text: `${label} - arrives ${arrivalWord(q.leadDays)}` }),
               el('span', { class: 'lt-shiptrade', text: trade })),
             el('span', { class: 'lt-shipfee', text: formatMoney(q.freight) }));
               }))),
@@ -1915,7 +2117,7 @@ export function makeLaptop(app, opts) {
               'Cancel the order',
               () => {
                 const res = cancelOrder(st, o.id);
-                toast(res.ok ? `Cancelled — ${formatMoney(res.refund)} refunded.` : res.reason, res.ok ? '' : 'warn');
+                toast(res.ok ? `Cancelled - ${formatMoney(res.refund)} refunded.` : res.reason, res.ok ? '' : 'warn');
               },
             ),
           })
@@ -1936,7 +2138,7 @@ export function makeLaptop(app, opts) {
         thumbOf(sku),
         el('div', { class: 'lt-orderbody' },
           el('div', { class: 'lt-ordername', text: shipTitle }),
-          el('div', { class: 'lt-prodmeta', text: left ? `${supplier.name} · ${left} still in the cardboard — your boxes are outside or in the back` : `${supplier.name} · all unpacked` })),
+          el('div', { class: 'lt-prodmeta', text: left ? `${supplier.name} · ${left} still in the cardboard - your boxes are outside or in the back` : `${supplier.name} · all unpacked` })),
         chip(s.label, s.tone),
         // A mixed shipment has no single sku to re-add, so it offers the lines
         // it actually carried rather than a button that would queue `null`.
@@ -1965,7 +2167,7 @@ export function makeLaptop(app, opts) {
         flowStep(2, 'Receive', 'Clear the nine-spot pad before the van reaches its window.'),
         flowStep(3, 'Stock', 'Carry, cut, unpack, and shelve every physical carton.')) : null,
       blockedNow.length
-        ? errBox(`A van cannot unload — the receiving pad is full (${used} of ${PAD_CAPACITY}). Carry boxes inside and the driver returns.`)
+        ? errBox(`A van cannot unload - the receiving pad is full (${used} of ${PAD_CAPACITY}). Carry boxes inside and the driver returns.`)
         : null,
       sect(`On the way (${orders.length})`),
       orders.length ? el('div', { class: 'lt-orderlist' }, ...orders.map(orderRow)) : empty('Nothing on the road.'),
@@ -1993,7 +2195,7 @@ export function makeLaptop(app, opts) {
         : courseOverviewTab(st, cs);
 
     paint(
-      head('Course', 'Condition is read live from the turf. Mowing, raking and repairs happen out on the grass — the laptop plans and pays.',
+      head('Course', 'Condition is read live from the turf. Mowing, raking and repairs happen out on the grass - the laptop plans and pays.',
         opts.openCourseEditor
           ? primaryBtn('Open Course Editor', () => askConfirm(
             'Head to the works desk? The laptop closes and the course opens under the editing camera.',
@@ -2101,7 +2303,7 @@ export function makeLaptop(app, opts) {
               el('div', { class: 'lt-prodmeta', text: `${tier.capacity} seats | ${Math.round(cart.condition)}% condition | ${Math.round(cart.batteryPercent)}% battery | ${cart.trips} trips${assignedStaff ? ` | ${assignedStaff.name}` : ''}` })),
             chip(statusLabel(cart.status), statusTone(cart.status))),
           el('div', { class: 'lt-fleetactions' },
-            miniAction('Park', 'Return this unassigned cart to its authored fleet slot.', cart.status === 'assigned', () => {
+            miniAction('Park', 'Send this spare cart back to its parking space.', cart.status === 'assigned', () => {
               const result = parkGolfCart(st, cart.id);
               toast(result.ok ? `${cart.id.toUpperCase()} parked at the service bay.` : result.reason, result.ok ? '' : 'warn');
               render();
@@ -2194,15 +2396,15 @@ export function makeLaptop(app, opts) {
       const targetHeight = pol?.[key]?.mowHeightMm;
       if (summary.wear >= 20) return {
         label: 'Aerate', aerate: true,
-        detail: `Wear is ${summary.wear}% — aeration directly relieves this compaction.`,
+        detail: `Wear is ${summary.wear}% - aeration directly relieves this compaction.`,
       };
       if (summary.moisture < 35) return {
         label: 'Increase water',
-        detail: `Moisture is ${summary.moisture}% — increase this zone's irrigation order below.`,
+        detail: `Moisture is ${summary.moisture}% - increase this zone's irrigation order below.`,
       };
       if (summary.nutrients < 35) return {
         label: 'Feed at dawn',
-        detail: `Nutrients are ${summary.nutrients}% — increase this zone's fertilizer order below.`,
+        detail: `Nutrients are ${summary.nutrients}% - increase this zone's fertilizer order below.`,
       };
       if (targetHeight && summary.heightMm > targetHeight * 1.35) return {
         label: 'Mow at dawn',
@@ -2210,7 +2412,7 @@ export function makeLaptop(app, opts) {
       };
       return {
         label: 'Rest / monitor',
-        detail: `Health is ${summary.health}% with ${summary.wear}% wear — adjust care below and give it time.`,
+        detail: `Health is ${summary.health}% with ${summary.wear}% wear - adjust care below and give it time.`,
       };
     };
 
@@ -2224,13 +2426,13 @@ export function makeLaptop(app, opts) {
       return el('div', { class: 'lt-order' },
         el('span', { class: 'lt-alerticon', text: diseased ? '🦠' : '🌱' }),
         el('div', { class: 'lt-orderbody' },
-          el('div', { class: 'lt-ordername', text: `${p.section.name || 'Section'} — ${p.status}` }),
+          el('div', { class: 'lt-ordername', text: `${p.section.name || 'Section'} - ${p.status}` }),
           el('div', { class: 'lt-prodmeta', text: p.diagnosis || recommendation.detail })),
         chip(area),
         chip(`Health ${p.summary.health}%`, p.summary.health < 45 ? 'bad' : 'warn'),
         diseased ? el('button', {
           class: 'lt-mini',
-          text: `Treat — ${formatMoney(treatCost)}`,
+          text: `Treat - ${formatMoney(treatCost)}`,
           disabled: cashOf() < treatCost ? 'disabled' : undefined,
           onclick: () => askConfirm(`Send the crew over with fungicide for ${formatMoney(treatCost)}?`, 'Treat it', () => {
             const res = treatSection(st, p.section);
@@ -2238,11 +2440,11 @@ export function makeLaptop(app, opts) {
           }),
         }) : recommendation.aerate ? el('button', {
           class: 'lt-mini',
-          text: `Aerate — ${formatMoney(aerateCost)}`,
+          text: `Aerate - ${formatMoney(aerateCost)}`,
           disabled: cashOf() < aerateCost ? 'disabled' : undefined,
           onclick: () => askConfirm(`Aerate ${p.section.name || 'this section'} for ${formatMoney(aerateCost)}?`, 'Aerate it', () => {
             const res = aerateSection(st, p.section);
-            toast(res?.ok ? 'Cores pulled — the turf breathes again.' : (res?.reason || 'Could not aerate it.'), res?.ok ? '' : 'warn');
+            toast(res?.ok ? 'Cores pulled - the turf breathes again.' : (res?.reason || 'Could not aerate it.'), res?.ok ? '' : 'warn');
           }),
         }) : word(recommendation.label, 'warn'));
     };
@@ -2259,7 +2461,7 @@ export function makeLaptop(app, opts) {
         ? treatSectionCost(st, problem.section)
         : problem.summary.wear >= 20 ? aerateSectionCost(st, problem.section) : 0), 0);
 
-    // the crew's standing orders — the sliders write straight into the policy the crew reads at dawn
+    // the crew's standing orders - the sliders write straight into the policy the crew reads at dawn
     const ZONE_RANGE = {
       green: { mow: [3, 7], label: 'Greens' },
       tee: { mow: [8, 14], label: 'Tees' },
@@ -2294,13 +2496,13 @@ export function makeLaptop(app, opts) {
         stat('Priority Cost', formatMoney(priorityCost), 'all visible treatment buttons'),
       ),
       report && report.skipped && report.skipped.length
-        ? errBox(`The crew ran out of hours this morning — ${report.skipped.length} job${report.skipped.length === 1 ? '' : 's'} went undone. Hire groundskeepers or ask for less.`)
+        ? errBox(`The crew ran out of hours this morning - ${report.skipped.length} job${report.skipped.length === 1 ? '' : 's'} went undone. Hire groundskeepers or ask for less.`)
         : row(meta(`Crew: you + ${gks.length} groundskeeper${gks.length === 1 ? '' : 's'} · ${crewHours.toFixed(1)} hours a morning`)),
       sect(`Priority Jobs (${problems.length + chores.length} shown / ${allProblems.length + chores.length} total)`),
       problems.length || chores.length
         ? el('div', { class: 'lt-orderlist' }, ...problems.map(problemRow), ...chores)
         : empty('Nothing needs doing. Enjoy it while it lasts.'),
-      pol ? sect('Crew standing orders — followed at dawn') : null,
+      pol ? sect('Crew standing orders - followed at dawn') : null,
       pol ? card(...Object.keys(ZONE_RANGE).map(policyRow)) : null,
     ];
   }
@@ -2338,7 +2540,7 @@ export function makeLaptop(app, opts) {
           el('span', { class: 'lt-holename', text: h.name || `Hole ${i + 1}` }),
           word(isOpen ? 'Open' : 'Closed', isOpen ? 'ok' : 'warn')),
         map,
-        el('div', { class: 'lt-listsub', text: routed ? `Par ${holePar(st.course, h)} · ${Math.round(holeDistanceYd(h))} yd${!isOpen && h.daysLeft > 0 ? ` · reopens in ${h.daysLeft} day${h.daysLeft === 1 ? '' : 's'}` : ''}` : 'Unrouted — draw it in the editor.' }),
+        el('div', { class: 'lt-listsub', text: routed ? `Par ${holePar(st.course, h)} · ${Math.round(holeDistanceYd(h))} yd${!isOpen && h.daysLeft > 0 ? ` · reopens in ${h.daysLeft} day${h.daysLeft === 1 ? '' : 's'}` : ''}` : 'Unrouted - draw it in the editor.' }),
         el('div', { class: 'lt-holebtns' },
           isOpen && h.pins && h.pins.A
             ? el('span', { style: 'display:flex;gap:3px;align-items:center' },
@@ -2360,7 +2562,7 @@ export function makeLaptop(app, opts) {
             ? el('button', {
               class: 'lt-mini',
               text: 'Rest',
-              title: 'Close this hole for one day — golfers route around it and it reopens on its own.',
+              title: 'Close this hole for one day - golfers route around it and it reopens on its own.',
               onclick: () => askConfirm(`Rest ${h.name || `hole ${i + 1}`} for a day? Golfers route around it; it reopens on its own.`, 'Rest the hole', () => {
                 h.status = HOLE_STATUS.RENOVATION;
                 h.daysLeft = 1;
@@ -2382,12 +2584,12 @@ export function makeLaptop(app, opts) {
     };
     return [
       el('div', { class: 'lt-holegrid' }, ...st.course.holes.map(holeCard)),
-      note('Redesigning holes — terrain, zones, new routing — happens in the Course Editor.'),
+      note('Redesigning holes - terrain, zones, new routing - happens in the Course Editor.'),
     ];
   }
 
   // ==========================================================================================
-  // UPGRADES — course & business improvements, amenities, staff, equipment. Money → lasting.
+  // UPGRADES - course & business improvements, amenities, staff, equipment. Money → lasting.
   // ==========================================================================================
   function pageUpgrades() {
     const st = app.state;
@@ -2436,7 +2638,7 @@ export function makeLaptop(app, opts) {
               title: affordable ? undefined : 'Not enough cash',
               onclick: () => askConfirm(`Buy ${u.name} for ${formatMoney(u.cost)}? It bills once and starts working tomorrow.`, 'Buy it', () => {
                 const res = purchaseUpgrade(st, id);
-                toast(res.ok ? `${u.name} — done.` : res.reason, res.ok ? '' : 'warn');
+                toast(res.ok ? `${u.name} - done.` : res.reason, res.ok ? '' : 'warn');
               }),
             })));
   }
@@ -2458,10 +2660,10 @@ export function makeLaptop(app, opts) {
           el('div', { class: 'lt-prodmeta', text: `stage ${formatMoney(spec.cost)} · entries ${formatMoney(spec.entryRevenue)} · needs ${spec.conditionReq}+ condition on the day` })),
         gate.ok
           ? el('button', {
-            class: 'lt-primary', text: `Schedule — ${formatMoney(spec.cost)}`,
+            class: 'lt-primary', text: `Schedule - ${formatMoney(spec.cost)}`,
             onclick: () => askConfirm(`Stage the ${spec.name}? ${formatMoney(spec.cost)} now; the field arrives in ${spec.leadDays} days.`, 'Put it on', () => {
               const res = scheduleTournament(st, tier);
-              toast(res.ok ? `${spec.name} — day ${res.day + 1}. Get the course ready.` : res.reason, res.ok ? '' : 'warn');
+              toast(res.ok ? `${spec.name} - day ${res.day + 1}. Get the course ready.` : res.reason, res.ok ? '' : 'warn');
             }),
           })
           : chip(gate.reason, ''));
@@ -2469,7 +2671,7 @@ export function makeLaptop(app, opts) {
     const offerRow = (o) => el('div', { class: 'lt-order' },
       el('span', { class: 'lt-alerticon', text: '🤝' }),
       el('div', { class: 'lt-orderbody' },
-        el('div', { class: 'lt-ordername', text: `${o.company} outing — ${o.size} players` }),
+        el('div', { class: 'lt-ordername', text: `${o.company} outing - ${o.size} players` }),
         el('div', { class: 'lt-prodmeta', text: `pays ${formatMoney(o.payout)} · plays day ${o.day + 1}` })),
       el('button', {
         class: 'lt-primary', text: 'Accept',
@@ -2482,15 +2684,15 @@ export function makeLaptop(app, opts) {
         class: 'lt-mini lt-cancel', text: 'Decline',
         onclick: () => askConfirm(`Turn down ${o.company}? The offer does not come back.`, 'Decline it', () => {
           declineOuting(st, o.id);
-          toast(`${o.company} will go elsewhere.`);
+          toast(t('laptop.willGoElsewhere', { company: o.company }));
         }),
       }));
 
     return [
-      row(meta(`Prestige ${Math.round(prestige)} — the golf world's opinion. It rises with wins and good seasons, and it unlocks the locked cards.`)),
+      row(meta(`Prestige ${Math.round(prestige)} - the golf world's opinion. It rises with wins and good seasons, and it unlocks the locked cards.`)),
       el('div', { class: 'lt-upgrid' }, ...Object.entries(UPGRADES).map(([id, u]) => upgradeCard(st, id, u))),
       ev
-        ? card(el('div', { class: 'lt-minihead', text: `🏆 ${TOURNAMENTS[ev.tier]?.name || 'Tournament'} — ${ev.day - cal.dayAbs === 0 ? 'today' : `in ${ev.day - cal.dayAbs} day${ev.day - cal.dayAbs === 1 ? '' : 's'}`}` }),
+        ? card(el('div', { class: 'lt-minihead', text: `🏆 ${TOURNAMENTS[ev.tier]?.name || 'Tournament'} - ${ev.day - cal.dayAbs === 0 ? 'today' : `in ${ev.day - cal.dayAbs} day${ev.day - cal.dayAbs === 1 ? '' : 's'}`}` }),
           row(meta(`Needs condition ${TOURNAMENTS[ev.tier]?.conditionReq}+ on the day. Current: ${Math.round(clubRatings(st).condition)}.`)))
         : null,
       hostReady ? sect('Events you can stage') : null,
@@ -2510,11 +2712,11 @@ export function makeLaptop(app, opts) {
       return el('div', { class: 'lt-order' },
         el('span', { class: 'lt-alerticon', text: AMENITY_ICON[key] || '🏛' }),
         el('div', { class: 'lt-orderbody' },
-          el('div', { class: 'lt-ordername', text: `${spec.name} — level ${level} of ${spec.maxLevel}` }),
+          el('div', { class: 'lt-ordername', text: `${spec.name} - level ${level} of ${spec.maxLevel}` }),
           el('div', { class: 'lt-prodmeta', text: `upkeep ${formatMoney(spec.upkeepPerLevel)}/day per level` })),
         maxed ? chip('At its best', 'gold')
           : el('button', {
-            class: 'lt-primary', text: `Upgrade — ${formatMoney(cost)}`,
+            class: 'lt-primary', text: `Upgrade - ${formatMoney(cost)}`,
             disabled: cashOf() < cost ? 'disabled' : undefined,
             onclick: () => askConfirm(`Take the ${spec.name.toLowerCase()} to level ${level + 1} for ${formatMoney(cost)}?`, 'Build it', () => {
               const res = upgradeAmenity(st, key);
@@ -2549,14 +2751,14 @@ export function makeLaptop(app, opts) {
           });
       } else if (isNext) {
         action = el('button', {
-          class: 'lt-primary', text: `Build — ${formatMoney(spec.cost)}`,
+          class: 'lt-primary', text: `Build - ${formatMoney(spec.cost)}`,
           disabled: cashOf() < spec.cost ? 'disabled' : undefined,
           onclick: () => askConfirm(
             `Start the ${spec.label} shop fit-out for ${formatMoney(spec.cost)}? Construction takes ${spec.days} days.`,
             'Start construction',
             () => {
               const result = beginShopExpansion(st, spec.id);
-              toast(result.ok ? `${spec.label} construction started — ${spec.days} days.` : result.reason, result.ok ? '' : 'warn');
+              toast(result.ok ? `${spec.label} construction started - ${spec.days} days.` : result.reason, result.ok ? '' : 'warn');
               if (result.ok) opts.refreshShopProgression?.();
               render();
             },
@@ -2591,7 +2793,7 @@ export function makeLaptop(app, opts) {
           disabled: cashOf() < s.cost ? 'disabled' : undefined,
           onclick: () => {
             const res = placeOrder(st, s.id, 1);
-            toast(res.ok ? `${s.name} ordered — place it by hand when it lands.` : res.reason, res.ok ? '' : 'warn');
+            toast(res.ok ? `${s.name} ordered - place it by hand when it lands.` : res.reason, res.ok ? '' : 'warn');
             if (res.ok) click();
             render();
           },
@@ -2623,7 +2825,7 @@ export function makeLaptop(app, opts) {
       // separate button with a separate confirmation, because it is now a
       // separate thing: the money buys the material, fitting it is a later
       // decision you make in the room.
-      const buttonLabel = owned ? 'Fit it' : `Buy — ${formatMoney(variant.cost)}`;
+      const buttonLabel = owned ? 'Fit it' : `Buy - ${formatMoney(variant.cost)}`;
       return el('div', { class: 'lt-order' },
         el('span', { class: 'lt-alerticon', text: quality.level >= 5 ? '✦' : quality.level >= 3 ? '◆' : '▦' }),
         el('div', { class: 'lt-orderbody' },
@@ -2637,7 +2839,7 @@ export function makeLaptop(app, opts) {
             onclick: () => askConfirm(
               owned
                 ? `Fit the ${variant.qualityLabel.toLowerCase()} ${variant.finishLabel.toLowerCase()} package? You already own the material; fitting is free and can be redone.`
-                : `Buy ${variant.qualityLabel.toLowerCase()} ${variant.finishLabel.toLowerCase()} for ${formatMoney(variant.cost)}? It goes into your materials — fit it when you are ready.`,
+                : `Buy ${variant.qualityLabel.toLowerCase()} ${variant.finishLabel.toLowerCase()} for ${formatMoney(variant.cost)}? It goes into your materials - fit it when you are ready.`,
               owned ? 'Fit it' : 'Buy the material',
               () => {
                 const res = owned
@@ -2651,8 +2853,8 @@ export function makeLaptop(app, opts) {
                 toast(
                   res.ok
                     ? (owned
-                      ? `${variant.finishLabel} — ${variant.qualityLabel} fitted.`
-                      : `${variant.finishLabel} — ${variant.qualityLabel} delivered to your materials.`)
+                      ? `${variant.finishLabel} - ${variant.qualityLabel} fitted.`
+                      : `${variant.finishLabel} - ${variant.qualityLabel} delivered to your materials.`)
                     : res.reason,
                   res.ok ? '' : 'warn',
                 );
@@ -2668,15 +2870,15 @@ export function makeLaptop(app, opts) {
         shopProgress.pending?.blocked ? errBox(`Construction waiting: ${shopProgress.pending.blocker}`) : null,
       ),
       el('div', { class: 'lt-shop-tier-grid' }, ...SHOP_TIER_ORDER.map(shopTierCard)),
-      sect('Construction finishes — municipal to luxury country club'),
+      sect('Construction finishes - municipal to luxury country club'),
       note('Choose a construction family and one of five material grades. Buying puts the material in your store; fitting it is a separate, free step you can redo whenever you like.'),
       categoryTabs,
       qualityTabs,
-      row(meta(`Installed ${category.label.toLowerCase()}: ${installed?.finishLabel || 'None'} — ${installed?.qualityLabel || 'Unknown'}. Viewing ${quality.label.toLowerCase()} workmanship: ${quality.visual}.`)),
+      row(meta(`Installed ${category.label.toLowerCase()}: ${installed?.finishLabel || 'None'} - ${installed?.qualityLabel || 'Unknown'}. Viewing ${quality.label.toLowerCase()} workmanship: ${quality.visual}.`)),
       el('div', { class: 'lt-orderlist' }, ...category.finishes.map(finishRow)),
       sect('Amenities'),
       el('div', { class: 'lt-orderlist' }, ...Object.keys(AMENITIES).map(amenityRow)),
-      sect('Decor & fixtures — order here, place them in the room'),
+      sect('Decor & fixtures - order here, place them in the room'),
       el('div', { class: 'lt-orderlist' }, ...decorSkus.map(decorRow)),
     ];
   }
@@ -2729,7 +2931,7 @@ export function makeLaptop(app, opts) {
       chip(roleImpact[c.role] || 'club service'),
       el('button', {
         class: 'lt-primary',
-        text: `Hire — ${formatMoney(c.wage)}/day`,
+        text: `Hire - ${formatMoney(c.wage)}/day`,
         onclick: () => askConfirm(`Hire ${c.name} as ${ROLE_LABEL[c.role]} at ${formatMoney(c.wage)} a day?`, 'Hire them', () => {
           const res = hireStaff(st, c.id);
           toast(res.ok ? `${c.name} starts today.` : res.reason, res.ok ? '' : 'warn');
@@ -2768,7 +2970,7 @@ export function makeLaptop(app, opts) {
           meta('a new set lifts the fleet average'),
           el('button', {
             class: 'lt-primary',
-            text: 'Buy 1 set — $220',
+            text: 'Buy 1 set - $220',
             disabled: cashOf() < 220 ? 'disabled' : undefined,
             onclick: () => askConfirm('Buy one fresh rental set for $220?', 'Buy the set', () => {
               const res = buyRentalSets(st, 1);
@@ -2781,15 +2983,15 @@ export function makeLaptop(app, opts) {
         ? card(
           el('div', { class: 'lt-minihead', text: 'Tractor' }),
           row(tractorFixed ? chip('Running', 'ok') : chip('Broken down', 'bad'),
-            meta(tractorFixed ? 'parked by the shed' : `still needs: ${tractorMissing.map((s2) => STEP_LABEL[s2]).join(', ')} — hands-on at the machine`)),
+            meta(tractorFixed ? 'parked by the shed' : `still needs: ${tractorMissing.map((s2) => STEP_LABEL[s2]).join(', ')} - hands-on at the machine`)),
         )
         : null,
-      note('Turf machinery upgrades (mowers, irrigation) live under the Course tab — they are course improvements.'),
+      note('Turf machinery upgrades (mowers, irrigation) live under the Course tab - they are course improvements.'),
     ];
   }
 
   // ==========================================================================================
-  // BUSINESS — finances, reviews, memberships, and marketing in one purposeful desk
+  // BUSINESS - finances, reviews, memberships, and marketing in one purposeful desk
   // ==========================================================================================
   function pageFinances() {
     const st = app.state;
@@ -2832,7 +3034,7 @@ export function makeLaptop(app, opts) {
       const label = LEDGER_LABEL[t.key] || t.key;
       return el('tr', { title: `Balance after: ${exactMoney(t.bal)}` },
         el('td', { class: 'lt-listsub', text: `Day ${c.dayOfSeason} · ${clock12(c.minuteOfDay)}` }),
-        el('td', {}, el('span', { style: 'font-weight:600', text: t.kind === 'refund' ? `${label} — refunded` : label })),
+        el('td', {}, el('span', { style: 'font-weight:600', text: t.kind === 'refund' ? `${label} - refunded` : label })),
         el('td', {}, word(t.kind === 'exp' ? 'Expense' : t.kind === 'refund' ? 'Refund' : 'Income', t.kind === 'exp' ? '' : t.kind === 'refund' ? 'warn' : 'ok')),
         el('td', { class: 'lt-num' },
           el('div', { class: t.kind === 'exp' ? 'lt-neg' : 'lt-pos', text: `${t.kind === 'exp' ? '−' : '+'}${exactMoney(t.amt)}` }),
@@ -2926,7 +3128,7 @@ export function makeLaptop(app, opts) {
         el('span', { class: 'lt-num', text: exactMoney(tax?.remitted || 0) })) : null,
       rate > 0
         ? meta(`${j.locality} · charged on merchandise at checkout, not on green fees. Paid to the state ${dueIn === 0 ? 'at midnight tonight' : dueIn === 1 ? 'tomorrow at midnight' : `in ${dueIn} days`}. This money is inside your cash balance and is not yours.`)
-        : meta(`${j.locality} — nothing is withheld from a ticket here.`),
+        : meta(`${j.locality} - nothing is withheld from a ticket here.`),
     );
   }
 
@@ -2967,12 +3169,12 @@ export function makeLaptop(app, opts) {
 
     return [
       el('div', { class: 'lt-stats lt-stats4' },
-        stat('Guest Rating', summary.count ? `${summary.average}★` : '—', summary.count ? `${summary.count} on file` : 'no reviews yet', summary.average >= 4 ? 'ok' : summary.average > 0 && summary.average < 3 ? 'bad' : ''),
+        stat('Guest Rating', summary.count ? `${summary.average}★` : '-', summary.count ? `${summary.count} on file` : 'no reviews yet', summary.average >= 4 ? 'ok' : summary.average > 0 && summary.average < 3 ? 'bad' : ''),
         stat('Reputation', `${Math.round(st.club.reputation)} / 100`, 'reviews move it after every visit'),
-        stat('Strongest', summary.best ? summary.best.label : '—', summary.best ? `${Math.round(summary.best.score * 100)}% now` : 'waiting for gameplay'),
+        stat('Strongest', summary.best ? summary.best.label : '-', summary.best ? `${Math.round(summary.best.score * 100)}% now` : 'waiting for gameplay'),
         stat('Weakest', summary.worst
           ? (summary.worst.id === 'exterior' ? 'Club exterior' : summary.worst.label)
-          : '—', summary.worst ? `${Math.round(summary.worst.score * 100)}% now` : 'waiting for gameplay', summary.worst && summary.worst.score < 0.45 ? 'bad' : 'warn'),
+          : '-', summary.worst ? `${Math.round(summary.worst.score * 100)}% now` : 'waiting for gameplay', summary.worst && summary.worst.score < 0.45 ? 'bad' : 'warn'),
       ),
       card(
         el('div', { class: 'lt-minihead', text: 'What guests experience right now' }),
@@ -3039,7 +3241,7 @@ export function makeLaptop(app, opts) {
       el('div', { class: 'lt-stats lt-stats4' },
         stat('Members', String(roster.length), `${recentJoins} joined in the last 7 days`),
         stat('Daily Dues', formatMoney(dailyDues), 'posted when the books close', dailyDues > 0 ? 'ok' : ''),
-        stat('Satisfaction', roster.length ? `${Math.round(averageSatisfaction)}%` : '—', roster.length ? 'all active members' : 'no active members', averageSatisfaction >= 65 ? 'ok' : averageSatisfaction < 40 ? 'bad' : 'warn'),
+        stat('Satisfaction', roster.length ? `${Math.round(averageSatisfaction)}%` : '-', roster.length ? 'all active members' : 'no active members', averageSatisfaction >= 65 ? 'ok' : averageSatisfaction < 40 ? 'bad' : 'warn'),
         stat('At Risk', String(atRisk.length), atRisk.length ? 'below 35% satisfaction' : 'nobody below 35%', atRisk.length ? 'bad' : 'ok'),
       ),
       el('div', { class: 'lt-cols' }, ...Object.keys(TIERS).map(tierRow)),
@@ -3142,7 +3344,7 @@ export function makeLaptop(app, opts) {
 
     // master volume — the audio engine's own persisted setting, not a fake knob
     const audio = app.audio;
-    const volOut = el('span', { class: 'lt-mupct', text: audio ? `${Math.round((audio.getVolume ? audio.getVolume() : 0.8) * 100)}%` : '—' });
+    const volOut = el('span', { class: 'lt-mupct', text: audio ? `${Math.round((audio.getVolume ? audio.getVolume() : 0.8) * 100)}%` : '-' });
     const volRange = el('input', {
       type: 'range', min: '0', max: '100', step: '5', class: 'lt-range', [FIELD_KEY]: 'settings-volume',
       value: String(Math.round((audio && audio.getVolume ? audio.getVolume() : 0.8) * 100)),
@@ -3194,19 +3396,21 @@ export function makeLaptop(app, opts) {
       card(
         el('div', { class: 'lt-minihead', text: 'Game' }),
         checkRow('Notification badge', 'Show the red unread count on the bell.', prefs.notifBadge !== false,
-          (e) => { prefs.notifBadge = !!e.target.checked; toast(prefs.notifBadge ? 'Badge on.' : 'Badge hidden — the bell still keeps the list.'); render(); }),
+          (e) => { prefs.notifBadge = !!e.target.checked; toast(prefs.notifBadge ? 'Badge on.' : 'Badge hidden - the bell still keeps the list.'); render(); }),
         checkRow('Confirm every purchase', 'When off, stock orders under $100 skip the confirmation step.', prefs.confirmOrders !== false,
           (e) => { prefs.confirmOrders = !!e.target.checked; toast(prefs.confirmOrders ? 'Every order asks first.' : 'Small orders go straight through.'); }),
         row(el('span', { class: 'lt-mulabel', text: 'Club name' }),
           // Committing on Enter fires change while the field is still focused, and the
           // render that follows used to delete the element under the caret.
+          // VERIFY2_K: no length cap let a 58-character single word through to
+          // every branded surface; 40 covers the longest real club names.
           keepField('settings-clubname', () => el('input', {
-            class: 'lt-input', type: 'text', value: st.clubName || '',
+            class: 'lt-input', type: 'text', value: st.clubName || '', maxlength: 40,
             onchange: (e) => {
-              const v = e.target.value.trim();
-              if (!v) { toast('The club needs a name.', 'warn'); e.target.value = st.clubName; return; }
+              const v = e.target.value.trim().slice(0, 40);
+              if (!v) { toast(t('laptop.needsName'), 'warn'); e.target.value = st.clubName; return; }
               st.clubName = v;
-              toast(`The club is now ${v}.`);
+              toast(t('laptop.clubRenamed', { name: v }));
               render();
             },
           }), (node) => { node.value = st.clubName || ''; })),
@@ -3244,6 +3448,74 @@ export function makeLaptop(app, opts) {
           }),
       ),
       note('These preferences change the physical register interaction. They are saved with this club.'),
+      // B5 (Goal 24) — A WAY OUT WHEN THE COUNTER WEDGES.
+      //
+      // "When the game wedges or I do not want them there, I need a way to clear
+      // them. Put it on the laptop." It lives under Checkout rather than on a
+      // business page because it is not a business decision — it voids the
+      // ticket, puts the stock back, and takes the sale with it.
+      card(
+        el('div', { class: 'lt-minihead', text: t('laptop.counterSection') }),
+        row(
+          el('span', { class: 'lt-mulabel', text: t('laptop.sendCustomerAway') }),
+          // `lt-primary lt-danger` is the existing pair for a destructive
+          // action; `lt-btn` (my first guess) has no rule in styles.css at all
+          // and would have drawn as an unstyled browser button on the glass.
+          el('button', {
+            class: 'lt-primary lt-danger',
+            text: t('laptop.clearCounter'),
+            title: 'Voids the open ticket, returns the goods to the shelf, and clears whoever is at the till.',
+            onclick: () => askConfirm(
+              t('laptop.clearCounterAsk'),
+              t('laptop.clearCounter'),
+              () => {
+                const name = opts.clearCounterCustomer?.();
+                // Through t(), like every other message on this screen: a string
+                // handed straight to toast() reaches the player in English on
+                // every locale, which is what the player-strings ratchet counts.
+                toast(name ? t('laptop.counterCleared', { name }) : t('laptop.counterEmpty'),
+                  name ? 'good' : 'warn');
+                render();
+              },
+            ),
+          }),
+        ),
+        meta(t('laptop.clearCounterNote')),
+      ),
+      // P0 (Goal 25) — THE MANAGER'S KEY FOR THE CHECKOUT INTERLOCK.
+      //
+      // When the settlement journal cannot be trusted the till refuses to bank
+      // and says "Checkout records are unavailable right now. Try again." That
+      // refusal is correct and stays. Until now there was no way to answer it:
+      // nothing in the game cleared the latch, it survived every save, and the
+      // sale it told the player to resolve had already been discarded by the
+      // same repair that set the latch. The owner hit it and his save could not
+      // trade again.
+      //
+      // Offered ONLY while the latch is actually set, because a button that
+      // clears nothing teaches the player it does nothing. Destructive styling
+      // and a confirm, like clear-counter above: this accepts a loss.
+      ...(opts.checkoutRecordsWedged?.() ? [card(
+        el('div', { class: 'lt-minihead', text: t('laptop.checkoutRecordsSection') }),
+        row(
+          el('span', { class: 'lt-mulabel', text: t('laptop.checkoutRecordsWedged') }),
+          el('button', {
+            class: 'lt-primary lt-danger',
+            text: t('laptop.resolveCheckoutRecords'),
+            onclick: () => askConfirm(
+              t('laptop.resolveCheckoutRecordsAsk'),
+              t('laptop.resolveCheckoutRecords'),
+              () => {
+                const done = opts.resolveCheckoutRecords?.();
+                toast(done ? t('laptop.checkoutRecordsResolved') : t('laptop.checkoutRecordsNotWedged'),
+                  done ? 'good' : 'warn');
+                render();
+              },
+            ),
+          }),
+        ),
+        meta(t('laptop.resolveCheckoutRecordsNote')),
+      )] : []),
     ];
 
     paint(
@@ -3260,6 +3532,7 @@ export function makeLaptop(app, opts) {
   const PAGES = {
     home: pageHome,
     reservations: pageReservations,
+    mail: pageMail,
     shop: pageShop,
     course: pageCourse,
     upgrades: pageUpgrades,
@@ -3396,7 +3669,7 @@ export function makeLaptop(app, opts) {
         { page: 'upgrades', tab: 'staff', anchor: e.name }, [e.role, ROLE_LABEL[e.role], 'employee', 'staff']);
     }
     for (const c of st.staff?.market || []) {
-      add('Candidate', c.name, `Available to hire — ${ROLE_LABEL[c.role] || c.role} at ${formatMoney(c.wage)}/day`,
+      add('Candidate', c.name, `Available to hire - ${ROLE_LABEL[c.role] || c.role} at ${formatMoney(c.wage)}/day`,
         { page: 'upgrades', tab: 'staff', anchor: c.name }, [c.role, ROLE_LABEL[c.role], 'hire', 'candidate']);
     }
 
@@ -3618,15 +3891,15 @@ export function makeLaptop(app, opts) {
     const mixed = new Set(hits.map((h) => h.kind)).size >= 2;
 
     paint(
-      head(`Search — “${query}”`, total
-        ? `${total} match${total === 1 ? '' : 'es'} in ${index.length} indexed items. Pick one to go there — the match is flashed when you land.`
+      head(`Search - “${query}”`, total
+        ? `${total} match${total === 1 ? '' : 'es'} in ${index.length} indexed items. Pick one to go there - the match is flashed when you land.`
         : 'Nothing matches. Try a product, a person, a page, a material, or what the thing does.'),
       showFilters ? el('div', { class: 'lt-hitfilters' }, ...groups.map((g) => el('button', {
         class: `lt-tab ${searchFilter === g.id ? 'on' : ''}`,
         text: `${g.label} ${g.count}`,
         onclick: () => { searchFilter = g.id; searchSelection = 0; click(); render(); },
       }))) : null,
-      droppedFilter ? row(meta('That filter has nothing under this query — showing everything.')) : null,
+      droppedFilter ? row(meta('That filter has nothing under this query - showing everything.')) : null,
       hits.length
         ? el('div', { class: 'lt-hitrail' }, ...hits.map((hit, i) => searchResultRow(hit, i, mixed)))
         : empty(total ? 'Nothing under that filter.' : 'No matches'),

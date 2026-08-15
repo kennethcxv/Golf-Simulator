@@ -39,7 +39,7 @@ test('...leaving real room for the bezel and a strip of keyboard', () => {
 
 test('you sit about arm’s length from the glass, not with your nose on it', () => {
   const inches = seatAt(16 / 9) * YD_TO_IN;
-  assert.ok(inches > 12, `${inches.toFixed(1)}" — a reading distance, not a magnifying glass`);
+  assert.ok(inches > 12, `${inches.toFixed(1)}" - a reading distance, not a magnifying glass`);
   assert.ok(inches < 26, 'but close enough that the screen is the point');
 });
 
@@ -48,7 +48,7 @@ test('THE LENS IS WHY. The wide walk-mode lens puts your face in the keyboard', 
   // when you sit down, and it is why the first attempt looked wrong while being correct.
   const wide = seatAt(16 / 9, WALK_FOV) * YD_TO_IN;
   const long = seatAt(16 / 9, LAPTOP_FOV) * YD_TO_IN;
-  assert.ok(wide < 10, `at ${WALK_FOV}° you must sit ${wide.toFixed(1)}" away — inside the keyboard`);
+  assert.ok(wide < 10, `at ${WALK_FOV}° you must sit ${wide.toFixed(1)}" away - inside the keyboard`);
   assert.ok(long > wide * 1.8, `at ${LAPTOP_FOV}° you sit ${long.toFixed(1)}" back, and the perspective settles`);
 });
 
@@ -76,5 +76,5 @@ test('the interface and the panel are the same shape, so no glyph is stretched',
   const uiAspect = 1024 / 640;
   const panelAspect = LAPTOP.screen.w / LAPTOP.screen.h;
   assert.ok(Math.abs(uiAspect - panelAspect) < 0.005,
-    `interface ${uiAspect.toFixed(3)} vs panel ${panelAspect.toFixed(3)} — must match`);
+    `interface ${uiAspect.toFixed(3)} vs panel ${panelAspect.toFixed(3)} - must match`);
 });

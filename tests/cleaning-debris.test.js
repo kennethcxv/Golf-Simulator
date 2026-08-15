@@ -36,7 +36,7 @@ test('sweeping moves debris downrange instead of destroying it', () => {
   const after = totalDebris(s);
 
   assert.ok(Math.abs(after - before) < 1e-6,
-    `sweeping destroyed ${(before - after).toFixed(3)} of debris — it must only move it`);
+    `sweeping destroyed ${(before - after).toFixed(3)} of debris - it must only move it`);
   assert.ok(debrisState(s)[0].x > 0, 'the debris must have travelled the way it was swept');
 });
 
@@ -46,7 +46,7 @@ test('debris never gets launched across the room in one stroke', () => {
   debrisState(s).push({ x: 0, z: 0, a: 1 });
   sweepAt(s, 0, 0, 1, 0, 0.5, 1.0); // a long, greedy stroke
   assert.ok(debrisState(s)[0].x < 1.2,
-    `debris flew to ${debrisState(s)[0].x.toFixed(2)} yd — a broom is not a golf club`);
+    `debris flew to ${debrisState(s)[0].x.toFixed(2)} yd - a broom is not a golf club`);
 });
 
 test('repeated sweeps consolidate scattered debris into fewer, denser piles', () => {
@@ -106,12 +106,12 @@ test('the final conserved debris pickup completes generic cleanup exactly once',
   assert.equal(state.reputation.categories.cleanliness, after);
 });
 
-test('the dustpan is forgiving — you do not have to hit the pile exactly', () => {
+test('the dustpan is forgiving - you do not have to hit the pile exactly', () => {
   const s = scene();
   debrisState(s).length = 0;
   debrisState(s).push({ x: 0, z: 0, a: 0.5 });
   const got = collectAt(s, 0.30, 0.18, 0.42); // ~0.35 yd off centre
-  assert.ok(got > 0, 'a near miss should still collect — no pixel hunting');
+  assert.ok(got > 0, 'a near miss should still collect - no pixel hunting');
 });
 
 test('the dustpan does not reach across the room', () => {
@@ -157,7 +157,7 @@ test('the vacuum draws debris toward the intake before it takes it', () => {
   assert.equal(taken, 0, 'debris short of the nozzle must not be consumed at range');
   assert.ok(debrisState(s)[0].x < 0.30, 'it should have been drawn toward the intake');
   assert.ok(debrisState(s)[0].x > 0.16, 'one short pull must not teleport it into the mouth');
-  assert.equal(clusterCount(s), 1, 'it still exists — it is being pulled, not deleted');
+  assert.equal(clusterCount(s), 1, 'it still exists - it is being pulled, not deleted');
 });
 
 test('the vacuum only consumes debris at the nozzle', () => {

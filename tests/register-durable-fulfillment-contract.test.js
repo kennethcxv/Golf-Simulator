@@ -63,7 +63,7 @@ test('retail retry projects product presentation from durable transaction facts'
     'retry reads each durable item checkpoint instead of replaying every bag action');
   assert.match(
     projection,
-    /item\.bagged[\s\S]*?(?:bagGroup\.add\([^)]*mesh|(?:project|restore|reconcile|rebuild)\w*(?:Item|Product))/i,
+    /item\.bagged[\s\S]*?(?:bagGroup\.add\([^)]*mesh|packMeshIntoBag\(|(?:project|restore|reconcile|rebuild)\w*(?:Item|Product))/i,
     'bagged item flags drive their rendered ownership or placement',
   );
   assert.doesNotMatch(projection, /\b(?:packReceipt|bagItem|handOverGoods)\s*\(/,
@@ -202,8 +202,25 @@ test('separate-handoff products never enter the compact bag-drop scale path', ()
     'separate goods are neither miniaturized nor parented into the paper carrier');
 
   const compactMotion = registerFunction('updateBagDropMotions');
-  assert.match(compactMotion, /multiplyScalar\(0\.38\)/,
-    'the compact visual treatment remains explicit and isolated');
+  // F3 (Full_Goal_16): goods are never miniaturized — they keep their scale
+  // and the carrier's interior shell is what ends their visibility.
+  //
+  // SUPERSEDED IN PART by G4.2 (Full_Goal_17): "Scanned items go into that bag,
+  // one at a time, and STAY VISIBLE in it until the sale completes." This used
+  // to require `mesh.visible = false`, which pinned the disappearance G3
+  // objects to - merely moved to the end of the animation. The carrier's walls
+  // are what should hide the goods, and looking into the mouth should show them
+  // sitting there. So the requirement inverts: they must NOT be switched off.
+  // The no-scale-collapse half of F3 stands and is asserted below.
+  assert.doesNotMatch(compactMotion, /mesh\.visible = false/,
+    'bagged goods stay in the carrier rather than being switched off inside it');
+  // C1 (Goal 19): visible=true is the one packing rule's own guarantee
+  // (tests/bag-drop-nothing-shrinks pins it inside packMeshIntoBag); the
+  // compact path must ROUTE through that rule.
+  assert.match(compactMotion, /packMeshIntoBag\(/,
+    'and they are packed through the one rule, which leaves them visible');
+  assert.doesNotMatch(compactMotion, /multiplyScalar\(0\.(38|48|52)\)|1 - t \* 0\.52/,
+    'no scale collapse anywhere in the compact drop path');
 });
 
 test('separate-handoff products require customer-side contact before their durable commit', () => {

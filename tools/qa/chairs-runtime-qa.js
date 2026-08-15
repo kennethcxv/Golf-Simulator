@@ -107,8 +107,8 @@ async (page) => {
 
   const fixture = await page.evaluate(async ({ production }) => {
     const THREE = await import('three');
-    const { buildPropertyFurnitureVisual } = await import('/src/render3d/clubhouse/propertyFurnitureVisuals.js');
-    const { PRO_SHOP_FURNITURE_SKUS } = await import('/src/data/proShopFurniture.js');
+    const { buildPropertyFurnitureVisual } = await import(new URL('src/render3d/clubhouse/propertyFurnitureVisuals.js', document.baseURI).href);
+    const { PRO_SHOP_FURNITURE_SKUS } = await import(new URL('src/data/proShopFurniture.js', document.baseURI).href);
     const app = window.__fw;
     const scene = app.scene3d.scene;
     scene.getObjectByName('ChairQAFixture')?.removeFromParent();

@@ -54,7 +54,7 @@ test('presence never duplicates an already-due row, and stale ids are ignored', 
   assert.equal(desk.filter((x) => x.id === r.id).length, 1);
 });
 
-test('a pre-rolled no-show who shows up anyway gets listed — reality outranks the roll', () => {
+test('a pre-rolled no-show who shows up anyway gets listed - reality outranks the roll', () => {
   const st = newGame('relaxed', 94);
   const dayStart = Math.floor(st.clock.minutes / 1440) * 1440;
   const r = bookAt(st, 11 * 60, 'Contrarian');

@@ -35,7 +35,7 @@ async (page) => {
 
   const fixture = await page.evaluate(async ([skuIds]) => {
     const app = window.__fw;
-    const { REGISTER } = await import('/src/data/shopLayout.js');
+    const { REGISTER } = await import(new URL('src/data/shopLayout.js', document.baseURI).href);
     const clubhouse = app.scene3d.clubhouse();
     clubhouse.setOrganicWalkins(false);
     clubhouse.clearWalkins();
@@ -83,7 +83,7 @@ async (page) => {
   // "nothing is clipped" and "the POS is not a rotated slab on the right edge"
   // are numbers, not impressions.
   const frameMetrics = async () => page.evaluate(async () => {
-    const THREE = await import('/vendor/three.module.js');
+    const THREE = await import(new URL('vendor/three.module.js', document.baseURI).href);
     const app = window.__fw;
     const clubhouse = app.scene3d.clubhouse();
     const camera = app.scene3d.camera;
@@ -155,7 +155,7 @@ async (page) => {
 
   // --- ring the goods up ---------------------------------------------------
   const projectObject = (query) => page.evaluate(async (q) => {
-    const THREE = await import('/vendor/three.module.js');
+    const THREE = await import(new URL('vendor/three.module.js', document.baseURI).href);
     const app = window.__fw;
     const clubhouse = app.scene3d.clubhouse();
     let found = null;
@@ -224,7 +224,7 @@ async (page) => {
   await shot('03-drawer-open.png');
 
   report.drawer = await page.evaluate(async () => {
-    const THREE = await import('/vendor/three.module.js');
+    const THREE = await import(new URL('vendor/three.module.js', document.baseURI).href);
     const app = window.__fw;
     const clubhouse = app.scene3d.clubhouse();
     const camera = app.scene3d.camera;
@@ -292,7 +292,7 @@ async (page) => {
 
   // finish the cash sale so a card customer can follow
   const plan = await page.evaluate(async () => {
-    const R = await import('/src/sim/register.js');
+    const R = await import(new URL('src/sim/register.js', document.baseURI).href);
     const tx = window.__fw.scene3d.clubhouse().register.getTx();
     const due = R.changeDue(tx);
     return {
@@ -382,7 +382,7 @@ async (page) => {
 
   // How big is the reader, where does it sit, and does the card show?
   report.keys.framing = await page.evaluate(async () => {
-    const THREE = await import('/vendor/three.module.js');
+    const THREE = await import(new URL('vendor/three.module.js', document.baseURI).href);
     const app = window.__fw;
     const camera = app.scene3d.camera;
     let terminal = null;
@@ -498,7 +498,7 @@ async (page) => {
 
   // key the real total and confirm with green
   const cents = await page.evaluate(async () => {
-    const { totalOf } = await import('/src/sim/register.js');
+    const { totalOf } = await import(new URL('src/sim/register.js', document.baseURI).href);
     return Math.round(totalOf(window.__fw.scene3d.clubhouse().register.getTx()) * 100);
   });
   for (const digit of String(cents)) await clickKey(`digit:${digit}`);

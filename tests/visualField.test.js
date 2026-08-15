@@ -167,7 +167,7 @@ test('boundaries are smooth: fairway edges vary at sub-cell resolution', () => {
     }
   }
   assert.ok(transitions > 10, `scanlines cross fairway edges (${transitions})`);
-  assert.ok(offsets.size >= field.scale - 2, `edge positions use nearly all sub-cell offsets (${offsets.size}/${field.scale}) — not cell-locked`);
+  assert.ok(offsets.size >= field.scale - 2, `edge positions use nearly all sub-cell offsets (${offsets.size}/${field.scale}) - not cell-locked`);
 });
 
 test('the first cut and fringe render as NARROW bands, not 8-yd donuts', () => {

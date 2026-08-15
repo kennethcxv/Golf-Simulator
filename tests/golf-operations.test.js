@@ -377,6 +377,8 @@ test('cancelled or abandoned front-desk payment moves no money', () => {
 
 test('check-in refuses missing arrival, confirmation, and payment, then grants the whole party access', () => {
   const state = newGame('relaxed', 911);
+  // D2: check-in is windowed now; run the refusal ladder INSIDE the window
+  state.clock.minutes = 7 * 60 + 10;
   const day = today(state);
   const reservation = bookSlot(state, day, 480, {
     holder: 'Course Party', customerNames: ['Course Party', 'Guest Alpha', 'Guest Beta'], partySize: 3,
@@ -441,6 +443,7 @@ test('walk-in headcounts never invent unrelated named golfers', () => {
 test('no-show fee and slot reopening apply once according to readable policy', () => {
   const state = newGame('relaxed', 913);
   const day = today(state);
+  configureTeeSheet(state, { autoBookings: false }); // exact-once fee accounting
   configureOperationsPolicy(state, { noShowFee: 15, reopenNoShowSlot: true });
   const reservation = bookSlot(state, day, 480, {
     holder: 'No Show Deposit', intendedOutcome: 'no-show', depositAmount: 15,
@@ -460,6 +463,7 @@ test('no-show fee and slot reopening apply once according to readable policy', (
 
 test('no-show state and fee remain exact once through repeated reload', () => {
   let state = newGame('relaxed', 914);
+  configureTeeSheet(state, { autoBookings: false }); // exact-once through reloads
   const day = today(state);
   const reservation = bookSlot(state, day, 480, {
     holder: 'Reload No Show', intendedOutcome: 'no-show', depositAmount: 15,
@@ -549,6 +553,10 @@ test('operations summary exposes next arrival, waiting, late, utilization, alert
 
 test('save/load preserves every operational stage and migrates old booking saves', () => {
   const state = newGame('relaxed', 919);
+  configureTeeSheet(state, { autoBookings: false }); // the stage census counts ONLY its own bookings
+  // D2: check-in is windowed. Book every stage while all slots are still
+  // ahead, and move the clock into 570's window only for the one check-in.
+  state.clock.minutes = 7 * 60 + 45;
   const day = today(state);
   const beforeArrival = bookSlot(state, day, 480, {
     holder: 'Before Arrival', customerNames: ['Before Arrival', 'Party Member'], partySize: 2,
@@ -562,6 +570,7 @@ test('save/load preserves every operational stage and migrates old booking saves
     holder: 'After Check In', arrived: true, paymentPlan: 'prepaid', paymentMethod: 'card',
   }).res;
   confirmReservation(state, afterCheckIn.id);
+  state.clock.minutes = 8 * 60 + 35; // inside 570's window
   checkInReservation(state, afterCheckIn.id);
 
   const loaded = deserialize(serialize(state));

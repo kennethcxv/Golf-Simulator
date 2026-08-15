@@ -2,6 +2,13 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import { BROOM_FEEL } from '../src/data/broomFeel.js';
+// The AUTHORITIES, not copies of them. Every assertion below that used to
+// compare a config value against a hand-written literal now compares it
+// against the module that owns the number.
+import { WALK_SPEED_YD_S, STRIDE_RATE_RAD_S, WALK_FOV_DEG } from '../src/data/locomotion.js';
+import { BROOM_METRICS } from '../src/data/broomMetrics.js';
+import { CARRY_RENDER_LAYER } from '../src/render3d/clubhouse.js';
+import { CHECKOUT_STANDING_EYE_ABOVE_FLOOR } from '../src/render3d/clubhouse/simplifiedRegisterMode.js';
 
 // Phase 6's tuning surface. Feel itself is judged from renders and clips —
 // these pin the CONTRACT: the values live in one frozen config, and the few
@@ -23,15 +30,20 @@ test('the camera response stays under the review ceiling of 2 degrees', () => {
 });
 
 test('the walk bob is locked to the characters\' stride rate', () => {
-  // 8.7 rad/s is the stride rate the whole game animates at (courseScene
-  // bobPhase). A held tool bobbing at any other rate reads as detached.
-  assert.equal(BROOM_FEEL.walk.bobRate, 8.7);
+  // Asserted against the stride rate ITSELF. The previous version compared the
+  // config's copy of 8.7 to a retyped 8.7, which checks that two literals
+  // match rather than that the tool is in phase with the walk carrying it.
+  assert.equal(BROOM_FEEL.walk.bobRate, STRIDE_RATE_RAD_S);
 });
 
 test('the viewmodel pass owns its own lens and layer', () => {
-  assert.notEqual(BROOM_FEEL.camera.fov, 66, 'not hostage to the walk FOV');
+  // Both guards read the thing they guard against; they used to compare against
+  // retyped literals (66, 30), which would have gone on passing after the walk
+  // FOV or the carry layer moved onto the broom's own value.
+  assert.notEqual(BROOM_FEEL.camera.fov, WALK_FOV_DEG, 'not hostage to the walk FOV');
   assert.ok(BROOM_FEEL.camera.near < 0.15, 'arms live inside the world near plane');
-  assert.notEqual(BROOM_FEEL.camera.layer, 30, 'distinct from the delivery-carry overlay layer');
+  assert.notEqual(BROOM_FEEL.camera.layer, CARRY_RENDER_LAYER,
+    'distinct from the delivery-carry overlay layer');
 });
 
 test('every duration and rate is a positive finite number', () => {
@@ -61,7 +73,7 @@ test('the audio loop answers both interior surface kinds', () => {
     'carpet is the duller drag, boards the bright bristle');
 });
 
-test('the debris push beats the walk speed — dirt recedes, it is not overrun', () => {
+test('the debris push beats the walk speed - dirt recedes, it is not overrun', () => {
   // Walking is 2.2 yd/s. A push slower than that walks OVER its own pile and
   // the debris pops out behind the bristles — the round-1 "dirt lag".
   assert.ok(BROOM_FEEL.dirt.pushSpeed > 2.2,
@@ -70,7 +82,7 @@ test('the debris push beats the walk speed — dirt recedes, it is not overrun',
     'a stroke still cannot fling debris across the room');
 });
 
-test('the head-follow spring is under-damped — it settles, it does not snap', () => {
+test('the head-follow spring is under-damped - it settles, it does not snap', () => {
   assert.ok(BROOM_FEEL.weight.lagHz > 0, 'the spring has a natural frequency');
   assert.ok(BROOM_FEEL.weight.lagDamping > 0 && BROOM_FEEL.weight.lagDamping < 1,
     'damping < 1 gives the visible overshoot-and-settle');
@@ -79,11 +91,21 @@ test('the head-follow spring is under-damped — it settles, it does not snap', 
 test('a jam stalls the broom proud instead of folding it vertical', () => {
   // Round 1 pulled the carry pitch down 0.55 rad at a full clamp — a
   // vertical stick at the feet. The stall keeps it a working tool.
-  assert.ok(BROOM_FEEL.collision.carrySteepen < 0.4, 'the jam no longer folds the shaft');
+  //
+  // Round 5: carrySteepen and poseReachFloor are GONE, and this test no longer
+  // asks for them. They were the old way of stopping the fold — bend the carry
+  // pitch, then floor the reach so the bend could not go too far. The rigid
+  // shaft made both unnecessary: the head lies on a sphere of the handle's own
+  // measured length about the grip, so shortening the horizontal run RAISES the
+  // head up the obstruction instead of folding the shaft toward the feet. The
+  // fold is now impossible by construction rather than clamped after the fact.
+  // What remains tunable is how the stroke reads while jammed.
   assert.ok(BROOM_FEEL.collision.stallSquash > 0 && BROOM_FEEL.collision.stallSquash < 1,
-    'the stroke visibly stalls while jammed');
-  assert.ok(BROOM_FEEL.collision.poseReachFloor >= 0.4,
-    'the drawn pose never solves into the feet');
+    'the stroke visibly stalls while jammed rather than stopping dead or ignoring the face');
+  assert.ok(BROOM_FEEL.collision.stallIntensity > 0 && BROOM_FEEL.collision.stallIntensity < 1,
+    'and the audio/particles calm down with it');
+  assert.ok(BROOM_FEEL.collision.standoff > 0,
+    'bristles stop AT a blocking face, never inside it');
 });
 
 test('the sweep keeps the sim-preserving contact duty it shipped with', () => {
@@ -114,12 +136,47 @@ test('the grip anchor keeps the hands in frame and close enough to read', () => 
   assert.ok(gz < 0, 'the hands are in front of the camera');
   assert.ok(Math.abs(gz) > 0.3 && Math.abs(gz) < 0.9,
     'near enough to read as your hands, far enough not to clip the near plane');
-  // through a 50° lens at 16:9 the anchor must land inside NDC
-  const halfH = Math.abs(gz) * Math.tan((50 * Math.PI) / 180 / 2);
+  // Framed through the rig's OWN lens. This used to hardcode 50 degrees beside
+  // a config that owns the number, so when the lens widened to 78 the test was
+  // still grading the composition against a camera that no longer exists.
+  // A duplicated constant is a test that can be wrong while staying green.
+  const halfH = Math.abs(gz) * Math.tan((BROOM_FEEL.camera.fov * Math.PI) / 180 / 2);
   const ndcY = gy / halfH;
   const ndcX = gx / (halfH * (16 / 9));
-  assert.ok(ndcY > -1 && ndcY < 0, `hands sit in the lower half (ndcY ${ndcY.toFixed(2)})`);
-  assert.ok(Math.abs(ndcX) < 1, `hands sit inside the frame (ndcX ${ndcX.toFixed(2)})`);
+  assert.ok(ndcY < 0, `hands sit below the eye line (ndcY ${ndcY.toFixed(2)})`);
+  // -0.90 rather than -1.0: AT the edge is not "in frame". Round 5a put the
+  // gripping hand at -0.96 and it rendered visibly clipped with its whole
+  // forearm off-screen, which passed the old bound of -1 comfortably.
+  assert.ok(ndcY > -0.9,
+    `hands are clear of the bottom edge, not clipped by it (ndcY ${ndcY.toFixed(2)})`);
+  assert.ok(Math.abs(ndcX) < 0.9, `hands sit inside the frame (ndcX ${ndcX.toFixed(2)})`);
+});
+
+test('the handle can physically REACH the floor from where the hands are held', () => {
+  // THE round-5 bug, as a contract. The hands were held 1.350 yd above the
+  // boards while the FP asset measures 1.247 yd from GripPrimary to
+  // FloorContact — the broom was 0.103 yd too short to touch the floor, so the
+  // bristles hung in mid-air at every pitch and no tuning could ever plant
+  // them. Any future change to gripAnchor.y has to keep the reach real.
+  //
+  // The handle length is the ASSET's, measured from its own sockets. It used
+  // to be a hand-typed 1.247 literal here, with a comment pointing at a
+  // broom-asset-sockets test that did not exist — the D7 known-blind. I7
+  // (2026-08-05) built the authority: tools/gen/extract-broom-metrics.mjs
+  // measures the GLB and generates src/data/broomMetrics.js, and the (now
+  // real) tests/broom-asset-sockets.test.js fails whenever the GLB on disk and
+  // the generated value disagree. This test reads the authority.
+  const HANDLE_YD = BROOM_METRICS.gripToFloorYd;
+  const EYE_YD = CHECKOUT_STANDING_EYE_ABOVE_FLOOR;
+  const gripAboveFloor = EYE_YD + BROOM_FEEL.compose.gripAnchor[1];
+  assert.ok(gripAboveFloor < HANDLE_YD,
+    `the hands are held ${gripAboveFloor.toFixed(3)} yd up but the handle is only `
+    + `${HANDLE_YD} yd - the head could never reach the boards`);
+  // and with enough left over to reach FORWARD, not just straight down
+  const reach = Math.sqrt(HANDLE_YD ** 2 - gripAboveFloor ** 2);
+  assert.ok(reach > 0.35,
+    `only ${reach.toFixed(3)} yd of forward reach at full plant - the broom would `
+    + 'sweep vertically at the player\'s feet');
 });
 
 test('the sweep is an arc the head travels, not a sideways nudge', () => {
@@ -130,9 +187,9 @@ test('the sweep is an arc the head travels, not a sideways nudge', () => {
     'the hands follow the head rather than staying rigid');
 });
 
-test('the carried head hangs shallow enough to stay on screen', () => {
-  // The head is a rigid handle from the hand; while carried it must not hang
-  // so far below the grip that it leaves the bottom of the frame.
-  const drop = BROOM_FEEL.compose.carryDrop;
-  assert.ok(drop > 0 && drop < 0.8, `carryDrop ${drop} keeps the head in frame`);
-});
+// The carried head's pose used to be pinned here as `carryDrop > 0 && < 0.8`.
+// That assertion held through every round of the A8 float, because the bug was
+// not the constant's magnitude but WHAT IT WAS MEASURED FROM — yards below
+// camera-riding hands rather than above the boards. A range check on a config
+// number cannot express that. It now lives in tests/broom-floor-anchor.test.js,
+// which drives the real solve across the pitch range.

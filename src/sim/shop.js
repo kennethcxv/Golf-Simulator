@@ -476,7 +476,7 @@ export function placeDecor(state, skuId, spot) {
   if (!reno || !sku || sku.cat !== 'decor' || !spots) return { ok: false, reason: 'Not a decor item.' };
   if (!Number.isInteger(spot) || spot < 0 || spot >= spots.length) return { ok: false, reason: 'No spot there.' };
   const inv = state.shop.inventory[skuId];
-  if (!inv || inv.back <= 0) return { ok: false, reason: 'None in the backroom — order it first.' };
+  if (!inv || inv.back <= 0) return { ok: false, reason: 'None in the backroom - order it first.' };
   if (reno.decor.some((d) => d.skuId === skuId && d.spot === spot)) return { ok: false, reason: 'That spot is taken.' };
   importLegacyStoredPlaceables(state, skuId, inv.back);
   const authored = spots[spot];
@@ -594,6 +594,12 @@ export function initShop(state) {
     salesWindow: [],     // the last seven closed days of the same — velocity reads this
     transactionHistory: [], // completed physical-register tickets, newest first
     nextTransactionNo: 1,
+    // V15 persistence authority. It is intentionally present even when empty,
+    // so load can distinguish a clean journal from a missing/torn one.
+    pendingCheckouts: {},
+    checkoutSettlementReceipts: {},
+    checkoutSettlementReceiptKeys: [],
+    checkoutProjectionIds: {},
     fittingsYesterday: 0,
     // THE DOOR SIGN. A new day — and a new game — starts CLOSED: the morning
     // preparation window is the whole point of it (src/sim/shopSign.js).
@@ -924,7 +930,7 @@ export function cancelOrder(state, id) {
   // Once it is inside its delivery window the goods are on the pad any minute.
   // Check this before delegating lifecycle orders so the physical van state wins.
   if ((o.status === 'arriving' || o.status === 'delivered') && !o.blocked) {
-    return { ok: false, reason: 'The van is at the door — too late to cancel.' };
+    return { ok: false, reason: 'The van is at the door - too late to cancel.' };
   }
   // Orders created by the current supplier lifecycle have persisted lots and
   // split capital/inventory ledger entries. Let that authority reverse them;
@@ -1016,7 +1022,7 @@ export function tickDeliveries(state, nowMin) {
           events.push({ kind: 'blocked', order: o, need, free });
           notify(state, {
             kind: 'delivery',
-            text: `A van could not unload — the receiving pad is full. Order #${o.id} is circling until you clear cartons.`,
+            text: `A van could not unload - the receiving pad is full. Order #${o.id} is circling until you clear cartons.`,
           });
         }
         continue;
@@ -1079,7 +1085,7 @@ export function deliverOrdersDue(state, dayAbs) {
         order.blocked = true;
         notify(state, {
           kind: 'delivery',
-          text: `A van could not unload — the receiving pad is full. Order #${order.id} is waiting until you clear cartons.`,
+          text: `A van could not unload - the receiving pad is full. Order #${order.id} is waiting until you clear cartons.`,
         });
       }
       continue;
@@ -1389,6 +1395,7 @@ export function shopDailyAccrual(state) {
         ok: false,
         dayAbs,
         reason: shop.lastAccrualError,
+        diagnostic: revenueReady.diagnostic || cogsReady.diagnostic,
         inventoryChanged: false,
         ledgerChanged: false,
       };

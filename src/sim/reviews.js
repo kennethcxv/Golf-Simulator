@@ -12,6 +12,7 @@
 import { clamp } from '../core/utils.js';
 import { calendarOf } from './time.js';
 import { notify } from './notifications.js';
+import { deliverMail } from './mail.js';
 import { shopCondition, exteriorScore } from './shop.js';
 import { exteriorWashScore } from './washing.js';
 import { clubRatings, fairGreenFee, amenityScore } from './club.js';
@@ -64,7 +65,7 @@ export const REVIEW_FACTORS = [
     weight: 0.9,
     read: (st) => clamp(0.55 * exteriorWashScore(st) + 0.45 * exteriorScore(st), 0, 1),
     praise: () => 'the place looked well kept from the car park',
-    gripe: () => 'the outside of the clubhouse is a state — dirty siding, weeds up the wall',
+    gripe: () => 'the outside of the clubhouse is a state - dirty siding, weeds up the wall',
   },
   {
     id: 'courseCondition',
@@ -87,7 +88,7 @@ export const REVIEW_FACTORS = [
     praise: () => 'the shop was properly stocked',
     gripe: (st, v) => (v.productAvailability === 0 || v.foundWhatTheyWanted === false
       ? 'the item I came for was unavailable'
-      : 'half the shelves were bare — I could not find what I came for'),
+      : 'half the shelves were bare - I could not find what I came for'),
   },
   {
     id: 'prices',
@@ -465,12 +466,27 @@ export function postReview(state, review) {
     relatedId: reviewId, reason: `${review.stars}-star review posted: ${review.text}`,
     day: review.day, metadata: { stars: review.stars, cited: (review.cited || []).map((factor) => factor.id) },
   });
-  // one heads-up per day, however many land — the Reviews page holds the rest
-  notify(state, {
-    kind: 'review',
-    text: `New review${review.stars <= 2 ? ` — ${review.stars}★, worth reading` : `: ${review.stars}★`}. More may follow today.`,
-    dedupeKey: `review:${review.day}`,
-  });
+  // A2 (Goal 19) — a bad review is a COMPLAINT, and a complaint is
+  // correspondence: it lands in the laptop's mail with its full text, from its
+  // writer, instead of as a one-line bell notice. Ordinary reviews keep the
+  // bell heads-up (one per day; the Reviews page holds the rest) — a 4-star
+  // review is a fact, a 2-star review is a letter you answer for.
+  if (review.stars <= 2) {
+    deliverMail(state, {
+      kind: 'complaint',
+      // reviews carry no display name anywhere in the game today, so the
+      // sender is honest about that rather than inventing one
+      from: review.stars <= 1 ? 'A very unhappy golfer' : 'An unhappy golfer',
+      dedupeKey: `complaint:${reviewId}`,
+      data: { reviewId, stars: review.stars, text: review.text, day: review.day },
+    });
+  } else {
+    notify(state, {
+      kind: 'review',
+      text: `New review: ${review.stars}★. More may follow today.`,
+      dedupeKey: `review:${review.day}`,
+    });
+  }
   return review;
 }
 
@@ -508,15 +524,15 @@ export function explainVisitors(state, { today, yesterday, rainedToday }) {
 
   if (Math.abs(delta) < 5) {
     return causes.length
-      ? `Visitors held at ${today} — still held back by ${list(causes)}.`
+      ? `Visitors held at ${today} - still held back by ${list(causes)}.`
       : `Visitors held at ${today}.`;
   }
   const dir = delta < 0 ? 'fell' : 'rose';
   if (delta < 0 && causes.length) {
-    return `Visitors ${dir} ${Math.abs(delta)}% to ${today} — ${list(causes)}.`;
+    return `Visitors ${dir} ${Math.abs(delta)}% to ${today} - ${list(causes)}.`;
   }
   if (delta > 0 && !causes.length) {
-    return `Visitors ${dir} ${delta}% to ${today} — the place is in good order.`;
+    return `Visitors ${dir} ${delta}% to ${today} - the place is in good order.`;
   }
   return `Visitors ${dir} ${Math.abs(delta)}% to ${today}.`;
 }

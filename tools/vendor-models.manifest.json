@@ -1,0 +1,632 @@
+[
+  {
+    "from": "Assets/assets_51_100/glb/sheet_06/asset_051_finished_clubhouse_exterior.glb",
+    "to": "vendor/models/assets_51_100/sheet_06/asset_051_finished_clubhouse_exterior.glb",
+    "sha1": "e36a7f32061b6b38d9f346017ede3a3d460e45d9"
+  },
+  {
+    "from": "Assets/assets_51_100/glb/sheet_06/asset_052_dilapidated_clubhouse_exterior.glb",
+    "to": "vendor/models/assets_51_100/sheet_06/asset_052_dilapidated_clubhouse_exterior.glb",
+    "sha1": "765f92a1a8019ba8ce1ca32a00f38b75cf135529"
+  },
+  {
+    "from": "Assets/assets_51_100/glb/sheet_06/asset_053_main_entrance_double_door.glb",
+    "to": "vendor/models/assets_51_100/sheet_06/asset_053_main_entrance_double_door.glb",
+    "sha1": "4985b30b54a4fb623f1c5d68cc8fdcbd97b4f413"
+  },
+  {
+    "from": "Assets/assets_51_100/glb/sheet_06/asset_054_exterior_porch_and_steps.glb",
+    "to": "vendor/models/assets_51_100/sheet_06/asset_054_exterior_porch_and_steps.glb",
+    "sha1": "c3942f0c6cc2ce5eb612899faa45f171b1948a2a"
+  },
+  {
+    "from": "Assets/assets_51_100/glb/sheet_06/asset_055_clubhouse_windows_set.glb",
+    "to": "vendor/models/assets_51_100/sheet_06/asset_055_clubhouse_windows_set.glb",
+    "sha1": "bd8e68095ca8e1701de319e631580c15c749083c"
+  },
+  {
+    "from": "Assets/assets_51_100/glb/sheet_06/asset_056_interior_wall_panel_kit.glb",
+    "to": "vendor/models/assets_51_100/sheet_06/asset_056_interior_wall_panel_kit.glb",
+    "sha1": "0b474ae4a3136c922d4e25ab5bb7facb919299bd"
+  },
+  {
+    "from": "Assets/assets_51_100/glb/sheet_06/asset_057_interior_trim_and_baseboard_kit.glb",
+    "to": "vendor/models/assets_51_100/sheet_06/asset_057_interior_trim_and_baseboard_kit.glb",
+    "sha1": "8750989ebee3811c5d315d42bab5f41d5c75f174"
+  },
+  {
+    "from": "Assets/assets_51_100/glb/sheet_06/asset_058_ceiling_and_beam_kit.glb",
+    "to": "vendor/models/assets_51_100/sheet_06/asset_058_ceiling_and_beam_kit.glb",
+    "sha1": "4c8d990d203279df5f4a54f61a222ec2b2af89b1"
+  },
+  {
+    "from": "Assets/assets_51_100/glb/sheet_06/asset_059_renovated_flooring_set.glb",
+    "to": "vendor/models/assets_51_100/sheet_06/asset_059_renovated_flooring_set.glb",
+    "sha1": "a8503e881194eca6cc518f5a585c1397ba7c7eb4"
+  },
+  {
+    "from": "Assets/assets_51_100/glb/sheet_06/asset_060_damaged_flooring_set.glb",
+    "to": "vendor/models/assets_51_100/sheet_06/asset_060_damaged_flooring_set.glb",
+    "sha1": "f733d9ad00d047a7559fed06e5f4eebf64d330ab"
+  },
+  {
+    "from": "Assets/assets_51_100/glb/sheet_09/asset_081_office_chair_sheet09.glb",
+    "to": "vendor/models/assets_51_100/sheet_09/asset_081_office_chair_sheet09.glb",
+    "sha1": "a70b0bc7914082fac405cf08c8ffdf8a2e1f30e5"
+  },
+  {
+    "from": "Assets/assets_51_100/glb/sheet_09/asset_082_filing_cabinet_sheet09.glb",
+    "to": "vendor/models/assets_51_100/sheet_09/asset_082_filing_cabinet_sheet09.glb",
+    "sha1": "5369ff415ba5bd22d4c5070e0c680c2155d09349"
+  },
+  {
+    "from": "Assets/assets_51_100/glb/sheet_09/asset_083_desk_lamp.glb",
+    "to": "vendor/models/assets_51_100/sheet_09/asset_083_desk_lamp.glb",
+    "sha1": "c2e9123e2afead9081d3d69c44a6453942c03b0e"
+  },
+  {
+    "from": "Assets/assets_51_100/glb/sheet_09/asset_084_office_printer.glb",
+    "to": "vendor/models/assets_51_100/sheet_09/asset_084_office_printer.glb",
+    "sha1": "47462db212c871791bc5f007b576a3d70f225ccb"
+  },
+  {
+    "from": "Assets/assets_51_100/glb/sheet_09/asset_085_office_telephone.glb",
+    "to": "vendor/models/assets_51_100/sheet_09/asset_085_office_telephone.glb",
+    "sha1": "2636e08f40fc9570523876ca7fa769124d0f96b4"
+  },
+  {
+    "from": "Assets/assets_51_100/glb/sheet_09/asset_086_corkboard_noticeboard.glb",
+    "to": "vendor/models/assets_51_100/sheet_09/asset_086_corkboard_noticeboard.glb",
+    "sha1": "fdc340d4bdb500ff54aaab6665220fa4755419f8"
+  },
+  {
+    "from": "Assets/assets_51_100/glb/sheet_09/asset_087_wall_clock.glb",
+    "to": "vendor/models/assets_51_100/sheet_09/asset_087_wall_clock.glb",
+    "sha1": "8d0e730a3a7ba09d19a2740e3f1d107a61307bbd"
+  },
+  {
+    "from": "Assets/assets_51_100/glb/sheet_09/asset_088_key_rack.glb",
+    "to": "vendor/models/assets_51_100/sheet_09/asset_088_key_rack.glb",
+    "sha1": "fcfc10da096b6e9afd67210153b46265b7021e75"
+  },
+  {
+    "from": "Assets/assets_51_100/glb/sheet_09/asset_089_reservation_clipboard.glb",
+    "to": "vendor/models/assets_51_100/sheet_09/asset_089_reservation_clipboard.glb",
+    "sha1": "98ef8f8b66658b01b6354a2bd777f1c6dfd2ce72"
+  },
+  {
+    "from": "Assets/assets_51_100/glb/sheet_09/asset_090_scorecard_holder.glb",
+    "to": "vendor/models/assets_51_100/sheet_09/asset_090_scorecard_holder.glb",
+    "sha1": "6a207446669e0a6addfc1aa9ab898405cab2e5a4"
+  },
+  {
+    "from": "Assets/assets_51_100/glb/sheet_10/asset_091_fire_extinguisher.glb",
+    "to": "vendor/models/assets_51_100/sheet_10/asset_091_fire_extinguisher.glb",
+    "sha1": "4c0f92358abbc2e26c960b10f38af86a1a79e0e9"
+  },
+  {
+    "from": "Assets/assets_51_100/glb/sheet_10/asset_092_first_aid_kit_cabinet.glb",
+    "to": "vendor/models/assets_51_100/sheet_10/asset_092_first_aid_kit_cabinet.glb",
+    "sha1": "a2a443adc629e18d37160e9c0464b9573dda8923"
+  },
+  {
+    "from": "Assets/assets_51_100/glb/sheet_10/asset_093_security_camera.glb",
+    "to": "vendor/models/assets_51_100/sheet_10/asset_093_security_camera.glb",
+    "sha1": "19a9dc4dc717eb84992e8a9e187448e3a766a044"
+  },
+  {
+    "from": "Assets/assets_51_100/glb/sheet_10/asset_094_exit_sign.glb",
+    "to": "vendor/models/assets_51_100/sheet_10/asset_094_exit_sign.glb",
+    "sha1": "51079cfe628308ae3a79721239cedef331e80ba6"
+  },
+  {
+    "from": "Assets/assets_51_100/glb/sheet_10/asset_095_emergency_light.glb",
+    "to": "vendor/models/assets_51_100/sheet_10/asset_095_emergency_light.glb",
+    "sha1": "c738c027307b75de910a09a094e470f507d1a613"
+  },
+  {
+    "from": "Assets/assets_51_100/glb/sheet_10/asset_096_bulletin_board.glb",
+    "to": "vendor/models/assets_51_100/sheet_10/asset_096_bulletin_board.glb",
+    "sha1": "140de08ab70d8cb250bdbd26ccdd530ce1fcf26e"
+  },
+  {
+    "from": "Assets/assets_51_100/glb/sheet_10/asset_097_key_cabinet.glb",
+    "to": "vendor/models/assets_51_100/sheet_10/asset_097_key_cabinet.glb",
+    "sha1": "6bd570ad626a028b3e18c283e52472a62f0b265f"
+  },
+  {
+    "from": "Assets/assets_51_100/glb/sheet_10/asset_098_hand_sanitizer_station.glb",
+    "to": "vendor/models/assets_51_100/sheet_10/asset_098_hand_sanitizer_station.glb",
+    "sha1": "ef38357e7c8c52a650b96097ea79c47a65cd6584"
+  },
+  {
+    "from": "Assets/assets_51_100/glb/sheet_10/asset_099_umbrella_stand.glb",
+    "to": "vendor/models/assets_51_100/sheet_10/asset_099_umbrella_stand.glb",
+    "sha1": "7ec97fa04a1dd93d3c4935738d3e7fed580d0ac8"
+  },
+  {
+    "from": "Assets/assets_51_100/glb/sheet_10/asset_100_floor_mat_welcome_mat.glb",
+    "to": "vendor/models/assets_51_100/sheet_10/asset_100_floor_mat_welcome_mat.glb",
+    "sha1": "cc10b885ab2a7e30a5f5696e310cbe1110f54dc9"
+  },
+  {
+    "from": "Assets/ceiling_lights/exports/ceiling_light_basic_lod1.glb",
+    "to": "vendor/models/ceiling_lights/ceiling_light_basic_lod1.glb",
+    "sha1": "ae1af58968509e1199925ffb66e7214eb897c119"
+  },
+  {
+    "from": "Assets/ceiling_lights/exports/ceiling_light_basic_lod2.glb",
+    "to": "vendor/models/ceiling_lights/ceiling_light_basic_lod2.glb",
+    "sha1": "e5fcd275c23d550e2562424ff1162c4f1653267f"
+  },
+  {
+    "from": "Assets/ceiling_lights/exports/ceiling_light_basic.glb",
+    "to": "vendor/models/ceiling_lights/ceiling_light_basic.glb",
+    "sha1": "bd06d82d922dd97cb8c993c7dcf58bf3dc6e819d"
+  },
+  {
+    "from": "Assets/ceiling_lights/exports/ceiling_light_high_end_lod1.glb",
+    "to": "vendor/models/ceiling_lights/ceiling_light_high_end_lod1.glb",
+    "sha1": "97b3690a8395bd718ed6970b3aa76d51b88b1b84"
+  },
+  {
+    "from": "Assets/ceiling_lights/exports/ceiling_light_high_end_lod2.glb",
+    "to": "vendor/models/ceiling_lights/ceiling_light_high_end_lod2.glb",
+    "sha1": "71607515b6848058399114cf461ad80922793d7f"
+  },
+  {
+    "from": "Assets/ceiling_lights/exports/ceiling_light_high_end.glb",
+    "to": "vendor/models/ceiling_lights/ceiling_light_high_end.glb",
+    "sha1": "ada0414b1f21edb143babbc1f981c73d4dea342d"
+  },
+  {
+    "from": "Assets/ceiling_lights/exports/ceiling_light_luxury_lod1.glb",
+    "to": "vendor/models/ceiling_lights/ceiling_light_luxury_lod1.glb",
+    "sha1": "1594aa6a150593d17054c0f74ace6db9f29dbc2b"
+  },
+  {
+    "from": "Assets/ceiling_lights/exports/ceiling_light_luxury_lod2.glb",
+    "to": "vendor/models/ceiling_lights/ceiling_light_luxury_lod2.glb",
+    "sha1": "c88c89b3dc7a3ea9056dab0e4aa602a3f0958633"
+  },
+  {
+    "from": "Assets/ceiling_lights/exports/ceiling_light_luxury.glb",
+    "to": "vendor/models/ceiling_lights/ceiling_light_luxury.glb",
+    "sha1": "3104cde6fadbab72f53c3d7b4d4d78c2aeff7f57"
+  },
+  {
+    "from": "Assets/ceiling_lights/exports/ceiling_light_premium_single_lod1.glb",
+    "to": "vendor/models/ceiling_lights/ceiling_light_premium_single_lod1.glb",
+    "sha1": "9b6a868de4eb3236d2ffe50c744053ad445c6f1f"
+  },
+  {
+    "from": "Assets/ceiling_lights/exports/ceiling_light_premium_single_lod2.glb",
+    "to": "vendor/models/ceiling_lights/ceiling_light_premium_single_lod2.glb",
+    "sha1": "62a47d7a2840ddb96f0ed86838478d7e264b3d76"
+  },
+  {
+    "from": "Assets/ceiling_lights/exports/ceiling_light_premium_single.glb",
+    "to": "vendor/models/ceiling_lights/ceiling_light_premium_single.glb",
+    "sha1": "eb41bd9efb212a7296e7260ff20969efa10c957e"
+  },
+  {
+    "from": "Assets/ceiling_lights/exports/ceiling_light_premium_triple_lod1.glb",
+    "to": "vendor/models/ceiling_lights/ceiling_light_premium_triple_lod1.glb",
+    "sha1": "3fedf79d46dedc5f85cc09e2c48f3e25e2f15b05"
+  },
+  {
+    "from": "Assets/ceiling_lights/exports/ceiling_light_premium_triple_lod2.glb",
+    "to": "vendor/models/ceiling_lights/ceiling_light_premium_triple_lod2.glb",
+    "sha1": "caf242e5eda2916ecbad20ca547c0100c3959e7d"
+  },
+  {
+    "from": "Assets/ceiling_lights/exports/ceiling_light_premium_triple.glb",
+    "to": "vendor/models/ceiling_lights/ceiling_light_premium_triple.glb",
+    "sha1": "4878d59df6e1027e9285ffb94c07c56954ec3d92"
+  },
+  {
+    "from": "Assets/ceiling_lights/exports/ceiling_light_standard_lod1.glb",
+    "to": "vendor/models/ceiling_lights/ceiling_light_standard_lod1.glb",
+    "sha1": "57c7ca8d9efb9dd241f235cba0f24f72cb95207d"
+  },
+  {
+    "from": "Assets/ceiling_lights/exports/ceiling_light_standard_lod2.glb",
+    "to": "vendor/models/ceiling_lights/ceiling_light_standard_lod2.glb",
+    "sha1": "ae8798ed67e880cb093f80f074fc12836f4e8de9"
+  },
+  {
+    "from": "Assets/ceiling_lights/exports/ceiling_light_standard.glb",
+    "to": "vendor/models/ceiling_lights/ceiling_light_standard.glb",
+    "sha1": "b7afd1632383fc7c6f9e103bc6359a3fd9a3cc9f"
+  },
+  {
+    "from": "Assets/checkout/glb/accessory_slatwall.glb",
+    "to": "vendor/models/checkout/accessory_slatwall.glb",
+    "sha1": "99e2ab4c4ca01fd2c3b0efbc775e158eab0d8df3"
+  },
+  {
+    "from": "Assets/checkout/glb/apparel_table.glb",
+    "to": "vendor/models/checkout/apparel_table.glb",
+    "sha1": "a368ff0a2008ef091636bf3085d2a1132756093a"
+  },
+  {
+    "from": "Assets/checkout/glb/apparel_wall_display.glb",
+    "to": "vendor/models/checkout/apparel_wall_display.glb",
+    "sha1": "02c1a2fc06028ea79d6a77950c49a2d3903b3181"
+  },
+  {
+    "from": "Assets/checkout/glb/apparel_wall.glb",
+    "to": "vendor/models/checkout/apparel_wall.glb",
+    "sha1": "9132f1cb25a98de9123dccbe75511b00fa30b5c3"
+  },
+  {
+    "from": "Assets/checkout/glb/bag_display.glb",
+    "to": "vendor/models/checkout/bag_display.glb",
+    "sha1": "d206bf7a31d7a35fb43eada50281623e01e952d5"
+  },
+  {
+    "from": "Assets/checkout/glb/ball_shelf.glb",
+    "to": "vendor/models/checkout/ball_shelf.glb",
+    "sha1": "e6e2d2c382a76f6985fad742071b2fd261123d2e"
+  },
+  {
+    "from": "Assets/checkout/glb/barcode_scanner.glb",
+    "to": "vendor/models/checkout/barcode_scanner.glb",
+    "sha1": "bedf568c6315b82691a0390b64da63d0a1196b32"
+  },
+  {
+    "from": "Assets/checkout/glb/cash_bill_1.glb",
+    "to": "vendor/models/checkout/cash_bill_1.glb",
+    "sha1": "4a03163b71197b002b00513b2c729efca94d5d5b"
+  },
+  {
+    "from": "Assets/checkout/glb/cash_bill_10.glb",
+    "to": "vendor/models/checkout/cash_bill_10.glb",
+    "sha1": "f0a70b4fc8519a7b1921604e34eb5c4966767ef5"
+  },
+  {
+    "from": "Assets/checkout/glb/cash_bill_20.glb",
+    "to": "vendor/models/checkout/cash_bill_20.glb",
+    "sha1": "7eaedf86d562992de8c14596af3d0742b87d5ac7"
+  },
+  {
+    "from": "Assets/checkout/glb/cash_bill_5.glb",
+    "to": "vendor/models/checkout/cash_bill_5.glb",
+    "sha1": "dc49ac6a500ac1927856a20a0133d04be46544a1"
+  },
+  {
+    "from": "Assets/checkout/glb/cash_bill_50.glb",
+    "to": "vendor/models/checkout/cash_bill_50.glb",
+    "sha1": "22b56be0a7eac0e3bf67a3898409488c35713c95"
+  },
+  {
+    "from": "Assets/checkout/glb/cash_coin_01.glb",
+    "to": "vendor/models/checkout/cash_coin_01.glb",
+    "sha1": "a9ee149b86e28203980b8b79da03594d846b2c47"
+  },
+  {
+    "from": "Assets/checkout/glb/cash_coin_05_sheet01.glb",
+    "to": "vendor/models/checkout/cash_coin_05_sheet01.glb",
+    "sha1": "9a565e87872e3b349472dbb9d63fc68d26e04fcb"
+  },
+  {
+    "from": "Assets/checkout/glb/cash_coin_05.glb",
+    "to": "vendor/models/checkout/cash_coin_05.glb",
+    "sha1": "da50c6c084d29ec1da2c260e9fb9971f10def72a"
+  },
+  {
+    "from": "Assets/checkout/glb/cash_coin_10.glb",
+    "to": "vendor/models/checkout/cash_coin_10.glb",
+    "sha1": "5ab5fee838f5f96fc86c555d337378d88ccfa3da"
+  },
+  {
+    "from": "Assets/checkout/glb/cash_coin_20.glb",
+    "to": "vendor/models/checkout/cash_coin_20.glb",
+    "sha1": "2e31a345aac02540ca3e903a0542959168a33b5c"
+  },
+  {
+    "from": "Assets/checkout/glb/cash_coin_25.glb",
+    "to": "vendor/models/checkout/cash_coin_25.glb",
+    "sha1": "3b1890477c9e6a0268cdd88049c0d678886cbd17"
+  },
+  {
+    "from": "Assets/checkout/glb/cash_coin_50.glb",
+    "to": "vendor/models/checkout/cash_coin_50.glb",
+    "sha1": "8012d4cb9a38f94cd442c54b02b4d74721ce2800"
+  },
+  {
+    "from": "Assets/checkout/glb/cash_drawer.glb",
+    "to": "vendor/models/checkout/cash_drawer.glb",
+    "sha1": "038103cdbde3b6ef42b1deed7953e993ba50682e"
+  },
+  {
+    "from": "Assets/checkout/glb/cash_handoff_stack.glb",
+    "to": "vendor/models/checkout/cash_handoff_stack.glb",
+    "sha1": "ab2c2aaa773a0fac0ed9a4f8dd89cfea01337c0e"
+  },
+  {
+    "from": "Assets/checkout/glb/checkout_counter.glb",
+    "to": "vendor/models/checkout/checkout_counter.glb",
+    "sha1": "c630310e5bcf6c161f1c33cc84d0d616cfdbf17e"
+  },
+  {
+    "from": "Assets/checkout/glb/club_rack.glb",
+    "to": "vendor/models/checkout/club_rack.glb",
+    "sha1": "ad9e5db4de7976480ffac03a775a30e24041bb33"
+  },
+  {
+    "from": "Assets/checkout/glb/customer_display.glb",
+    "to": "vendor/models/checkout/customer_display.glb",
+    "sha1": "a8214d451ded202af0a5844f98a44fbaa568fbc2"
+  },
+  {
+    "from": "Assets/checkout/glb/filing_cabinet.glb",
+    "to": "vendor/models/checkout/filing_cabinet.glb",
+    "sha1": "53bb420df2cc0a0d17fbf101154545b1f85fd994"
+  },
+  {
+    "from": "Assets/checkout/glb/hat_wall.glb",
+    "to": "vendor/models/checkout/hat_wall.glb",
+    "sha1": "7621bedff0c855f598e901568123ef9f33ae93fd"
+  },
+  {
+    "from": "Assets/checkout/glb/loose_receipt.glb",
+    "to": "vendor/models/checkout/loose_receipt.glb",
+    "sha1": "cba3976faeace208ec9a9dc817f6012f220618a2"
+  },
+  {
+    "from": "Assets/checkout/glb/lounge_armchair.glb",
+    "to": "vendor/models/checkout/lounge_armchair.glb",
+    "sha1": "e472febdea7977af8cc45fe78f8dcd48171345e2"
+  },
+  {
+    "from": "Assets/checkout/glb/lounge_coffee_table.glb",
+    "to": "vendor/models/checkout/lounge_coffee_table.glb",
+    "sha1": "ba9fec5b2c44b439b51ae6cb1f4d0a096821e3c8"
+  },
+  {
+    "from": "Assets/checkout/glb/lounge_side_table.glb",
+    "to": "vendor/models/checkout/lounge_side_table.glb",
+    "sha1": "cef6914fee199f81aa4d9754a6bf43d0151e8fdc"
+  },
+  {
+    "from": "Assets/checkout/glb/merch_table.glb",
+    "to": "vendor/models/checkout/merch_table.glb",
+    "sha1": "946465aa942b06a84827b932b9fba127d110ddf9"
+  },
+  {
+    "from": "Assets/checkout/glb/office_chair.glb",
+    "to": "vendor/models/checkout/office_chair.glb",
+    "sha1": "44eeca9ea07a87edd73f9d2937b9948992a4a34f"
+  },
+  {
+    "from": "Assets/checkout/glb/office_desk.glb",
+    "to": "vendor/models/checkout/office_desk.glb",
+    "sha1": "c8eb1fce194b715bb7d515f5a1a6b1713364b4c4"
+  },
+  {
+    "from": "Assets/checkout/glb/payment_card.glb",
+    "to": "vendor/models/checkout/payment_card.glb",
+    "sha1": "b686eb7f0d1fe9185e13c00257c3b1910c20646a"
+  },
+  {
+    "from": "Assets/checkout/glb/payment_terminal.glb",
+    "to": "vendor/models/checkout/payment_terminal.glb",
+    "sha1": "29a1e672d766528411b75ec4c35d85bfeb648af0"
+  },
+  {
+    "from": "Assets/checkout/glb/pos_monitor.glb",
+    "to": "vendor/models/checkout/pos_monitor.glb",
+    "sha1": "4204ff83098ba4d8da3798fff3eb231226d5c783"
+  },
+  {
+    "from": "Assets/checkout/glb/putter_rack.glb",
+    "to": "vendor/models/checkout/putter_rack.glb",
+    "sha1": "7c67a98c7321d3e3c94fedba6cf1b941e041b8c8"
+  },
+  {
+    "from": "Assets/checkout/glb/rangefinder_display.glb",
+    "to": "vendor/models/checkout/rangefinder_display.glb",
+    "sha1": "89de621eace32172aaf2aa84cd8f3e6356f9aebe"
+  },
+  {
+    "from": "Assets/checkout/glb/receipt_printer.glb",
+    "to": "vendor/models/checkout/receipt_printer.glb",
+    "sha1": "e11ceb8f075f510412c450fa5b2e0d44ffebc9dc"
+  },
+  {
+    "from": "Assets/checkout/glb/retail_gondola.glb",
+    "to": "vendor/models/checkout/retail_gondola.glb",
+    "sha1": "41ee1e5880136174023d6c0a64381cd4927ac36d"
+  },
+  {
+    "from": "Assets/checkout/glb/scannable_product_box.glb",
+    "to": "vendor/models/checkout/scannable_product_box.glb",
+    "sha1": "85ba78bc5fadf57fc209fb6dc54bd82f1061a6ba"
+  },
+  {
+    "from": "Assets/checkout/glb/shoe_wall.glb",
+    "to": "vendor/models/checkout/shoe_wall.glb",
+    "sha1": "8676abc788396fce9d958378b2931ebbb2aae07a"
+  },
+  {
+    "from": "Assets/checkout/glb/shopping_bag.glb",
+    "to": "vendor/models/checkout/shopping_bag.glb",
+    "sha1": "6d0026f9a640e7dcd4142e6ef393104d92fa80e4"
+  },
+  {
+    "from": "Assets/checkout/glb/snack_shelf.glb",
+    "to": "vendor/models/checkout/snack_shelf.glb",
+    "sha1": "6324386a9642f420b634ea0c8762c1f6b60997df"
+  },
+  {
+    "from": "Assets/checkout/glb/stock_shelving.glb",
+    "to": "vendor/models/checkout/stock_shelving.glb",
+    "sha1": "ee4830580133a9bac445031e8b08c0c3606e4265"
+  },
+  {
+    "from": "Assets/checkout/glb/storage_tote_charcoal.glb",
+    "to": "vendor/models/checkout/storage_tote_charcoal.glb",
+    "sha1": "a17dec55987098de2ce8921fed9a59c0846f811b"
+  },
+  {
+    "from": "Assets/checkout/glb/storage_tote_olive.glb",
+    "to": "vendor/models/checkout/storage_tote_olive.glb",
+    "sha1": "6da85e6f415f10c9fba7cb48f5e139e506fdf00f"
+  },
+  {
+    "from": "Assets/checkout/glb/storage_tote_slate.glb",
+    "to": "vendor/models/checkout/storage_tote_slate.glb",
+    "sha1": "f72e8528ad954998b31c953b2e33cc7e5a4b4967"
+  },
+  {
+    "from": "Assets/checkout/glb/storage_tote_stone.glb",
+    "to": "vendor/models/checkout/storage_tote_stone.glb",
+    "sha1": "8925e42acee8c200a25754e27fad78819776eae0"
+  },
+  {
+    "from": "Assets/house+3d+model.glb",
+    "to": "vendor/models/clubhouse_ext.glb",
+    "sha1": "10ea1e832384eb3c5a138c410778f0c19b0778d3"
+  },
+  {
+    "from": "Assets/clubhouse/mountain_clubhouse_3000sqft.glb",
+    "to": "vendor/models/clubhouse/mountain_clubhouse_3000sqft.glb",
+    "sha1": "acccf09c987c7533dfa9d77d90c954fe52ee294b"
+  },
+  {
+    "from": "Assets/premium_clubhouse/glb/premium_clubhouse_architecture.glb",
+    "to": "vendor/models/premium_clubhouse/premium_clubhouse_architecture.glb",
+    "sha1": "81266ef51aea37af90e5895d31fe70f049cbbbbf"
+  },
+  {
+    "from": "Assets/premium_clubhouse/glb/premium_clubhouse_modular_kit.glb",
+    "to": "vendor/models/premium_clubhouse/premium_clubhouse_modular_kit.glb",
+    "sha1": "77497b4f25f4465641c1512219623b76c48a7fd3"
+  },
+  {
+    "from": "Assets/pro_shop_furniture/exports/chairs/chair_basic.glb",
+    "to": "vendor/models/pro_shop_furniture/chairs/basic.glb",
+    "sha1": "8d976abb6764bc77653fbd5a491420eca6aad989"
+  },
+  {
+    "from": "Assets/pro_shop_furniture/exports/chairs/chair_high_end.glb",
+    "to": "vendor/models/pro_shop_furniture/chairs/high-end.glb",
+    "sha1": "4d0a5a5f6b904cf481d8ab3b31c36838f1ea5250"
+  },
+  {
+    "from": "Assets/pro_shop_furniture/exports/chairs/chair_luxury.glb",
+    "to": "vendor/models/pro_shop_furniture/chairs/luxury.glb",
+    "sha1": "92e98d7ebb9240ff84456a53f2ff851c0cd2b3bd"
+  },
+  {
+    "from": "Assets/pro_shop_furniture/exports/chairs/chair_premium.glb",
+    "to": "vendor/models/pro_shop_furniture/chairs/premium.glb",
+    "sha1": "574c2888cd18e36e032353bafab84133b29c436c"
+  },
+  {
+    "from": "Assets/pro_shop_furniture/exports/chairs/chair_standard.glb",
+    "to": "vendor/models/pro_shop_furniture/chairs/standard.glb",
+    "sha1": "dcb40be1c9e3551608fc0ef082ea7eb6b9805102"
+  },
+  {
+    "from": "Assets/pro_shop_furniture/exports/office-desks/desk_basic_lod1.glb",
+    "to": "vendor/models/pro_shop_furniture/office-desks/basic_lod1.glb",
+    "sha1": "8bd5cae0bb1851da3ef569f1f66133bf78f0ac94"
+  },
+  {
+    "from": "Assets/pro_shop_furniture/exports/office-desks/desk_basic_lod2.glb",
+    "to": "vendor/models/pro_shop_furniture/office-desks/basic_lod2.glb",
+    "sha1": "7ebc1a0b54b101b688a1ab68d2b3a9c8e23562e7"
+  },
+  {
+    "from": "Assets/pro_shop_furniture/exports/office-desks/desk_basic.glb",
+    "to": "vendor/models/pro_shop_furniture/office-desks/basic.glb",
+    "sha1": "c1b60e2d42535c49a41abc70ce99554fffd7c232"
+  },
+  {
+    "from": "Assets/pro_shop_furniture/exports/office-desks/desk_luxury_lod1.glb",
+    "to": "vendor/models/pro_shop_furniture/office-desks/executive_lod1.glb",
+    "sha1": "4c7c99fae590f1ef244b86e6b1016db8491f870b"
+  },
+  {
+    "from": "Assets/pro_shop_furniture/exports/office-desks/desk_luxury_lod2.glb",
+    "to": "vendor/models/pro_shop_furniture/office-desks/executive_lod2.glb",
+    "sha1": "6369f1017839b51d9fe63c50e8cde60764bea40f"
+  },
+  {
+    "from": "Assets/pro_shop_furniture/exports/office-desks/desk_luxury.glb",
+    "to": "vendor/models/pro_shop_furniture/office-desks/executive.glb",
+    "sha1": "b45cb06333edd161bb101064c721ea25dc5a0306"
+  },
+  {
+    "from": "Assets/pro_shop_furniture/exports/office-desks/desk_high_end_lod1.glb",
+    "to": "vendor/models/pro_shop_furniture/office-desks/luxury_lod1.glb",
+    "sha1": "c063bdc88b3df5d5577e4f30ab2ddc59d19de797"
+  },
+  {
+    "from": "Assets/pro_shop_furniture/exports/office-desks/desk_high_end_lod2.glb",
+    "to": "vendor/models/pro_shop_furniture/office-desks/luxury_lod2.glb",
+    "sha1": "b92713f25d9f95674f0c38c25d2da00a837f6522"
+  },
+  {
+    "from": "Assets/pro_shop_furniture/exports/office-desks/desk_high_end.glb",
+    "to": "vendor/models/pro_shop_furniture/office-desks/luxury.glb",
+    "sha1": "de6450340b0e286d36da7ba997ccb09d71967f47"
+  },
+  {
+    "from": "Assets/pro_shop_furniture/exports/office-desks/desk_premium_lod1.glb",
+    "to": "vendor/models/pro_shop_furniture/office-desks/premium_lod1.glb",
+    "sha1": "270eded5d510f4a58ed7b8dfb266d7bd0d3e57f8"
+  },
+  {
+    "from": "Assets/pro_shop_furniture/exports/office-desks/desk_premium_lod2.glb",
+    "to": "vendor/models/pro_shop_furniture/office-desks/premium_lod2.glb",
+    "sha1": "5ae269545d6f7d8a8f8b143058aadf8392c01817"
+  },
+  {
+    "from": "Assets/pro_shop_furniture/exports/office-desks/desk_premium.glb",
+    "to": "vendor/models/pro_shop_furniture/office-desks/premium.glb",
+    "sha1": "898289d935e2cfe8ce51700a735e364cc9b2953c"
+  },
+  {
+    "from": "Assets/pro_shop_furniture/exports/office-desks/desk_standard_lod1.glb",
+    "to": "vendor/models/pro_shop_furniture/office-desks/standard_lod1.glb",
+    "sha1": "f1031933d003f5aa7feef7709bef42c2bd053f4b"
+  },
+  {
+    "from": "Assets/pro_shop_furniture/exports/office-desks/desk_standard_lod2.glb",
+    "to": "vendor/models/pro_shop_furniture/office-desks/standard_lod2.glb",
+    "sha1": "8d534b6e3e63d4278ee3aa87fcbdd938c51a7f5e"
+  },
+  {
+    "from": "Assets/pro_shop_furniture/exports/office-desks/desk_standard.glb",
+    "to": "vendor/models/pro_shop_furniture/office-desks/standard.glb",
+    "sha1": "c431b18e7f139d16a406a8edfc206bc080f6e3a7"
+  },
+  {
+    "from": "Assets/shed/glb/shed_clutter.glb",
+    "to": "vendor/models/shed/shed_clutter.glb",
+    "sha1": "1fc9e8def7215ee043bea546b6272549789d0776"
+  },
+  {
+    "from": "Assets/shed/glb/shed_door.glb",
+    "to": "vendor/models/shed/shed_door.glb",
+    "sha1": "e6de4cc223613df6910889362bf48c1714084e1b"
+  },
+  {
+    "from": "Assets/shed/glb/shed_parks.glb",
+    "to": "vendor/models/shed/shed_parks.glb",
+    "sha1": "b5ec8e777db27f001ea7b4f5a26f255b0f4d158b"
+  },
+  {
+    "from": "Assets/shed/glb/shed_wallrack.glb",
+    "to": "vendor/models/shed/shed_wallrack.glb",
+    "sha1": "5491b9b7df7bfbae4a13e60c0e9d08bea98a7294"
+  },
+  {
+    "from": "Assets/shed/glb/shed_window.glb",
+    "to": "vendor/models/shed/shed_window.glb",
+    "sha1": "e8bcbb31f15f52f98c84b78c8e3858bb26ba71ad"
+  }
+]

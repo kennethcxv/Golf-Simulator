@@ -101,7 +101,7 @@ async (page) => {
     const mutation = await page.evaluate(async (desired) => {
       const app = window.__fw;
       const clubhouse = app.scene3d.clubhouse();
-      const restoration = await import('/src/sim/clubhouseRestoration.js');
+      const restoration = await import(new URL('src/sim/clubhouseRestoration.js', document.baseURI).href);
       const production = typeof clubhouse.sheet06Production === 'function'
         ? clubhouse.sheet06Production()
         : clubhouse.sheet06Production;

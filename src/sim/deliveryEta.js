@@ -112,7 +112,7 @@ const clock12 = (absoluteMin) => {
 };
 
 export function deliveryEtaText(order, nowMin, { expected = false } = {}) {
-  if (order.blocked) return 'Delayed — receiving area blocked';
+  if (order.blocked) return 'Delayed - receiving area blocked';
   if (order.status === 'delivered') return 'Delivered';
   const remaining = order.deliveryMin - nowMin;
   if (remaining <= 30 || order.status === 'arriving') return 'Arriving soon';

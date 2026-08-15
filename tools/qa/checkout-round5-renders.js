@@ -50,7 +50,7 @@ async (page) => {
 
   const fixture = await page.evaluate(async ([skuIds]) => {
     const app = window.__fw;
-    const { REGISTER } = await import('/src/data/shopLayout.js');
+    const { REGISTER } = await import(new URL('src/data/shopLayout.js', document.baseURI).href);
     const clubhouse = app.scene3d.clubhouse();
     clubhouse.setOrganicWalkins(false);
     clubhouse.clearWalkins();
@@ -97,8 +97,8 @@ async (page) => {
   // Everything is reported against the STAFF FLOOR (interior-local y 0.3), the
   // surface the cashier actually stands on, so "10 ft tall cashier" is a number.
   const frameMetrics = async () => page.evaluate(async () => {
-    const THREE = await import('/vendor/three.module.js');
-    const { COUNTER_TOP } = await import('/src/data/shopLayout.js');
+    const THREE = await import(new URL('vendor/three.module.js', document.baseURI).href);
+    const { COUNTER_TOP } = await import(new URL('src/data/shopLayout.js', document.baseURI).href);
     const app = window.__fw;
     const clubhouse = app.scene3d.clubhouse();
     const camera = app.scene3d.camera;
@@ -185,7 +185,7 @@ async (page) => {
 
   // --- B: hover a counter product. NOTHING may outline it. -------------------
   const projectObject = (query) => page.evaluate(async (q) => {
-    const THREE = await import('/vendor/three.module.js');
+    const THREE = await import(new URL('vendor/three.module.js', document.baseURI).href);
     const app = window.__fw;
     const clubhouse = app.scene3d.clubhouse();
     let found = null;
@@ -248,7 +248,7 @@ async (page) => {
   // show. The game's own camera is untouched.
   const bagCrop = report.frame.bag;
   const bagShot = await page.evaluate(async ([elevDeg, azimDeg, distance]) => {
-    const THREE = await import('/vendor/three.module.js');
+    const THREE = await import(new URL('vendor/three.module.js', document.baseURI).href);
     const app = window.__fw;
     const scene3d = app.scene3d;
     const clubhouse = scene3d.clubhouse();
@@ -287,7 +287,7 @@ async (page) => {
   // present its printed paper face upward; if a liner or a backface wins that
   // ray, the mouth read is coming from the wrong surface.
   report.bagSurfaces = await page.evaluate(async () => {
-    const THREE = await import('/vendor/three.module.js');
+    const THREE = await import(new URL('vendor/three.module.js', document.baseURI).href);
     const clubhouse = window.__fw.scene3d.clubhouse();
     let bag = null;
     clubhouse.interior.traverse((o) => { if (!bag && o.userData?.kind === 'bag') bag = o; });

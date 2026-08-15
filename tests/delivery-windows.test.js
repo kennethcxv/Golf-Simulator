@@ -27,7 +27,7 @@ test('a placed order carries a useful window around its promised arrival', () =>
   assert.equal(o.status, 'received');
 });
 
-test('the truck lands at its minute — not before, exactly once', () => {
+test('the truck lands at its minute - not before, exactly once', () => {
   const state = newGame('relaxed', 7);
   const o = orderUp(state);
   const before = state.shop.deliveries.boxes.length;

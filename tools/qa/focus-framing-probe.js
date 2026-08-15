@@ -21,7 +21,7 @@
   await page.waitForFunction(() => document.readyState === 'complete');
   await page.evaluate(async () => {
     localStorage.clear();
-    const E = await import('/src/sim/empire.js');
+    const E = await import(new URL('src/sim/empire.js', document.baseURI).href);
     const empire = E.newEmpire('relaxed', 424242);
     empire.cash = 10_000_000;
     const first = empire.market.find((l) => l.id === 'willow-creek') || empire.market[0];
@@ -98,7 +98,7 @@
   // --- laptop seat ---------------------------------------------------------------
   await page.evaluate(async () => {
     const app = window.__fw;
-    const L = await import('/src/data/shopLayout.js');
+    const L = await import(new URL('src/data/shopLayout.js', document.baseURI).href);
     const o = app.scene3d.clubhouse().interior.position;
     const w = app.scene3d.walk.state;
     const laptop = L.FRONT_DESK.laptop;
@@ -128,7 +128,7 @@
   // --- register opening pose -----------------------------------------------------
   await page.evaluate(async (skuIds) => {
     const app = window.__fw;
-    const { REGISTER } = await import('/src/data/shopLayout.js');
+    const { REGISTER } = await import(new URL('src/data/shopLayout.js', document.baseURI).href);
     const clubhouse = app.scene3d.clubhouse();
     clubhouse.setOrganicWalkins(false);
     clubhouse.clearWalkins();

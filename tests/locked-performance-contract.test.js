@@ -22,17 +22,17 @@ function run(runIndex, averageFps = 60, onePercentLowFps = 30) {
       worstFrameMs: 20 + runIndex,
       framesOver33Ms: runIndex - 1,
       framesOver50Ms: 0,
-      drawCalls: 100 + runIndex,
-      renderedTriangles: 100_000 + runIndex,
-      materialCount: 40 + runIndex,
-      rendererGeometryCount: 300 + runIndex,
-      rendererTextureCount: 20 + runIndex,
-      textureMemoryBytes: 50_000_000 + runIndex,
-      jsHeapUsedBytes: 100_000_000 + runIndex,
-      activeEventListeners: 50 + runIndex,
-      trackedEventListeners: 45 + runIndex,
+      drawCalls: 100,
+      renderedTriangles: 100_000,
+      materialCount: 40,
+      rendererGeometryCount: 300,
+      rendererTextureCount: 20,
+      textureMemoryBytes: 50_000_000,
+      jsHeapUsedBytes: 100_000_000,
+      activeEventListeners: 50,
+      trackedEventListeners: 45,
       uiMutationsPerSecond: runIndex,
-      domNodes: 2_000 + runIndex,
+      domNodes: 2_000,
       domNodeDelta: runIndex - 2,
     },
   };
@@ -72,10 +72,10 @@ test('locked performance protocol is exactly 1080p DPR1, five scenarios, and thr
   ]);
   assert.equal(LOCKED_PERFORMANCE_PROTOCOL.runsPerScenario, 3);
   assert.equal(LOCKED_PERFORMANCE_PROTOCOL.aggregation, 'median');
-  assert.deepEqual(LOCKED_PERFORMANCE_PROTOCOL.thresholds, {
-    minimumAverageFps: 60,
-    minimumOnePercentLowFps: 30,
-  });
+  assert.equal(LOCKED_PERFORMANCE_PROTOCOL.thresholds.minimumAverageFps, 60);
+  assert.equal(LOCKED_PERFORMANCE_PROTOCOL.thresholds.minimumOnePercentLowFps, 30);
+  assert.equal(LOCKED_PERFORMANCE_PROTOCOL.thresholds.maximumActiveEventListenerGrowth, 0);
+  assert.equal(LOCKED_PERFORMANCE_PROTOCOL.thresholds.maximumJsHeapGrowthBytes, 8 * 1024 * 1024);
   assert.ok(Object.isFrozen(LOCKED_PERFORMANCE_PROTOCOL));
   assert.ok(Object.isFrozen(LOCKED_PERFORMANCE_PROTOCOL.viewport));
   assert.ok(Object.isFrozen(LOCKED_PERFORMANCE_PROTOCOL.scenarios));
@@ -88,10 +88,10 @@ test('scenario summary uses the median of exactly three ordered runs', () => {
   assert.equal(summary.averageFps, 60);
   assert.equal(summary.onePercentLowFps, 30);
   assert.equal(summary.worstFrameMs, 22);
-  assert.equal(summary.activeEventListenerGrowth, 2);
-  assert.equal(summary.trackedEventListenerGrowth, 2);
-  assert.equal(summary.domNodeGrowth, 2);
-  assert.equal(summary.jsHeapGrowthBytes, 2);
+  assert.equal(summary.activeEventListenerGrowth, 0);
+  assert.equal(summary.trackedEventListenerGrowth, 0);
+  assert.equal(summary.domNodeGrowth, 0);
+  assert.equal(summary.jsHeapGrowthBytes, 0);
   assert.equal(median([30, 60, 120]), 60);
   assert.throws(() => summarizeScenarioRuns(runs.slice(0, 2)), /exactly 3 runs/);
   assert.throws(() => summarizeScenarioRuns([runs[1], runs[0], runs[2]]), /out of order/);
@@ -135,6 +135,33 @@ test('locked performance gates fail strictly below either absolute median thresh
   assert.match(result.failures.join('\n'), /walk: median 1% low FPS 29\.999 < 30/);
 });
 
+test('locked performance fails resource growth and long-frame gates even when FPS medians pass', () => {
+  const candidate = report((key) => {
+    const runs = [run(1, 90, 45), run(2, 90, 45), run(3, 90, 45)];
+    if (key === 'checkout') {
+      runs[1].sample.framesOver50Ms = 1;
+      runs[2].sample.framesOver50Ms = 1;
+      runs[2].sample.activeEventListeners += 2;
+      runs[2].sample.domNodes += 4;
+      runs[2].sample.jsHeapUsedBytes += 9 * 1024 * 1024;
+      runs[2].sample.rendererTextureCount += 1;
+    }
+    return runs;
+  });
+  const result = evaluateLockedPerformanceReport(candidate);
+  assert.equal(result.ok, false);
+  assert.match(result.failures.join('\n'), /checkout: resource gate failed for medianFramesOver50Ms/);
+  assert.match(result.failures.join('\n'), /activeEventListenerGrowth/);
+  assert.match(result.failures.join('\n'), /domNodeGrowth/);
+  assert.match(result.failures.join('\n'), /jsHeapGrowthBytes/);
+  assert.match(result.failures.join('\n'), /rendererTextureGrowth/);
+  const gate = result.gates.find(({ scenario }) => scenario === 'checkout');
+  assert.equal(gate.averageFpsPass, true);
+  assert.equal(gate.onePercentLowFpsPass, true);
+  assert.equal(gate.resourceStabilityPass, false);
+  assert.equal(gate.ok, false);
+});
+
 test('locked performance contract fails closed on protocol or scenario drift', () => {
   const floatingDpr = report();
   floatingDpr.environment.devicePixelRatio = 1.00000003;
@@ -152,7 +179,7 @@ test('locked performance contract fails closed on protocol or scenario drift', (
   assert.match(result.failures.join('\n'), /1920x1080 at DPR 1/);
   assert.match(result.failures.join('\n'), /runsPerScenario must be 3/);
   assert.match(result.failures.join('\n'), /aggregation must be median/);
-  assert.match(result.failures.join('\n'), /average FPS >= 60/);
+  assert.match(result.failures.join('\n'), /complete locked performance and resource gate/);
   assert.match(result.failures.join('\n'), /measured browser devicePixelRatio must be 1/);
   assert.match(result.failures.join('\n'), /scenario results must contain exactly/);
 });

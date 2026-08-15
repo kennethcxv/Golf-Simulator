@@ -2,6 +2,9 @@
 // camera, renderer, laptop, and accessibility styles. One persisted document
 // prevents each surface from inventing its own idea of "settings".
 
+import { DEFAULT_BINDINGS, normalizeBindings } from './keyBindings.js';
+import { DEFAULT_LOCALE, isLocale, setLocale } from './i18n.js';
+
 export const PREFERENCES_KEY = 'golfempire:preferences:v1';
 
 export const DEFAULT_PREFERENCES = Object.freeze({
@@ -11,6 +14,32 @@ export const DEFAULT_PREFERENCES = Object.freeze({
     ambience: 0.65,
     ui: 0.8,
     muted: false,
+    // PLAYTEST 3 — the audition switcher's answer, family -> option id. An empty
+    // map means "no pin", which is the shipped default set: the manifest's own
+    // default option wins until the owner picks otherwise. Stored as a free-form
+    // map rather than a fixed set of keys because the families come from the
+    // audio manifest, and pinning the schema here would mean a new sound family
+    // silently failing to persist.
+    // THE OWNER'S AUDITION RESULTS (Playtest 4, item 1). These are no longer
+    // provisional: he listened and named a winner in four families, and the
+    // losing recordings have been deleted from the recipe, the shopping list and
+    // the disk, so nothing else in these four families exists to pin.
+    //
+    // ledgerTurn and ledgerPickup are DELIBERATELY ABSENT. He rejected every
+    // candidate in both, so the round-2 recordings in the picker have not been
+    // heard by anyone and picking one for him would be exactly the guess this
+    // switcher exists to avoid. Unpinned, those two cues fall back to the base
+    // ledger-turn-*/ledger-pickup-* recordings — the status quo — until he
+    // chooses.
+    sfx: Object.freeze({
+      menuButton: 'felt-tap',
+      drawerOpen: 'wood-deep',
+      cashLand: 'paper',
+      ledgerClose: 'book',
+    }),
+    // ITEM 4 — the background track, chosen in PLAYER settings. '' is the
+    // shipped default track; 'off' is the off switch the brief asks for.
+    musicTrack: '',
   }),
   camera: Object.freeze({
     sensitivity: 1,
@@ -24,12 +53,39 @@ export const DEFAULT_PREFERENCES = Object.freeze({
     ambientOcclusion: true,
     bloom: true,
     shadows: true,
+    shadowQuality: 'medium',
+    postProcessing: true,
+    resolution: 'native',
     uiScale: 1,
+    // A1 (Goal 23): 0 = MATCH THE DISPLAY, and that is now the default.
+    //
+    // It shipped at 60 because 60 was "the only rung that HOLDS" — cap 120
+    // averaged 97 fps with 0.2% of intervals on cadence. That was true, and the
+    // conclusion drawn from it was wrong: the rung that holds best is the one
+    // that was never tested against the panel. Measured on a 181.8 Hz display,
+    // standing inside the shop (tools/qa/electron-a1-cap-cadence.js):
+    //
+    //   cap 60   60.6 fps   94.4% on cadence   1% low 22.0 ms
+    //   cap 0   181.8 fps   99.2% on cadence   1% low  6.5 ms
+    //
+    // A default of 60 hands a player with a high-refresh panel a third of the
+    // frames their hardware can present, and a 1% low three times worse. The
+    // GPU cost of the extra frames is 5 ms of a 5.5 ms budget — they are
+    // affordable. Vsync still bounds the rate, so "uncapped" is the panel, not
+    // a thermal event. Players who want less can still pick a rung, and since
+    // Goal 23 every rung paces exactly (src/core/frameCap.js).
+    fpsCap: 0,
   }),
   accessibility: Object.freeze({
     reducedMotion: false,
     highContrast: false,
     toolActivation: 'hold',
+  }),
+  // Q3: the language everything the player reads is drawn in (src/core/i18n.js)
+  locale: DEFAULT_LOCALE,
+  // N2/F2: the one binding table every key read resolves through
+  controls: Object.freeze({
+    bindings: DEFAULT_BINDINGS,
   }),
 });
 
@@ -52,6 +108,38 @@ export function normalizePreferences(raw = {}) {
       ambience: clamp(audio.ambience, 0, 1, DEFAULT_PREFERENCES.audio.ambience),
       ui: clamp(audio.ui, 0, 1, DEFAULT_PREFERENCES.audio.ui),
       muted: bool(audio.muted, DEFAULT_PREFERENCES.audio.muted),
+      // Keep only string->string pairs. A saved pin naming an option that no
+      // longer exists is harmless -- setFamilyOption refuses it and the family
+      // goes back to drawing from everything -- but a nested object or a number
+      // in here would reach the bank and be compared against an option id.
+      //
+      // PLAYTEST 4, ITEM 1 — THE SHIPPED DEFAULTS HAVE TO SURVIVE THIS FUNCTION.
+      //
+      // This was the one field in the file that built its result from the INCOMING
+      // object alone, with no fallback to DEFAULT_PREFERENCES. Every fresh profile
+      // therefore normalised to `{}`, no pin was ever applied at boot, and each
+      // cue drew at RANDOM across its whole family. Measured in Electron before
+      // the fix: every family reported `current: NONE`, and firing `drawerOpen`
+      // played `drawer-open-2.ogg` — not the recording the owner chose. The
+      // audition defaults have been decorative since they shipped.
+      //
+      // The empty string is kept rather than dropped, because it is the only way
+      // to say "deliberately unpinned": the settings panel writes `''` when the
+      // owner clears a family, and if `''` were dropped the default would flood
+      // straight back in and clearing would be impossible. So: defaults first,
+      // stored values over the top, `''` beating a default and reaching the bank
+      // as a falsy option it declines to pin.
+      sfx: (() => {
+        const out = { ...DEFAULT_PREFERENCES.audio.sfx };
+        const raw2 = audio.sfx;
+        if (raw2 && typeof raw2 === 'object' && !Array.isArray(raw2)) {
+          for (const [k, v] of Object.entries(raw2)) {
+            if (typeof k === 'string' && typeof v === 'string' && k) out[k] = v;
+          }
+        }
+        return out;
+      })(),
+      musicTrack: typeof audio.musicTrack === 'string' ? audio.musicTrack : DEFAULT_PREFERENCES.audio.musicTrack,
     },
     camera: {
       sensitivity: clamp(camera.sensitivity, 0.35, 2.5, DEFAULT_PREFERENCES.camera.sensitivity),
@@ -60,17 +148,33 @@ export function normalizePreferences(raw = {}) {
       bob: bool(camera.bob, DEFAULT_PREFERENCES.camera.bob),
     },
     display: {
-      quality: oneOf(display.quality, ['low', 'balanced', 'high', 'custom'], DEFAULT_PREFERENCES.display.quality),
+      // 'balanced' is what medium used to be called; map it forward rather than
+      // dropping a saved document to 'custom'.
+      quality: oneOf(
+        display.quality === 'balanced' ? 'medium' : display.quality,
+        ['low', 'medium', 'high', 'ultra', 'custom'],
+        DEFAULT_PREFERENCES.display.quality,
+      ),
       renderScale: clamp(display.renderScale, 0.65, 1.35, DEFAULT_PREFERENCES.display.renderScale),
       ambientOcclusion: bool(display.ambientOcclusion, DEFAULT_PREFERENCES.display.ambientOcclusion),
       bloom: bool(display.bloom, DEFAULT_PREFERENCES.display.bloom),
       shadows: bool(display.shadows, DEFAULT_PREFERENCES.display.shadows),
+      shadowQuality: oneOf(display.shadowQuality, ['off', 'low', 'medium', 'high'], DEFAULT_PREFERENCES.display.shadowQuality),
+      postProcessing: bool(display.postProcessing, DEFAULT_PREFERENCES.display.postProcessing),
+      resolution: oneOf(display.resolution, ['native', '1080p', '1440p', '4k'], DEFAULT_PREFERENCES.display.resolution),
       uiScale: clamp(display.uiScale, 0.9, 1.3, DEFAULT_PREFERENCES.display.uiScale),
+      fpsCap: oneOf(display.fpsCap, [0, 60, 120, 144], DEFAULT_PREFERENCES.display.fpsCap),
     },
     accessibility: {
       reducedMotion: bool(accessibility.reducedMotion, DEFAULT_PREFERENCES.accessibility.reducedMotion),
       highContrast: bool(accessibility.highContrast, DEFAULT_PREFERENCES.accessibility.highContrast),
       toolActivation: oneOf(accessibility.toolActivation, ['hold', 'toggle'], DEFAULT_PREFERENCES.accessibility.toolActivation),
+    },
+    // Q3: an unknown or missing locale falls back to English rather than
+    // leaving the game drawing from a table that does not exist
+    locale: isLocale(raw.locale) ? raw.locale : DEFAULT_LOCALE,
+    controls: {
+      bindings: normalizeBindings(raw.controls?.bindings),
     },
   };
 }
@@ -138,6 +242,10 @@ export function makePreferences(storage = globalThis.localStorage) {
   }
 
   function publish(result) {
+    // Q3: the i18n table follows the document, so every surface that draws a
+    // line through t() is already correct by the time the listeners run. One
+    // place does this, so no screen can be left drawing the old language.
+    setLocale(values.locale);
     for (const listener of listeners) listener(values, result);
     return result;
   }
@@ -162,7 +270,9 @@ export function makePreferences(storage = globalThis.localStorage) {
     return publish(persist());
   }
 
-  // Persist a migrated document so the next launch has one source of truth.
+  // Persist a migrated document so the next launch has one source of truth,
+  // and put the saved language in force before anything draws.
+  setLocale(values.locale);
   persist();
 
   return {
@@ -187,8 +297,108 @@ export function applyDocumentPreferences(values, root = globalThis.document?.doc
   root.dataset.highContrast = values.accessibility.highContrast ? 'true' : 'false';
 }
 
+// FOUR TIERS THAT GENUINELY DIFFER, and every field one moves is a measured
+// cost. `balanced` is kept as a silent alias of `medium` so a document saved by
+// an older build still normalises to a real preset instead of falling back to
+// 'custom' and stranding the player on whatever they had.
+//
+// shadowQuality is the tier that matters most and it is new. Measured in
+// Electron on pine-hills-v2 at a fixed shop-floor pose
+// (tools/qa/electron-shadow-quality.js): the sun's shadow map is re-baked ten
+// times a second, and the frames that carry a bake cost six times a frame that
+// does not. Halving the map quarters that raster.
 export const QUALITY_PRESETS = Object.freeze({
-  low: Object.freeze({ quality: 'low', renderScale: 0.75, ambientOcclusion: false, bloom: false, shadows: false }),
-  balanced: Object.freeze({ quality: 'balanced', renderScale: 0.9, ambientOcclusion: true, bloom: false, shadows: true }),
-  high: Object.freeze({ quality: 'high', renderScale: 1, ambientOcclusion: true, bloom: true, shadows: true }),
+  low: Object.freeze({
+    quality: 'low',
+    renderScale: 0.65,
+    ambientOcclusion: false,
+    bloom: false,
+    shadows: false,
+    shadowQuality: 'off',
+    // TRIED AND REVERTED, 2026-08-06: postProcessing: false, to skip the
+    // composer entirely rather than run it with both effects off. It measured
+    // 21% SLOWER indoors (59.7 fps against Medium's 76.0 at the shop-floor pose)
+    // and submitted MORE draw calls, not fewer. The direct-render path is not
+    // the cheap path on this renderer and the reason was not isolated; the
+    // setPostEnabled hook it needed is kept, because it is sound, but no preset
+    // uses it. Recorded so nobody spends the afternoon on it twice.
+    postProcessing: true,
+  }),
+  medium: Object.freeze({
+    quality: 'medium',
+    postProcessing: true,
+    renderScale: 0.9,
+    ambientOcclusion: false,
+    bloom: true,
+    shadows: true,
+    shadowQuality: 'low',
+  }),
+  high: Object.freeze({
+    quality: 'high',
+    renderScale: 1,
+    ambientOcclusion: true,
+    bloom: true,
+    shadows: true,
+    shadowQuality: 'medium',
+  }),
+  ultra: Object.freeze({
+    quality: 'ultra',
+    postProcessing: true,
+    renderScale: 1.15,
+    ambientOcclusion: true,
+    bloom: true,
+    shadows: true,
+    shadowQuality: 'high',
+  }),
+});
+
+// WHAT EACH ONE CHANGES, in the player's words. The settings screen draws this
+// verbatim so the list can never drift from the values above — a preset that
+// does not say what it does is a preset nobody dares move.
+export const QUALITY_PRESET_NOTES = Object.freeze({
+  low: 'No shadows, no ambient shading, no bloom. World drawn at 65%.',
+  medium: 'Shadows at half resolution, refreshed half as often. No ambient shading. World at 90%.',
+  high: 'Full shadows, ambient shading and bloom. World at full size. The tuned default.',
+  ultra: 'Shadows at double resolution refreshed every 60 ms, and the world drawn at 115%: sharper than the screen, then downsampled.',
+});
+
+// MEASURED, at three fixed poses in Electron on pine-hills-v2, NPCs at 1x and the
+// shop open (tools/qa/electron-quality-presets.js, RTX 5080, 1600x900). Average
+// fps, shop floor / shop walk / porch:
+//
+//   low     69.5 / 77.1 / 78.7
+//   medium  70.9 / 71.4 / 76.9
+//   high    62.5 / 64.4 / 66.2
+//   ultra   54.0 / 54.8 / 64.3
+//
+// The run brackets itself: `high` is sampled at the start AND the end, and the
+// spread between those two readings (6.5%) is the floor below which a gap means
+// nothing. medium→high clears it at all three poses (13.4%, 10.9%, 16.2%) and is
+// almost entirely GTAO — the ambient-occlusion pass roughly doubles the draw
+// calls. high→ultra clears it at two of three.
+//
+// LOW AND MEDIUM DO NOT RELIABLY SEPARATE ON THIS HARDWARE (-2%, +8%, +2.3%), and
+// that is worth saying rather than hiding: on an RTX 5080 at this resolution the
+// renderer is not fragment-bound below about 1.35 device pixels, so dropping the
+// render scale from 90% to 65% buys nothing. What Low genuinely removes is the
+// shadow map and the bloom chain, and those are fragment costs that dominate on
+// the weak GPUs Low exists for. The gap should be measured again on one.
+
+// The renderer-side numbers behind display.shadowQuality. walkMap is the map
+// baked on foot; bakeMs is how often. Both are read by courseScene's
+// setShadowQuality, which owns sun.shadow.mapSize.
+export const SHADOW_QUALITY_LEVELS = Object.freeze({
+  off: Object.freeze({ enabled: false, walkMap: 1024, fullMap: 2048, bakeMs: 250 }),
+  low: Object.freeze({ enabled: true, walkMap: 1024, fullMap: 2048, bakeMs: 200 }),
+  medium: Object.freeze({ enabled: true, walkMap: 2048, fullMap: 4096, bakeMs: 100 }),
+  high: Object.freeze({ enabled: true, walkMap: 4096, fullMap: 4096, bakeMs: 60 }),
+});
+
+// WINDOW SIZES the player can ask for. Electron resizes the real window; a
+// browser tab cannot, and says so rather than pretending.
+export const RESOLUTION_PRESETS = Object.freeze({
+  native: Object.freeze({ label: 'Match the window', width: 0, height: 0 }),
+  '1080p': Object.freeze({ label: '1920 × 1080', width: 1920, height: 1080 }),
+  '1440p': Object.freeze({ label: '2560 × 1440', width: 2560, height: 1440 }),
+  '4k': Object.freeze({ label: '3840 × 2160', width: 3840, height: 2160 }),
 });

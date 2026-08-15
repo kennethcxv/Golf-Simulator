@@ -361,7 +361,10 @@ def add_packing_label(root, materials, prefix: str, author_dimensions):
         parent=root,
         props={"component": "packing_id_label", "logical_sku": root["logical_sku"]},
     )
-    backing["packing_role"] = "identity_and_barcode_label"
+    # TAGS (2026-08-06): "hunt every tag/QR reference, delete all." The paper
+    # patch stays — a shipping label on a delivery carton is packaging — but it
+    # no longer carries a printed code, and its role no longer claims one.
+    backing["packing_role"] = "packing_identity_label"
     box(
         f"{prefix}_LABEL_GREEN_BAND",
         (0.025, 0.050, 0.0008),
@@ -370,20 +373,10 @@ def add_packing_label(root, materials, prefix: str, author_dimensions):
         bevel=0.0003,
         parent=root,
     )
-    bar_widths = (1, 2, 1, 1, 3, 1, 2, 1, 1, 2, 1)
-    cursor = -0.025
-    unit = 0.0021
-    for index, units in enumerate(bar_widths, start=1):
-        bar_width = units * unit
-        box(
-            f"{prefix}_BARCODE_BAR_{index:02d}",
-            (bar_width, 0.032 if index % 3 else 0.027, 0.0008),
-            (cursor + bar_width / 2, label_y + 0.002, label_z + 0.0010),
-            materials["charcoal"],
-            bevel=0.0,
-            parent=root,
-        )
-        cursor += bar_width + unit
+    # The BARCODE_AREA anchor STAYS. It is an empty, not geometry — a logical
+    # surface saying which face of the carton faces a reader — and it draws
+    # nothing. What is gone is the eleven charcoal bars that were printed onto
+    # this label and rendered on every delivery carton in the shop.
     anchor(
         "BARCODE_AREA",
         (0.012, label_y + 0.002, label_z + 0.002),
@@ -393,7 +386,6 @@ def add_packing_label(root, materials, prefix: str, author_dimensions):
             "width_m": 0.080,
             "height_m": 0.034,
             "surface": "packing_identity_label",
-            "nonretail_tracking_code": True,
         },
     )
 

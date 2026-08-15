@@ -141,10 +141,10 @@ export function maybeGenerateOutingOffer(state) {
     expiresDay: dayAbs + 2 + rng.int(2),
   };
   state.club.outings.offers.push(offer);
-  pushFeed(state, { kind: 'offer', text: `${offer.company} wants a ${size}-player outing — ${payout.toLocaleString('en-US')} dollars.` });
+  pushFeed(state, { kind: 'offer', text: `${offer.company} wants a ${size}-player outing - ${payout.toLocaleString('en-US')} dollars.` });
   notify(state, {
     kind: 'event',
-    text: `${offer.company} wants a ${size}-player outing — $${payout.toLocaleString('en-US')}. The offer expires day ${offer.expiresDay + 1}.`,
+    text: `${offer.company} wants a ${size}-player outing - $${payout.toLocaleString('en-US')}. The offer expires day ${offer.expiresDay + 1}.`,
     dedupeKey: `offer:${offer.id}`,
   });
 }
@@ -305,7 +305,7 @@ export function accrueDaily(state) {
       delta: ratings.overall >= 55 ? 1 : -1.5, source: 'outing', sourceId: outing.id,
       reason: ratings.overall >= 55 ? `${outing.company}'s event ran successfully.` : `${outing.company}'s event exposed weak course conditions.`,
     });
-    pushFeed(state, { kind: 'outing', text: `${outing.company} outing played — ${outing.payout.toLocaleString('en-US')} dollars banked.` });
+    pushFeed(state, { kind: 'outing', text: `${outing.company} outing played - ${outing.payout.toLocaleString('en-US')} dollars banked.` });
   }
 
   // reciprocal network: partner-club visitors, mostly for the premium crowd
@@ -385,7 +385,7 @@ export function dailyMembershipTick(state) {
           source: 'membership', sourceId: g.id, reason: `${g.name} left because dues exceeded perceived value.`,
         });
         recordOutcome(state, { idempotencyKey: `member:${g.id}:value-churn:${dayAbs}`, type: 'memberChurn', count: 1, relatedId: g.id, reason: `${g.name} left over value for money.` });
-        pushFeed(state, { kind: 'quit', text: `${g.name} walked — "not worth it anymore."` });
+        pushFeed(state, { kind: 'quit', text: `${g.name} walked - "not worth it anymore."` });
       }
     }
   }

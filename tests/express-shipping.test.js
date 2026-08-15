@@ -29,7 +29,7 @@ function shop() {
 
 test('no line takes more than two days, and none takes less than one', () => {
   for (const [cat, days] of Object.entries(LEAD_DAYS)) {
-    assert.ok(days >= 1, `${cat} arrives in ${days} days — same-day standard leaves express nothing to sell`);
+    assert.ok(days >= 1, `${cat} arrives in ${days} days - same-day standard leaves express nothing to sell`);
     assert.ok(days <= 2, `${cat} takes ${days} days: more than one night is more than one session`);
   }
 });

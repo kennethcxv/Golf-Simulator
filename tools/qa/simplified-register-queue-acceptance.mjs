@@ -34,7 +34,8 @@ async function boot(page) {
   await page.setViewportSize(VIEWPORT);
   await page.goto(BASE_URL);
   await page.waitForTimeout(1000);
-  await page.getByText('Continue', { exact: true }).click().catch(() => {});
+  const { clickThroughMenu } = await import(`file:///${process.cwd().replace(/\\/g, '/')}/tools/qa/lib/qa-boot.mjs`);
+  await clickThroughMenu(page);
   await page.waitForFunction(() => window.__fw && window.__fw.scene3d
     && window.__fw.scene3d.clubhouse && window.__fw.scene3d.clubhouse(), null,
   { timeout: 40000 });
@@ -50,7 +51,7 @@ async function boot(page) {
 async function setupFixture(page) {
   return page.evaluate(async ([firstSkus, secondSkus]) => {
     const app = window.__fw;
-    const { REGISTER } = await import('/src/data/shopLayout.js');
+    const { REGISTER } = await import(new URL('src/data/shopLayout.js', document.baseURI).href);
     const clubhouse = app.scene3d.clubhouse();
     clubhouse.setOrganicWalkins(false);
     clubhouse.clearWalkins();
@@ -316,7 +317,7 @@ async function exitFrontDesk(page) {
 
 async function projectObject(page, predicate) {
   return page.evaluate(async (query) => {
-    const THREE = await import('/vendor/three.module.js');
+    const THREE = await import(new URL('vendor/three.module.js', document.baseURI).href);
     const app = window.__fw;
     const clubhouse = app.scene3d.clubhouse();
     const register = clubhouse.register;
@@ -396,7 +397,7 @@ async function projectObject(page, predicate) {
 
 async function clickDiagnostic(page, x, y) {
   return page.evaluate(async (point) => {
-    const THREE = await import('/vendor/three.module.js');
+    const THREE = await import(new URL('vendor/three.module.js', document.baseURI).href);
     const app = window.__fw;
     const rect = document.querySelector('canvas').getBoundingClientRect();
     const ndc = new THREE.Vector2(
@@ -500,7 +501,7 @@ async function completeCard(page) {
     return tx?.stage === 'card-entry';
   }, null, { timeout: 5000 });
   const prefill = await page.evaluate(async () => {
-    const register = await import('/src/sim/register.js');
+    const register = await import(new URL('src/sim/register.js', document.baseURI).href);
     const tx = window.__fw.scene3d.clubhouse().register.getTx();
     return {
       totalCents: Math.round(register.totalOf(tx) * 100),
@@ -528,7 +529,7 @@ async function completeExactCash(page) {
     return tx?.stage === 'cash-tender';
   }, null, { timeout: 9000 });
   const facts = await page.evaluate(async () => {
-    const register = await import('/src/sim/register.js');
+    const register = await import(new URL('src/sim/register.js', document.baseURI).href);
     const tx = window.__fw.scene3d.clubhouse().register.getTx();
     return {
       total: register.cashTotalOf(tx),
@@ -549,7 +550,7 @@ async function completeExactCash(page) {
   }, null, { timeout: 10000 });
   await waitCamera(page, 'cash');
   const giving = await page.evaluate(async () => {
-    const register = await import('/src/sim/register.js');
+    const register = await import(new URL('src/sim/register.js', document.baseURI).href);
     const tx = window.__fw.scene3d.clubhouse().register.getTx();
     return register.changeGivingState(tx);
   });

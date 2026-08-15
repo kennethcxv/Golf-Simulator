@@ -42,10 +42,10 @@ async (page) => {
 
   const fixtureResult = await page.evaluate(async () => {
     const app = window.__fw;
-    const inventory = await import('/src/sim/propertyInventory.js');
-    const shop = await import('/src/sim/shop.js');
-    const layout = await import('/src/sim/layout.js');
-    const campaign = await import('/src/sim/campaign.js');
+    const inventory = await import(new URL('src/sim/propertyInventory.js', document.baseURI).href);
+    const shop = await import(new URL('src/sim/shop.js', document.baseURI).href);
+    const layout = await import(new URL('src/sim/layout.js', document.baseURI).href);
+    const campaign = await import(new URL('src/sim/campaign.js', document.baseURI).href);
     const state = app.state;
     const clubhouse = app.scene3d.clubhouse();
     app.scene3d.walk.clearKeys();
@@ -170,7 +170,7 @@ async (page) => {
   });
   await page.waitForTimeout(1600);
   await page.evaluate(async () => {
-    const ui = await import('/src/ui/ui.js');
+    const ui = await import(new URL('src/ui/ui.js', document.baseURI).href);
     ui.clearNotifications();
   });
   await page.waitForTimeout(350);
@@ -237,7 +237,7 @@ async (page) => {
   for (const camera of cameras) {
     await setCamera(camera);
     await page.evaluate(async () => {
-      const ui = await import('/src/ui/ui.js');
+      const ui = await import(new URL('src/ui/ui.js', document.baseURI).href);
       ui.clearNotifications();
     });
     await page.waitForTimeout(150);
@@ -302,7 +302,7 @@ async (page) => {
   });
 
   const saveRoundTrip = await page.evaluate(async () => {
-    const E = await import('/src/sim/empire.js');
+    const E = await import(new URL('src/sim/empire.js', document.baseURI).href);
     const snapshot = E.empireSnapshot(window.__fw.empire);
     const restored = E.deserializeEmpire(JSON.stringify(snapshot));
     const restoredState = E.activeState(restored);
@@ -435,7 +435,7 @@ async (page) => {
     await page.mouse.click(800, 450);
     await page.waitForTimeout(250);
     await page.evaluate(async () => {
-      const ui = await import('/src/ui/ui.js');
+      const ui = await import(new URL('src/ui/ui.js', document.baseURI).href);
       ui.clearNotifications();
     });
     const reloadShot = path.join(outDir, '08-after-autosave-reload.png');

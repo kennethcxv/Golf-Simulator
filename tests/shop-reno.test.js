@@ -290,7 +290,7 @@ test('foot traffic tracks grime back in daily, gently and capped', () => {
   assert.ok(avg1 > 0 && avg1 < 0.1, `a busy day tracks in a little (${avg1.toFixed(3)})`);
   for (let d = 0; d < 400; d++) shopDailyGrime(state, 40);
   assert.ok(state.shop.reno.grime.every((v) => v <= RENO.trafficCap + 1e-9),
-    'neglect plateaus below the fresh-fixer-upper filth — traffic alone never re-wrecks it');
+    'neglect plateaus below the fresh-fixer-upper filth - traffic alone never re-wrecks it');
 });
 
 test('reno state survives save/load exactly, and pre-reno saves migrate to a dirty shop', () => {
@@ -307,5 +307,5 @@ test('reno state survives save/load exactly, and pre-reno saves migrate to a dir
   const migrated = deserialize(JSON.stringify(raw));
   assert.ok(migrated.shop.reno, 'old saves gain a reno block on load');
   const avg = migrated.shop.reno.grime.reduce((a, v) => a + v, 0) / migrated.shop.reno.grime.length;
-  assert.ok(avg >= 0.55, 'migrated shops start dirty too — every property is a fixer-upper');
+  assert.ok(avg >= 0.55, 'migrated shops start dirty too - every property is a fixer-upper');
 });

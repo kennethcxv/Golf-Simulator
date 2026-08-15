@@ -498,6 +498,22 @@ function overviewPose(property, heightAt, options) {
       points.push({ x, y: safeHeight(heightAt, x, z), z });
     }
   }
+  // J (Goal 23) — THE OVERVIEW MUST FRAME THE PLAYER.
+  //
+  // "The pin is 28% off the left edge." Measured in Goal 21: ndcX -1.282, which
+  // is not a marker that is hard to see, it is a marker that is not in the
+  // picture. The cause is here: the frame is solved to contain the PROPERTY
+  // GRID, and the clubhouse sits off the course footprint, so a player standing
+  // in their own shop is outside every point the solver is looking at.
+  //
+  // A map you cannot find yourself on is a picture. Anything the caller says
+  // must be in shot joins the point set and the same solver widens to hold it.
+  for (const extra of options.includePoints || []) {
+    if (!extra || !Number.isFinite(extra.x)) continue;
+    const z = Number.isFinite(extra.z) ? extra.z : extra.y;
+    if (!Number.isFinite(z)) continue;
+    points.push({ x: extra.x, y: safeHeight(heightAt, extra.x, z), z });
+  }
 
   const cameraDir = { x: Math.sin(yaw), z: Math.cos(yaw) };
   const halfLong = (alongX ? property.worldW : property.worldH) * 0.5;

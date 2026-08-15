@@ -122,7 +122,7 @@ async (page) => {
 
   await page.evaluate(async () => {
     const app = window.__fw;
-    const shop = await import('/src/sim/shop.js');
+    const shop = await import(new URL('src/sim/shop.js', document.baseURI).href);
     app.state.cash = Math.max(app.state.cash, 100000);
     app.state.shop.unlockedTier = Math.max(app.state.shop.unlockedTier, 3);
     shop.placeOrder(app.state, 'balls3', 24);

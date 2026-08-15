@@ -94,7 +94,7 @@ test('no two items on a fixture stand in the same place', () => {
   }
 });
 
-test('every slot is inside the fixture it belongs to — nothing hangs in mid-air off the end', () => {
+test('every slot is inside the fixture it belongs to - nothing hangs in mid-air off the end', () => {
   for (const f of FIXTURES) {
     if (!f.skus.length) continue;
     const [hx, hz] = FIXTURE_HALF[f.kind] || [1.6, 0.5];

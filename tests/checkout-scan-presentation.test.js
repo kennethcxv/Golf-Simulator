@@ -74,16 +74,39 @@ test('scanner contact requires the barcode to cross the ray and face back toward
   assert.equal(reversed.facingDot, 1);
 });
 
-test('the production fixture and register wire the authored scanner into physical barcode validation', () => {
+test('the production fixture and register wire the authored scanner to the counter', () => {
   const fixtures = fs.readFileSync('src/render3d/clubhouse/fixtures.js', 'utf8');
   const register = fs.readFileSync('src/render3d/clubhouse/simplifiedRegisterMode.js', 'utf8');
   const merch = fs.readFileSync('src/render3d/clubhouse/merch.js', 'utf8');
   assert.match(merch, /'barcode_scanner'/);
   assert.match(fixtures, /placeKit\('barcode_scanner', REGISTER\.scanner/);
   assert.match(fixtures, /B\.register\.attachScanner\(scanner\)/);
+  // The barcode survives as a transaction STRING on the item's userData.
   assert.match(register, /barcodeFor\(item\.skuId, item\.price\)/);
-  assert.match(register, /judgeBarcodeRead\(/);
-  assert.match(register, /RuntimeProductBarcode/);
+});
+
+// The tag was asked for three times and reported gone twice. Both earlier passes
+// left a printed label on the goods and wrote assertions that REQUIRED it, so a
+// green suite meant nothing. This test is the inverse: the register may not
+// construct any printed product label, by any name.
+test('no product carries a printed label of any kind at the register', () => {
+  const register = fs.readFileSync('src/render3d/clubhouse/simplifiedRegisterMode.js', 'utf8');
+  // Strip comments — the removal is documented in prose that names what is gone.
+  const code = register
+    .replace(/\/\*[\s\S]*?\*\//g, '')
+    .split('\n').filter((line) => !/^\s*\/\//.test(line)).join('\n');
+  for (const banned of [
+    'RuntimeProductBarcode', 'productBarcodeTexture', 'barcodeBits',
+    'ProductSwingTag', 'RuntimeProductBarcodeTether',
+    'RuntimeProductBarcodeBacking', 'RuntimeProductBarcodeCarrier',
+    'PriceTag', 'HangTag', 'productQrTexture',
+  ]) {
+    assert.ok(!code.includes(banned),
+      `register builds "${banned}" — the goods must carry no printed label`);
+  }
+  // Negative control: the same scan would fire on a label that did exist.
+  assert.ok('const t = new THREE.Mesh(g, m); t.name = "RuntimeProductBarcode";'
+    .includes('RuntimeProductBarcode'), 'the label scan can detect a label');
 });
 
 test('normal product clicks route both register workspaces through one-click scan choreography', () => {

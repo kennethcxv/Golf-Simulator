@@ -50,7 +50,7 @@ test('X pulls the card at every pre-submit stage and returns to the choice point
   }
 });
 
-test('X is refused once processing has begun — no pulling a settling payment', () => {
+test('X is refused once processing has begun - no pulling a settling payment', () => {
   const tx = scannedCardTx('card-busy');
   assert.equal(tx.stage, 'card-busy');
   const result = abandonCardBeforeSubmit(tx);
@@ -58,7 +58,7 @@ test('X is refused once processing has begun — no pulling a settling payment',
   assert.equal(tx.stage, 'card-busy', 'the processing state is untouched');
 });
 
-test('X is refused after the card has settled — no undoing a completed sale', () => {
+test('X is refused after the card has settled - no undoing a completed sale', () => {
   const tx = scannedCardTx('card-busy');
   runCard(tx, { force: 'approved' }); // -> receipt
   assert.equal(tx.stage, 'receipt');

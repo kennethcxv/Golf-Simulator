@@ -418,8 +418,8 @@ async (page) => {
 
   const greenPinCandidate = (holeId, pinKey) => page.evaluate(async ({ selectedHoleId, key }) => {
     const THREE = await import('three');
-    const { getZone } = await import('/src/sim/course.js');
-    const { ZONE } = await import('/src/sim/constants.js');
+    const { getZone } = await import(new URL('src/sim/course.js', document.baseURI).href);
+    const { ZONE } = await import(new URL('src/sim/constants.js', document.baseURI).href);
     const app = window.__fw;
     const course = app.state.course;
     const scene = app.scene3d;
@@ -457,7 +457,7 @@ async (page) => {
   }, { selectedHoleId: holeId, key: pinKey });
 
   const openRoute = () => page.evaluate(async () => {
-    const { ZONE } = await import('/src/sim/constants.js');
+    const { ZONE } = await import(new URL('src/sim/constants.js', document.baseURI).href);
     const app = window.__fw;
     const scene = app.scene3d;
     const rect = scene.renderer.domElement.getBoundingClientRect();
@@ -484,8 +484,8 @@ async (page) => {
 
   const waterCrossingRoute = () => page.evaluate(async () => {
     const THREE = await import('three');
-    const { getZone } = await import('/src/sim/course.js');
-    const { ZONE } = await import('/src/sim/constants.js');
+    const { getZone } = await import(new URL('src/sim/course.js', document.baseURI).href);
+    const { ZONE } = await import(new URL('src/sim/constants.js', document.baseURI).href);
     const app = window.__fw;
     const course = app.state.course;
     const scene = app.scene3d;
@@ -565,8 +565,8 @@ async (page) => {
 
   const objectCandidate = ({ type = 'bench', scale = 1, ignoreId = null, avoidCell = null } = {}) => page.evaluate(
     async ({ objectType, objectScale, ignoredId, avoid }) => {
-      const { objectPlacementOk } = await import('/src/sim/courseEditor.js');
-      const { snapCoursePoint } = await import('/src/sim/courseEditorObjectPlacement.js');
+      const { objectPlacementOk } = await import(new URL('src/sim/courseEditor.js', document.baseURI).href);
+      const { snapCoursePoint } = await import(new URL('src/sim/courseEditorObjectPlacement.js', document.baseURI).href);
       const app = window.__fw;
       const course = app.state.course;
       const scene = app.scene3d;

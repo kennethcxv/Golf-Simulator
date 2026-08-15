@@ -18,8 +18,21 @@ export function makeHud(app, handlers) {
   // pause → 1× → 4× → 16× (Space and 1/2/3 remain the fast path)
   const clock = el('button', {
     class: 'hud-chip hud-clock',
-    title: 'Click: cycle speed · Space: pause · 1/2/3: speeds',
-    onclick: () => handlers.setSpeed((app.speedIdx + 1) % BALANCE.speeds.length),
+    title: 'Click or Space: pause / resume',
+    // F1: "A click on every button, everywhere. If it can be pressed, it makes
+    // a sound." This chip was the only silent control among the ten the click
+    // audit reached — measured, not assumed: tools/qa/electron-f1-click-audit.js
+    // hooks AudioBufferSourceNode/OscillatorNode `start`, so it counts sounds
+    // that actually reach the graph rather than calls to the audio module, and
+    // it reported `silent: ["hud-chip:Y1 · Spring · Day 1 · 6:02 A"]` with its
+    // dead-space control passing.
+    //
+    // It is a real button doing a substantial thing — cycling game speed — and
+    // its own title advertises the press. Silence there is the defect F1 names.
+    onclick: () => {
+      app.audio?.uiTick?.();
+      handlers.setSpeed(app.speedIdx === 0 ? 1 : 0);
+    },
   });
 
   // MODIFIER CHIP — what is holding a modifier, on screen.
@@ -64,14 +77,32 @@ export function makeHud(app, handlers) {
   let lastCash = '';
   let lastContext = '';
   let lastModifiers = '';
+  let lastRootDisplay = null;
   function update() {
     if (!app.state) return;
     const mode = handlers.getPresentationMode?.() || 'walk';
     const quiet = ['pause', 'laptop', 'register', 'course-editor'].includes(mode);
-    root.style.display = quiet ? 'none' : '';
+    // THE ONE UNGUARDED WRITE ON A PATH THAT GUARDS EVERYTHING ELSE.
+    //
+    // Every textContent write below sits behind a change check, with a comment
+    // saying why: "this runs every frame — only touch the DOM when the number
+    // actually moved". This line did not, and it is the write with the widest
+    // blast radius: assigning to `style.display` on the HUD ROOT dirties style
+    // resolution for the whole overlay subtree, every frame, to set it to the
+    // value it already had.
+    //
+    // Measured (tools/qa/electron-a1-hud-cost.js): hiding the entire overlay
+    // indoors takes frames over 16.7 ms from 23.3% to 17.0% — the DOM overlay is
+    // 6.7 of invariant 1's ~23 points, the largest single cause found, and it
+    // costs zero draw calls because the renderer never draws it.
+    const wantDisplay = quiet ? 'none' : '';
+    if (wantDisplay !== lastRootDisplay) {
+      lastRootDisplay = wantDisplay;
+      root.style.display = wantDisplay;
+    }
     if (quiet) return;
     const cal = calendarOf(app.state.clock.minutes);
-    const glyph = ['⏸', '▶', '▶▶', '▶▶▶'][app.speedIdx] || '▶';
+    const glyph = ['⏸', '▶'][app.speedIdx] || '▶' || '▶';
     const line = `${formatDate(cal)} · ${formatClock(cal.minuteOfDay)} ${glyph}`;
     if (line !== lastClock) {
       lastClock = line;
@@ -106,12 +137,12 @@ export function makeHud(app, handlers) {
       // nothing to a player mid-game; "Windows is holding it, tap it" is an
       // instruction they can follow without leaving the room.
       if (osStuck.length) {
-        modifiers.textContent = `⚠ ${osStuck.join(' + ')} held by the system — tap and release it`;
+        modifiers.textContent = `⚠ ${osStuck.join(' + ')} held by the system - tap and release it`;
         modifiers.title = `Your operating system reports ${osStuck.join(' and ')} as held down. `
           + 'While it is, the OS takes your keypresses as shortcuts before the game sees them. '
-          + 'Nothing in the game can release it — press and release the physical key.';
+          + 'Nothing in the game can release it - press and release the physical key.';
       } else if (pageStuck.length) {
-        modifiers.textContent = `⚠ ${pageStuck.join(' + ')} held — keys may not reach the game`;
+        modifiers.textContent = `⚠ ${pageStuck.join(' + ')} held - keys may not reach the game`;
         modifiers.title = 'A modifier is down that nothing in the game uses. It should clear as '
           + 'soon as you look around; if it does not, tap and release the key.';
       } else {

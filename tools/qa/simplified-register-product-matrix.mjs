@@ -24,7 +24,8 @@ async function boot(page) {
   await page.setViewportSize(VIEWPORT);
   await page.goto(BASE_URL);
   await page.waitForTimeout(900);
-  await page.getByText('Continue', { exact: true }).click().catch(() => {});
+  const { clickThroughMenu } = await import(`file:///${process.cwd().replace(/\\/g, '/')}/tools/qa/lib/qa-boot.mjs`);
+  await clickThroughMenu(page);
   await page.waitForFunction(() => window.__fw && window.__fw.scene3d
     && window.__fw.scene3d.clubhouse && window.__fw.scene3d.clubhouse(), null,
   { timeout: 40000 });
@@ -109,8 +110,8 @@ async function setupCase(page, entry) {
   return page.evaluate(async ({ skuIds }) => {
     const app = window.__fw;
     const clubhouse = app.scene3d.clubhouse();
-    const { capacityOf } = await import('/src/data/fixtureSlots.js');
-    const { REGISTER } = await import('/src/data/shopLayout.js');
+    const { capacityOf } = await import(new URL('src/data/fixtureSlots.js', document.baseURI).href);
+    const { REGISTER } = await import(new URL('src/data/shopLayout.js', document.baseURI).href);
     clubhouse.setOrganicWalkins(false);
     clubhouse.clearWalkins();
     for (const skuId of skuIds) {
@@ -160,7 +161,7 @@ async function txSnapshot(page) {
     const register = window.__fw.scene3d.clubhouse().register;
     const tx = register.getTx();
     if (!tx) return null;
-    const domain = await import('/src/sim/register.js');
+    const domain = await import(new URL('src/sim/register.js', document.baseURI).href);
     return {
       number: tx.number,
       stage: tx.stage,
@@ -191,7 +192,7 @@ async function txSnapshot(page) {
 // shafts and overlapping silhouettes without inventing a debug interaction path.
 async function inspectItemTarget(page, uid) {
   return page.evaluate(async (wantedUid) => {
-    const THREE = await import('/vendor/three.module.js');
+    const THREE = await import(new URL('vendor/three.module.js', document.baseURI).href);
     const app = window.__fw;
     const clubhouse = app.scene3d.clubhouse();
     const register = clubhouse.register;
@@ -301,7 +302,7 @@ async function clickCardAndApprove(page, expectedTotalCents) {
   await waitCamera(page, 'card');
   const prefill = await page.evaluate(async () => {
     const tx = window.__fw.scene3d.clubhouse().register.getTx();
-    const domain = await import('/src/sim/register.js');
+    const domain = await import(new URL('src/sim/register.js', document.baseURI).href);
     return {
       entryCents: Number(tx.cardEntryCents),
       digits: String(tx.cardEntryDigits || ''),

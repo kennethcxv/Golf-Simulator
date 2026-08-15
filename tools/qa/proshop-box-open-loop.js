@@ -22,7 +22,7 @@
   await page.waitForFunction(() => document.readyState === 'complete');
   await page.evaluate(async (seed) => {
     localStorage.clear();
-    const E = await import('/src/sim/empire.js');
+    const E = await import(new URL('src/sim/empire.js', document.baseURI).href);
     localStorage.setItem('golfempire:autosave', JSON.stringify(E.empireSnapshot(E.newStarterEmpire('relaxed', seed))));
   }, SEED);
   await page.reload({ waitUntil: 'domcontentloaded' });
@@ -34,7 +34,7 @@
   await page.evaluate(() => { window.__fw.speedIdx = 1; });
 
   const surveyBoxes = () => page.evaluate(async () => {
-    const BP = await import('/src/sim/boxPlacement.js');
+    const BP = await import(new URL('src/sim/boxPlacement.js', document.baseURI).href);
     const st = window.__fw.state;
     const boxes = BP.allBoxes ? BP.allBoxes(st) : (st.shop?.boxes || []);
     return (boxes || []).map((b) => {
@@ -59,7 +59,7 @@
   // Every surface the game will let a box rest on, and whether it will then let
   // the player open it. This is the whole rule, stated as data.
   out.surfaces = await page.evaluate(async () => {
-    const S = await import('/src/data/boxPlacementSurfaces.js');
+    const S = await import(new URL('src/data/boxPlacementSurfaces.js', document.baseURI).href);
     return S.BOX_PLACEMENT_SURFACE_TEMPLATES.map((t) => ({
       id: t.id,
       kind: t.kind,
@@ -77,10 +77,10 @@
   // carries no boxes at all â€” `atStart` above is empty â€” so "the starter's first
   // box" only exists once an order lands, and the pad is where it lands.
   out.delivery = await page.evaluate(async () => {
-    const D = await import('/src/sim/deliveries.js');
-    const BP = await import('/src/sim/boxPlacement.js');
+    const D = await import(new URL('src/sim/deliveries.js', document.baseURI).href);
+    const BP = await import(new URL('src/sim/boxPlacement.js', document.baseURI).href);
     const st = window.__fw.state;
-    const IL = await import('/src/sim/inventoryLifecycle.js');
+    const IL = await import(new URL('src/sim/inventoryLifecycle.js', document.baseURI).href);
     D.ensureDeliveries(st);
     st.cash = Math.max(st.cash, 50000);
     const before = D.boxesOf(st).length;
@@ -126,7 +126,7 @@
   // prop object â€” the walk controller's focus and a real keyboard event, because
   // "the player cannot open the box" was never a claim about the sim.
   out.gesture = await page.evaluate(async () => {
-    const D = await import('/src/sim/deliveries.js');
+    const D = await import(new URL('src/sim/deliveries.js', document.baseURI).href);
     const st = window.__fw.state;
     const box = D.boxesOf(st).find((b) => !b.flat && (b.qty || 0) > 0);
     if (!box) return { ok: false, reason: 'no carton to open' };
@@ -158,7 +158,7 @@
 
   if (out.gesture.ok) {
     const readState = () => page.evaluate(async () => {
-      const D = await import('/src/sim/deliveries.js');
+      const D = await import(new URL('src/sim/deliveries.js', document.baseURI).href);
       const st = window.__fw.state;
       const walk = window.__fw.scene3d.walk;
       const box = D.boxesOf(st).find((b) => !b.flat && (b.qty || 0) > 0);

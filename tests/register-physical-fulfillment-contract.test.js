@@ -1,6 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import {
+  runCheckoutCleanupSteps, runPaidCustomerAuthoritativeRelease,
+} from '../src/render3d/clubhouse/simplifiedRegisterMode.js';
 
 const registerSource = fs.readFileSync(
   new URL('../src/render3d/clubhouse/simplifiedRegisterMode.js', import.meta.url),
@@ -51,10 +54,14 @@ test('product drops resolve against the production bag mouth socket', () => {
   const settleProduct = registerFunction('settleBaggingProduct');
   assert.match(settleProduct, /distanceTo\(bagMouth\)/,
     'product acceptance measures physical 3D contact with the authored mouth');
-  assert.match(settleProduct, /to:\s*bagMouth\.clone\(\)/,
-    'the accepted product visibly travels through the same authored mouth');
-  assert.doesNotMatch(settleProduct, /BAG_POS/,
-    'product acceptance cannot use a different target from its drop animation');
+  // F3 (Full_Goal_16): the drop still travels THROUGH the authored mouth and
+  // then continues INSIDE along the mouth's own axis — the continuation is
+  // derived from the same two authored points (base minus mouth), never a
+  // separate target.
+  assert.match(settleProduct, /to:\s*bagMouth\.clone\(\)\.add\(dropInto\)/,
+    'the accepted product travels through the authored mouth and on inside');
+  assert.match(settleProduct, /BAG_POS\.clone\(\)\.sub\(bagMouth\)/,
+    'the into-bag continuation is the mouth socket\'s own axis, not a new target');
 });
 
 test('pending product-drop animations block handoff and teardown releases every motion', () => {
@@ -78,7 +85,7 @@ test('pending product-drop animations block handoff and teardown releases every 
 
   const clearPhysicalTransaction = registerFunction('clearPhysicalTransaction');
   const clearMotions = clearPhysicalTransaction.indexOf('bagDropMotions.length = 0');
-  const disposeItems = clearPhysicalTransaction.indexOf('for (const mesh of itemMeshes.values())');
+  const disposeItems = clearPhysicalTransaction.indexOf('for (const mesh of clearingItemMeshes)');
   assert.ok(clearMotions >= 0 && clearMotions < disposeItems,
     'transaction teardown drops stale animation references before disposing their meshes');
 
@@ -140,18 +147,123 @@ test('banking preserves packed bag descendants until the customer cleanup funnel
 
   const removeCustomer = clubhouseFunction('removeCustomer');
   const cleanupProducts = removeCustomer.indexOf('for (const product of c.checkoutHandoffProducts || [])');
+  const disposeCarrier = removeCustomer.indexOf('disposePaidBagFromCustomer(c)');
   const detachProduct = removeCustomer.indexOf('product.removeFromParent()', cleanupProducts);
   const disposeProduct = removeCustomer.indexOf('c.checkoutHandoffProductDisposer(product)', cleanupProducts);
   const clearTransferredProducts = removeCustomer.indexOf('c.checkoutHandoffProducts = []', cleanupProducts);
   const removeCarrier = removeCustomer.indexOf('custGroup.remove(c.mesh)');
   assert.ok(
-    cleanupProducts >= 0
+    disposeCarrier >= 0
+      && cleanupProducts > disposeCarrier
       && detachProduct > cleanupProducts
       && disposeProduct > detachProduct
       && clearTransferredProducts > disposeProduct
       && removeCarrier > clearTransferredProducts,
-    'customer cleanup detaches and disposes transferred products before removing the paid carrier',
+    'paid carrier cleanup cannot be skipped by a later optional product cleanup failure',
   );
+});
+
+test('physical cleanup attempts every later substep after a failure', () => {
+  const visited = [];
+  const failures = runCheckoutCleanupSteps([
+    { stage: 'first', run: () => { visited.push('first'); throw new Error('synthetic'); } },
+    { stage: 'second', run: () => { visited.push('second'); } },
+    { stage: 'third', run: () => { visited.push('third'); } },
+  ]);
+  assert.deepEqual(visited, ['first', 'second', 'third']);
+  assert.equal(failures.length, 1);
+  assert.equal(failures[0].stage, 'first');
+  assert.match(failures[0].error.message, /synthetic/);
+
+  const clearPhysicalTransaction = registerFunction('clearPhysicalTransaction');
+  assert.match(clearPhysicalTransaction, /itemResources\.dispose\(mesh, \{[\s\S]*onError:/,
+    'owned item cleanup reports resource failures without skipping siblings');
+  assert.match(clearPhysicalTransaction, /clearTenderHandful\(capture\)/);
+  assert.match(clearPhysicalTransaction, /disposeCardMesh\(capture\)/);
+  assert.match(clearPhysicalTransaction, /return \{ ok: failures\.length === 0, failures \}/);
+
+  const clearCustomerItems = clubhouseFunction('clearCustomerItemMeshes');
+  assert.match(clearCustomerItems, /for \(const mesh of c\.itemMeshes\.values\(\)\) \{[\s\S]*try \{[\s\S]*disposeCustomerProductMesh\(c, mesh\)/,
+    'one hostile customer-product disposer cannot skip its siblings');
+  assert.match(clearCustomerItems, /c\.itemMeshes\.clear\(\)/,
+    'the customer resource authority is cleared after best-effort disposal');
+  assert.match(clearCustomerItems, /return \{ ok: failures\.length === 0, failures \}/,
+    'customer cleanup exposes diagnostics without aborting departure');
+});
+
+test('authoritative paid release falls through a throwing or refusing actor hook', () => {
+  const failures = [];
+  const attempt = (stage, operation) => {
+    try { return { ok: true, value: operation() }; } catch (error) {
+      failures.push({ stage, error });
+      return { ok: false, error };
+    }
+  };
+  let bridgeCalls = 0;
+  const throwing = runPaidCustomerAuthoritativeRelease({
+    actorRelease: () => { throw new Error('synthetic actor release failure'); },
+    bridgeRelease: () => { bridgeCalls += 1; return true; },
+    attempt,
+  });
+  assert.equal(throwing.ok, true);
+  assert.equal(throwing.value, true);
+  assert.equal(throwing.source, 'bridge');
+  assert.equal(bridgeCalls, 1);
+  assert.equal(failures[0].stage, 'paid-customer-authoritative-release');
+
+  const refusing = runPaidCustomerAuthoritativeRelease({
+    actorRelease: () => false,
+    bridgeRelease: () => { bridgeCalls += 1; return true; },
+    attempt,
+  });
+  assert.equal(refusing.ok, true);
+  assert.equal(refusing.source, 'bridge');
+  assert.equal(bridgeCalls, 2);
+  assert.match(failures[1].error.message, /did not confirm release/);
+});
+
+test('authoritative paid release neither double-calls nor hides a failed bridge', () => {
+  let bridgeCalls = 0;
+  const actor = runPaidCustomerAuthoritativeRelease({
+    actorRelease: () => true,
+    bridgeRelease: () => { bridgeCalls += 1; return true; },
+  });
+  assert.equal(actor.source, 'actor');
+  assert.equal(bridgeCalls, 0, 'a confirmed actor release remains exact-once');
+
+  const failed = runPaidCustomerAuthoritativeRelease({
+    actorRelease: () => false,
+    bridgeRelease: () => false,
+  });
+  assert.equal(failed.ok, false);
+  assert.equal(failed.source, null);
+  assert.equal(failed.actor.ok, false);
+  assert.equal(failed.bridge.ok, false);
+});
+
+test('per-bag ownership ledger excludes shared GLB geometry, brand material, and bump texture', () => {
+  const buildBag = registerFunction('buildBag');
+  assert.match(buildBag, /ownGeometry\(new THREE\.BoxGeometry\(0\.26/);
+  assert.match(buildBag, /ownMaterial\(new THREE\.MeshStandardMaterial/);
+  assert.match(buildBag, /ownGeometry\(new THREE\.PlaneGeometry/);
+  assert.doesNotMatch(buildBag, /ownMaterial\(bagBrandMaterial\)/,
+    'the shared dynamic brand material stays under register ownership');
+  assert.doesNotMatch(buildBag, /ownGeometry\([^\n]*model/,
+    'merchandise-cache geometry is never claimed by a paid bag');
+  const style = registerFunction('applyKraftBagStyle');
+  assert.match(style, /ownedResources\?\.ownMaterial\(styled\)/,
+    'only per-bag material clones enter the departure ledger');
+  assert.doesNotMatch(style, /ownMaterial\([^\n]*kraftWrinkleTexture/,
+    'the shared wrinkle texture is not claimed by a paid bag');
+});
+
+test('cleanup failures enter the post-bank recovery record before it is constructed', () => {
+  const finalize = registerFunction('finalizeTransaction');
+  const cleanup = finalize.indexOf("const physicalCleanup = attempt('post-bank-physical-cleanup'");
+  const capture = finalize.indexOf('for (const failure of physicalCleanup.value?.failures || [])');
+  const recovery = finalize.indexOf('const recovery = postBankFailure ?');
+  assert.ok(cleanup >= 0 && capture > cleanup && recovery > capture);
+  assert.match(finalize, /recordPostBankFailure\([\s\S]*post-bank-physical-cleanup:\$\{failure\.stage\}/);
 });
 
 test('legacy fulfillment input and delivery paths contain no unresolved identifiers', () => {

@@ -152,7 +152,7 @@ async (page) => {
 
   async function boxSnapshot(id) {
     return page.evaluate(async (boxId) => {
-      const D = await import('/src/sim/deliveries.js');
+      const D = await import(new URL('src/sim/deliveries.js', document.baseURI).href);
       const box = D.findBox(window.__fw.state, boxId);
       if (!box) {
         const delivery = window.__fw.state.shop.deliveries;
@@ -207,7 +207,7 @@ async (page) => {
 
   async function stageGeneric({ orderId, qty, resetDelivery }) {
     const staged = await page.evaluate(async ({ orderId: id, qty: units, spot, reset }) => {
-      const D = await import('/src/sim/deliveries.js');
+      const D = await import(new URL('src/sim/deliveries.js', document.baseURI).href);
       const state = window.__fw.state;
       D.ensureDeliveries(state);
       const delivery = state.shop.deliveries;
@@ -247,8 +247,8 @@ async (page) => {
       clubhouse.refreshCondition?.();
       clubhouse.rebuildStock?.();
       clubhouse.rebuildBoxes();
-      const B = await import('/src/data/boxes.js');
-      const V = await import('/src/render3d/clubhouse/deliveryBoxVisual.js');
+      const B = await import(new URL('src/data/boxes.js', document.baseURI).href);
+      const V = await import(new URL('src/render3d/clubhouse/deliveryBoxVisual.js', document.baseURI).href);
       return {
         id: box.id,
         orderId: id,

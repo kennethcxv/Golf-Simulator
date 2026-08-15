@@ -31,8 +31,8 @@ async function placeCamera(page, pose) {
 async function tickTo(page, minuteOfDay) {
   return page.evaluate(async (minute) => {
     const app = window.__fw;
-    const golf = await import('/src/sim/golfDay.js');
-    const time = await import('/src/sim/time.js');
+    const golf = await import(new URL('src/sim/golfDay.js', document.baseURI).href);
+    const time = await import(new URL('src/sim/time.js', document.baseURI).href);
     const dayAbs = time.calendarOf(app.state.clock.minutes).dayAbs;
     if (app.state.tutorial) app.state.tutorial.hidden = true;
     const target = dayAbs * 1440 + minute;
@@ -53,9 +53,9 @@ async function tickTo(page, minuteOfDay) {
 async function fixture(page) {
   return page.evaluate(async () => {
     const app = window.__fw;
-    const reservations = await import('/src/sim/reservations.js');
-    const golf = await import('/src/sim/golfDay.js');
-    const time = await import('/src/sim/time.js');
+    const reservations = await import(new URL('src/sim/reservations.js', document.baseURI).href);
+    const golf = await import(new URL('src/sim/golfDay.js', document.baseURI).href);
+    const time = await import(new URL('src/sim/time.js', document.baseURI).href);
     app.speedIdx = 0;
     const dayAbs = time.calendarOf(app.state.clock.minutes).dayAbs;
     reservations.resetGolfOperationsQA(app.state, { horizonDays: 7 });

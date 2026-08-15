@@ -34,7 +34,8 @@ async function boot(page) {
   await page.goto(BASE_URL);
   await page.setViewportSize(VIEWPORT);
   await page.waitForTimeout(1000);
-  await page.getByText('Continue', { exact: true }).click().catch(() => {});
+  const { clickThroughMenu } = await import(`file:///${process.cwd().replace(/\\/g, '/')}/tools/qa/lib/qa-boot.mjs`);
+  await clickThroughMenu(page);
   await page.waitForFunction(() => window.__fw && window.__fw.scene3d
     && window.__fw.scene3d.clubhouse && window.__fw.scene3d.clubhouse(), null,
   { timeout: 40000 });
@@ -51,10 +52,10 @@ async function setupFixture(page) {
   return page.evaluate(async ({ customerName, teeMinute }) => {
     const app = window.__fw;
     const clubhouse = app.scene3d.clubhouse();
-    const reservations = await import('/src/sim/reservations.js');
-    const register = await import('/src/sim/register.js');
-    const time = await import('/src/sim/time.js');
-    const layout = await import('/src/data/shopLayout.js');
+    const reservations = await import(new URL('src/sim/reservations.js', document.baseURI).href);
+    const register = await import(new URL('src/sim/register.js', document.baseURI).href);
+    const time = await import(new URL('src/sim/time.js', document.baseURI).href);
+    const layout = await import(new URL('src/data/shopLayout.js', document.baseURI).href);
 
     clubhouse.setOrganicWalkins(false);
     clubhouse.clearWalkins();
@@ -170,7 +171,7 @@ async function escapeFrontDesk(page) {
 
 async function projectLocal(page, point) {
   return page.evaluate(async (local) => {
-    const THREE = await import('/vendor/three.module.js');
+    const THREE = await import(new URL('vendor/three.module.js', document.baseURI).href);
     const app = window.__fw;
     const clubhouse = app.scene3d.clubhouse();
     const world = new THREE.Vector3(
@@ -205,7 +206,7 @@ async function insertCard(page, shot, midLabel, processingLabel) {
     return tx && tx.stage === 'card-entry' && tx.checkoutFlow?.state === 'CardAmountEntry';
   }, null, { timeout: 5000 });
   const digits = await page.evaluate(async () => {
-    const { totalOf } = await import('/src/sim/register.js');
+    const { totalOf } = await import(new URL('src/sim/register.js', document.baseURI).href);
     return String(Math.round(totalOf(window.__fw.scene3d.clubhouse().register.getTx()) * 100));
   });
   await page.keyboard.type(digits, { delay: 80 });

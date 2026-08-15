@@ -417,14 +417,14 @@ async (page) => {
     await page.goto(baseUrl, { waitUntil: 'domcontentloaded', timeout: 90000 });
     const fixture = await page.evaluate(async (definitionValue) => {
       const [Empire, Campaign, Restoration, Starter, Inventory, Deliveries, Boxes, Storage] = await Promise.all([
-        import('/src/sim/empire.js'),
-        import('/src/sim/campaign.js'),
-        import('/src/sim/clubhouseRestoration.js'),
-        import('/src/sim/clubhouseStarterStock.js'),
-        import('/src/sim/inventoryLifecycle.js'),
-        import('/src/sim/deliveries.js'),
-        import('/src/data/boxes.js'),
-        import('/src/core/storage.js'),
+        import(new URL('src/sim/empire.js', document.baseURI).href),
+        import(new URL('src/sim/campaign.js', document.baseURI).href),
+        import(new URL('src/sim/clubhouseRestoration.js', document.baseURI).href),
+        import(new URL('src/sim/clubhouseStarterStock.js', document.baseURI).href),
+        import(new URL('src/sim/inventoryLifecycle.js', document.baseURI).href),
+        import(new URL('src/sim/deliveries.js', document.baseURI).href),
+        import(new URL('src/data/boxes.js', document.baseURI).href),
+        import(new URL('src/core/storage.js', document.baseURI).href),
       ]);
 
       localStorage.clear();
@@ -479,7 +479,7 @@ async (page) => {
         // fixture. It represents inherited, zero-cost construction freight.
         const skuId = 'counter1';
         const manifest = Boxes.planShipment(
-          (await import('/src/data/shopItems.js')).skuById(skuId),
+          (await import(new URL('src/data/shopItems.js', document.baseURI).href)).skuById(skuId),
           1,
         );
         obsoleteOrderId = state.shop.nextOrderId++;
@@ -780,12 +780,12 @@ async (page) => {
   async function runtimeSnapshot(label) {
     return page.evaluate(async (snapshotLabel) => {
       const [Campaign, Restoration, Starter, Inventory, Layout, Cooler] = await Promise.all([
-        import('/src/sim/campaign.js'),
-        import('/src/sim/clubhouseRestoration.js'),
-        import('/src/sim/clubhouseStarterStock.js'),
-        import('/src/sim/inventoryLifecycle.js'),
-        import('/src/sim/layout.js'),
-        import('/src/sim/openingDrinksCooler.js'),
+        import(new URL('src/sim/campaign.js', document.baseURI).href),
+        import(new URL('src/sim/clubhouseRestoration.js', document.baseURI).href),
+        import(new URL('src/sim/clubhouseStarterStock.js', document.baseURI).href),
+        import(new URL('src/sim/inventoryLifecycle.js', document.baseURI).href),
+        import(new URL('src/sim/layout.js', document.baseURI).href),
+        import(new URL('src/sim/openingDrinksCooler.js', document.baseURI).href),
       ]);
       const app = window.__fw;
       const state = app.state;

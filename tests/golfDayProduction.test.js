@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
 import { newGame, serialize, deserialize } from '../src/sim/state.js';
-import {
+import { configureTeeSheet,
   beginReservationPayment,
   bookSlot,
   checkInReservation,
@@ -257,12 +257,15 @@ test('simulation tiers change presentation fidelity without changing round state
 
 test('pool and exact-once guards stay bounded under a full tee sheet', () => {
   const state = newGame('relaxed', 43111);
+  configureTeeSheet(state, { autoBookings: false }); // the census counts ONLY its six parties
   const holders = ['Sheet A', 'Sheet B', 'Sheet C', 'Sheet D', 'Sheet E', 'Sheet F'];
   holders.forEach((holder, index) => checkedInParty(state, {
     holder,
     size: 2,
     minute: 480 + Math.floor(index / 2) * 30,
-    arrivalMinute: 450 + index,
+    // D2: check-in is windowed (60 min) — each pair arrives half an hour
+    // before ITS OWN slot, not everyone at dawn
+    arrivalMinute: 480 + Math.floor(index / 2) * 30 - 30 + (index % 2),
     transport: index % 2 ? 'ride' : 'walk',
   }));
   advance(state, 1400);

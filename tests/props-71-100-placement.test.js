@@ -12,6 +12,7 @@ import {
   PLACED_ASSET_NUMBERS,
   EXTERIOR_VISIBLE_PROP_NUMBERS,
   detailedPropsVisibleAt,
+  runtimeAssetEligibleForPlacedStaticBatch,
 } from '../src/render3d/assets51to100/propPlacement.js';
 import { RUNTIME_ASSET_MANIFEST_BY_NUMBER } from '../src/render3d/assets51to100/runtimeManifest.js';
 import {
@@ -30,6 +31,38 @@ test('deep prop dressing retires only beyond the porch while entrance props rema
   assert.deepEqual(EXTERIOR_VISIBLE_PROP_NUMBERS, [93, 94, 98, 99, 100]);
   assert.ok(!EXTERIOR_VISIBLE_PROP_NUMBERS.includes(71),
     'stockroom cleaning props are covered from the distant exterior camera');
+});
+
+test('only fixed presentation policy can opt inert assets into the placed static batch', () => {
+  const suppressed = new Set([
+    61, 62, 63, 67, 68, 69, 70, 85, 88, 89, 90, 91, 93, 96, 98, 99,
+  ]);
+  const fixedVisibilityForAsset = (number) => !suppressed.has(number);
+  const eligible = PROP_PLACEMENTS.filter((placement) => (
+    runtimeAssetEligibleForPlacedStaticBatch(placement, { fixedVisibilityForAsset })
+  )).map(({ n }) => n);
+  assert.deepEqual(eligible, [65, 86, 87]);
+  assert.equal(runtimeAssetEligibleForPlacedStaticBatch(byNumber(62), { fixedVisibilityForAsset }), false,
+    'a presentation-suppressed static asset must not leak into the shared visible batch');
+  assert.equal(runtimeAssetEligibleForPlacedStaticBatch(byNumber(65), {
+    visibilityForAsset: () => true,
+  }), false, 'a mutable visibility callback keeps even a currently visible asset independent');
+  assert.equal(runtimeAssetEligibleForPlacedStaticBatch(byNumber(61), {
+    fixedVisibilityForAsset: () => true,
+  }), false,
+    'facility-gated counter visuals retain their independent state-owned root');
+  assert.equal(runtimeAssetEligibleForPlacedStaticBatch(byNumber(64), {
+    fixedVisibilityForAsset: () => true,
+  }), false,
+    'persisted movable fixture visuals must follow their independent anchors');
+  assert.equal(runtimeAssetEligibleForPlacedStaticBatch(byNumber(93), {
+    fixedVisibilityForAsset: () => true,
+  }), false,
+    'entrance-visible detail survivors cannot be tied to the deep-interior batch');
+  assert.equal(runtimeAssetEligibleForPlacedStaticBatch(byNumber(65), {
+    fixedVisibilityForAsset,
+    hasStaticVisual: false,
+  }), false, 'an absent static visual never becomes an empty batch candidate');
 });
 
 test('every interior asset from 61 to 100 has exactly one placement definition', () => {
@@ -71,7 +104,7 @@ test('the entrance clearway stays clear of anything solid', () => {
   }
 });
 
-test('the receiving doorway stays clear — boxes come through it in your arms', () => {
+test('the receiving doorway stays clear - boxes come through it in your arms', () => {
   for (const p of PROP_PLACEMENTS) {
     const inside = p.x >= BACKDOOR_CLEARWAY.minX && p.x <= BACKDOOR_CLEARWAY.maxX
       && p.z >= BACKDOOR_CLEARWAY.minZ && p.z <= BACKDOOR_CLEARWAY.maxZ;
@@ -157,11 +190,11 @@ test('the cleaning bay props are actually in the stockroom', () => {
 test('desk props sit at a desk height, not on the floor', () => {
   for (const n of [83, 85]) {           // lamp, telephone
     const p = byNumber(n);
-    assert.ok((p.y || 0) > 0.6, `${n} is at y ${p.y} — that is on the floor, not on the desk`);
+    assert.ok((p.y || 0) > 0.6, `${n} is at y ${p.y} - that is on the floor, not on the desk`);
   }
   for (const n of [89, 90]) {           // clipboard, scorecard holder
     const p = byNumber(n);
-    assert.ok((p.y || 0) > 1.0, `${n} is at y ${p.y} — that is not on the counter`);
+    assert.ok((p.y || 0) > 1.0, `${n} is at y ${p.y} - that is not on the counter`);
   }
 });
 
@@ -185,7 +218,7 @@ test('the welcome mat lies flat inside the threshold', () => {
 test('every placement records why it is where it is', () => {
   for (const p of PROP_PLACEMENTS) {
     assert.ok(p.note && p.note.length > 12,
-      `${p.n} has no note — a coordinate with no reason is a coordinate nobody can safely move`);
+      `${p.n} has no note - a coordinate with no reason is a coordinate nobody can safely move`);
   }
 });
 

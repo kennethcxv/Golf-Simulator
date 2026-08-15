@@ -1,0 +1,652 @@
+﻿src/sim/salesTax.js:190:    return { diagnostic: 'tax row is not a record' };
+src/sim/salesTax.js:215:    return { diagnostic: 'tax row does not match the canonical liability posting shape' };
+src/sim/salesTax.js:218:    return { diagnostic: 'tax row lacks a matching durable idempotency checkpoint' };
+src/sim/salesTax.js:259:    if (evidence.diagnostic) {
+src/sim/salesTax.js:260:      ignored(index, evidence.diagnostic);
+src/sim/salesTax.js:373:  if (!t) return { ok: false, reason: 'No state to accrue against.' };
+src/sim/salesTax.js:417:  if (!t) return { ok: false, reason: 'No state to remit from.' };
+src/sim/state.js:196:        reason: 'Authored shelf-capacity repair',
+src/sim/state.js:270:    if (result.ok || result.reasons.every((reason) => ROUTE_FAILURE.test(reason))) {
+src/sim/state.js:422:      reason: checkoutRecovery.failures?.[0]?.reason
+src/sim/state.js:424:      diagnostic: checkoutRecovery.failures?.[0]?.diagnostic,
+src/sim/state.js:541:      reason: checkoutRecovery.failures?.[0]?.reason
+src/sim/state.js:543:      diagnostic: checkoutRecovery.failures?.[0]?.diagnostic,
+src/sim/reservationCheckIn.js:317:    return { ok: false, reason: 'No open booking under that name.' };
+src/sim/reservationCheckIn.js:321:    return { ok: false, reason: 'That reservation has an invalid green fee.' };
+src/sim/reservationCheckIn.js:324:    return { ok: false, reason: 'Choose card or cash for this check-in.' };
+src/sim/reservationCheckIn.js:326:  if (typeof rng !== 'function') return { ok: false, reason: 'A payment random source is required.' };
+src/sim/reservationCheckIn.js:369:  if (!tx || !Array.isArray(tx.items)) return { ok: false, reason: 'There is no open ticket.' };
+src/sim/reservationCheckIn.js:370:  if (tx.banked) return { ok: false, reason: 'That sale is already banked.' };
+src/sim/reservationCheckIn.js:372:    return { ok: false, reason: 'Add the tee time before starting payment.' };
+src/sim/reservationCheckIn.js:375:    return { ok: false, reason: 'This ticket already has a tee time on it.' };
+src/sim/reservationCheckIn.js:380:    return { ok: false, reason: 'No open booking under that name.' };
+src/sim/reservationCheckIn.js:384:    return { ok: false, reason: 'That reservation has an invalid green fee.' };
+src/sim/reservationCheckIn.js:440:    return { ok: false, reason: 'Finish the card or cash payment before check-in.' };
+src/sim/reservationCheckIn.js:456:    return { ok: false, reason: 'This payment is not tied to a reservation.' };
+src/sim/reservationCheckIn.js:459:    return { ok: false, reason: 'This payment is not tied to a reservation.' };
+src/sim/reservationCheckIn.js:461:  if (tx.banked) return { ok: false, reason: 'That check-in is already banked.' };
+src/sim/reservationCheckIn.js:465:    return { ok: false, reason: 'This payment belongs to a different reservation.' };
+src/sim/reservationCheckIn.js:469:    return { ok: false, reason: 'No open booking under that name.' };
+src/sim/reservationCheckIn.js:479:      reason: t('customer.historyUnavailable'),
+src/sim/reservationCheckIn.js:480:      diagnostic: 'The reservation customer identity is unavailable.',
+src/sim/reservationCheckIn.js:494:      reason: t('checkout.integrityUnavailable'),
+src/sim/reservationCheckIn.js:495:      diagnostic: 'A service booking must have exactly one ticket line.',
+src/sim/reservationCheckIn.js:520:    return { ok: false, reason: 'The payment no longer matches the booked green fee.' };
+src/sim/reservationCheckIn.js:622:      reason: t('checkout.integrityUnavailable'),
+src/sim/reservationCheckIn.js:623:      diagnostic: 'Duplicate reservation tickets conflict on one settlement reference.',
+src/sim/reservationCheckIn.js:644:        reason: t('checkout.integrityUnavailable'),
+src/sim/reservationCheckIn.js:645:        diagnostic: 'Reservation not found.',
+src/sim/reservationCheckIn.js:655:        reason: t('checkout.integrityUnavailable'),
+src/sim/reservationCheckIn.js:656:        diagnostic: 'Reservation reference does not match the ticket.',
+src/sim/reservationCheckIn.js:755:        reason: t('checkout.integrityUnavailable'),
+src/sim/reservationCheckIn.js:756:        diagnostic: serviceLedgerPreflight.diagnostic
+src/sim/reservationCheckIn.js:757:          || serviceLedgerPreflight.reason
+src/sim/reservationCheckIn.js:767:        reason: t('checkout.integrityUnavailable'),
+src/sim/reservationCheckIn.js:768:        diagnostic: `Reservation is ${reservation.status || 'invalid'}, not payable or played.`,
+src/sim/reservationCheckIn.js:781:        reason: t('checkout.integrityUnavailable'),
+src/sim/reservationCheckIn.js:782:        diagnostic: 'Reservation belongs to a different completed check-in.',
+src/sim/reservationCheckIn.js:799:        reason: t('checkout.integrityUnavailable'),
+src/sim/reservationCheckIn.js:800:        diagnostic: 'Reservation ticket has conflicting prepaid tender provenance.',
+src/sim/reservationCheckIn.js:811:        reason: t('checkout.integrityUnavailable'),
+src/sim/reservationCheckIn.js:812:        diagnostic: 'The reservation payment projection is not writable.',
+src/sim/reservations.js:99:      reason: t('checkout.integrityUnavailable'),
+src/sim/reservations.js:100:      diagnostic: 'The reservation payment projection is not writable.',
+src/sim/reservations.js:108:      reason: t('checkout.integrityUnavailable'),
+src/sim/reservations.js:109:      diagnostic: 'The reservation payment authority is not writable.',
+src/sim/reservations.js:145:      reason: t('customer.historyUnavailable'),
+src/sim/reservations.js:146:      diagnostic: 'The next reservation id is outside safe writable bounds.',
+src/sim/reservations.js:165:      reason: t('customer.historyUnavailable'),
+src/sim/reservations.js:166:      diagnostic: 'The next reservation id is already in use or not uniquely ordered.',
+src/sim/reservations.js:196:    reason: available >= requested
+src/sim/reservations.js:505:    reason: reservation.status === 'cancelled' ? 'Legacy cancellation' : null,
+src/sim/reservations.js:631:    if (!Number.isInteger(next[key])) return { ok: false, reason: `${key} must be a whole number.` };
+src/sim/reservations.js:634:    return { ok: false, reason: 'Opening time must be before closing time on the same day.' };
+src/sim/reservations.js:636:  if (next.stepMin < 5 || next.stepMin > 180) return { ok: false, reason: t('reservations.slotIntervalRange') };
+src/sim/reservations.js:638:    return { ok: false, reason: 'Maximum party size must fit the slot capacity.' };
+src/sim/reservations.js:640:  if (next.horizonDays < 1 || next.horizonDays > 365) return { ok: false, reason: 'Booking window must be 1-365 days.' };
+src/sim/reservations.js:641:  if (next.gracePeriodMin < 0 || next.gracePeriodMin > 180) return { ok: false, reason: 'Grace period must be 0-180 minutes.' };
+src/sim/reservations.js:646:      return { ok: false, reason: `${fmtSlot(reservation.minute)} still has a booking and would fall outside the new schedule.` };
+src/sim/reservations.js:654:      return { ok: false, reason: 'The new capacity is smaller than an existing booked slot.' };
+src/sim/reservations.js:672:    if (!Number.isFinite(next[key]) || next[key] < 0) return { ok: false, reason: `${key} must be zero or greater.` };
+src/sim/reservations.js:704:      closureReason: closure?.reason || null,
+src/sim/reservations.js:717:        closureReason: closure?.reason || null,
+src/sim/reservations.js:732:  if (closed) book.courseClosures[key] = { dayAbs: Math.floor(dayAbs), reason: String(reason || 'Course closed') };
+src/sim/reservations.js:822:  if (!Number.isFinite(asked)) return { ok: false, none: true, reason: t('reservations.noTimeAsked') };
+src/sim/reservations.js:824:  if (!slots.length) return { ok: false, none: true, reason: t('reservations.noOpenSlots') };
+src/sim/reservations.js:838:    reason: `Nothing within ${windowMin} minutes of ${fmtSlot(asked)} - the closest open time is ${fmtSlot(best.slot.minute)}.`,
+src/sim/reservations.js:845:  if (dayAbs < todayAbs) return { ok: false, reason: 'That day is already gone.' };
+src/sim/reservations.js:847:    return { ok: false, reason: 'That tee time has already passed.' };
+src/sim/reservations.js:850:    return { ok: false, reason: `The sheet only opens ${config.horizonDays} days out.` };
+src/sim/reservations.js:852:  if (!slotTimes(config).includes(minute)) return { ok: false, reason: 'Not a tee time on the sheet.' };
+src/sim/reservations.js:854:    return { ok: false, reason: `Party size must be 1-${config.maxPartySize}.` };
+src/sim/reservations.js:858:    return { ok: false, reason: slot?.closureReason || 'The course is closed.' };
+src/sim/reservations.js:863:      return { ok: false, reason: `Walk-ins need ${config.minWalkInLeadMin} minutes of lead time.` };
+src/sim/reservations.js:868:    return { ok: false, reason: `Only ${Math.max(0, slot.capacity - used)} place${slot.capacity - used === 1 ? '' : 's'} remain.` };
+src/sim/reservations.js:871:    return { ok: false, reason: 'This policy does not pair separate parties in one slot.' };
+src/sim/reservations.js:970:        reason: t('ledger.integrityUnavailable'),
+src/sim/reservations.js:971:        diagnostic: 'The ledger cash authority is not writable.',
+src/sim/reservations.js:980:        reason: t('ledger.integrityUnavailable'),
+src/sim/reservations.js:981:        diagnostic: 'The ledger cash projection is outside safe currency bounds.',
+src/sim/reservations.js:1039:      reason: t('ledger.integrityUnavailable'),
+src/sim/reservations.js:1040:      diagnostic: 'The reservation finance entry identity is ambiguous.',
+src/sim/reservations.js:1048:      reason: t('ledger.integrityUnavailable'),
+src/sim/reservations.js:1049:      diagnostic: 'The reservation finance sequence is outside safe writable bounds.',
+src/sim/reservations.js:1055:      reason: t('ledger.integrityUnavailable'),
+src/sim/reservations.js:1056:      diagnostic: 'The reservation finance authority is not writable.',
+src/sim/reservations.js:1063:      reason: t('ledger.integrityUnavailable'),
+src/sim/reservations.js:1064:      diagnostic: 'The reservation transaction checkpoint is not writable.',
+src/sim/reservations.js:1085:  if (!holder) return { ok: false, reason: 'A booking needs a reservation holder.' };
+src/sim/reservations.js:1108:  if (!cartQuote.ok) return { ok: false, reason: cartQuote.reason, cartQuote };
+src/sim/reservations.js:1158:      reason: null,
+src/sim/reservations.js:1233:  if (!reservation) return { ok: false, reason: 'Payment needs a valid booking.' };
+src/sim/reservations.js:1234:  if (!['booked', 'played'].includes(reservation.status)) return { ok: false, reason: 'That booking cannot accept payment.' };
+src/sim/reservations.js:1235:  if (!['cash', 'card', 'member-account'].includes(method)) return { ok: false, reason: 'Choose cash or card.' };
+src/sim/reservations.js:1237:    return { ok: false, reason: 'Member accounts are not enabled at this club.' };
+src/sim/reservations.js:1243:      reason: t('checkout.integrityUnavailable'),
+src/sim/reservations.js:1244:      diagnostic: 'Choose a valid reservation transaction id.',
+src/sim/reservations.js:1255:        reason: t('checkout.integrityUnavailable'),
+src/sim/reservations.js:1256:        diagnostic: 'That transaction id is bound to a different pending payment.',
+src/sim/reservations.js:1272:  if (reservation.payment.amountDue <= EPSILON) return { ok: false, reason: 'Nothing is due.' };
+src/sim/reservations.js:1277:      reason: t('checkout.integrityUnavailable'),
+src/sim/reservations.js:1278:      diagnostic: 'Payment amount must be a safe positive currency amount.',
+src/sim/reservations.js:1286:      reason: t('checkout.integrityUnavailable'),
+src/sim/reservations.js:1287:      diagnostic: 'Choose a valid reservation payment kind.',
+src/sim/reservations.js:1294:      reason: t('checkout.integrityUnavailable'),
+src/sim/reservations.js:1295:      diagnostic: 'The reservation payment sequence is outside safe writable bounds.',
+src/sim/reservations.js:1304:      reason: t('checkout.integrityUnavailable'),
+src/sim/reservations.js:1305:      diagnostic: 'That reservation transaction id is ambiguous.',
+src/sim/reservations.js:1321:          reason: t('checkout.integrityUnavailable'),
+src/sim/reservations.js:1322:          diagnostic: 'That reservation transaction has no recoverable payment tail.',
+src/sim/reservations.js:1341:      reason: t('checkout.integrityUnavailable'),
+src/sim/reservations.js:1342:      diagnostic: 'That reservation transaction id is already bound elsewhere.',
+src/sim/reservations.js:1349:        reason: t('checkout.integrityUnavailable'),
+src/sim/reservations.js:1350:        diagnostic: 'That reservation transaction id is already bound to a receipt.',
+src/sim/reservations.js:1378:  if (!reservation || !pending) return { ok: false, reason: 'No payment is in progress.' };
+src/sim/reservations.js:1379:  if (transactionId && pending.transactionId !== transactionId) return { ok: false, reason: 'That payment is not active.' };
+src/sim/reservations.js:1471:      reason: t('checkout.integrityUnavailable'),
+src/sim/reservations.js:1472:      diagnostic: 'That transaction id belongs to a different reservation payment.',
+src/sim/reservations.js:1483:        reason: ledgerAuthority.reason || t('ledger.integrityUnavailable'),
+src/sim/reservations.js:1484:        diagnostic: ledgerAuthority.diagnostic
+src/sim/reservations.js:1508:      reason: t('checkout.integrityUnavailable'),
+src/sim/reservations.js:1509:      diagnostic: 'That reservation transaction receipt authority is ambiguous.',
+src/sim/reservations.js:1516:        reason: t('checkout.integrityUnavailable'),
+src/sim/reservations.js:1517:        diagnostic: 'That transaction id belongs to a different reservation receipt.',
+src/sim/reservations.js:1540:      reason: t('checkout.integrityUnavailable'),
+src/sim/reservations.js:1541:      diagnostic: 'That transaction id belongs to a different reservation receipt.',
+src/sim/reservations.js:1560:      reason: t('checkout.integrityUnavailable'),
+src/sim/reservations.js:1561:      diagnostic: 'That reservation receipt has an incomplete payment projection.',
+src/sim/reservations.js:1578:      reason: t('checkout.integrityUnavailable'),
+src/sim/reservations.js:1579:      diagnostic: 'The reservation payment event authority is not writable.',
+src/sim/reservations.js:1600:      reason: t('checkout.integrityUnavailable'),
+src/sim/reservations.js:1601:      diagnostic: 'The reservation payment authority is not writable.',
+src/sim/reservations.js:1611:      reason: t('checkout.integrityUnavailable'),
+src/sim/reservations.js:1612:      diagnostic: 'The reservation payment projection is outside safe currency bounds.',
+src/sim/reservations.js:1624:      reason: t('checkout.integrityUnavailable'),
+src/sim/reservations.js:1625:      diagnostic: 'The reservation payment projection is outside safe currency bounds.',
+src/sim/reservations.js:1632:      reason: t('checkout.integrityUnavailable'),
+src/sim/reservations.js:1633:      diagnostic: 'The reservation transaction checkpoint is ambiguous.',
+src/sim/reservations.js:1639:      reason: t('checkout.integrityUnavailable'),
+src/sim/reservations.js:1640:      diagnostic: 'The reservation transaction checkpoint is not writable.',
+src/sim/reservations.js:1691:  if (!reservation) return { ok: false, reason: 'Payment needs a valid booking.' };
+src/sim/reservations.js:1697:      reason: t('checkout.integrityUnavailable'),
+src/sim/reservations.js:1698:      diagnostic: 'Start the payment first with a valid transaction id.',
+src/sim/reservations.js:1706:      reason: t('checkout.integrityUnavailable'),
+src/sim/reservations.js:1707:      diagnostic: 'That reservation transaction id is ambiguous.',
+src/sim/reservations.js:1738:        reason: t('checkout.integrityUnavailable'),
+src/sim/reservations.js:1739:        diagnostic: 'That reservation transaction has no recoverable payment tail.',
+src/sim/reservations.js:1749:        reason: t('checkout.integrityUnavailable'),
+src/sim/reservations.js:1750:        diagnostic: 'That reservation transaction has an ambiguous payment projection.',
+src/sim/reservations.js:1778:    return { ok: false, reason: 'That payment is not active.' };
+src/sim/reservations.js:1790:        reason: t('checkout.integrityUnavailable'),
+src/sim/reservations.js:1791:        diagnostic: 'The declined payment projection is not writable.',
+src/sim/reservations.js:1796:    return { ok: false, declined: true, reason: 'Card declined. Try another card or cash.' };
+src/sim/reservations.js:1800:    return { ok: false, reason: `Cash tender is $${r2(pending.amount - tendered).toFixed(2)} short.` };
+src/sim/reservations.js:1807:      reason: t('checkout.integrityUnavailable'),
+src/sim/reservations.js:1808:      diagnostic: 'The reservation payment amount is outside safe currency bounds.',
+src/sim/reservations.js:1816:      reason: t('checkout.integrityUnavailable'),
+src/sim/reservations.js:1817:      diagnostic: 'That reservation transaction id is already bound elsewhere.',
+src/sim/reservations.js:1827:      reason: t('ledger.integrityUnavailable'),
+src/sim/reservations.js:1828:      diagnostic: 'That reservation transaction ledger authority is ambiguous.',
+src/sim/reservations.js:1835:      reason: t('checkout.integrityUnavailable'),
+src/sim/reservations.js:1836:      diagnostic: 'The reservation receipt sequence is outside safe writable bounds.',
+src/sim/reservations.js:1848:      reason: t('checkout.integrityUnavailable'),
+src/sim/reservations.js:1849:      diagnostic: 'That reservation transaction has invalid receipt authority.',
+src/sim/reservations.js:1863:      reason: t('checkout.integrityUnavailable'),
+src/sim/reservations.js:1864:      diagnostic: 'That reservation transaction receipt is already bound elsewhere.',
+src/sim/reservations.js:1870:      reason: t('checkout.integrityUnavailable'),
+src/sim/reservations.js:1871:      diagnostic: 'That reservation transaction receipt is already bound elsewhere.',
+src/sim/reservations.js:1901:      reason: t('ledger.integrityUnavailable'),
+src/sim/reservations.js:1902:      diagnostic: 'That reservation transaction ledger authority is ambiguous.',
+src/sim/reservations.js:1931:    return { ok: false, reason: 'No declined card is waiting.' };
+src/sim/reservations.js:1933:  if (transactionId && transactionId !== pending.transactionId) return { ok: false, reason: 'That card attempt is not active.' };
+src/sim/reservations.js:1940:  if (!reservation || reservation.status !== 'booked') return { ok: false, reason: 'No active booking under that name.' };
+src/sim/reservations.js:1958:  if (!reservation || reservation.status !== 'booked') return { ok: false, reason: 'No active booking under that name.' };
+src/sim/reservations.js:1973:  if (!reservation || reservation.status !== 'booked') return { ok: false, reason: 'No active reservation to confirm.' };
+src/sim/reservations.js:1974:  if (!['arrived', 'late'].includes(reservation.arrival.status)) return { ok: false, reason: 'The party has not arrived.' };
+src/sim/reservations.js:1985:    return { ok: false, reason: 'Guests can only be added before check-in.' };
+src/sim/reservations.js:1988:  if (!guestName) return { ok: false, reason: 'Enter the guest name.' };
+src/sim/reservations.js:1989:  if (reservation.customerNames.includes(guestName)) return { ok: false, reason: 'That guest is already in the party.' };
+src/sim/reservations.js:2020:    return { ok: false, reason: 'Only an open booking can move.' };
+src/sim/reservations.js:2023:    return { ok: false, reason: 'Club policy does not move late parties.' };
+src/sim/reservations.js:2055:    return { ok: false, reason: 'Only an open booking can be cancelled.' };
+src/sim/reservations.js:2092:    reason: String(options.reason || 'Cancelled at the front desk'),
+src/sim/reservations.js:2110:    reason: terms.fee > EPSILON
+src/sim/reservations.js:2160:  if (!reservation) return { ok: false, reason: 'No booking found.' };
+src/sim/reservations.js:2162:  if (reservation.status !== 'booked' || checkedIn(reservation)) return { ok: false, reason: 'That booking cannot become a no-show.' };
+src/sim/reservations.js:2165:  if (!options.force && atMinute < graceEnd) return { ok: false, reason: 'The grace period is still open.' };
+src/sim/reservations.js:2182:    reason: `${reservation.reservationHolder} did not arrive before the grace period ended.`,
+src/sim/reservations.js:2206:  if (!reservation) return { ok: false, reason: 'Reservation not found.' };
+src/sim/reservations.js:2240:      reason: `${reservation.reservationHolder}'s party checked in for its tee time.`,
+src/sim/reservations.js:2250:  if (!reservation || reservation.status !== 'booked') return { ok: false, reason: 'No open booking under that name.' };
+src/sim/reservations.js:2276:  if (!['arrived', 'late'].includes(reservation.arrival.status)) return { ok: false, reason: 'The party has not arrived.' };
+src/sim/reservations.js:2287:      reason: t('reservations.checkin.early', { lead: CHECK_IN_WINDOW_MINUTES, wait: window.minutesUntilOpen }),
+src/sim/reservations.js:2291:    return { ok: false, window, reason: t('reservations.checkin.missed', { late: window.minutesLate }) };
+src/sim/reservations.js:2293:  if (reservation.checkIn.status !== 'confirmed') return { ok: false, reason: 'Confirm the reservation first.' };
+src/sim/reservations.js:2296:    return { ok: false, reason: `$${reservation.payment.amountDue.toFixed(2)} is still due.`, amountDue: reservation.payment.amountDue };
+src/sim/reservations.js:2311:  if (!reservation || reservation.checkIn.status !== 'checked-in') return { ok: false, reason: 'Check-in is required before course departure.' };
+src/sim/reservations.js:2329:    reason: `${reservation.reservationHolder}'s party departed for the course.`,
+src/sim/reservations.js:2356:  if (minute == null) return { ok: false, reason: 'No real slot has enough capacity.' };
+src/sim/reservations.js:2381:        reason: `${holder || 'The customer'} asked for ${fmtSlot(asked)} - ${fmtSlot(Math.floor(minute))} is ${away} minutes off, further than they will wait, and they pass.`,
+src/sim/reservations.js:2620:    return { ok: false, reason: t('reservations.request.gone') };
+src/sim/reservations.js:2656:    return { ok: false, reason: t('reservations.request.gone') };
+src/sim/reservations.js:2684:    return { ok: false, reason: t('reservations.request.gone') };
+src/sim/reservations.js:2824:      cancelReservation(state, reservation.id, { atMinute: plannedCancel, reason: 'Advance cancellation' });
+src/sim/reservations.js:3116:  if (!requestedName) return { ok: false, reason: 'A booking needs a name.' };
+src/sim/reservations.js:3129:  if (!quote.ok) return { ok: false, reason: quote.reason, cartQuote: quote };
+src/sim/reservations.js:3209:    if (!depositResult.ok) return { ok: false, reason: depositResult.reason, depositResult };
+src/sim/reservations.js:3217:  if (!reservation) return { ok: false, reason: 'Reservation not found.' };
+src/sim/reservations.js:3228:        reason: t('checkout.integrityUnavailable'),
+src/sim/reservations.js:3229:        diagnostic: 'The paid reservation deposit amount is invalid.',
+src/sim/reservations.js:3251:        reason: t('checkout.integrityUnavailable'),
+src/sim/reservations.js:3252:        diagnostic: 'The paid reservation deposit lacks exact ticket provenance.',
+src/sim/reservations.js:3287:      reason: t('checkout.integrityUnavailable'),
+src/sim/reservations.js:3288:      diagnostic: 'The reservation payment authority is invalid.',
+src/sim/reservations.js:3366:  if (!reservation || reservation.status !== 'booked') return { ok: false, reason: 'Reservation not found.' };
+src/sim/reservations.js:3369:    return { ok: false, reason: 'That arrival window has not started.' };
+src/sim/reservations.js:3395:  if (minute == null) return { ok: false, reason: 'No tee time is available.' };
+src/sim/reservations.js:3397:    return { ok: false, reason: 'That walk-in slot is not available.' };
+src/sim/reservations.js:3415:  if (!reservation) return { ok: false, reason: 'Reservation not found.' };
+src/sim/reservations.js:3417:  if (reservation.status !== 'booked') return { ok: false, reason: 'Only open bookings can become no-shows.' };
+src/sim/reservations.js:3437:      reason: t('checkout.integrityUnavailable'),
+src/sim/reservations.js:3438:      diagnostic: 'The no-show deposit credit lacks exact paid-deposit provenance.',
+src/sim/reservations.js:3448:      reason: validated.reason || t('checkout.integrityUnavailable'),
+src/sim/reservations.js:3449:      diagnostic: `The no-show deposit credit lacks exact paid-deposit provenance. ${validated.diagnostic || ''}`.trim(),
+src/sim/reservations.js:3457:  if (!reservation || reservation.status !== 'noShow') return { ok: false, reason: 'Only a no-show can be charged.' };
+src/sim/reservations.js:3501:        reason: t('checkout.integrityUnavailable'),
+src/sim/reservations.js:3502:        diagnostic: 'The no-show charge lacks exact ticket provenance.',
+src/sim/reservations.js:3651:  if (times.length < 7) return { ok: false, reason: 'QA route needs at least seven slots.' };
+src/sim/reservations.js:3661:    if (!result.ok) throw new Error(`QA fixture ${key}: ${result.reason}`);
+src/sim/reservations.js:3672:    reason: 'QA advance cancellation',
+src/sim/customerIdentity.js:524:    return { ok: false, reason: t('customer.historyUnavailable'), diagnostic: 'Customer history event is missing.' };
+src/sim/customerIdentity.js:539:    return { ok: false, reason: t('customer.historyUnavailable'), diagnostic: 'Customer history event identity or outcomes are invalid.' };
+src/sim/customerIdentity.js:543:    return { ok: false, reason: t('customer.historyUnavailable'), diagnostic: 'Customer history event amount or date is invalid.' };
+src/sim/customerIdentity.js:547:    return { ok: false, reason: t('customer.historyUnavailable'), diagnostic: 'Customer history event visit or payment method is invalid.' };
+src/sim/customerIdentity.js:552:    return { ok: false, reason: t('customer.historyUnavailable'), diagnostic: 'Customer history event amount is too large.' };
+src/sim/customerIdentity.js:590:    return { ok: false, reason: t('customer.historyUnavailable'), diagnostic: 'Customer history event does not match its ticket.' };
+src/sim/customerIdentity.js:604:    return { ok: false, reason: t('customer.historyUnavailable'), diagnostic: 'Customer history event has no matching ticket identity.' };
+src/sim/customerIdentity.js:611:    return { ok: false, reason: t('customer.historyUnavailable'), diagnostic: 'Customer history event has no ledger provenance.' };
+src/sim/customerIdentity.js:618:    return { ok: false, reason: t('customer.historyUnavailable'), diagnostic: 'Customer history event ledger provenance is incomplete.' };
+src/sim/customerIdentity.js:628:      return { ok: false, reason: t('customer.historyUnavailable'), diagnostic: 'Customer history event ledger provenance is invalid.' };
+src/sim/customerIdentity.js:637:    : { ok: false, reason: t('customer.historyUnavailable'), diagnostic: 'Customer history event ledger identity belongs to another payment.' };
+src/sim/customerIdentity.js:662:  if (!normalized.ok) throw new TypeError(normalized.diagnostic || normalized.reason);
+src/sim/customerIdentity.js:670:  if (!customer) return { ok: false, reason: t('customer.historyUnavailable'), diagnostic: 'Unknown customer identity.' };
+src/sim/customerIdentity.js:672:    return { ok: false, reason: t('customer.historyUnavailable'), diagnostic: 'Customer visit history is invalid.' };
+src/sim/customerIdentity.js:678:    return { ok: false, conflict: true, reason: t('customer.historyUnavailable'), diagnostic: 'Customer history event id has conflicting details.' };
+src/sim/customerIdentity.js:681:    return { ok: false, reason: t('customer.historyUnavailable'), diagnostic: 'Customer visit history is not writable.' };
+src/sim/customerIdentity.js:688:      return { ok: false, reason: t('customer.historyUnavailable'), diagnostic: 'Customer visit history would overflow.' };
+src/sim/customerIdentity.js:731:    return { ok: false, reason: t('customer.historyUnavailable'), diagnostic: 'Customer visit history could not be published.' };
+src/sim/customerIdentity.js:785:          diagnostic: 'Duplicate customer history events conflict on one event identity.',
+src/sim/customerIdentity.js:811:          diagnostic: authority.diagnostic || authority.reason,
+src/sim/customerIdentity.js:837:        const diagnostic = result.diagnostic || result.reason || 'Customer history event is pending.';
+src/sim/customerIdentity.js:838:        tryAssignProperty(ticket.customerVisitEvent, 'failureReason', diagnostic);
+src/sim/customerIdentity.js:843:          diagnostic,
+src/sim/customerIdentity.js:852:      diagnostic: String(error?.message || error),
+src/sim/customerIdentity.js:871:  if (!customer) return { ok: false, reason: 'Unknown customer identity.' };
+src/sim/customerIdentity.js:874:    return { ok: false, reason: t('customer.historyUnavailable'), diagnostic: 'Customer visit history or outcome is invalid.' };
+src/sim/customerIdentity.js:877:    return { ok: false, reason: t('customer.historyUnavailable'), diagnostic: 'Customer visit history is not writable.' };
+src/sim/customerIdentity.js:889:    return { ok: false, reason: t('customer.historyUnavailable'), diagnostic: 'Customer visit history would overflow.' };
+src/sim/customerIdentity.js:892:    return { ok: false, reason: t('customer.historyUnavailable'), diagnostic: 'Customer visit history could not be published.' };
+src/sim/economy.js:300:  if (!isRecord(state)) return { ok: false, reason: t('ledger.integrityUnavailable'), diagnostic: `The ${label} is not writable.` };
+src/sim/economy.js:305:      return { ok: false, reason: t('ledger.integrityUnavailable'), diagnostic: `The ${label} is not writable.` };
+src/sim/economy.js:323:    return { ok: false, reason: t('ledger.integrityUnavailable'), diagnostic: `The ${label} is unavailable or not writable.` };
+src/sim/economy.js:329:    return { ok: false, reason: t('ledger.integrityUnavailable'), diagnostic: `The ${label} is not writable.` };
+src/sim/economy.js:334:      return { ok: false, reason: t('ledger.integrityUnavailable'), diagnostic: 'The ledger checkpoint authority is not writable.' };
+src/sim/economy.js:341:      return { ok: false, reason: t('ledger.integrityUnavailable'), diagnostic: 'The outcome checkpoint authority is not writable.' };
+src/sim/economy.js:347:  if (!canAppend(rows)) return { ok: false, reason: t('ledger.integrityUnavailable'), diagnostic: `The ${label} is not writable.` };
+src/sim/economy.js:352:        reason: t('ledger.integrityUnavailable'),
+src/sim/economy.js:353:        diagnostic: outcome
+src/sim/economy.js:360:    return { ok: false, reason: t('ledger.integrityUnavailable'), diagnostic: `The ${label} is not writable.` };
+src/sim/economy.js:365:    return { ok: false, reason: t('ledger.integrityUnavailable'), diagnostic: 'The ledger cash authority is not writable.' };
+src/sim/economy.js:374:    return { ok: false, reason: t('ledger.integrityUnavailable'), diagnostic: 'The ledger cash projection is outside safe currency bounds.' };
+src/sim/economy.js:392:      return { ok: false, reason: t('ledger.integrityUnavailable'), diagnostic: 'The ledger aggregate authority is not writable.' };
+src/sim/economy.js:401:      return { ok: false, reason: t('ledger.integrityUnavailable'), diagnostic: 'The ledger aggregate value is invalid.' };
+src/sim/economy.js:416:    return { ok: false, reason: 'Ledger amounts must be finite.' };
+src/sim/economy.js:419:    return { ok: false, reason: 'Ledger amounts must be finite.' };
+src/sim/economy.js:422:  if (!(amount > 0)) return { ok: false, reason: 'Ledger amounts must be positive.' };
+src/sim/economy.js:442:    return { ok: false, reason: 'Ledger impacts must be finite.' };
+src/sim/economy.js:507:      reason: t('ledger.integrityUnavailable'),
+src/sim/economy.js:508:      diagnostic: ownership.ambiguous
+src/sim/economy.js:519:        reason: t('ledger.integrityUnavailable'), diagnostic: 'The ledger idempotency key is ambiguous.',
+src/sim/economy.js:529:          reason: t('ledger.integrityUnavailable'), diagnostic: 'The ledger idempotency checkpoint is incomplete.',
+src/sim/economy.js:538:          reason: t('ledger.integrityUnavailable'), diagnostic: 'The ledger idempotency key is ambiguous.',
+src/sim/economy.js:547:          reason: t('ledger.integrityUnavailable'), diagnostic: 'That ledger key belongs to a different posting.',
+src/sim/economy.js:557:        reason: t('ledger.integrityUnavailable'), diagnostic: 'The ledger idempotency checkpoint is incomplete.',
+src/sim/economy.js:575:      reason: 'The ledger idempotency checkpoint is incomplete.',
+src/sim/economy.js:583:      reason: t('ledger.integrityUnavailable'), diagnostic: 'The ledger idempotency checkpoint is incomplete or points at a different entry identity.',
+src/sim/economy.js:592:      reason: t('ledger.integrityUnavailable'),
+src/sim/economy.js:593:      diagnostic: idRows.length > 1
+src/sim/economy.js:605:      reason: t('ledger.integrityUnavailable'),
+src/sim/economy.js:606:      diagnostic: keyRows.length > 1
+src/sim/economy.js:617:      reason: 'That ledger key belongs to a different posting.',
+src/sim/economy.js:638:    return { ok: false, reason: 'Ledger amounts must be finite.' };
+src/sim/economy.js:641:  if (!(amount > 0)) return { ok: false, reason: 'Ledger amounts must be positive.' };
+src/sim/economy.js:697:    return { ok: false, reason: t('ledger.integrityUnavailable'), diagnostic: 'The ledger cash projection is outside safe currency bounds.' };
+src/sim/economy.js:725:  if (!(amt > 0) || !safeCentValue(amt)) return { ok: false, reason: t('ledger.integrityUnavailable'), diagnostic: 'Revenue must be a safe positive currency amount.' };
+src/sim/economy.js:729:      return { ok: false, reason: t('ledger.integrityUnavailable'), diagnostic: 'The cash projection is outside safe currency bounds.' };
+src/sim/economy.js:745:  if (!(amt > 0) || !safeCentValue(amt)) return { ok: false, reason: t('ledger.integrityUnavailable'), diagnostic: 'Expense must be a safe positive currency amount.' };
+src/sim/economy.js:749:      return { ok: false, reason: t('ledger.integrityUnavailable'), diagnostic: 'The cash projection is outside safe currency bounds.' };
+src/sim/economy.js:787:  if (!(amt > 0) || !safeCentValue(amt)) return { ok: false, reason: t('ledger.integrityUnavailable'), diagnostic: 'Refund must be a safe positive currency amount.' };
+src/sim/economy.js:791:      return { ok: false, reason: t('ledger.integrityUnavailable'), diagnostic: 'The cash projection is outside safe currency bounds.' };
+src/sim/economy.js:845:    reason: spec.reason || '',
+src/sim/economy.js:861:    return { ok: false, reason: t('ledger.integrityUnavailable'), diagnostic: 'Durable outcomes need a stable idempotency key.' };
+src/sim/economy.js:879:    reason: spec.reason || '',
+src/sim/economy.js:901:      reason: t('ledger.integrityUnavailable'),
+src/sim/economy.js:902:      diagnostic: ownership.ambiguous
+src/sim/economy.js:913:        reason: t('ledger.integrityUnavailable'), diagnostic: 'The outcome idempotency key is ambiguous.',
+src/sim/economy.js:923:          reason: t('ledger.integrityUnavailable'), diagnostic: 'The outcome idempotency checkpoint is incomplete.',
+src/sim/economy.js:932:          reason: t('ledger.integrityUnavailable'), diagnostic: 'The outcome idempotency key is ambiguous.',
+src/sim/economy.js:941:          reason: t('ledger.integrityUnavailable'), diagnostic: 'That outcome key belongs to a different event.',
+src/sim/economy.js:951:        reason: t('ledger.integrityUnavailable'), diagnostic: 'The outcome idempotency checkpoint is incomplete.',
+src/sim/economy.js:967:      reason: t('ledger.integrityUnavailable'), diagnostic: 'The outcome idempotency checkpoint is incomplete.',
+src/sim/economy.js:975:      reason: t('ledger.integrityUnavailable'), diagnostic: 'The outcome idempotency checkpoint is incomplete or points at a different outcome identity.',
+src/sim/economy.js:984:      reason: t('ledger.integrityUnavailable'),
+src/sim/economy.js:985:      diagnostic: idRows.length > 1
+src/sim/economy.js:997:      reason: t('ledger.integrityUnavailable'),
+src/sim/economy.js:998:      diagnostic: keyRows.length > 1
+src/sim/economy.js:1009:      reason: t('ledger.integrityUnavailable'), diagnostic: 'That outcome key belongs to a different event.',
+src/sim/checkoutSettlement.js:123:    return { ok: false, reason: t('checkout.integrityUnavailable'), diagnostic: 'The shop checkout journal is unavailable.' };
+src/sim/checkoutSettlement.js:127:      return { ok: false, reason: t('checkout.integrityUnavailable'), diagnostic: 'The shop checkout journal is not writable.' };
+src/sim/checkoutSettlement.js:132:    return { ok: false, reason: t('checkout.integrityUnavailable'), diagnostic: 'The shop checkout journal is unavailable.' };
+src/sim/checkoutSettlement.js:137:      return { ok: false, reason: t('checkout.integrityUnavailable'), diagnostic: 'The pending checkout settlement journal is not writable.' };
+src/sim/checkoutSettlement.js:140:    return { ok: false, reason: t('checkout.integrityUnavailable'), diagnostic: 'The shop checkout journal is not writable.' };
+src/sim/checkoutSettlement.js:211:        reason: t('checkout.integrityUnavailable'), diagnostic: `Inventory lot ${lot.id} is ambiguous.`,
+src/sim/checkoutSettlement.js:218:      return { ok: false, reason: t('checkout.integrityUnavailable'), diagnostic: 'Requested inventory lot is unavailable.' };
+src/sim/checkoutSettlement.js:270:    return { ok: false, reason: t('checkout.integrityUnavailable'), diagnostic: 'The sale has no held products.' };
+src/sim/checkoutSettlement.js:273:    return { ok: false, reason: t('checkout.integrityUnavailable'), diagnostic: 'The sale has no settlement identity.' };
+src/sim/checkoutSettlement.js:285:      return { ok: false, reason: t('checkout.integrityUnavailable'), diagnostic: 'Every sold product needs a held UID and SKU.' };
+src/sim/checkoutSettlement.js:288:      return { ok: false, reason: t('checkout.integrityUnavailable'), diagnostic: `Held UID ${item.uid} appears twice in the sale.` };
+src/sim/checkoutSettlement.js:303:      if (!prior) return { ok: false, reason: t('checkout.integrityUnavailable'), diagnostic: `Held UID ${uid} is no longer available.` };
+src/sim/checkoutSettlement.js:306:      return { ok: false, reason: t('checkout.integrityUnavailable'), diagnostic: `Held UID ${uid} is ambiguous in inventory.` };
+src/sim/checkoutSettlement.js:309:      return { ok: false, reason: t('checkout.integrityUnavailable'), diagnostic: `Held UID ${uid} does not match ${skuId}.` };
+src/sim/checkoutSettlement.js:316:        return { ok: false, reason: t('checkout.integrityUnavailable'), diagnostic: 'Checkout inventory provenance is incomplete.' };
+src/sim/checkoutSettlement.js:320:      return { ok: false, reason: t('checkout.integrityUnavailable'), diagnostic: 'Checkout inventory provenance is incomplete.' };
+src/sim/checkoutSettlement.js:336:    return { ok: false, reason: t('checkout.integrityUnavailable'), diagnostic: 'Checkout inventory provenance is incomplete.' };
+src/sim/checkoutSettlement.js:342:        return { ok: false, reason: t('checkout.integrityUnavailable'), diagnostic: 'Requested inventory lot is unavailable.' };
+src/sim/checkoutSettlement.js:346:        return { ok: false, reason: t('checkout.integrityUnavailable'), diagnostic: 'Not enough inventory in the requested lot.' };
+src/sim/checkoutSettlement.js:349:        return { ok: false, reason: t('checkout.integrityUnavailable'), diagnostic: 'The requested inventory lot would overflow.' };
+src/sim/checkoutSettlement.js:357:    return { ok: false, conflict: true, reason: t('checkout.integrityUnavailable'), diagnostic: 'The checkout inventory reference belongs to a different movement.' };
+src/sim/checkoutSettlement.js:360:    return { ok: false, conflict: true, reason: t('checkout.integrityUnavailable'), diagnostic: 'The checkout inventory checkpoint has no matching sold-stock projection.' };
+src/sim/checkoutSettlement.js:363:    return { ok: false, conflict: true, reason: t('checkout.integrityUnavailable'), diagnostic: 'The checkout inventory checkpoint does not own the live held-stock allocation.' };
+src/sim/checkoutSettlement.js:387:    return { ok: false, reason: t('checkout.integrityUnavailable'), diagnostic: 'The pending checkout settlement is invalid.' };
+src/sim/checkoutSettlement.js:394:    return { ok: false, reason: t('checkout.integrityUnavailable'), diagnostic: 'The pending checkout ledger plan is invalid.' };
+src/sim/checkoutSettlement.js:404:    return { ok: false, reason: t('checkout.integrityUnavailable'), diagnostic: 'The pending checkout ticket identity is invalid.' };
+src/sim/checkoutSettlement.js:419:    return { ok: false, reason: t('checkout.integrityUnavailable'), diagnostic: 'The pending checkout ticket draft is invalid.' };
+src/sim/checkoutSettlement.js:423:    return { ok: false, reason: t('checkout.integrityUnavailable'), diagnostic: 'The pending checkout repeats a ledger checkpoint.' };
+src/sim/checkoutSettlement.js:430:    return { ok: false, reason: t('checkout.integrityUnavailable'), diagnostic: 'The pending checkout projection plan is invalid.' };
+src/sim/checkoutSettlement.js:434:    return { ok: false, reason: t('checkout.integrityUnavailable'), diagnostic: 'The pending checkout repeats a projection checkpoint.' };
+src/sim/checkoutSettlement.js:439:    return { ok: false, reason: t('checkout.integrityUnavailable'), diagnostic: 'The pending checkout projection targets are invalid.' };
+src/sim/checkoutSettlement.js:445:    return { ok: false, reason: t('checkout.integrityUnavailable'), diagnostic: 'The pending checkout outcome plan is invalid.' };
+src/sim/checkoutSettlement.js:484:  if (!pending) return { ok: false, reason: t('checkout.integrityUnavailable'), diagnostic: 'The shop checkout journal is unavailable.' };
+src/sim/checkoutSettlement.js:491:    return { ok: false, conflict: true, reason: t('checkout.integrityUnavailable'), diagnostic: 'That checkout identity has a different pending settlement.' };
+src/sim/checkoutSettlement.js:494:    return { ok: false, reason: t('checkout.integrityUnavailable'), diagnostic: 'Resolve the pending register settlements before starting another sale.' };
+src/sim/checkoutSettlement.js:528:    return { ok: false, reason: t('checkout.integrityUnavailable'), diagnostic: 'The checkout transaction history is unavailable.' };
+src/sim/checkoutSettlement.js:531:    return { ok: false, reason: t('checkout.integrityUnavailable'), diagnostic: 'The checkout ticket counter is invalid.' };
+src/sim/checkoutSettlement.js:538:    return { ok: false, conflict: true, reason: t('checkout.integrityUnavailable'), diagnostic: 'The checkout ticket identity is ambiguous.' };
+src/sim/checkoutSettlement.js:544:    return { ok: false, conflict: true, reason: t('checkout.integrityUnavailable'), diagnostic: 'The checkout ticket number is ambiguous.' };
+src/sim/checkoutSettlement.js:551:    return { ok: false, conflict: true, reason: t('checkout.integrityUnavailable'), diagnostic: 'A service reference already belongs to another checkout ticket.' };
+src/sim/checkoutSettlement.js:554:    return { ok: false, conflict: true, reason: t('checkout.integrityUnavailable'), diagnostic: 'The checkout ticket identity and number disagree.' };
+src/sim/checkoutSettlement.js:559:    return { ok: false, conflict: true, reason: t('checkout.integrityUnavailable'), diagnostic: 'The pending checkout ticket conflicts with transaction history.' };
+src/sim/checkoutSettlement.js:565:    return { ok: false, reason: t('checkout.integrityUnavailable'), diagnostic: 'The checkout ticket publication authority is not writable.' };
+src/sim/checkoutSettlement.js:582:    return { ok: false, reason: t('checkout.integrityUnavailable'), diagnostic: 'The pending checkout inventory plan is invalid.' };
+src/sim/checkoutSettlement.js:593:    return { ok: false, reason: t('checkout.integrityUnavailable'), diagnostic: 'The checkout inventory authority is unavailable.' };
+src/sim/checkoutSettlement.js:598:    return { ok: false, reason: t('checkout.integrityUnavailable'), diagnostic: 'The pending checkout repeats a product identity.' };
+src/sim/checkoutSettlement.js:603:    return { ok: false, reason: t('checkout.integrityUnavailable'), diagnostic: 'Checkout inventory provenance is incomplete.' };
+src/sim/checkoutSettlement.js:614:    return { ok: false, conflict: true, reason: t('checkout.integrityUnavailable'), diagnostic: 'The checkout inventory reference belongs to a different movement.' };
+src/sim/checkoutSettlement.js:617:    return { ok: false, conflict: true, reason: t('checkout.integrityUnavailable'), diagnostic: 'The checkout inventory checkpoint has no matching sold-stock projection.' };
+src/sim/checkoutSettlement.js:624:        return { ok: false, reason: t('checkout.integrityUnavailable'), diagnostic: 'Requested inventory lot is unavailable.' };
+src/sim/checkoutSettlement.js:627:        return { ok: false, reason: t('checkout.integrityUnavailable'), diagnostic: 'Not enough inventory in the requested lot.' };
+src/sim/checkoutSettlement.js:630:        return { ok: false, reason: t('checkout.integrityUnavailable'), diagnostic: 'The requested inventory lot would overflow.' };
+src/sim/checkoutSettlement.js:639:      return { ok: false, reason: t('checkout.integrityUnavailable'), diagnostic: `Held UID ${uid} is ambiguous in inventory.` };
+src/sim/checkoutSettlement.js:643:        return { ok: false, reason: t('checkout.integrityUnavailable'), diagnostic: `Held UID ${uid} does not match ${skuId}.` };
+src/sim/checkoutSettlement.js:649:        return { ok: false, reason: t('checkout.integrityUnavailable'), diagnostic: 'Checkout inventory provenance is incomplete.' };
+src/sim/checkoutSettlement.js:656:    return { ok: false, reason: t('checkout.integrityUnavailable'), diagnostic: 'Committed checkout inventory is missing before its sale movement.' };
+src/sim/checkoutSettlement.js:660:    return { ok: false, conflict: true, reason: t('checkout.integrityUnavailable'), diagnostic: 'The checkout inventory checkpoint does not own the live held-stock allocation.' };
+src/sim/checkoutSettlement.js:663:    return { ok: false, reason: t('checkout.integrityUnavailable'), diagnostic: 'The checkout held-stock authority is not writable.' };
+src/sim/checkoutSettlement.js:668:      return { ok: false, reason: t('checkout.integrityUnavailable'), diagnostic: 'The checkout allocation authority is not writable.' };
+src/sim/checkoutSettlement.js:674:    return { ok: false, reason: t('checkout.integrityUnavailable'), diagnostic: 'The checkout inventory journal is not writable.' };
+src/sim/checkoutSettlement.js:677:    return { ok: false, reason: t('checkout.integrityUnavailable'), diagnostic: 'The checkout inventory journal order is not writable.' };
+src/sim/checkoutSettlement.js:680:    return { ok: false, reason: t('checkout.integrityUnavailable'), diagnostic: 'The checkout inventory event journal is not writable.' };
+src/sim/checkoutSettlement.js:687:      return { ok: false, reason: t('checkout.integrityUnavailable'), diagnostic: 'The checkout inventory lot authority is not writable.' };
+src/sim/checkoutSettlement.js:698:      return { ok: false, reason: t('checkout.integrityUnavailable'), diagnostic: 'The checkout inventory journal cannot retire an old checkpoint.' };
+src/sim/checkoutSettlement.js:719:    return { ok: false, reason: t('checkout.integrityUnavailable'), diagnostic: 'The pending checkout inventory plan is invalid.' };
+src/sim/checkoutSettlement.js:724:    return { ok: false, reason: t('checkout.integrityUnavailable'), diagnostic: 'The pending checkout repeats a product identity.' };
+src/sim/checkoutSettlement.js:736:      return { ok: false, reason: t('checkout.integrityUnavailable'), diagnostic: `Held UID ${uid} is ambiguous in inventory.` };
+src/sim/checkoutSettlement.js:741:        return { ok: false, reason: t('checkout.integrityUnavailable'), diagnostic: `Held UID ${uid} does not match ${skuId}.` };
+src/sim/checkoutSettlement.js:747:        return { ok: false, reason: t('checkout.integrityUnavailable'), diagnostic: 'Checkout inventory provenance is incomplete.' };
+src/sim/checkoutSettlement.js:763:    return { ok: false, conflict: true, reason: t('checkout.integrityUnavailable'), diagnostic: 'The checkout inventory reference belongs to a different movement.' };
+src/sim/checkoutSettlement.js:766:    return { ok: false, conflict: true, reason: t('checkout.integrityUnavailable'), diagnostic: 'The checkout inventory checkpoint has no matching sold-stock projection.' };
+src/sim/checkoutSettlement.js:770:    return { ok: false, conflict: true, reason: t('checkout.integrityUnavailable'), diagnostic: 'The checkout inventory checkpoint does not own the live held-stock allocation.' };
+src/sim/checkoutSettlement.js:773:    return { ok: false, reason: t('checkout.integrityUnavailable'), diagnostic: 'Committed checkout inventory is missing before its sale movement.' };
+src/sim/checkoutSettlement.js:785:  if (!moved?.ok) return moved || { ok: false, reason: t('checkout.integrityUnavailable'), diagnostic: 'Checkout inventory could not be moved.' };
+src/sim/checkoutSettlement.js:791:    return { ok: false, conflict: true, reason: t('checkout.integrityUnavailable'), diagnostic: 'The checkout inventory movement did not match its settlement.' };
+src/sim/checkoutSettlement.js:812:    return { ok: false, reason: t('checkout.integrityUnavailable'), diagnostic: 'The pending checkout drawer plan is invalid.' };
+src/sim/checkoutSettlement.js:815:    return { ok: false, reason: t('checkout.integrityUnavailable'), diagnostic: 'The checkout drawer authority is unavailable.' };
+src/sim/checkoutSettlement.js:820:    return { ok: false, conflict: true, reason: t('checkout.integrityUnavailable'), diagnostic: 'The cash drawer no longer matches the pending checkout.' };
+src/sim/checkoutSettlement.js:823:    return { ok: false, reason: t('checkout.integrityUnavailable'), diagnostic: 'The checkout drawer authority is not writable.' };
+src/sim/checkoutSettlement.js:842:        return { ok: false, reason: t('checkout.integrityUnavailable'), diagnostic: `The ${posting.component} ledger checkpoint changed during settlement.` };
+src/sim/checkoutSettlement.js:977:    return { ok: false, reason: t('checkout.integrityUnavailable'), diagnostic: 'The pending checkout projection plan is invalid.' };
+src/sim/checkoutSettlement.js:980:    return { ok: false, reason: t('checkout.integrityUnavailable'), diagnostic: 'The checkout projection authorities are unavailable.' };
+src/sim/checkoutSettlement.js:984:    return { ok: false, reason: t('checkout.integrityUnavailable'), diagnostic: 'The checkout projection journal is unavailable.' };
+src/sim/checkoutSettlement.js:988:    return { ok: false, reason: t('checkout.integrityUnavailable'), diagnostic: 'The checkout projection journal is not writable.' };
+src/sim/checkoutSettlement.js:993:      return { ok: false, reason: t('checkout.integrityUnavailable'), diagnostic: 'The pending checkout projection targets are invalid.' };
+src/sim/checkoutSettlement.js:1001:      return { ok: false, conflict: true, reason: t('checkout.integrityUnavailable'), diagnostic: 'A checkout projection checkpoint has conflicting details.' };
+src/sim/checkoutSettlement.js:1005:      return { ok: false, reason: t('checkout.integrityUnavailable'), diagnostic: 'The checkout projection journal cannot retire its checkpoint.' };
+src/sim/checkoutSettlement.js:1009:      return { ok: false, reason: t('checkout.integrityUnavailable'), diagnostic: 'The checkout projection journal is not writable.' };
+src/sim/checkoutSettlement.js:1017:        reason: t('checkout.integrityUnavailable'),
+src/sim/checkoutSettlement.js:1018:        diagnostic: projection.kind === 'sales'
+src/sim/checkoutSettlement.js:1028:          reason: t('checkout.integrityUnavailable'), diagnostic: 'The checkout projection checkpoint has no matching result.',
+src/sim/checkoutSettlement.js:1041:        reason: t('checkout.integrityUnavailable'), diagnostic: 'The checkout projection authority changed before settlement.',
+src/sim/checkoutSettlement.js:1048:        return { ok: false, reason: t('checkout.integrityUnavailable'), diagnostic: 'The live-sales authority is invalid.' };
+src/sim/checkoutSettlement.js:1052:          return { ok: false, reason: t('checkout.integrityUnavailable'), diagnostic: 'The live-sales projection is not writable.' };
+src/sim/checkoutSettlement.js:1056:        return { ok: false, reason: t('checkout.integrityUnavailable'), diagnostic: 'The live-sales projection is not writable.' };
+src/sim/checkoutSettlement.js:1062:        return { ok: false, reason: t('checkout.integrityUnavailable'), diagnostic: 'The daily sales authority is invalid.' };
+src/sim/checkoutSettlement.js:1066:          return { ok: false, reason: t('checkout.integrityUnavailable'), diagnostic: 'The daily sales projection is not writable.' };
+src/sim/checkoutSettlement.js:1070:        return { ok: false, reason: t('checkout.integrityUnavailable'), diagnostic: 'The daily sales projection is not writable.' };
+src/sim/checkoutSettlement.js:1076:        return { ok: false, reason: t('checkout.integrityUnavailable'), diagnostic: 'The sales-tax projection is not writable.' };
+src/sim/checkoutSettlement.js:1087:  if (!operations) return { ok: false, reason: t('checkout.integrityUnavailable'), diagnostic: 'The checkout projection journal is unavailable.' };
+src/sim/checkoutSettlement.js:1095:        return { ok: false, conflict: true, reason: t('checkout.integrityUnavailable'), diagnostic: 'A checkout projection checkpoint has conflicting details.' };
+src/sim/checkoutSettlement.js:1156:    return { ok: false, reason: t('checkout.integrityUnavailable'), diagnostic: 'The pending checkout reservation target is invalid.' };
+src/sim/checkoutSettlement.js:1160:  if (!reservation) return { ok: false, reason: t('checkout.integrityUnavailable'), diagnostic: 'The pending checkout reservation is unavailable.' };
+src/sim/checkoutSettlement.js:1168:    return { ok: false, conflict: true, reason: t('checkout.integrityUnavailable'), diagnostic: 'The reservation changed during checkout recovery.' };
+src/sim/checkoutSettlement.js:1172:    return { ok: false, reason: t('checkout.integrityUnavailable'), diagnostic: 'The reservation authority is not writable.' };
+src/sim/checkoutSettlement.js:1177:        return { ok: false, reason: t('checkout.integrityUnavailable'), diagnostic: 'The reservation payment authority is not writable.' };
+src/sim/checkoutSettlement.js:1181:      return { ok: false, reason: t('checkout.integrityUnavailable'), diagnostic: 'The reservation payment authority is not writable.' };
+src/sim/checkoutSettlement.js:1224:  if (!plan) return { ok: false, reason: t('checkout.integrityUnavailable'), diagnostic: 'No pending checkout settlement was found.' };
+src/sim/checkoutSettlement.js:1226:    return { ok: false, reason: t('checkout.integrityUnavailable'), diagnostic: 'The pending checkout settlement journal is not writable.' };
+src/sim/checkoutSettlement.js:1268:        ? { ok: false, reason: t('checkout.integrityUnavailable'), diagnostic: 'The checkout outcome checkpoint is incomplete.' }
+src/sim/checkoutSettlement.js:1338:      result = { ok: false, diagnostic: String(error?.message || error) };
+src/sim/checkoutSettlement.js:1346:          diagnostic: result.diagnostic || result.reason || 'Settlement recovery failed.',
+src/sim/checkout.js:62:  if (!inv || inv.shelf <= 0) return { ok: false, reason: 'Nothing on the display.' };
+src/sim/checkout.js:63:  if (!skuDisplayIsPlaced(state, skuId)) return { ok: false, reason: 'That display is stored.' };
+src/sim/checkout.js:66:    return { ok: false, reason: 'This product is already being held.' };
+src/sim/checkout.js:73:    return { ok: false, reason: 'This product identity was already used.' };
+src/sim/checkout.js:81:    reason: `Customer ${heldUid} picked up product`,
+src/sim/checkout.js:97:  if (i < 0) return { ok: false, reason: 'That product is not customer-held.' };
+src/sim/checkout.js:113:    reason: `Customer ${entry.uid} abandoned purchase`,
+src/sim/checkout.js:139:    reason: `Paid checkout for ${entry.uid}`,
+src/sim/checkout.js:152:      return { ok: false, reason: 'Checkout inventory provenance is incomplete.' };
+src/sim/checkout.js:163:        return { ok: false, reason: 'Checkout inventory provenance is incomplete.' };
+src/sim/checkout.js:170:    return { ok: false, reason: 'Checkout inventory provenance is incomplete.' };
+src/sim/checkout.js:177:    return { ok: false, reason: 'The sale has no held products.' };
+src/sim/checkout.js:185:        reason: t('checkout.integrityUnavailable'),
+src/sim/checkout.js:186:        diagnostic: 'Every sold product needs a held UID and SKU.',
+src/sim/checkout.js:190:      return { ok: false, reason: 'Every sold product needs a held UID.' };
+src/sim/checkout.js:195:        reason: t('checkout.integrityUnavailable'),
+src/sim/checkout.js:196:        diagnostic: `Held UID ${item.uid} needs a SKU.`,
+src/sim/checkout.js:200:      return { ok: false, reason: `Held UID ${item.uid} appears twice in the sale.` };
+src/sim/checkout.js:236:      reason: t('checkout.integrityUnavailable'),
+src/sim/checkout.js:237:      diagnostic: 'Checkout inventory replay checkpoint is corrupt.',
+src/sim/checkout.js:261:        reason: t('checkout.integrityUnavailable'),
+src/sim/checkout.js:262:        diagnostic: 'Checkout inventory replay checkpoint is corrupt.',
+src/sim/checkout.js:269:        reason: t('checkout.integrityUnavailable'),
+src/sim/checkout.js:270:        diagnostic: 'Checkout inventory replay checkpoint is corrupt.',
+src/sim/checkout.js:282:      reason: t('checkout.integrityUnavailable'),
+src/sim/checkout.js:283:      diagnostic: 'Checkout inventory replay checkpoint is corrupt.',
+src/sim/checkout.js:290:        reason: t('checkout.integrityUnavailable'),
+src/sim/checkout.js:291:        diagnostic: 'Checkout inventory replay checkpoint is corrupt.',
+src/sim/checkout.js:300:        reason: t('checkout.integrityUnavailable'),
+src/sim/checkout.js:301:        diagnostic: 'Checkout inventory replay checkpoint is corrupt.',
+src/sim/checkout.js:339:          reason: t('checkout.integrityUnavailable'),
+src/sim/checkout.js:340:          diagnostic: `Held UID ${uid} is ambiguous in inventory.`,
+src/sim/checkout.js:348:            reason: t('checkout.integrityUnavailable'),
+src/sim/checkout.js:349:            diagnostic: `Held UID ${uid} does not match ${skuId}.`,
+src/sim/checkout.js:380:          reason: t('checkout.integrityUnavailable'),
+src/sim/checkout.js:381:          diagnostic: 'Checkout inventory replay checkpoint is corrupt.',
+src/sim/checkout.js:410:        reason: t('checkout.integrityUnavailable'),
+src/sim/checkout.js:411:        diagnostic: `Held UID ${uid} is no longer available.`,
+src/sim/checkout.js:417:        reason: t('checkout.integrityUnavailable'),
+src/sim/checkout.js:418:        diagnostic: `Held UID ${uid} is ambiguous in inventory.`,
+src/sim/checkout.js:425:        reason: t('checkout.integrityUnavailable'),
+src/sim/checkout.js:426:        diagnostic: `Held UID ${uid} does not match ${skuId}.`,
+src/sim/checkout.js:442:    reason: `Paid checkout for ${selected.map((entry) => entry.uid).join(', ')}`,
+src/sim/checkout.js:540:  if (tx.stage !== 'change') return { ok: false, reason: 'No change due.' };
+src/sim/checkout.js:548:    return { ok: false, reason: diff > 0 ? 'Too much - count it again.' : 'Not enough - count it again.' };
+src/sim/checkout.js:556:  if (tx.stage !== 'card' && tx.stage !== 'declined') return { approved: false, reason: 'No card out.' };
+src/sim/checkout.js:568:  if (!Array.isArray(items) || items.length === 0) return { ok: false, reason: 'Nothing to ring up.' };
+src/sim/checkout.js:572:      reason: t('checkout.integrityUnavailable'),
+src/sim/checkout.js:573:      diagnostic: 'Resolve the pending register settlement before banking another sale.',
+src/sim/checkout.js:577:    return { ok: false, reason: 'Every checkout item needs a positive finite price.' };
+src/sim/checkout.js:585:    return { ok: false, reason: 'Already banked.', duplicate: true, transactionId: id };
+src/sim/checkout.js:598:          reason: t('checkout.integrityUnavailable'),
+src/sim/checkout.js:599:          diagnostic: `Held UID ${held.uid} does not match ${item.skuId}.`,
+src/sim/checkout.js:607:    return { ok: false, reason: 'Every checkout item must still be held by this customer.' };
+src/sim/checkout.js:619:    return { ok: false, reason: 'Checkout total must be positive and finite.' };
+src/sim/checkout.js:630:    return { ok: false, reason: 'Already banked.', duplicate: true, transactionId: id };
+src/sim/checkout.js:655:    return { ok: false, reason: 'Already banked.', duplicate: true, transactionId: id };
+src/sim/checkout.js:672:      return { ok: false, reason: 'Cost of goods was already posted without this sale.', duplicate: true };
+src/sim/checkout.js:684:        reason: t('ledger.integrityUnavailable'),
+src/sim/checkout.js:685:        diagnostic: 'The sales tax was already booked without this sale.',
+src/sim/checkout.js:698:    reason: `Paid checkout for ${heldMatches.map((held) => held.uid).join(', ')}`,
+src/sim/checkout.js:717:    return { ok: false, reason: bank.duplicate ? 'Already banked.' : bank.reason, duplicate: !!bank.duplicate };
+src/sim/checkout.js:739:      return { ok: false, reason: cogs.duplicate ? 'Cost of goods was already posted.' : cogs.reason };
+src/sim/checkout.js:755:    reason: `${who} completed a register purchase with ${items.length} item${items.length === 1 ? '' : 's'}.`,
+src/sim/register.js:89:  if (have < n) return { ok: false, reason: 'None left in that slot.', stack };
+src/sim/register.js:210:  if (tx.stage !== 'scanning') return { ok: false, reason: 'Not ringing up right now.' };
+src/sim/register.js:212:  if (!it) return { ok: false, reason: 'That is not on this order.' };
+src/sim/register.js:213:  if (it.scanned) return { ok: false, reason: `${it.name} is already scanned.` };
+src/sim/register.js:222:  if (tx.stage !== 'scanning') return { ok: false, reason: 'Not ringing up right now.' };
+src/sim/register.js:224:  if (!it) return { ok: false, reason: 'That is not on this order.' };
+src/sim/register.js:225:  if (!it.scanned) return { ok: false, reason: `${it.name} has not been rung up.` };
+src/sim/register.js:226:  if (it.bagged) return { ok: false, reason: `${it.name} is already in the bag.` };
+src/sim/register.js:330:  if (tx.stage !== 'scanning') return { ok: false, reason: 'Payment already started.' };
+src/sim/register.js:331:  if (!tx.items.length) return { ok: false, reason: 'Nothing to ring up.' };
+src/sim/register.js:333:  if (left > 0) return { ok: false, reason: `Still ${left} to scan.` };
+src/sim/register.js:370:  if (tx.stage !== 'card-present') return { ok: false, reason: 'No card asked for.' };
+src/sim/register.js:381:    return { ok: false, reason: tx.stage === 'card-declined' ? 'Use a different card.' : 'No card is ready to insert.' };
+src/sim/register.js:404:    return { ok: false, reason: 'The terminal is not accepting an amount.' };
+src/sim/register.js:408:    return { ok: false, reason: 'Enter one keypad digit.' };
+src/sim/register.js:411:  if (digits.length > 8) return { ok: false, reason: 'That amount is too large.' };
+src/sim/register.js:420:    return { ok: false, reason: 'The terminal is not accepting an amount.' };
+src/sim/register.js:430:    return { ok: false, reason: 'The terminal is not accepting an amount.' };
+src/sim/register.js:440:    return { ok: false, reason: 'The terminal is not accepting an amount.' };
+src/sim/register.js:449:      reason: empty
+src/sim/register.js:477:  if (points.length < 2) return { ok: false, reason: 'Drag the card through the reader.' };
+src/sim/register.js:491:  if (first.x > startMaxX) return { ...result, reason: 'Start at the left end of the reader.' };
+src/sim/register.js:493:    return { ...result, reason: 'Swipe all the way through the reader.' };
+src/sim/register.js:495:  if (crossTrack > maxCrossTrack) return { ...result, reason: 'Keep the card inside the reader track.' };
+src/sim/register.js:496:  if (backtrack > maxBacktrack) return { ...result, reason: 'Swipe once from left to right.' };
+src/sim/register.js:497:  if (durationMs < minDurationMs) return { ...result, reason: 'Swipe a little slower.' };
+src/sim/register.js:498:  if (durationMs > maxDurationMs) return { ...result, reason: 'Swipe again in one smooth motion.' };
+src/sim/register.js:499:  return { ...result, ok: true, reason: null };
+src/sim/register.js:508:    return { ok: false, reason: 'No unresolved card authorization to recover.' };
+src/sim/register.js:511:    return { ok: false, reason: 'An approved card cannot be rolled back.' };
+src/sim/register.js:528:    return { ok: false, reason: tx.stage === 'card-declined' ? 'Declined - they need another card.' : 'No card presented.' };
+src/sim/register.js:548:  // Keep the diagnostic probability shape intact even though the production
+src/sim/register.js:562:  if (tx.stage !== 'card-declined') return { ok: false, reason: 'Nothing to retry.' };
+src/sim/register.js:572:  if (!tx.stage.startsWith('card')) return { ok: false, reason: 'No card payment running.' };
+src/sim/register.js:589:  if (tx.method !== 'card') return { ok: false, reason: 'No card run to pull.' };
+src/sim/register.js:591:    return { ok: false, reason: 'The card can only be pulled before the amount is submitted.' };
+src/sim/register.js:604:  if (tx.stage !== 'payment') return { ok: false, reason: 'Not at the payment choice.' };
+src/sim/register.js:772:  if (tx.stage !== 'cash-tender') return { ok: false, reason: 'No cash offered.' };
+src/sim/register.js:773:  if (!tx.tendered || !stackCount(tx.tendered)) return { ok: false, reason: 'They have not counted it out yet.' };
+src/sim/register.js:786:    return { ok: false, reason: 'That cash transaction is past the recoverable checkpoint.' };
+src/sim/register.js:789:    return { ok: false, reason: 'The accepted tender checkpoint is missing.' };
+src/sim/register.js:811:  if (tx.stage !== 'cash-drawer') return { ok: false, reason: 'The drawer stays shut.' };
+src/sim/register.js:825:  if (!tx.drawerOpen) return { ok: false, reason: 'Open the drawer first.' };
+src/sim/register.js:827:  if (!res.ok) return { ok: false, reason: 'They did not give you one of those.' };
+src/sim/register.js:837:  if (!tx.drawerOpen) return { ok: false, reason: 'Open the drawer first.' };
+src/sim/register.js:838:  if (tx.deposited) return { ok: false, reason: 'Already put away.' };
+src/sim/register.js:839:  if (!tx.tendered || !stackCount(tx.tendered)) return { ok: false, reason: 'Nothing to put away.' };
+src/sim/register.js:847:  if (!tx.drawerOpen) return { ok: false, reason: 'Open the drawer first.' };
+src/sim/register.js:858:  if (!res.ok) return { ok: false, reason: 'Not holding one of those.' };
+src/sim/register.js:887:  if (tx.stage !== 'cash-drawer') return { ok: false, reason: 'No change to give.' };
+src/sim/register.js:888:  if (!tx.deposited) return { ok: false, reason: 'Put their money in the till first.' };
+src/sim/register.js:892:    return { ok: false, reason: 'Not enough - count it again.' };
+src/sim/register.js:895:    return { ok: false, reason: 'Too much - count it again.' };
+src/sim/register.js:913:  if (tx.stage !== 'receipt') return { ok: false, reason: 'Nothing to print yet.' };
+src/sim/register.js:914:  if (tx.receiptPrinted) return { ok: false, reason: 'Already printed.' };
+src/sim/register.js:940:  if (tx.stage !== 'receipt') return { ok: false, reason: 'No receipt out.' };
+src/sim/register.js:941:  if (!tx.receiptPrinted) return { ok: false, reason: 'It has not printed yet.' };
+src/sim/register.js:950:  if (tx.stage !== 'bagging') return { ok: false, reason: 'Take the receipt first.' };
+src/sim/register.js:951:  if (!tx.receiptPrinted) return { ok: false, reason: 'It has not printed yet.' };
+src/sim/register.js:952:  if (tx.receiptPacked) return { ok: false, reason: 'The receipt is already in the bag.' };
+src/sim/register.js:960:  if (tx.stage !== 'bagging') return { ok: false, reason: 'Not bagging yet.' };
+src/sim/register.js:962:  if (!it) return { ok: false, reason: 'That is not on this order.' };
+src/sim/register.js:963:  if (it.bagged) return { ok: false, reason: `${it.name} is already in the bag.` };
+src/sim/register.js:976:  if (tx.stage !== 'bagging') return { ok: false, reason: 'Not ready to hand over.' };
+src/sim/register.js:978:    return { ok: false, reason: `${goodsLinesOf(tx).filter((i) => !i.bagged).length} still to bag.` };
+src/sim/register.js:980:  if (!tx.receiptPacked) return { ok: false, reason: 'Put the receipt in the bag first.' };
+src/sim/register.js:1020:    return { ok: false, reason: 'The cash has not been secured in the drawer.' };
+src/sim/register.js:1023:    return { ok: false, reason: 'Finish the change and close the drawer first.' };
+src/sim/register.js:1029:    return { ok: false, reason: 'The drawer changed before this sale could bank.' };
+src/sim/register.js:1035:    return { ok: false, reason: 'The drawer does not balance with this transaction.' };
+src/sim/register.js:1095:    return { ok: false, reason: t('checkout.integrityUnavailable'), diagnostic: 'The checkout ticket counter is invalid.' };
+src/sim/register.js:1102:      return { ok: false, reason: t('checkout.integrityUnavailable'), diagnostic: 'The checkout ticket history contains an invalid number.' };
+src/sim/register.js:1114:    return { ok: false, reason: t('checkout.integrityUnavailable'), diagnostic: 'The checkout ticket counter has reached its safe limit.' };
+src/sim/register.js:1156:      reason: t('checkout.integrityUnavailable'),
+src/sim/register.js:1157:      diagnostic: matches.length > 1
+src/sim/register.js:1179:    return { ok: false, conflict: true, reason: t('checkout.integrityUnavailable'), diagnostic: 'That service ticket belongs to a different charge.' };
+src/sim/register.js:1188:      ? { ok: false, conflict: true, reason: t('checkout.integrityUnavailable'), diagnostic: 'The zero-dollar service ticket has conflicting ledger provenance.' }
+src/sim/register.js:1201:      reason: ledgerPreflight.reason || t('ledger.integrityUnavailable'),
+src/sim/register.js:1202:      diagnostic: ledgerPreflight.diagnostic || 'That service ticket lacks exact ledger provenance.',
+src/sim/register.js:1221:    return { ok: false, reason: t('ledger.integrityUnavailable'), diagnostic: 'The club books are not available.' };
+src/sim/register.js:1228:    return { ok: false, reason: t('checkout.integrityUnavailable'), diagnostic: 'The service charge identity is invalid.' };
+src/sim/register.js:1265:    return { ok: false, reason: 'The club books are not available.' };
+src/sim/register.js:1268:    return { ok: false, reason: 'The service charge has no stable reference.' };
+src/sim/register.js:1271:    return { ok: false, reason: 'That service revenue line is not supported.' };
+src/sim/register.js:1275:    return { ok: false, reason: 'The service charge amount is invalid.' };
+src/sim/register.js:1278:    return { ok: false, reason: 'The service charge has no payment method.' };
+src/sim/register.js:1291:      reason: t('checkout.integrityUnavailable'),
+src/sim/register.js:1292:      diagnostic: 'That service payment has a pending register settlement.',
+src/sim/register.js:1325:      reason: t('checkout.integrityUnavailable'),
+src/sim/register.js:1326:      diagnostic: 'The service charge timestamp is invalid.',
+src/sim/register.js:1365:      reason: t('checkout.integrityUnavailable'),
+src/sim/register.js:1366:      diagnostic: 'The service ticket authority is not writable.',
+src/sim/register.js:1483:    return { ok: false, reason: 'The club books are not available.' };
+src/sim/register.js:1485:  if (!tx || !canComplete(tx)) return { ok: false, reason: 'The service payment is not finished.' };
+src/sim/register.js:1486:  if (tx.banked) return { ok: false, reason: 'Already banked.' };
+src/sim/register.js:1488:    return { ok: false, reason: 'This is not a service payment.' };
+src/sim/register.js:1491:    return { ok: false, reason: 'The service payment has no stable reference.' };
+src/sim/register.js:1494:    return { ok: false, reason: 'That service revenue line is not supported at this desk.' };
+src/sim/register.js:1503:    return { ok: false, reason: 'The service amount is invalid.' };
+src/sim/register.js:1511:    return { ok: false, reason: 'The service reference does not match this payment.' };
+src/sim/register.js:1514:    return { ok: false, reason: 'The paid amount no longer matches the service total.' };
+src/sim/register.js:1517:    return { ok: false, reason: 'The cash variance is invalid.' };
+src/sim/register.js:1520:    return { ok: false, reason: 'The card payment was not approved.' };
+src/sim/register.js:1523:    return { ok: false, reason: 'The service has no completed payment method.' };
+src/sim/register.js:1534:        reason: t('checkout.integrityUnavailable'),
+src/sim/register.js:1535:        diagnostic: 'The pending service payment does not match this transaction.',
+src/sim/register.js:1543:        reason: t('checkout.integrityUnavailable'),
+src/sim/register.js:1544:        diagnostic: 'The service payment has a pending durable projection.',
+src/sim/register.js:1553:    return { ok: false, reason: 'That service payment is already banked.' };
+src/sim/register.js:1566:        reason: visitPreflight.reason || t('customer.historyUnavailable'),
+src/sim/register.js:1567:        diagnostic: visitPreflight.diagnostic || visitPreflight.reason,
+src/sim/register.js:1573:        reason: t('customer.historyUnavailable'),
+src/sim/register.js:1574:        diagnostic: 'Customer history event is already attached to a completed payment.',
+src/sim/register.js:1582:        reason: t('customer.historyUnavailable'),
+src/sim/register.js:1583:        diagnostic: 'Customer history event does not match this service ticket.',
+src/sim/register.js:1716:      reason: t('checkout.integrityUnavailable'),
+src/sim/register.js:1717:      diagnostic: 'The service payment has a pending durable projection.',
+src/sim/register.js:1736:    return { ok: false, reason: String(error?.message || error) };
+src/sim/register.js:1748:  if (!canComplete(tx)) return { ok: false, reason: 'The sale is not finished.' };
+src/sim/register.js:1749:  if (tx.banked) return { ok: false, reason: 'Already banked.' };
+src/sim/register.js:1751:    return { ok: false, reason: 'The club books are not available.' };
+src/sim/register.js:1769:    return { ok: false, reason: 'The sale total must be positive and finite.' };
+src/sim/register.js:1772:    return { ok: false, reason: 'The goods total must be positive once tax is separated out.' };
+src/sim/register.js:1775:    return { ok: false, reason: 'A service line has no booking to bank it against.' };
+src/sim/register.js:1780:      reason: t('checkout.integrityUnavailable'),
+src/sim/register.js:1781:      diagnostic: 'A service booking must have exactly one ticket line.',
+src/sim/register.js:1787:      reason: t('checkout.integrityUnavailable'),
+src/sim/register.js:1788:      diagnostic: 'A service booking has no ticket line.',
+src/sim/register.js:1792:    return { ok: false, reason: 'Finalize the tee time on this ticket through check-in.' };
+src/sim/register.js:1798:    return { ok: false, reason: 'The service line no longer matches the booked amount.' };
+src/sim/register.js:1818:        reason: t('checkout.integrityUnavailable'),
+src/sim/register.js:1819:        diagnostic: 'The pending sale does not match this transaction.',
+src/sim/register.js:1828:        reason: t('checkout.integrityUnavailable'),
+src/sim/register.js:1829:        diagnostic: 'The sale has a pending durable projection.',
+src/sim/register.js:1846:        reason: t('checkout.integrityUnavailable'),
+src/sim/register.js:1847:        diagnostic: 'That checkout identity belongs to a different ticket.',
+src/sim/register.js:1859:      reason: t('checkout.integrityUnavailable'),
+src/sim/register.js:1860:      diagnostic: 'That sale is already banked; no pending settlement remains to recover.',
+src/sim/register.js:1866:      reason: t('checkout.integrityUnavailable'),
+src/sim/register.js:1867:      diagnostic: 'Resolve the pending register settlement before banking another sale.',
+src/sim/register.js:1875:    return { ok: false, reason: 'That service payment is already banked.' };
+src/sim/register.js:1901:        reason: visitPreflight.reason || t('customer.historyUnavailable'),
+src/sim/register.js:1902:        diagnostic: visitPreflight.diagnostic || visitPreflight.reason,
+src/sim/register.js:1908:        reason: t('customer.historyUnavailable'),
+src/sim/register.js:1909:        diagnostic: 'Customer history event is already attached to a completed sale.',
+src/sim/register.js:2033:      reason: t('ledger.integrityUnavailable'),
+src/sim/register.js:2034:      diagnostic: 'A checkout ledger entry already exists without its settlement journal.',
+src/sim/register.js:2150:    reason: `Register checkout completed with ${goodsLines.length} item${goodsLines.length === 1 ? '' : 's'}.`,
+src/sim/register.js:2185:      reason: t('checkout.integrityUnavailable'),
+src/sim/register.js:2186:      diagnostic: 'The sale has a pending durable projection.',

@@ -32,7 +32,7 @@ async (page) => {
         actor.mesh.position.set(x, actor.mesh.position.y, z);
         await new Promise((resolve) => setTimeout(resolve, 180));
         maxAngle = Math.max(maxAngle, Math.abs(door.angle));
-        steps.push({ customerCount: clubhouse.customers.length, open: door.open, angle: door.angle });
+        steps.push({ customerCount: clubhouse.customers().length, open: door.open, angle: door.angle });
       }
       samples.push({ name, maxAngle, steps, ok: maxAngle > 0.2 });
       clubhouse.clearWalkins();

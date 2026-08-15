@@ -41,7 +41,7 @@ async (page) => {
     await page.evaluate((t) => window.__fw.scene3d.walk.setTool(t), c.tool);
     await page.waitForTimeout(260);
     const before = await page.evaluate(async (id) => {
-      const { restorationSnapshot } = await import('/src/sim/clubhouseRestoration.js');
+      const { restorationSnapshot } = await import(new URL('src/sim/clubhouseRestoration.js', document.baseURI).href);
       return {
         progress: restorationSnapshot(window.__fw.state).targetProgress[id] || 0,
         focus: window.__fw.scene3d.walk.getFocusLabel?.() || '',
@@ -54,7 +54,7 @@ async (page) => {
     await page.mouse.up();
     await page.waitForTimeout(250);
     const after = await page.evaluate(async (id) => {
-      const { restorationSnapshot } = await import('/src/sim/clubhouseRestoration.js');
+      const { restorationSnapshot } = await import(new URL('src/sim/clubhouseRestoration.js', document.baseURI).href);
       const toasts = [...document.querySelectorAll('.toast, [class*=toast]')]
         .filter((n) => !n.dataset.qaSeen)
         .map((n) => n.textContent.trim()).filter(Boolean).slice(0, 4);

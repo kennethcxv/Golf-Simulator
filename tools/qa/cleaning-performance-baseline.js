@@ -178,6 +178,10 @@ async (page) => {
     await page.getByRole('button', { name: 'Buy', exact: true }).first().click();
   }
   await page.waitForFunction(() => window.__fw?.scene3d?.clubhouse?.(), null, { timeout: 90000 });
+  // HARNESS_TRUST rule 5: reports absolute cleaning-loop frame cost, so a CPU rasterizer's frame
+  // numbers are not evidence about the live game. Refuse them.
+  const { gateRenderer } = await import(`file:///${process.cwd().replace(/\\/g, '/')}/tools/qa/perf-renderer-gate.mjs`);
+  const rendererGate = await gateRenderer(page);
   await page.evaluate(async () => {
     const app = window.__fw;
     const ch = app.scene3d.clubhouse();

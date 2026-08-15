@@ -1,0 +1,28 @@
+{
+  "registry": {
+    "names": [
+      "LegacyBusinessHoursSign",
+      "ClubhouseOpenClosedSign"
+    ],
+    "open": true,
+    "established": false
+  },
+  "card": {
+    "bearingBefore": 0,
+    "bearingAfter": 3.1416,
+    "turnedRad": 3.1416,
+    "turned": true
+  },
+  "board": {
+    "inkBefore": "e1c5955e",
+    "inkAfter": "5ebd8f7f",
+    "textureVersionBefore": 2,
+    "textureVersionAfter": 3,
+    "repainted": true
+  },
+  "control": {
+    "cardStill": true,
+    "boardStill": true
+  },
+  "bothTurn": true
+}

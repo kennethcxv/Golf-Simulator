@@ -75,7 +75,7 @@ async (page) => {
   const fixture = await page.evaluate(async () => {
     const app = window.__fw;
     const clubhouse = app.scene3d.clubhouse();
-    const { capacityOf } = await import('/src/data/fixtureSlots.js');
+    const { capacityOf } = await import(new URL('src/data/fixtureSlots.js', document.baseURI).href);
     app.speedIdx = 0;
     app.scene3d.walk.clearKeys?.();
     clubhouse.setOrganicWalkins?.(false);

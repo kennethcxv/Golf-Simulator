@@ -1,0 +1,66 @@
+{
+  "vmActive": true,
+  "distinctPoses": true,
+  "controlsPassed": true,
+  "samples": [
+    {
+      "name": "pitch-level",
+      "pitch": 0,
+      "geomSource": "live",
+      "shaftDrop": -0.65,
+      "shaftDropUnit": -0.477,
+      "headAboveFloor": 0.6,
+      "assetHeadNdc": {
+        "x": 0.001,
+        "y": -0.698
+      },
+      "headNdc": {
+        "x": 0.001,
+        "y": -0.698
+      },
+      "workBlend": 0,
+      "drawReach": 2.035,
+      "seatError": 0.034
+    },
+    {
+      "name": "pitch-down-mid",
+      "pitch": -0.45,
+      "geomSource": "live",
+      "shaftDrop": -0.914,
+      "shaftDropUnit": -0.67,
+      "headAboveFloor": 0.012,
+      "assetHeadNdc": {
+        "x": 0.013,
+        "y": -0.512
+      },
+      "headNdc": {
+        "x": 0.013,
+        "y": -0.512
+      },
+      "workBlend": 1,
+      "drawReach": 1.55,
+      "seatError": 0.034
+    },
+    {
+      "name": "pitch-down-steep",
+      "pitch": -1,
+      "geomSource": "live",
+      "shaftDrop": -0.744,
+      "shaftDropUnit": -0.546,
+      "headAboveFloor": 0.012,
+      "assetHeadNdc": {
+        "x": 0.004,
+        "y": 0.024
+      },
+      "headNdc": {
+        "x": 0.004,
+        "y": 0.024
+      },
+      "workBlend": 1,
+      "drawReach": 1.164,
+      "seatError": 0.034
+    }
+  ],
+  "pointsAtFloor": true,
+  "pointsAtCeiling": []
+}

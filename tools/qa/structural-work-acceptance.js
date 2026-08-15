@@ -45,12 +45,8 @@ async (page) => {
 
   async function waitForGame() {
     await page.waitForTimeout(1000);
-    const continueButton = page.getByText('Continue', { exact: true });
-    if (await continueButton.isEnabled().catch(() => false)) {
-      await continueButton.click();
-    } else {
-      await page.getByText('New Empire — Relaxed', { exact: true }).click();
-    }
+    const { clickThroughMenu } = await import(`file:///${process.cwd().replace(/\\/g, '/')}/tools/qa/lib/qa-boot.mjs`);
+    await clickThroughMenu(page);
     const firstAffordableProperty = page.getByRole('button', { name: 'Buy', exact: true }).first();
     if (await firstAffordableProperty.isVisible({ timeout: 3000 }).catch(() => false)) {
       await firstAffordableProperty.click();
@@ -74,9 +70,9 @@ async (page) => {
   const fixture = await page.evaluate(async () => {
     const app = window.__fw;
     const state = app.state;
-    const Campaign = await import('/src/sim/campaign.js');
+    const Campaign = await import(new URL('src/sim/campaign.js', document.baseURI).href);
     if (state.campaign?.enabled) Campaign.disableCampaign(state);
-    const R = await import('/src/sim/clubhouseRestoration.js');
+    const R = await import(new URL('src/sim/clubhouseRestoration.js', document.baseURI).href);
     R.ensureClubhouseRestoration(state);
     R.updateArchitectureComponent(state, 'panels', { restored: false });
     state.shop.reno.componentRepairProgress.panels = 0;
@@ -217,8 +213,8 @@ async (page) => {
 
   // --- Real autosave through the production storage facade, then reload ---
   await page.evaluate(async () => {
-    const { empireSnapshot } = await import('/src/sim/empire.js');
-    const Storage = await import('/src/core/storage.js');
+    const { empireSnapshot } = await import(new URL('src/sim/empire.js', document.baseURI).href);
+    const Storage = await import(new URL('src/core/storage.js', document.baseURI).href);
     await Storage.saveData('autosave', empireSnapshot(window.__fw.empire));
     await Storage.saveData('autosave-meta', {
       savedAt: Date.now(),

@@ -67,7 +67,7 @@ async (page) => {
   }, ratio);
 
   const findObjectPoint = (type) => page.evaluate(async (objectType) => {
-    const { objectPlacementOk } = await import('/src/sim/courseEditor.js');
+    const { objectPlacementOk } = await import(new URL('src/sim/courseEditor.js', document.baseURI).href);
     const THREE = await import('three');
     const app = window.__fw;
     let best = null;
@@ -121,7 +121,7 @@ async (page) => {
     return panel && getComputedStyle(panel).display !== 'none' && /CONSTRUCTION IMPACT/.test(panel.textContent);
   });
   const terrainImpact = await page.evaluate(async () => {
-    const { constructionImpact } = await import('/src/sim/courseEditor.js');
+    const { constructionImpact } = await import(new URL('src/sim/courseEditor.js', document.baseURI).href);
     const app = window.__fw;
     return {
       panel: document.querySelector('.ced-impact')?.textContent || '',

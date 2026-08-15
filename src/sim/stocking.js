@@ -186,14 +186,14 @@ export function stockFixture(state, fixtureId, units = 1) {
   if (!accepts(f, c.skuId)) {
     const home = homeOf(c.skuId);
     const where = home ? `${sku.name} goes on the ${home.title.toLowerCase()}.` : `${sku.name} does not go on a shelf.`;
-    return { ok: false, invalid: true, reason: `Not on the ${f.title.toLowerCase()} — ${where}` };
+    return { ok: false, invalid: true, reason: `Not on the ${f.title.toLowerCase()} - ${where}` };
   }
 
   const inv = state.shop.inventory[c.skuId];
   const cap = capacityOf(c.skuId);
   const room = cap - inv.shelf;
   if (room <= 0) {
-    return { ok: false, full: true, reason: `The ${f.title.toLowerCase()} is full — ${inv.shelf} of ${cap}.` };
+    return { ok: false, full: true, reason: `The ${f.title.toLowerCase()} is full - ${inv.shelf} of ${cap}.` };
   }
 
   const transfer = moveCarriedToShelf(state, Math.min(units, room), `Stocked ${f.id}`);

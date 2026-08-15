@@ -41,7 +41,7 @@ const scannedTx = (opts = {}) => {
 
 // --- card ------------------------------------------------------------------------
 
-test('a card sale: present, run, approve — and it takes more than one call', () => {
+test('a card sale: present, run, approve - and it takes more than one call', () => {
   const tx = scannedTx({ rng: rngFor([0.1, 0.9]) }); // <0.4 → card, then a clean auth
   requestPayment(tx);
   assert.equal(tx.method, 'card');
@@ -67,7 +67,7 @@ test('a card sale: present, run, approve — and it takes more than one call', (
   assert.equal(tx.cardAttempts, 1);
 });
 
-test('an explicitly declined card does not end the sale — the customer tries a second one', () => {
+test('an explicitly declined card does not end the sale - the customer tries a second one', () => {
   const tx = scannedTx({ rng: rngFor([0.1, 0.9]) });
   requestPayment(tx);
   presentCard(tx);
@@ -176,7 +176,7 @@ test('cash: accept, open the drawer, put it away, count the change back out', ()
   assert.equal(stackTotal(drawer), before);
 });
 
-test('a piece put back goes back in the drawer — the hand is not a black hole', () => {
+test('a piece put back goes back in the drawer - the hand is not a black hole', () => {
   const tx = scannedTx({ rng: rngFor([0.9, 0.9]) });
   requestPayment(tx);
   customerCash(tx);
@@ -196,7 +196,7 @@ test('a piece put back goes back in the drawer — the hand is not a black hole'
   assert.equal(stackTotal(drawerContents(tx, drawer)), inTill, 'right back where it came from');
 });
 
-test('RELAXED refuses a wrong count — nobody loses money by fumbling', () => {
+test('RELAXED refuses a wrong count - nobody loses money by fumbling', () => {
   const tx = scannedTx({ mode: 'relaxed', rng: rngFor([0.9, 0.9]) });
   requestPayment(tx);
   customerCash(tx);
@@ -236,7 +236,7 @@ test('REALISTIC lets a wrong count through and records what it cost', () => {
   assert.equal(tx.stage, 'receipt');
 });
 
-test('shorting the customer is refused in every mode — under-giving never completes', () => {
+test('shorting the customer is refused in every mode - under-giving never completes', () => {
   const tx = scannedTx({ mode: 'realistic', rng: rngFor([0.9, 0.9]) });
   requestPayment(tx);
   customerCash(tx);
@@ -315,7 +315,7 @@ test('you cannot close out a cash sale without putting the tendered money away',
   assert.match(res.reason, /till|drawer|put/i);
 });
 
-test('the drawer starts with a real float — you can always make change', () => {
+test('the drawer starts with a real float - you can always make change', () => {
   const drawer = newDrawer();
   assert.ok(stackTotal(drawer) > 0);
   for (const d of [50, 20, 10, 5, 1, 0.5, 0.25, 0.1, 0.05, 0.01]) {

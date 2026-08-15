@@ -26,6 +26,9 @@
 export const LAPTOP_SECTIONS = Object.freeze([
   { page: 'home', label: 'Home', icon: 'home', tabs: Object.freeze([]) },
   { page: 'reservations', label: 'Bookings', icon: 'calendar', tabs: Object.freeze([]) },
+  // A2 (Goal 19): a real email client — list + reading pane. Booking requests
+  // arrive and are answered HERE; supplier confirmations and complaints too.
+  { page: 'mail', label: 'Mail', icon: 'mail', tabs: Object.freeze([]) },
   {
     page: 'shop',
     label: 'Pro Shop',

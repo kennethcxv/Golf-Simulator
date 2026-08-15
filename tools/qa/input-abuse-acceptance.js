@@ -95,7 +95,7 @@ async (page) => {
     return !!tx && tx.items.length === 2;
   }, null, { timeout: 25000 });
   await page.evaluate(async () => {
-    const { REGISTER } = await import('/src/data/shopLayout.js');
+    const { REGISTER } = await import(new URL('src/data/shopLayout.js', document.baseURI).href);
     const app = window.__fw;
     const origin = app.scene3d.clubhouse().interior.position;
     const walk = app.scene3d.walk;
@@ -153,8 +153,8 @@ async (page) => {
 
   // --- Abuse 4: reload with the customer mid-transaction -------------------
   await page.evaluate(async () => {
-    const { empireSnapshot } = await import('/src/sim/empire.js');
-    const Storage = await import('/src/core/storage.js');
+    const { empireSnapshot } = await import(new URL('src/sim/empire.js', document.baseURI).href);
+    const Storage = await import(new URL('src/core/storage.js', document.baseURI).href);
     await Storage.saveData('autosave', empireSnapshot(window.__fw.empire));
     await Storage.saveData('autosave-meta', { savedAt: Date.now(), clubName: 'Abuse QA' });
   });

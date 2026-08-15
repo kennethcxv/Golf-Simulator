@@ -28,51 +28,30 @@
     "owed": 5.46,
     "revenue": 78
   },
-  "taxedCard": {
-    "chip": "North Carolina · 7%",
-    "rows": [
-      "Held for the state$5.46",
-      "Collected all-time$5.46",
-      "Remitted all-time$0"
-    ],
-    "meta": [
-      "Moore County · charged on merchandise at checkout, not on green fees. Paid to the state in 7 days. This money is inside your cash balance and is not yours."
-    ],
-    "text": "Sales TaxNorth Carolina · 7%Held for the state$5.46Collected all-time$5.46Remitted all-time$0Moore County · charged on merchandise at checkout, not on green fees. Paid to the state in 7 days. This money is inside your cash balance and is not yours."
-  },
-  "oregonCard": {
-    "chip": "Oregon · 0%",
-    "rows": [
-      "Oregon levies no general sales tax, so the register adds nothing and there is nothing to remit."
-    ],
-    "meta": [
-      "Oregon levies no general sales tax, so the register adds nothing and there is nothing to remit.",
-      "no general sales tax — nothing is withheld from a ticket here."
-    ],
-    "text": "Sales TaxOregon · 0%Oregon levies no general sales tax, so the register adds nothing and there is nothing to remit.no general sales tax — nothing is withheld from a ticket here."
-  },
+  "taxedCard": null,
+  "oregonCard": null,
   "findings": {
-    "laptopOpened": true,
+    "laptopOpened": false,
     "salesRang": true,
     "liabilityAccrued": true,
     "revenueExcludesTax": true,
     "liabilityEqualsChargedTax": true,
-    "cardVisible": true,
-    "cardNamesTheState": true,
-    "cardShowsTheRate": true,
-    "cardShowsHeldAmount": true,
-    "cardKeepsTheCents": true,
-    "cardSaysItIsNotYours": true,
-    "oregonCardVisible": true,
-    "oregonNamesTheState": true,
-    "oregonSaysNothingIsCharged": true,
-    "oregonDropsTheHeldRow": true,
-    "cardsDiffer": true
+    "cardVisible": false,
+    "cardNamesTheState": false,
+    "cardShowsTheRate": false,
+    "cardShowsHeldAmount": false,
+    "cardKeepsTheCents": false,
+    "cardSaysItIsNotYours": false,
+    "oregonCardVisible": false,
+    "oregonNamesTheState": false,
+    "oregonSaysNothingIsCharged": false,
+    "oregonDropsTheHeldRow": false,
+    "cardsDiffer": false
   },
   "shots": [
     "laptop-salestax-1-taxed.png",
     "laptop-salestax-2-oregon.png"
   ],
   "errs": [],
-  "ok": true
+  "ok": false
 }

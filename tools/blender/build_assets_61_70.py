@@ -124,16 +124,25 @@ def _root(number: int, **properties: object) -> tuple[bpy.types.Object, dict[str
     root["lod_policy"] = "authored LOD0 with runtime room/distance gating"
     for key, value in properties.items():
         root[key] = value
-    return root, A.palette_materials()
+    return root, A.palette_materials(textured=True)
 
 
 def _materials() -> dict[str, bpy.types.Material]:
     return {
-        "dark_walnut": A.material("S07_DarkWalnut", (0.105, 0.050, 0.026, 1.0), roughness=0.52),
-        "walnut_inset": A.material("S07_WalnutInset", (0.19, 0.090, 0.045, 1.0), roughness=0.58),
-        "leather": A.material("S07_ChestnutLeather", (0.19, 0.075, 0.035, 1.0), roughness=0.42, coat=0.13),
-        "leather_shadow": A.material("S07_LeatherShadow", (0.075, 0.025, 0.012, 1.0), roughness=0.50),
-        "curtain": A.material("S07_GreenCurtain", (0.045, 0.14, 0.095, 1.0), roughness=0.82, double_sided=True),
+        # CC0 families per slot. Colours are unchanged - the tint that multiplies each
+        # map is solved from the value already written here (assets_51_100_lib CC0 block).
+        # The mirror and the cabinet light take none: a normal map on a specular pane or
+        # an emissive lens is a defect rather than a detail.
+        "dark_walnut": A.material("S07_DarkWalnut", (0.105, 0.050, 0.026, 1.0), roughness=0.52,
+                                  texture="Wood062", uv_scale=2.4),
+        "walnut_inset": A.material("S07_WalnutInset", (0.19, 0.090, 0.045, 1.0), roughness=0.58,
+                                   texture="Wood062", uv_scale=2.8),
+        "leather": A.material("S07_ChestnutLeather", (0.19, 0.075, 0.035, 1.0), roughness=0.42, coat=0.13,
+                              texture="Leather011", uv_scale=9.0),
+        "leather_shadow": A.material("S07_LeatherShadow", (0.075, 0.025, 0.012, 1.0), roughness=0.50,
+                                     texture="Leather011", uv_scale=9.0),
+        "curtain": A.material("S07_GreenCurtain", (0.045, 0.14, 0.095, 1.0), roughness=0.82, double_sided=True,
+                              texture="Fabric030", uv_scale=3.5),
         "mirror": A.material("S07_Mirror", (0.42, 0.52, 0.51, 1.0), roughness=0.08, metallic=0.72),
         "warm_light": A.material("S07_WarmCabinetLight", (0.72, 0.49, 0.19, 1.0), roughness=0.28,
                                   emission_color=(1.0, 0.56, 0.22), emission_strength=1.6),
@@ -234,7 +243,37 @@ def build_61() -> bpy.types.Object:
 
     # Layered plinth, recessed body, and deep molded top match the traditional reference silhouette.
     _box("CounterPlinth", (2.84, 0.82, 0.075), (0.0, 0.015, 0.0375), m["dark_walnut"], body, bevel=0.018)
-    _box("CounterCarcass", (2.72, 0.76, 0.76), (0.0, 0.035, 0.445), m["dark_walnut"], body, bevel=0.026)
+    # THE STAFF BAY IS OPEN (B7, 2026-08-03).
+    #
+    # This was one solid 2.72 x 0.76 x 0.76 slab filling the whole carcass
+    # volume, so everything the staff face is supposed to contain — the divider,
+    # the lower shelf — was sealed inside it. The part-visibility sweep reported
+    # StaffDivider at zero pixels from all directions, and the note said proud
+    # placement would breach the asset's own staff_corridor_clear contract, so
+    # the bay needed carving open. That is what this is: the carcass is now the
+    # panels AROUND a recess rather than the block that filled it.
+    #
+    # Deliberately assembled from panels rather than bored with a boolean. The
+    # cut is rectilinear and axis-aligned, so the panels ARE the result a
+    # boolean would produce, with none of its material re-indexing or n-gon
+    # surprises, and every piece stays inside the old slab's own footprint —
+    # nothing gains a millimetre toward the +Y aisle, so staff_corridor_clear
+    # holds by construction.
+    #
+    #   x -1.36 .. -0.55   drawer bank, still solid: it carries the three
+    #                      drawer faces at x -0.87
+    #   x -0.55 .. +1.30   the open bay, customer-side wall only
+    #   x +1.30 .. +1.36   the right end panel that closes it
+    #   z 0.065 .. 0.115   the bay deck the shelf and divider stand on
+    _box("CounterCarcassDrawerBank", (0.81, 0.76, 0.76), (-0.955, 0.035, 0.445),
+         m["dark_walnut"], body, bevel=0.026)
+    _box("CounterCarcassFrontWall", (1.85, 0.27, 0.76), (0.375, -0.210, 0.445),
+         m["dark_walnut"], body, bevel=0.026)
+    _box("CounterCarcassEndPanel", (0.06, 0.76, 0.76), (1.330, 0.035, 0.445),
+         m["dark_walnut"], body, bevel=0.020)
+    _box("CounterCarcassBayDeck", (1.85, 0.49, 0.05), (0.375, 0.170, 0.090),
+         p["natural_oak"], body, bevel=0.010,
+         properties={"staff_storage": True})
     _box("CounterTop", (2.93, 0.91, 0.095), (0.0, 0.0, 0.9175), p["medium_walnut"], body,
          bevel=0.026, bevel_segments=3, properties={"placement_surface": True})
     # Keep the oak field visibly proud of the 0.965 m walnut surface.  The old
@@ -1122,6 +1161,7 @@ def _parse_cli(argv: Sequence[str]) -> tuple[int | None, A.BuildOptions]:
         arg = argv[index]
         if arg == "--untextured":
             UNTEXTURED = True
+            A.set_cc0_enabled(False)
             index += 1
             continue
         if arg == "--asset":

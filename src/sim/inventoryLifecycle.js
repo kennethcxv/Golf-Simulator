@@ -17,6 +17,7 @@ import {
 } from '../data/suppliers.js';
 import { calendarOf } from './time.js';
 import { BALANCE } from './balance.js';
+import { deliverMail } from './mail.js';
 import { addExpense, unbill } from './economy.js';
 import { capacityOf } from '../data/fixtureSlots.js';
 
@@ -214,7 +215,7 @@ function orderLineFromLegacy(order) {
   };
 }
 
-function enrichLegacyOrder(order, state) {
+function enrichLegacyOrder(order) {
   const lines = Array.isArray(order.lines) && order.lines.length ? order.lines : [orderLineFromLegacy(order)];
   const quantity = lines.reduce((sum, line) => sum + (line.quantity || 0), 0);
   order.lines = lines;
@@ -264,7 +265,7 @@ function bootstrapLegacyState(state, lifecycle) {
 
   // Active supplier orders become real conserved in-transit lots.
   for (const active of shop.orders || []) {
-    const order = enrichLegacyOrder(active, state);
+    const order = enrichLegacyOrder(active);
     if (!lifecycle.orders.some((candidate) => candidate.id === order.id)) lifecycle.orders.push(order);
     for (const line of order.lines) {
       if (!positiveInteger(line.quantity) || !skuById(line.skuId)) continue;
@@ -359,14 +360,14 @@ function rewireActiveOrders(state, lifecycle) {
   state.shop.orders = state.shop.orders.map((active) => {
     const archived = lifecycle.orders.find((order) => order.id === active.id);
     if (!archived) {
-      const enriched = enrichLegacyOrder(active, state);
+      const enriched = enrichLegacyOrder(active);
       lifecycle.orders.push(enriched);
       return enriched;
     }
     // The active copy contains the most recent clock-driven status from the
     // saved shop projection; merge it once and then share one runtime object.
     Object.assign(archived, active);
-    enrichLegacyOrder(archived, state);
+    enrichLegacyOrder(archived);
     return archived;
   });
 }
@@ -479,12 +480,47 @@ function operationReplay(lifecycle, referenceId) {
   return prior ? { ...prior, replayed: true } : null;
 }
 
-function rememberOperation(lifecycle, referenceId, result) {
+function pendingCheckoutInventoryReferences(state) {
+  const pending = state?.shop?.pendingCheckouts;
+  const plans = pending && typeof pending === 'object' && !Array.isArray(pending)
+    ? Object.values(pending) : [];
+  const pinned = new Set(plans
+    .map((plan) => plan?.inventory?.referenceId)
+    .filter((referenceId) => typeof referenceId === 'string' && referenceId));
+  for (const plan of plans) {
+    for (const entry of plan?.inventory?.entries || []) {
+      if (typeof entry?.uid === 'string' && entry.uid) {
+        pinned.add(`customer-pick:${entry.uid}`);
+      }
+    }
+  }
+  for (const receipt of Object.values(state?.shop?.checkoutSettlementReceipts || {})) {
+    if (typeof receipt?.inventoryReferenceId === 'string' && receipt.inventoryReferenceId) {
+      pinned.add(receipt.inventoryReferenceId);
+    }
+  }
+  // A held unit's customer-pick checkpoint is also its independent frozen
+  // price authority. Keep it while held and for the lifetime of a pending WAL
+  // so every surviving quote copy can be compared during recovery.
+  for (const held of state?.shop?.held || []) {
+    if (typeof held?.uid === 'string' && held.uid) pinned.add(`customer-pick:${held.uid}`);
+  }
+  return pinned;
+}
+
+function rememberOperation(state, lifecycle, referenceId, result) {
   if (!referenceId) return;
   lifecycle.operations[referenceId] = result;
   lifecycle.operationKeys.push(referenceId);
+  const pinned = pendingCheckoutInventoryReferences(state);
+  // The operation being published is itself the idempotency boundary for this
+  // call. Never trim it during the same write, even if a malformed save already
+  // contains enough pending references to exceed the normal journal cap.
+  pinned.add(referenceId);
   while (lifecycle.operationKeys.length > OPERATION_LIMIT) {
-    const oldest = lifecycle.operationKeys.shift();
+    const removableIndex = lifecycle.operationKeys.findIndex((key) => !pinned.has(key));
+    if (removableIndex < 0) break;
+    const [oldest] = lifecycle.operationKeys.splice(removableIndex, 1);
     delete lifecycle.operations[oldest];
   }
 }
@@ -522,11 +558,21 @@ export function moveInventory(state, {
   lineId = undefined,
   allocations = null,
   referenceId = null,
+  cause = null,
+  // Backward-compatible input alias for older callers and saves. New machine
+  // telemetry is persisted as `cause`, never as a player-facing `reason`.
   reason = null,
   qa = false,
   refreshOrder = true,
+  skipNormalization = false,
 } = {}) {
-  const lifecycle = ensureInventoryLifecycle(state);
+  // Durable checkout settlements preflight the already-normalized lifecycle's
+  // exact writable authorities before their first stock mutation. Re-running
+  // the broad load normalizer inside that boundary would introduce unrelated
+  // writes that the settlement cannot meaningfully own.
+  const lifecycle = skipNormalization
+    ? state?.shop?.inventoryLifecycle
+    : ensureInventoryLifecycle(state);
   if (!lifecycle) return { ok: false, reason: 'Shop inventory is unavailable.' };
   const replay = operationReplay(lifecycle, referenceId);
   if (replay) return replay;
@@ -609,17 +655,19 @@ export function moveInventory(state, {
     to,
     allocations: plan.map((entry) => ({ lotId: entry.lot.id, quantity: entry.quantity })),
   };
-  rememberOperation(lifecycle, referenceId, result);
+  rememberOperation(state, lifecycle, referenceId, result);
   lifecycleEvent(state, 'inventory-move', {
     from, to, quantity, skuId: skuId ?? null, orderId: orderId ?? null,
-    referenceId, reason,
+    referenceId, cause: cause ?? reason,
   });
   if (refreshOrder && orderId !== undefined && orderId !== null) refreshOrderFromLedger(state, orderId);
   return result;
 }
 
 export function disposeInventory(state, options = {}) {
-  if (!options.reason) return { ok: false, reason: 'Disposal requires an explicit reason.' };
+  if (!options.cause && !options.reason) {
+    return { ok: false, reason: 'Disposal requires an explicit reason.' };
+  }
   return moveInventory(state, { ...options, to: INVENTORY_STAGE.DISPOSED_LOST });
 }
 
@@ -952,6 +1000,25 @@ export function submitPurchaseOrders(state, {
       orderId: order.id, supplierId: order.supplierId,
       quantity: order.quantity, totalCost: order.totalCost,
     });
+    // A2 (Goal 19) — the supplier confirms in writing. This is the ONE commit
+    // point every order path shares (the laptop cart and the direct
+    // placeOrder wrapper both land here), so the confirmation cannot be
+    // missed by a second booking path. The bell keeps the real-time facts
+    // (the van arriving, the pad being full); the paperwork lives in mail.
+    const firstSku = skuById(order.lines[0]?.skuId);
+    deliverMail(state, {
+      kind: 'supplier-order',
+      from: order.supplierName || order.supplierId || 'Supplier',
+      dedupeKey: `supplier-order:${order.id}`,
+      data: {
+        orderId: order.id,
+        skuName: firstSku ? firstSku.name : (order.lines[0]?.skuId || ''),
+        lineCount: order.lines.length,
+        qty: order.quantity,
+        cost: order.totalCost,
+        leadDays: order.leadDays,
+      },
+    });
   }
   rememberOrderKey(lifecycle, idempotencyKey, {
     fingerprint,
@@ -990,7 +1057,7 @@ export function ensureArrivalOrder(state, input) {
     fee: Number.isFinite(input.fee) ? input.fee : 0,
     charged: false,
     status: 'delivered',
-  }, state);
+  });
   order.state = ORDER_STATE.DELIVERED;
   order.processingState = 'Complete';
   order.dispatchState = 'Dispatched';

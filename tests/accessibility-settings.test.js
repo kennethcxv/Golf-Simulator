@@ -8,9 +8,24 @@ const css = fs.readFileSync(new URL('../src/styles.css', import.meta.url), 'utf8
 const settings = fs.readFileSync(new URL('../src/ui/settingsPanel.js', import.meta.url), 'utf8');
 const preferences = fs.readFileSync(new URL('../src/core/preferences.js', import.meta.url), 'utf8');
 
+const i18n = fs.readFileSync(new URL('../src/core/i18n.js', import.meta.url), 'utf8');
+
 test('release settings persist visible accessibility controls', () => {
-  for (const label of ['Interface scale', 'Reduced motion', 'Camera movement', 'Sustained tool use']) {
-    assert.match(settings, new RegExp(label));
+  // O2/Q3 moved the wording into the translation table, so pinning literal
+  // English in the panel would now fail on a file that is MORE correct. The
+  // intent - these four controls exist, are bound to their preference, and
+  // have words to show - is checked where each half actually lives.
+  for (const path of [
+    'display.uiScale', 'accessibility.reducedMotion', 'camera.bob', 'accessibility.toolActivation',
+  ]) {
+    assert.match(settings, new RegExp(`'${path.replace('.', '\\.')}'`), `${path} is not wired to a control`);
+  }
+  for (const key of [
+    'settings.display.uiScale', 'settings.accessibility.reducedMotion',
+    'settings.camera.bob', 'settings.accessibility.toolActivation',
+  ]) {
+    assert.match(settings, new RegExp(`t\\('${key.replace(/\./g, '\\.')}'\\)`), `${key} is not drawn from the table`);
+    assert.match(i18n, new RegExp(`'${key.replace(/\./g, '\\.')}':`), `${key} has no English line`);
   }
   assert.match(preferences, /toolActivation: 'hold'/);
   assert.match(preferences, /uiScale: 1/);

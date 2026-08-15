@@ -118,7 +118,7 @@ async (page) => {
   await page.evaluate(async (skuIds) => {
     const app = window.__fw;
     const state = app.state;
-    const D = await import('/src/sim/deliveries.js');
+    const D = await import(new URL('src/sim/deliveries.js', document.baseURI).href);
     D.ensureDeliveries(state);
     // Keep the HUD believable in visual evidence while leaving every stock,
     // carton and lifecycle transition under the production route below.
@@ -296,7 +296,7 @@ async (page) => {
 
   async function boxSnapshot(boxId) {
     return page.evaluate(async (id) => {
-      const D = await import('/src/sim/deliveries.js');
+      const D = await import(new URL('src/sim/deliveries.js', document.baseURI).href);
       const box = D.findBox(window.__fw.state, id);
       if (!box) return { exists: false, lifecycle: 'DISCARDED' };
       return {
@@ -344,7 +344,7 @@ async (page) => {
 
   async function quantitySnapshot(skuId, boxId, step) {
     return page.evaluate(async ({ sku, id, label }) => {
-      const { capacityOf } = await import('/src/data/fixtureSlots.js');
+      const { capacityOf } = await import(new URL('src/data/fixtureSlots.js', document.baseURI).href);
       const state = window.__fw.state;
       const box = state.shop.deliveries.boxes.find((entry) => entry.id === id);
       const carry = state.shop.carry?.skuId === sku ? state.shop.carry.qty : 0;
@@ -373,10 +373,10 @@ async (page) => {
 
   async function stageExactCase(spec, index) {
     const staged = await page.evaluate(async ({ skuId, orderId, spot }) => {
-      const D = await import('/src/sim/deliveries.js');
-      const B = await import('/src/data/boxes.js');
-      const I = await import('/src/data/shopItems.js');
-      const P = await import('/src/data/productPackaging.js');
+      const D = await import(new URL('src/sim/deliveries.js', document.baseURI).href);
+      const B = await import(new URL('src/data/boxes.js', document.baseURI).href);
+      const I = await import(new URL('src/data/shopItems.js', document.baseURI).href);
+      const P = await import(new URL('src/data/productPackaging.js', document.baseURI).href);
       const state = window.__fw.state;
       const sku = I.skuById(skuId);
       const contract = P.productPackagingFor(skuId);
@@ -429,7 +429,7 @@ async (page) => {
       throw new Error(`Cannot derive player camera for carton ${boxId}: ${JSON.stringify(box)}.`);
     }
     const dimensions = await page.evaluate(async (kind) => {
-      const B = await import('/src/data/boxes.js');
+      const B = await import(new URL('src/data/boxes.js', document.baseURI).href);
       return B.boxDims(kind);
     }, box.boxKind);
     const distance = dimensions.h >= 0.80
@@ -808,9 +808,9 @@ async (page) => {
       }
 
       const contractReadback = await page.evaluate(async ({ skuId, fixtureId, wrongFixtureId }) => {
-        const S = await import('/src/sim/stocking.js');
-        const F = await import('/src/data/fixtureSlots.js');
-        const I = await import('/src/data/shopItems.js');
+        const S = await import(new URL('src/sim/stocking.js', document.baseURI).href);
+        const F = await import(new URL('src/data/fixtureSlots.js', document.baseURI).href);
+        const I = await import(new URL('src/data/shopItems.js', document.baseURI).href);
         return {
           correctAccepts: S.accepts(S.fixtureById(fixtureId), skuId),
           wrongAccepts: S.accepts(S.fixtureById(wrongFixtureId), skuId),

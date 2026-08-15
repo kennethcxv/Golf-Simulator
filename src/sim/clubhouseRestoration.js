@@ -195,6 +195,16 @@ export function ceilingCircuitPowered(state) {
   return !!ensureClubhouseArchitecture(state)?.components?.ceiling?.restored;
 }
 
+// The same fact for PURE LENSES (the ledger's house notes): ensure* heals
+// non-canonical state in place, and a lens must not mutate what it reads.
+// Load-time healers run ensureClubhouseArchitecture long before any lens
+// looks, so the peek reads healed state in practice. Kept adjacent to the
+// healing predicate so the two cannot drift apart unnoticed.
+export function ceilingCircuitPoweredView(state) {
+  if (!state?.campaign?.enabled) return true;
+  return !!state?.shop?.reno?.architecture?.components?.ceiling?.restored;
+}
+
 // A panel repair spends one physical repair kit, exactly as a structural repair
 // does. `availableSupplyUnits` is the authority on what counts: the backroom
 // shelving plus what is in your hands. A kit sealed inside an unopened delivery
@@ -226,9 +236,28 @@ export function ceilingPanelPromptLabel({
   repaired = false,
 }) {
   if (repaired) return null;
-  if (!powered) return `${unpoweredName} — the ceiling circuit is dead`;
-  if (!kitAvailable) return `${faultName} — repair kit required`;
-  return `${faultName} — [E] repair with clubhouse kit`;
+  // C8: NAME THE NEXT OBJECT, NOT JUST THE GATE.
+  //
+  // "the ceiling circuit is dead" told the player which gate was shut and
+  // nothing about what to do, so the only way to learn the next step was to
+  // press E and read the refusal toast. A prompt that has to be disobeyed to
+  // teach you is not teaching diegetically; it is a hint behind a wrong answer.
+  // The circuit is restored by repairing the CEILING component, which is a
+  // hold-E site the player can already see, so the prompt says so.
+  // F3, TRIED AND REVERTED: naming the VERB here ("face the ceiling beams and
+  // hold [E]") broke three contracts in clubhouse-restoration-actions.test.js,
+  // and they are right. This prompt is read AT THE PANEL, and a prompt at the
+  // panel that shows [E] offers an action which visibly does nothing while the
+  // circuit is dead — the exact thing C8 built this copy to avoid. The verb
+  // belongs where the ceiling is, and the ledger's Restoration Record now
+  // carries the dependency instead.
+  if (!powered) return `${unpoweredName} - the ceiling circuit is dead; repair the ceiling first`;
+  // C8, the second rung: "repair kit required" is the one prompt where WHERE IT
+  // COMES FROM is the question the player has, and it was the one prompt that
+  // did not answer it. availableSupplyUnits counts the back-room shelving (plus
+  // what is already in hand), so that is what it names.
+  if (!kitAvailable) return `${faultName} - repair kit required, from the back room shelves`;
+  return `${faultName} - [E] repair with clubhouse kit`;
 }
 
 const PANEL_FAULT_DEFAULTS = deepFreeze({
@@ -935,7 +964,7 @@ export function restorationAction(state, action) {
     // ring changes nothing the player can see, and reporting that as a repair
     // is the lie this gate exists to stop.
     if (!ceilingCircuitPowered(state)) {
-      return invalid('The ceiling circuit is dead — repair the office power and ceiling first.');
+      return invalid('The ceiling circuit is dead - repair the office power and ceiling first.');
     }
     // A panel costs a kit, like every other repair. Without this the first kit
     // the player ever owns services every panel in the building forever.

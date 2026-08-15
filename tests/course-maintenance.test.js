@@ -378,11 +378,12 @@ test('compressed save/load preserves every maintenance field, issue, route, scor
   const model = state.courseMaintenance;
   markCourseMaintenanceRouteStep(state, 'arrive');
   markCourseMaintenanceRouteStep(state, 'review');
-  assert.equal(
-    model.workOrder.steps.find((step) => step.id === 'save-load').complete,
-    false,
-    'arriving on a previously loaded session must establish a reload baseline',
-  );
+  // the QA 'save-load' checklist row is retired (Goal 19 V3); the machinery
+  // it exercised is asserted directly on the persistence record instead
+  assert.notEqual(model.route.reloadCountAtArrival, null,
+    'arriving must establish a reload baseline');
+  assert.equal(model.workOrder.steps.some((step) => step.id === 'save-load'), false,
+    'the QA save-load step must not appear on the player work order');
   selectCourseMaintenanceEquipment(state, 'hose');
   model.equipment.hose.connected = true;
   const mark = model.issues.ballMarks[0];
@@ -401,10 +402,15 @@ test('compressed save/load preserves every maintenance field, issue, route, scor
   const loaded = deserialize(json);
   assert.equal(loaded.version, SAVE_VERSION);
   assert.equal(loaded.courseMaintenance.persistence.reloadCount, 1);
+  assert.ok(
+    loaded.courseMaintenance.persistence.reloadCount
+      > loaded.courseMaintenance.route.reloadCountAtArrival,
+    'a reload after yard arrival must be measurable on the persistence record',
+  );
   assert.equal(
-    loaded.courseMaintenance.workOrder.steps.find((step) => step.id === 'save-load').complete,
-    true,
-    'the save/load step completes only after a reload following yard arrival',
+    loaded.courseMaintenance.workOrder.steps.some((step) => step.id === 'save-load'),
+    false,
+    'a reload must not resurrect the retired QA step',
   );
   assert.deepEqual(loaded.courseMaintenance.route, model.route);
   assert.deepEqual(loaded.courseMaintenance.issues, model.issues);

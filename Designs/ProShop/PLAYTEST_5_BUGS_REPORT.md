@@ -1,0 +1,810 @@
+# PLAYTEST 5 — WHAT I FOUND, WHAT I FIXED, AND WHAT I DID NOT FINISH
+
+## Probe-lie count this round: **8** (running total **45**)
+
+| # | the instrument | what it claimed | what was actually true |
+|---|---|---|---|
+| 38 | `electron-course-editor-lag` | the course editor is healthy — 4.2 ms median frame, p95 8.4 ms, **zero** frames over 100 ms, no long tasks | It measured FRAME TIME. The fault is an exception thrown out of a pointer handler, which costs no frame time at all: the loop keeps its cadence while every click is discarded. Its own planted-400 ms control passed, so the instrument worked perfectly and was pointed at the wrong quantity. Had I stopped there I would have reported "cannot reproduce, the editor is fine" |
+| 39 | `electron-course-editor-null-scene` step B | 0 uncaught errors after quitting to the menu **from inside the editor** | The quit never happened. The button match was `^Return to main menu$` against a list I had truncated to 20 entries, so it silently found nothing and the step ran against a game still sitting in the editor. `afterQuit.screen` was still `game` in the same JSON that carried the green number |
+| 40 | `electron-editor-survives-scene-swap` step C | 0 uncaught errors **during the scene swap** over 86 pointer events | No swap occurred. The Save-to-slot-1 step did not write (`slot1 present after save: false`), so the Load confirm was a no-op on an empty slot, `scene3dIsNull` was `false` throughout, and the check reported green about a condition it never entered — a check born green |
+
+| 41 | `electron-load-in-hands-and-camera` v1 | no tool was EVER held across the whole boot — "nothing is equipped on load" | It read `walk.tool`, which does not exist on the walk facade (the accessor is `getTool`), so every sample was `undefined`. Its own planted dustpan came back as "no span", which is the only reason the reading was not reported to you as fact. **The same non-existent accessor is what main.js's deferred warm reads** — a probe lie and a production bug from one typo |
+| 42 | `electron-load-in-hands-and-camera` v2 | the unasked-for dustpan span is GONE after the fix | It sampled on a **50 ms `setInterval`** while the thing it measured is a **three-frame** draw — 12 ms at 240 Hz. The span had not gone; it had fallen between two samples. Re-sampled at rAF it was still there at 37 ms, and the real proof of the fix turned out to be somewhere else entirely (the overview, where the restore queue never drains) |
+
+Lie 42 is the one worth dwelling on: it would have let me tell you the dustpan
+was gone, with a number, from an instrument whose control passed. The control
+only proves the probe can SEE the thing — it says nothing about whether the probe
+looks OFTEN ENOUGH. Sample rate is a second axis of blindness and this file has
+no prior entry for it.
+
+| 43 | `electron-queue-speaks-too-early` v1 | **PASS — every line came from slot 0**, from a run its own fields called conclusive (queue 3 deep, highest slot 2) | The two predicates it was meant to tell apart AGREE until somebody LEAVES the line — the splice is the whole divergence. Nobody was served and nobody gave up in that run, so the window never opened and it graded a bug that could not have appeared. Its control asked "did a queue form"; the question was "did a queue form AND lose someone". Rewritten to require a removal from a non-empty line before it will call a run conclusive at all |
+
+| 44 | `electron-money-cue-graph` oscillator counter | the ledger cues start **0 oscillators** — the synth is gone | Its control cue was `uiTick`, which **now plays a recording**, so the control reported 0 and I had picked a control that could be fixed out from under it. Re-run with `keypadTap`, which is synth-only and cannot be: **still 0.** The oscillator tap does not work. Every oscillator count in item 5 is void; the synth-removal claim rests on a source test instead |
+| 45 | the same driver's "ledgerTurn (2nd inside 20 ms)" row | the second page turn inside the rate limit no longer falls through to the blip | The driver waits **260 ms** between fires. That row has never once been inside `minGapSec` (0.02 s) and does not test what its label says. The mechanism is read off the code and is NOT measured |
+
+The shape shared by 39 and 40 is worth naming, because it is not on the list in
+`FOUND_FALSE.md`: **a step that fails to happen reports the same green as a step
+that happened and was clean.** Both drivers printed a pass while their own
+adjacent fields (`screen`, `scene3dIsNull`, `slot1 present`) said the setup had
+not taken. Every staged precondition needs an assertion that it took, and the
+verdict must read that assertion — not just the measurement downstream of it.
+
+---
+
+## Where each item stands
+
+| item | state |
+|---|---|
+| P0 — course editor unusable | **ROOT-CAUSED FROM YOUR OWN CRASH LOG, FIXED, NOT VERIFIED IN PLAY** — see below |
+| P0 — loading in (dustpan, map flash) | **DUSTPAN REPRODUCED AND FIXED.** Map flash NOT reproduced; the ordering race behind it is closed |
+| 1 — first-press lag | **DIAGNOSED, NOT FIXED.** The warm runs (+76 programs); the surfaces you named compile ZERO. The overview costs 433 ms and is the one camera prewarm misses |
+| 2 — customers announce from the back | **NOT REPRODUCED.** The array-vs-floor confusion C3 fixed for the hands is corrected for the mouth; one question for you at the end of the section |
+| 3 — my body is still solid | **AUDIT HALF DONE — your lead was exactly right.** Nudge half NOT DONE: two real defects fixed, four stagings, the player has still never taken a step. The reason is structural and the last call is yours |
+| 4 — walk-in tee time needs two attempts | **NOT REPRODUCED** — I drove the outdoor starter desk, which turns out to be DEAD: `cashierPose` is called and never defined. Your desk is the register monitor. One decision for you |
+| 5 — audio | **ALL FOUR ADDRESSED, measured on the graph.** The sale-end sound existed on disk and was unreachable; the crossover is a random pick between a coin take and two paper ones. One half of the probe failed its control and is called out |
+| 6 — Blender assets | SKIPPED, second session owns it |
+
+**Three things are waiting on you, and I did not guess any of them:** which reading of item 2 you meant, whether the dead starter desk gets wired or its promise deleted (item 4), and whether the clamp should stop moving customers so your own step can happen (item 3). The overview's 4096 shadow allocation in item 1 trades memory or shadow quality, so that one is yours too.
+
+---
+
+## P0 — THE COURSE EDITOR IS UNUSABLE
+
+### It is in your crash log, and it names the line
+
+`%APPDATA%\GOLF EMPIRE\logs\crash.log`, session `2026-08-15T07:11:54.673Z` —
+the **first fault of your playtest session**, before anything else went wrong:
+
+```
+[2026-08-15T07:11:54.673Z] renderer:window.onerror
+    TypeError: Cannot read properties of null (reading 'setEditorBrush')
+        at updateHoverVisuals (src/ui/courseEditor.js:3288)
+        at src/ui/courseEditor.js:3270          <- scheduleHoverPreview's rAF callback
+    ... the same throw again at .684 and .721
+
+[2026-08-15T07:11:55.356Z] renderer:window.onerror
+    TypeError: Cannot read properties of null (reading 'renderer')
+        at onPointerDown (src/ui/courseEditor.js:2925)
+        at pdHandler (src/ui/courseEditor.js:4009)
+```
+
+Three hover throws inside 48 ms — one per frame, a hand moving the mouse — then a
+press 635 ms later that threw on its own first line.
+
+`scene()` in the editor is `() => app.scene3d`. Both handlers dereference it with
+no guard, so **`app.scene3d` was null while the editor was still `active` and
+still holding its five capture-phase window listeners.**
+
+`onPointerDown`'s very first statement after the modal check is:
+
+```js
+if (e.target !== scene().renderer.domElement) return;   // line 2925
+```
+
+It throws there. Not one editor verb is reached. **"I cannot click anything" is
+not an exaggeration or a timing complaint — it is literally true**, and it was
+true for every click you made in that state.
+
+### Why it is that line and not another
+
+`groundAt` — the function immediately upstream — is already guarded:
+
+```js
+function groundAt(e) {
+  return scene() ? scene().raycastGround(e.clientX, e.clientY) : null;
+}
+```
+
+So tolerating a null scene has been the intent all along. With a null scene it
+returns `null`, `hover` becomes `null`, `scheduleHoverPreview(null)` books a rAF,
+and one frame later `updateHoverVisuals(null)` takes the `!g` branch and calls
+`sc.setEditorBrush(null)` on `sc === null` — **line 3288, exactly the stack in
+your log.** Somebody guarded the entry point and left the three consumers behind
+it unguarded: `updateHoverVisuals`, `onPointerDown`, `onWheel`.
+
+### Where the null comes from, and where twenty seconds fits
+
+`app.scene3d` is null in exactly one window: between `destroyCurrentScene()`,
+which nulls it, and `startGameNow()`, which reassigns it. `startGame()` sits
+between the two — two animation frames, and then **up to a 12-second asset
+barrier** (`scene.assetBarrier(12000)`, veil reading "Finishing the previous
+course load") before the next course is built on top of that.
+
+That window is reachable without leaving the editor. The pause shell the editor
+itself opens with **P** carries **Save game** and **Load game**, and a load runs
+`bootEmpire → startGame`. I read the shell's live button list in the running
+editor to confirm it: `Resume, Overview, Save game, Load game, Settings,
+Controls, Session`.
+
+Two further faults compound it, and both are in the same file:
+
+1. **`exitToMenu()` destroyed the scene and never told the editor.** Only
+   `startGameNow` hid it, and only *after* the new scene existed.
+2. **`hide()` talked to the scene BEFORE tearing itself down.** Seven unguarded
+   `scene()` calls ran ahead of `root.style.display = 'none'` and ahead of all
+   five `removeEventListener` calls. One throw at `scene().frameCourse()` and the
+   editor stays painted at z-index 8 over whatever replaced it, with `onKey`
+   still calling `stopPropagation()` in capture phase on **every key** —
+   the game's entire keyboard dead. A transient became permanent.
+
+### The half-black frame after Tab
+
+`onKey` in the editor calls `e.stopPropagation()` but never `preventDefault()`,
+and `main.js` returns to the editor's listener at line 3390 — *before* its own
+line 3425, `if (e.key === 'Tab') e.preventDefault(); // Tab must never reach DOM
+focus in-game`. **The editor is the one surface in the game where the browser's
+focus traversal still runs.** Focus lands on a control in the editor bar and the
+engine scrolls it into view, which slides the `position:absolute` canvas up
+inside an `overflow:hidden` body and exposes the page's `--charcoal` background
+underneath — top half editor, bottom half solid dark.
+
+It fits your photograph and it is a real defect either way, so it is fixed. But
+**I did not reproduce the torn frame**, and I am not claiming I did: Tab in a
+healthy editor gave a clean full-height frame
+(`qa/electron/course-editor-lag/04-after-tab-400ms.png`, viewed). The reason I
+think it belongs to the same root cause is that with `app.scene3d` null, `frame()`
+skips rendering entirely (guarded at main.js:4020) **and `resize()` returns early
+at main.js:4638** — so the canvas keeps a stale drawing buffer at the old size
+while its CSS box is re-laid out, and nothing ever redraws it. That is the exact
+ingredient for a torn frame. **UNCONFIRMED.**
+
+### What was changed
+
+`src/ui/courseEditor.js`
+- `detachEditorInput()` — the five `removeEventListener` calls in one place.
+- `abandonForLostScene()` — when the scene is gone the editor takes *itself*
+  down: DOM hidden, listeners removed, no scene touched. Swallowing the events
+  silently would have been worse, because the dead editor would keep eating the
+  keyboard.
+- Every installed listener now funnels through one `guarded()` wrapper, so the
+  rule is stated once instead of at seven call sites. `onWheel` and
+  `updateHoverVisuals` (reached from a rAF, so it outlives its own event) are
+  guarded directly.
+- `hide()` reordered: `display:none` and `detachEditorInput()` **first**, scene
+  restoration after and skipped entirely when there is no scene.
+- `Tab` gets `preventDefault()`.
+
+`src/main.js`
+- `startGame()` hides the editor at the top, while the **old** scene is still
+  alive — the only moment `hide()` can hand back its camera limits and lighting
+  override.
+- `exitToMenu()` does the same before `destroyCurrentScene()`.
+
+### What I could NOT do, and why this is not marked DONE
+
+**I never drove the game into the null-scene window, so I have never watched the
+fix's check fail.** Three attempts are recorded above as probe lies 39 and 40.
+The route needs Save-to-slot then Load-from-slot through the pause shell, and my
+save step did not write. Per the 45-minute rule I stopped rather than keep
+grinding on the harness.
+
+So: the **defect** is proven — by your machine, with file, line and mechanism, and
+that is better evidence than any driver I could have written. The **fix** is
+applied to those exact lines. The **repair is unverified in play.** It stays
+NOT DONE until a driver reaches the state and I have watched red go green.
+
+Lint ratchet: 323 findings, unchanged.
+
+---
+
+## P0 — TWO THINGS WRONG WITH LOADING IN
+
+### The dustpan: reproduced, and the reason it STAYS is not the reason it appears
+
+The deferred GPU warm (`scheduleDeferredGpuWarm`, main.js) equips a dustpan
+1600 ms after the veil lifts, draws three frames so the eight hand programs
+compile, and puts it back. That draw is deliberate and, measured at rAF rate on
+a fresh boot, lasts **49 ms** — a flicker. It is not what you are describing.
+
+Two separate faults sit on top of it.
+
+**1. The guard that was supposed to leave your hands alone never fired.**
+
+```js
+const held = typeof walk.tool === 'function' ? walk.tool() : null;   // undefined
+if (!held) { ...take the hands... }
+```
+
+`walk.tool` does not exist on the walk facade. The accessor is `getTool`, and
+every other caller in main.js uses it — lines 3014, 3065, 3081, 3139, 3205. So
+`held` was `null` on every boot and the comment beside it —
+
+> *"A player equipping a tool inside the first two seconds simply beats the warm
+> and pays what they always paid; the warm skips itself rather than fight them
+> for the hands."*
+
+— describes something that has never once happened. The warm takes the hands off
+whatever you just picked up, every time.
+
+My own first probe read the same non-existent accessor and reported *"no tool
+was ever held"* through its own planted dustpan. That is probe lie 41 below, and
+it is the same trap: `tools/qa/electron-rake-viewmodel.js` already carries a
+comment saying "getTool, NOT tool()" from an earlier session.
+
+**2. The restore is QUEUED, and the queue is not always drained.**
+
+```js
+function walkSetToolDebounced(tool) {
+  if (toolSwitchCooldown > 0) { pendingBeltTool = tool; hasPendingBeltTool = true; return; }
+  ...
+}
+```
+
+`TOOL_SWITCH_DEBOUNCE` is 120 ms; the warm's three frames are ~12 ms at 240 Hz.
+So the warm's `setTool(null)` **never applies** — it is parked in
+`pendingBeltTool`. The only thing that drains that queue is `updateHeldFeel`,
+which runs from `walkUpdate`, which `main.js` only calls while `walkActive()`.
+
+**Press Tab for the overview and `walkUpdate` stops.** That is one keypress from
+loading in, and you are pressing it — item P0's other half is about what Tab
+shows you.
+
+Measured in the running game, driving the warm's own call sequence through the
+same public API, in the overview
+(`tools/qa/electron-warm-leaves-a-tool.js`, `qa/electron/warm-leaves-a-tool/`):
+
+| the door the restore went through | after 3 seconds |
+|---|---|
+| `walk.setTool` — what the warm used | **`"dustpan"` — still in the hands** |
+| `walk.setToolImmediate` — what the fix uses | `null` — hands empty |
+
+`discriminates: true`: the two paths disagree, so the run measured the fix and
+not the debounce. That is the dustpan you keep finding in your hand.
+
+**Fixed:** `getTool` so the skip guard works, and a `setToolImmediate` door on
+the walk facade that does not queue and clears any queued switch on the way
+through. The debounce still guards the belt against a player mashing it; the
+warm is not a player.
+
+### The map before you load in: NOT REPRODUCED, but the race is real and now closed
+
+`enterWalk()` runs long before prewarm, so `walk.active` has been true the whole
+time and every flag-based probe calls this healthy. **The camera has not been
+with the player.** Prewarm swings it out over the course to warm the overview and
+editor programs, and the sampler reads **camY 147.87** for the entire prewarm
+against a walk eye of **−0.84**.
+
+Nothing in the completion block brought it back. `app.prewarming = false;
+veil.hide();` ran synchronously, starting a 420 ms fade, while the camera only
+returns on the **next scheduled production frame**. Which of those won was a
+race. On my boots the frame won by 287 ms, 385 ms and 561 ms — so I never saw
+the map, and I am not claiming I did.
+
+**Fixed by ordering rather than by luck:** the veil now lifts inside a two-frame
+yield — the same paint-yield idiom `startGame` uses — so a real production frame
+is drawn from the walk camera underneath an opaque veil before it starts to fade.
+Measured margin after the change: **1010 ms**, and it is no longer a race at all.
+
+### Instrument notes
+
+The probe went through three versions and the first two were worthless:
+frame-time (blind to the fault), then a 50 ms `setInterval` (three to twelve
+times too coarse for a three-frame draw). It samples at **rAF** now — the rate
+the thing it measures changes at — and carries a planted-dustpan control that
+must appear as a span. The control failed on the first run, which is the only
+reason the "no dustpan" reading was not reported to you as fact.
+
+---
+
+## 1 — FIRST-PRESS LAG: THE WARM IS RUNNING, AND IT WAS NEVER THE MECHANISM
+
+You asked me to find out whether the deferred warm is failing to cover these
+surfaces or failing to run, and to answer by the **program counter**.
+
+**It runs.** `renderer.info.programs.length` goes **254 → 330** across it, a
+delta of **76**, with `__fwWarm` reporting `{hands: "done", sweep: "done"}`.
+That is the control for everything below: a counter flat through a warm that
+says it worked would make every zero meaningless.
+
+Then, first press against second, on a settled game
+(`tools/qa/electron-first-press-programs.js`,
+`qa/electron/first-press-programs/`):
+
+| surface | programs compiled | worst frame, FIRST | worst frame, SECOND |
+|---|---|---|---|
+| **phone, T** | **0** | **79.1 ms** (median 12.5) | 16.8 ms |
+| tool wheel, F | 0 | 29.2 ms | 45.8 ms |
+| pause, P | 0 | 25.0 ms | 24.9 ms |
+| ledger raise / open / page turn | 0 | 16.6 / 16.8 / 20.9 ms | 16.8, 25.0 ms |
+| **overview, Tab out** | **+1** | 20.7 ms | 12.5 ms |
+| **overview, Tab back on foot** | **+1** | **433.3 ms** (429 ms long task) | 20.8 ms |
+
+### What that says, and it is not what either of us expected
+
+**The phone's first-press lag is real and reproduced — 79.1 ms against a 12.5 ms
+median and a 16.8 ms second open — and it compiles ZERO GL programs.** The phone
+is a DOM surface. Nothing about opening it reaches the shader compiler, so no
+amount of deferred warming was ever going to touch it. The mechanism you and I
+have both been assuming does not apply to the thing you named.
+
+**The book is the same, and worse for the theory: it does not lag either.**
+Raising it, opening it and turning three pages all cost 16–25 ms with zero
+programs, first press and third alike. Caveat, stated plainly: I reached the book
+by calling its own `advance()` and `navigateForward()` rather than by pressing E
+at the desk, so I exercised the BOOK and not `enterLedger`'s DOM entry
+(`ledger-mode` class, overlay hiding, handler installation). If the page-turn
+lag is real, it is more likely to live there than in the page turn.
+
+**The one surface that does compile is the overview**, and it is the biggest
+number in the item: **433 ms on the first return to your feet, gone by the second
+round trip.**
+
+### The overview is the one camera prewarm never warms
+
+`fitSunShadow` has three modes. It picks `'walk'` when `walk.active`, `'editor'`
+when `editorShadowFocus`, and `'full'` otherwise — and `'full'` is
+`SHADOW_FULL_MAP`, **4096**, with a whole-course fit and its own depth programs.
+
+Prewarm warms three camera states: interior walk, exterior walk, and the editor
+camera — and the editor pass sets `editorShadowFocus = true`, so **all three run
+at 2048**. `walk.active === false && editorShadowFocus === false` is never
+entered. That state is the overview. That is Tab.
+
+The deferred `compileAsync` sweep cannot reach it either: it compiles the scene
+as currently configured, and a 4096 shadow target that has not been allocated yet
+has no programs to compile.
+
+### What I did NOT ship, and why
+
+I tried two fixes and **measured both to be worthless, so neither is in the
+branch:**
+
+- **Pre-rendering the phone's DOM in the deferred warm.** The warm reported
+  `phone: "done"` and the first open measured **79.2 ms** against 79.1 before.
+  Identical. The cost is not tree construction, so the next candidate is the
+  first `.up` class flip promoting the dock to a composited layer — which I have
+  not tested.
+- **Adding an overview pass to prewarm.** First Tab back measured **562 ms**
+  against 433 ms unwarmed — one sample each, so I will not claim it made things
+  worse, but there is no measured benefit and an unproven change to the prewarm
+  path is not worth carrying.
+
+Both reverted, with the revert asserted to have changed the files.
+
+**ITEM 1: DIAGNOSED, NOT FIXED.** The diagnosis is worth more than the two
+non-fixes would have been: the deferred warm is healthy and irrelevant to the two
+surfaces you named, and the real cost is a 4096 shadow allocation on a key you
+press constantly. The obvious remedies for that — keeping both shadow targets
+resident, or giving the overview the same 2048 map as walk and the editor — trade
+memory or shadow quality, so they are yours to call, not mine.
+
+---
+
+## 2 — CUSTOMERS ANNOUNCE THEMSELVES FROM THE BACK OF THE LINE
+
+**NOT REPRODUCED.** I have to say that first, because the fix below is a
+source-level correction and not a repair of something I watched happen.
+
+### What the code does, and why it looked like the answer
+
+The three desk greetings — the reservation line, the walk-in tee-time ask, and
+"these are all for me" — were all gated on:
+
+```js
+if (!c.deskGreetingSpoken && counterQueue.indexOf(c) === 0)
+```
+
+That is a position in an **array**. Forty lines above it, in the same file, is
+`customerIsAtTheDesk` and this comment, from Goal 24:
+
+> **C3 — NOTHING IS HANDED OVER UNTIL THEY ARE AT THE DESK.** *"They hand goods
+> THROUGH the body of the person being served, before their turn."* The gate on
+> placing goods was `counterQueue.indexOf(c) === 0`, which is a position in an
+> ARRAY, not a position on the floor. […] the moment the served customer is
+> spliced out, the next person is index 0 while still standing several yards
+> back, with the person ahead of them physically in the way.
+
+**C3 fixed the hands and left the mouth on the old predicate.** Two populations
+inside one function: a placement rule that asks where the body is, and three
+greetings that ask where the name is in a list.
+
+### What I measured, and why it is not a reproduction
+
+`tools/qa/electron-queue-speaks-too-early.js` watches every customer-dialogue
+toast and records the **speaker's own `queueSlotHeld`** — the slot their body
+holds, which the queue code advances only when the floor is clear. A greeting
+from anyone with `queueSlotHeld > 0` is a greeting from the back, by the game's
+own bookkeeping.
+
+Four minutes on the unfixed build, shop open, five spawned toward the counter:
+queue **4 deep**, highest slot **3**, one removal from a non-empty line at
++198 s — and **one line, from slot 0.** Nobody spoke from the back.
+
+The first version of this driver said **PASS** after sixty seconds, and it was
+wrong to: the two predicates AGREE for as long as nobody leaves the line, and
+that run never served or lost anybody, so the divergence window never opened. It
+is probe lie 43 below. The rewritten control requires a **removal from a
+non-empty queue** before it will call a run conclusive at all.
+
+### The fix, and what it is worth
+
+`customerHasReachedTheCounter(c)` — body within `QUEUE_HEAD_REACH_YD` of the head
+slot — now gates all three greetings. Deliberately NOT `customerIsAtTheDesk`,
+which also demands the corridor from the hand to the staging mat be clear: that
+is right for putting a product down and wrong for saying hello, and somebody
+walking past should not silence a customer who has arrived.
+
+It is strictly more correct and it makes the mouth agree with the hands. It is
+**not** proof that it fixes what you saw.
+
+### One thing I want to check with you rather than guess
+
+Your words were *"while someone is still standing in the queue, I get a
+notification"*. I read that as **the speaker is at the back**, and that is what I
+went looking for. There is a second reading — **the speaker is at the front, but
+it is not their turn because you are still mid-sale with the person before
+them** — and my run is consistent with it: Emmett Morris spoke from slot 0 while
+the line was 1 deep, which under that reading is the defect and under mine is
+correct behaviour. The two need different fixes. Which one were you looking at?
+
+---
+
+## 3 — THIRD REPORT: MY BODY IS STILL SOLID
+
+### Your lead was right, and it is the whole first half
+
+You asked me to check it first. Here is the complete list of every place
+`deskScreenOpen` appears in `src/`:
+
+```
+src/render3d/clubhouse.js:11097:    if (app && (app.laptopOpen === true || app.deskScreenOpen === true)) return false;
+```
+
+That is the read. There is no second line. It is never declared, never assigned,
+never initialised anywhere in the tree, so `app.deskScreenOpen === true` has been
+`undefined === true` on every frame since it was written. **The desk screen has
+never once phased you out** — and the desk screen is exactly where you do walk-in
+tee times, which is item 4.
+
+The flag `main.js` actually writes is `app.frontDeskOpen`: set in
+`enterFrontDesk`, cleared in `exitFrontDesk`.
+
+### The full audit you asked for — every flag the predicate reads
+
+| what it reads | written in `src/`? |
+|---|---|
+| `walk.active` | yes — `courseScene.js` 8419 / 8461, plus the prewarm passes |
+| `register.isActive()` | yes — `simplifiedRegisterMode.js` 10676, `isActive: () => active` |
+| `ledgerBook.isCarried()` | yes — `ledgerBook.js` 3038, set by `setCarried` |
+| `ledgerBook.isOpen()` | yes — `ledgerBook.js` 2582 |
+| `app.laptopOpen` | yes — `main.js` 628 / 668 |
+| **`app.deskScreenOpen`** | **NO. Nowhere. Read-only, forever undefined** |
+
+### And a second hole beside it, in the other place you named
+
+You said you are walked into *"while reading the ledger"*. The predicate asked
+`isCarried()` and `isOpen()`. Both are real methods, and both answer a different
+question:
+
+- `isCarried` is `carried`, set by `setCarried` — the book being **transported
+  across the room**, which is the L3 moveable-ledger feature, not reading.
+- `isOpen` is `bookState === 'open' || 'opening'`.
+
+`main.js`'s `enterLedger` says in as many words that **"the FIRST press only
+brings the book up, SHUT"**, and gates `app.ledgerOpen` on `book.isInHand()`.
+`isInHand` is `bookState !== 'closed'`, and its own comment reads *"In your hands
+at all, shut or not: what the E key and the HUD care about."*
+
+So the ordinary act of raising the ledger to read it produced `carried = false`,
+`open = false`, and a player who was still solid.
+
+**Fixed:** the predicate now reads `laptopOpen || frontDeskOpen || ledgerOpen`
+and adds `isInHand()` to the book test.
+
+**Pinned:** `tests/player-blocks-customers-flags.test.js` extracts the
+predicate's source, strips comments, pulls out every `app.<flag>` it consults and
+requires each one to be **assigned** somewhere in `src/`. Watched failing 3 of 4
+before the fix and passing 4 of 4 after — with test 4 passing throughout, so it
+is not failing indiscriminately. A flag that is only ever read cannot come back
+without this file going red.
+
+*(My own first version of that test failed on the comment explaining the
+removal. Comments are not code; it strips them now.)*
+
+### The nudge: it has never fired, and the constants say why
+
+> *"You rate-limited the clamp but could not stage an overlap to watch the nudge
+> fire. It still needs proving."*
+
+**You cannot stage one, and that is the finding.** Two systems act on a
+player/customer overlap:
+
+- `crowdClamp` moves the **customer** away, targeting **0.72 yd**.
+- `separatePlayerFromCustomers` moves the **player**, but only while
+  `d < PLAYER_CLEAR`, which was **0.62 yd**.
+
+The comment beside 0.62 read *"slightly inside the 0.72 clamp, so the two do not
+fight"*. They do not fight — because the clamp's success is precisely the
+condition that switches the player's step off. Anything the clamp resolves ends
+up at 0.72, which is already outside 0.62, so `d < PLAYER_CLEAR` is never true
+again. **The gentle step was shipped behind a guard the other system guarantees
+to falsify.** That is `FOUND_FALSE` shape 5, and it is why last round could not
+stage the overlap.
+
+Measured before the change, with the PLAYER written onto a customer in the
+running shop and sampled every 250 ms for six seconds
+(`tools/qa/electron-player-nudge-fires.js`):
+
+```
+  t=   0ms  nearest 0.7813   clearance 0.62  nudged 0 yd over 0 frames
+  t=1500ms  nearest 2.8949   clearance 0.62  nudged 0 yd over 0 frames
+  t=5250ms  nearest 6.9825   clearance 0.62  nudged 0 yd over 0 frames
+```
+
+Zero frames, zero yards. The separation was done entirely by the customer
+walking off — the half you asked to stop.
+
+Negative control passed: with the nearest body 1.09 yd away the same counters sat
+at 0 through four seconds, so they only move for a real overlap.
+
+*Method note, because the last attempt failed here:* the previous session tried
+to place the CUSTOMER inside the player, and a customer's `mesh.position` is
+re-driven from their own state every frame, so the write never stuck (probe lie
+36). This moves the **player** instead — `walk.x`/`walk.z` are the player's
+position, the same thing the W key changes — which is also your scenario: you
+come back to somewhere and find a body in it.
+
+**Two real defects fixed on the way — and it is STILL not firing.**
+
+1. **The radius mismatch.** One constant, `PLAYER_CLAMP_YD = 0.72`, now shared by
+   the clamp, the look-ahead's blocked test and the player's own step, so the two
+   systems cannot again disagree about how far apart you are meant to end up.
+2. **The rate limit was not a rate.** Last round capped the shove with
+   `const CLAMP_STEP = 0.028` — **per frame**, under a comment reading *"about
+   1.7 yd/s at 60 Hz"*. Nothing in it was per second. On this machine's 240 Hz
+   panel it is **6.7 yd/s**, and on your display it is whatever your refresh
+   happens to be, so the fix that was meant to turn the shove into a step gets
+   *harsher the better the hardware*. It is scaled by the frame's own dt now.
+
+That second one is visible in the measurements: before it, the very first sample
+after the overlap read 0.78 yd — already separated. After it, the first sample
+reads **0** and the pair are genuinely on top of each other. The clamp is a step
+now, on any machine.
+
+**But the player still moved 0 yards over 0 frames, in four separate stagings.**
+
+Ruled out, one per run, each by measurement rather than by reading:
+
+| suspect | verdict |
+|---|---|
+| `walk.active` false | ruled out — `blocking` is true, and that test is the predicate's first line |
+| `playerBlocksCustomers()` false | ruled out — reported `true` in every sample |
+| the 0.62 / 0.72 radius mismatch | fixed; counters still 0 |
+| the per-frame "rate limit" | fixed; counters still 0 |
+| **the wall refusal** (`isInside(nx, nz, 0.2)`) | **ruled out — reported `true` at the staged point**, which required exposing `isInside` as `qaIsInside` because it was private and three runs could only say "it did not fire" without being able to say why |
+
+What is left is the ordering inside one frame: `settleCustomerCrowd()` runs
+before `separatePlayerFromCustomers()`, so by the time the player's step looks,
+the customer has already been moved and `d >= PLAYER_CLEAR` is true again.
+
+**Which is the real answer to your ask, and it is a design question rather than a
+bug:** as long as the clamp resolves the overlap by moving the CUSTOMER, the
+player's own step can never contribute — whatever radius or rate either of them
+uses. "I should just move a bit" needs the clamp to stop being the thing that
+fixes it. That is a call about whether customers may be moved out of you at all,
+and it is yours, not mine.
+
+**ITEM 3: the audit half is DONE and proven. The nudge half is NOT DONE** — four
+stagings, two genuine defects found and fixed, and the player has still never
+taken a step. I stopped at the 45-minute rule rather than keep going.
+
+---
+
+## 4 — THE WALK-IN TEE TIME NEEDS TWO ATTEMPTS
+
+**NOT REPRODUCED — I drove the wrong desk.** But the wrong desk turned out to be
+worth the trip.
+
+### The instrument
+
+`app.frontDeskOpen` is the desk screen's entire state, and nothing in `src/`
+writes it except `enterFrontDesk` and `exitFrontDesk`. So instead of guessing
+which exit path fires, the driver replaces the property with an accessor that
+**records every write with its stack**. The ejection would then have named its
+own caller. Control: two deliberate writes from the driver, both captured.
+
+### What it found instead: the starter desk's E key does nothing at all
+
+Zero writes. Both attempts. The screen never opened, so there was nothing to
+eject from — and reading `enterFrontDesk`'s five silent early-returns one at a
+time gave the reason:
+
+```
+guards before the call: {"walkActive":true, "view":"course", "courseMode":"walk",
+  "frontDeskOpen":false, "registerActive":false,
+  "cashierPose":null, "cashierPoseIsNull":true, "poseError":null}
+```
+
+```js
+const pose = ch?.register?.cashierPose?.();
+if (!pose || !frontDeskUi) return;          // main.js:700
+```
+
+**`cashierPose` appears in exactly one place in the whole repository: that call.**
+It is never defined on the register or anywhere else. So `enterFrontDesk` has
+never been able to open, and it says nothing when it refuses.
+
+That is the same shape as item 3's `deskScreenOpen`, in the same feature: a read
+with no writer, and a call with no definition. Two of them, both silent.
+
+A previous session already knew. `tools/qa/verify1-lqueue.js` opens with:
+
+> *"(The DOM front desk is dead: `ch.register.cashierPose` does not exist, so
+> `enterFrontDesk` always returns. The desk is served ON THE REGISTER MONITOR.)"*
+
+It was written into a QA driver's header comment and never into production. The
+prop is still there, outside by the tee, still promising **"Starter desk — [E]
+arrivals, check-ins and walk-ins"**, and still doing nothing when you press E.
+
+### So which desk is yours
+
+There are two, and they are not the same code:
+
+| desk | where | E goes to | state |
+|---|---|---|---|
+| **Starter desk** | outdoors, by the tee (`courseScene.js:5312`) | `openFrontDesk` → `enterFrontDesk` | **dead — always returns** |
+| **Tee desk** | indoors (`clubhouse.js:2073`) | `register.enter()` → the monitor | live |
+
+Your walk-in tee times are the indoor one, on the register monitor. My driver
+called `walk.hooks.openFrontDesk`, which is the outdoor one, so it exercised the
+dead path twice and correctly found nothing to measure.
+
+`register.enter()` has one shape that fits your report exactly and I did not get
+to test it: it has a `finally` that resets `active = false` when entry does not
+complete, and **no `catch`** — so a throw part-way through leaves the camera
+already moved and the register not open, which is "it zooms me in and back out",
+and the second press succeeds because whatever was half-initialised the first
+time now is not. That is a hypothesis with a mechanism, not a finding.
+
+### What I am asking you
+
+**The starter desk is a real bug either way, and its fix is a decision:** wire
+`enterFrontDesk` to a pose the register actually has (`derivedWorkingPose`
+exists), or delete the prop's promise so it stops offering arrivals and
+check-ins it cannot deliver. Resurrecting a second booking UI beside the monitor
+without you saying so is not a call I should make.
+
+**ITEM 4: NOT REPRODUCED.** Wrong desk, named cause for the one I did hit,
+mechanism proposed for the one you meant.
+
+---
+
+## 5 — AUDIO
+
+Every number below is read off the live Web Audio graph in Electron
+(`tools/qa/electron-money-cue-graph.js`, `qa/electron/money-cue-graph/`): the
+probe taps `createOscillator`, `createBufferSource` and `createGain` on the
+running AudioContext and fires each cue through the shipped `app.audio` API.
+
+**One half of that probe does not work and I am saying so before the results.**
+Its oscillator counter reported **0 for `keypadTap`**, which is synth-only —
+`if (!ctx) return;` and two oscillators, no bank call. The control failed twice
+(the first attempt used `uiTick`, which turns out to play a recording now, so the
+control was wrong *and* then the tap was wrong). **Every oscillator count in this
+section is therefore worthless.** The buffer counts and the gains are sound —
+they move, they differ per cue, and they track the code.
+
+### The synth under the book — removed, and here is why you heard BOTH
+
+`ledgerOpen`, `ledgerTurn` and `ledgerClose` each ran
+`if (sampled(cue)) return;` and then built a synth. The surprising word in your
+report was **AND**: you heard the blip *and* the page turn. That is not a missing
+recording — six `ledger-turn` takes are on disk. It is this:
+
+`sampleBank.play` refuses a cue that played less than **`minGapSec` = 0.02 s**
+ago. Refusing returns `false`. `false` means "fall through to the synth". So a
+quick second page turn plays **the recording once and the blip once** — the guard
+against double-triggering was converting the double trigger into the beep.
+
+All three fallbacks are gone, and the shared paper-hiss helper `ledgerLeaf` is
+deleted with them rather than left warm. Silence is the ruling if the bank ever
+refuses.
+
+Proven on the source rather than the graph, deliberately: a cue whose body
+contains no oscillator and no buffer cannot play one, whatever a broken counter
+says. `tests/register-cash-timing.test.js` now asserts the three bodies contain
+`sampled(...)` and none of `createOscillator`, `createBuffer`, `ledgerLeaf`,
+`checkoutTone` or `burst(`, and that `ledgerLeaf` no longer exists. Watched
+failing on the old audio.js, passing on this one.
+
+### Coin and cash crossing over — the manifest names the culprit
+
+`changeSelect` holds **three** recordings and `play()` picks among them **at
+random**:
+
+| file | what it is a recording of |
+|---|---|
+| `change-lift-1.ogg` | *"dollar bills flipping counting.wav"* — paper |
+| `change-lift-2.ogg` | *"counting_paper_money"* — paper |
+| `change-lift-3.ogg` | ***"Coins.wav by pinchos"*** — **coins** |
+
+So pressing a quarter played paper **two times in three**, and clicking a twenty
+played the coin take **one time in three**. Random is exactly why it reads as
+*crossing over* rather than as consistently wrong.
+
+`cashPickup` has the same fault the other way round: two coin takes
+(*"Coins.wav"*, *"coins being handled, shaken, rattled"*) and one paper
+(*"Cash Money sounds"*), also chosen at random, for taking change back off the
+counter.
+
+**Fixed by choosing the take that matches the money in your hand.** The
+recording's own title travels from the manifest through the sample bank, and
+`materialPick(denomination)` keeps the takes whose material matches — with
+`BILLS` imported from `sim/register.js` rather than restated, because a second
+copy of "which denominations are paper" is how a coin comes to sound like paper.
+No file is renamed, nothing is re-encoded, and a caller that does not know the
+denomination keeps its old behaviour. Both click sites now pass theirs.
+
+### The sound marking the end of a sale — it was on disk and unreachable
+
+`checkoutComplete` **already existed**, was **already being called** at the end of
+`finalizeTransaction`, and **already had a recording**:
+`checkout-complete-warm-1.ogg`, *"cash register old antique open close drawer
+with bell ring"*.
+
+It never asked the bank. So the code played a three-note sine arpeggio instead,
+and the graph measured that arpeggio at a peak of **0.032** while the cash drawer
+in the same checkout peaked at **0.592** — **18.5×, about 25 dB.** The loudest
+thing in your checkout was the furniture and the quietest was the outcome.
+
+One line — ask the bank first — and the till bell plays. Measured after:
+**0.032 → 0.982.**
+
+### The drawer — down 4.7 dB, and now on one constant
+
+`drawerOpen` and `drawerClose` both asked for 0.55, in two places. One
+`DRAWER_GAIN = 0.32` now.
+
+### Before and after, off the graph
+
+| cue | before | after |
+|---|---|---|
+| `drawerOpen` peak | 0.592 | **0.332** |
+| `drawerClose` peak | 0.591 | **0.309** |
+| `checkoutComplete` | **0 buffers**, peak 0.032 | **1 buffer**, peak **0.982** |
+| drawer : end-of-sale | **18.5 : 1** | **0.3 : 1** |
+| `ledgerOpen/Turn/Close` | synth fallback in each | 1 buffer each, no synth in the file |
+
+The ratio flipping from 18.5 to 0.3 is the whole item in one number: the sale's
+outcome is now louder than the furniture, which is the right way round.
+
+### What is NOT proven
+
+- **The oscillator counts.** Control failed twice. The synth-removal claim rests
+  on the source test, not on that probe.
+- **The "second turn inside 20 ms" row.** My driver waits 260 ms between fires,
+  so that row never actually landed inside `minGapSec` and does not test what its
+  label says. The `minGapSec` → synth mechanism is read from the code, not
+  measured.
+- **None of it heard.** I cannot listen. Every number here is about what the
+  graph was asked to build, not about what it sounds like in your room.
+
+---
+
+## A PATTERN THAT COST ME FOUR RED TESTS, AND ONE GAP IT REVEALED
+
+Four of this round's test failures were **source-text assertions tripped by a
+rename or by a comment**, not by a behaviour change:
+
+| test | what it pinned | what moved |
+|---|---|---|
+| `courseCameraIntegration` | the literal `scene().frameCourse()` | the null-scene fix cached `const sc = scene()` |
+| `scene-initialization-performance` | `body.indexOf('destroyCurrentScene()')` | **my own comment** mentioned the function |
+| `register-cash-timing` | `indexOf('function changeSelect()')` | the cue gained a denomination parameter |
+| `desk-accepts-tee-time-mid-sale` | the literal `counterQueue.indexOf(c) === 0` | item 2 replaced that predicate |
+| `qa-harness-integrity` | a register API named in a driver | **my own comment** named it, twice |
+| my own new flag test | `app.<flag>` in the predicate | **my own comment** named the removed flag |
+
+Every one of them was protecting a real contract — an ordering, a call, an
+API's existence — and every one located that contract by a string that a
+correct change was allowed to alter. Each is now matched on the stable half,
+and two of them additionally pin the NEW contract. None was loosened to pass.
+
+**The gap it revealed is worth more than the annoyance.**
+`tests/qa-harness-integrity.test.js` fails any QA harness that calls a register
+API the live code does not export. That rule is right, and it is why item 4's
+driver went red. **It does not apply to production.** `main.js:699` calls the
+same non-existent accessor that the test would reject in a driver, and has done
+since it was written, and nothing anywhere checks it. Extending that rule to
+`src/` would have caught item 4 the day it was introduced — and it is not a
+change I should make while its first finding is a bug whose fix is your call.

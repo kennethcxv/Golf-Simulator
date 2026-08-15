@@ -10,7 +10,7 @@ import { ZONE, ZONE_NAMES, ZONE_TEX_SCALE, ZONE_MAX_ID } from '../src/sim/consta
 test('every zone id survives the byte pack without wrapping', () => {
   for (const [name, id] of Object.entries(ZONE)) {
     const packed = id * ZONE_TEX_SCALE;
-    assert.ok(packed <= 255, `${name} (${id}) packs to ${packed} — over 255, the Uint8 would wrap`);
+    assert.ok(packed <= 255, `${name} (${id}) packs to ${packed} - over 255, the Uint8 would wrap`);
   }
 });
 
@@ -29,5 +29,5 @@ test('zone ids are dense, named, and leave packing headroom', () => {
   assert.equal(ZONE_MAX_ID, Object.keys(ZONE).length - 1, 'ids are 0..N-1 with no gaps');
   assert.equal(ZONE_NAMES.length, ZONE_MAX_ID + 1, 'every zone has a display name');
   // room for at least one future zone before the byte runs out
-  assert.ok((ZONE_MAX_ID + 1) * ZONE_TEX_SCALE <= 255, 'no headroom left for a new zone — shrink ZONE_TEX_SCALE');
+  assert.ok((ZONE_MAX_ID + 1) * ZONE_TEX_SCALE <= 255, 'no headroom left for a new zone - shrink ZONE_TEX_SCALE');
 });

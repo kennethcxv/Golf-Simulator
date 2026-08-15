@@ -34,13 +34,32 @@ test('scene resize refits the active camera preset after updating projection asp
 test('leaving the editor restores normal rig limits before reframing the property', () => {
   const hide = sourceBetween(editorSource, 'function hide()', 'const pdHandler');
   const applyPose = sourceBetween(sceneSource, 'function applyCourseCameraPose', 'function frameCourse');
-  const reframe = hide.indexOf('scene().frameCourse()');
+  // The contract is the ORDER, not the receiver's spelling. This read
+  // `hide.indexOf('scene().frameCourse()')` and went silently to -1 when the
+  // null-scene fix cached `const sc = scene()`, failing all four limits for a
+  // rename rather than for a reordering.
+  const reframe = hide.search(/(?:scene\(\)|sc)\.frameCourse\(\)/);
+  assert.ok(reframe >= 0, 'hide() reframes the course on the way out');
 
   for (const limit of ['maxDist', 'maxPitch', 'minDist', 'minPitch']) {
     const restore = hide.indexOf(`rig.${limit} = camLimits.${limit}`);
     assert.ok(restore >= 0 && restore < reframe,
       `${limit} is restored before the overview pose is applied`);
   }
+
+  // PLAYTEST 5 P0 — hide() must tear ITSELF down before it talks to the scene.
+  // It used to run seven unguarded scene() calls first, so one throw with the
+  // course mid-rebuild skipped both the display:none and all five
+  // removeEventListener calls, leaving the editor painted over the game with a
+  // capture-phase keyboard hook that swallowed every key.
+  const hidden = hide.indexOf("root.style.display = 'none'");
+  const detached = hide.indexOf('detachEditorInput()');
+  assert.ok(hidden >= 0 && hidden < reframe,
+    'the editor root is hidden before any scene call that can throw');
+  assert.ok(detached >= 0 && detached < reframe,
+    'the editor listeners are removed before any scene call that can throw');
+  assert.match(hide, /if \(!sc\) return;/,
+    'hide() returns rather than dereferencing a torn-down scene');
   assert.match(sceneSource, /maxOverviewDist:\s*rig\.maxDist/,
     'the restored maximum distance constrains the new overview pose');
   assert.match(applyPose, /rig\.pitch = clamp\(pose\.pitch, rig\.minPitch, rig\.maxPitch\)/);

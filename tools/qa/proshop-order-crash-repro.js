@@ -23,7 +23,7 @@
   await page.waitForFunction(() => document.readyState === 'complete');
   await page.evaluate(async (seed) => {
     localStorage.clear();
-    const E = await import('/src/sim/empire.js');
+    const E = await import(new URL('src/sim/empire.js', document.baseURI).href);
     const empire = E.newStarterEmpire('relaxed', seed);
     localStorage.setItem('golfempire:autosave', JSON.stringify(E.empireSnapshot(empire)));
   }, SEED);
@@ -55,7 +55,7 @@
 
   const openLaptop = async () => page.evaluate(async () => {
     const app = window.__fw;
-    const L = await import('/src/data/shopLayout.js');
+    const L = await import(new URL('src/data/shopLayout.js', document.baseURI).href);
     const o = app.scene3d.clubhouse().interior.position;
     const w = app.scene3d.walk.state;
     const laptop = L.FRONT_DESK.laptop;
@@ -155,7 +155,7 @@
   // point â€” the exact call the basket makes â€” so the order really is the shape
   // the game creates when you "order various things".
   const submitted = await page.evaluate(async () => {
-    const L = await import('/src/sim/inventoryLifecycle.js');
+    const L = await import(new URL('src/sim/inventoryLifecycle.js', document.baseURI).href);
     const st = window.__fw.state;
     const res = L.submitPurchaseOrders(st, {
       lines: [

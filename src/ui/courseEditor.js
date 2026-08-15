@@ -11,6 +11,7 @@
 // billing) and sim/playtest.js (the ball). This file owns DOM + pointer input.
 
 import { el, toast } from './ui.js';
+import { t } from '../core/i18n.js';
 import { ZONE, HOLE_STATUS, CELL_YD } from '../sim/constants.js';
 import { holeNumber, holePar, holeDistanceYd, ensureHoleShape } from '../sim/course.js';
 import { ZONE_COLORS } from '../render/palette.js';
@@ -602,7 +603,9 @@ export function makeCourseEditor(app, hooks) {
     const selectedFeature = resolveFeatureSelection(kind);
     if (!selectedFeature) {
       featureSelection[kind] = null;
-      toast(`Select a ${kind === 'water' ? 'pond, lake, or stream' : kind} first.`, 'warn');
+      toast(kind === 'water'
+        ? t('editor.selectWaterFirst')
+        : t('editor.selectFeatureFirst', { kind }), 'warn');
       renderToolPanel();
       refreshSelectedBoundaryPreview();
       return { ok: false };
@@ -722,7 +725,7 @@ export function makeCourseEditor(app, hooks) {
     const path = selectedPath();
     if (!path) {
       clearPathSelection();
-      toast('Select a path first.', 'warn');
+      toast(t('editor.selectAPathFirst'), 'warn');
       renderToolPanel();
       refreshSelectedPathPreview();
       return { ok: false };
@@ -939,9 +942,9 @@ export function makeCourseEditor(app, hooks) {
     }
     const n = holeNumber(state().course, hole.id);
     const yd = hole.tee && hole.pin ? ` · ${Math.round(holeDistanceYd(hole))} yd` : '';
-    const named = hole.name && hole.name !== `Hole ${n}` ? ` — ${hole.name}` : '';
+    const named = hole.name && hole.name !== `Hole ${n}` ? ` - ${hole.name}` : '';
     label.textContent = `Hole ${n}${named} · Par ${holePar(hole)}${yd}`;
-    ui.holeChip.title = `${label.textContent} — click to select or edit a hole`;
+    ui.holeChip.title = `${label.textContent} - click to select or edit a hole`;
   }
 
   function setCameraView(mode, hole = selectedHole()) {
@@ -990,7 +993,7 @@ export function makeCourseEditor(app, hooks) {
     terrain: 'Use a smaller brush for precise shaping. Auto smooth softens the edge after every sculpt tick.',
     paint: 'Surface paint changes the lie and renovation cost. Right-drag restores rough without changing elevation.',
     tee: 'Choose the hole and tee set first; the preview aims the finished box toward the active pin.',
-    green: 'Edit mode retains the authored green. Bright square handles mark the exact draggable boundary points.',
+    green: 'Edit mode keeps the green as it was drawn. The bright square handles are the points you can drag.',
     bunker: 'Edit mode preserves the bunker identity, depth, lip, and billing while you reshape its boundary.',
     water: 'Ponds use shoreline handles; streams use centerline handles and a finished bank-to-bank width.',
     objects: 'Green previews are legal; red previews collide. Snap and size are applied before placement.',
@@ -1221,7 +1224,9 @@ export function makeCourseEditor(app, hooks) {
   function removeSelectedVectorFeature(kind) {
     const selectedFeature = resolveFeatureSelection(kind);
     if (!selectedFeature) {
-      toast(`Select a ${kind === 'water' ? 'pond, lake, or stream' : kind} first.`, 'warn');
+      toast(kind === 'water'
+        ? t('editor.selectWaterFirst')
+        : t('editor.selectFeatureFirst', { kind }), 'warn');
       return;
     }
     const beforePts = selectedFeature.feature.pts.map((point) => ({ x: point.x, y: point.y }));
@@ -1239,7 +1244,9 @@ export function makeCourseEditor(app, hooks) {
     }
     clearFeatureSelections(kind);
     refreshEditedFeature(kind, beforePts, []);
-    toast(`${selectedFeature.source === 'stream' ? 'Stream' : kind === 'water' ? 'Water feature' : 'Bunker'} deleted.`);
+    toast(selectedFeature.source === 'stream'
+      ? t('editor.streamDeleted')
+      : kind === 'water' ? t('editor.waterDeleted') : t('editor.bunkerDeleted'));
   }
 
   function renderToolPanel() {
@@ -1274,7 +1281,7 @@ export function makeCourseEditor(app, hooks) {
               const res = duplicateObject(state(), session, selected.id, { protectPlay: true });
               if (res.ok) {
                 refreshObjects();
-                toast('Copied — drag it into place.');
+                toast(t('editor.copiedDragItInto'));
                 setSelected(res.object);
               } else toast(res.reason || 'There is no clear space for a copy.', 'warn');
             },
@@ -1404,7 +1411,7 @@ export function makeCourseEditor(app, hooks) {
             }),
           ));
         } else {
-          greenList.append(el('div', { text: hole ? 'This hole has no vector green yet.' : 'Select a hole first.' }));
+          greenList.append(el('div', { text: hole ? 'This hole has no vector green yet.' : t('editor.selectAHoleFirst') }));
         }
         p.append(greenList);
         if (opt.green.mode === 'draw') {
@@ -1490,7 +1497,7 @@ export function makeCourseEditor(app, hooks) {
             }),
           ));
         });
-        if (!bunkers.length) list.append(el('div', { text: hole ? 'No bunkers are assigned to this hole.' : 'Select a hole first.' }));
+        if (!bunkers.length) list.append(el('div', { text: hole ? 'No bunkers are assigned to this hole.' : t('editor.selectAHoleFirst') }));
         p.append(list);
         if (opt.bunker.mode === 'draw') {
           p.append(segButtons([['round', 'Round'], ['oval', 'Oval'], ['kidney', 'Kidney']], opt.bunker.shape, (k) => { opt.bunker.shape = k; refreshHoverPreview(); }));
@@ -1613,7 +1620,7 @@ export function makeCourseEditor(app, hooks) {
             && (!query || o.name.toLocaleLowerCase().includes(query)));
           grid.replaceChildren(...entries.map((o) => el('button', {
             class: opt.objects.type === o.type ? 'on' : '',
-            title: `${o.name} — exact final preview`,
+            title: `${o.name} - exact final preview`,
             onclick: (e) => {
               opt.objects.type = o.type;
               renderToolPanel();
@@ -1794,7 +1801,7 @@ export function makeCourseEditor(app, hooks) {
                 }
                 clearPathSelection();
                 refreshEditedPath(beforePts, []);
-                toast('Path deleted.');
+                toast(t('editor.pathDeleted'));
               },
             }));
           }
@@ -2167,7 +2174,7 @@ export function makeCourseEditor(app, hooks) {
       onclick: () => {
         const res = newHole(state(), session);
         if (res.ok) {
-          toast(`Hole ${state().course.holes.length} surveyed (${formatMoney(res.cost)} pending) — paint its fairway, green and tee.`);
+          toast(`Hole ${state().course.holes.length} surveyed (${formatMoney(res.cost)} pending) - paint its fairway, green and tee.`);
           refreshTop();
           closeModal();
           openHoleSelect();
@@ -2217,7 +2224,7 @@ export function makeCourseEditor(app, hooks) {
 
     openModal(
       el('div', { class: 'ced-modal-head' },
-        el('b', { text: `${hole.name} — settings` }),
+        el('b', { text: `${hole.name} - settings` }),
         el('button', { text: '✕', class: 'ced-x', onclick: closeModal }),
       ),
       el('div', { class: 'ced-settings' },
@@ -2268,7 +2275,7 @@ export function makeCourseEditor(app, hooks) {
                     scene().updateHoles();
                     refreshTop();
                     closeModal();
-                    toast(`${hole.name} deleted.`);
+                    toast(t('editor.holeDeleted', { hole: hole.name }));
                   },
                 }),
               ),
@@ -2277,12 +2284,12 @@ export function makeCourseEditor(app, hooks) {
         }),
         el('button', {
           text: 'Duplicate settings',
-          title: 'Creates a new unbuilt hole with these settings — paint its ground, then place tee and pin',
+          title: 'Creates a new unbuilt hole with these settings - paint its ground, then place tee and pin',
           onclick: () => {
             const res = newHole(state(), session);
             if (res.ok) {
               setHoleSettings(state(), session, res.hole.id, { name: `${name.value} II`, handicap: Number(handicap.value) || hole.handicap, parOverride: parOv });
-              toast('New hole added with these settings — it needs its own tee, fairway and green.');
+              toast(t('editor.newHoleAddedWith'));
               refreshTop();
             }
           },
@@ -2322,8 +2329,8 @@ export function makeCourseEditor(app, hooks) {
         el('div', { class: 'ced-save-fields' },
           el('div', { class: 'ced-row' }, el('label', { text: 'Course name' }), nameInput),
           bill > 0
-            ? el('div', { class: 'ced-note warn', text: `Unbuilt works worth ${formatMoney(bill)} are pending — Build applies and pays for them first.` })
-            : el('div', { class: 'ced-note', text: 'The course is settled — saving stores it to the autosave.' }),
+            ? el('div', { class: 'ced-note warn', text: `Unbuilt works worth ${formatMoney(bill)} are pending - Build applies and pays for them first.` })
+            : el('div', { class: 'ced-note', text: 'The course is settled - saving stores it to the autosave.' }),
           el('div', { class: 'ced-note', text: lastSavedText ? `Last saved: ${lastSavedText}` : 'Not saved from the editor yet this visit.' }),
         ),
         el('div', { class: 'ced-save-thumbwrap' },
@@ -2361,7 +2368,7 @@ export function makeCourseEditor(app, hooks) {
             a.download = `${state().clubName.replace(/\W+/g, '_').toLowerCase()}_course.json`;
             a.click();
             setTimeout(() => URL.revokeObjectURL(a.href), 4000);
-            toast('Course data exported.');
+            toast(t('editor.courseDataExported'));
           },
         }),
         el('button', { text: 'Cancel', onclick: closeModal }),
@@ -2375,7 +2382,7 @@ export function makeCourseEditor(app, hooks) {
             }
             hooks.autosave();
             lastSavedText = new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
-            toast('Course saved.');
+            toast(t('editor.courseSaved'));
             closeModal();
             refreshTop();
           },
@@ -2394,7 +2401,7 @@ export function makeCourseEditor(app, hooks) {
     }
     hooks.afterApply();
     const closed = res.report.holesAffected.length;
-    toast(`Works complete — ${formatMoney(res.report.cost)}${closed ? ` · ${closed} hole${closed > 1 ? 's' : ''} closed for renovation` : ''}.`);
+    toast(`Works complete - ${formatMoney(res.report.cost)}${closed ? ` · ${closed} hole${closed > 1 ? 's' : ''} closed for renovation` : ''}.`);
     refreshTop();
     renderToolPanel();
     return true;
@@ -2512,12 +2519,12 @@ export function makeCourseEditor(app, hooks) {
             try {
               await discardPendingWork();
               closeModal();
-              toast('Pending works discarded.');
+              toast(t('editor.pendingWorksDiscarded'));
             } catch (error) {
               console.error('course editor discard refresh failed', error);
               button.disabled = false;
               button.textContent = 'Discard';
-              toast('The rollback could not finish rendering. Try again.', 'warn');
+              toast(t('editor.theUndoDidNot'), 'warn');
             }
           },
         }),
@@ -2531,7 +2538,7 @@ export function makeCourseEditor(app, hooks) {
       clearFeatureSelections();
       clearPathSelection();
       refreshHistoryOp(res);
-      toast(`Undid: ${res.label}`);
+      toast(t('editor.undid', { what: res.label }));
     }
   }
 
@@ -2541,7 +2548,7 @@ export function makeCourseEditor(app, hooks) {
       clearFeatureSelections();
       clearPathSelection();
       refreshHistoryOp(res);
-      toast(`Redid: ${res.label}`);
+      toast(t('editor.redid', { what: res.label }));
     }
   }
 
@@ -2667,7 +2674,7 @@ export function makeCourseEditor(app, hooks) {
                 console.error('course editor discard-and-leave refresh failed', error);
                 button.disabled = false;
                 button.textContent = 'Discard & leave';
-                toast('The rollback could not finish rendering. Try again.', 'warn');
+                toast(t('editor.theUndoDidNot'), 'warn');
               }
             },
           }),
@@ -2966,7 +2973,7 @@ export function makeCourseEditor(app, hooks) {
         const point = authoringPoint(g);
         const hole = holesOf().find((h) => h.id === opt.tee.holeId);
         if (!hole) {
-          toast('Pick a hole first.', 'warn');
+          toast(t('editor.pickAHoleFirst'), 'warn');
           break;
         }
         const markerOffset = state().course.vec ? 0.5 : 0;
@@ -2990,7 +2997,7 @@ export function makeCourseEditor(app, hooks) {
         if (opt.green.pin) {
           const hole = selectedHole();
           if (!hole) {
-            toast('Select a hole first.', 'warn');
+            toast(t('editor.selectAHoleFirst'), 'warn');
             break;
           }
           const res = setPinPosition(state(), session, hole.id, opt.green.pin, g.x, g.y);
@@ -3000,7 +3007,7 @@ export function makeCourseEditor(app, hooks) {
             scene().rebuildFlowField();
             refreshTop();
             renderToolPanel();
-            toast(`Pin ${opt.green.pin} set for ${hole.name}.`);
+            toast(t('editor.pinSet', { pin: opt.green.pin, hole: hole.name }));
           }
           break;
         }
@@ -3010,7 +3017,7 @@ export function makeCourseEditor(app, hooks) {
         }
         const hole = selectedHole();
         if (!hole) {
-          toast('Select a hole first.', 'warn');
+          toast(t('editor.selectAHoleFirst'), 'warn');
           break;
         }
         const point = authoringPoint(g);
@@ -3036,7 +3043,7 @@ export function makeCourseEditor(app, hooks) {
         }
         const hole = selectedHole();
         if (!hole) {
-          toast('Select a hole first.', 'warn');
+          toast(t('editor.selectAHoleFirst'), 'warn');
           break;
         }
         const point = authoringPoint(g);
@@ -3053,7 +3060,7 @@ export function makeCourseEditor(app, hooks) {
           refreshTop();
           renderToolPanel();
         } else {
-          toast(res.reason || 'No sand here — bunkers dig into grass.', 'warn');
+          toast(res.reason || 'No sand here - bunkers dig into grass.', 'warn');
         }
         break;
       }
@@ -3094,7 +3101,7 @@ export function makeCourseEditor(app, hooks) {
           if (!res.ok) toast(res.reason, 'warn');
           else {
             refreshObjects();
-            toast(`${res.count} planted (${formatMoney(res.cost)} pending).`);
+            toast(t('editor.planted', { count: res.count, cost: formatMoney(res.cost) }));
           }
           break;
         }
@@ -3272,6 +3279,10 @@ export function makeCourseEditor(app, hooks) {
 
   function updateHoverVisuals(g, e) {
     const sc = scene();
+    // Reached from a rAF callback, so it outlives the pointer event that
+    // scheduled it and can land after the course has been torn down. This is
+    // the throw at the head of the owner's 2026-08-15 crash.log.
+    if (!sc) return abandonForLostScene();
     if (refreshSelectedBoundaryPreview() || refreshSelectedPathPreview()) {
       sc.setEditorBrush(null);
       sc.setPlacementGhost(null);
@@ -3309,7 +3320,7 @@ export function makeCourseEditor(app, hooks) {
         ? featurePlacementOk(state().course, 'tee', point.x, point.y, {
           holeId: hole.id, aimX: aimCell.x, aimY: aimCell.y,
         })
-        : { ok: false, reason: 'Pick a hole first.' };
+        : { ok: false, reason: t('editor.pickAHoleFirst') };
       sc.setEditorFeaturePreview?.(buildCourseEditorPreviewGeometry({
         feature: 'tee',
         hoverWorld: { x: g.point.x, z: g.point.z },
@@ -3494,7 +3505,7 @@ export function makeCourseEditor(app, hooks) {
       });
       if (res.ok) {
         refreshEditedPath([], drawingPath);
-        toast(`Path laid (${formatMoney(res.cost)} pending).`);
+        toast(t('editor.pathLaid', { cost: formatMoney(res.cost) }));
       } else toast(res.reason || 'The path needs a valid open route.', 'warn');
     } else {
       const res = stampStream(state(), session, drawingPath, {
@@ -3519,7 +3530,7 @@ export function makeCourseEditor(app, hooks) {
         });
         refreshTop();
         renderToolPanel();
-        toast('Stream cut.');
+        toast(t('editor.streamCut'));
       } else toast(res.reason || 'The stream needs a valid open route.', 'warn');
     }
     drawingPath = null;
@@ -3566,6 +3577,7 @@ export function makeCourseEditor(app, hooks) {
 
   function onWheel(e) {
     if (!active || modalEl) return;
+    if (!scene()) return abandonForLostScene(); // see detachEditorInput's note
     if (e.target !== scene().renderer.domElement) return;
     e.preventDefault();
     scene().clearCourseCameraPreset?.();
@@ -3616,6 +3628,17 @@ export function makeCourseEditor(app, hooks) {
       case 'Home':
         setCameraView('course-overview');
         break;
+      case 'Tab':
+        // main.js blocks Tab from reaching DOM focus in every other mode
+        // ("Tab must never reach DOM focus in-game, whatever it is bound to")
+        // but returns to this listener before that line when the editor is
+        // active, so the editor is the one surface where the browser's focus
+        // traversal still ran. Focus then lands on a control in the editor bar
+        // and the engine scrolls it into view, which slides the
+        // position:absolute canvas up inside an overflow:hidden body and
+        // exposes the page's --charcoal background beneath it.
+        e.preventDefault();
+        break;
       case 'Escape':
         if (flyover) stopFlyover();
         else if (modalEl) closeModal();
@@ -3662,7 +3685,7 @@ export function makeCourseEditor(app, hooks) {
     flyover = beginCourseCameraFlyover(hole, restoreView);
     renderFlyoverStatus();
     sc.flyoverHole(hole, 0);
-    hint('Flying the hole — click or press Esc to stop');
+    hint('Flying the hole - click or press Esc to stop');
     refreshTop(); // the flyover button becomes the stop control while flying
   }
 
@@ -3691,7 +3714,7 @@ export function makeCourseEditor(app, hooks) {
   function enterPlaytest(holeId = null) {
     const holes = holesOf().filter((h) => h.tee && h.pin);
     if (!holes.length) {
-      toast('No playable hole yet — a hole needs a tee and a pin.', 'warn');
+      toast(t('editor.noPlayableHoleYet'), 'warn');
       return;
     }
     const sc = scene();
@@ -3705,7 +3728,7 @@ export function makeCourseEditor(app, hooks) {
       inBoundsWorld: (x, z) => sc.inBoundsWorld(x, z),
     });
     if (!nextPlaytest) {
-      toast('That hole is not playable yet.', 'warn');
+      toast(t('editor.thatHoleIsNot'), 'warn');
       return;
     }
     if (!wasPlaytesting) {
@@ -3975,23 +3998,64 @@ export function makeCourseEditor(app, hooks) {
     active = false;
     applyToolCursor(); // active is false now, so this clears both cursor classes
     closeModal();
+    // TEARDOWN BEFORE SCENE TALK. Every scene() line below can throw while the
+    // course is mid-rebuild, and this used to run the other way round: one throw
+    // at frameCourse() skipped the display:none AND all five removeEventListener
+    // calls, so a transient null scene left the editor painted over the game
+    // with its capture-phase keyboard hook swallowing every key, permanently.
+    root.style.display = 'none';
+    detachEditorInput();
+    const sc = scene();
     if (camLimits) {
-      const rig = scene().rig;
-      rig.maxDist = camLimits.maxDist;
-      rig.maxPitch = camLimits.maxPitch;
-      rig.minDist = camLimits.minDist;
-      rig.minPitch = camLimits.minPitch;
+      if (sc) {
+        const rig = sc.rig;
+        rig.maxDist = camLimits.maxDist;
+        rig.maxPitch = camLimits.maxPitch;
+        rig.minDist = camLimits.minDist;
+        rig.minPitch = camLimits.minPitch;
+      }
       camLimits = null;
     }
-    scene().frameCourse();
-    scene().setEditorShadowFocus?.(false);
-    scene().setLightingOverride(null);
-    scene().setGolfersFrozen(false);
-    scene().setEditorBrush(null);
-    scene().setEditorFeaturePreview?.(null);
-    scene().setPlacementGhost(null);
-    scene().setMeasureLine(null);
-    root.style.display = 'none';
+    if (!sc) return;
+    sc.frameCourse();
+    sc.setEditorShadowFocus?.(false);
+    sc.setLightingOverride(null);
+    sc.setGolfersFrozen(false);
+    sc.setEditorBrush(null);
+    sc.setEditorFeaturePreview?.(null);
+    sc.setPlacementGhost(null);
+    sc.setMeasureLine(null);
+  }
+
+  // THE EDITOR OVER A DEAD SCENE — Playtest 5, P0.
+  //
+  // `app.scene3d` is null for as long as it takes to tear one course down and
+  // build the next: destroyCurrentScene() nulls it, startGameNow() reassigns it,
+  // and startGame() can sit between the two for up to the 12 s asset barrier.
+  // The editor's own pause shell offers "Load game" and "Reload the game", so
+  // that window is reachable with the editor open and its five capture-phase
+  // window listeners installed.
+  //
+  // `groundAt` already guards for it — `scene() ? scene().raycastGround(...) : null`
+  // — so tolerating a null scene has been the intent all along. Three consumers
+  // one line further on did not: updateHoverVisuals, onPointerDown and onWheel
+  // dereference scene() directly. The owner's crash.log for the 2026-08-15
+  // playtest session opens with exactly those two throws:
+  //
+  //   TypeError: Cannot read properties of null (reading 'setEditorBrush')
+  //       at updateHoverVisuals (src/ui/courseEditor.js:3288)
+  //   TypeError: Cannot read properties of null (reading 'renderer')
+  //       at onPointerDown (src/ui/courseEditor.js:2925)
+  //
+  // A pointerdown that throws on its first line cannot reach a single editor
+  // verb, which is "I cannot click anything" verbatim.
+  //
+  // Swallowing the events silently would be worse than throwing: the editor
+  // would stay painted at z-index 8 over whatever replaced it, and onKey stops
+  // propagation of every key in capture phase, so the game's whole keyboard
+  // would stay dead. It takes ITSELF down instead — DOM and listeners, without
+  // touching the scene it no longer has.
+  function detachEditorInput() {
     window.removeEventListener('pointerdown', pdHandler, true);
     window.removeEventListener('pointermove', pmHandler, true);
     window.removeEventListener('pointerup', puHandler, true);
@@ -3999,9 +4063,29 @@ export function makeCourseEditor(app, hooks) {
     window.removeEventListener('keydown', onKey, true);
   }
 
-  const pdHandler = (e) => (pt ? playtestPointerDown(e) : onPointerDown(e));
-  const pmHandler = (e) => (pt ? playtestPointerMove(e) : onPointerMove(e));
-  const puHandler = (e) => (pt ? playtestPointerUp(e) : onPointerUp(e));
+  function abandonForLostScene() {
+    if (!active) return;
+    active = false;
+    cancelHoverPreview();
+    camDrag = null;
+    stroke = null;
+    root.style.display = 'none';
+    detachEditorInput();
+  }
+
+  // Every installed listener funnels through here, so the null-scene rule is
+  // stated once rather than re-guarded at each of the seven call sites.
+  const guarded = (fn) => (e) => {
+    if (active && !scene()) {
+      abandonForLostScene();
+      return undefined;
+    }
+    return fn(e);
+  };
+
+  const pdHandler = guarded((e) => (pt ? playtestPointerDown(e) : onPointerDown(e)));
+  const pmHandler = guarded((e) => (pt ? playtestPointerMove(e) : onPointerMove(e)));
+  const puHandler = guarded((e) => (pt ? playtestPointerUp(e) : onPointerUp(e)));
 
   // called from the main frame loop while the editor is open
   function onFrame(dtMs) {

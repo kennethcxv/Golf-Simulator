@@ -26,7 +26,7 @@
   await page.waitForFunction(() => document.readyState === 'complete');
   await page.evaluate(async (seed) => {
     localStorage.clear();
-    const E = await import('/src/sim/empire.js');
+    const E = await import(new URL('src/sim/empire.js', document.baseURI).href);
     const empire = E.newStarterEmpire('relaxed', seed);
     localStorage.setItem('golfempire:autosave', JSON.stringify(E.empireSnapshot(empire)));
   }, SEED);
@@ -71,7 +71,7 @@
   ));
 
   const simRead = async () => page.evaluate(async () => {
-    const R = await import('/src/sim/clubhouseRestoration.js');
+    const R = await import(new URL('src/sim/clubhouseRestoration.js', document.baseURI).href);
     const s = R.restorationSnapshot(window.__fw.state);
     return {
       lightPanels: s.lightPanels,
@@ -116,7 +116,7 @@
 
   // --- 2. power the ring, then repair with kits ----------------------------
   await page.evaluate(async () => {
-    const R = await import('/src/sim/clubhouseRestoration.js');
+    const R = await import(new URL('src/sim/clubhouseRestoration.js', document.baseURI).href);
     const st = window.__fw.state;
     st.shop.inventory.repairkit1 = st.shop.inventory.repairkit1 || { shelf: 0, back: 0 };
     st.shop.inventory.repairkit1.back += 4;
@@ -157,7 +157,7 @@
 
   // --- 3. complete the beat through the real interaction -------------------
   await page.evaluate(async () => {
-    const R = await import('/src/sim/clubhouseRestoration.js');
+    const R = await import(new URL('src/sim/clubhouseRestoration.js', document.baseURI).href);
     for (const targetId of ['ceiling:panel-02', 'ceiling:panel-07']) {
       R.restorationAction(window.__fw.state, { type: 'repair-light', targetId });
     }

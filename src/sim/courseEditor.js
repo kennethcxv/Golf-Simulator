@@ -1223,7 +1223,7 @@ export function selectPin(state, session, holeId, pinKey) {
   if (!hole) return { ok: false, reason: 'No such hole.' };
   ensureHoleShape(hole, holeNumber(state.course, holeId));
   const pos = hole.pins[pinKey];
-  if (!pos) return { ok: false, reason: `No pin ${pinKey} set yet — place it on the green.` };
+  if (!pos) return { ok: false, reason: `No pin ${pinKey} set yet - place it on the green.` };
   if (hole.activePin === pinKey && hole.pin?.x === pos.x && hole.pin?.y === pos.y) {
     return { ok: true, cost: 0, unchanged: true };
   }

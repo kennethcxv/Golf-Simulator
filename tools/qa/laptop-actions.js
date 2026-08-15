@@ -52,10 +52,27 @@ async (page) => {
     // predates the laptop's move to the front desk.
     await page.evaluate(async () => {
       const app = window.__fw;
-      const L = await import('/src/data/shopLayout.js');
+      const L = await import(new URL('src/data/shopLayout.js', document.baseURI).href);
       const o = app.scene3d.clubhouse().interior.position;
       const w = app.scene3d.walk.state;
-      const laptop = L.FRONT_DESK.laptop;
+      const laptop = (() => {
+        // D1: the LIVE rig rather than the layout datum.
+        //
+        // NOT because the datum was stale — it was the first hypothesis and it
+        // is wrong. Measured 2026-08-04: the rig sits at interior-local
+        // (-2.550, 1.557) and FRONT_DESK.laptop reads (-2.550, 1.557). B8 moved
+        // the datum with the machine. This is here so a future move of one
+        // without the other cannot silently re-open the same investigation; the
+        // interior group carries no rotation, so local == world - origin, which
+        // is the frame the surrounding maths is already written in.
+        const ch = app.scene3d.clubhouse();
+        const rig = ch.laptopRig ? ch.laptopRig() : null;
+        const node = rig && rig.object;
+        if (!node) return L.FRONT_DESK.laptop;
+        ch.interior.updateMatrixWorld(true);
+        const m = node.matrixWorld.elements;
+        return { x: m[12] - ch.interior.position.x, z: m[14] - ch.interior.position.z };
+      })();
       const seat = { x: L.FRONT_DESK.staffChair.x, z: L.FRONT_DESK.staffChair.z };
       w.x = seat.x + o.x;
       w.z = seat.z + o.z;
@@ -70,15 +87,32 @@ async (page) => {
   async function openLaptop() {
     await page.keyboard.press('e');
     // The chair diagonal's [E] focus is flaky; retry once square-on north.
-    const opened = await page.waitForFunction(() => window.__fw.laptopOpen === true, null, { timeout: 6000 })
+    const opened = await page.waitForFunction(() => (() => { const a = window.__fw; if (!a || a.laptopOpen !== true) return false; const s = document.querySelector('.laptop-screen'); if (!s || s.style.display === 'none') return false; const f = document.querySelector('.lt-frame'); if (!f) return false; const r = f.getBoundingClientRect(); if (!(r.width > 100 && r.height > 60)) return false; const p = window.__qaLtFrame || {}; window.__qaLtFrame = { x: r.left, w: r.width }; return Math.abs((p.x ?? -1e6) - r.left) < 0.5 && Math.abs((p.w ?? -1e6) - r.width) < 0.5; })(), null, { timeout: 6000 })
       .then(() => true).catch(() => false);
     if (!opened) {
       await page.evaluate(async () => {
         const app = window.__fw;
-        const L = await import('/src/data/shopLayout.js');
+        const L = await import(new URL('src/data/shopLayout.js', document.baseURI).href);
         const o = app.scene3d.clubhouse().interior.position;
         const w = app.scene3d.walk.state;
-        const laptop = L.FRONT_DESK.laptop;
+        const laptop = (() => {
+        // D1: the LIVE rig rather than the layout datum.
+        //
+        // NOT because the datum was stale — it was the first hypothesis and it
+        // is wrong. Measured 2026-08-04: the rig sits at interior-local
+        // (-2.550, 1.557) and FRONT_DESK.laptop reads (-2.550, 1.557). B8 moved
+        // the datum with the machine. This is here so a future move of one
+        // without the other cannot silently re-open the same investigation; the
+        // interior group carries no rotation, so local == world - origin, which
+        // is the frame the surrounding maths is already written in.
+        const ch = app.scene3d.clubhouse();
+        const rig = ch.laptopRig ? ch.laptopRig() : null;
+        const node = rig && rig.object;
+        if (!node) return L.FRONT_DESK.laptop;
+        ch.interior.updateMatrixWorld(true);
+        const m = node.matrixWorld.elements;
+        return { x: m[12] - ch.interior.position.x, z: m[14] - ch.interior.position.z };
+      })();
         w.x = laptop.x + o.x;
         w.z = laptop.z + 0.95 + o.z;
         w.yaw = Math.atan2(0, 1); // face -z, straight at the laptop
@@ -86,7 +120,7 @@ async (page) => {
       });
       await page.waitForTimeout(600);
       await page.keyboard.press('e');
-      await page.waitForFunction(() => window.__fw.laptopOpen === true, null, { timeout: 8000 });
+      await page.waitForFunction(() => (() => { const a = window.__fw; if (!a || a.laptopOpen !== true) return false; const s = document.querySelector('.laptop-screen'); if (!s || s.style.display === 'none') return false; const f = document.querySelector('.lt-frame'); if (!f) return false; const r = f.getBoundingClientRect(); if (!(r.width > 100 && r.height > 60)) return false; const p = window.__qaLtFrame || {}; window.__qaLtFrame = { x: r.left, w: r.width }; return Math.abs((p.x ?? -1e6) - r.left) < 0.5 && Math.abs((p.w ?? -1e6) - r.width) < 0.5; })(), null, { timeout: 8000 });
     }
     await page.waitForFunction(() => { const r = document.querySelector('.laptop-screen'); return r && r.style.display !== 'none'; }, null, { timeout: 15000 });
     await page.waitForFunction(() => {
@@ -143,15 +177,32 @@ async (page) => {
   // The chair diagonal's [E] focus is flaky (laptop-look landed it, this file
   // missed it in the same session). Retry once from the square-on north stand.
   {
-    const opened = await page.waitForFunction(() => window.__fw.laptopOpen === true, null, { timeout: 6000 })
+    const opened = await page.waitForFunction(() => (() => { const a = window.__fw; if (!a || a.laptopOpen !== true) return false; const s = document.querySelector('.laptop-screen'); if (!s || s.style.display === 'none') return false; const f = document.querySelector('.lt-frame'); if (!f) return false; const r = f.getBoundingClientRect(); if (!(r.width > 100 && r.height > 60)) return false; const p = window.__qaLtFrame || {}; window.__qaLtFrame = { x: r.left, w: r.width }; return Math.abs((p.x ?? -1e6) - r.left) < 0.5 && Math.abs((p.w ?? -1e6) - r.width) < 0.5; })(), null, { timeout: 6000 })
       .then(() => true).catch(() => false);
     if (!opened) {
       await page.evaluate(async () => {
         const app = window.__fw;
-        const L = await import('/src/data/shopLayout.js');
+        const L = await import(new URL('src/data/shopLayout.js', document.baseURI).href);
         const o = app.scene3d.clubhouse().interior.position;
         const w = app.scene3d.walk.state;
-        const laptop = L.FRONT_DESK.laptop;
+        const laptop = (() => {
+        // D1: the LIVE rig rather than the layout datum.
+        //
+        // NOT because the datum was stale — it was the first hypothesis and it
+        // is wrong. Measured 2026-08-04: the rig sits at interior-local
+        // (-2.550, 1.557) and FRONT_DESK.laptop reads (-2.550, 1.557). B8 moved
+        // the datum with the machine. This is here so a future move of one
+        // without the other cannot silently re-open the same investigation; the
+        // interior group carries no rotation, so local == world - origin, which
+        // is the frame the surrounding maths is already written in.
+        const ch = app.scene3d.clubhouse();
+        const rig = ch.laptopRig ? ch.laptopRig() : null;
+        const node = rig && rig.object;
+        if (!node) return L.FRONT_DESK.laptop;
+        ch.interior.updateMatrixWorld(true);
+        const m = node.matrixWorld.elements;
+        return { x: m[12] - ch.interior.position.x, z: m[14] - ch.interior.position.z };
+      })();
         w.x = laptop.x + o.x;
         w.z = laptop.z + 0.95 + o.z;
         w.yaw = Math.atan2(0, 1); // face -z, straight at the laptop
@@ -214,7 +265,7 @@ async (page) => {
 
   // --- 2. let the van arrive; the office hears about it --------------------------------------
   await page.evaluate(async () => {
-    const { update } = await import('/src/sim/state.js');
+    const { update } = await import(new URL('src/sim/state.js', document.baseURI).href);
     const st = window.__fw.state;
     const o = st.shop.orders.at(-1);
     update(st, Math.max(60, o.deliveryMin - st.clock.minutes + 10));
@@ -250,8 +301,8 @@ async (page) => {
   if (!slid) fail('pricing: no golf-balls markup slider');
   const priceCheck = await page.evaluate(async () => {
     const st = window.__fw.state;
-    const { priceFor } = await import('/src/sim/shop.js');
-    const { SHOP_CATALOG } = await import('/src/data/shopItems.js');
+    const { priceFor } = await import(new URL('src/sim/shop.js', document.baseURI).href);
+    const { SHOP_CATALOG } = await import(new URL('src/data/shopItems.js', document.baseURI).href);
     const sku = SHOP_CATALOG.find((s) => s.cat === 'balls' && s.tier <= st.shop.unlockedTier);
     return { markup: st.shop.markup.balls, sku: sku.id, ringsUpAt: priceFor(sku, st.shop.markup.balls, null) };
   });
@@ -261,8 +312,8 @@ async (page) => {
 
   // --- 4. save, reload, and check it all held ------------------------------------------------
   const saved = await page.evaluate(async () => {
-    const { saveData } = await import('/src/core/storage.js');
-    const { empireSnapshot } = await import('/src/sim/empire.js');
+    const { saveData } = await import(new URL('src/core/storage.js', document.baseURI).href);
+    const { empireSnapshot } = await import(new URL('src/sim/empire.js', document.baseURI).href);
     await saveData('autosave', empireSnapshot(window.__fw.empire));
     return true;
   });

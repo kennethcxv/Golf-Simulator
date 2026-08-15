@@ -78,7 +78,7 @@ test('every denomination in the tray carries its own ink', () => {
     tints.set(Number(denom), hex.toLowerCase());
   }
   for (const denom of DENOMS) {
-    assert.ok(tints.has(denom), `${denom} has no tint — it would draw as kit-default stock`);
+    assert.ok(tints.has(denom), `${denom} has no tint - it would draw as kit-default stock`);
   }
   assert.equal(new Set(tints.values()).size, tints.size,
     'two denominations share a tint, which is the "five identical rectangles" read');
@@ -107,7 +107,7 @@ test('the open till carries no lamps of its own', () => {
   assert.doesNotMatch(functionBody('updateDrawer'), /PointLight/);
 });
 
-test('the till opens briskly — it is spring-loaded, not motorised', () => {
+test('the till opens briskly - it is spring-loaded, not motorised', () => {
   // At 1.0 the tray took a full second to clear the slab, and that second is
   // the one moment the player is waiting on the register.
   const speed = Number(/const DRAWER_OPEN_SPEED = ([\d.]+)/.exec(source)[1]);
@@ -125,7 +125,7 @@ test('counting change cannot swing the cash summary off the top of the frame', (
 
 // --- ITEM 2: the reader's keys ---------------------------------------------
 
-test('red X cancels, yellow backspaces, green enters — and the caps say so', () => {
+test('red X cancels, yellow backspaces, green enters - and the caps say so', () => {
   assert.deepEqual(CHECKOUT_TERMINAL_KEY_ROLES.clear, { colour: 'red', label: 'X', role: 'cancel' });
   assert.deepEqual(CHECKOUT_TERMINAL_KEY_ROLES.backspace, { colour: 'yellow', label: '⌫', role: 'backspace' });
   assert.deepEqual(CHECKOUT_TERMINAL_KEY_ROLES.confirm, { colour: 'green', label: 'OK', role: 'enter' });
@@ -184,25 +184,89 @@ test('the floated reader is placed on the view axis and hangs its card clear of 
     + '(which points along the view axis and hid the card inside the case)');
 });
 
-test('the reader glass carries the reference bands, not a centred calculator column', () => {
+// ROUND 10 (2026-08-03). This test used to pin the OPPOSITE design: four
+// full-bleed gradient bands — slate status strip, blue caption, navy amount,
+// tinted prompt pill — on a 70 mm screen. Playtest: "the DUE / TOTAL panel
+// reads dated. Make it look like a current payment terminal: clear typographic
+// hierarchy, generous spacing, the amount dominant, prompts secondary."
+//
+// So the assertions invert. One ground, hierarchy carried by TYPE rather than
+// by coloured boxes, and the figure measurably the largest thing on the glass.
+test('the reader glass reads as a current terminal: one ground, hierarchy in the type', () => {
   const face = functionBody('paintTermBandedFace');
-  // Round 7 polish: the status strip carries the LIVE club brand and a green
-  // signal dot; the bands render as gradients on a rounded glass card.
-  assert.match(face, /displayClubName\(\)\.toUpperCase\(\)/, 'the status strip is branded live');
-  assert.match(face, /createLinearGradient/, 'the bands are lit, not flat fills');
-  assert.match(face, /termRoundedPath/, 'the glass is a rounded card');
-  assert.match(face, /ctx\.textAlign = 'left'/, 'the reference face is left-aligned');
-  assert.match(face, /const inner = H - TERM_PAD \* 2/, 'the bands are sized off the glass');
+  assert.match(face, /displayClubName\(\)\.toUpperCase\(\)/, 'the status line is branded live');
+  assert.match(face, /termRoundedPath/, 'the glass is still a rounded card');
+  assert.match(face, /ctx\.textAlign = 'left'/, 'the face hangs off a left margin');
+  assert.match(face, /const inner = H - TERM_PAD \* 2/, 'it is sized off the glass');
+  // THE BANDS ARE GONE, not merely restyled. The dated face stacked several
+  // full-width COLOURED strips, one per section. Q2 (2026-08-06) gave the
+  // glass a single soft ground gradient plus a top sheen, which is depth on
+  // one ground rather than a stack of sections - so the guard pins the intent
+  // (how many, and what colour) instead of banning the primitive outright,
+  // which would have made "cooler and more modern" unimplementable.
+  const gradients = [...face.matchAll(/createLinearGradient/g)].length;
+  assert.ok(gradients <= 2,
+    `one ground and at most a sheen; ${gradients} gradients is a stack of bands again`);
+  // and neither may be tinted with the accent: a coloured strip IS a band
+  const gradientStops = [...face.matchAll(/addColorStop\([^,]+,\s*'([^']+)'/g)].map((m) => m[1]);
+  for (const stop of gradientStops) {
+    assert.ok(/^#[0-9A-Fa-f]{6}$|^rgba\(255,255,255/.test(stop),
+      `the ground carries no colour; ${stop} is a band by another name`);
+  }
+  for (const stop of gradientStops.filter((s) => s.startsWith('#'))) {
+    const [r, g, b] = [1, 3, 5].map((i) => parseInt(stop.slice(i, i + 2), 16));
+    assert.ok(Math.max(r, g, b) - Math.min(r, g, b) < 24,
+      `the ground stays near-neutral; ${stop} is a tinted band`);
+  }
   assert.ok(!source.includes('paintTermLightFace'), 'the flat pale face is deleted, not orphaned');
+  assert.ok(!source.includes('paintTermBandedFaceLegacy'),
+    'the banded face is deleted, not left dormant beside its replacement');
+
+  // THE AMOUNT DOMINATES. Every string on the face is set through
+  // setFittedCanvasFont or a literal font, so the sizes are readable here:
+  // whatever the figure starts at must be several times the eyebrow and prompt.
+  const sizes = [...face.matchAll(/startSize: (\d+)/g)].map((m) => Number(m[1]));
+  assert.ok(sizes.length >= 3, 'the face sets at least three fitted type sizes');
+  const amountSize = Math.max(...sizes);
+  const nextSize = [...sizes].sort((a, b) => b - a)[1];
+  // C13 (2026-08-04) added a second figure to this face — the running KEYED
+  // entry — so "several times the next largest type" had to be restated. The
+  // ratio it now pins is the one the brief asked for: the headline dominates,
+  // and the entry is legible without competing.
+  assert.ok(amountSize >= nextSize * 2.5,
+    `the figure (${amountSize}px) must dominate the next largest type (${nextSize}px)`);
+
   const start = source.indexOf("} else if (stage === 'card-entry') {");
   const end = source.indexOf("} else if (stage === 'card-busy') {", start);
   const entry = source.slice(start, end);
-  // Round 8: the reference caption is the single word "Total" over the figure;
-  // the amount owed moved to the hint chip.
-  assert.match(entry, /caption: 'Total'/, 'the caption band reads Total, reference-style');
-  assert.match(entry, /DUE \$\$\{totalOf\(tx\)/, 'the amount owed rides the hint chip');
-  assert.match(entry, /caret: true/, 'the running entry carries a caret');
-  assert.match(entry, /cardEnteredAmount\(tx\)/, 'the amount band carries the running entry');
+  // C13 REVERSES ROUND 10 ON PURPOSE. Round 10 made the big figure the amount
+  // being keyed and pushed what is owed into a 25 px footer line. "Make the
+  // amount owed noticeably bigger on the card reader's screen during a card
+  // transaction. It is the one number that matters on that display and it
+  // should dominate everything else on the glass."
+  assert.match(entry, /caption: 'Amount due'/,
+    'the eyebrow names the headline, and the headline is what is OWED');
+  assert.match(entry, /amount: `\$\$\{totalOf\(tx\)\.toFixed\(2\)\}`/,
+    'the dominant figure is the amount due');
+  // …and round 10's finding is NOT undone: hiding the entry made keying the
+  // total feel like guesswork, so the running figure stays live and carries
+  // the caret. It is simply no longer the headline.
+  assert.match(entry, /entry: typed/, 'the running entry is still drawn');
+  assert.match(entry, /caret: true/, 'and still carries the caret');
+  assert.match(entry, /cardEnteredAmount\(tx\)/, 'from the live keyed amount');
+});
+
+// A3 — "the card must actually enter the slot. It sits against the reader
+// rather than in it." Measured with tools/qa/checkout-reader-geometry.js:
+// 7.9% of the card's volume was inside the reader, the rest hanging in air.
+// The seat is now the card's own half-length off the authored socket, which
+// puts its head at the contacts — measured back at 30.1%.
+test('an inserted card is seated by its own measurement, not by a tuned constant', () => {
+  const path = functionBody('refreshCardInsertPath');
+  assert.match(path, /addScaledVector\(out, \(CARD_WIDTH \/ 2\) \* termScale\)/,
+    'the seat depth is half the card, so its top edge lands on the socket at any scale');
+  assert.doesNotMatch(path, /addScaledVector\(out, 0\.062/,
+    'the hand-tuned world-scale constant is gone');
 });
 
 // --- ITEM 1: the working frame ---------------------------------------------
@@ -221,7 +285,7 @@ test('the working frame is solved from the counter, not typed', () => {
       `the solve still depends on ${transient}, so the frame drifts when it disappears`);
   }
   assert.match(solved, /solveFramingPose\(\{/, 'it goes through the shared framing solver');
-  assert.match(solved, /workPoseCache/, 'the solve is cached — a frame that chases the customer is a ride');
+  assert.match(solved, /workPoseCache/, 'the solve is cached - a frame that chases the customer is a ride');
   const dynamic = functionBody('dynamicPose');
   assert.match(dynamic, /key === 'overview' \|\| key === 'scan'\) return derivedWorkingPose/,
     'browsing and scanning both use the derived frame');

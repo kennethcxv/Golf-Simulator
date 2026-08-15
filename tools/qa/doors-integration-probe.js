@@ -10,8 +10,8 @@ async (page) => {
     waitUntil: 'domcontentloaded',
     timeout: 30000,
   });
-  const continueButton = page.getByText('Continue', { exact: true });
-  if (await continueButton.count()) await continueButton.click().catch(() => {});
+  const { clickThroughMenu } = await import(`file:///${process.cwd().replace(/\\/g, '/')}/tools/qa/lib/qa-boot.mjs`);
+  await clickThroughMenu(page);
   await page.waitForTimeout(12000);
   const state = await page.evaluate(() => {
     const scene = window.__fw?.scene3d || null;

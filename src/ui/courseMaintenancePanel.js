@@ -120,9 +120,8 @@ export function makeCourseMaintenancePanel(app, handlers) {
     const reasons = model.score.reasons?.length
       ? model.score.reasons
       : latestMeaningfulScore?.reasons || [];
-    const saveLoadComplete = model.workOrder.steps.find((step) => step.id === 'save-load')?.complete;
-    scoreWhy.textContent = saveLoadComplete
-      ? 'Work order complete · save and reload verified'
+    scoreWhy.textContent = model.workOrder.completedAtMinute !== null
+      ? 'Work order complete.'
       : aimedReport?.fertilizerPending > 0
         ? 'Feed response pending · releases gradually over game time'
         : reasons.length

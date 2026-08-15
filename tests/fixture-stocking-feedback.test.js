@@ -7,7 +7,7 @@ test('wrong stocking fixtures identify the product and its correct destination w
   const label = incompatibleStockingLabel('Accessories', 'Range-rock dozen', 'Ball wall');
   assert.equal(
     label,
-    'Accessories — Range-rock dozen cannot be stocked here · take it to Ball wall',
+    'Accessories - Range-rock dozen cannot be stocked here · take it to Ball wall',
   );
   assert.doesNotMatch(label, /\[E\]|stock the/i);
 });
@@ -15,6 +15,6 @@ test('wrong stocking fixtures identify the product and its correct destination w
 test('wrong stocking fixture feedback retains a safe destination when layout data is unavailable', () => {
   assert.equal(
     incompatibleStockingLabel('Shoe wall', 'Ironwood stand bag'),
-    'Shoe wall — Ironwood stand bag cannot be stocked here · take it to its assigned display',
+    'Shoe wall - Ironwood stand bag cannot be stocked here · take it to its assigned display',
   );
 });

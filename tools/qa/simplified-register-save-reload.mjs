@@ -149,7 +149,8 @@ function same(left, right) {
 async function waitForGame(page) {
   await page.setViewportSize(VIEWPORT);
   await page.waitForTimeout(850);
-  await page.getByText('Continue', { exact: true }).click().catch(() => {});
+  const { clickThroughMenu } = await import(`file:///${process.cwd().replace(/\\/g, '/')}/tools/qa/lib/qa-boot.mjs`);
+  await clickThroughMenu(page);
   await page.waitForFunction(() => window.__fw?.scene3d?.clubhouse?.(), null,
     { timeout: 40000 });
   // Random shoppers make a repeated-load comparison nondeterministic. Disable
@@ -215,7 +216,7 @@ async function waitCamera(page, workspace, timeout = 12000) {
 
 async function projectObject(page, predicate) {
   return page.evaluate(async (query) => {
-    const THREE = await import('/vendor/three.module.js');
+    const THREE = await import(new URL('vendor/three.module.js', document.baseURI).href);
     const app = window.__fw;
     const clubhouse = app.scene3d.clubhouse();
     let found = null;
@@ -264,7 +265,7 @@ async function checkoutSnapshot(page, skuIds = []) {
     const state = app.state;
     const camera = app.scene3d.camera;
     const walk = app.scene3d.walk.state;
-    const { CHECKOUT_STATES } = await import('/src/sim/registerFlow.js');
+    const { CHECKOUT_STATES } = await import(new URL('src/sim/registerFlow.js', document.baseURI).href);
     const clone = (value) => (value === undefined ? null : structuredClone(value));
     const flowState = tx?.checkoutFlow?.state || null;
     const flowSpec = flowState ? CHECKOUT_STATES[flowState] || null : null;
@@ -457,9 +458,9 @@ async function createFixture(page, skuIds, payment, authorizationRng = []) {
     const app = window.__fw;
     const clubhouse = app.scene3d.clubhouse();
     const shop = app.state.shop;
-    const { capacityOf } = await import('/src/data/fixtureSlots.js');
-    const { REGISTER } = await import('/src/data/shopLayout.js');
-    const register = await import('/src/sim/register.js');
+    const { capacityOf } = await import(new URL('src/data/fixtureSlots.js', document.baseURI).href);
+    const { REGISTER } = await import(new URL('src/data/shopLayout.js', document.baseURI).href);
+    const register = await import(new URL('src/sim/register.js', document.baseURI).href);
     clubhouse.setOrganicWalkins(false);
     clubhouse.clearWalkins();
     if (!shop.drawer) shop.drawer = register.newDrawer();
@@ -560,8 +561,8 @@ async function prepareFixture(page, skuIds, payment, authorizationRng = []) {
     const app = window.__fw;
     const clubhouse = app.scene3d.clubhouse();
     const shop = app.state.shop;
-    const { capacityOf } = await import('/src/data/fixtureSlots.js');
-    const register = await import('/src/sim/register.js');
+    const { capacityOf } = await import(new URL('src/data/fixtureSlots.js', document.baseURI).href);
+    const register = await import(new URL('src/sim/register.js', document.baseURI).href);
     clubhouse.setOrganicWalkins(false);
     clubhouse.clearWalkins();
     if (!shop.drawer) shop.drawer = register.newDrawer();
@@ -690,7 +691,7 @@ async function clickCardX(page) {
 
 async function enterExactCardTotal(page) {
   const expectedCents = await page.evaluate(async () => {
-    const register = await import('/src/sim/register.js');
+    const register = await import(new URL('src/sim/register.js', document.baseURI).href);
     return Math.round(register.totalOf(
       window.__fw.scene3d.clubhouse().register.getTx(),
     ) * 100);
@@ -724,13 +725,13 @@ async function selectCashPiece(page, denom) {
   const slot = await projectObject(page, { kind: 'drawer-slot', denom });
   assert(slot?.inView, `Drawer denomination ${denom} was outside the player camera.`);
   const before = await page.evaluate(async () => {
-    const register = await import('/src/sim/register.js');
+    const register = await import(new URL('src/sim/register.js', document.baseURI).href);
     const tx = window.__fw.scene3d.clubhouse().register.getTx();
     return register.handTotal(tx);
   });
   await page.mouse.click(slot.x, slot.y);
   await page.waitForFunction(async (prior) => {
-    const register = await import('/src/sim/register.js');
+    const register = await import(new URL('src/sim/register.js', document.baseURI).href);
     const tx = window.__fw.scene3d.clubhouse().register.getTx();
     return register.handTotal(tx) > prior;
   }, before, { timeout: 4000 });
@@ -1027,7 +1028,7 @@ async function takePresentedCashAtDrawerOpening(page) {
 
 async function exactChangePlan(page) {
   return page.evaluate(async () => {
-    const register = await import('/src/sim/register.js');
+    const register = await import(new URL('src/sim/register.js', document.baseURI).href);
     const app = window.__fw;
     const tx = app.scene3d.clubhouse().register.getTx();
     const due = register.changeDue(tx);

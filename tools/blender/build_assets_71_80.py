@@ -219,40 +219,70 @@ def _root(number: int, *, first_person: bool = False, **properties: object):
         root["held_pose_axis"] = "tool points forward along -Y"
     for key, value in properties.items():
         root[key] = value
-    return root, A.palette_materials()
+    return root, A.palette_materials(textured=True)
 
 
 def _materials() -> dict[str, bpy.types.Material]:
     return {
-        "machine_green": A.material("S08_MachineGreen", (0.030, 0.088, 0.052, 1.0), roughness=0.44),
-        "machine_shell": A.material("S08_MachineShell", (0.055, 0.130, 0.082, 1.0), roughness=0.40),
-        "hard_black": A.material("S08_HardBlack", (0.021, 0.022, 0.024, 1.0), roughness=0.41),
-        "matte_black": A.material("S08_MatteBlack", (0.014, 0.015, 0.016, 1.0), roughness=0.72),
-        "hose_black": A.material("S08_HoseBlack", (0.026, 0.027, 0.030, 1.0), roughness=0.58),
+        "machine_green": A.material("S08_MachineGreen", (0.030, 0.088, 0.052, 1.0), roughness=0.44,
+                                    texture="PaintedMetal001", uv_scale=2.4),
+        "machine_shell": A.material("S08_MachineShell", (0.055, 0.130, 0.082, 1.0), roughness=0.40,
+                                    texture="PaintedMetal001", uv_scale=2.4),
+        "hard_black": A.material("S08_HardBlack", (0.021, 0.022, 0.024, 1.0), roughness=0.41,
+                                 texture="Rubber004", uv_scale=3.0),
+        "matte_black": A.material("S08_MatteBlack", (0.014, 0.015, 0.016, 1.0), roughness=0.72,
+                                  texture="Rubber004", uv_scale=3.0),
+        "hose_black": A.material("S08_HoseBlack", (0.026, 0.027, 0.030, 1.0), roughness=0.58,
+                                 texture="Rubber004", uv_scale=6.0),
         # Polythene gloss: a touch rougher than before but with a clear coat so the
         # sack catches a soft sheen rather than reading as a dead matte blob (defect #11).
-        "bag_black": A.material("S08_BagPolyethylene", (0.017, 0.018, 0.020, 1.0), roughness=0.34, coat=0.30),
-        "bucket_yellow": A.material("S08_BucketYellow", (0.62, 0.44, 0.030, 1.0), roughness=0.47),
-        "caution_black": A.material("S08_CautionMark", (0.035, 0.032, 0.020, 1.0), roughness=0.55),
+        "bag_black": A.material("S08_BagPolyethylene", (0.017, 0.018, 0.020, 1.0), roughness=0.34, coat=0.30,
+                                texture="Rubber004", uv_scale=2.0),
+        "bucket_yellow": A.material("S08_BucketYellow", (0.62, 0.44, 0.030, 1.0), roughness=0.47,
+                                    texture="PaintedMetal001", uv_scale=2.6, texture_mode="surface"),
+        "caution_black": A.material("S08_CautionMark", (0.035, 0.032, 0.020, 1.0), roughness=0.55,
+                                    texture="PaintedMetal001", uv_scale=2.6, texture_mode="surface"),
         # Warm ecru cotton yarn (#E4DCC6, linear-converted per lib convention) —
         # the straight white spoke-fan read as plastic; ecru reads as damp-able cotton.
-        "mop_cotton": A.material("S08_MopCotton", A.hex_to_linear_rgba("E4DCC6"), roughness=0.90),
-        "bristle": A.material("S08_Bristle", (0.038, 0.036, 0.034, 1.0), roughness=0.80),
+        # E2 (Goal 18): a used string mop is DAMP GREY, not cream — the white
+        # read was defect one of four in the playtest image.
+        "mop_cotton": A.material("S08_MopCotton", A.hex_to_linear_rgba("A9A294"), roughness=0.96,
+                                 texture="Fabric030", uv_scale=4.0),
+        "bristle": A.material("S08_Bristle", (0.038, 0.036, 0.034, 1.0), roughness=0.80,
+                              texture="Fabric030", uv_scale=5.0),
         # Medium walnut for the mop + broom timber (defect #8: the ash read too pale).
-        "wood_walnut": A.material("S08_WoodWalnut", A.hex_to_linear_rgba("704934"), roughness=0.50),
+        "wood_walnut": A.material("S08_WoodWalnut", A.hex_to_linear_rgba("704934"), roughness=0.50,
+                                  texture="Wood062", uv_scale=6.0),
+        # B2/G4 — TWO MATERIALS THE BROOM WAS MISSING, both from TOOL_SET.md's
+        # criteria: a material break on a real part boundary, and something that
+        # catches a highlight. The whole handle was one matte walnut, so a
+        # 1.32 m pole filling the lower frame had nothing on it for the eye to
+        # land on. The lacquer is the same timber finished; the wrap is where
+        # the hands actually go.
+        "wood_lacquer": A.material("S08_WoodLacquer", A.hex_to_linear_rgba("7A5238"), roughness=0.22,
+                                   texture="Wood062", uv_scale=6.0),
+        "grip_wrap": A.material("S08_GripWrap", A.hex_to_linear_rgba("2C3A32"), roughness=0.78,
+                                texture="Fabric030", uv_scale=8.0),
         # Restrained brass for the mop head band + broom ferrule (Pinehollow palette).
-        "brass": A.material("S08_Brass", A.hex_to_linear_rgba("9B7A3B"), roughness=0.32, metallic=0.88),
+        "brass": A.material("S08_Brass", A.hex_to_linear_rgba("9B7A3B"), roughness=0.32, metallic=0.88,
+                            texture="Metal032", uv_scale=5.0),
         # Label plate + extruded lettering for the spray bottle (cream plate, deep-green text).
         "label_cream": A.material("S08_LabelCream", A.hex_to_linear_rgba("E8DFC9"), roughness=0.70),
         "label_green": A.material("S08_LabelGreen", A.hex_to_linear_rgba("173F32"), roughness=0.46),
-        "bottle_white": A.material("S08_BottleWhite", (0.74, 0.73, 0.70, 1.0), roughness=0.36),
+        "bottle_white": A.material("S08_BottleWhite", (0.74, 0.73, 0.70, 1.0), roughness=0.36,
+                                   texture="PaintedMetal001", uv_scale=3.0, texture_mode="surface"),
         "bottle_fluid": A.material("S08_CleanerFluid", (0.24, 0.42, 0.28, 1.0), roughness=0.18,
                                    alpha=0.55, transmission=0.55, double_sided=True),
-        "trigger_green": A.material("S08_TriggerGreen", (0.045, 0.175, 0.095, 1.0), roughness=0.42),
-        "cloth_green": A.material("S08_MicrofibreGreen", (0.055, 0.155, 0.105, 1.0), roughness=0.90),
-        "sponge_yellow": A.material("S08_SpongeYellow", (0.72, 0.58, 0.115, 1.0), roughness=0.93),
-        "sponge_scour": A.material("S08_SpongeScour", (0.048, 0.115, 0.062, 1.0), roughness=0.95),
-        "safety_yellow": A.material("S08_SafetyYellow", (0.72, 0.52, 0.045, 1.0), roughness=0.52),
+        "trigger_green": A.material("S08_TriggerGreen", (0.045, 0.175, 0.095, 1.0), roughness=0.42,
+                                    texture="PaintedMetal001", uv_scale=3.5, texture_mode="surface"),
+        "cloth_green": A.material("S08_MicrofibreGreen", (0.055, 0.155, 0.105, 1.0), roughness=0.90,
+                                  texture="Fabric030", uv_scale=4.0),
+        "sponge_yellow": A.material("S08_SpongeYellow", (0.72, 0.58, 0.115, 1.0), roughness=0.93,
+                                    texture="Foam001", uv_scale=3.0),
+        "sponge_scour": A.material("S08_SpongeScour", (0.048, 0.115, 0.062, 1.0), roughness=0.95,
+                                   texture="Foam001", uv_scale=4.0),
+        "safety_yellow": A.material("S08_SafetyYellow", (0.72, 0.52, 0.045, 1.0), roughness=0.52,
+                                    texture="PaintedMetal001", uv_scale=2.6, texture_mode="surface"),
     }
 
 
@@ -362,11 +392,11 @@ def _mop_skirt(name: str, parent: bpy.types.Object, mat: bpy.types.Material, *,
         w = ((i * 4) % 3) / 2.0        # 0..1
         u = ((i * 3) % 7) / 6.0        # 0..1
         r_belly = belly_r * (0.86 + 0.24 * w)
-        rad = 0.0078 + 0.0032 * u
+        rad = 0.0050 + 0.0022 * u  # E2: finer yarn
         # Belly sits around mid-height, so each strand eases out to a rounded shoulder and
         # then hangs down, curling back in at the hem (r_tip well inside r_belly) — the soft
         # drooping cotton read, not a wide spoke brim with pointy tips.
-        belly_z = tip_z + span * (0.50 - 0.05 * w)
+        belly_z = tip_z + span * (0.40 - 0.05 * w)  # E2: shoulder rides lower — heavy
         r_tip = r_belly * (0.66 + 0.16 * v)
         p_hub = (ox + ca * hub_r, oy + sa * hub_r, hub_z)
         p_belly = (ox + ca * r_belly, oy + sa * r_belly, belly_z)
@@ -424,10 +454,25 @@ def _mop_geometry(parent: bpy.types.Object, m: dict, *, tip_z: float = 0.0,
     def along(distance: float) -> tuple[float, float, float]:
         return (0.0, dy * distance, tip_z + dz * distance)
 
+    # B2/G4 — SECOND WORST BY DENSITY, and the same three faults as the broom:
+    # one matte material down the whole pole, nothing to catch a light, and a
+    # 14-sided cylinder held half a yard from the lens. Same answers, sized for
+    # a mop: a finished pole, a wrap where the hands close, a capped end.
     A.cylinder("MopHandle", 0.016, handle_len, along(0.26 + handle_len / 2.0),
-               m["wood_walnut"], rotation=(-rake, 0.0, 0.0), vertices=14, parent=parent, bevel=0.003)
+               m["wood_lacquer"], rotation=(-rake, 0.0, 0.0), vertices=20, parent=parent, bevel=0.003)
+    grip_lo = 0.26 + handle_len * 0.46
+    grip_hi = 0.26 + handle_len * 0.88
+    A.cylinder("MopGripWrap", 0.0182, grip_hi - grip_lo, along((grip_lo + grip_hi) / 2.0),
+               m["grip_wrap"], rotation=(-rake, 0.0, 0.0), vertices=20, parent=parent, bevel=0.002)
+    for k in range(3):
+        A.torus(f"MopGripBand_{k}", 0.0185, 0.0026, along(grip_lo + 0.02 + k * 0.155),
+                m["brass"], rotation=(-rake, 0.0, 0.0), major_segments=14, minor_segments=6,
+                parent=parent)
     A.cylinder("MopHandleCap", 0.018, 0.030, along(0.26 + handle_len + 0.004),
-               m["hard_black"], rotation=(-rake, 0.0, 0.0), vertices=14, parent=parent, bevel=0.003)
+               m["brass"], rotation=(-rake, 0.0, 0.0), vertices=18, parent=parent, bevel=0.003)
+    A.torus("MopHangHole", 0.0074, 0.0022, along(0.26 + handle_len + 0.014),
+            m["brass"], rotation=(-rake + math.pi / 2.0, 0.0, 0.0), major_segments=12,
+            minor_segments=6, parent=parent)
     A.cylinder("MopCollar", 0.042, 0.085, along(0.240),
                m["hard_black"], rotation=(-rake, 0.0, 0.0), vertices=16, parent=parent, bevel=0.004)
     # Brass band clamping the yarn at the head joint (defect #3).
@@ -436,9 +481,12 @@ def _mop_geometry(parent: bpy.types.Object, m: dict, *, tip_z: float = 0.0,
     # A drooping two-segment cotton skirt, hem at the floor-contact plane. It hangs under
     # gravity regardless of how the handle is held, and ships as one MESH_MopSkirt the
     # runtime damp-tint retints between wet and dry.
-    strands = _mop_skirt("MopStrand", parent, m["mop_cotton"], count=52,
+    # E2 (Goal 18): 52 chunky spokes read as a shaving brush. Ninety-six
+    # finer strands, a tighter belly and a lower shoulder read as wet cotton
+    # hanging heavy.
+    strands = _mop_skirt("MopStrand", parent, m["mop_cotton"], count=96,
                          origin=(0.0, dy * 0.178, tip_z + 0.190), tip_z=tip_z,
-                         belly_r=0.122)
+                         belly_r=0.112)
     _join(strands, "MopSkirt", parent)
     return {
         "collar": (0.0, collar_y, collar_z),
@@ -479,10 +527,49 @@ def _broom_geometry(parent: bpy.types.Object, m: dict, *, floor_z: float = 0.0,
     def along(distance: float) -> tuple[float, float, float]:
         return (0.0, dy * distance, base_z + dz * distance)
 
+    # B2/G4 — REBUILT TO THE COUNTER'S STANDARD (Designs/ProShop/TOOL_SET.md).
+    #
+    # The broom ranks WORST of the nine by density: 10,164 triangles spread over
+    # 2.8% of the frame, which is the most screen any tool asks for per triangle
+    # it spends. That is not a call to add polygons for their own sake — it is
+    # what the four criteria in TOOL_SET.md are for:
+    #
+    #   chamfered edges      already true, and kept
+    #   material breaks on   the handle was ONE matte walnut from ferrule to
+    #   real boundaries      butt. A real push broom has a finished pole, a
+    #                        wrapped grip and a capped end.
+    #   something to catch   nothing but the brass collar. A lacquered band at
+    #   a highlight          roughness 0.22 gives the pole a specular run.
+    #   detail at VIEWMODEL  the pole was a 14-sided cylinder held half a yard
+    #   distance             from the eye — the facets are visible. 20 sides.
     A.cylinder("BroomFerrule", 0.026, 0.075, along(0.030), m["brass"],
-               rotation=(-tilt, 0.0, 0.0), vertices=12, parent=parent, bevel=0.003)
-    A.cylinder("BroomHandle", 0.0155, handle_len, along(handle_len / 2.0), m["wood_walnut"],
-               rotation=(-tilt, 0.0, 0.0), vertices=14, parent=parent, bevel=0.003)
+               rotation=(-tilt, 0.0, 0.0), vertices=16, parent=parent, bevel=0.003)
+    # a second collar where the ferrule is pinned, so the joint reads as made
+    A.torus("BroomFerrulePin", 0.0262, 0.0045, along(0.062), m["brass"],
+            rotation=(-tilt, 0.0, 0.0), major_segments=14, minor_segments=6, parent=parent)
+    A.cylinder("BroomHandle", 0.0155, handle_len, along(handle_len / 2.0), m["wood_lacquer"],
+               rotation=(-tilt, 0.0, 0.0), vertices=20, parent=parent, bevel=0.003)
+    # THE GRIP, where the hands are and therefore where the eye is. Slightly
+    # proud of the pole so it reads by silhouette as well as by colour, and
+    # spanning both authored grip sockets rather than an arbitrary stretch.
+    grip_lo, grip_hi = handle_len * 0.52, handle_len * 0.90
+    A.cylinder("BroomGripWrap", 0.0178, grip_hi - grip_lo, along((grip_lo + grip_hi) / 2.0),
+               m["grip_wrap"], rotation=(-tilt, 0.0, 0.0), vertices=20, parent=parent, bevel=0.002)
+    for k in range(3):
+        A.torus(f"BroomGripBand_{k}", 0.0181, 0.0026, along(grip_lo + 0.02 + k * 0.145),
+                m["brass"], rotation=(-tilt, 0.0, 0.0), major_segments=14, minor_segments=6,
+                parent=parent)
+    # A CAPPED BUTT with a hanging hole: the end of the pole was a bare disc, and
+    # it is the part nearest the lens at every working pitch.
+    A.cylinder("BroomButtCap", 0.0172, 0.028, along(handle_len - 0.014), m["brass"],
+               rotation=(-tilt, 0.0, 0.0), vertices=18, parent=parent, bevel=0.004)
+    A.torus("BroomHangHole", 0.0072, 0.0022, along(handle_len - 0.006), m["brass"],
+            rotation=(-tilt + math.pi / 2.0, 0.0, 0.0), major_segments=12, minor_segments=6,
+            parent=parent)
+    # the seat where the bristles enter the block: a darker inset strip, so the
+    # bristle field looks bedded into timber instead of glued under it
+    A.box("BroomBristleSeat", (0.500, 0.060, 0.012), (0.0, 0.0, block_z - 0.028),
+          m["bristle"], parent=parent, bevel=0.003)
     return {
         "block_z": block_z, "tilt": tilt, "handle_len": handle_len,
         "contact": (0.0, 0.0, floor_z + 0.004),
@@ -522,13 +609,28 @@ def _dustpan_geometry(parent: bpy.types.Object, m: dict, *, floor_z: float = 0.0
     def along(distance: float) -> tuple[float, float, float]:
         return (0.0, base_y + dy * distance, base_z + dz * distance)
 
+    # B2: same three faults as the broom, same three answers. A 12-sided pole
+    # held near the lens shows its facets; hard_black on matte_black is not a
+    # material BREAK, it is two blacks; and nothing on it caught a light.
     A.cylinder("DustpanHandle", 0.014, handle_len, along(handle_len / 2.0),
-               m["hard_black"], rotation=(-rake, 0.0, 0.0), vertices=12, parent=parent, bevel=0.003)
+               m["hard_black"], rotation=(-rake, 0.0, 0.0), vertices=18, parent=parent, bevel=0.003)
     A.cylinder("DustpanHandleGrip", 0.020, 0.115, along(handle_len - 0.070),
-               m["matte_black"], rotation=(-rake, 0.0, 0.0), vertices=12, parent=parent, bevel=0.004)
-    A.torus("DustpanHangLoop", 0.020, 0.005, along(handle_len + 0.016), m["hard_black"],
+               m["grip_wrap"], rotation=(-rake, 0.0, 0.0), vertices=18, parent=parent, bevel=0.004)
+    for k in range(2):
+        A.torus(f"DustpanGripBand_{k}", 0.0206, 0.0024, along(handle_len - 0.115 + k * 0.090),
+                m["brass"], rotation=(-rake, 0.0, 0.0), major_segments=14, minor_segments=6,
+                parent=parent)
+    A.torus("DustpanHangLoop", 0.020, 0.005, along(handle_len + 0.016), m["brass"],
             rotation=(math.pi / 2.0 - rake, 0.0, 0.0), major_segments=16, minor_segments=6,
             parent=parent)
+    # a brass wear strip along the lip: the edge that scrapes the floor, and the
+    # one part of a dustpan that is always polished bright by use
+    # The part-visibility sweep caught the first attempt at this BURIED: at
+    # y -pan_d/2 - 0.009 it sat entirely inside DustpanLip, which is 0.020 deep
+    # and centred 3 mm behind it. A wear strip has to be PROUD of the lip it
+    # protects, so it stands 2 mm in front of the lip's own front face.
+    A.box("DustpanLipStrip", (pan_w * 0.96, 0.008, 0.007),
+          (0.0, -pan_d / 2.0 - 0.018, lip_z + 0.002), m["brass"], parent=parent, bevel=0.001)
     return {
         "pan_depth": pan_d,
         "intake": (0.0, -pan_d / 2.0 + 0.02, lip_z + 0.02),
@@ -556,6 +658,9 @@ def _spray_bottle_geometry(parent: bpy.types.Object, m: dict, *, base_z: float =
         parent=parent, bevel=0.004,
     )
     neck_z = base_z + body_h + 0.030
+    # B2: a brass ring at the neck, so the bottle has one bright fitting
+    A.torus("SprayNeckRing", 0.0216, 0.0030, (0.0, 0.0, neck_z + 0.028), m["brass"],
+            major_segments=16, minor_segments=6, parent=parent)
     A.cylinder("SprayCollar", 0.021, 0.026, (0.0, 0.0, neck_z + 0.013), m["trigger_green"],
                vertices=16, parent=parent, bevel=0.003)
     head_z = neck_z + 0.030
@@ -615,6 +720,13 @@ def _washer_gun_geometry(parent: bpy.types.Object, m: dict, *, origin_z: float =
     A.box("GunGrip", (0.042, 0.056, 0.145), (0.0, 0.055, grip_top_z - 0.082),
           m["hard_black"], parent=parent, bevel=0.012, bevel_segments=3,
           rotation=(math.radians(-13.0), 0.0, 0.0))
+    # B2: the wand's grip strap becomes a real material break, and the lance
+    # gets a brass union at the gun - the one bright fitting on a black tool.
+    # ...and the same sweep caught this one buried inside GunBody, which spans
+    # y -0.065..0.085. A union sits where the lance LEAVES the gun, forward of
+    # the body's own front face, and stands proud of the 0.0125 lance.
+    A.torus("GunLanceUnion", 0.0180, 0.0042, (0.0, -0.082, grip_top_z + 0.010), m["brass"],
+            rotation=(math.pi / 2.0, 0.0, 0.0), major_segments=14, minor_segments=6, parent=parent)
     A.box("GunGripStrap", (0.046, 0.020, 0.100), (0.0, 0.082, grip_top_z - 0.072),
           m["matte_black"], parent=parent, bevel=0.006)
     A.box("GunBody", (0.048, 0.150, 0.062), (0.0, 0.010, grip_top_z + 0.006),
@@ -689,8 +801,16 @@ def _vacuum_wand_geometry(parent: bpy.types.Object, m: dict) -> dict:
         along(wand_top), along(0.56), along(0.24), along(0.03),
         (0.0, -0.128, 0.044), (0.0, -0.150, 0.020),
     ), 0.019, m["matte_black"], parent=parent, resolution=4, bevel_resolution=4)
-    A.cylinder("VacWandGrip", 0.026, 0.150, along(0.580), m["hard_black"],
-               rotation=(-rake, 0.0, 0.0), vertices=14, parent=parent, bevel=0.004)
+    # B2: the wand's grip was hard_black on a matte_black spine - two blacks, no
+    # break, nothing to catch a light, and 14 sides at viewmodel distance.
+    A.cylinder("VacWandGrip", 0.026, 0.150, along(0.580), m["grip_wrap"],
+               rotation=(-rake, 0.0, 0.0), vertices=20, parent=parent, bevel=0.004)
+    for k in range(2):
+        A.torus(f"VacGripBand_{k}", 0.0264, 0.0026, along(0.520 + k * 0.120), m["brass"],
+                rotation=(-rake, 0.0, 0.0), major_segments=14, minor_segments=6, parent=parent)
+    # a brass collar where the wand telescopes, the one bright fitting on it
+    A.torus("VacWandJoint", 0.0212, 0.0038, along(0.330), m["brass"],
+            rotation=(-rake, 0.0, 0.0), major_segments=14, minor_segments=6, parent=parent)
     A.cylinder("VacWandCollar", 0.023, 0.040, along(0.060), m["hard_black"],
                rotation=(-rake, 0.0, 0.0), vertices=12, parent=parent, bevel=0.002)
     # Corrugated hose stub above the grip: shallow ribs where the flexible hose meets the
@@ -755,6 +875,18 @@ def _trash_bag_geometry(parent: bpy.types.Object, m: dict, *, base_z: float = 0.
                vertices=14, parent=parent, bevel=0.014)
     A.box("BagKnot", (0.105, 0.085, 0.055), (0.0, 0.0, base_z + 0.688), m["bag_black"],
           parent=parent, bevel=0.022, bevel_segments=3)
+    # B2/G4 — THE BAG WAS ONE MATTE BLACK OVOID. Third of the three the brief
+    # names, and the one with the least on it: no seam, no tie, nothing that
+    # catches a light, so at viewmodel distance it read as a dark hole in the
+    # lower frame. A drawstring at the neck and a gusset seam down the belly are
+    # the two things a real sack has that a blob does not.
+    A.torus("BagDrawstring", 0.058, 0.0075, (0.0, 0.0, base_z + 0.648), m["grip_wrap"],
+            major_segments=18, minor_segments=8, parent=parent)
+    A.torus("BagTieRing", 0.030, 0.0055, (0.0, 0.0, base_z + 0.712), m["brass"],
+            major_segments=14, minor_segments=6, parent=parent)
+    for side, sx in (("R", 1.0), ("L", -1.0)):
+        A.box(f"BagSeam{side}", (0.012, 0.010, 0.44), (sx * 0.228, 0.0, base_z + 0.300),
+              m["grip_wrap"], parent=parent, bevel=0.004, bevel_segments=2)
     # Two pinched tie "ears" flaring off the knot — a thin triangular flap each, so they
     # read as gathered polythene rather than a pair of blocks.
     ear_profile = ((0.0, -0.028), (0.0, 0.052), (0.128, 0.016))
@@ -1525,6 +1657,11 @@ def build_77_fp() -> bpy.types.Object:
           parent=cloth, bevel=0.015, bevel_segments=2)
     # One corner flap hangs below the palm plane so the cloth drapes off a loose, weighted
     # corner rather than sitting as a rigid brick.
+    # B2: a stitched hem down two edges. A microfibre cloth is a hemmed square,
+    # and without it the pad was six untrimmed boxes of one colour.
+    for side, sy in (("A", -1.0), ("B", 1.0)):
+        A.box(f"ClothHem{side}", (0.171, 0.009, 0.062), (0.0, sy * 0.0735, 0.030),
+              m["grip_wrap"], parent=cloth, bevel=0.003)
     A.box("ClothCornerFlap", (0.072, 0.058, 0.028), (0.064, -0.050, -0.028), m["cloth_green"],
           parent=cloth, bevel=0.012, bevel_segments=2, rotation=(0.42, 0.0, -0.30))
     sponge = _group("SpongeHeld", root)
@@ -1532,6 +1669,10 @@ def build_77_fp() -> bpy.types.Object:
           m["sponge_yellow"], parent=sponge, bevel=0.010, bevel_segments=3)
     A.box("SpongeScourPad", (0.108, 0.068, 0.011), (0.180, 0.0, 0.001),
           m["sponge_scour"], parent=sponge, bevel=0.005)
+    # B2: the glue line between foam and scour. Two boxes stacked read as two
+    # boxes; a seam reads as one sponge.
+    A.box("SpongeSeam", (0.110, 0.070, 0.004), (0.180, 0.0, 0.008),
+          m["grip_wrap"], parent=sponge, bevel=0.001)
     _marker("ClothGrip", root, (0.0, 0.0, 0.058), rotation=FORWARD, hand="right")
     _marker("ClothContact", root, (0.0, 0.0, 0.000), rotation=DOWN,
             cleaning_contact=True, contact_radius_m=0.10, authoritative_emission=True)
@@ -1660,6 +1801,12 @@ def _parse_cli(argv: Sequence[str]) -> tuple[int | None, bool, A.BuildOptions]:
     index = 0
     while index < len(argv):
         arg = argv[index]
+        # Same geometry, same colours, maps withheld — the control half of the
+        # before/after comparison for the CC0 pass.
+        if arg == "--untextured":
+            A.set_cc0_enabled(False)
+            index += 1
+            continue
         if arg == "--asset":
             if index + 1 >= len(argv):
                 raise SystemExit("--asset requires a number from 71 through 80")

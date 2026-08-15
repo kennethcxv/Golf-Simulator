@@ -57,7 +57,7 @@ export function makeEmpirePanel(app, handlers) {
       rows.push(el('div', { class: 'listing' },
         el('div', { class: 'row' },
           el('strong', { text: `${isActive ? '📍 ' : ''}${h.property.name}`, style: 'flex:1' }),
-          el('span', { class: 'muted', text: isActive ? 'you are here' : `away ${h.passive.days}d — caretaker crew` }),
+          el('span', { class: 'muted', text: isActive ? 'you are here' : `away ${h.passive.days}d - caretaker crew` }),
         ),
         el('div', { class: 'row' },
           el('span', { class: 'status-chip', text: `${h.property.size} holes` }),
@@ -82,7 +82,7 @@ export function makeEmpirePanel(app, handlers) {
       rows.push(el('h3', { text: 'Ledger of deeds', style: 'margin-top:10px' }));
       for (const entry of empire.log.slice(0, 8)) {
         const icon = entry.kind === 'rival' ? '🏴 ' : entry.kind === 'market' ? '🏷 ' : '';
-        rows.push(el('div', { class: 'row muted', style: 'font-size:0.86rem', text: `Day ${entry.day + 1} — ${icon}${entry.text}` }));
+        rows.push(el('div', { class: 'row muted', style: 'font-size:0.86rem', text: `Day ${entry.day + 1} - ${icon}${entry.text}` }));
       }
     }
 

@@ -413,14 +413,14 @@ test('once the circuit is live the same repair lands', () => {
   assert.equal(restorationSnapshot(state).lightPanels['panel-07'], 'working');
 });
 
-test('free play has power — the circuit gate is a campaign beat, not a tax', () => {
+test('free play has power - the circuit gate is a campaign beat, not a tax', () => {
   const state = minimalState('property-freeplay');
   assert.equal(state.campaign, undefined);
   assert.equal(ceilingCircuitPowered(state), true);
   assert.equal(restorationAction(state, { type: 'repair-light', targetId: 'ceiling:panel-02' }).ok, true);
 });
 
-test('each panel repair spends one kit — one kit does not service the building', () => {
+test('each panel repair spends one kit - one kit does not service the building', () => {
   // Before this, repair-light consumed nothing: the first kit a player ever
   // owned repaired every panel forever, and the "kit required" prompt was
   // decoration.
@@ -477,6 +477,9 @@ test('the ceiling prompt never names a fault the dark room cannot show', () => {
   assert.doesNotMatch(dark, /Flicker/i, 'nothing flickers on a dead circuit');
   assert.doesNotMatch(dark, /\[E\]/, 'and it must not offer an action that would visibly do nothing');
   assert.match(dark, /circuit is dead/, 'the prompt names the gate that is actually shut');
+  // C8: and the next object, so the player does not have to press a key that
+  // refuses in order to find out what to do about it.
+  assert.match(dark, /repair the ceiling first/, 'it also names what to go and fix');
 });
 
 test('the fault name appears only once there is power to make it true', () => {
@@ -485,7 +488,7 @@ test('the fault name appears only once there is power to make it true', () => {
     powered: true,
     kitAvailable: true,
   });
-  assert.equal(lit, 'Flickering ceiling panel — [E] repair with clubhouse kit');
+  assert.equal(lit, 'Flickering ceiling panel - [E] repair with clubhouse kit');
 });
 
 test('the kit gate is reported second, after the circuit gate', () => {
@@ -496,7 +499,7 @@ test('the kit gate is reported second, after the circuit gate', () => {
   );
   assert.equal(
     ceilingPanelPromptLabel({ faultName: 'Dead ceiling panel', powered: true, kitAvailable: false }),
-    'Dead ceiling panel — repair kit required',
+    'Dead ceiling panel - repair kit required, from the back room shelves',
   );
 });
 
@@ -518,6 +521,6 @@ test('a room with no fault word in its name is unaffected', () => {
     ceilingPanelPromptLabel({
       faultName: 'PANEL-02', unpoweredName: 'PANEL-02', powered: false, kitAvailable: true,
     }),
-    'PANEL-02 — the ceiling circuit is dead',
+    'PANEL-02 - the ceiling circuit is dead; repair the ceiling first',
   );
 });

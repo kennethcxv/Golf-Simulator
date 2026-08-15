@@ -168,7 +168,7 @@ async (page) => {
 
   async function setQuality(qualityId) {
     const result = await page.evaluate(async (quality) => {
-      const finishes = await import('/src/sim/constructionFinishes.js');
+      const finishes = await import(new URL('src/sim/constructionFinishes.js', document.baseURI).href);
       const state = window.__fw.state;
       state.cash = Math.max(Number(state.cash) || 0, 10_000_000);
       const construction = finishes.ensureConstructionFinishes(state);

@@ -117,7 +117,7 @@ test('trash cans use the trashbag under the same bag gates', () => {
   assert.ok(ok.did > 0);
 });
 
-test('the pizza box takes no tool — applyShedToolProgress always refuses it directly', () => {
+test('the pizza box takes no tool - applyShedToolProgress always refuses it directly', () => {
   const state = freshState();
   const result = applyShedToolProgress(state, 'trash:pizza-box', 'trashbag', 1, { bagSpace: 5, bagTied: false });
   assert.equal(result.blocked, true);
@@ -173,7 +173,7 @@ test('shedTargetAction rounds progress to three decimal places', () => {
   assert.equal(result.progress, 0.123);
 });
 
-test('shedTargetAction is monotonic — stored progress never decreases', () => {
+test('shedTargetAction is monotonic - stored progress never decreases', () => {
   const state = freshState();
   shedTargetAction(state, { targetId: 'shelf:dust', progress: 0.7 });
   const lowered = shedTargetAction(state, { targetId: 'shelf:dust', progress: 0.2 });
