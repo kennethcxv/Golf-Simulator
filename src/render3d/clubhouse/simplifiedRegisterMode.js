@@ -5084,6 +5084,31 @@ export function createRegisterMode(B) {
     requestAnimationFrame(warmNext);
   }
 
+  // The keep-out every goods layout uses: the live bag when there is one, the
+  // authored rect when there is not. One place, so the two call sites cannot
+  // drift apart -- they already had, which is how the customer path and the
+  // register path ended up keeping out of different things.
+  function counterBagFootprint() {
+    if (!bagGroup || !bagGroup.visible || !root.parent) return REGISTER.bagging;
+    const world = new THREE.Box3().setFromObject(bagGroup);
+    if (world.isEmpty()) return REGISTER.bagging;
+    const corner = new THREE.Vector3();
+    let minX = Infinity; let maxX = -Infinity; let minZ = Infinity; let maxZ = -Infinity;
+    for (let i = 0; i < 8; i += 1) {
+      corner.set(
+        i & 1 ? world.max.x : world.min.x,
+        i & 2 ? world.max.y : world.min.y,
+        i & 4 ? world.max.z : world.min.z,
+      );
+      root.parent.worldToLocal(corner);
+      if (corner.x < minX) minX = corner.x;
+      if (corner.x > maxX) maxX = corner.x;
+      if (corner.z < minZ) minZ = corner.z;
+      if (corner.z > maxZ) maxZ = corner.z;
+    }
+    return { minX, maxX, minZ, maxZ };
+  }
+
   function layoutGoods() {
     if (!tx || transactionKind !== 'retail') return;
     const poses = catalogCheckoutLayout(
@@ -5093,7 +5118,11 @@ export function createRegisterMode(B) {
       // ITEM 6: the bag's own footprint is a keep-out. The strip already starts
       // clear of it; what reached the bag was the OVERHANG 2.2 deliberately
       // allows, so the layout needs to know where the bag actually is.
-      REGISTER.bagging,
+      // PLAYTEST 4, ITEM 4: and "where the bag actually is" has to come from the
+      // BAG. The authored rect is the handoff zone and is 0.14 yd narrower and
+      // 0.21 yd shallower than the object, which is the whole of the overlap the
+      // owner kept seeing.
+      counterBagFootprint(),
     );
     tx.items.forEach((item, index) => {
       const mesh = itemMeshes.get(item.uid);
@@ -10497,6 +10526,46 @@ export function createRegisterMode(B) {
 
   return {
     simplified: true,
+    // PLAYTEST 4, ITEM 4 — THE BAG'S REAL FOOTPRINT, NOT THE NOMINAL RECT.
+    //
+    // SECOND REPORT: "I am still watching customers place items through the bag."
+    // The layout was already keeping out of `REGISTER.bagging` and doing it
+    // correctly -- measured on a real customer set-down, `tees1` landed at local
+    // x 2.5687 with a half-width of 0.0687, so its near edge sat at 2.500 against
+    // the rect's maxX of 2.48: clear by exactly the 0.02 clearance it was given.
+    //
+    // And it was still 0.1375 yd inside the bag, because `REGISTER.bagging` is
+    // the HANDOFF ZONE and not the bag. Measured off the object in the scene, the
+    // bag's world box is 0.54 x 0.45 yd; the rect is 0.40 x 0.24. The layout was
+    // obeying a keep-out 35% too narrow and 86% too shallow, which is why a check
+    // that compared the layout against that same rect passed twice.
+    //
+    // So the keep-out is READ OFF THE BAG. Returns interior-local {minX, maxX,
+    // minZ, maxZ} bounding the live group -- all eight corners transformed, so a
+    // rotated bag or a rotated interior cannot shrink the box -- and null when
+    // there is no bag, in which case callers fall back to the authored rect.
+    counterBagKeepOut: () => {
+      if (!bagGroup || !bagGroup.visible) return null;
+      const parent = root.parent;
+      if (!parent) return null;
+      const world = new THREE.Box3().setFromObject(bagGroup);
+      if (world.isEmpty()) return null;
+      const corner = new THREE.Vector3();
+      let minX = Infinity; let maxX = -Infinity; let minZ = Infinity; let maxZ = -Infinity;
+      for (let i = 0; i < 8; i += 1) {
+        corner.set(
+          i & 1 ? world.max.x : world.min.x,
+          i & 2 ? world.max.y : world.min.y,
+          i & 4 ? world.max.z : world.min.z,
+        );
+        parent.worldToLocal(corner);
+        if (corner.x < minX) minX = corner.x;
+        if (corner.x > maxX) maxX = corner.x;
+        if (corner.z < minZ) minZ = corner.z;
+        if (corner.z > maxZ) maxZ = corner.z;
+      }
+      return { minX, maxX, minZ, maxZ, measured: true };
+    },
     presentedCashScreenPoint,
     drawerSlotScreenPoint,
     presentedCardScreenPoint,

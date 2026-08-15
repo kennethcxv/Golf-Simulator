@@ -10094,7 +10094,14 @@ export function makeClubhouse(ctx) {
         // ITEM 6: this is the CUSTOMER's set-down path -- the one the brief names
         // ("when the customer puts goods down") -- so it needs the keep-out even
         // more than the register's own layout does.
-        REGISTER.bagging,
+        //
+        // PLAYTEST 4, ITEM 4 (SECOND REPORT): and it has to be the BAG's footprint,
+        // not the authored handoff rect. Measured on a real customer set-down,
+        // `tees1` cleared REGISTER.bagging by exactly its 0.02 clearance and was
+        // still 0.1375 yd inside FrontDeskShoppingBag, because the object is
+        // 0.54 x 0.45 yd against a rect of 0.40 x 0.24. The register measures its
+        // own bag; falling back to the rect only when there is no bag to measure.
+        register.counterBagKeepOut?.() || REGISTER.bagging,
       );
       const pose = poses[index];
       item.placed = false;

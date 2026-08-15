@@ -818,7 +818,16 @@ export function catalogCheckoutLayout(items, staging, restY, keepOut = null) {
     frontDeskLocalPoint(keepOut.maxX, keepOut.maxZ),
   ] : null;
   // "Not overlapping, not touching" -- so a clear sliver, not a shared edge.
-  const BAG_CLEARANCE = 0.02;
+  //
+  // PLAYTEST 4, ITEM 4: 0.02 was the sliver measured against `footprintW`, and
+  // `footprintW` is the product's authored footprint, not its rendered box. With
+  // the keep-out finally reading the real bag, `tees1` still clipped it by
+  // 0.0104 yd -- because its drawn mesh (and its ItemClickPad) run about 0.030 yd
+  // wider than the footprint the packer reserves for it. 0.06 covers that gap and
+  // still leaves a visible sliver rather than a shared edge; verified by measuring
+  // the two BOXES on a real set-down, not by re-reading the footprint numbers
+  // that caused the error.
+  const BAG_CLEARANCE = 0.06;
   const keepOutMaxX = keepOutCorners
     ? Math.max(...keepOutCorners.map((point) => point.x)) + BAG_CLEARANCE
     : null;
