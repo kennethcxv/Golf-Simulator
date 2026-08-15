@@ -130,11 +130,26 @@ So the honest state of item 1 is not "wired but not right". It is: **the model i
 built and validated, and I have no evidence it is in the game.** The frames prove a
 hand was photographed, not whose hand it was.
 
-The next session's first move is not modelling and not proportions. It is one
-question: does `makeHand` in the running build contain the swap at all? Log a
-single line at the top of `makeFpHands` and look for it. If it is absent, the
-worktree is serving a different `fpHands.js` than the one on disk — and every
-visual conclusion in this report from the hand onward has to be re-taken.
+### I asked that question, and the answer is a contradiction
+
+I put an unconditional heartbeat at the top of `makeHand` — `window.__fwHandBuild`
+incremented on entry, before anything else. Re-ran. **It reads null.**
+
+But `makeHand` demonstrably ran: the scene contains `FirstPersonRightHand`, and
+that name is written by `makeFpHands` on the group `makeHand` returns. My probe
+walked it and listed 28 meshes.
+
+So the running build executes `makeHand`, and none of the three globals that
+function writes are visible to `page.evaluate` — while `window.__fw` in the same
+`page.evaluate`, in the same driver, resolves fine.
+
+**The most likely explanation is that `page.evaluate` and the game are not sharing
+a JavaScript context**, and if that is true it does not only invalidate the hand
+work. It puts a question mark over any probe in this session that read a global it
+set itself, as opposed to reading `window.__fw`, which plainly works.
+
+That is where a fresh session should start, and it should start there before
+trusting anything below.
 
 I would rather hand over a disproved assumption than a report that reads as
 progress.

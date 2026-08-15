@@ -261,6 +261,14 @@ function makeFinger(mats, len, thick, skinMat, withNail, partPrefix) {
 }
 
 function makeHand(mats, mirror = 1) {
+  // A HEARTBEAT AT THE TOP OF THE BUILD. The loader instrumentation read null on
+  // every path, which does not mean "the load failed" -- those globals are written
+  // unconditionally -- it means the code never ran. This says whether THIS file is
+  // the one the running build is executing, before any conclusion is drawn from a
+  // frame again.
+  if (typeof window !== 'undefined') {
+    window.__fwHandBuild = (window.__fwHandBuild || 0) + 1;
+  }
   const g = new THREE.Group();
   const fingerSkins = mats.fingerSkins || [mats.skin, mats.skin, mats.skin, mats.skin];
 
