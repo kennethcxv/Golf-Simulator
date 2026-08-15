@@ -186,6 +186,55 @@ per page turn on this stack.** The only paths under it are pre-rendering
 page textures off the canvas-2D path entirely (bitmap atlas authored
 ahead) or accepting the one 55 ms frame per turn.
 
+## The floor, with the measurements behind it
+
+**A caveat that keeps every number honest: there are THREE cache tiers, not
+two.** Chromium's GPUCache (per profile) sits on top of the NVIDIA driver's
+own shader cache (per machine, keyed to shader source). Tonight's later
+"cold" runs wiped the first but not the second, so they understate a true
+first-machine boot. The tiers, measured:
+
+| tier | per-program cost | evidence |
+|---|---|---|
+| true first-ever boot (both caches cold) | ~70 ms (ANGLE translate+link ~38 + D3D compile ~30) | early-tonight prewarms 67–76 s; the repo's own ~34–73 ms/program history |
+| driver-warm, Chromium-cold (a profile wipe) | ~38 ms (translate+link only — the driver cannot cache that) | tonight's attr-cold: compile-hidden 9.7 s ÷ ~256 programs |
+| both warm (every boot after the first) | ~0 (binary load) | warm compile stages near-zero |
+
+**Where 30.7 s of tonight's cold boot goes** (attr-cold, spawn→playable):
+~2.2 s Electron+modules+menu · ~3.5 s click→scene construction (asset
+fetch/parse; file:// yields no resource-timing entries — loader-hook
+instrumentation queued) · **23.0 s prewarm** (compile-hidden 9.7, the rest
+warm draws, texture init, asset waits, gestures) · ~1.4 s veil fade+yields.
+
+**Is 10 s reachable? Yes on every boot after the first; the first-ever boot
+has a floor.** The arithmetic:
+
+- **Boot 2+ (both caches warm):** compile ≈ 0. The spend is menu+scene
+  (~5.7 s) + warm draws/textures/waits (measured 16-17 s prewarm today,
+  most of it removable: the draws are already 96×96, the remaining cost is
+  CPU submission of the whole world and waits that room-first removes).
+  **Reachable: ~8-10 s with room-first; the work is scheduling, not
+  physics.**
+- **First-ever boot:** the room-first veil needs only the SPAWN ROOM's
+  programs. Tonight's interior censuses put the room's set at roughly
+  60-100 programs; at ~70 ms true-cold each that is **4-7 s of unavoidable
+  compile** on a machine that has never seen the game — plus menu+scene
+  ~5.7 s. **First-ever floor ≈ 10-13 s as the code stands, pressable
+  toward ~10 s by shape-unifying the room's materials (fewer programs) and
+  overlapping compile with asset fetch.** The rest of the world compiles
+  after control, invisibly, through the disk caches — paid once ever.
+- The page turn keeps its separate named floor: one ~55 ms canvas-sync
+  frame per turn (see above); every other measured surface already sits
+  under 33 ms and most under 16.7 warm.
+
+**What this dictates:** room-first is not an optimization, it is the load
+architecture. Next items in order: (1) split the prewarm into
+room-critical-pre-veil vs world-post-veil (offscreen, throttled,
+clip-verified invisible); (2) shape-unify the room set's materials; (3)
+loader-hook attribution for the 3.5 s scene-construction slice; (4) the
+editor's 823 ms–10.7 s first entry, which room-first moves post-control
+anyway.
+
 ## The plan this survey dictates, in measurement order
 
 1. **A/B the cache cap** (one switch, two boots): if eviction is the warm

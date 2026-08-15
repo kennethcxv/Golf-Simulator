@@ -37,6 +37,9 @@ async (page) => {
 
   // --- rAF sampler + veil/menu/walk watchers, installed BEFORE any click ----
   await page.evaluate(() => {
+    // the default 250-entry resource buffer overflowed on the first run and
+    // returned an EMPTY slow-resources list for a load with hundreds of GLBs
+    performance.setResourceTimingBufferSize(8192);
     const T = { marks: {}, gaps: [], samples: 0 };
     window.__loadT = T;
     const mark = (name) => { if (!(name in T.marks)) T.marks[name] = +performance.now().toFixed(1); };
