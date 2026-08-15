@@ -405,3 +405,54 @@ Once that is closed, the remaining hand work is small and known:
    twelve of those are adopted. Something else in the hand, now identifiable by
    giving every mesh a name.
 3. **Then proportions**, against a closer exhibit.
+
+
+---
+
+# RESOLVED, AND IT OVERTURNS MOST OF THIS REPORT
+
+Computed with `run-electron.cjs`'s OWN `canonicalPath` (it lowercases on win32 —
+my first reconstruction did not, which is why my first attempt at this comparison
+produced two hashes that matched nothing and should have been thrown away rather
+than reasoned from):
+
+```
+scope(worktree C:/gfassets) : 41d8c05e53795c93fcf0
+scope(main repo)            : c9b7a35163f3a1f41222
+observed in the worktree run: c9b7a35163f3a1f41222   <-- the MAIN REPO
+```
+
+**Every Electron run I made from the worktree served the MAIN repository's `src/`.**
+`ROOT` is `process.cwd()`, it resolved to the main repo, and the harness passes it
+as the spawn `cwd`, so `electron .` loaded the main repo's app.
+
+### What that means, and it is not small
+
+The main repo's `fpHands.js` contains **zero** occurrences of `adoptAuthored`. So:
+
+- **The authored hand has never been in the game.** Not once.
+- The "15 BufferGeometry adopted" reading was never my parts. It is authored
+  geometry that the held-tool asset registry streams in — the same 25 → 83 mesh
+  streaming measured at the top of this report — and I misread it as my swap.
+- The v1 and v2 frames differ because of lighting and time of day, **not** because
+  of anything I modelled.
+- My retraction ("I cannot confirm the authored model reached the game") was
+  **right**. My un-retraction ("contextIsolation explains the nulls, the adoption
+  evidence stands") was **wrong**. `contextIsolation: true` is a real fact and a
+  real trap, but it was not the cause here.
+
+Three conclusions in this report were reached by inference from a build I was not
+running. They are struck: the adoption count, the four capsules at origin, and the
+proportion improvements.
+
+### The fix, for the next session
+
+`ROOT = process.cwd()` in `tools/qa/run-electron.cjs`. Get the cwd right — verify
+it by printing `repoScopeId` at launch and comparing it to the worktree's
+`41d8c05e53795c93fcf0` — and the asset work becomes ordinary. Nothing about the
+model, the axis or the wiring is known to be wrong; none of it has been tested.
+
+**Then re-take every visual judgement in this report.** The parts of it that stand
+are the ones that never depended on a frame: the `main.js` tool theft, the
+Blender → glTF axis, `contextIsolation`, the stale-build proof, and a validated
+16-part model.
