@@ -869,3 +869,30 @@ shorter strand on the same radius is what turns a skirt into a disc.
 None of the three is finished to the owner's bar. Both live ones are now in a
 bisection between photographed endpoints with a working loop, which is the first
 time either has been in that position.
+
+## MOP ROUND 4 — attempted, unverified, reverted
+
+Tried the named lever: strand `length` 0.20 → 0.132 on the same 0.168 radius, to
+turn the skirt into a disc. **The run lost the tool** — `drawable: 0, tool: null` on
+the exhibit — so the frame shows nothing and the number is unverified.
+
+**Reverted to 0.20**, which is the last value actually photographed. A number I have
+not seen the result of does not go in, whatever I think it will do; that is the
+whole lesson of this session's four retractions.
+
+The lever itself is still the right next move. It just needs a run that keeps hold
+of the tool — the recipe already handles the warm-up theft in `photographTool`, but
+the exhibit loop re-poses without re-asserting, which is the gap.
+
+## FINAL STATE
+
+| asset | state | frame |
+|---|---|---|
+| **hands** | modelled, wired as a true replacement, **16/16 adopted both hands**, six measured rounds | `hand-v6-lit.png` — close, not matching |
+| **mop head** | first lit frame ever taken; shuttlecock → skirt over three rounds | `mop-v3-lit.png` — not yet the disc |
+| **broom head** | untouched | — |
+
+`splay 0.78`, `length 0.20`, everything photographed and committed.
+
+**None of the three meets the bar.** Two are in a measured bisection with a working
+loop and one named lever each; the third was never started.
