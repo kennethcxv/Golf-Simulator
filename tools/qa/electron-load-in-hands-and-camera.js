@@ -35,17 +35,35 @@ async (page) => {
   // both happen during and just after the load, so the recorder has to be older
   // than the thing it records.
   await page.evaluate(() => {
-    const s = { samples: [], t0: performance.now(), timer: 0 };
+    // SAMPLED AT rAF, NOT ON A TIMER. The held tool changes on frame
+    // boundaries and the deferred warm holds its dustpan for exactly three
+    // frames -- 12 ms at 240 Hz. A 50 ms setInterval is three to twelve times
+    // too coarse to see that, and the first version of this probe reported "no
+    // unasked-for span" about a warm that had drawn one and put it back between
+    // two of its own samples.
+    const s = { samples: [], t0: performance.now(), running: true };
     window.__loadProbe = s;
-    s.timer = setInterval(() => {
+    const tick = () => {
       const fw = window.__fw;
       const veil = document.querySelector('.load-veil');
       const walk = fw?.scene3d?.walk;
+      // getTool, NOT tool. `walk.tool` does not exist on the facade; reading it
+      // returned undefined for every sample and the first version of this probe
+      // reported "no tool was ever held" through its own planted dustpan.
+      // src/main.js's deferred warm reads the same non-existent accessor.
       let tool = null;
-      try { tool = typeof walk?.tool === 'function' ? walk.tool() : null; } catch { tool = 'ERR'; }
+      try { tool = typeof walk?.getTool === 'function' ? walk.getTool() : 'NO-ACCESSOR'; } catch { tool = 'ERR'; }
       let active = null;
       try { active = typeof walk?.isActive === 'function' ? walk.isActive() : null; } catch { active = 'ERR'; }
       const cam = fw?.scene3d?.camera?.position;
+      // walk.active is TRUE from early in startGameNow, long before the walk
+      // camera owns the frame -- enterWalk() runs before prewarm, and prewarm
+      // then swings the camera up over the course. So the question "is the map
+      // on screen" has to be asked of the CAMERA's distance from the player,
+      // not of a flag that is already true.
+      const ws = fw?.scene3d?.walk?.state;
+      const camFromPlayer = (cam && ws && Number.isFinite(ws.x))
+        ? +Math.hypot(cam.x - ws.x, cam.z - ws.z).toFixed(2) : null;
       s.samples.push({
         t: +(performance.now() - s.t0).toFixed(0),
         screen: fw?.screen ?? null,
@@ -56,9 +74,12 @@ async (page) => {
         walkActive: active,
         tool,
         camY: cam ? +cam.y.toFixed(2) : null,
+        camFromPlayer,
       });
-    }, 50);
-    s.stop = () => { clearInterval(s.timer); return s.samples; };
+      if (s.running) requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+    s.stop = () => { s.running = false; return s.samples; };
   });
 
   const bootPath = `${process.cwd()}/tools/qa/lib/qa-boot.mjs`.replace(/\\/g, '/');
@@ -85,6 +106,8 @@ async (page) => {
 
   const samples = await page.evaluate(() => window.__loadProbe.stop());
   out.sampleCount = samples.length;
+  out.warm = await page.evaluate(() => (window.__fwWarm ? { ...window.__fwWarm } : null));
+  console.log(`DEFERRED WARM reported: ${JSON.stringify(out.warm)}`);
 
   // ------------------------------------------------------------------- spans
   const spans = [];
@@ -119,25 +142,30 @@ async (page) => {
   // -------------------------------------------- the map before the walk camera
   // A frame the player SEES is one where the veil is not opaque. If any such
   // sample has the walk camera not yet driving, the overview was on screen.
+  // The walk camera is AT the player. Anything 20+ yd away is the course view.
+  const AWAY_YD = 20;
   const visible = samples.filter((s) => s.screen === 'game'
     && (s.veilDisplay === 'none' || (s.veil !== null && s.veil < 0.98)));
-  const seenBeforeWalk = visible.filter((s) => s.walkActive !== true);
+  const seenAsMap = visible.filter((s) => s.camFromPlayer === null || s.camFromPlayer > AWAY_YD);
+  const lastAway = samples.filter((s) => s.camFromPlayer !== null && s.camFromPlayer > AWAY_YD).pop();
   out.mapFlash = {
-    visibleFrames: visible.length,
-    framesVisibleBeforeWalkCamera: seenBeforeWalk.length,
+    visibleSamples: visible.length,
+    visibleSamplesShowingTheMap: seenAsMap.length,
     firstVisibleT: visible[0]?.t ?? null,
-    firstWalkActiveT: samples.find((s) => s.walkActive === true)?.t ?? null,
-    worst: seenBeforeWalk.slice(0, 6),
+    lastSampleWithCameraAwayT: lastAway?.t ?? null,
+    lastSampleWithCameraAwayCamY: lastAway?.camY ?? null,
+    firstVisibleCamFromPlayer: visible[0]?.camFromPlayer ?? null,
+    // How much slack there was: camera home BEFORE the veil started lifting is
+    // positive, camera still out over the course when it lifted is negative.
+    marginMs: (visible[0]?.t != null && lastAway?.t != null) ? visible[0].t - lastAway.t : null,
+    worst: seenAsMap.slice(0, 6),
   };
-  out.mapFlash.exposureMs = (out.mapFlash.firstWalkActiveT !== null && out.mapFlash.firstVisibleT !== null)
-    ? out.mapFlash.firstWalkActiveT - out.mapFlash.firstVisibleT
-    : null;
-  console.log('\nMAP BEFORE THE WALK CAMERA');
-  console.log(`  first sample with the veil not opaque: t=${out.mapFlash.firstVisibleT} ms`);
-  console.log(`  first sample with the walk camera on : t=${out.mapFlash.firstWalkActiveT} ms`);
-  console.log(`  samples visible-but-not-walking      : ${out.mapFlash.framesVisibleBeforeWalkCamera}`);
-  if (out.mapFlash.exposureMs !== null) console.log(`  exposure                             : ${out.mapFlash.exposureMs} ms`);
-  for (const s of out.mapFlash.worst) console.log(`    t=${s.t} veil=${s.veil} mode=${s.courseMode} walk=${s.walkActive} camY=${s.camY}`);
+  console.log('\nMAP BEFORE THE WALK CAMERA (camera-to-player distance, not the walk.active flag)');
+  console.log(`  last sample with the camera out over the course: t=${out.mapFlash.lastSampleWithCameraAwayT} ms (camY ${out.mapFlash.lastSampleWithCameraAwayCamY})`);
+  console.log(`  first sample with the veil not opaque          : t=${out.mapFlash.firstVisibleT} ms (camera ${out.mapFlash.firstVisibleCamFromPlayer} yd from the player)`);
+  console.log(`  visible samples still showing the course view  : ${out.mapFlash.visibleSamplesShowingTheMap}`);
+  console.log(`  margin (camera home before the veil lifted)    : ${out.mapFlash.marginMs} ms`);
+  for (const s of out.mapFlash.worst) console.log(`    t=${s.t} veil=${s.veil} camY=${s.camY} camFromPlayer=${s.camFromPlayer}`);
 
   fs.writeFileSync(path.join(OUT, 'samples.json'), `${JSON.stringify(samples, null, 1)}\n`);
   fs.writeFileSync(path.join(OUT, 'result.json'), `${JSON.stringify(out, null, 2)}\n`);

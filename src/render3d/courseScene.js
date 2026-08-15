@@ -13050,6 +13050,27 @@ export function makeCourseScene(canvas, state) {
       toggleLights: toggleGolfCartLights,
       toggleVehicleCamera: toggleGolfCartCamera,
       setTool: walkSetToolDebounced,
+      // PLAYTEST 5 P0 — "I start every game with a cleaning dustpan already in
+      // my hand." The deferred GPU warm equips a tool, draws three frames, and
+      // puts it back. Its restore went through walkSetToolDebounced, which
+      // inside TOOL_SWITCH_DEBOUNCE (120 ms -- three frames can be a fifth of
+      // that at high refresh) does not apply the switch at all: it parks it in
+      // pendingBeltTool, and the ONLY thing that drains that queue is
+      // updateHeldFeel, which runs from walkUpdate. Stand at the laptop, the
+      // desk screen, the register or the overview when the warm fires and the
+      // queue is never drained, so the warm's dustpan stays in the player's
+      // hands for the rest of the session.
+      //
+      // The debounce exists to stop a player mashing the belt. The warm is not
+      // a player, so it is given a door that does not queue -- and it clears
+      // any queued switch on the way through, so a warm cannot leave one of its
+      // own behind either.
+      setToolImmediate: (tool) => {
+        pendingBeltTool = undefined;
+        hasPendingBeltTool = false;
+        toolSwitchCooldown = 0;
+        walkSetTool(tool);
+      },
       getTool: () => walkTool,
       // PLAYTEST 4, ITEM 3b: is the mop equipped, and is the solver in its mopping
       // mode right now? Without this a clip cannot tell "the yarn held still"

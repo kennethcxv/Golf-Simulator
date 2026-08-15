@@ -1680,7 +1680,29 @@ function startGameNow(
       app.speedIdx = startupCompletion.intendedSpeedIdx;
       lastTs = performance.now();
       app.prewarming = false;
-      veil.hide();
+      // PLAYTEST 5 P0 — "I see the map before I load in."
+      //
+      // Nothing here brings the camera back to the player. enterWalk() ran long
+      // before prewarm, so walk.active has been true the whole time and reads
+      // healthy, but prewarm SWINGS THE CAMERA out over the course to warm the
+      // overview and editor programs — measured at camY 147.96 for the whole
+      // prewarm on a fresh boot, against a walk eye of −0.84
+      // (tools/qa/electron-load-in-hands-and-camera.js). The camera only comes
+      // home on the next production frame, which is scheduled, while this line
+      // starts a 420 ms CSS fade immediately. Whether the player sees the course
+      // view was decided by which of those two won a race, and on that boot the
+      // frame won by 287 ms.
+      //
+      // Yield through two animation frames instead — the same paint-yield idiom
+      // startGame uses. The startup hold is released above, so the first of
+      // those is a real production frame drawn from the walk camera, and the
+      // veil is opaque over it. The player's first visible frame is their feet.
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          if (app.scene3d !== sceneRef || generation !== sceneStartGeneration) return;
+          veil.hide();
+        });
+      });
       // ROUND 4: the first-press stalls come back warm, DEFERRED -- seconds
       // after the game is interactive, never at this boundary. The full story
       // is on scheduleDeferredGpuWarm below.
@@ -1747,17 +1769,32 @@ function scheduleDeferredGpuWarm(sceneRef) {
       const walk = sceneRef?.walk;
       if (!walk || typeof walk.setTool !== 'function') return;
       const frame = () => new Promise((resolve) => requestAnimationFrame(resolve));
-      const held = typeof walk.tool === 'function' ? walk.tool() : null;
+      // PLAYTEST 5 P0 — getTool, NOT tool.
+      //
+      // `walk.tool` does not exist on the walk facade; the accessor is
+      // `getTool` and every other caller in this file uses it. So this read was
+      // `undefined` on every boot, `held` was always null, and the guard below
+      // -- "a player equipping a tool inside the first two seconds simply beats
+      // the warm... the warm skips itself rather than fight them for the hands"
+      // -- never once skipped. The warm took the hands off whatever the player
+      // had just picked up, every time.
+      const held = typeof walk.getTool === 'function' ? walk.getTool() : null;
       window.__fwWarm = { hands: 'skipped', sweep: 'pending' };
       if (!held) {
-        walk.setTool('dustpan');
+        // ...and put it back through the door that does not queue. The
+        // debounced setter parks a switch made inside 120 ms in a queue drained
+        // only by walkUpdate, so a player parked at a station when the warm
+        // fired kept the dustpan. Measured at t=33433 ms on a fresh boot with
+        // tools/qa/electron-load-in-hands-and-camera.js.
+        const equip = walk.setToolImmediate || walk.setTool;
+        equip.call(walk, 'dustpan');
         await frame();
         await frame();
         await frame();
         if (app.scene3d !== sceneRef) return;
-        walk.setTool(null);
+        equip.call(walk, null);
         await frame();
-        window.__fwWarm.hands = 'done';
+        window.__fwWarm.hands = walk.getTool?.() == null ? 'done' : 'left-a-tool-behind';
       }
       // The sweep is fire-and-forget: parallel compile finishes whenever it
       // finishes, and anything it misses just pays its old first-use cost.
