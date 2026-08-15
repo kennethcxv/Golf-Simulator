@@ -257,6 +257,16 @@ function makeFinger(mats, len, thick, skinMat, withNail, partPrefix) {
     tipJoint.add(nail);
   }
 
+  // NAME THE SEGMENTS. They were anonymous, so "4 capsules left" could only be
+  // reported as a count -- the parent chain says `Group < FirstPersonRightHand`
+  // for all sixteen. Naming them costs nothing and turns the question into a
+  // reading. contextIsolation means a driver cannot see a global the module sets,
+  // but it can always read the scene graph, so the name is the durable channel.
+  if (partPrefix) {
+    prox.name = `${partPrefix}Prox`;
+    mid.name = `${partPrefix}Mid`;
+    dist.name = `${partPrefix}Dist`;
+  }
   return { root, knuckle, tip: tipJoint, meshes: { prox, mid, dist }, partPrefix };
 }
 

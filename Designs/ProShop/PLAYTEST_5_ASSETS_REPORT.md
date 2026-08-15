@@ -311,3 +311,48 @@ No regression: 72 / 89 drawable at the shutter, right tool held, no page errors.
 The 8-mesh difference from the procedural build is the retired nails, by design.
 ## 2. The mop head — NOT STARTED
 ## 3. The broom head — NOT STARTED
+
+
+---
+
+## THE THING THAT BEAT THIS SESSION, NAMED
+
+I named the twelve finger segments in `makeFinger` so the four unswapped capsules
+could be read off the scene graph instead of counted. Re-ran. The result:
+
+```
+AUTHORED (BufferGeometry): Palm (unnamed) x12 ThumbProx ThumbDist
+CAPSULES LEFT:  (unnamed) x4, all at pos 0,0,0
+```
+
+Fifteen authored parts are drawing — **twelve finger segments, the palm and both
+thumb bones.** So the swap works, and works better than I had credited: the only
+one of the sixteen missing is the **Forearm**, which is still a `CylinderGeometry`.
+
+But look at the names. `Palm`, `ThumbProx` and `ThumbDist` are named — those names
+are set in the ORIGINAL `fpHands.js`. **The twelve names I just added are absent**,
+while the swap those same edits feed plainly runs.
+
+**The running build is not the newest `fpHands.js` on disk.** An older revision of
+my own file is executing. That is the thing that made this session so slow to
+converge: several rounds were photographed against code I had already changed, and
+at least two of my conclusions — the "reverted" round and the "never ran"
+correction — were reasoning about a build I was not looking at.
+
+### What the next session must do first, before anything else
+
+Establish that an edit reaches the running build. Put a version marker in
+`fpHands.js`, read it back through the scene graph (a mesh name, not a global —
+`contextIsolation` blocks globals), and do not trust a single frame until the
+marker matches. Likely suspects: a module cache surviving the fresh user-data-dir,
+or the worktree serving from somewhere other than where I am editing.
+
+Once that is closed, the remaining hand work is small and known:
+
+1. **Forearm** — the one part of sixteen not adopting. It is the only swap entry
+   whose runtime mesh is a `CylinderGeometry` rather than a capsule, and it is the
+   part I most recently changed the dimensions of.
+2. **The four unnamed capsules at the origin** — not finger segments, since all
+   twelve of those are adopted. Something else in the hand, now identifiable by
+   giving every mesh a name.
+3. **Then proportions**, against a closer exhibit.
