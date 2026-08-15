@@ -18,7 +18,65 @@
 
 | Scenario | Before | After | Where measured |
 |---|---|---|---|
-| _(populated as phases complete)_ | | | |
+| Load, cold shader cache, spawn→playable | 73.7 s | — | electron-load-breakdown, g27-cold |
+| Load, warm shader cache, spawn→playable | 31.0 s | — | electron-load-breakdown, g27-warm |
+
+---
+
+## Phase 1.3 — where the load seconds go (measured, attack designed)
+
+**The instrument:** `tools/qa/electron-load-breakdown.js` — outer timeline in
+epoch ms (process creation → renderer origin → menu interactive → click →
+scene → walk active → veil gone), prewarm per-stage attribution from the
+scene's own clock, rAF-gap log. Two live controls every run: a planted 400 ms
+busy-stall must appear in the gap log (caught, 415 ms), and the inner segments
+must sum to the outer span within 10% (exact: 71,184 = 71,184).
+
+**Finding 1 — the QA harness has only ever measured COLD loads.** The runner
+defaults to a fresh temp profile (`run-electron.cjs` policy line), so every
+load number in this repo's history paid full ANGLE→HLSL→D3D compilation.
+(The memory that QA shares the owner's profile is STALE; corrected.)
+
+**Finding 2 — the two-tier load, same build, same profile dir, back-to-back:**
+
+| stage | cold | warm cache | delta |
+|---|---|---|---|
+| spawn → playable | 73,654 ms | 30,954 ms | −58% |
+| prewarm TOTAL | 66,970 | 23,986 | −64% |
+| compile-hidden | 27,613 | 8,748 | −68% |
+| warm-composer-render | 19,898 | 1,349 | −93% |
+| interior-camera-warm | 3,226 | 296 | −91% |
+| gesture-tools | 13,675 | 9,280 | **−32%** |
+
+Chromium's GPU program cache (GPUCache, ~6.5 MB written by run A) eliminates
+most compile cost. The owner's USUAL load is the ~31 s warm tier; cold events
+(first run, driver update, cache eviction) pay ~74 s.
+
+**Finding 3 — the largest warm-load block is `gesture-tools`: 9.3 s.** Nine
+belt tools × two FORCED full-composer frames each with explicit shadow bakes
+(~515 ms per warm frame at owner resolution). Its small cache benefit says
+it is frame cost, not compile. It spends 9.3 s of EVERY load to pre-pay
+one-time first-equip hitches measured at ~70 ms per tool.
+
+**The attack (implemented as the first Phase 2 item, since it IS the general
+first-press mechanism):** move the belt warm out of the veil into the
+deferred post-veil slot that already exists (`scheduleDeferredGpuWarm`), one
+tool per natural frame span, held off-frame with culling off so nothing
+flashes, no forced composer draws. Expected: −9.3 s warm / −13.7 s cold on
+every load; first-equip stays covered from ~2 s post-interactive; a player
+who beats the warm pays the old one-time cost once.
+
+**Also measured, smaller, not yet attacked:** menu interactive 2.3 s;
+click→scene-object 3.5 s; compile-hidden warm residual 8.7 s (the
+reveal-all-681 draw — a dedup like warm-traverse's may cut it); ~12 s of
+click→veil sits outside prewarm's own clock (asset load window; the
+resource-timing buffer overflowed — needs `performance.setResourceTimingBufferSize`
+in the next instrument revision).
+
+**Sacred history honored:** `compileAsync` pre-veil was tried 2026-08-03 and
+lost 0.5 s net — not retried. The GPU-reset hazard note (compile bursts at
+the veil boundary) is why the move targets the deferred slot, not the
+boundary.
 
 ---
 
