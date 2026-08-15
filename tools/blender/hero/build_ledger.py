@@ -211,7 +211,7 @@ def build(opened=True, broken=False):
     sol.offset = 0.0
     parts["ribbon"] = HS.apply_mods(ribbon)
 
-    cloth = HS.pbr("LedgerCloth", (0.042, 0.021, 0.016), roughness=0.88)
+    cloth = HS.pbr("LedgerCloth", (0.018, 0.052, 0.031), roughness=0.86)
     paper = HS.pbr_textured(
         "LedgerPaper",
         os.path.join(REPO, "Assets", "models", "hero", "textures", "ledger_page.png"),
@@ -232,7 +232,7 @@ def build(opened=True, broken=False):
 def spine_arc(y0, y1, r_extra=0.0, seg=13, name="LedgerSpine", thick=BOARD_T):
     """The spine as a half-round wrapping from the back board to the front one."""
     verts, faces = [], []
-    r = SPINE_R * 0.34
+    r = SPINE_R * 0.72
     hgt = BLOCK_T + BOARD_T * 0.5
     for k in range(seg):
         a = math.pi * (k / (seg - 1)) - math.pi / 2
@@ -292,21 +292,46 @@ def build_closed(broken=""):
 
     # raised bands: four ridges across the spine, which is what a bound ledger
     # has and what stops the spine reading as a bent card
-    parts["bands"] = [spine_arc(-half_y + (0.22 + i * 0.19) * half_y * 2,
-                                -half_y + (0.30 + i * 0.19) * half_y * 2,
-                                r_extra=0.0026, seg=11,
-                                name=f"SpineBand_{i}", thick=BOARD_T * 0.55)
+    # r_extra 0.0042 with a 0.0034 shell. At 0.0026/0.0030 the band's OUTER
+    # surface landed 0.1 mm from the spine's own outer surface and the two
+    # z-fought -- the bands rendered as flickering stripes rather than ridges.
+    # The offset has to clear the host's shell thickness, not just its curve.
+    parts["bands"] = [spine_arc(-half_y + (0.205 + i * 0.195) * half_y * 2,
+                                -half_y + (0.262 + i * 0.195) * half_y * 2,
+                                r_extra=0.0042, seg=11,
+                                name=f"SpineBand_{i}", thick=0.0034)
                       for i in range(4)]
+
+    # endbands at head and tail -- the detail that says "sewn" rather than
+    # "glued", and the one place the spine gets a second tone
+    # same reason: at 0.0016 the endband was entirely buried inside the spine's
+    # own 5.5 mm shell and never appeared at all
+    parts["endbands"] = [spine_arc(sy * (half_y - 0.0072), sy * (half_y - 0.0018),
+                                   r_extra=0.0040, seg=11,
+                                   name=f"EndBand_{i}", thick=0.0026)
+                         for i, sy in enumerate((-1, 1))]
 
     # a pasted title label on the front board
     parts["frame"] = HS.apply_mods(HS.box(
         "CoverLabelFrame", ((PAGE_W + sq) * 0.5, PAGE_D * 0.14,
                             TB * 0.5 + BOARD_T + 0.0002),
         (PAGE_W * 0.60, PAGE_D * 0.30, 0.0012), bevel=0.0006, segments=1))
-    parts["label"] = HS.apply_mods(HS.box(
-        "CoverLabel", ((PAGE_W + sq) * 0.5, PAGE_D * 0.14,
-                       TB * 0.5 + BOARD_T + 0.0009),
-        (PAGE_W * 0.52, PAGE_D * 0.24, 0.0014), bevel=0.0006, segments=1))
+    # A QUAD with UVs from vertex position, not a box. HS.box makes no UV layer
+    # at all, so a textured material on one samples whatever it lands on -- the
+    # basket badge shipped scrambled white marks that way. Position-derived UVs
+    # are also winding-independent, and recalc_normals reorders loops.
+    lw, ld = PAGE_W * 0.52, PAGE_D * 0.24
+    lcx, lcy = (PAGE_W + sq) * 0.5, PAGE_D * 0.14
+    lz = TB * 0.5 + BOARD_T + 0.0011
+    lv = [Vector((lcx + sx * lw * 0.5, lcy + sy * ld * 0.5, lz))
+          for (sx, sy) in ((-1, -1), (1, -1), (1, 1), (-1, 1))]
+    label = HS.mesh_from("CoverLabel", lv, [(0, 1, 2, 3)])
+    uv = label.data.uv_layers.new(name="UVMap")
+    for li in label.data.polygons[0].loop_indices:
+        co = label.data.vertices[label.data.loops[li].vertex_index].co
+        uv.data[li].uv = ((co.x - (lcx - lw * 0.5)) / lw,
+                          (co.y - (lcy - ld * 0.5)) / ld)
+    parts["label"] = label
 
     # the ribbon out of the tail, lying over the board
     rv, rf = [], []
@@ -325,13 +350,19 @@ def build_closed(broken=""):
     sol.thickness, sol.offset = 0.0006, 0.0
     parts["ribbon"] = HS.apply_mods(rib)
 
-    cloth = HS.pbr("LedgerCloth", (0.042, 0.021, 0.016), roughness=0.88)
+    cloth = HS.pbr("LedgerCloth", (0.018, 0.052, 0.031), roughness=0.86)
     board_paper = HS.pbr("LedgerBlockEdge", (0.480, 0.452, 0.386), roughness=0.95)
     silk = HS.pbr("LedgerRibbon", (0.185, 0.032, 0.030), roughness=0.62)
+    plate = HS.pbr_textured(
+        "LedgerLabel",
+        os.path.join(REPO, "Assets", "models", "hero", "textures",
+                     "ledger_label.png"), roughness=0.92)
     for o in boards + [parts["spine"]] + parts["bands"] + [parts["frame"]]:
         o.data.materials.append(cloth)
     parts["blocks"][0].data.materials.append(board_paper)
-    parts["label"].data.materials.append(board_paper)
+    for o in parts["endbands"]:
+        o.data.materials.append(board_paper)
+    parts["label"].data.materials.append(plate)
     parts["ribbon"].data.materials.append(silk)
     parts["square"] = sq
     return parts
@@ -366,6 +397,8 @@ def main():
             HS.assert_touching(b, p["spine"], "a board must meet the spine", 0.0030)
         HS.assert_rooted(p["bands"], p["spine"], "the raised spine bands",
                          min_verts=3, min_depth=0.0004)
+        HS.assert_rooted(p["endbands"], p["spine"], "the head and tail endbands",
+                         min_verts=3, min_depth=0.0004)
         HS.assert_touching(p["label"], p["boards"][1],
                            "the cover label must be on the front board", 0.0020)
         # THE SQUARE: a hardback's boards overhang its block, and a block that
@@ -382,10 +415,10 @@ def main():
                 f"proud of its cover and the book does not read as bound")
         print(f"  square assertion passed: the board overhangs the block by "
               f"{(cx - bx) * 1000:.2f} mm at the fore-edge")
-        subject = (p["boards"] + [p["spine"]] + p["bands"] + p["blocks"]
-                   + [p["frame"], p["label"], p["ribbon"]])
-        print(f"TRIS {H.triangles(subject)} ({len(subject)} objects, 3 materials) "
-              f"— the hand is 5,179")
+        subject = (p["boards"] + [p["spine"]] + p["bands"] + p["endbands"]
+                   + p["blocks"] + [p["frame"], p["label"], p["ribbon"]])
+        print(f"TRIS {H.triangles(subject)} ({len(subject)} objects, "
+              f"4 materials) — the hand is 5,179")
         lo, hi = H.bounds(subject)
         print(f"  overall {hi.x - lo.x:.4f} x {hi.y - lo.y:.4f} x "
               f"{hi.z - lo.z:.4f} yd   (CLOSED)")

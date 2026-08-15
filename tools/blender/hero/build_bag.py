@@ -42,9 +42,9 @@ WIDTH = 0.33333          # 12"
 DEPTH = 0.19444          # 7"
 HEIGHT = 0.47222         # 17"
 WALL = 0.0042            # paper plus the stiffness a standing bag needs
-CORNER = 0.0075          # the corner crease radius: nearly sharp
-GUSSET = 0.0075          # how far the side-panel centre crease pulls in
-RIM_ROLL = 0.0180        # the folded-over top band
+CORNER = 0.0038          # the corner crease: sharp, the way a folded sack is
+GUSSET = 0.0112          # how far the side-panel centre crease pulls in
+RIM_ROLL = 0.0165        # the once-folded top cuff
 GAME_SCALE = 1.35        # BAG_PRESENTATION_SCALE, applied by the game
 # What the checkout has to be able to drop in.
 LOAD = (0.190, 0.115, 0.230)
@@ -104,9 +104,9 @@ def section(z, inset=0.0, flare=0.0, crease=True):
 # those survive it. All of the following is DETERMINISTIC -- reproducible builds
 # matter more than statistically good noise, so it is a fixed harmonic sum
 # rather than anything seeded by a clock.
-USE_BOW = 0.0105         # how far a wall panel bows in or out at mid-height
-USE_RIM = 0.0068         # how far the rim wanders off a true rectangle
-USE_LEAN = 0.0060        # the whole carrier leans, because bags do
+USE_BOW = 0.0034         # how far a wall panel bows in or out at mid-height
+USE_RIM = 0.0022         # how far the rim wanders off a true rectangle
+USE_LEAN = 0.0018        # the whole carrier leans, because bags do
 FOLD_H = 0.0016          # the ridge left by having been flattened
 
 
@@ -173,8 +173,8 @@ def build(broken=False):
     for (t, flare) in ((0.000, 0.0), (0.030, 0.0006), (0.300, 0.0016),
                        (0.620, 0.0022), (0.880, 0.0024), (0.955, 0.0022)):
         rings.append(used(section(HEIGHT * t, flare=flare), t))
-    for (t, f, rim) in ((0.985, 0.30, 0.8), (1.000, 0.42, 1.0),
-                        (0.985, 0.52, 0.9), (0.952, 0.46, 0.6)):
+    for (t, f, rim) in ((0.9560, 0.00, 0.4), (0.9585, 0.34, 0.4),
+                        (1.0000, 0.36, 1.0), (1.0010, 0.10, 1.0)):
         rings.append(used(section(HEIGHT * t, flare=0.0022 + RIM_ROLL * f),
                           t, rim=USE_RIM * rim))
     outer = loft("BagOuter", rings)
@@ -212,24 +212,24 @@ def build(broken=False):
     handles = []
     for side in (-1, 1):
         pts, faces = [], []
-        STEPS, RING = 13, 6
+        STEPS, RING = 13, 4
         for s in range(STEPS):
             t = s / (STEPS - 1)
             a = math.pi * t
-            cx = math.cos(a) * (WIDTH * 0.27)
-            cz = HEIGHT * 0.952 - 0.014 + math.sin(a) * (HEIGHT * 0.23)
+            cx = math.cos(a) * (WIDTH * 0.315)
+            cz = HEIGHT * 0.952 - 0.016 + math.sin(a) * (HEIGHT * 0.185)
             cy = side * (DEPTH * 0.5 - GUSSET * 0.4)
             dirv = Vector((-math.sin(a), 0, math.cos(a)))
             u = Vector((0, 1, 0))
             v = dirv.cross(u).normalized()
-            for k in range(RING):
-                b = 2 * math.pi * k / RING
-                # a flat ribbon, not a cord
-                # Flat kraft RIBBON: 1.8 thin against the panel, 10.5 wide.
-                # At 2.6 x 7.2 it still read as round cord.
+            for (su, sv) in ((-1, -1), (1, -1), (1, 1), (-1, 1)):
+                # a rectangular STRAP: two flat faces and four corners. A
+                # six-point ellipse still catches light like a cord however
+                # thin it is made, and that is what made the bag read as a
+                # boutique tote instead of a grocery sack.
                 pts.append(Vector((cx, cy, cz))
-                           + u * (math.cos(b) * 0.0018)
-                           + v * (math.sin(b) * 0.0105))
+                           + u * (su * 0.0019)
+                           + v * (sv * 0.0132))
         for s in range(STEPS - 1):
             for k in range(RING):
                 q = (k + 1) % RING
@@ -238,8 +238,11 @@ def build(broken=False):
         faces.append(tuple(range(RING - 1, -1, -1)))
         base = (STEPS - 1) * RING
         faces.append(tuple(range(base, base + RING)))
+        # FLAT shaded. The section is already a rectangle, but smooth shading
+        # across four faces rounds it right back into a cord -- which is why
+        # thinning the ellipse never fixed the read. A strap needs its creases.
         handles.append(HS.mesh_from(f"BagHandle_{'F' if side < 0 else 'B'}",
-                                    pts, faces, smooth=True))
+                                    pts, faces, smooth=False))
     parts["handles"] = handles
 
     kraft = HS.pbr_textured(

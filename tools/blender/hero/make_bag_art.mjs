@@ -191,8 +191,35 @@ function ledgerPage() {
   </svg>`;
 }
 
+/** The pasted title label on the closed ledger's front board. */
+function ledgerLabel() {
+  const W = 768, H = 384;
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}">
+    <rect width="${W}" height="${H}" fill="#efeade"/>
+    <rect x="${W * 0.035}" y="${H * 0.055}" width="${W * 0.930}" height="${H * 0.890}"
+          fill="none" stroke="${INK}" stroke-width="${H * 0.020}"/>
+    <rect x="${W * 0.058}" y="${H * 0.095}" width="${W * 0.884}" height="${H * 0.810}"
+          fill="none" stroke="${INK_SOFT}" stroke-width="${H * 0.008}" opacity="0.7"/>
+    <g text-anchor="middle" font-family="Georgia, serif" fill="${INK}">
+      <text x="${W / 2}" y="${H * 0.325}" font-size="${H * 0.185}"
+            letter-spacing="${H * 0.028}">DAY BOOK</text>
+      <text x="${W / 2}" y="${H * 0.475}" font-size="${H * 0.078}"
+            letter-spacing="${H * 0.030}" opacity="0.82">PINE HILLS GOLF CLUB</text>
+      <text x="${W / 2}" y="${H * 0.855}" font-size="${H * 0.070}"
+            letter-spacing="${H * 0.022}" opacity="0.72">ACCOUNTS &#183; SEASON I</text>
+    </g>
+    <path d="M${W * 0.30} ${H * 0.560} H${W * 0.70}" stroke="${INK}"
+          stroke-width="${H * 0.011}" opacity="0.75"/>
+    <path d="M${W * 0.24} ${H * 0.700} H${W * 0.76}" stroke="${INK_SOFT}"
+          stroke-width="${H * 0.007}" opacity="0.55"/>
+    <path d="M${W * 0.24} ${H * 0.745} H${W * 0.76}" stroke="${INK_SOFT}"
+          stroke-width="${H * 0.007}" opacity="0.55"/>
+  </svg>`;
+}
+
 for (const [name, svg, size] of [
   ['ledger_page.png', ledgerPage(), null],
+  ['ledger_label.png', ledgerLabel(), null],
   ['checkout_bag_print.png', bagPrint(), null],
   ['customer_basket_print.png', basketArt(), null],
 ]) {
