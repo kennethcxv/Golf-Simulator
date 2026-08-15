@@ -104,7 +104,44 @@ judging a new asset.** Modelling starts next.
 
 ---
 
-## 1. The hands — WIRED AND DRAWING. Better, and not yet right.
+## 1. The hands — I CANNOT CONFIRM THE AUTHORED MODEL EVER REACHED THE GAME
+
+**Read this before the section below it, which was written on an assumption I have
+since disproved.**
+
+I instrumented the loader to keep its error instead of discarding it, and to
+publish the outcome on `window` either way — loaded, threw, or failed. The probe
+read **null for both**: `window.__fwHandLoad` is unset and `window.__fwHandAdopt`
+is unset.
+
+Those globals are written unconditionally, on every path, at the top of the load.
+Null does not mean "the load failed". It means **that code never ran**.
+
+Which forces a re-reading of everything I reported as adoption:
+
+| what I said | what the evidence actually supports |
+|---|---|
+| "nails retired, `nailsStillVisible: 0`" | the nails may never have been visible, or my name match never hit — not proof my swap ran |
+| "four capsules at the origin, so `adoptAuthored` ran on them" | if the swap never ran, they are at the origin for some other reason and my inference was wrong |
+| "72/89 drawable, 8 fewer than the procedural build" | a difference I attributed to retired nails, with no proof of cause |
+| three frames showing improvement | **may all be the procedural hand under different lighting** |
+
+So the honest state of item 1 is not "wired but not right". It is: **the model is
+built and validated, and I have no evidence it is in the game.** The frames prove a
+hand was photographed, not whose hand it was.
+
+The next session's first move is not modelling and not proportions. It is one
+question: does `makeHand` in the running build contain the swap at all? Log a
+single line at the top of `makeFpHands` and look for it. If it is absent, the
+worktree is serving a different `fpHands.js` than the one on disk — and every
+visual conclusion in this report from the hand onward has to be re-taken.
+
+I would rather hand over a disproved assumption than a report that reads as
+progress.
+
+---
+
+## 1b. What was built and wired (written before the above, and now unconfirmed)
 
 **The model is in the game and drawing. The axis is settled. It is an improvement
 on the splayed version and it does NOT yet match your reference, so it is yours to

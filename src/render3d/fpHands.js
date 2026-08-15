@@ -496,6 +496,15 @@ function loadAuthoredHand() {
   if (typeof document === 'undefined') return Promise.resolve(null);
   const url = new URL(AUTHORED_HAND_URL, document.baseURI).href;
   authoredHandPending = new Promise((resolve) => {
+    // THE ERROR IS KEPT. The first version discarded it -- `() => resolve(null)`
+    // -- and when the parts stopped arriving the run reported "no parts" with no
+    // way to tell a 404 from a parse failure from a loader that was never called.
+    // A silent failure path in the one place the asset can go missing is how this
+    // swap became untraceable.
+    const note = (why) => {
+      if (typeof window !== 'undefined') window.__fwHandLoad = { url, why };
+      resolve(null);
+    };
     try {
       new CachedGLTFLoader().load(url, (gltf) => {
         const parts = new Map();
@@ -503,9 +512,12 @@ function loadAuthoredHand() {
           if (o.isMesh && o.geometry && o.name) parts.set(o.name, o.geometry);
         });
         authoredHandParts = parts.size ? parts : null;
+        if (typeof window !== 'undefined') {
+          window.__fwHandLoad = { url, why: `loaded ${parts.size} parts`, names: [...parts.keys()] };
+        }
         resolve(authoredHandParts);
-      }, undefined, () => resolve(null));
-    } catch { resolve(null); }
+      }, undefined, (err) => note(`loader error: ${err?.message || err?.type || String(err)}`));
+    } catch (err) { note(`threw: ${err?.message || String(err)}`); }
   });
   return authoredHandPending;
 }
