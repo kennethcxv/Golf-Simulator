@@ -206,11 +206,27 @@ judgement needs a closer exhibit.
 
 ### What is still open, precisely
 
-1. **Four capsules unswapped, still untraced.** I added per-name miss reporting to
-   `fpHands` and exposed `authoredHandDiagnostics()`, but a driver cannot reach it:
-   `fpHands` is passed INTO `broomViewmodel` and is not on `scene3d`, so the probe
-   returned null. The accessor is written; it needs one reachable path, and that
-   path is in `courseScene.js`, which this session does not own.
+1. **Four capsules — traced, and the finding narrows it sharply.** I said this
+   needed an accessor from `courseScene.js`; that was wrong, and the scene graph
+   answered it directly. Recording each capsule's PARENT CHAIN and local position:
+
+   ```
+   CAPSULE verts 110  pos 0,0,0  chain Group < FirstPersonRightHand < FirstPersonHands < Tool_broom
+   ...x4, identical
+   ```
+
+   **All four sit at exactly (0, 0, 0).** That is the signature of `adoptAuthored`
+   having RUN on them — it is the function that writes `position.set(0,0,0)`, and
+   it returns early, before touching position, when the authored part is missing.
+   So these are not parts that failed to arrive. They are meshes whose geometry
+   assignment was made and then undone, or made against an already-disposed
+   buffer — `adoptAuthored` disposes the outgoing geometry, and a shared or
+   double-listed entry would dispose something still in use.
+
+   That is a different bug from the one I assumed, and it is findable now: the next
+   pass should log the geometry uuid before and after each assignment rather than
+   the count. Four fingers, four capsules, all at origin, strongly suggests one
+   entry per finger being processed twice.
 2. **A closer exhibit.** Judging a hand at the default camera against a reference
    photograph taken at arm's length is not a fair comparison; the next pass should
    put both at the same apparent size.

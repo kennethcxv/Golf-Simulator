@@ -62,11 +62,21 @@ async (page) => {
       handRoot.traverse((o) => {
         if (!o.isMesh || !o.geometry) return;
         const g = o.geometry;
+        // The PARENT CHAIN, not just the mesh name. The unswapped capsules are
+        // unnamed, so "4 capsules left" was untraceable from names alone -- but
+        // the chain says which joint each one hangs from, which is the same
+        // question. No accessor needed; the scene graph already knows.
+        const chain = [];
+        for (let at = o.parent, i = 0; at && i < 5; at = at.parent, i += 1) {
+          chain.push(at.name || at.type);
+        }
         rows.push({
           name: o.name || '(unnamed)',
           type: g.type,
           vertices: g.attributes?.position?.count ?? 0,
           visible: o.visible,
+          chain,
+          pos: [+o.position.x.toFixed(4), +o.position.y.toFixed(4), +o.position.z.toFixed(4)],
         });
       });
     }
