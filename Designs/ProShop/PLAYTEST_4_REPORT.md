@@ -19,7 +19,7 @@
 |---|---|
 | 1 — the audition results | **DONE**, and the reason you were not hearing the defaults is fixed |
 | 2 — register timing | **DONE**, all three complaints measured before and after |
-| 3a — remodel the mop head | **HALF.** Three changes confirmed on the live objects; NOT photographed |
+| 3a — remodel the mop head | **HALF, and now photographed.** White, hub clean, centre closed — still a fringe, not a packed disc |
 | 3b — stop the strands moving | **DONE**, swept and measured in the running game |
 | 4 — items through the bag | **DONE.** Reproduced at 0.1375 yd, fixed to 0.000 |
 | 5 — my body blocks them | **PARTIAL.** Predicate re-checked, shove made gentle; separator NOT observed firing |
@@ -137,7 +137,20 @@ I updated the test rather than working around it, as you asked: *"moved sideways
 the yarn trails behind"* now names its mode, and a new test asserts the carried
 half at 0.012 yd with mopping still 3× larger.
 
-**3a is half done and I could not photograph it.** Three changes, all confirmed
+**3a is half done, and I have the picture after all.** The golden gate has a
+`tool-mop` pose — it has been photographing this tool the whole time, and I went
+looking for a camera instead of using the one already pointed at it. The frame is
+`Designs/ProShop/Images/Goal_26/after/mop-head-playtest4.png`, and it also scored
+the change independently: `tool-mop` diffed **0.7349%** against a 0.75% threshold,
+where every other tool pose is under 0.13%. The head changed, measurably.
+
+**What the picture says, by eye rather than by number:** the yarn is white, the red
+hub reads clean, and the microfibre pad has closed the middle so it is no longer a
+ring with a hole. But the silhouette is still a **narrow fringe of separate threads
+hanging below the hub**, not the wide packed disc in your reference. So the colour
+and the hub are right and the BODY is not. That is a straight answer to 3a rather
+than the "confirmed on the objects, unconfirmed by eye" I wrote before.
+ Three changes, all confirmed
 present on the live objects: the yarn was `0x8f8a80`, a **mid grey**, now
 `0xe9e5db` read back off the live material; a hem bead per strand
 (`MopVerletTips`, 972 instances, visible) so the strands end in a fold; and a
@@ -368,5 +381,18 @@ session stands: **1446 standing draw calls, 1037 mergeable meshes, 349 materials
 
 ## Gate state
 
-Suite **3679 / 0**. Lint ratchet **323**, unchanged. Every item pushed as its own
-commit.
+`npm run gate`: lint ratchet **323** unchanged, suite **3679 / 0**, vendor-models
+check clean, golden **12 poses ok** — `shop-floor` and `stockroom-wall` at 0.0000%,
+every tool pose inside its threshold, `tool-mop` at 0.7349% against 0.75% because
+the mop genuinely changed.
+
+**The gate exits 1, and it is not mine.** `bag-packed` reports
+`SKIP bag-packed: only 1 goods packed` — the pose fails to STAGE, so the differ
+refuses to score it rather than comparing a stale file. `golden-capture.js`'s own
+header records that this has been true since Goal 23 (*"bag-packed failed to
+stage"*), and no run directory in `qa/golden/` has ever contained a
+`bag-packed.png`. Checked rather than assumed: reverting item 4's clearance change
+by file copy reproduces the identical skip, and the restore was asserted to have
+changed the file back.
+
+Every item pushed as its own commit.
