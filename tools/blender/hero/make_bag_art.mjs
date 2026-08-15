@@ -155,7 +155,44 @@ function basketArt() {
   </svg>`;
 }
 
+function ledgerPage() {
+  // A LEDGER, not a sketchbook. The player studies this one, and what makes it
+  // read as an account book rather than blank paper is the ruling: a red
+  // margin, blue feint lines, and money columns at the right.
+  const W = 1024;
+  const H = 1400;
+  const PAPER = '#d9cfb4';
+  const FEINT = '#8d9bab';
+  const RED = '#a4514a';
+  const rows = 34;
+  let lines = '';
+  for (let i = 0; i < rows; i += 1) {
+    const y = H * 0.115 + i * ((H * 0.855) / rows);
+    lines += `<path d="M ${W * 0.055} ${y} H ${W * 0.955}" stroke="${FEINT}"
+                    stroke-width="1.6" opacity="0.55"/>`;
+  }
+  let cols = '';
+  for (const x of [0.145, 0.660, 0.760, 0.860]) {
+    cols += `<path d="M ${W * x} ${H * 0.075} V ${H * 0.975}" stroke="${FEINT}"
+                   stroke-width="1.8" opacity="0.62"/>`;
+  }
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}">
+    <rect width="${W}" height="${H}" fill="${PAPER}"/>
+    ${lines}${cols}
+    <path d="M ${W * 0.105} 0 V ${H}" stroke="${RED}" stroke-width="2.6" opacity="0.70"/>
+    <path d="M ${W * 0.055} ${H * 0.085} H ${W * 0.955}" stroke="${FEINT}"
+          stroke-width="3.2" opacity="0.8"/>
+    <g font-family="Georgia, serif" fill="#4a4536" opacity="0.85">
+      <text x="${W * 0.165}" y="${H * 0.062}" font-size="${W * 0.028}">DATE / PARTICULARS</text>
+      <text x="${W * 0.672}" y="${H * 0.062}" font-size="${W * 0.024}">DR</text>
+      <text x="${W * 0.772}" y="${H * 0.062}" font-size="${W * 0.024}">CR</text>
+      <text x="${W * 0.872}" y="${H * 0.062}" font-size="${W * 0.024}">BAL</text>
+    </g>
+  </svg>`;
+}
+
 for (const [name, svg, size] of [
+  ['ledger_page.png', ledgerPage(), null],
   ['checkout_bag_print.png', bagPrint(), null],
   ['customer_basket_print.png', basketArt(), null],
 ]) {
