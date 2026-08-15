@@ -589,3 +589,42 @@ measured gap is to the valley floor rather than the crest it is seated on.
 
 The 22 moulded ribs are barely legible at hero framing — they read at the
 silhouette edges and wash out across the front face under the studio key.
+
+---
+
+## THE CASH REGISTER — drawer measured, both engines shown
+
+`Assets/models/hero/cash_register.glb` — **728 tris**, 16 objects, 4 materials,
+glTF clean. Body, keypad, monitor on a stalk with an EMISSIVE screen, and an open
+drawer. Rendered in Cycles AND EEVEE (`register-engines.png`) because the screen
+emits and the game draws closer to EEVEE.
+
+### The drawer, measured off the tray (YARDS)
+
+| | |
+|---|---|
+| outer | 0.4060 × 0.3900 × 0.1080 |
+| interior | 0.3940 × 0.3780 × 0.1020 |
+| **4 note bays** | **0.0944 × 0.2142**, divider wall 0.052 high |
+| **5 coin wells** | **0.0744 × 0.1638**, divider wall 0.040 high |
+
+Eight dividers — one rail, three note-bay walls, four coin-well walls — all
+seated in the floor at 1.7 mm, with the broken variant (every divider lifted
+20 mm) rejected.
+
+### Four faults, and one assertion replaced
+
+- **Every divider stacked on one spot 26 mm outside the tray.** `HS.box` stores
+  its centre in the OBJECT's location, and I *assigned* the drawer offset instead
+  of adding to it.
+- Seating read **−1.00 mm** (bottoms through the underside of a 6 mm floor), then
+  **+1.46** against a 1.5 threshold, before landing at 1.7.
+- **Shrinking the dividers clear of the side walls looked like the fix and was
+  the opposite.** The tray is hollow, so its cavity reads as *outside* the shell,
+  and the corners that were scoring were the ones buried in wall material. That
+  change took the reading from +1.46 to −0.04.
+- **The drawer-face check reported 4.32 mm however far the face moved.** A number
+  that does not respond to the thing it measures is not a measurement. Replaced
+  with `assert_boxes_overlap`, which is coarser and honest about it — a
+  bounding-box overlap cannot be invariant to position. It now reports 15.0 mm of
+  shared volume.

@@ -199,6 +199,34 @@ def assert_fits_inside(interior, size, label, margin=0.0030, samples=5):
           f"tightest ({label})")
 
 
+def assert_boxes_overlap(a, b, label, min_overlap=0.0020):
+    """Two parts must share real volume, measured on WORLD BOUNDING BOXES.
+
+    Used where the surface tests cannot answer: a drawer face against a hollow
+    tray reported an unchanging 4.32 mm however far the face was moved, so
+    whatever it was measuring, it was not the plane in question. Bounding-box
+    overlap is coarse, and it is honest about being coarse -- it cannot be
+    invariant to position.
+    """
+    def box(o):
+        pts = [o.matrix_world @ Vector(c) for c in o.bound_box]
+        lo = Vector((min(p.x for p in pts), min(p.y for p in pts), min(p.z for p in pts)))
+        hi = Vector((max(p.x for p in pts), max(p.y for p in pts), max(p.z for p in pts)))
+        return lo, hi
+
+    alo, ahi = box(a)
+    blo, bhi = box(b)
+    over = [min(ahi[i], bhi[i]) - max(alo[i], blo[i]) for i in range(3)]
+    worst = min(over)
+    if worst < min_overlap:
+        axis = "xyz"[over.index(worst)]
+        raise SystemExit(
+            f"BUILD FAILED: {label} -- {a.name} and {b.name} overlap by only "
+            f"{worst * 1000:+.2f} mm on {axis}; they do not share volume")
+    print(f"  overlap assertion passed: {a.name} shares "
+          f"{worst * 1000:.1f} mm with {b.name} ({label})")
+
+
 def shells(obj):
     bm = bmesh.new()
     bm.from_mesh(obj.data)

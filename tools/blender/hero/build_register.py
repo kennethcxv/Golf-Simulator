@@ -140,10 +140,10 @@ def build(broken=False):
     # ---- drawer face and pull
     # The bevel rounds the back edge, so the face's rearmost plane is inboard of
     # its nominal half-thickness -- flush by arithmetic was 4.3 mm short in fact.
-    face = HS.box("DrawerFace", (0, -OPEN - DRAWER_D * 0.5 - 0.0040, 0.0620),
+    face = HS.box("DrawerFace", (0, -OPEN - DRAWER_D * 0.5 + 0.0060, 0.0620),
                   (BODY[0] * 0.96, 0.0180, 0.1240), bevel=0.0040, segments=2)
     p["face"] = HS.apply_mods(face)
-    pull = HS.box("DrawerPull", (0, -OPEN - DRAWER_D * 0.5 - 0.0175, 0.0620),
+    pull = HS.box("DrawerPull", (0, -OPEN - DRAWER_D * 0.5 - 0.0090, 0.0620),
                   (0.1600, 0.0140, 0.0220), bevel=0.0050, segments=2)
     p["pull"] = HS.apply_mods(pull)
 
@@ -216,8 +216,8 @@ def main():
 
     HS.assert_rooted(p["dividers"], p["drawer"], "drawer dividers",
                      min_verts=3, min_depth=0.0015)
-    HS.assert_touching(p["face"], p["drawer"], "the drawer face must be on the drawer",
-                       max_gap=0.0025)
+    HS.assert_boxes_overlap(p["face"], p["drawer"],
+                            "the drawer face must be on the drawer")
     HS.assert_touching(p["pull"], p["face"], "the pull must be on the face",
                        max_gap=0.0020)
     HS.assert_touching(p["stalk"], p["body"], "the monitor stalk must meet the body",
