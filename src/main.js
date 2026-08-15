@@ -1703,6 +1703,14 @@ function startGameNow(
       // what exitEditor invalidates. The stall itself is still open, and the
       // warm-tier fact stands: ANGLE translation/link do not disk-cache, so
       // the owner pays ~1 s on his first editor open of every session.
+      //
+      // The BELT warm is a different story: tool equips through the live loop
+      // are the same verbs the game runs all day, and their under-veil round
+      // trip leaves nothing behind (census: every tool's first press clean).
+      // The clip standard moved them here from the deferred slot — see
+      // warmBeltThroughLiveLoop.
+      await warmBeltThroughLiveLoop(sceneRef, generation, () => sceneStartGeneration);
+      if (app.scene3d !== sceneRef || generation !== sceneStartGeneration) return;
       // Yield through two animation frames instead — the same paint-yield idiom
       // startGame uses. The startup hold is released above, so the first of
       // those is a real production frame drawn from the walk camera, and the
@@ -1772,61 +1780,53 @@ let loadVeil = null;
 // blocking a single frame. A player equipping a tool inside the first two
 // seconds simply beats the warm and pays what they always paid; the warm skips
 // itself rather than fight them for the hands.
+// GOAL 27 PHASE 2 — THE WHOLE BELT, THROUGH THE LIVE LOOP, UNDER THE VEIL.
+//
+// The veil prewarm equipped every tool and drew warm-only frames, and the
+// mop's first in-play equip STILL arrived +1 program +10 geometries (93-485
+// ms disk-cold, census-measured): the lazy piece builds in walkUpdate's own
+// tool branches, which no warm-only draw runs. So the warm runs the PLAYER'S
+// OWN PATH — each tool equipped through the immediate door while the real
+// loop ticks, a few frames apiece. It first ran post-veil, deferred; the
+// clip standard caught THAT as a visible parade of tools flashing at the
+// player's feet (qa/clips/g27-load tiles-10). Same frames, moved under the
+// still-opaque veil, where they are invisible and the mop's one first-draw
+// stall lands where stalls belong.
+//
+// The immediate door, not the debounced one: the debounced setter parks a
+// switch made inside 120 ms in a queue drained only by walkUpdate — the
+// dustpan-in-your-hands bug of Playtest 5. And getTool, not walk.tool.
+async function warmBeltThroughLiveLoop(sceneRef, generationAtStart, generationNow) {
+  const walk = sceneRef?.walk;
+  if (!walk || typeof walk.setTool !== 'function') return;
+  const frame = () => new Promise((resolve) => requestAnimationFrame(resolve));
+  const held = typeof walk.getTool === 'function' ? walk.getTool() : null;
+  window.__fwWarm = { hands: 'skipped', belt: 'skipped', ...(window.__fwWarm || {}) };
+  if (held) return; // a resumed save can arrive holding a tool — leave it be
+  const equip = walk.setToolImmediate || walk.setTool;
+  const belt = BELT_ORDER.filter((tool) => tool && CLEANING_TOOLS[tool]);
+  let warmed = 0;
+  for (const tool of belt) {
+    if (app.scene3d !== sceneRef || generationNow() !== generationAtStart) return;
+    if (walk.getTool?.() != null) break;
+    equip.call(walk, tool);
+    await frame();
+    await frame();
+    await frame();
+    if (app.scene3d !== sceneRef || generationNow() !== generationAtStart) return;
+    if (walk.getTool?.() === tool) equip.call(walk, null);
+    await frame();
+    warmed += 1;
+  }
+  window.__fwWarm.belt = `${warmed}/${belt.length}`;
+  window.__fwWarm.hands = walk.getTool?.() == null ? 'done' : 'left-a-tool-behind';
+}
+
 function scheduleDeferredGpuWarm(sceneRef) {
   setTimeout(async () => {
     try {
       if (app.scene3d !== sceneRef || app.prewarming) return;
-      const walk = sceneRef?.walk;
-      if (!walk || typeof walk.setTool !== 'function') return;
-      const frame = () => new Promise((resolve) => requestAnimationFrame(resolve));
-      // PLAYTEST 5 P0 — getTool, NOT tool.
-      //
-      // `walk.tool` does not exist on the walk facade; the accessor is
-      // `getTool` and every other caller in this file uses it. So this read was
-      // `undefined` on every boot, `held` was always null, and the guard below
-      // -- "a player equipping a tool inside the first two seconds simply beats
-      // the warm... the warm skips itself rather than fight them for the hands"
-      // -- never once skipped. The warm took the hands off whatever the player
-      // had just picked up, every time.
-      const held = typeof walk.getTool === 'function' ? walk.getTool() : null;
-      window.__fwWarm = { hands: 'skipped', sweep: 'pending', belt: 'skipped' };
-      if (!held) {
-        // GOAL 27 PHASE 2 — THE WHOLE BELT, THROUGH THE LIVE LOOP, POST-VEIL.
-        //
-        // The veil prewarm equipped every tool and drew warm frames, and the
-        // mop's first in-play equip STILL arrived +1 program +10 geometries
-        // (93-485 ms disk-cold, census-measured) — the lazy piece builds in
-        // walkUpdate's own tool branches, which no warm-only draw can run
-        // without simulating the world behind the veil. So the warm runs the
-        // PLAYER'S OWN PATH instead: each tool equipped through the immediate
-        // door while the real loop ticks, three frames apiece, two seconds
-        // after the game is interactive. What the live path builds, this
-        // builds, for every tool and every future tool.
-        //
-        // ...and put each back through the door that does not queue. The
-        // debounced setter parks a switch made inside 120 ms in a queue drained
-        // only by walkUpdate, so a player parked at a station when the warm
-        // fired kept the dustpan. Measured at t=33433 ms on a fresh boot with
-        // tools/qa/electron-load-in-hands-and-camera.js.
-        const equip = walk.setToolImmediate || walk.setTool;
-        const belt = BELT_ORDER.filter((tool) => tool && CLEANING_TOOLS[tool]);
-        let warmed = 0;
-        for (const tool of belt) {
-          // A player who reached for a tool mid-warm wins instantly and the
-          // rest of the belt pays its own first use, as it always did.
-          if (app.scene3d !== sceneRef || walk.getTool?.() != null) break;
-          equip.call(walk, tool);
-          await frame();
-          await frame();
-          await frame();
-          if (app.scene3d !== sceneRef) return;
-          if (walk.getTool?.() === tool) equip.call(walk, null);
-          await frame();
-          warmed += 1;
-        }
-        window.__fwWarm.belt = `${warmed}/${belt.length}`;
-        window.__fwWarm.hands = walk.getTool?.() == null ? 'done' : 'left-a-tool-behind';
-      }
+      window.__fwWarm = { ...(window.__fwWarm || { hands: 'skipped', belt: 'skipped' }), sweep: 'pending' };
       // The sweep is fire-and-forget: parallel compile finishes whenever it
       // finishes, and anything it misses just pays its old first-use cost.
       const renderer = sceneRef.renderer;

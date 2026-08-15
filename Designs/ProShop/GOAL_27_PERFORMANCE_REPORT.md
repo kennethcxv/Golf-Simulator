@@ -12,7 +12,7 @@
 |---|---|
 | 0 — merged tree | **DONE** — merged, gate exit 0, both load-in faults verified fixed |
 | 1 — loading in | **DONE with caveats** — 1.1/1.2 fixed; 1.3 measured, largest warm block removed, totals dominated by migratory driver debt (documented) |
-| 2 — first-press stalls | **DONE with two named residuals** — general mechanism shipped, every reachable surface ≤27 ms both tiers; course editor (823-1051 ms) open with one fix shape tried+reverted; page-turn instrument gap named |
+| 2 — first-press stalls | **DONE with two named residuals** — general mechanism shipped (belt warm through the live loop, placement corrected UNDER the veil after the clip caught visible tool flashes); every reachable surface ≤27 ms both tiers; course editor (823-1051 ms) open with one fix shape tried+reverted; page-turn instrument gap named |
 | 3 — mesh merge | **MEASURED, NOT MERGED** — headroom re-derived with an honest classifier; the naive estimate was blind to pivot articulation; top target has a named verification gap; no geometry touched |
 | 4 — outdoor collapse | **DOES NOT REPRODUCE** on the merged tree at owner resolution — walking out: 8.6 ms median / 116 fps, max 18.9 ms; historic 6.7 fps attributed to the cold-tier outdoor compile storm the deferred sweep now covers; 7.7M outdoor triangles named as the top Phase-5 risk |
 | 5 — low-end target | **MEASURED** — target defined (1080p / integrated class / 33 ms); at 1080p full-hardware every scenario passes except the editor entry (10.7 s outlier); at CPU ×6.6 everything fails — the game is CPU-bound on weak CPUs; levers named |
@@ -150,6 +150,23 @@ warm-up") is MET for every surface the census can reach.
 belt cycle; one 261 ms cold-tier frame inside the settle window (~2 s
 post-interactive), where the mop's lazy build now lands instead of on the
 player's chosen moment.
+
+**THE CLIP STANDARD THEN CORRECTED THE PLACEMENT.** The deferred belt cycle
+was frame-time clean and VISUALLY NOT: the recorded load-in
+(qa/clips/g27-load, tiles-10, frames viewed) shows a parade of tools
+flashing at the player's feet right after the veil lifts — the washer
+wand's silhouette, the mop's red collar and white skirt with a bare arm,
+the broom head, the spray bottle, the sponge, each for a few frames. No
+instrument in the phase saw it; the frames did. The cycle now runs UNDER
+the still-opaque veil, in the arrival path before the lift, through the
+same live loop (`warmBeltThroughLiveLoop`); the mop's one first-draw stall
+lands where stalls belong. Re-verified both ways: a fresh clip
+(qa/clips/g27-load2, tiles-10 and 11 VIEWED) shows empty hands and a steady
+frame through the whole post-veil window, and a fresh cold census keeps the
+mop clean (21.4 ms, +0 programs +0 geometries, `belt: 9/9` before the lift).
+The editor round trip stays forbidden in that spot (its exit invalidates);
+tool equips are the game's all-day verbs and leave nothing behind — the
+census proves the difference.
 
 ---
 
@@ -345,6 +362,31 @@ points across its projected box until the packed COUNT moves, and record
 per-item outcomes (`bagStaging` in the manifest) so a skip names its step.
 Verified: 3/3 packed, `bag-packed` diffs 0.0 against its committed baseline,
 golden exit 0 honest via PIPESTATUS.
+
+---
+
+## What waits on you, and what the next session should take first
+
+**Decisions:**
+1. The LFS wedge: `goal27/lfs-renormalize-candidate` (local branch) holds the
+   ready renormalize; `goal27/phase0-pre-lfs-merge` (remote) is the way back.
+   Until decided, nobody `git add -A`s near vendor/models.
+2. The lint baseline (323) still awaits your breakdown decision — unchanged
+   all session.
+
+**Next session's first items, in order of measured value:**
+1. **The course editor's first entry** — 823 ms to 10.7 s, every session,
+   both cache tiers, the game's one remaining first-press failure. The
+   under-veil round trip is PROVEN WRONG (9.5 s aftermath, documented); the
+   path forward is understanding what exitEditor invalidates, or building
+   the editor's lazy content at scene build behind the veil.
+2. **The mesh merge** — corrected headroom 646 saves across 930
+   truly-static meshes; the propPlacement entry-flag mirroring is the one
+   verification standing between the stability census and a safe first
+   slice.
+3. **The low-end CPU work** — freezing the 2,208-object clubhouse subtree
+   and splitting entry-frame work; the ×6.6 throttle matrix is the
+   before-number.
 
 ---
 
