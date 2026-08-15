@@ -183,10 +183,23 @@ function createWindow() {
       preload: path.join(__dirname, 'preload.cjs'),
       contextIsolation: true,
       nodeIntegration: false,
+      // GOAL 27 — QA WINDOWS MUST NEVER BACKGROUND-THROTTLE. Chromium drops
+      // an occluded window's rAF to 1 Hz, and the prewarm yields through rAF
+      // — so a QA boot with another window in front (the parallel session's
+      // Blender, most of one night) measured 3-5x slow with a metronomic
+      // 1,004 ms gap every second. Whole hours of load numbers were poisoned
+      // by window STACKING. Shipped players keep the default throttling: a
+      // minimized game should not burn the machine.
+      backgroundThrottling: process.env.FW_QA !== '1',
       sandbox: true,
       additionalArguments: rendererArguments,
     },
   });
+  // QA windows also pin themselves on top: even with throttling off, an
+  // OCCLUDED window's compositor path is not the visible path, and the
+  // whole point of a QA boot is measuring what a player would see. QA only —
+  // FW_QA comes from run-electron.cjs and nothing else.
+  if (QA_LAUNCH) win.setAlwaysOnTop(true, 'screen-saver');
   win.webContents.on('will-navigate', (event, url) => {
     // Same-document navigation with a query (?scene=shed) is how the renderer
     // enters scoped test scenes; everything else stays blocked.

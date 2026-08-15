@@ -315,6 +315,34 @@ cacheKeys, enter the editor, diff, nearest-twin field analysis. Findings:
   outlier amplified is 60% smaller. Entry-time re-measure queued for the
   rested machine.
 
+## FINAL DIAGNOSIS of the slowdown — three layers, each caught by its own control
+
+The hunt ended with a full elimination chain, and the answer is THREE
+stacked causes:
+
+1. **Window occlusion throttling (the big one).** The QA window sat behind
+   the parallel session's Blender window, and Chromium drops an occluded
+   window's rAF to 1 Hz — the gap log showed a METRONOME of 1,004 ms gaps,
+   one per second, for 25 straight seconds. The prewarm yields through rAF,
+   so an occluded boot measures 3-5× slow. **Fixed permanently for QA:**
+   `backgroundThrottling: false` and `setAlwaysOnTop` for FW_QA launches
+   (main.cjs; shipped players keep normal throttling — a minimized game
+   should not burn the machine).
+2. **Real CPU contention during the co-tenant's bakes** (Blender + 16
+   workers at ~60% total) — intermittent, stacked on top.
+3. **The NVIDIA driver's own DXCache at 19 GB / 593 files** — pathological
+   (typical is hundreds of MB) after a night of unique-shader hammering
+   through ANGLE→D3D. With occlusion fixed, window on top, CPU sampled at
+   8% THROUGH the boot, fresh AND old profiles, current AND old src, boots
+   still read 80-132 s — machine-wide, probe-invisible, and the only layer
+   left. **Remedy, yours to take: delete `%LOCALAPPDATA%\NVIDIA\DXCache`
+   contents (or reboot after clearing) — the driver rebuilds it. Cost: your
+   other games' warm shader caches clear too, one recompile each.**
+   Prediction on record: post-clear, the healthy-era numbers return.
+
+Every conclusion in this report built on healthy-era measurements stands;
+every late-night reading is labeled with its poison.
+
 ## CORRECTION: the "degraded machine" is the PARALLEL SESSION'S BAKES
 
 The degradation hunt ended with every subsystem probing healthy — CPU at
