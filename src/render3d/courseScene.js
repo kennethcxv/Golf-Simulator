@@ -12679,9 +12679,13 @@ export function makeCourseScene(canvas, state) {
       let warmedTools = 0;
       for (const tool of beltTools) {
         if (!alive()) break;
+        const toolWarmStartedAt = performance.now();
+        let toolWarmSetMs = 0;
+        let toolWarmDraw1Ms = 0;
         // walkSetTool, not the debounced belt entry point: a loop through the
         // debounce would collapse into one switch and warm one tool.
         walkSetTool(tool);
+        toolWarmSetMs = performance.now() - toolWarmStartedAt;
         // The rise ANIMATION is skipped -- heldRoot is a child of the camera, so
         // placing it at its settled rest pose is where the player sees the tool
         // once the 0.26 s equip completes. The equip itself is not skipped: the
@@ -12709,10 +12713,20 @@ export function makeCourseScene(canvas, state) {
         // about the tool changed between those runs; which passes ran on its one
         // frame did.
         renderer.shadowMap.needsUpdate = true;
-        drawWarmFrame();
+        {
+          const draw1StartedAt = performance.now();
+          drawWarmFrame();
+          toolWarmDraw1Ms = performance.now() - draw1StartedAt;
+        }
         renderer.shadowMap.needsUpdate = true;
         drawWarmFrame();
         warmedTools += 1;
+        prewarmTimings.push({
+          label: `gesture-tool-${tool}`,
+          ms: +(performance.now() - toolWarmStartedAt).toFixed(1),
+        });
+        prewarmTimings.push({ label: `gesture-tool-${tool}-set`, ms: +toolWarmSetMs.toFixed(1) });
+        prewarmTimings.push({ label: `gesture-tool-${tool}-draw1`, ms: +toolWarmDraw1Ms.toFixed(1) });
       }
       walkSetTool(savedHeld.tool || null);
       heldRoot.visible = savedHeld.visible;
