@@ -22,6 +22,20 @@ if (DEV) {
   app.commandLine.appendSwitch('remote-debugging-port', '9225');
 }
 
+// GOAL 27, THE 10-SECOND TARGET — LET THE SHADER CACHE ACTUALLY HOLD THE GAME.
+//
+// Chromium persists ANGLE program binaries to disk (GPUCache, keyed to the
+// driver), which is the same mechanism Unreal/Unity use to pay shader compiles
+// once per machine instead of once per boot. Its desktop DEFAULT cap is 6 MB
+// (kDefaultMaxProgramCacheMemoryBytes; the disk cache inherits the same cap),
+// and this game's ~330 PBR programs measured a 6.5 MB GPUCache — sitting AT
+// the cap, so eviction threw programs away every boot and the "warm" tier
+// still spent ~24 s of prewarm recompiling the overflow. 256 MB holds every
+// program this game could ever generate with two orders of magnitude to
+// spare; disk cost is bounded by what is actually written (~tens of MB).
+app.commandLine.appendSwitch('gpu-program-cache-size-kb', '262144');
+app.commandLine.appendSwitch('gpu-disk-cache-size-kb', '262144');
+
 // WHICH CLUBHOUSE ROOM THIS LAUNCH ASKS FOR, e.g.
 //   npm run dev -- --clubhouse=pine-hills-v2
 // The packaged app has no address bar, so the greybox room used to be unreachable outside

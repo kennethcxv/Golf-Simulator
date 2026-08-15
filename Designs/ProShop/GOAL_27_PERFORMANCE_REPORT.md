@@ -44,12 +44,17 @@ The owner's 349-materials hypothesis is directionally right, with the
 refinement that the unit of cost is the PROGRAM, and programs are killed by
 unifying material shapes, not only by deleting materials.
 
-**4. Async compile is NOT the lever in this stack.**
-KHR_parallel_shader_compile is effectively absent on Chrome/ANGLE
-(practitioners report Safari-only); this matches the repo's own 2026-08-03
-measurement that compileAsync cost more than it saved. Engines get async
-compile from real threads; WebGL-on-ANGLE does not offer it. Disk cache +
-fewer programs is the path, not parallelism.
+**4. Async compile is not the lever in this stack — on THIS CODEBASE'S OWN
+MEASUREMENT, not on availability.** (Corrected by the owner: one
+practitioner thread claimed the extension is Safari-only, but the Khronos
+registry and a Firefox bug report say Chrome/Chromium expose
+KHR_parallel_shader_compile fine — the availability claim was wrong and is
+withdrawn.) What stands is the repo's own 2026-08-03 A/B: compileAsync here
+cost 1,350 ms against 107 ms for the sync link and returned only ~200 ms of
+warm-draw savings — a net 0.5 s loss — either because the extension was
+absent on that path or because the HLSL compile still lands at first draw
+regardless. Until a new measurement says otherwise, disk cache + fewer
+programs is the path, not parallelism.
 
 **5. Ten-second loads in shipped web/Electron 3D games come from
 ROOM-FIRST PROGRESSIVE LOADING.** The pattern everywhere (Needle's
@@ -74,6 +79,43 @@ I can walk one room" — the industry answer is no.
 [Electron shader-cache corruption issue](https://github.com/electron/electron/issues/40475) ·
 [Needle gltf-progressive](https://engine.needle.tools/docs/gltf-progressive/) ·
 [Babylon progressive streaming](https://forum.babylonjs.com/t/how-to-do-progressive-mesh-loading-streaming-on-babylon-with-gltf-or-any-3d-model/9692)
+
+## The standing reporting rule (owner's order)
+
+**Cold and warm are separate numbers, reported separately, every time.**
+The disk cache fixes boot two onwards; the first-ever launch — the owner's
+first, every new player's first — has an empty cache and compiles
+everything. **The 10-second target is judged on the COLD tier.** Cold is
+where program-shape unification has to do the work, and where room-first
+loading matters most: controllable in one room while the course streams
+means the cold path stops depending on compiling everything first.
+
+## The cache-cap experiment (first change, measured)
+
+`main.cjs` now sets `--gpu-program-cache-size-kb=262144` and
+`--gpu-disk-cache-size-kb=262144` (256 MB; the desktop default is 6 MB and
+our program set measured 6.5-7.2 MB — AT the old cap).
+
+| boot | spawn→playable | prewarm stage clock |
+|---|---|---|
+| baseline COLD (6 MB cap, three runs) | 73.7 / 85.7 s | 67.0 / 76.1 s |
+| baseline WARM (6 MB cap, four runs) | 31.0–55.9 s | 18.4–37.9 s |
+| **capped COLD (fresh profile)** | **45.6 s** | **27.9 s** |
+| capped WARM (boot 2) | 42.8 s | 27.5 s |
+| capped WARM (boot 3) | 31.9 s | 22.7 s |
+
+**The cold tier collapsed by ~28 s (67→28 s prewarm) from the cap raise
+alone** — the 6 MB in-memory cache was evicting programs BETWEEN PASSES OF
+ONE BOOT, and every later stage recompiled the overflow. That intra-boot
+eviction IS the "migratory debt" this report kept observing: recompilation
+landing on whichever draw needed the evicted program next.
+
+**And the warm tier did NOT collapse further** — warm ≈ cold now, ~23-28 s
+of prewarm remaining on both tiers. That residual is not compilation: it is
+the prewarm's own forced mega-draws (interior-camera-warm: 8.8 s for ~5
+full-scene 4K composer frames with culling off and full shadow bakes —
+~1.7 s per draw). Those draws existed to force compiles that are now cache
+hits; shrinking them is the next measured change and it helps BOTH tiers.
 
 ## The plan this survey dictates, in measurement order
 
