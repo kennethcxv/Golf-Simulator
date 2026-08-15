@@ -439,14 +439,28 @@ function makeHand(mats, mirror = 1) {
   loadAuthoredHand().then((parts) => {
     if (!parts) return;
     for (const [mesh, name] of swappable) {
-      if (adoptAuthored(mesh, parts.get(name), mirror)) authored.applied += 1;
+      const want = parts.get(name);
+      const beforeType = mesh?.geometry?.type ?? '(none)';
+      const ok = adoptAuthored(mesh, want, mirror);
+      const afterType = mesh?.geometry?.type ?? '(none)';
+      if (ok) authored.applied += 1;
       // Named, not counted. "4 capsules left" cost a whole round of guessing;
-      // which four is a one-line answer if the miss says its own name.
-      else authored.missed.push(`${name}:${mesh ? 'no-part' : 'no-mesh'}`);
+      // which four is a one-line answer if the miss says its own name -- and the
+      // geometry type either side of the assignment says whether the swap took,
+      // which is the thing four capsules sitting at the origin were hiding.
+      if (!ok || /Capsule/.test(afterType)) {
+        authored.missed.push(`${name}: had=${beforeType} part=${want ? 'yes' : 'MISSING'} now=${afterType}`);
+      }
     }
     // The nails were a separate box per finger placed against a capsule. The
     // authored distal segment ends in a modelled tip, so they are retired rather
     // than left floating a millimetre off a shape that no longer matches them.
+    // Published on window so a driver can read it without an accessor being
+    // threaded through courseScene, which this session does not own.
+    if (typeof window !== 'undefined') {
+      window.__fwHandAdopt = window.__fwHandAdopt || [];
+      window.__fwHandAdopt.push({ applied: authored.applied, expected: authored.expected, missed: [...authored.missed] });
+    }
     if (authored.applied > 0) {
       g.traverse((o) => { if (o.name === 'FingerNail') o.visible = false; });
     }

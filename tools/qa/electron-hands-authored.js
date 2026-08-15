@@ -38,7 +38,7 @@ async (page) => {
   out.shot = await photographTool(page, 'broom', path.join(OUT, 'hands-authored.png'));
   console.log('SHOT', JSON.stringify(out.shot));
 
-  out.adopt = await page.evaluate(() => (() => { const s3 = window.__fw.scene3d; for (const k of ['fpHands','hands']) { const h = s3[k]; if (h?.authoredHandDiagnostics) return h.authoredHandDiagnostics(); } return null; })());
+  out.adopt = await page.evaluate(() => window.__fwHandAdopt ?? null); for (const k of ['fpHands','hands']) { const h = s3[k]; if (h?.authoredHandDiagnostics) return h.authoredHandDiagnostics(); } return null; })());
   console.log('ADOPT', JSON.stringify(out.adopt));
 
   out.parts = await page.evaluate(() => {
