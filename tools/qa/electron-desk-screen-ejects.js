@@ -87,6 +87,30 @@ async (page) => {
 
   const attempt = async (label) => {
     await page.evaluate(() => { window.__deskTrace.length = 0; });
+    // enterFrontDesk has five ways to return without opening anything, and it
+    // returns SILENTLY from all of them. Read every one of them first, or a run
+    // where the screen never appeared is indistinguishable from a run where it
+    // appeared and was closed.
+    const guards = await page.evaluate(() => {
+      const fw = window.__fw;
+      const ch = fw.scene3d?.clubhouse?.();
+      let pose = null;
+      let poseError = null;
+      try { pose = ch?.register?.cashierPose?.() ?? null; } catch (e) { poseError = String(e?.message || e); }
+      return {
+        walkActive: !!fw.scene3d?.walk?.isActive?.(),
+        view: fw.view,
+        courseMode: fw.courseMode,
+        frontDeskOpen: fw.frontDeskOpen,
+        laptopOpen: fw.laptopOpen,
+        registerActive: (() => { try { return !!ch?.register?.isActive?.(); } catch { return 'threw'; } })(),
+        cashierPose: pose ? { x: +pose.x?.toFixed?.(2), z: +pose.z?.toFixed?.(2) } : null,
+        cashierPoseIsNull: pose == null,
+        poseError,
+        hasClubhouse: !!ch,
+      };
+    });
+    console.log(`\n[${label}] guards before the call: ${JSON.stringify(guards)}`);
     const opened = await page.evaluate(() => {
       const hooks = window.__fw.scene3d.walk.hooks;
       if (typeof hooks.openFrontDesk !== 'function') return 'no-hook';
@@ -112,7 +136,7 @@ async (page) => {
       if (series[i].open !== series[i - 1].open) flips.push({ at: series[i].t, to: series[i].open });
     }
     const row = {
-      label, opened, flips, endedOpen: st.frontDeskOpen, deskModeClass: st.deskMode, trace,
+      label, opened, guards, flips, endedOpen: st.frontDeskOpen, deskModeClass: st.deskMode, trace,
     };
     out[label] = row;
     console.log(`\n[${label}] openFrontDesk -> ${JSON.stringify(opened)}`);

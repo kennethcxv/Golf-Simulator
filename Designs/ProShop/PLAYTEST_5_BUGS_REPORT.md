@@ -37,7 +37,7 @@ verdict must read that assertion — not just the measurement downstream of it.
 | 1 — first-press lag | **DIAGNOSED, NOT FIXED.** The warm runs (+76 programs); the surfaces you named compile ZERO. The overview costs 433 ms and is the one camera prewarm misses |
 | 2 — customers announce from the back | **NOT REPRODUCED.** The array-vs-floor confusion C3 fixed for the hands is corrected for the mouth; one question for you at the end of the section |
 | 3 — my body is still solid | **AUDIT HALF DONE — your lead was exactly right.** Nudge half NOT DONE: two real defects fixed, four stagings, the player has still never taken a step. The reason is structural and the last call is yours |
-| 4 — walk-in tee time needs two attempts | not started |
+| 4 — walk-in tee time needs two attempts | **NOT REPRODUCED** — I drove the outdoor starter desk, which turns out to be DEAD: `cashierPose` is called and never defined. Your desk is the register monitor. One decision for you |
 | 5 — audio | not started |
 | 6 — Blender assets | SKIPPED, second session owns it |
 
@@ -582,3 +582,82 @@ and it is yours, not mine.
 **ITEM 3: the audit half is DONE and proven. The nudge half is NOT DONE** — four
 stagings, two genuine defects found and fixed, and the player has still never
 taken a step. I stopped at the 45-minute rule rather than keep going.
+
+---
+
+## 4 — THE WALK-IN TEE TIME NEEDS TWO ATTEMPTS
+
+**NOT REPRODUCED — I drove the wrong desk.** But the wrong desk turned out to be
+worth the trip.
+
+### The instrument
+
+`app.frontDeskOpen` is the desk screen's entire state, and nothing in `src/`
+writes it except `enterFrontDesk` and `exitFrontDesk`. So instead of guessing
+which exit path fires, the driver replaces the property with an accessor that
+**records every write with its stack**. The ejection would then have named its
+own caller. Control: two deliberate writes from the driver, both captured.
+
+### What it found instead: the starter desk's E key does nothing at all
+
+Zero writes. Both attempts. The screen never opened, so there was nothing to
+eject from — and reading `enterFrontDesk`'s five silent early-returns one at a
+time gave the reason:
+
+```
+guards before the call: {"walkActive":true, "view":"course", "courseMode":"walk",
+  "frontDeskOpen":false, "registerActive":false,
+  "cashierPose":null, "cashierPoseIsNull":true, "poseError":null}
+```
+
+```js
+const pose = ch?.register?.cashierPose?.();
+if (!pose || !frontDeskUi) return;          // main.js:700
+```
+
+**`cashierPose` appears in exactly one place in the whole repository: that call.**
+It is never defined on the register or anywhere else. So `enterFrontDesk` has
+never been able to open, and it says nothing when it refuses.
+
+That is the same shape as item 3's `deskScreenOpen`, in the same feature: a read
+with no writer, and a call with no definition. Two of them, both silent.
+
+A previous session already knew. `tools/qa/verify1-lqueue.js` opens with:
+
+> *"(The DOM front desk is dead: `ch.register.cashierPose` does not exist, so
+> `enterFrontDesk` always returns. The desk is served ON THE REGISTER MONITOR.)"*
+
+It was written into a QA driver's header comment and never into production. The
+prop is still there, outside by the tee, still promising **"Starter desk — [E]
+arrivals, check-ins and walk-ins"**, and still doing nothing when you press E.
+
+### So which desk is yours
+
+There are two, and they are not the same code:
+
+| desk | where | E goes to | state |
+|---|---|---|---|
+| **Starter desk** | outdoors, by the tee (`courseScene.js:5312`) | `openFrontDesk` → `enterFrontDesk` | **dead — always returns** |
+| **Tee desk** | indoors (`clubhouse.js:2073`) | `register.enter()` → the monitor | live |
+
+Your walk-in tee times are the indoor one, on the register monitor. My driver
+called `walk.hooks.openFrontDesk`, which is the outdoor one, so it exercised the
+dead path twice and correctly found nothing to measure.
+
+`register.enter()` has one shape that fits your report exactly and I did not get
+to test it: it has a `finally` that resets `active = false` when entry does not
+complete, and **no `catch`** — so a throw part-way through leaves the camera
+already moved and the register not open, which is "it zooms me in and back out",
+and the second press succeeds because whatever was half-initialised the first
+time now is not. That is a hypothesis with a mechanism, not a finding.
+
+### What I am asking you
+
+**The starter desk is a real bug either way, and its fix is a decision:** wire
+`enterFrontDesk` to a pose the register actually has (`derivedWorkingPose`
+exists), or delete the prop's promise so it stops offering arrivals and
+check-ins it cannot deliver. Resurrecting a second booking UI beside the monitor
+without you saying so is not a call I should make.
+
+**ITEM 4: NOT REPRODUCED.** Wrong desk, named cause for the one I did hit,
+mechanism proposed for the one you meant.
