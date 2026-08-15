@@ -1281,6 +1281,19 @@ function destroyCurrentScene({ hideVeil = false } = {}) {
 
 function startGame(state, loadNotice = null) {
   closePauseMenu({ resume: false }); // any pause overlay dies with the old world
+  // Playtest 5 P0 — THE COURSE EDITOR IS UNUSABLE.
+  //
+  // startGameNow already hid the editor, but it does so AFTER the new scene is
+  // built, and the gap in between is the whole defect: the teardown below nulls
+  // app.scene3d, then this function waits two frames and up to a 12 s asset
+  // barrier before startGameNow runs. For that whole stretch the editor
+  // was live, painted, and holding five capture-phase window listeners over a
+  // scene that no longer existed. The editor's own pause shell carries "Load
+  // game" and "Reload the game", so a player reaches it without leaving.
+  //
+  // Hidden here instead: while the OLD scene is still alive, which is the only
+  // moment hide() can hand its camera limits and overrides back.
+  if (editorUi?.isActive()) editorUi.hide();
   const generation = ++sceneStartGeneration;
   const startupToken = startupHold.begin({
     generation,
@@ -1984,6 +1997,11 @@ function exitToMenu() {
   audio.setToolLoop(null);
   audio.setPaused(false);
   startupHold.cancel();
+  // Playtest 5 P0: the editor must be told BEFORE the scene it draws through is
+  // destroyed. startGameNow does this on the reload path; this one did not, so
+  // quitting from the editor left it live over a null scene. hide() is safe with
+  // a dead scene now, but ordering it correctly is the point.
+  if (editorUi?.isActive()) editorUi.hide();
   destroyCurrentScene({ hideVeil: true });
   app.screen = 'menu';
   app.state = null;

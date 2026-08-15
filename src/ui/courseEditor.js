@@ -3279,6 +3279,10 @@ export function makeCourseEditor(app, hooks) {
 
   function updateHoverVisuals(g, e) {
     const sc = scene();
+    // Reached from a rAF callback, so it outlives the pointer event that
+    // scheduled it and can land after the course has been torn down. This is
+    // the throw at the head of the owner's 2026-08-15 crash.log.
+    if (!sc) return abandonForLostScene();
     if (refreshSelectedBoundaryPreview() || refreshSelectedPathPreview()) {
       sc.setEditorBrush(null);
       sc.setPlacementGhost(null);
@@ -3573,6 +3577,7 @@ export function makeCourseEditor(app, hooks) {
 
   function onWheel(e) {
     if (!active || modalEl) return;
+    if (!scene()) return abandonForLostScene(); // see detachEditorInput's note
     if (e.target !== scene().renderer.domElement) return;
     e.preventDefault();
     scene().clearCourseCameraPreset?.();
@@ -3622,6 +3627,17 @@ export function makeCourseEditor(app, hooks) {
       }
       case 'Home':
         setCameraView('course-overview');
+        break;
+      case 'Tab':
+        // main.js blocks Tab from reaching DOM focus in every other mode
+        // ("Tab must never reach DOM focus in-game, whatever it is bound to")
+        // but returns to this listener before that line when the editor is
+        // active, so the editor is the one surface where the browser's focus
+        // traversal still ran. Focus then lands on a control in the editor bar
+        // and the engine scrolls it into view, which slides the
+        // position:absolute canvas up inside an overflow:hidden body and
+        // exposes the page's --charcoal background beneath it.
+        e.preventDefault();
         break;
       case 'Escape':
         if (flyover) stopFlyover();
@@ -3982,23 +3998,64 @@ export function makeCourseEditor(app, hooks) {
     active = false;
     applyToolCursor(); // active is false now, so this clears both cursor classes
     closeModal();
+    // TEARDOWN BEFORE SCENE TALK. Every scene() line below can throw while the
+    // course is mid-rebuild, and this used to run the other way round: one throw
+    // at frameCourse() skipped the display:none AND all five removeEventListener
+    // calls, so a transient null scene left the editor painted over the game
+    // with its capture-phase keyboard hook swallowing every key, permanently.
+    root.style.display = 'none';
+    detachEditorInput();
+    const sc = scene();
     if (camLimits) {
-      const rig = scene().rig;
-      rig.maxDist = camLimits.maxDist;
-      rig.maxPitch = camLimits.maxPitch;
-      rig.minDist = camLimits.minDist;
-      rig.minPitch = camLimits.minPitch;
+      if (sc) {
+        const rig = sc.rig;
+        rig.maxDist = camLimits.maxDist;
+        rig.maxPitch = camLimits.maxPitch;
+        rig.minDist = camLimits.minDist;
+        rig.minPitch = camLimits.minPitch;
+      }
       camLimits = null;
     }
-    scene().frameCourse();
-    scene().setEditorShadowFocus?.(false);
-    scene().setLightingOverride(null);
-    scene().setGolfersFrozen(false);
-    scene().setEditorBrush(null);
-    scene().setEditorFeaturePreview?.(null);
-    scene().setPlacementGhost(null);
-    scene().setMeasureLine(null);
-    root.style.display = 'none';
+    if (!sc) return;
+    sc.frameCourse();
+    sc.setEditorShadowFocus?.(false);
+    sc.setLightingOverride(null);
+    sc.setGolfersFrozen(false);
+    sc.setEditorBrush(null);
+    sc.setEditorFeaturePreview?.(null);
+    sc.setPlacementGhost(null);
+    sc.setMeasureLine(null);
+  }
+
+  // THE EDITOR OVER A DEAD SCENE — Playtest 5, P0.
+  //
+  // `app.scene3d` is null for as long as it takes to tear one course down and
+  // build the next: destroyCurrentScene() nulls it, startGameNow() reassigns it,
+  // and startGame() can sit between the two for up to the 12 s asset barrier.
+  // The editor's own pause shell offers "Load game" and "Reload the game", so
+  // that window is reachable with the editor open and its five capture-phase
+  // window listeners installed.
+  //
+  // `groundAt` already guards for it — `scene() ? scene().raycastGround(...) : null`
+  // — so tolerating a null scene has been the intent all along. Three consumers
+  // one line further on did not: updateHoverVisuals, onPointerDown and onWheel
+  // dereference scene() directly. The owner's crash.log for the 2026-08-15
+  // playtest session opens with exactly those two throws:
+  //
+  //   TypeError: Cannot read properties of null (reading 'setEditorBrush')
+  //       at updateHoverVisuals (src/ui/courseEditor.js:3288)
+  //   TypeError: Cannot read properties of null (reading 'renderer')
+  //       at onPointerDown (src/ui/courseEditor.js:2925)
+  //
+  // A pointerdown that throws on its first line cannot reach a single editor
+  // verb, which is "I cannot click anything" verbatim.
+  //
+  // Swallowing the events silently would be worse than throwing: the editor
+  // would stay painted at z-index 8 over whatever replaced it, and onKey stops
+  // propagation of every key in capture phase, so the game's whole keyboard
+  // would stay dead. It takes ITSELF down instead — DOM and listeners, without
+  // touching the scene it no longer has.
+  function detachEditorInput() {
     window.removeEventListener('pointerdown', pdHandler, true);
     window.removeEventListener('pointermove', pmHandler, true);
     window.removeEventListener('pointerup', puHandler, true);
@@ -4006,9 +4063,29 @@ export function makeCourseEditor(app, hooks) {
     window.removeEventListener('keydown', onKey, true);
   }
 
-  const pdHandler = (e) => (pt ? playtestPointerDown(e) : onPointerDown(e));
-  const pmHandler = (e) => (pt ? playtestPointerMove(e) : onPointerMove(e));
-  const puHandler = (e) => (pt ? playtestPointerUp(e) : onPointerUp(e));
+  function abandonForLostScene() {
+    if (!active) return;
+    active = false;
+    cancelHoverPreview();
+    camDrag = null;
+    stroke = null;
+    root.style.display = 'none';
+    detachEditorInput();
+  }
+
+  // Every installed listener funnels through here, so the null-scene rule is
+  // stated once rather than re-guarded at each of the seven call sites.
+  const guarded = (fn) => (e) => {
+    if (active && !scene()) {
+      abandonForLostScene();
+      return undefined;
+    }
+    return fn(e);
+  };
+
+  const pdHandler = guarded((e) => (pt ? playtestPointerDown(e) : onPointerDown(e)));
+  const pmHandler = guarded((e) => (pt ? playtestPointerMove(e) : onPointerMove(e)));
+  const puHandler = guarded((e) => (pt ? playtestPointerUp(e) : onPointerUp(e)));
 
   // called from the main frame loop while the editor is open
   function onFrame(dtMs) {
