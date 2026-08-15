@@ -628,3 +628,44 @@ seated in the floor at 1.7 mm, with the broken variant (every divider lifted
   with `assert_boxes_overlap`, which is coarser and honest about it — a
   bounding-box overlap cannot be invariant to position. It now reports 15.0 mm of
   shared volume.
+
+---
+
+## THE MONEY — variety through textures, and the cost of the whole set
+
+`Assets/models/hero/money.glb`. Every design is a CELL in a shared atlas: one
+mesh, one material, a UV offset per instance.
+
+### THE COST, for all 24 designs
+
+| | |
+|---|---|
+| designs | 12 cards + 8 note faces + 4 coins = **24** |
+| **MATERIALS** | **4** — cards 1, notes 1, coins 2 (a silver and a copper) |
+| programs | **4**, one per material, no shader variants |
+| draw calls | 24 objects, batchable to **4** by material |
+| triangles | **1,504** for all 24 — 63 each |
+| atlases | 3 (cards 2048×969, notes 2048×436, coins 512×512) |
+
+That is the target the brief set — one family for cards, one for notes, one or
+two for coins — hit exactly. **No variant here adds a material.** Adding a
+thirteenth card design costs one atlas cell and zero materials; the atlas has
+room for none, so a thirteenth would mean a 4×4 grid and a re-bake, still at
+zero new materials.
+
+### The card was reported FLAT AND PHASING THROUGH
+
+It now has ISO 7810 geometry — **0.09361 × 0.05903 × 0.00083 yd** (85.60 ×
+53.98 × 0.76 mm), measured off the mesh — and the build FAILS below a 0.0006
+minimum thickness. The broken variant (quarter thickness) is rejected at 0.207.
+
+### Coins differ in SIZE, not just face
+
+Scaled instances of one disc: quarter 0.02653 (100%), nickel 0.02320 (87%),
+penny 0.02083 (79%), dime 0.01959 (74%). The register already hands the audio
+cue its denomination, so a quarter sounds different from a twenty; different
+diameters make that visible as well as audible, and the penny is the only one on
+the copper material.
+
+Everything is generic by construction — invented marks, no issuer names, no real
+note reproduced.
