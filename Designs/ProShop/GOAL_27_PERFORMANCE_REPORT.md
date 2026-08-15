@@ -346,6 +346,19 @@ spread-texture cache (uploads moved to idle frames after settle; full
 design, next session scale) or accepting the one 20-26 ms frame per turn.
 Three dead-ends now stand documented around this number.
 
+**And the fourth design is BUILT and parked one clip short of shipping:**
+the pre-uploaded spread cache lives on `goal27/spread-texture-cache`
+(pushed). Mechanism span-verified on the live game — turn paints collapse
+10-15 ms → 0.6-1.3 ms with cache hits confirmed on every turn — and
+correctness holds by model identity (rebuilds replace the model object;
+both paths read the same one, so the cache can never show staler content
+than the batch). It did NOT land on main tonight for two disciplined
+reasons: the frame-level felt benefit is unresolvable inside the degraded
+environment's 20-82 ms noise, and the clip standard — mandatory for a
+mid-flip content-flow change — could not run (the video instrumentation
+itself fails on this machine tonight). **Ship gate, written on the branch:
+one clean-machine ptc run under 16.7 ms median plus a viewed turn clip.**
+
 ## The stall bailout — the afflicted machine becomes the test rig
 
 The stall signature made one more change both possible and verifiable
