@@ -98,6 +98,54 @@ def section(z, inset=0.0, flare=0.0, crease=True):
     return pts
 
 
+# ---- USE, not damage. The bag read as a CAD box: perfectly symmetric walls, a
+# rim that was an exact rectangle, gussets creased identically on both sides. A
+# real grocery bag has been folded flat, opened out and carried, and none of
+# those survive it. All of the following is DETERMINISTIC -- reproducible builds
+# matter more than statistically good noise, so it is a fixed harmonic sum
+# rather than anything seeded by a clock.
+USE_BOW = 0.0105         # how far a wall panel bows in or out at mid-height
+USE_RIM = 0.0068         # how far the rim wanders off a true rectangle
+USE_LEAN = 0.0060        # the whole carrier leans, because bags do
+FOLD_H = 0.0016          # the ridge left by having been flattened
+
+
+def use_offset(i, n, z_t):
+    """A smooth, continuous bow around the section and up the height."""
+    ang = 2 * math.pi * i / n
+    bow = (0.60 * math.sin(ang * 2 + 0.70)
+           + 0.40 * math.sin(ang * 3 - 1.90)
+           + 0.30 * math.sin(ang * 5 + 2.60))
+    # bows most in the middle of the height and vanishes at the base and rim,
+    # which is where a bag is actually stiff
+    return bow * math.sin(math.pi * min(1.0, max(0.0, z_t)))
+
+
+def used(pts, z_t, bow=USE_BOW, rim=0.0, lean=USE_LEAN):
+    n = len(pts)
+    out = []
+    for i, p in enumerate(pts):
+        r = Vector((p.x, p.y))
+        d = bow * use_offset(i, n, z_t)
+        if rim:
+            # NON-harmonic frequencies. A single sin(4*theta) gave four
+            # symmetric lobes and read as a designed scallop rather than an
+            # edge that has been handled; incommensurate terms never repeat
+            # around the section.
+            u = 2 * math.pi * i / n
+            d += rim * (math.sin(u * 3.7 + 0.90)
+                        + 0.62 * math.sin(u * 6.3 - 2.10)
+                        + 0.38 * math.sin(u * 9.1 + 1.35)) * 0.62
+        nrm = r.normalized() if r.length > 1e-6 else Vector((1, 0))
+        out.append(Vector((p.x + nrm.x * d + lean * z_t * z_t,
+                           p.y + nrm.y * d + lean * 0.45 * z_t * z_t,
+                           p.z + (rim * 0.42 * (
+                               math.sin(2 * math.pi * i / n * 2.3 - 1.10)
+                               + 0.55 * math.sin(2 * math.pi * i / n * 5.7 + 0.30))
+                               if rim else 0.0))))
+    return out
+
+
 def loft(name, rings, close_bottom=True, close_top=False, smooth=False):
     n = len(rings[0])
     verts, faces = [], []
@@ -124,11 +172,11 @@ def build(broken=False):
     rings = []
     for (t, flare) in ((0.000, 0.0), (0.030, 0.0006), (0.300, 0.0016),
                        (0.620, 0.0022), (0.880, 0.0024), (0.955, 0.0022)):
-        rings.append(section(HEIGHT * t, flare=flare))
-    rings.append(section(HEIGHT * 0.985, flare=0.0022 + RIM_ROLL * 0.30))
-    rings.append(section(HEIGHT * 1.000, flare=0.0022 + RIM_ROLL * 0.42))
-    rings.append(section(HEIGHT * 0.985, flare=0.0022 + RIM_ROLL * 0.52))
-    rings.append(section(HEIGHT * 0.952, flare=0.0022 + RIM_ROLL * 0.46))
+        rings.append(used(section(HEIGHT * t, flare=flare), t))
+    for (t, f, rim) in ((0.985, 0.30, 0.8), (1.000, 0.42, 1.0),
+                        (0.985, 0.52, 0.9), (0.952, 0.46, 0.6)):
+        rings.append(used(section(HEIGHT * t, flare=0.0022 + RIM_ROLL * f),
+                          t, rim=USE_RIM * rim))
     outer = loft("BagOuter", rings)
     HS.wrap_uvs(outer, rings)
     solid = outer.modifiers.new("Paper", "SOLIDIFY")
@@ -142,12 +190,23 @@ def build(broken=False):
     # clearance and the broken variant passed -- a broken variant that does not
     # break is worth nothing, and it only showed up because it was run first.
     shrink = 0.060 if broken else 0.0
+    # THE SAME deformation, so the measured cavity is the cavity of the bag
+    # that now has a slump in it. Bowing only the outer shell would have left
+    # the interior numbers describing a bag that no longer exists.
     inner_rings = []
     for (t, flare) in ((0.0, 0.0), (0.30, 0.0016), (0.62, 0.0022), (0.93, 0.0024)):
-        inner_rings.append(section(WALL + (HEIGHT * 0.950 - WALL) * t,
-                                   inset=WALL + shrink, flare=flare))
+        inner_rings.append(used(
+            section(WALL + (HEIGHT * 0.950 - WALL) * t,
+                    inset=WALL + shrink, flare=flare), t * 0.95))
     interior = loft("BagInterior", inner_rings, close_top=True)
     parts["interior"] = interior
+
+    # ---- the fold ridges left by having been flattened. The bag lies on its
+    # face at the checkout counter, so its base is on camera.
+    parts["folds"] = [HS.apply_mods(HS.box(
+        f"BaseFold_{k}", (0, sy * DEPTH * 0.170, FOLD_H * 0.35),
+        (WIDTH * 0.92, 0.0060, FOLD_H * 2.0), bevel=0.0006, segments=1))
+        for k, sy in enumerate((-1, 1))]
 
     # ---- handles: flat kraft ribbon, both ends glued inside the rim
     handles = []
@@ -192,7 +251,7 @@ def build(broken=False):
     inner = HS.pbr("BagInner", (0.120, 0.062, 0.024), roughness=0.97)
     parts["bag"].data.materials.append(kraft)
     interior.data.materials.append(inner)
-    for h in handles:
+    for h in handles + parts["folds"]:
         h.data.materials.append(cord)
     return parts
 
@@ -231,6 +290,8 @@ def main():
     H.set_engine(engine, samples=160 if engine == "CYCLES" else 96)
     p = build(broken=broken)
 
+    for f in p["folds"]:
+        HS.assert_touching(f, p["bag"], "a base fold must be on the bag", 0.0025)
     HS.assert_fits_inside(p["interior"], LOAD,
                           "the bag has to hold what checkout packs into it",
                           margin=0.0040)
@@ -255,7 +316,7 @@ def main():
           f"{ex*GAME_SCALE:.3f} x {ey*GAME_SCALE:.3f}")
     print("")
 
-    subject = [p["bag"]] + p["handles"]
+    subject = [p["bag"]] + p["handles"] + p["folds"]
     print(f"TRIS {H.triangles(subject)} ({len(subject)} objects, 2 materials) "
           f"— the hand is 5,179")
 
