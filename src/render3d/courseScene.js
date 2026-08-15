@@ -12631,6 +12631,13 @@ export function makeCourseScene(canvas, state) {
     const savedLightingOverride = lightingOverride;
     setLightingOverride('day');
     applyTimeWeather(prewarmMinuteOfDay, state.weather);
+    // The residual 11 arrivals are one light-count off (4 vs 3,
+    // value-diffed) — real entry's LIVE loop settles a visibility state this
+    // one-shot warm cannot exactly reproduce: re-syncing here after the
+    // override was measured WORSE (13 arrivals — it flips different
+    // lights), and a culling-off draw measured no change. 28 -> 11 from the
+    // override stands as the measured optimum for a one-draw warm; the rest
+    // needs the entry state produced by the editor's own loop.
     fitSunShadow();
     renderer.shadowMap.needsUpdate = true;
     guardCourseWaterReflection.beginFrame();

@@ -115,6 +115,34 @@ async (page) => {
   out.differingAxes = [...diffAxis.entries()]
     .sort((a, b) => b[1] - a[1])
     .map(([axis, programs]) => ({ axis, programs }));
+
+  // ...and the CONCRETE VALUES for a sample of arrivals: which field, what
+  // the warm-era twin had, what the entry-era program has. Values name the
+  // state (a light count of 4 vs 6 is two specific lights) where field
+  // positions only gesture at it.
+  out.valueTriples = [];
+  for (const k of arrivals.slice(0, 5)) {
+    const kf = k.split(',');
+    let best = null;
+    for (const b of before) {
+      const bf = b.split(',');
+      if (bf[0] !== kf[0]) continue;
+      let diffs = 0;
+      const found = [];
+      const len = Math.max(kf.length, bf.length);
+      for (let i = 1; i <= len; i += 1) {
+        const a = kf[kf.length - i];
+        const c = bf[bf.length - i];
+        if (a !== c) {
+          diffs += 1;
+          found.push({ fromEnd: i, name: TAIL[i - 1] || `field-${i}`, twin: c, entry: a });
+        }
+        if (diffs > 6) break;
+      }
+      if (!best || diffs < best.diffs) best = { diffs, found };
+    }
+    if (best) out.valueTriples.push(best.found);
+  }
   out.programArrivals = arrivals.length;
   out.arrivalsByFamily = [...famCount.entries()].map(([f, n]) => ({ family: String(f).slice(0, 30), programs: n }));
   out.materialsBornAtEntry = newMats.length;

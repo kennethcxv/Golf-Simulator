@@ -303,12 +303,15 @@ cacheKeys, enter the editor, diff, nearest-twin field analysis. Findings:
   override real entry uses (then restores the clock's lighting) — the same
   law as the belt warm: warm through the real state, never an
   approximation of it.
-- **Verified by arrivals: 28 → 11** (21→11 physical). The frame-coverage
-  theory for the residual 11 was TESTED AND REFUTED: a culling-off variant
-  of the warm draw changed nothing, so they are not frustum misses — their
-  key diff still sits in the light-count block, and the next instrument is
-  dumping the exact differing VALUES against a real entry's keys. ~0.3-0.8 s
-  of entry compile remains from the measured 0.8-2.1 s; the base the 10.7 s
+- **Verified by arrivals: 28 → 11** (21→11 physical). Three follow-up
+  hypotheses for the residual 11 were each measured: culling-off draw — no
+  change (not frustum misses); value-triple dump — every arrival is exactly
+  ONE light-count off (4 vs 3); re-sync-after-override — WORSE (13; the
+  one-shot sync flips different lights than the editor's settled loop).
+  **The measured optimum for a one-draw warm is 11**, and the honest
+  mechanism statement: real entry's live loop settles a light-visibility
+  state a single pre-veil draw cannot exactly reproduce. ~0.3-0.8 s of
+  entry compile remains from the measured 0.8-2.1 s; the base the 10.7 s
   outlier amplified is 60% smaller. Entry-time re-measure queued for the
   rested machine.
 
