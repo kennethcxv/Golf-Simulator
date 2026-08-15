@@ -305,7 +305,7 @@ export const SHIPPED_MOP_YARN = Object.freeze({
   // and that is what it photographed as. Widening to 0.336 across and cutting
   // the drop to 0.20 puts the ratio at 1.7:1, which is the reference's shape.
   radius: 0.168,
-  length: 0.20,
+  length: 0.132,
   // "The solver can keep four simulation nodes; the GEOMETRY must not show
   // them." With 4 the outward flare -- which scales by n/S -- puts a visible
   // corner at every node, and at the shorter 0.20 drop those corners photograph

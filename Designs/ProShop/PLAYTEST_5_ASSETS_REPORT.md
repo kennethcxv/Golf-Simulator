@@ -870,7 +870,30 @@ None of the three is finished to the owner's bar. Both live ones are now in a
 bisection between photographed endpoints with a working loop, which is the first
 time either has been in that position.
 
-## MOP ROUND 4 — attempted, unverified, reverted
+## MOP ROUND 4 — the driver gap fixed, and the length lever verified
+
+The lost-tool run was my driver, not the game: the exhibit loop re-posed the camera
+WITHOUT re-asserting the tool, so a run that crossed the deferred warm-up window
+photographed an empty hand. `photographTool` already handled that for the
+acceptance shot; the exhibits did not. Fixed — the loop now re-equips and waits for
+`getTool()` before each shot.
+
+With that fixed, the lever verified: **`length` 0.20 → 0.132** on the same 0.168
+radius. `mop-v4-lit.png` — the head is squatter and broader under the hub, a
+disc rather than a hanging skirt. 75/92 drawable, mop confirmed held.
+
+The four photographed states of this head, in order:
+
+| | |
+|---|---|
+| `splay 1.30, length 0.20` | shuttlecock — straight spikes off a red disc |
+| `splay 0.42, length 0.20` | narrow barrel — gathered, far too tight |
+| `splay 0.78, length 0.20` | flared skirt — right character, too tall |
+| **`splay 0.78, length 0.132`** | **a disc** — squat, broad, gathered under the hub |
+
+Nine passes of number-tuning never moved this silhouette. Four lit frames did.
+
+### (superseded) Round 4, first attempt — unverified, reverted
 
 Tried the named lever: strand `length` 0.20 → 0.132 on the same 0.168 radius, to
 turn the skirt into a disc. **The run lost the tool** — `drawable: 0, tool: null` on

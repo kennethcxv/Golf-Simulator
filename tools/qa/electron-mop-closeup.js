@@ -51,8 +51,17 @@ async (page) => {
     }, fov);
     // eslint-disable-next-line no-await-in-loop
     await setToolPose(page, { pitch: -0.62 });   // the mop head hangs lower than the broom's; -0.28 cut it off at the frame edge
+    // RE-ASSERT. The exhibit loop re-posed without re-equipping, so a run that
+    // crossed the deferred warm-up window photographed an empty hand -- drawable
+    // 0, tool null. photographTool handles this for the acceptance shot; the
+    // exhibits did not, and one whole round was lost to it.
     // eslint-disable-next-line no-await-in-loop
-    await page.waitForTimeout(900);
+    await page.evaluate(() => { window.__fw.scene3d.walk.setTool('mop'); });
+    // eslint-disable-next-line no-await-in-loop
+    await page.waitForFunction(() => window.__fw.scene3d.walk.getTool?.() === 'mop',
+      null, { timeout: 30000 }).catch(() => {});
+    // eslint-disable-next-line no-await-in-loop
+    await page.waitForTimeout(1800);
     // eslint-disable-next-line no-await-in-loop
     const held = await drawableCount(page, 'mop');
     const file = path.join(OUT, `exhibit-fov${fov}.png`);
