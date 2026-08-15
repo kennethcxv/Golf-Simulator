@@ -6,8 +6,8 @@
 
 | Phase | Status |
 |---|---|
-| 0 — merged tree | IN PROGRESS — merged + pushed, gate running |
-| 1 — loading in | NOT STARTED |
+| 0 — merged tree | **DONE** — merged, gate exit 0, both load-in faults verified fixed |
+| 1 — loading in | 1.1 + 1.2 verified fixed in Phase 0; 1.3 IN PROGRESS |
 | 2 — first-press stalls | NOT STARTED |
 | 3 — mesh merge | NOT STARTED |
 | 4 — outdoor collapse | NOT STARTED |
@@ -67,8 +67,43 @@ five reds, gate exit 1 before the golden step. Each one diagnosed:
 | 2223 | mop B: ragged hem | INHERITED, same shape: the bar divided hem spread by the SYNTHETIC rig's length (0.30) while testing the SHIPPED rig, whose bisection cut length to 0.108. Measured spread is 45% of shipped length — deeply ragged. | RECALIBRATED denominator to `SHIPPED_MOP_YARN.length` (claim stays 20%). New in-test control: a uniform cut MUST read machined. |
 | 3492 | tuner panel style block findable | CRLF: `core.autocrlf=true` + my fresh checkout rewrote worktree files with CRLF, and the test's regex anchors a literal `;\n`. Content identical to the green-at-88b5fbb bytes. | FIXED: anchor is now `;\r?\n`. Latent repo-wide pattern noted: any `\n`-anchored source scan can break on the next checkout that rewrites its file. |
 
-After fixes: the three repaired files pass 20/20 together; the orchestrator file
-passes 45/45 solo. Golden capture + control and a final full gate run follow.
+After fixes: **full gate exit 0** — 3685/3685, ratchet 323 (frozen), vendor
+127 up-to-date, all 12 goldens ok (tool-mop re-capture noise floor 0.067),
+one-pixel control alive. The 1767 flake did not recur in the full rerun.
 
-**Re-check of the two load-in faults against the merged tree:** pending golden
-(one Electron profile; runs are serialized).
+**Goldens rebaselined, frames viewed.** `tool-mop` failed exactly as
+predicted when the point-c remodel merged (0.8738 vs 0.75); the current
+frame was looked at before accepting — red collar, clumped white skirt, the
+adopted hand gripping the shaft. World poses pixel-zero; other pose drifts
+inside the same band as the pre-merge run. `bag-packed` still self-skips
+("only 2 goods packed") — pre-existing, not from these branches.
+
+**Re-check of the two load-in faults on the merged tree — both FIXED:**
+
+- **1.1 dustpan** (`electron-warm-leaves-a-tool`, goal27-phase0): the A/B
+  discriminates in one run — the old debounced door still leaves the dustpan
+  after 3 s (the fault mechanism is real; that is the control), the immediate
+  door the production warm now uses leaves hands clean (`afterThreeSeconds:
+  null`). Back on foot: no tool.
+- **1.2 map behind the veil** (`electron-load-in-hands-and-camera`,
+  goal27-phase0): 929 visible samples, **0 showing the map**; the camera came
+  home **3,877 ms before** the veil lifted (pre-fix it LOST by 287 ms);
+  instrument control detected. The two held-tool spans are both explained
+  (pre-scene boot accessor, and the warm's own 49 ms in-and-out).
+
+The owner's report of still seeing these was correct **for the build he was
+playing** — `goal25/phase0-inherited-tree` at `d7716d4` predates both fixes.
+The merged main has them.
+
+**Free finding for Phase 1.3:** the same run put the first visible frame at
+**t = 100.5 s** from process start on the QA path. That is the number 1.3
+attacks.
+
+**Near-miss, logged not counted:** my first gate run was wrapped in
+`| tail -60`, which would have laundered the exit code through `tail` and
+dropped mid-stream failures. Killed and rerun bare before any conclusion was
+read from it.
+
+**Phase 0 time:** ~95 minutes against the 45-minute rule. Spent knowingly:
+the merge is the gate for every later phase, and the overrun bought a green
+gate, five named reds, and both rechecks. No other item gets this treatment.
