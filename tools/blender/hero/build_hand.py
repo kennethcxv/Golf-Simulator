@@ -82,7 +82,7 @@ JOINT_R = {
 # THE GRIP: flexion at MCP, PIP, DIP for a 30 mm handle. The spiral makes the
 # little finger curl hardest and the index least -- what a real hand does, and
 # what stops four fingers reading as a comb.
-GRIP = (52.0, 72.0, 34.0)
+GRIP = (55.0, 76.0, 33.0)
 SPIRAL = {"index": 0.92, "middle": 1.00, "ring": 1.05, "little": 1.12}
 CONVERGE = {"index": -5.0, "middle": -1.5, "ring": 2.5, "little": 6.5}
 
@@ -129,13 +129,13 @@ def build_skeleton():
     sk.add("fore1", (0.000, -0.060, 0.002), (0.0244, 0.0196), parent="elbow")
     sk.add("fore2", (0.000, -0.026, 0.001), (0.0214, 0.0166), parent="fore1")
     sk.add("wrist", (0.000, 0.004, 0.002), (0.0238, 0.0150), parent="fore2")
-    sk.add("palm1", (-0.001, 0.030, 0.002), (0.0322, 0.0134), parent="wrist")
-    sk.add("palm2", (-0.002, 0.055, 0.003), (0.0352, 0.0122), parent="palm1")
+    sk.add("palm1", (-0.001, 0.030, 0.002), (0.0322, 0.0114), parent="wrist")
+    sk.add("palm2", (-0.002, 0.055, 0.003), (0.0358, 0.0104), parent="palm1")
     # A VALLEY before the ridge. Subdivision smooths a 5 mm step over a 76 mm
     # form into nothing, so the knuckles need something to stand out FROM: this
     # vertex pinches the hand just proximal to the metacarpal heads, and the
     # knuckle arc then reads as a ridge instead of as a slightly thicker pillow.
-    sk.add("palm3", (-0.002, 0.072, 0.0035), (0.0356, 0.0104), parent="palm2")
+    sk.add("palm3", (-0.002, 0.072, 0.0035), (0.0360, 0.0092), parent="palm2")
 
     # ---- the knuckle arc. Chained rather than fanned from one point: four
     # edges off a single vertex makes a lumpy star junction, whereas a chain
@@ -149,10 +149,10 @@ def build_skeleton():
     # taper and skipping the weld, which is how it was traced to the junction
     # rather than tuned around for a fourth round. Raising branch_smoothing made
     # it larger. A fan has no turn to fold.
-    sk.add("k_middle", tuple(MCP["middle"]), (0.0128, 0.0150), parent="palm3")
-    sk.add("k_index", tuple(MCP["index"]), (0.0122, 0.0145), parent="palm3")
-    sk.add("k_ring", tuple(MCP["ring"]), (0.0120, 0.0142), parent="palm3")
-    sk.add("k_little", tuple(MCP["little"]), (0.0106, 0.0126), parent="palm3")
+    sk.add("k_middle", tuple(MCP["middle"]), (0.0128, 0.0163), parent="palm3")
+    sk.add("k_index", tuple(MCP["index"]), (0.0122, 0.0158), parent="palm3")
+    sk.add("k_ring", tuple(MCP["ring"]), (0.0120, 0.0155), parent="palm3")
+    sk.add("k_little", tuple(MCP["little"]), (0.0106, 0.0138), parent="palm3")
 
     # ---- fingers
     fingers = {}
@@ -201,21 +201,33 @@ def segment_distance(p, a, b):
 def fit_shaft(fingers, palm_points):
     """Measure the handle this curl is actually holding.
 
-    An earlier version searched for the point furthest from every finger and
-    reported a 95 mm handle, because nothing bounded it: the further it walked
-    from the hand the better its score, so it walked to the edge of its own
-    search window and reported that. An instrument whose best answer is "outside
-    the object" is measuring the window, not the grip. This starts at the
-    anatomical grip centre -- inside the curl by construction -- and refines only
-    within 8 mm. Positive clearance means the hand is holding a handle that big;
-    negative means the fingers are inside it.
+    Two earlier versions of this were wrong in opposite directions and both
+    reported a number that looked like an answer.
+
+    The first searched for the point furthest from every finger and reported a
+    95 mm handle, because nothing bounded it: the further it walked from the hand
+    the better its score, so it walked to the edge of its own search window and
+    reported that.
+
+    The second started at the centroid of each finger's joints and refined within
+    8 mm. But the centroid of a tightly curled finger lands ON the finger, not in
+    the void it encloses, so the search began inside solid geometry and could
+    never reach the grip. That is why opening the curl by twenty-four degrees
+    moved the reported handle by 0.6 mm -- the number was not measuring the curl
+    at all.
+
+    What actually defines the handle is ENCLOSURE: a point is in the grip only if
+    the things around it surround it. So this sweeps the whole plausible region
+    and keeps the largest circle whose contacts span every direction -- if all
+    the nearby surfaces lie to one side, the point is beside the hand rather than
+    inside its grip, however much clearance it has.
     """
     axis = Vector((0, 0, 0))
     for f in fingers.values():
         axis += f["axis"]
     axis.normalize()
 
-    FINGER_R = (0.0098, 0.0089, 0.0074)
+    FINGER_R = (0.0096, 0.0087, 0.0072)
     segments = []
     for f in fingers.values():
         j = f["joints"]
@@ -224,27 +236,51 @@ def fit_shaft(fingers, palm_points):
     for p in palm_points:
         segments.append((Vector(p), Vector(p), 0.0110))
 
-    origin = Vector((0, 0, 0))
-    for f in fingers.values():
-        j = f["joints"]
-        origin += (j[1] + j[2] + j[3]) / 3.0
-    origin /= len(fingers)
-
     u = axis.cross(Vector((0, 0, 1)))
     if u.length < 1e-6:
         u = axis.cross(Vector((0, 1, 0)))
     u.normalize()
     v = axis.cross(u).normalized()
 
-    best = (origin, min(segment_distance(origin, a, b) - r for a, b, r in segments))
-    step, reach = 0.0008, 0.008
-    n = int(reach / step)
+    def closest_on(p, a, b):
+        ab = b - a
+        t = max(0.0, min(1.0, (p - a).dot(ab) / max(1e-9, ab.dot(ab))))
+        return a + ab * t
+
+    def enclosed(p):
+        """Do the surrounding surfaces span every direction, or only one side?"""
+        angles = []
+        for a, b, r in segments:
+            d = closest_on(p, a, b) - p
+            if d.length > 0.055:
+                continue
+            angles.append(math.atan2(d.dot(v), d.dot(u)))
+        if len(angles) < 3:
+            return False
+        angles.sort()
+        gaps = [angles[i + 1] - angles[i] for i in range(len(angles) - 1)]
+        gaps.append(angles[0] + 2 * math.pi - angles[-1])
+        return max(gaps) < math.radians(170)
+
+    origin = Vector((0, 0, 0))
+    for f in fingers.values():
+        origin += f["joints"][1]
+    origin /= len(fingers)
+
+    best = (origin, -1e9)
+    step = 0.0012
+    n = int(0.040 / step)
     for i in range(-n, n + 1):
         for k in range(-n, n + 1):
             p = origin + u * (i * step) + v * (k * step)
-            clearance = min(segment_distance(p, a, b) - r for a, b, r in segments)
+            if not enclosed(p):
+                continue
+            clearance = min((p - closest_on(p, a, b)).length - r for a, b, r in segments)
             if clearance > best[1]:
                 best = (p, clearance)
+    if best[1] < -1e8:
+        print("  WARNING: no enclosed point found; this curl does not close on anything")
+        return origin, axis, 0.0
     return best[0], axis, best[1]
 
 
@@ -333,8 +369,8 @@ def nail_material():
     mat = bpy.data.materials.new("Nail")
     mat.use_nodes = True
     b = mat.node_tree.nodes["Principled BSDF"]
-    b.inputs["Base Color"].default_value = (0.540, 0.296, 0.238, 1.0)
-    b.inputs["Roughness"].default_value = 0.24
+    b.inputs["Base Color"].default_value = (0.596, 0.330, 0.268, 1.0)
+    b.inputs["Roughness"].default_value = 0.20
     if "Coat Weight" in b.inputs:
         b.inputs["Coat Weight"].default_value = 0.40
         b.inputs["Coat Roughness"].default_value = 0.14
@@ -406,11 +442,15 @@ def main():
           f"  z {lo.z:+.4f}..{hi.z:+.4f}")
     print(f"  breadth across knuckles {knuckle_span:.4f} m (target {BREADTH:.3f})")
 
-    palm_thick = None
-    zs = [v.co.z for v in hand.data.vertices if 0.030 < v.co.y < 0.070 and abs(v.co.x) < 0.012]
+    # Sampled PROXIMAL of the knuckles and dorsal of the deep curl. The obvious
+    # band -- mid-palm, near the centre line -- is where the fingertips come to
+    # rest once the hand closes, so it was reporting the depth of the whole fist
+    # and calling it the palm.
+    zs = [v.co.z for v in hand.data.vertices
+          if 0.026 < v.co.y < 0.050 and abs(v.co.x) < 0.014 and v.co.z > -0.022]
     if zs:
-        palm_thick = max(zs) - min(zs)
-        print(f"  palm thickness {palm_thick:.4f} m (anatomical 0.026)")
+        print(f"  palm thickness {max(zs) - min(zs):.4f} m (anatomical 0.026), "
+              f"sampled on {len(zs)} vertices")
 
 
     # ---- the grip, measured before the nails: they aim away from it
@@ -420,8 +460,8 @@ def main():
 
     # ---- nails
     nails = []
-    NAIL = {"index": (0.0076, 0.0104), "middle": (0.0079, 0.0110),
-            "ring": (0.0074, 0.0102), "little": (0.0064, 0.0085)}
+    NAIL = {"index": (0.0088, 0.0122), "middle": (0.0091, 0.0128),
+            "ring": (0.0086, 0.0119), "little": (0.0074, 0.0099)}
     for name, f in fingers.items():
         w, l = NAIL[name]
         j = f["joints"]
