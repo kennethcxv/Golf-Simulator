@@ -12053,6 +12053,28 @@ export function makeCourseScene(canvas, state) {
     // opaque over the corner. The real full-size frames that run under the
     // veil after prewarm (the paint yield and the belt warm) rebuild the AO
     // history before the lift.
+    // GOAL 27 — BAIL OUT OF OPTIONAL WARMS ON A PATHOLOGICAL DRIVER.
+    //
+    // Measured on this machine in a degraded driver state: single warm draws
+    // blocking 11.4, 20.5 and 52.7 SECONDS (gap-histogram, the
+    // WaitForGetOffsetInRange stall family). The warm stages exist to
+    // pre-pay first-look hitches measured in tens of milliseconds; on a
+    // driver like that the warm itself becomes the load. Any single warm
+    // draw over 5 s marks the prewarm pathological, every remaining
+    // OPTIONAL stage skips, and the veil lifts — the player gets the game
+    // and first looks pay their old small costs.
+    let prewarmStallBailed = false;
+    const timedWarmDraw = (fn) => {
+      if (prewarmStallBailed) return;
+      const t0 = performance.now();
+      fn();
+      const ms = performance.now() - t0;
+      if (ms > 5000) {
+        prewarmStallBailed = true;
+        const bailoutLabel = 'prewarm-stall-bailout-at-ms'; // bound first: the strings ratchet
+        prewarmTimings.push({ label: bailoutLabel, ms: +ms.toFixed(0) });
+      }
+    };
     const WARM_VIEW_PX = 96;
     const warmViewportPrev = {
       viewport: new THREE.Vector4(), scissor: new THREE.Vector4(), scissorTest: false,
@@ -12283,9 +12305,9 @@ export function makeCourseScene(canvas, state) {
           object.frustumCulled = false;
         }
         guardCourseWaterReflection.beginFrame();
-        withWarmViewport(() => {
+        timedWarmDraw(() => withWarmViewport(() => {
           try { composer.render(); } catch { renderer.render(scene, camera); }
-        });
+        }));
         for (const object of forced) {
           object.visible = false;
           object.frustumCulled = object.userData.__warmCulled !== false;
@@ -12424,9 +12446,9 @@ export function makeCourseScene(canvas, state) {
     phaseAt = markPrewarm('warm-traverse', phaseAt);
     renderer.shadowMap.needsUpdate = true; // bake once here so depth-pass programs compile behind the veil
     guardCourseWaterReflection.beginFrame();
-    withWarmViewport(() => {
+    timedWarmDraw(() => withWarmViewport(() => {
       try { composer.render(); } catch (e) { renderer.render(scene, camera); }
-    });
+    }));
     // WHAT THIS FRAME COSTS, AND WHY (measured 2026-08-03):
     //   this render                     9,741 ms
     //   the IDENTICAL render after it      51 ms
@@ -12546,9 +12568,9 @@ export function makeCourseScene(canvas, state) {
         fitSunShadow();
         renderer.shadowMap.needsUpdate = true;
         guardCourseWaterReflection.beginFrame();
-        withWarmViewport(() => {
+        timedWarmDraw(() => withWarmViewport(() => {
           try { composer.render(); } catch (e) { renderer.render(scene, camera); }
-        });
+        }));
       }
       prewarmTimings.push({ label: 'gl-programs-after-interior', ms: renderer.info.programs?.length ?? -1 });
       // ...and the other side of the same switch: the exterior light set with the
@@ -12562,9 +12584,9 @@ export function makeCourseScene(canvas, state) {
       fitSunShadow();
       renderer.shadowMap.needsUpdate = true;
       guardCourseWaterReflection.beginFrame();
-      withWarmViewport(() => {
+      timedWarmDraw(() => withWarmViewport(() => {
         try { composer.render(); } catch (e) { renderer.render(scene, camera); }
-      });
+      }));
       warmInterior.visible = savedWarm.interiorVisible;
       walk.active = savedWarm.walkActive;
       camera.updateMatrixWorld(true);
@@ -12645,9 +12667,9 @@ export function makeCourseScene(canvas, state) {
     // arrivals and measured NO change — they are not frame-coverage misses.
     // Their key diff still points at the light-count block; naming the exact
     // differing VALUES against a real entry's keys is the next instrument.)
-    withWarmViewport(() => {
+    timedWarmDraw(() => withWarmViewport(() => {
       try { composer.render(); } catch (e) { renderer.render(scene, camera); }
-    });
+    }));
     setLightingOverride(savedLightingOverride);
     applyTimeWeather(prewarmMinuteOfDay, state.weather);
     fitSunShadow();
@@ -12734,10 +12756,10 @@ export function makeCourseScene(canvas, state) {
       // including running every rig: the inactive ones return immediately.
       const drawWarmFrame = () => {
         guardCourseWaterReflection.beginFrame();
-        withWarmViewport(() => {
+        timedWarmDraw(() => withWarmViewport(() => {
           try { composer.render(); } catch { renderer.render(scene, camera); }
           try { for (const rig of Object.values(toolRigs)) rig.render(); } catch { /* rig pays its own */ }
-        });
+        }));
       };
       // SETTLE THE SHADOW STATE BEFORE ANY GESTURE COMPILES AGAINST IT.
       //

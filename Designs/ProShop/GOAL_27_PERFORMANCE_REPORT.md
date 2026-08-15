@@ -315,6 +315,22 @@ cacheKeys, enter the editor, diff, nearest-twin field analysis. Findings:
   outlier amplified is 60% smaller. Entry-time re-measure queued for the
   rested machine.
 
+## The stall bailout — the afflicted machine becomes the test rig
+
+The stall signature made one more change both possible and verifiable
+TONIGHT: on a driver in this state the warm draws' cost-benefit inverts —
+the warm IS the load. Every optional warm draw now runs through a timer;
+**any single draw over 5 s marks the prewarm pathological and every
+remaining optional warm skips**, lifting the veil for the price of small
+first-look costs instead of minute-long stalls. On a healthy machine no
+draw approaches 5 s and behavior is unchanged by construction.
+
+**Verified on the live pathology:** the guard's first boot caught a
+20.07 s stall mid-warm, bailed, and read **69.4 s spawn→playable against
+the 100–132 s unguarded band** on the same machine state — with the
+remaining gap sitting in the outer path the guard cannot reach. Worst-case
+players now get a bounded prewarm.
+
 ## FINAL DIAGNOSIS of the slowdown — three layers, each caught by its own control
 
 The hunt ended with a full elimination chain, and the answer is THREE
