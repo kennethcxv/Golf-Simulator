@@ -303,11 +303,14 @@ cacheKeys, enter the editor, diff, nearest-twin field analysis. Findings:
   override real entry uses (then restores the clock's lighting) — the same
   law as the belt warm: warm through the real state, never an
   approximation of it.
-- **Verified by arrivals: 28 → 11** (21→11 physical). The remaining 11 are
-  frame-coverage stragglers (materials outside the warm pose's frustum) —
-  diminishing returns, ~0.3-0.8 s of entry compile left from the measured
-  0.8-2.1 s, and the base the 10.7 s outlier amplified is 60% smaller.
-  Entry-time re-measure queued for the rested machine.
+- **Verified by arrivals: 28 → 11** (21→11 physical). The frame-coverage
+  theory for the residual 11 was TESTED AND REFUTED: a culling-off variant
+  of the warm draw changed nothing, so they are not frustum misses — their
+  key diff still sits in the light-count block, and the next instrument is
+  dumping the exact differing VALUES against a real entry's keys. ~0.3-0.8 s
+  of entry compile remains from the measured 0.8-2.1 s; the base the 10.7 s
+  outlier amplified is 60% smaller. Entry-time re-measure queued for the
+  rested machine.
 
 ## THE MEASUREMENT ENVIRONMENT DEGRADED — later numbers are contaminated
 

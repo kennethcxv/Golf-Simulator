@@ -12634,6 +12634,10 @@ export function makeCourseScene(canvas, state) {
     fitSunShadow();
     renderer.shadowMap.needsUpdate = true;
     guardCourseWaterReflection.beginFrame();
+    // (A culling-off variant of this draw was tried against the residual 11
+    // arrivals and measured NO change — they are not frame-coverage misses.
+    // Their key diff still points at the light-count block; naming the exact
+    // differing VALUES against a real entry's keys is the next instrument.)
     withWarmViewport(() => {
       try { composer.render(); } catch (e) { renderer.render(scene, camera); }
     });
