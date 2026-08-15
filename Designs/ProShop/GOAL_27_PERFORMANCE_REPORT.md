@@ -13,7 +13,7 @@
 | 0 — merged tree | **DONE** — merged, gate exit 0, both load-in faults verified fixed |
 | 1 — loading in | **DONE with caveats** — 1.1/1.2 fixed; 1.3 measured, largest warm block removed, totals dominated by migratory driver debt (documented) |
 | 2 — first-press stalls | **DONE with two named residuals** — general mechanism shipped, every reachable surface ≤27 ms both tiers; course editor (823-1051 ms) open with one fix shape tried+reverted; page-turn instrument gap named |
-| 3 — mesh merge | NOT STARTED |
+| 3 — mesh merge | **MEASURED, NOT MERGED** — headroom re-derived with an honest classifier; the naive estimate was blind to pivot articulation; top target has a named verification gap; no geometry touched |
 | 4 — outdoor collapse | NOT STARTED |
 | 5 — low-end target | NOT STARTED |
 | 6 — resolution follows monitor | NOT STARTED |
@@ -150,6 +150,51 @@ warm-up") is MET for every surface the census can reach.
 belt cycle; one 261 ms cold-tier frame inside the settle window (~2 s
 post-interactive), where the mop's lazy build now lands instead of on the
 player's chosen moment.
+
+---
+
+## Phase 3 — the mesh merge, measured honestly and deliberately not started
+
+**Fresh baseline on the merged tree** (electron-merge-headroom): standing
+draw calls 1443, mergeable 1037 over 349 materials, best case 755 calls
+(−47.7%), dedup would add 7 points. Matches the Goal 26 numbers.
+
+**But the classifier those numbers rest on is blind to pivot articulation.**
+`deliveryEquipment.js` opens with a contract that refs 41-45 stay
+articulated — van doors, casters, hand-truck wheels, pallet-jack pivots —
+and every one of those wheels is a plain mesh under an animated GROUP, which
+the "not skinned/morphed/instanced" filter happily counts as mergeable. A
+merge built on that count welds casters to frames. The same blindness
+covers the checkout reader (rises to the player), the ledger book (carried),
+shop-stock (restock swaps), and sheet06 (repair-verb swaps).
+
+**The honest instrument** (`tools/qa/electron-static-stability-census.js`):
+matrixWorld bit-stability across a 15 s live window PLUS ancestor flags
+(animations, fixture/movable markers, sim items, named subsystem contracts),
+with the exclusion reason recorded per mesh. Result: 930 truly-static
+candidates over 284 materials — honest would-save **646**, top roots:
+Assets61to100Runtime 194, ProceduralMainEntranceFallback 35,
+PineHillsV2InteriorLayer 31, TieredRetailGondola 25, then a long tail.
+
+**Two named gaps that stop tonight's merge from being safe:**
+1. My stability control voided itself: 0 of 1566 matrices moved in the idle
+   window — customers are SKINNED (outside the candidate set) and
+   use-articulated gear moves only when used, so "stable for 15 idle
+   seconds" proves little. The flags carry the exclusions; the flags are
+   the weak point.
+2. The top target's flags may not even be visible: propPlacement's
+   fixture/live-hierarchy markers live in its ENTRY records, and whether
+   they are mirrored into scene-graph userData (where my flag walk looks)
+   is UNVERIFIED. If not, the 194-save figure includes movable fixtures.
+
+**What Phase 3 needs next session:** verify the entry-flag mirroring (or
+read propPlacement's entries directly), extend the existing
+`batchPlacedStaticVisuals` pattern (it already solves material bucketing,
+transform baking, source suppression via layers, and refuses non-reductions)
+with shadow preservation, and merge subtree-by-subtree with the golden suite
+and each subsystem's own tests as the per-slice gate. The infrastructure and
+the corrected numbers are in place; the four-goal-old "never started" is now
+"measured, classifier corrected, hazards named."
 
 ---
 
