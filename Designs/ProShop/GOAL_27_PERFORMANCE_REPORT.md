@@ -326,9 +326,18 @@ directions on a 5-spread, 9-page ledger. **Median worst frame per turn:
 25.6 ms; range 20.6–30.3.** The ~55 ms canvas-sync atom recorded in
 ledgerBook.js did not reproduce — the stack improved underneath the claim,
 and a dated correction now sits beside it in source. The turn misses the
-16.7 ms bar by 4–14 ms, not 38, which puts the once-rejected visibility
-split back on the table at the new per-upload cost — its A/B is the next
-experiment for this item, on the rested machine.
+16.7 ms bar by 4–14 ms, not 38.
+
+**And the visibility split was re-tried and RE-REFUTED at the new costs:**
+implemented in full (leading leaf + revealed face at t0, trailing face at
+the flip's 90°, landing spread at settle) and A/B'd on the same
+instrument — **29.5 ms median worst (25–45.4) against the batch's
+25.6/20.1**. Same verdict as the 2026-08-06 chain: uploads in one frame
+share their fixed overhead; spreading them raises the worst frame. The
+batch stays, with two eras of evidence beside it in source. What remains
+between 20-26 ms and the 16.7 bar is the per-upload overhead itself — the
+honest paths under it are the pre-authored bitmap atlas or accepting the
+one 20-26 ms frame per turn.
 
 ## The stall bailout — the afflicted machine becomes the test rig
 

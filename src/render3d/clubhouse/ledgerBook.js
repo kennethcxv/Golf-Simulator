@@ -2701,6 +2701,15 @@ export function createLedgerBook({ THREE, state, anchor, counterTop, camera = nu
     // either era's numbers.
     const t0 = performance.now();
     turnDeferred.length = 0;
+    // GOAL 27 — THE VISIBILITY SPLIT, RE-TRIED AND RE-REFUTED AT THE NEW
+    // COSTS. With the batched turn re-measured at 25.6 ms median worst
+    // (six sale-staged turns; the 55 ms atom was stale), the split looked
+    // viable again — implemented (leading leaf + revealed face at t0,
+    // trailing face at t>=0.25, landing spread at t>=0.55) and A/B'd on the
+    // same instrument: 29.5 ms median worst, range 25-45.4. WORSE, exactly
+    // as the 2026-08-06 chain found at the old costs: uploads in one frame
+    // share their fixed overhead, and spreading them raises the worst
+    // frame. The batch stays; two eras of evidence now agree.
     if (direction > 0) {
       paintIndexWith(model, leafFront, spread * 2 + 1);
       paintIndexWith(model, leafBack, next * 2);
