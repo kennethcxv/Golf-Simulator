@@ -126,6 +126,24 @@ async (page) => {
       await setPose(-5.6, 4.4, -Math.PI / 2, pitch);
       // eslint-disable-next-line no-await-in-loop
       await page.waitForTimeout(600);
+      // RE-ASSERT BEFORE EVERY SAMPLE. The first version of this sweep read 25
+      // drawable meshes at the first pitch and ZERO at all seven after it, and
+      // concluded the tool leaves frame below -0.15. It does not: the deferred
+      // GPU warm-up in main.js had taken the tool out of the player's hands
+      // (`walk.tool` is not a function, so its "is anything held?" test is always
+      // false and its branch always runs). Every later sample measured an empty
+      // hand, and the pitch curve was a fiction.
+      if (tool) {
+        // eslint-disable-next-line no-await-in-loop
+        const held = await page.evaluate((t) => window.__fw.scene3d.walk.getTool?.() === t, tool);
+        if (!held) {
+          // eslint-disable-next-line no-await-in-loop
+          await page.evaluate((t) => { window.__fw.scene3d.walk.setTool(t); }, tool);
+          // eslint-disable-next-line no-await-in-loop
+          await page.waitForFunction((t) => window.__fw.scene3d.walk.getTool?.() === t
+            && window.__toolMeshes(t).length > 0, tool, { timeout: 30000 }).catch(() => {});
+        }
+      }
       // eslint-disable-next-line no-await-in-loop
       const painted = tool ? await page.evaluate((t) => window.__paintTool(t, true), tool) : 0;
       // eslint-disable-next-line no-await-in-loop
