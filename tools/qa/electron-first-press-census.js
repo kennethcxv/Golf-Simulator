@@ -142,7 +142,7 @@ async (page) => {
   // A dispatched key that never reached its handler must read as UNAVAILABLE,
   // not as a clean 17 ms window — the 13-clean-rows version of this driver had
   // exactly that hole.
-  const pressOnce = async (name, pressIdx, actSrc, verifySrc, undoSrc) => {
+  const pressOnce = async (name, pressIdx, actSrc, verifySrc, undoSrc, holdMs = 1400) => {
     const win = `${name}#${pressIdx}`;
     // The previous surface's undo can still be settling (an Escape-closed book
     // lowers over several frames, and enterFrontDesk silently refuses while
@@ -179,7 +179,7 @@ async (page) => {
         catch (e) { return 'act-threw: ' + String(e?.message || e); }
       })()`);
     }
-    await page.waitForTimeout(1400);
+    await page.waitForTimeout(holdMs);
     const opened = await page.evaluate(`(() => {
       try { return (${verifySrc})(window.__fw); }
       catch (e) { return 'verify-threw: ' + String(e?.message || e); }
@@ -223,9 +223,24 @@ async (page) => {
       '(fw) => fw.ledgerOpen === true || fw.scene3d?.clubhouse?.()?.ledgerBook?.isOpen?.() === true || "ledgerOpen " + String(fw.ledgerOpen)',
       'KEY:k'],
     ['book-page-turn',
-      '(fw) => { const lb = fw.scene3d?.clubhouse?.()?.ledgerBook; if (typeof lb?.turnPage !== "function") return "no turnPage"; if (fw.ledgerOpen !== true) { const h = fw.scene3d?.walk?.hooks?.openLedger; if (typeof h !== "function") return "no openLedger hook"; h(); } window.__pageTurnKick = setTimeout(() => { window.__pageTurnResult = fw.scene3d?.clubhouse?.()?.ledgerBook?.turnPage?.(1); }, 700); return true; }',
-      '(fw) => window.__pageTurnResult === true || "turnPage returned " + String(window.__pageTurnResult)',
-      'KEY:k'],
+      // The BOOK, not the ledger screen: hooks.openLedger raises the DOM
+      // ledger while the 3D book stays shut, and turnPage refuses while
+      // bookState is not open — three instrument versions measured nothing
+      // because of that split. This drives the E key's own path (advance()
+      // per frame until isOpen, then turnPage) and Q puts the book away.
+      // EDGE-TRIGGERED advance, never per-frame: spamming advance() mid-rise
+      // stacked repeated spread paints and produced three 1,005 ms frames —
+      // the instrument manufacturing the stall it was measuring. And on a
+      // FRESH world the ledger holds one spread, so turnPage(1) refuses
+      // legitimately: this surface needs a world with transactions before a
+      // first-press turn can exist at all. The stall itself is already
+      // floor-measured in ledgerBook.js (one ~55 ms canvas-sync frame per
+      // turn, size-independent); this row confirms it only on saves with a
+      // second spread and says why otherwise.
+      '(fw) => { const lb = fw.scene3d?.clubhouse?.()?.ledgerBook; if (!lb?.advance || !lb?.turnPage) return "no book api"; window.__pageTurnResult = undefined; const t0 = performance.now(); let advanced = 0; let wasOpen = lb.isOpen(); const drive = () => { try { if (!lb.isOpen()) { if (advanced < 4 && performance.now() - t0 > advanced * 700) { lb.advance(); advanced += 1; } } else { const r = lb.turnPage(1); if (r === true) { window.__pageTurnResult = true; window.__pageTurnAtMs = Math.round(performance.now() - t0); return; } if (wasOpen || performance.now() - t0 > 4500) { window.__pageTurnResult = "book open but turn refused — likely a single-spread fresh ledger; needs a save with transactions"; return; } } wasOpen = lb.isOpen(); } catch (e) { window.__pageTurnResult = "threw: " + String(e?.message || e); return; } if (performance.now() - t0 > 6000) { window.__pageTurnResult = "not open after 6 s"; return; } requestAnimationFrame(drive); }; requestAnimationFrame(drive); return true; }',
+      '(fw) => window.__pageTurnResult === true || "turnPage " + String(window.__pageTurnResult)',
+      'KEY:q',
+      3400],
     ['front-desk',
       '(fw) => { const h = fw.scene3d?.walk?.hooks?.openFrontDesk; if (typeof h !== "function") return "no openFrontDesk hook"; h(null); return true; }',
       '(fw) => fw.frontDeskOpen === true || document.body.classList.contains("front-desk-mode") || "frontDeskOpen still " + String(fw.frontDeskOpen)',
@@ -254,9 +269,9 @@ async (page) => {
     '(fw) => fw.courseMode === "editor" || (document.querySelector(".course-editor-root, .editor-root, [data-editor-root]") && "dom-only") === "dom-only" || "courseMode " + String(fw.courseMode)',
     '(fw) => { /* two escapes: shell open, then resume-out is owner-specific; best effort */ }']);
 
-  for (const [name, actSrc, verifySrc, undoSrc] of SURFACES) {
-    const first = await pressOnce(name, 1, actSrc, verifySrc, undoSrc);
-    const second = await pressOnce(name, 2, actSrc, verifySrc, undoSrc);
+  for (const [name, actSrc, verifySrc, undoSrc, holdMs] of SURFACES) {
+    const first = await pressOnce(name, 1, actSrc, verifySrc, undoSrc, holdMs);
+    const second = await pressOnce(name, 2, actSrc, verifySrc, undoSrc, holdMs);
     out.surfaces[name] = { first, second };
     const verdictBit = first.ok
       ? (first.maxGapMs > 33 ? (second.maxGapMs > 33 ? 'BOTH-SLOW (not first-use)' : 'FIRST-PRESS STALL') : 'clean')

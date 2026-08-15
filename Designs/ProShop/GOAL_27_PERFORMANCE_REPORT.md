@@ -161,6 +161,31 @@ Shape unification then shrinks both the pre-veil and post-veil sets.
 Census after the sweep retirement: every surface still arrives zero
 programs first-press (the course editor's known stall excepted).
 
+## The page turn — instrument fixed, and the floor was already on file
+
+Three instrument layers peeled: (1) `hooks.openLedger` raises the ledger
+SCREEN while the 3D book stays shut, so `turnPage` refused everything the
+first two versions kicked; (2) driving `advance()` per frame spammed
+mid-rise spread paints and manufactured three 1,005 ms frames — the
+instrument creating the stall it measured (now edge-triggered); (3) a
+FRESH world's ledger holds a single spread — `turnPage(1)` refuses
+legitimately because there is nothing to turn to. A first-press page turn
+only exists on a save with transactions; the census row now says so
+instead of pretending.
+
+**The stall itself needs no new measurement — a prior session measured it
+to the floor, in source** (`ledgerBook.js`, turnPage's own probe-chain
+comment): every frame that carries canvas uploads pays **one fixed ~55 ms
+stall on this stack (Electron/ANGLE canvas→texture sync), size-independent**
+— half-res leaf no change, mipmaps off no change, zero program growth, the
+room ambient 18–23 ms. Uploads in one frame share one stall, so batching
+all five paints into the turn frame is the proven minimum; the
+visibility-split alternative made THREE hitch frames and was reverted on
+evidence. **Named floor: the 16.7 ms bar is unreachable for that one frame
+per page turn on this stack.** The only paths under it are pre-rendering
+page textures off the canvas-2D path entirely (bitmap atlas authored
+ahead) or accepting the one 55 ms frame per turn.
+
 ## The plan this survey dictates, in measurement order
 
 1. **A/B the cache cap** (one switch, two boots): if eviction is the warm
