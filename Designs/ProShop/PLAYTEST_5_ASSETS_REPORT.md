@@ -104,6 +104,61 @@ judging a new asset.** Modelling starts next.
 
 ---
 
-## 1. The hands — NOT STARTED
+## 1. The hands — MODELLED, NOT SHIPPED. The wiring is reverted.
+
+**The model exists and validates. It is not in the game, because the two frames I
+took of it were worse than what is there now, and I am not shipping that.**
+
+### What was built
+
+`tools/blender/hands/build_fp_hands.py`, Blender 5.1.2 headless, **16 parts,
+3,416 triangles, 54 KB**, `tools/validate-gltf.mjs`: 0 failed, 0 warnings.
+
+It exports **one mesh per joint segment**, not "a hand". The hand is articulated —
+`pose()` writes joint rotations on every tool change and five poses depend on it —
+so a single posed mesh would be rigid in the hand's one job. Each part is authored
+with its origin at its own joint pivot, so the runtime drops it into the joint
+hierarchy that already exists and the pose maths is untouched.
+
+Four things separate a modelled finger from a capsule, taken from the reference
+photograph, each a parameter rather than a modelling gesture:
+
+| | capsule | authored |
+|---|---|---|
+| section | circular | **elliptical**, ~1.25:1 wide to deep |
+| along its length | uniform | **tapered** toward the tip |
+| at the joint | nothing | **knuckle bulge**, a raised cosine over the first third |
+| palm | a scaled sphere | **thenar mass** on the thumb side, cupped face, domed back |
+
+Draw-call budget: unchanged. One mesh per joint as before, and the four per-hand
+nail boxes are folded into the distal segment's own modelled tip — 8 fewer meshes
+across two hands.
+
+### Why it is not wired in
+
+**The Blender → glTF axis conversion.** The parts are authored running down −Z
+because that is the axis `fpHands` lays fingers along, but `export_yup=True` maps
+Blender (x, y, z) → glTF (x, z, −y), so an authored −Z arrives in the runtime as
++Y. Photographed: **every finger pointing away from the shaft as a straight rod**,
+plainly worse than the capsules.
+
+I then rotated the parts +90° about X and applied it before export, expecting the
+yup conversion to send them back to −Z. Measured, that was worse again: drawable
+meshes at the shot fell **72 → 22**. I had the mapping backwards a second time.
+
+So the wiring is **reverted by file copy** and the revert asserted to have changed
+the file (`f2e52d50…` → `e5bedfd4…`), with the hands measured back at **80/89
+drawable** — exactly the procedural build that shipped.
+
+### What the next attempt needs
+
+Not more modelling. One decided fact: what axis a part must be authored along in
+Blender so that, after `export_yup=True`, it arrives in three.js running down −Z.
+Establish it with a single one-part probe — export a marker whose long axis is
+unambiguous, read the vertex bounds in the runtime, and fix the convention — then
+the 16 parts drop in unchanged. Guessing it twice has already cost this attempt.
+
+**The model is good; the seam between two coordinate conventions is what beat me,
+and I would rather hand you a working hand than a fast one.**
 ## 2. The mop head — NOT STARTED
 ## 3. The broom head — NOT STARTED
