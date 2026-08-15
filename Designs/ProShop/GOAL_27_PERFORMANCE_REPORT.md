@@ -14,7 +14,7 @@
 | 1 — loading in | **DONE with caveats** — 1.1/1.2 fixed; 1.3 measured, largest warm block removed, totals dominated by migratory driver debt (documented) |
 | 2 — first-press stalls | **DONE with two named residuals** — general mechanism shipped, every reachable surface ≤27 ms both tiers; course editor (823-1051 ms) open with one fix shape tried+reverted; page-turn instrument gap named |
 | 3 — mesh merge | **MEASURED, NOT MERGED** — headroom re-derived with an honest classifier; the naive estimate was blind to pivot articulation; top target has a named verification gap; no geometry touched |
-| 4 — outdoor collapse | NOT STARTED |
+| 4 — outdoor collapse | **DOES NOT REPRODUCE** on the merged tree at owner resolution — walking out: 8.6 ms median / 116 fps, max 18.9 ms; historic 6.7 fps attributed to the cold-tier outdoor compile storm the deferred sweep now covers; 7.7M outdoor triangles named as the top Phase-5 risk |
 | 5 — low-end target | NOT STARTED |
 | 6 — resolution follows monitor | NOT STARTED |
 
@@ -195,6 +195,41 @@ with shadow preservation, and merge subtree-by-subtree with the golden suite
 and each subsystem's own tests as the per-slice gate. The infrastructure and
 the corrected numbers are in place; the four-goal-old "never started" is now
 "measured, classifier corrected, hazards named."
+
+---
+
+## Phase 4 — the outdoor collapse, looked at
+
+**It does not reproduce.** `tools/qa/electron-outdoor-collapse.js`, merged
+tree, owner window (2560×1370 DIP @1.5, 3840×2160 physical):
+
+| station | median | fps | p95 | max | draw calls | triangles |
+|---|---|---|---|---|---|---|
+| inside shop (control) | 11.3 ms | 88 | 13.7 | 19.9 | 2470 | 5.2M |
+| door, 6 yd, facing course | 7.8 ms | 128 | 10.5 | 16.4 | 930 | 7.4M |
+| 20 yd out | 6.1 ms | 164 | 7.9 | 13.6 | 331 | 6.7M |
+| 45 yd out | 5.9 ms | 170 | 7.9 | 13.1 | 326 | 7.1M |
+| 85 yd out | 5.5 ms | 182 | 7.1 | 16.5 | 307 | 7.1M |
+| 85 yd, facing the shop | 7.8 ms | 128 | 10.0 | 19.5 | 1265 | 5.5M |
+| **walking out, 30 s** | **8.6 ms** | **116** | 11.8 | **18.9** | 1252 | 7.7M |
+
+Controls: planted 150 ms stall caught (161.8); inside baseline healthy.
+Against the historic 148 ms median / 6.7 fps / 2745 calls: draw calls
+outdoors are 307–331 (the vegetation instancing works), and no frame in
+50+ seconds of outdoor sampling exceeded 19.9 ms.
+
+**Where the 6.7 fps most plausibly went:** the cold-tier outdoor compile
+storm. The prewarm's own history records "20.5 vs 7.0 fps after walking
+outdoors" flipping with the warm's presence — first-walk program compiles,
+not steady-state vegetation cost — and the deferred `compileAsync` sweep
+now covers that path on every boot. It may also simply have been an older,
+slower tree; either way the collapse the brief describes is not in this
+build.
+
+**What remains true and feeds Phase 5:** 7–7.7M triangles outdoors is a
+heavy meal an RTX 5080 hides. On the low-end target it will not be hidden;
+distance-culling/LOD on the instanced vegetation is the ready lever if
+Phase 5's measurements say so.
 
 ---
 
