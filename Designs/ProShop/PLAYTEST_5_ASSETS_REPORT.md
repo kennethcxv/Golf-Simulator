@@ -527,3 +527,69 @@ it was wrong, and the measurement was available.
 Do not trust any frame until a marker proves the running build contains your edit.
 Rename a mesh, read the name back through the scene graph, and only then look at
 the picture. That check takes one run and would have saved this entire session.
+
+---
+
+# THE TRUTH, AND THE CAUSE OF EVERY RETRACTION ABOVE
+
+## The hand is fully in the game. All sixteen parts. Both hands.
+
+```
+ADOPT  [{"applied":16,"expected":16,"missed":[]},
+        {"applied":16,"expected":16,"missed":[]}]
+
+load   "loaded 16 parts"  IndexProx IndexMid IndexDist MiddleProx MiddleMid
+                          MiddleDist RingProx RingMid RingDist LittleProx
+                          LittleMid LittleDist ThumbProx ThumbDist Palm Forearm
+
+MARKER PalmMARK PRESENT: YES  -- edits DO reach the running build
+builds 2                      -- both hands constructed
+```
+
+No misses. The Forearm adopts. The "four capsules" are not hand segments at all.
+Edits reach the build. **There was never a stale build.**
+
+## What actually happened, and it was me
+
+One of my `sed`/regex edits mangled line 41 of
+`tools/qa/electron-hands-authored.js`, leaving fragments of an earlier replacement
+in the middle of a statement:
+
+```
+SyntaxError: Unexpected token ')'
+```
+
+**The driver had been failing on every run since.** And I had been invoking it as
+`node tools/qa/run-electron.cjs ... >/dev/null 2>&1`, so I never saw the error —
+then reading `qa/electron/hands/hands.json` and treating it as the result. That
+file was **nineteen minutes old**: written 00:48:21, read at 01:07:59.
+
+Every conclusion in the four sections above was drawn from a stale artefact:
+
+| I claimed | actually |
+|---|---|
+| the swap never ran | it ran, 16/16, both hands |
+| `contextIsolation` hid the globals | the globals were fine; the run had crashed |
+| an older snapshot of `fpHands.js` was executing | no; the marker proves edits land |
+| `ROOT` resolved to the main repo | no; the runner reports `root: c:\gfassets` |
+
+Four retractions, one cause: **I suppressed a command's output and then trusted a
+file it had not written.** The `>/dev/null 2>&1` is the whole of it. Every
+explanation I reached for afterwards was an elaboration on top of a stale JSON.
+
+## Where item 1 genuinely stands
+
+Wired, adopted 16/16 on both hands, photographed at the default player camera with
+the tool confirmed held: `Designs/ProShop/Images/Goal_26/playtest5/hand-authored-v3.png`.
+72 of 89 tool meshes drawable at the shutter, no page errors.
+
+**Whether it LOOKS right is still the open question, and it is now the only one.**
+At the default camera the hand is small and dark. Judging it against a reference
+photographed at arm's length needs a closer exhibit at matched apparent size —
+which is the next concrete step, and the first one in this whole thread that is
+about the model rather than about the harness.
+
+## The rule this session earned
+
+Never suppress a command's output and then read a file it was supposed to write.
+Check the artefact's timestamp, or do not treat it as evidence.
