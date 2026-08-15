@@ -171,10 +171,12 @@ def build(broken=False):
     parts["dip"] = dip
 
     # ---- materials
-    plastic = HS.pbr("SprayBody", (0.780, 0.845, 0.870), roughness=0.13,
-                     transmission=0.92, ior=1.46)
-    fluid = HS.pbr("SprayLiquid", (0.180, 0.470, 0.320), roughness=0.02,
-                   transmission=0.96, ior=1.34)
+    # ALPHA, not transmission. See hardsurface_lib.pbr: EEVEE draws a
+    # transmissive body as a dark opaque blob and the game is a raster renderer.
+    plastic = HS.pbr("SprayBody", (0.760, 0.830, 0.855), roughness=0.12,
+                     alpha=0.26)
+    fluid = HS.pbr("SprayLiquid", (0.120, 0.400, 0.270), roughness=0.06,
+                   alpha=0.72)
     trim = HS.pbr("SprayTrim", (0.075, 0.190, 0.155), roughness=0.36, coat=0.30)
     dark = HS.pbr("SprayNozzle", (0.032, 0.034, 0.036), roughness=0.30, coat=0.20)
     body.data.materials.append(plastic)
@@ -192,9 +194,12 @@ def main():
     # liquid line in it, and EEVEE's screen-space refraction renders that as
     # frosted grey speckle with no liquid visible at all -- so the fast engine
     # cannot answer the only question this model has to answer.
+    # BOTH ENGINES when asked. The game renders closer to EEVEE than to Cycles,
+    # so a translucent asset judged only in Cycles has been judged in the engine
+    # that flatters it rather than the one that will draw it.
     engine = "EEVEE" if "eevee" in args else "CYCLES"
     broken = "break-trigger" in args
-    suffix = "-BROKEN" if broken else ""
+    suffix = "-BROKEN" if broken else ("-eevee" if engine == "EEVEE" else "")
 
     H.reset_scene()
     H.set_engine(engine, samples=200 if engine == "CYCLES" else 128)

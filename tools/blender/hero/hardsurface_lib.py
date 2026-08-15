@@ -118,6 +118,79 @@ def assert_touching(a, b, label, max_gap=0.0015):
           f"at {gap * 1000:.2f} mm ({label})")
 
 
+def assert_no_overlap(a, b, label, min_gap=0.0008):
+    """Two parts that must NOT be inside each other.
+
+    The inverse of assert_touching, and it needs its own instrument: a cloth
+    lying against a sponge passes every "is it attached" test precisely because
+    it is touching, and interpenetration is invisible from most angles because
+    the buried part is buried.
+    """
+    mwa = a.matrix_world
+    deepest = max((point_depth_inside(b, mwa @ v.co) for v in a.data.vertices),
+                  default=-1e9)
+    if deepest > 0:
+        raise SystemExit(
+            f"BUILD FAILED: {label} -- {a.name} is {deepest * 1000:.2f} mm INSIDE "
+            f"{b.name}. They must sit against each other, not through each other.")
+    gap = surface_gap(a, b)
+    if gap < min_gap:
+        raise SystemExit(
+            f"BUILD FAILED: {label} -- {a.name} and {b.name} are only "
+            f"{gap * 1000:.2f} mm apart, under the {min_gap * 1000:.1f} mm minimum")
+    print(f"  separation assertion passed: {a.name} clears {b.name} by "
+          f"{gap * 1000:.2f} mm ({label})")
+
+
+def assert_fits_inside(interior, size, label, margin=0.0030, samples=5):
+    """A box of `size` must fit inside `interior` with clearance all round.
+
+    The shopping bag's whole job is holding goods, and goods have phased through
+    it across three playtests. A bag modelled as a shape with no measured cavity
+    can only be tested against a guessed rectangle -- so the cavity is real
+    geometry and this walks the probe's corners and edge midpoints against it.
+    """
+    sx, sy, sz = (v * 0.5 for v in size)
+    lo, hi = None, None
+    for v in interior.data.vertices:
+        w = interior.matrix_world @ v.co
+        lo = w.copy() if lo is None else Vector((min(lo.x, w.x), min(lo.y, w.y), min(lo.z, w.z)))
+        hi = w.copy() if hi is None else Vector((max(hi.x, w.x), max(hi.y, w.y), max(hi.z, w.z)))
+    # SEARCH for a placement rather than assume one. The first version parked
+    # the probe exactly `margin` above the cavity floor and then required
+    # `margin` of clearance, so the bottom face sat on the boundary by
+    # construction and the test reported +3.00 mm against a 3.0 mm requirement --
+    # it was measuring its own placement, not the bag.
+    base = (lo + hi) * 0.5
+    best = -1e9
+    for step in range(9):
+        centre = base.copy()
+        centre.z = lo.z + sz + (hi.z - lo.z - 2 * sz) * (step / 8.0)
+        worst = 1e9
+        for i in range(samples):
+            for j in range(samples):
+                for k in range(samples):
+                    if not (i in (0, samples - 1) or j in (0, samples - 1)
+                            or k in (0, samples - 1)):
+                        continue          # surface of the probe only
+                    p = centre + Vector((
+                        sx * (2 * i / (samples - 1) - 1),
+                        sy * (2 * j / (samples - 1) - 1),
+                        sz * (2 * k / (samples - 1) - 1)))
+                    worst = min(worst, point_depth_inside(interior, p))
+        best = max(best, worst)
+    worst = best
+    if worst < margin:
+        raise SystemExit(
+            f"BUILD FAILED: {label} -- a {size[0]*1000:.0f} x {size[1]*1000:.0f} x "
+            f"{size[2]*1000:.0f} mm load does not fit in {interior.name}: the "
+            f"tightest corner has {worst * 1000:+.2f} mm of clearance, "
+            f"{margin * 1000:.1f} required")
+    print(f"  clearance assertion passed: a {size[0]*1000:.0f} x {size[1]*1000:.0f} x "
+          f"{size[2]*1000:.0f} mm load clears {interior.name} by "
+          f"{worst * 1000:.1f} mm at its tightest ({label})")
+
+
 def shells(obj):
     bm = bmesh.new()
     bm.from_mesh(obj.data)
@@ -153,6 +226,25 @@ def assert_one_piece(obj, label):
 # construction
 
 
+def recalc_normals(obj):
+    """Make every face point outward.
+
+    Not cosmetic. point_depth_inside decides inside-vs-outside from the SIGN of
+    the surface normal, so a mesh wound inward makes the test report the exact
+    opposite -- and it does it quietly: a point 106 mm outside a 44 mm sponge
+    came back as 106 mm INSIDE it. Every assertion in this module that uses
+    depth inherits that lie, which includes the rooting check the bristles rely
+    on, so normals are fixed at construction rather than trusted.
+    """
+    bm = bmesh.new()
+    bm.from_mesh(obj.data)
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+    bm.to_mesh(obj.data)
+    bm.free()
+    obj.data.update()
+    return obj
+
+
 def mesh_from(name, verts, faces, smooth=False):
     me = bpy.data.meshes.new(name)
     me.from_pydata([tuple(v) for v in verts], [], faces)
@@ -162,6 +254,7 @@ def mesh_from(name, verts, faces, smooth=False):
     if smooth:
         for p in ob.data.polygons:
             p.use_smooth = True
+    recalc_normals(ob)
     return ob
 
 
@@ -236,7 +329,15 @@ def apply_mods(obj):
 
 
 def pbr(name, colour, roughness=0.5, metallic=0.0, transmission=0.0, ior=1.45,
-        coat=0.0, emission=None):
+        coat=0.0, emission=None, alpha=1.0):
+    """`alpha` is the transparency a RASTER engine can draw.
+
+    Transmission is a path-tracing feature. Cycles renders a transmissive bottle
+    beautifully and EEVEE renders it as a dark opaque blob -- and the game is a
+    raster renderer, so a translucent asset authored with transmission has been
+    authored for the engine that will never draw it. Alpha reads in both, and it
+    is what a Three.js material would use.
+    """
     mat = bpy.data.materials.new(name)
     mat.use_nodes = True
     b = mat.node_tree.nodes["Principled BSDF"]
@@ -249,4 +350,15 @@ def pbr(name, colour, roughness=0.5, metallic=0.0, transmission=0.0, ior=1.45,
         b.inputs["IOR"].default_value = ior
     if coat and "Coat Weight" in b.inputs:
         b.inputs["Coat Weight"].default_value = coat
+    if alpha < 1.0:
+        b.inputs["Alpha"].default_value = alpha
+        for attr, value in (("blend_method", "BLEND"),
+                            ("surface_render_method", "BLENDED")):
+            if hasattr(mat, attr):
+                try:
+                    setattr(mat, attr, value)
+                except (TypeError, AttributeError):
+                    pass
+        if hasattr(mat, "show_transparent_back"):
+            mat.show_transparent_back = True
     return mat

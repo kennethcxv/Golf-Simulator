@@ -403,3 +403,90 @@ dark material came out light: charcoal read as brushed aluminium, near-black
 bristles read as grey wire. I read that twice as a missing material before it
 turned out to be exposure that had never been set. The studio now runs at
 **−0.9 EV**.
+
+---
+
+## ASSETS 5, 6, 7 — CLOTH AND SPONGE, SHOPPING BAG, BUNKER RAKE
+
+### First: the spray bottle was judged in the wrong engine
+
+The owner's note — the game renders closer to EEVEE than to Cycles — turned out
+to matter more than a preference. Rendered in EEVEE the finished spray bottle was
+a **dark opaque blob**: no translucency, no liquid, nothing. Transmission is a
+path-tracing feature, and the asset had been authored for the engine that will
+never draw it.
+
+Rebuilt on **alpha** instead of transmission, it reads in both, and EEVEE is now
+arguably the better frame — the dip tube is visible through the liquid.
+`spray-engines.png` is the pair. `hardsurface_lib.pbr` grew an `alpha` argument
+and sets the raster blend mode, which is also what a Three.js material would use.
+
+| asset | triangles | objects | materials | rounds |
+|---|---|---|---|---|
+| cloth + sponge | **1,536** | 2 | 3 | 3 |
+| shopping bag | **1,020** | 3 | 2 | 3 |
+| bunker rake | **628** | 18 | 3 | 2 |
+
+All three pass `tools/validate-gltf.mjs` with zero failures and zero warnings.
+
+### Three more broken instruments, caught by the broken variants
+
+The discipline paid again. Every one of these was found because the deliberately
+broken build ran first:
+
+- **Inverted normals made the inside/outside test report the opposite.**
+  `point_depth_inside` decides from the SIGN of the surface normal, and the
+  sponge's lat/long grid wound inward — a point 106 mm OUTSIDE a 44 mm sponge
+  came back as 106 mm inside it. Every depth-based assertion inherits that,
+  including the rooting check the bristles rely on. Normals are now recalculated
+  at construction rather than trusted.
+- **The clearance test was measuring its own probe placement.** It parked the
+  load exactly `margin` above the cavity floor and then required `margin` of
+  clearance, so the bottom face sat on the boundary by construction: it reported
+  **+3.00 mm against a 3.0 mm requirement** and failed a bag that fits fine. It
+  now searches nine heights for a placement instead of assuming one, and reports
+  a real 15.4 mm.
+- **`assert_no_overlap` needed to exist at all.** A cloth resting against a
+  sponge passes every attachment test precisely BY touching, and
+  interpenetration is invisible from most angles because the buried part is
+  buried.
+
+### CLOTH AND SPONGE — 3 rounds
+
+The sponge came out as an **oval disc**: the superellipsoid exponent was 0.84,
+and 1.0 is an ellipsoid. A rounded box wants about 0.35 — that one number decides
+whether it reads as foam or as a pebble. The cloth was a flat wavy sheet that
+read as a rubber mat until it was folded over itself with a rolled edge. And the
+scour pad was a stacked second solid whose rim overhung the body and read as a
+lid with a seam; it is now one block with the material split by height, so the
+boundary is a change of surface and nothing else.
+
+### SHOPPING BAG — 3 rounds
+
+The cavity is **real geometry**, not a number: `BagInterior` is its own closed
+mesh and the clearance assertion walks a 190 × 100 × 155 mm load against it. That
+is the whole point, given goods have phased through this bag across three
+playtests.
+
+Faults: the handle ends floated 8.7 mm inside the cavity, because the section is
+a superellipse and the wall at x = 62 mm is not at the rim's half-depth — solving
+the curve put them where the paper actually is. And the bag read as a smooth
+leather tote until the gusset creases were deep enough to see; at 3 mm they were
+invisible, at 7.5 mm it reads as paper.
+
+### BUNKER RAKE — 2 rounds
+
+What is in the game is capsule lumps floating in the sky with two planks through
+them — a detached first-person hand. This is a moulded head with a smoothing
+blade, fifteen rooted teeth, a ferrule and a shaft, and every joint is asserted.
+
+Faults: the head read as a **steel bar with chrome trim**, because the smoothing
+blade is a broad flat face and at 0.44 roughness it caught the key light; and the
+tines were wire pins until they were widened into moulded teeth.
+
+### One thing the studio still does
+
+Even at −0.9 EV, near-black materials render as mid-grey — the rake head is
+0.0105 linear and reads as gunmetal. That is AgX's midtone lift, not a missing
+material, and it is worth knowing before anyone judges a black asset from these
+frames.
