@@ -16,7 +16,7 @@
 | 3 — mesh merge | **MEASURED, NOT MERGED** — headroom re-derived with an honest classifier; the naive estimate was blind to pivot articulation; top target has a named verification gap; no geometry touched |
 | 4 — outdoor collapse | **DOES NOT REPRODUCE** on the merged tree at owner resolution — walking out: 8.6 ms median / 116 fps, max 18.9 ms; historic 6.7 fps attributed to the cold-tier outdoor compile storm the deferred sweep now covers; 7.7M outdoor triangles named as the top Phase-5 risk |
 | 5 — low-end target | **MEASURED** — target defined (1080p / integrated class / 33 ms); at 1080p full-hardware every scenario passes except the editor entry (10.7 s outlier); at CPU ×6.6 everything fails — the game is CPU-bound on weak CPUs; levers named |
-| 6 — resolution follows monitor | NOT STARTED |
+| 6 — resolution follows monitor | **FIXED + VERIFIED** — cached-ratio defect found in source, red-green with hash-asserted reverts, three legs pass (drag both directions + no-resize scale change) |
 
 ## Before/after table
 
@@ -291,6 +291,36 @@ perf-pipeline work: freezing the 2,208-object clubhouse subtree's
 matrix/visibility churn, plus splitting entry-cost work off the enter
 frame. Both are next-session items, now with the numbers that justify
 them.
+
+---
+
+## Phase 6 — the render resolution follows the monitor
+
+**The defect, visible in source:** `scene3d.resize()` sizes the composer
+from `renderer.getPixelRatio()` — the value CACHED at construction — so a
+cross-monitor drag that changes `window.devicePixelRatio` never reached the
+renderer. Booted on the 1440p panel and dragged to 4K: blurry upscale
+forever. Reproduced on the unfixed build with real bounds changes:
+dpr 1.5 → 1.0 and the renderer sat at 1.5, buffer frozen at 2400×1351.
+
+**The fix:** the settings' own pixel-ratio formula (preference ×
+nativeRatio, ceiling, 4K pixel budget, snap — the A4 history preserved)
+extracted into `applyPixelRatioForViewport()`, called by applySettings AND
+by both passes of the debounced window resize handler; plus a re-arming
+`matchMedia` listener for scale changes that arrive with NO resize event
+(changing Windows display scaling while the window sits still).
+
+**Verified, red-green, honest instrument**
+(`tools/qa/electron-dpr-follows-monitor.js`): the first driver version
+overrode only deviceScaleFactor — no resize event, so the fix under test
+could never run and the FIXED build read FAIL; corrected to change window
+bounds with the dpr, the way a real drag does. Unfixed build: FAIL (watched,
+file-copy revert asserted by hash both ways). Fixed build, three legs:
+1.5→1.0 buffer 2400×1351 → 1602×900; back to 1.5 → 2400×1350; no-resize
+1.25 → 1999×1124 via the matchMedia path. PASS.
+
+**The known trap honored:** the driver un-maximises before every
+setContentSize — a maximised window silently ignores it on Windows.
 
 ---
 

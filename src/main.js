@@ -2451,6 +2451,47 @@ function showQualityApplying(ms = 1800) {
 const frameCap = createFrameCap();
 app.frameCapDiagnostics = () => frameCap.diagnostics();
 
+// GOAL 27 PHASE 6 — THE PIXEL RATIO FOLLOWS THE MONITOR, so this formula is
+// shared by applySettings AND the window resize path. The renderer caches the
+// ratio it was constructed with, and scene3d.resize() reads that cache — so a
+// drag from the 4K panel (dpr 1.5) to another display, or any change to
+// window.devicePixelRatio, silently kept the old ratio: booted at 1.0 the 4K
+// panel got a blurry upscale, booted at 1.5 the smaller panel paid for pixels
+// it cannot show. Re-deriving here on every resize keeps the preference
+// formula authoritative in both directions.
+//
+// A4 (Goal 17), AFTER THE VERIFIER — A PIXEL BUDGET, BECAUSE A5 CHANGED THE
+// SIZE THIS SETTING IS PAID AT. Ultra asks for renderScale 1.15; since A5 the
+// window fills a 4K panel and 1.15 asks for 10.4 MPix — a third more than the
+// display can show. Measured on two fresh profiles: switching to Ultra froze
+// the game for 10,814 and 9,885 ms — the render target reallocating. So the
+// buffer is capped at what a 4K display can actually show; supersampling
+// still works where it is cheap and visible (a 1080p window at 1.15 is
+// 2.7 MPix and untouched).
+function applyPixelRatioForViewport(values = preferences.values) {
+  if (!app.scene3d?.renderer) return;
+  const scale = values.display.renderScale;
+  const dprCeiling = scale > 1 ? 2 : 1.5;
+  const nativeRatio = window.devicePixelRatio || 1;
+  let pixelRatio = Math.min(dprCeiling, nativeRatio * scale);
+  const canvas = app.scene3d.renderer.domElement;
+  const cssW = canvas.clientWidth || window.innerWidth;
+  const cssH = canvas.clientHeight || window.innerHeight;
+  const PIXEL_BUDGET = 3840 * 2160;
+  if (cssW > 0 && cssH > 0) {
+    const budgetRatio = Math.sqrt(PIXEL_BUDGET / (cssW * cssH));
+    pixelRatio = Math.min(pixelRatio, budgetRatio);
+    // ...and snap to the display's own ratio when the cap lands within a few
+    // per cent of it, so a preset change does not reallocate every buffer in
+    // the post chain to gain 4% of area nobody can see.
+    if (Math.abs(pixelRatio - nativeRatio) / nativeRatio < 0.06) pixelRatio = nativeRatio;
+  }
+  // setPixelRatio re-runs setSize internally; when the ratio is unchanged the
+  // buffers keep their size and nothing reallocates, so calling this on every
+  // debounced resize is cheap.
+  app.scene3d.renderer.setPixelRatio(pixelRatio);
+}
+
 function applySettings() {
   const values = preferences.values;
   applyDocumentPreferences(values);
@@ -2488,42 +2529,7 @@ function applySettings() {
   // -2.1%, +3.9% and +1.3% at the three fixed poses, all inside the run's own
   // 8.4% drift — a tier that cost nothing and gave nothing. The cap is a
   // DEFAULT ceiling, so it applies only while the player is at or below 100%.
-  const scale = values.display.renderScale;
-  const dprCeiling = scale > 1 ? 2 : 1.5;
-  const nativeRatio = window.devicePixelRatio || 1;
-  let pixelRatio = Math.min(dprCeiling, nativeRatio * scale);
-  // A4 (Goal 17), AFTER THE VERIFIER — A PIXEL BUDGET, BECAUSE A5 CHANGED THE
-  // SIZE THIS SETTING IS PAID AT.
-  //
-  // Ultra asks for renderScale 1.15: "sharper than the screen, then
-  // downsampled". On the 1600x940 window that used to ship, that was a 2760 x
-  // 1621 target and nobody noticed. Since A5 the window fills a 4K panel, and
-  // the same 1.15 asks for 4416 x 2363 - 10.4 MPix, a THIRD more than the
-  // display can show.
-  //
-  // Measured by the Section A verifier on two fresh profiles: switching to
-  // Ultra froze the game for 10 814 ms and 9 884.8 ms, with zero animation
-  // frames in between and no program growth. That is the render target being
-  // reallocated, and I had published 78.7 ms for it because I measured before
-  // the window changed size underneath the number.
-  //
-  // So the buffer is capped at what a 4K display can actually show.
-  // Supersampling still works where it is cheap and visible - a 1080p window at
-  // 1.15 is 2.7 MPix and untouched - but a window already at 4K stops paying
-  // for pixels no monitor will draw.
-  const canvas = app.scene3d.renderer.domElement;
-  const cssW = canvas.clientWidth || window.innerWidth;
-  const cssH = canvas.clientHeight || window.innerHeight;
-  const PIXEL_BUDGET = 3840 * 2160;
-  if (cssW > 0 && cssH > 0) {
-    const budgetRatio = Math.sqrt(PIXEL_BUDGET / (cssW * cssH));
-    pixelRatio = Math.min(pixelRatio, budgetRatio);
-    // ...and snap to the display's own ratio when the cap lands within a few
-    // per cent of it, so a preset change does not reallocate every buffer in
-    // the post chain to gain 4% of area nobody can see.
-    if (Math.abs(pixelRatio - nativeRatio) / nativeRatio < 0.06) pixelRatio = nativeRatio;
-  }
-  app.scene3d.renderer.setPixelRatio(pixelRatio);
+  applyPixelRatioForViewport(values);
   // TOGGLING shadowMap.enabled REQUIRES RECOMPILING EVERY MATERIAL. Three bakes
   // the shadow sampler declarations into the shader, so a program compiled with
   // shadows on keeps sampling a map that is no longer being written. Measured in
@@ -4725,12 +4731,37 @@ function resize() {
   const now = (typeof performance !== 'undefined' && performance.now) ? performance.now() : 0;
   if (now - resizeCoarse > 120) { // at most ~8 immediate passes/sec while dragging
     resizeCoarse = now;
+    // dpr first: a cross-monitor drag changes window.devicePixelRatio, and
+    // scene3d.resize() sizes the composer from the renderer's CACHED ratio —
+    // stale until this re-derives it (Goal 27 Phase 6).
+    applyPixelRatioForViewport();
     app.scene3d.resize();
   }
   clearTimeout(resizeTimer);
-  resizeTimer = setTimeout(() => { if (app.scene3d) app.scene3d.resize(); }, 160);
+  resizeTimer = setTimeout(() => {
+    if (!app.scene3d) return;
+    applyPixelRatioForViewport();
+    app.scene3d.resize();
+  }, 160);
 }
 window.addEventListener('resize', resize);
+// ...and the dpr change that arrives WITHOUT a resize: changing Windows
+// display scaling, or a cross-monitor move whose DIP size happens to match.
+// matchMedia is the standard signal for it; the listener must re-arm on the
+// new ratio each time it fires (a media query only matches its own value).
+(function watchDprChanges() {
+  let query = null;
+  const arm = () => {
+    query?.removeEventListener?.('change', onChange);
+    query = window.matchMedia(`(resolution: ${window.devicePixelRatio}dppx)`);
+    query.addEventListener('change', onChange);
+  };
+  function onChange() {
+    resize();
+    arm();
+  }
+  arm();
+})();
 
 function openMenuSettings() {
   modal('Settings', (box, close) => {
