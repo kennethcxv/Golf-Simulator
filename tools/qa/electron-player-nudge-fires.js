@@ -78,9 +78,37 @@ async (page) => {
       const ch = window.__fw.scene3d.clubhouse();
       const list = (ch.customers?.() || []).filter((c) => c?.mesh && c.mesh.visible !== false);
       if (!list.length) return null;
-      const c = list[0];
-      return { name: c.fullName || c.name, x: +c.mesh.position.x.toFixed(3), z: +c.mesh.position.z.toFixed(3), count: list.length };
+      // MUST BE SOMEBODY INSIDE. separatePlayerFromCustomers refuses to move the
+      // player when the step would land outside the shell -- "being nudged
+      // through a wall is worse than being stood in" -- so staging the overlap on
+      // a customer who is still on the path outside means the nudge correctly
+      // does nothing and the run learns nothing. Picking list[0] did exactly that
+      // once already. The clubhouse's own interior origin is the anchor; anyone
+      // within a few yards of it is indoors.
+      const interior = ch.interior?.position;
+      if (!interior) return null;
+      const withDist = list.map((c) => ({
+        c,
+        d: Math.hypot(c.mesh.position.x - interior.x, c.mesh.position.z - interior.z),
+      })).sort((a, b) => a.d - b.d);
+      const best = withDist[0];
+      if (!best || best.d > 10) {
+        return { count: list.length, indoors: false, nearestToCentre: +best.d.toFixed(2) };
+      }
+      const c = best.c;
+      return {
+        name: c.fullName || c.name,
+        x: +c.mesh.position.x.toFixed(3),
+        z: +c.mesh.position.z.toFixed(3),
+        count: list.length,
+        indoors: true,
+        fromInteriorCentre: +best.d.toFixed(2),
+      };
     });
+    if (found && !found.indoors) {
+      console.log(`      (nobody indoors yet — nearest is ${found.nearestToCentre} yd from the centre)`);
+      found = null;
+    }
     console.log(`  +${(i + 1) * 3}s  customers on the floor: ${found ? found.count : 0}`);
     if (found) break;
   }
@@ -110,15 +138,29 @@ async (page) => {
   out.staged = await page.evaluate(() => {
     const fw = window.__fw;
     const ch = fw.scene3d.clubhouse();
+    const interior = ch.interior.position;
     const list = (ch.customers?.() || []).filter((c) => c?.mesh && c.mesh.visible !== false);
-    const c = list[0];
+    const c = list.map((x) => ({
+      x, d: Math.hypot(x.mesh.position.x - interior.x, x.mesh.position.z - interior.z),
+    })).sort((a, b) => a.d - b.d)[0].x;
     const walk = fw.scene3d.walk.state;
     const from = { x: +walk.x.toFixed(3), z: +walk.z.toFixed(3) };
     walk.x = c.mesh.position.x;
     walk.z = c.mesh.position.z;
-    return { from, onto: { x: +c.mesh.position.x.toFixed(3), z: +c.mesh.position.z.toFixed(3) } };
+    return {
+      from,
+      onto: { x: +c.mesh.position.x.toFixed(3), z: +c.mesh.position.z.toFixed(3) },
+      fromInteriorCentre: +Math.hypot(walk.x - interior.x, walk.z - interior.z).toFixed(2),
+      // THE LAST EARLY RETURN. separatePlayerFromCustomers gives up rather than
+      // push the player through a wall, so an overlap staged on somebody who is
+      // standing outside (or in a doorway) is an overlap the nudge is RIGHT to
+      // ignore -- and three runs could not tell that apart from a nudge that
+      // does not work.
+      isInside: ch.qaIsInside ? ch.qaIsInside(walk.x, walk.z, 0.2) : 'not-exposed',
+    };
   });
-  console.log(`\nplayer moved ${JSON.stringify(out.staged.from)} -> ${JSON.stringify(out.staged.onto)} (standing IN them)`);
+  console.log(`\nplayer moved ${JSON.stringify(out.staged.from)} -> ${JSON.stringify(out.staged.onto)} `
+    + `(standing IN them); isInside(margin 0.2) = ${out.staged.isInside}`);
 
   // Sample every rAF: the nudge is rate-limited, so it is a slow crawl and a
   // coarse sampler could miss its whole life.

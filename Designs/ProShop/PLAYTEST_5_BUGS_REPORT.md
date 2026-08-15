@@ -36,7 +36,7 @@ verdict must read that assertion — not just the measurement downstream of it.
 | P0 — loading in (dustpan, map flash) | **DUSTPAN REPRODUCED AND FIXED.** Map flash NOT reproduced; the ordering race behind it is closed |
 | 1 — first-press lag | **DIAGNOSED, NOT FIXED.** The warm runs (+76 programs); the surfaces you named compile ZERO. The overview costs 433 ms and is the one camera prewarm misses |
 | 2 — customers announce from the back | **NOT REPRODUCED.** The array-vs-floor confusion C3 fixed for the hands is corrected for the mouth; one question for you at the end of the section |
-| 3 — my body is still solid | **THE LEAD IS TRUE.** Audit done, predicate fixed, source test red→green; not yet verified in play |
+| 3 — my body is still solid | **AUDIT HALF DONE — your lead was exactly right.** Nudge half NOT DONE: two real defects fixed, four stagings, the player has still never taken a step. The reason is structural and the last call is yours |
 | 4 — walk-in tee time needs two attempts | not started |
 | 5 — audio | not started |
 | 6 — Blender assets | SKIPPED, second session owns it |
@@ -431,3 +431,154 @@ it is not their turn because you are still mid-sale with the person before
 them** — and my run is consistent with it: Emmett Morris spoke from slot 0 while
 the line was 1 deep, which under that reading is the defect and under mine is
 correct behaviour. The two need different fixes. Which one were you looking at?
+
+---
+
+## 3 — THIRD REPORT: MY BODY IS STILL SOLID
+
+### Your lead was right, and it is the whole first half
+
+You asked me to check it first. Here is the complete list of every place
+`deskScreenOpen` appears in `src/`:
+
+```
+src/render3d/clubhouse.js:11097:    if (app && (app.laptopOpen === true || app.deskScreenOpen === true)) return false;
+```
+
+That is the read. There is no second line. It is never declared, never assigned,
+never initialised anywhere in the tree, so `app.deskScreenOpen === true` has been
+`undefined === true` on every frame since it was written. **The desk screen has
+never once phased you out** — and the desk screen is exactly where you do walk-in
+tee times, which is item 4.
+
+The flag `main.js` actually writes is `app.frontDeskOpen`: set in
+`enterFrontDesk`, cleared in `exitFrontDesk`.
+
+### The full audit you asked for — every flag the predicate reads
+
+| what it reads | written in `src/`? |
+|---|---|
+| `walk.active` | yes — `courseScene.js` 8419 / 8461, plus the prewarm passes |
+| `register.isActive()` | yes — `simplifiedRegisterMode.js` 10676, `isActive: () => active` |
+| `ledgerBook.isCarried()` | yes — `ledgerBook.js` 3038, set by `setCarried` |
+| `ledgerBook.isOpen()` | yes — `ledgerBook.js` 2582 |
+| `app.laptopOpen` | yes — `main.js` 628 / 668 |
+| **`app.deskScreenOpen`** | **NO. Nowhere. Read-only, forever undefined** |
+
+### And a second hole beside it, in the other place you named
+
+You said you are walked into *"while reading the ledger"*. The predicate asked
+`isCarried()` and `isOpen()`. Both are real methods, and both answer a different
+question:
+
+- `isCarried` is `carried`, set by `setCarried` — the book being **transported
+  across the room**, which is the L3 moveable-ledger feature, not reading.
+- `isOpen` is `bookState === 'open' || 'opening'`.
+
+`main.js`'s `enterLedger` says in as many words that **"the FIRST press only
+brings the book up, SHUT"**, and gates `app.ledgerOpen` on `book.isInHand()`.
+`isInHand` is `bookState !== 'closed'`, and its own comment reads *"In your hands
+at all, shut or not: what the E key and the HUD care about."*
+
+So the ordinary act of raising the ledger to read it produced `carried = false`,
+`open = false`, and a player who was still solid.
+
+**Fixed:** the predicate now reads `laptopOpen || frontDeskOpen || ledgerOpen`
+and adds `isInHand()` to the book test.
+
+**Pinned:** `tests/player-blocks-customers-flags.test.js` extracts the
+predicate's source, strips comments, pulls out every `app.<flag>` it consults and
+requires each one to be **assigned** somewhere in `src/`. Watched failing 3 of 4
+before the fix and passing 4 of 4 after — with test 4 passing throughout, so it
+is not failing indiscriminately. A flag that is only ever read cannot come back
+without this file going red.
+
+*(My own first version of that test failed on the comment explaining the
+removal. Comments are not code; it strips them now.)*
+
+### The nudge: it has never fired, and the constants say why
+
+> *"You rate-limited the clamp but could not stage an overlap to watch the nudge
+> fire. It still needs proving."*
+
+**You cannot stage one, and that is the finding.** Two systems act on a
+player/customer overlap:
+
+- `crowdClamp` moves the **customer** away, targeting **0.72 yd**.
+- `separatePlayerFromCustomers` moves the **player**, but only while
+  `d < PLAYER_CLEAR`, which was **0.62 yd**.
+
+The comment beside 0.62 read *"slightly inside the 0.72 clamp, so the two do not
+fight"*. They do not fight — because the clamp's success is precisely the
+condition that switches the player's step off. Anything the clamp resolves ends
+up at 0.72, which is already outside 0.62, so `d < PLAYER_CLEAR` is never true
+again. **The gentle step was shipped behind a guard the other system guarantees
+to falsify.** That is `FOUND_FALSE` shape 5, and it is why last round could not
+stage the overlap.
+
+Measured before the change, with the PLAYER written onto a customer in the
+running shop and sampled every 250 ms for six seconds
+(`tools/qa/electron-player-nudge-fires.js`):
+
+```
+  t=   0ms  nearest 0.7813   clearance 0.62  nudged 0 yd over 0 frames
+  t=1500ms  nearest 2.8949   clearance 0.62  nudged 0 yd over 0 frames
+  t=5250ms  nearest 6.9825   clearance 0.62  nudged 0 yd over 0 frames
+```
+
+Zero frames, zero yards. The separation was done entirely by the customer
+walking off — the half you asked to stop.
+
+Negative control passed: with the nearest body 1.09 yd away the same counters sat
+at 0 through four seconds, so they only move for a real overlap.
+
+*Method note, because the last attempt failed here:* the previous session tried
+to place the CUSTOMER inside the player, and a customer's `mesh.position` is
+re-driven from their own state every frame, so the write never stuck (probe lie
+36). This moves the **player** instead — `walk.x`/`walk.z` are the player's
+position, the same thing the W key changes — which is also your scenario: you
+come back to somewhere and find a body in it.
+
+**Two real defects fixed on the way — and it is STILL not firing.**
+
+1. **The radius mismatch.** One constant, `PLAYER_CLAMP_YD = 0.72`, now shared by
+   the clamp, the look-ahead's blocked test and the player's own step, so the two
+   systems cannot again disagree about how far apart you are meant to end up.
+2. **The rate limit was not a rate.** Last round capped the shove with
+   `const CLAMP_STEP = 0.028` — **per frame**, under a comment reading *"about
+   1.7 yd/s at 60 Hz"*. Nothing in it was per second. On this machine's 240 Hz
+   panel it is **6.7 yd/s**, and on your display it is whatever your refresh
+   happens to be, so the fix that was meant to turn the shove into a step gets
+   *harsher the better the hardware*. It is scaled by the frame's own dt now.
+
+That second one is visible in the measurements: before it, the very first sample
+after the overlap read 0.78 yd — already separated. After it, the first sample
+reads **0** and the pair are genuinely on top of each other. The clamp is a step
+now, on any machine.
+
+**But the player still moved 0 yards over 0 frames, in four separate stagings.**
+
+Ruled out, one per run, each by measurement rather than by reading:
+
+| suspect | verdict |
+|---|---|
+| `walk.active` false | ruled out — `blocking` is true, and that test is the predicate's first line |
+| `playerBlocksCustomers()` false | ruled out — reported `true` in every sample |
+| the 0.62 / 0.72 radius mismatch | fixed; counters still 0 |
+| the per-frame "rate limit" | fixed; counters still 0 |
+| **the wall refusal** (`isInside(nx, nz, 0.2)`) | **ruled out — reported `true` at the staged point**, which required exposing `isInside` as `qaIsInside` because it was private and three runs could only say "it did not fire" without being able to say why |
+
+What is left is the ordering inside one frame: `settleCustomerCrowd()` runs
+before `separatePlayerFromCustomers()`, so by the time the player's step looks,
+the customer has already been moved and `d >= PLAYER_CLEAR` is true again.
+
+**Which is the real answer to your ask, and it is a design question rather than a
+bug:** as long as the clamp resolves the overlap by moving the CUSTOMER, the
+player's own step can never contribute — whatever radius or rate either of them
+uses. "I should just move a bit" needs the clamp to stop being the thing that
+fixes it. That is a call about whether customers may be moved out of you at all,
+and it is yours, not mine.
+
+**ITEM 3: the audit half is DONE and proven. The nudge half is NOT DONE** — four
+stagings, two genuine defects found and fixed, and the player has still never
+taken a step. I stopped at the 45-minute rule rather than keep going.

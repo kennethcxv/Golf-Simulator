@@ -11107,6 +11107,23 @@ export function makeClubhouse(ctx) {
   // care about: the camera is elsewhere, they cannot move, and they are behind
   // the counter rather than in the customer lane. It restores itself the moment
   // the station lets go, because it is derived every frame rather than latched.
+  // HOW FAR APART A CUSTOMER AND THE PLAYER ARE MEANT TO END UP. One number,
+  // because it is one question, and because the two systems that answer it used
+  // to hold different values: the clamp pushed the CUSTOMER out to a literal
+  // 0.72 while the player's own gentle step only triggered under 0.62, so the
+  // clamp's success was exactly the condition that switched the step off. See
+  // the note on PLAYER_CLEAR.
+  const PLAYER_CLAMP_YD = 0.72;
+  // yd/SECOND, which is what "1.7 yd/s at 60 Hz" always meant and never was.
+  const CUSTOMER_CLAMP_SPEED = 1.7;
+  // The current frame's dt, published by update() so crowdClamp can express a
+  // RATE rather than a per-frame constant. crowdClamp is handed to `separate`
+  // as a callback with the fixed shape (x, z, radius), so there is no dt slot
+  // to thread it through; publishing it here is narrower than changing that
+  // signature. One call site, `settleCustomerCrowd`, and it runs from update()
+  // after this is set.
+  let frameDt = 1 / 60;
+
   function playerBlocksCustomers() {
     if (!walk.active) return false;
     // register mode owns the camera for the whole transaction
@@ -11157,7 +11174,7 @@ export function makeClubhouse(ctx) {
       if (col.door) continue; // a doorway is a way through, not a wall
       if (px + r > col.minX && px - r < col.maxX && pz + r > col.minZ && pz - r < col.maxZ) return true;
     }
-    if (playerBlocksCustomers() && Math.hypot(px - walk.x, pz - walk.z) < 0.72) return true;
+    if (playerBlocksCustomers() && Math.hypot(px - walk.x, pz - walk.z) < PLAYER_CLAMP_YD) return true;
     for (const o of customers) {
       if (o === _steerCustomer || !o.mesh) continue;
       if (Math.hypot(px - o.mesh.position.x, pz - o.mesh.position.z) < 0.6) return true;
@@ -11306,19 +11323,37 @@ export function makeClubhouse(ctx) {
     // also got there before the player's own gentle step could contribute, so
     // "push me clear gently" could never happen.
     //
-    // The target is unchanged; only the RATE is capped. 0.028 yd a frame is about
-    // 1.7 yd/s at 60 Hz -- a person stepping aside, and still fast enough that
-    // nobody is left standing inside anybody for more than a few frames.
+    // The target is unchanged; only the RATE is capped.
+    //
+    // PLAYTEST 5, ITEM 3 (THIRD REPORT) — THE RATE LIMIT WAS NOT A RATE.
+    //
+    // It was `const CLAMP_STEP = 0.028`, PER FRAME, with a comment reading "about
+    // 1.7 yd/s at 60 Hz". Nothing in it is per second. On the 240 Hz panel this
+    // machine reports it is 6.7 yd/s, and on the owner's display it is whatever
+    // his refresh happens to be — so the fix that was supposed to turn the shove
+    // into a step is still a shove wherever frames are cheap, and gets harsher
+    // the better the hardware.
+    //
+    // Measured: player written onto a customer, sampled every 250 ms. The FIRST
+    // sample already read 0.82 yd apart — further than the 0.72 target — so the
+    // whole separation was over inside a quarter of a second, and the player's
+    // own 1.1 yd/s step (which IS dt-scaled) contributed 0 frames and 0 yards
+    // across six seconds. That is the "push me clear gently" that could never
+    // happen, still never happening after the round that was meant to fix it.
+    //
+    // Scaled by the frame's own dt now, so it is 1.7 yd/s on every machine and
+    // the player's step is a real share of the separation rather than a loser in
+    // a race it was never told it was in.
     if (playerBlocksCustomers()) {
       const pd = Math.hypot(nx - walk.x, nz - walk.z);
-      if (pd > 0.01 && pd < 0.72) {
-        const wantX = walk.x + ((nx - walk.x) / pd) * 0.72;
-        const wantZ = walk.z + ((nz - walk.z) / pd) * 0.72;
+      if (pd > 0.01 && pd < PLAYER_CLAMP_YD) {
+        const wantX = walk.x + ((nx - walk.x) / pd) * PLAYER_CLAMP_YD;
+        const wantZ = walk.z + ((nz - walk.z) / pd) * PLAYER_CLAMP_YD;
         const dx = wantX - nx;
         const dz = wantZ - nz;
         const need = Math.hypot(dx, dz);
-        const CLAMP_STEP = 0.028;
-        const take = need > CLAMP_STEP ? CLAMP_STEP / need : 1;
+        const CLAMP_STEP = Math.max(0, Math.min(frameDt, 0.1)) * CUSTOMER_CLAMP_SPEED;
+        const take = (CLAMP_STEP > 0 && need > CLAMP_STEP) ? CLAMP_STEP / need : 1;
         nx += dx * take;
         nz += dz * take;
       }
@@ -12521,7 +12556,28 @@ export function makeClubhouse(ctx) {
   // it takes. A capped speed rather than a jump, along the shortest separation,
   // and refused outright if the step would push the body out of the room -- being
   // nudged through a wall is worse than being stood in.
-  const PLAYER_CLEAR = 0.62;      // slightly inside the 0.72 clamp, so the two do not fight
+  // PLAYTEST 5, ITEM 3 — WHY THE NUDGE HAS NEVER ONCE FIRED.
+  //
+  // This was 0.62, with the comment "slightly inside the 0.72 clamp, so the two
+  // do not fight". They do not fight, and that is the whole problem: the clamp's
+  // target IS 0.72, so the moment it does its job the separation is already
+  // outside 0.62 and `d < PLAYER_CLEAR` is never true again. The gentle step was
+  // shipped behind a condition the clamp guarantees to falsify -- FOUND_FALSE
+  // shape 5, and it is why last round "could not stage an overlap to watch the
+  // nudge fire". You cannot stage one. The clamp removes it first.
+  //
+  // Measured: player written onto a customer in the running shop, sampled every
+  // 250 ms for six seconds. First sample already 0.7813 yd apart, nudge fired
+  // 0 frames and 0 yards, separation achieved entirely by the CUSTOMER moving --
+  // which is the half the owner asked to stop.
+  // (tools/qa/electron-player-nudge-fires.js, negative control passed: the
+  // counters stayed still with the nearest body 1.09 yd away.)
+  //
+  // One constant now, shared with the clamp, so the two cannot drift apart
+  // again. They do not oscillate: both push along the same separating axis and
+  // both stop at the same distance, so what they now do is SHARE the step
+  // instead of one of them doing all of it.
+  const PLAYER_CLEAR = PLAYER_CLAMP_YD;
   const PLAYER_NUDGE_SPEED = 1.1; // yd/s: a step aside, not a shove
   let playerNudgeTotal = 0;
   let playerNudgeFrames = 0;
@@ -12688,6 +12744,7 @@ export function makeClubhouse(ctx) {
 
   function update(dtMs) {
     const dt = Math.min(0.1, dtMs / 1000);
+    frameDt = dt; // crowdClamp's separation rate, see CUSTOMER_CLAMP_SPEED
     now += dt;
     // Both signs, from one fact. sync() compares two booleans and returns; it
     // only touches a canvas or starts a swing when signIsOpen(state) has
@@ -13368,6 +13425,13 @@ export function makeClubhouse(ctx) {
     // ITEM 5: how far the gentle separation has actually moved the player, and
     // the closest anyone is standing right now. A nudge that never fires and a
     // nudge that is not needed look identical from outside.
+    // PLAYTEST 5, ITEM 3: separatePlayerFromCustomers refuses to move the player
+    // when the step would land outside the shell, and that refusal was the last
+    // untested reason the nudge might never fire. It is invisible from outside
+    // because `isInside` is private, so three runs could only say "it did not
+    // fire" without being able to say why. This is the same predicate the walk
+    // controller uses, so "outside" here means what it means there.
+    qaIsInside: (x, z, margin = 0.2) => isInside(x, z, margin),
     qaPlayerSeparation: () => {
       let nearest = Infinity;
       for (const c of customers) {
