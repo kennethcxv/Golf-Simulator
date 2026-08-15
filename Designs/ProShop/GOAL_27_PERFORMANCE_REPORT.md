@@ -235,6 +235,55 @@ loader-hook attribution for the 3.5 s scene-construction slice; (4) the
 editor's 823 ms–10.7 s first entry, which room-first moves post-control
 anyway.
 
+## Room-first slice 1 — attempted three ways, reverted, and what it proved
+
+The hidden-world stage was made self-adapting (a constant-define compile
+probe: first-ever boots keep it behind the veil, cache-warm boots defer) and
+the deferral was tried in three escalating forms: queue+per-object-compile
+drain (prewarm 16 → 24 s stage clock, with a wedged sampler), draw-only
+drain (16 → 89 s: the batch `renderer.compile` turned out load-bearing —
+without it every later warm draw paid its program acquisition at draw time),
+compile-kept + room-scoped pre-veil submits (52.7 s prewarm and ~56 s of
+drain frames hiding in the belt window at ~40 first-draws apiece).
+
+**What stands regardless of magnitudes: the debt is conserved.** On
+ANGLE/WebGL, each program's first DRAW carries indivisible synchronous work
+(~30 ms warm-cache, more cold) that lands pre-control, in drain frames, or
+as 30 ms gameplay hitches — there is no fourth place, because there is no
+real async compile on this stack (the repo's own compileAsync A/B). The
+16-17 s packed warm prewarm was already near the densest packing of that
+debt. **The remaining levers that genuinely shrink it: fewer programs
+(shape unification — halving the set halves the debt) and menu-time
+overlap (start scene+warm while the player reads the menu).** The slice is
+REVERTED (hash-asserted); the committed build is the 16-17 s-warm state.
+
+## THE MEASUREMENT ENVIRONMENT DEGRADED — later numbers are contaminated
+
+The revert was verified byte-identical to the committed build that measured
+26.9 s warm — and then measured **72.9 s, 92.6 s, and 132.7 s across two
+independent warm profiles.** Same commit, same profiles that measured clean
+hours earlier; `initTexture-batches` alone swung 0.2 → 15 s. After ~40
+Electron boots, hundreds of MB of shader-cache writes and hours of
+sustained GPU load, the machine no longer yields trustworthy load numbers
+(suspects: NVMe or GPU thermal state, driver shader-cache churn, memory
+pressure — a restart resets all three, and restarting the owner's machine
+is not this session's call).
+
+Consequences, stated plainly: the three room-first readings above are
+DIRECTIONALLY meaningful (their stage-level attribution matched mechanism)
+but their magnitudes are unreliable, and the slice deserves one clean
+retest on a rested machine before "deferral relocates the debt" is treated
+as final. Every number in the running table from before the roomfirst runs
+was taken on a healthy environment and stands.
+
+## Where the 10-second campaign stands, honestly
+
+| target | status |
+|---|---|
+| ≤10 s load, warm tier (boot 2+) | 26.9 s measured healthy; path to ~10 s = shape unification (fewer programs) + menu-time warm overlap + the ~5.7 s menu/scene slice |
+| ≤10 s load, cold tier (first-ever) | floor 10-13 s as the code stands (4-7 s unavoidable room compile + menu/scene); same two levers apply |
+| no frame >16.7 ms ever | first minute clean (no frame >60 ms; sweep retired); census surfaces ≤27 ms warm; named holdouts: page turn ~55 ms/turn (stack floor), editor entry 0.8-10.7 s (open), ambient p95 13-20 ms at owner-4K |
+
 ## The plan this survey dictates, in measurement order
 
 1. **A/B the cache cap** (one switch, two boots): if eviction is the warm
