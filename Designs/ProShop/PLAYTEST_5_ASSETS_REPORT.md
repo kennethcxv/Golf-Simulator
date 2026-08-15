@@ -364,7 +364,29 @@ the code on disk.
 
 ### What the next session must do first, before anything else
 
-Find why. Candidates, in the order I would check them: an HTTP/module cache
+**A concrete lead, found on the last check.** The Electron profile path in the
+worktree runs reads:
+
+```
+--user-data-dir=...\golf-flipper-electron-qa-profiles\c9b7a35163f3a1f41222-<random>
+```
+
+`c9b7a35163f3a1f41222` is `repoScopeId(root)` = sha256 of `canonicalPath(root)`
+truncated — and it is **the same scope id the MAIN repo reported** when it refused
+the lock at the start of this session. Two different roots cannot hash to the same
+scope. So `ROOT` (which is `process.cwd()`, and which the harness also uses as the
+spawn `cwd`) is resolving to the main repository even when the command is run from
+`C:/gfassets`.
+
+That would mean Electron is serving the MAIN repo's `src/`, not the worktree's.
+
+It does not explain everything on its own — the main repo's `fpHands.js` contains
+**zero** occurrences of `adoptAuthored`, yet fifteen parts demonstrably adopt — so
+either the adoption has another source or the picture is more complicated than one
+wrong root. But it is the first hard, checkable discrepancy, and it is where I
+would start.
+
+Other candidates, in the order I would check them after it: an HTTP/module cache
 surviving the per-run `--user-data-dir`; the worktree serving `src/` from a path
 other than the one being edited; or a snapshot/copy step inside the Electron
 harness. Then establish the marker check as routine — rename a mesh, read it back
