@@ -276,3 +276,87 @@ times too coarse for a three-frame draw). It samples at **rAF** now — the rate
 the thing it measures changes at — and carries a planted-dustpan control that
 must appear as a span. The control failed on the first run, which is the only
 reason the "no dustpan" reading was not reported to you as fact.
+
+---
+
+## 1 — FIRST-PRESS LAG: THE WARM IS RUNNING, AND IT WAS NEVER THE MECHANISM
+
+You asked me to find out whether the deferred warm is failing to cover these
+surfaces or failing to run, and to answer by the **program counter**.
+
+**It runs.** `renderer.info.programs.length` goes **254 → 330** across it, a
+delta of **76**, with `__fwWarm` reporting `{hands: "done", sweep: "done"}`.
+That is the control for everything below: a counter flat through a warm that
+says it worked would make every zero meaningless.
+
+Then, first press against second, on a settled game
+(`tools/qa/electron-first-press-programs.js`,
+`qa/electron/first-press-programs/`):
+
+| surface | programs compiled | worst frame, FIRST | worst frame, SECOND |
+|---|---|---|---|
+| **phone, T** | **0** | **79.1 ms** (median 12.5) | 16.8 ms |
+| tool wheel, F | 0 | 29.2 ms | 45.8 ms |
+| pause, P | 0 | 25.0 ms | 24.9 ms |
+| ledger raise / open / page turn | 0 | 16.6 / 16.8 / 20.9 ms | 16.8, 25.0 ms |
+| **overview, Tab out** | **+1** | 20.7 ms | 12.5 ms |
+| **overview, Tab back on foot** | **+1** | **433.3 ms** (429 ms long task) | 20.8 ms |
+
+### What that says, and it is not what either of us expected
+
+**The phone's first-press lag is real and reproduced — 79.1 ms against a 12.5 ms
+median and a 16.8 ms second open — and it compiles ZERO GL programs.** The phone
+is a DOM surface. Nothing about opening it reaches the shader compiler, so no
+amount of deferred warming was ever going to touch it. The mechanism you and I
+have both been assuming does not apply to the thing you named.
+
+**The book is the same, and worse for the theory: it does not lag either.**
+Raising it, opening it and turning three pages all cost 16–25 ms with zero
+programs, first press and third alike. Caveat, stated plainly: I reached the book
+by calling its own `advance()` and `navigateForward()` rather than by pressing E
+at the desk, so I exercised the BOOK and not `enterLedger`'s DOM entry
+(`ledger-mode` class, overlay hiding, handler installation). If the page-turn
+lag is real, it is more likely to live there than in the page turn.
+
+**The one surface that does compile is the overview**, and it is the biggest
+number in the item: **433 ms on the first return to your feet, gone by the second
+round trip.**
+
+### The overview is the one camera prewarm never warms
+
+`fitSunShadow` has three modes. It picks `'walk'` when `walk.active`, `'editor'`
+when `editorShadowFocus`, and `'full'` otherwise — and `'full'` is
+`SHADOW_FULL_MAP`, **4096**, with a whole-course fit and its own depth programs.
+
+Prewarm warms three camera states: interior walk, exterior walk, and the editor
+camera — and the editor pass sets `editorShadowFocus = true`, so **all three run
+at 2048**. `walk.active === false && editorShadowFocus === false` is never
+entered. That state is the overview. That is Tab.
+
+The deferred `compileAsync` sweep cannot reach it either: it compiles the scene
+as currently configured, and a 4096 shadow target that has not been allocated yet
+has no programs to compile.
+
+### What I did NOT ship, and why
+
+I tried two fixes and **measured both to be worthless, so neither is in the
+branch:**
+
+- **Pre-rendering the phone's DOM in the deferred warm.** The warm reported
+  `phone: "done"` and the first open measured **79.2 ms** against 79.1 before.
+  Identical. The cost is not tree construction, so the next candidate is the
+  first `.up` class flip promoting the dock to a composited layer — which I have
+  not tested.
+- **Adding an overview pass to prewarm.** First Tab back measured **562 ms**
+  against 433 ms unwarmed — one sample each, so I will not claim it made things
+  worse, but there is no measured benefit and an unproven change to the prewarm
+  path is not worth carrying.
+
+Both reverted, with the revert asserted to have changed the files.
+
+**ITEM 1: DIAGNOSED, NOT FIXED.** The diagnosis is worth more than the two
+non-fixes would have been: the deferred warm is healthy and irrelevant to the two
+surfaces you named, and the real cost is a 4096 shadow allocation on a key you
+press constantly. The obvious remedies for that — keeping both shadow targets
+resident, or giving the overview the same 2048 map as walk and the editor — trade
+memory or shadow quality, so they are yours to call, not mine.
