@@ -11245,11 +11245,30 @@ export function makeClubhouse(ctx) {
     // 2.1: the hard shove-away. This is the one the owner actually SEES -- it is
     // what pushes a queuer sideways out of the lane and leaves them treading air
     // against a body that, from their point of view, is not there.
+    // PLAYTEST 4, ITEM 5 (SECOND REPORT) — THE SHOVE IS NOW A STEP.
+    //
+    // This used to place the body at 0.72 yd in ONE frame. Measured by staging a
+    // customer exactly on the player: the first sample already read 0.72, so the
+    // separation was instantaneous -- and an instantaneous half-yard is the
+    // teleport the owner ruled out, seen from the other side of the camera. It
+    // also got there before the player's own gentle step could contribute, so
+    // "push me clear gently" could never happen.
+    //
+    // The target is unchanged; only the RATE is capped. 0.028 yd a frame is about
+    // 1.7 yd/s at 60 Hz -- a person stepping aside, and still fast enough that
+    // nobody is left standing inside anybody for more than a few frames.
     if (playerBlocksCustomers()) {
       const pd = Math.hypot(nx - walk.x, nz - walk.z);
       if (pd > 0.01 && pd < 0.72) {
-        nx = walk.x + ((nx - walk.x) / pd) * 0.72;
-        nz = walk.z + ((nz - walk.z) / pd) * 0.72;
+        const wantX = walk.x + ((nx - walk.x) / pd) * 0.72;
+        const wantZ = walk.z + ((nz - walk.z) / pd) * 0.72;
+        const dx = wantX - nx;
+        const dz = wantZ - nz;
+        const need = Math.hypot(dx, dz);
+        const CLAMP_STEP = 0.028;
+        const take = need > CLAMP_STEP ? CLAMP_STEP / need : 1;
+        nx += dx * take;
+        nz += dz * take;
       }
     }
     return { x: nx, z: nz };
@@ -12432,6 +12451,61 @@ export function makeClubhouse(ctx) {
     // two people are left standing inside each other, whatever order the pool
     // happened to update them in.
     settleCustomerCrowd();
+    separatePlayerFromCustomers(dt);
+  }
+
+  // PLAYTEST 4, ITEM 5 — "WHEN I COME BACK FROM THE LEDGER OR THE REGISTER AND A
+  // CUSTOMER IS STANDING INSIDE ME, I SHOULD JUST MOVE A BIT."
+  //
+  // The clamp above already shoves the CUSTOMER out to 0.72 yd, but it does it in
+  // one frame, and it only runs while `playerBlocksCustomers()` is true. Both
+  // halves are wrong for the case he is describing. While the player is parked at
+  // a station they are deliberately not a body, so customers walk into the space
+  // they occupy; the instant the station lets go the predicate flips and someone
+  // is inside them. Snapping the customer half a yard sideways on that frame is
+  // the teleport he does not want, from the other side of the camera.
+  //
+  // So the overlap is resolved by MOVING THE PLAYER, gently, and only as far as
+  // it takes. A capped speed rather than a jump, along the shortest separation,
+  // and refused outright if the step would push the body out of the room -- being
+  // nudged through a wall is worse than being stood in.
+  const PLAYER_CLEAR = 0.62;      // slightly inside the 0.72 clamp, so the two do not fight
+  const PLAYER_NUDGE_SPEED = 1.1; // yd/s: a step aside, not a shove
+  let playerNudgeTotal = 0;
+  let playerNudgeFrames = 0;
+  function separatePlayerFromCustomers(dt) {
+    if (!walk.active || !playerBlocksCustomers()) return;
+    const step = Math.max(0, Math.min(dt, 0.1)) * PLAYER_NUDGE_SPEED;
+    if (step <= 0) return;
+    let pushX = 0;
+    let pushZ = 0;
+    for (const c of customers) {
+      if (!c.mesh || c.mesh.visible === false) continue;
+      const dx = walk.x - c.mesh.position.x;
+      const dz = walk.z - c.mesh.position.z;
+      const d = Math.hypot(dx, dz);
+      if (d >= PLAYER_CLEAR) continue;
+      // Two bodies exactly on top of each other have no separation direction, so
+      // the customer's own facing is used rather than a random one: stepping out
+      // the way they are looking is the direction that stops reading as a shove.
+      const nx = d > 1e-3 ? dx / d : Math.sin(c.mesh.rotation.y || 0);
+      const nz = d > 1e-3 ? dz / d : Math.cos(c.mesh.rotation.y || 0);
+      const want = PLAYER_CLEAR - d;
+      pushX += nx * want;
+      pushZ += nz * want;
+    }
+    const need = Math.hypot(pushX, pushZ);
+    if (need <= 1e-4) return;
+    const move = Math.min(step, need);
+    const nx = walk.x + (pushX / need) * move;
+    const nz = walk.z + (pushZ / need) * move;
+    // Never nudge someone through the shell. isInside is the same test the walk
+    // controller uses, so "outside" here means the same thing it does there.
+    if (!isInside(nx, nz, 0.2)) return;
+    walk.x = nx;
+    walk.z = nz;
+    playerNudgeTotal += move;
+    playerNudgeFrames += 1;
   }
 
   // --- per-frame update -------------------------------------------------------------------
@@ -13239,6 +13313,24 @@ export function makeClubhouse(ctx) {
     },
     qaPickStats: () => ({ ...pickStats }),
     qaPlayerBlocksCustomers: () => playerBlocksCustomers(),
+    // ITEM 5: how far the gentle separation has actually moved the player, and
+    // the closest anyone is standing right now. A nudge that never fires and a
+    // nudge that is not needed look identical from outside.
+    qaPlayerSeparation: () => {
+      let nearest = Infinity;
+      for (const c of customers) {
+        if (!c.mesh || c.mesh.visible === false) continue;
+        const d = Math.hypot(walk.x - c.mesh.position.x, walk.z - c.mesh.position.z);
+        if (d < nearest) nearest = d;
+      }
+      return {
+        blocking: playerBlocksCustomers(),
+        nearestCustomer: Number.isFinite(nearest) ? +nearest.toFixed(4) : null,
+        clearance: PLAYER_CLEAR,
+        nudgeYards: +playerNudgeTotal.toFixed(4),
+        nudgeFrames: playerNudgeFrames,
+      };
+    },
     qaCustomerTrack: () => customers
       .filter((c) => c && c.mesh && c.mesh.visible !== false)
       .map((c, i) => ({
