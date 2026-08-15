@@ -288,6 +288,27 @@ a true first-ever boot and ≈2.4 s off a driver-warm cold boot, before any
 scheduling change. The remaining spread is side/alphaTest/vertexColors/
 geometry-shape driven — semantic, per-case judgment territory.
 
+## The editor's first entry — attributed by counts, cut 28 → 11 arrivals
+
+With milliseconds untrustworthy, the editor item advanced on the goal's own
+metric. `tools/qa/electron-editor-arrivals.js`: snapshot live program
+cacheKeys, enter the editor, diff, nearest-twin field analysis. Findings:
+
+- **Zero materials are born at entry** — all arrivals are EXISTING
+  materials compiling new variants for the editor's frame state.
+- The differing key fields sit in the LIGHT-COUNT block: the editor pins
+  the 'day' lighting override on entry (its persisted default), which flips
+  light visibility into a combination no warm draw ever had.
+- Fix: the pre-veil editor-camera warm now draws UNDER the same 'day'
+  override real entry uses (then restores the clock's lighting) — the same
+  law as the belt warm: warm through the real state, never an
+  approximation of it.
+- **Verified by arrivals: 28 → 11** (21→11 physical). The remaining 11 are
+  frame-coverage stragglers (materials outside the warm pose's frustum) —
+  diminishing returns, ~0.3-0.8 s of entry compile left from the measured
+  0.8-2.1 s, and the base the 10.7 s outlier amplified is 60% smaller.
+  Entry-time re-measure queued for the rested machine.
+
 ## THE MEASUREMENT ENVIRONMENT DEGRADED — later numbers are contaminated
 
 The revert was verified byte-identical to the committed build that measured

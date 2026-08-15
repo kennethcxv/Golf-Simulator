@@ -12620,10 +12620,27 @@ export function makeCourseScene(canvas, state) {
     else frameHole(editorHole, editorView);
     floraLodUpdate?.(true);
     clubhouseApi?.syncCameraVisibility?.();
+    // GOAL 27 — THE LIGHTING STATE IS PART OF THE EDITOR'S FRAME. Real entry
+    // pins the 'day' lighting override (courseEditor applies its persisted
+    // preset on show), which flips light VISIBILITY — and light counts are in
+    // every program's cache key. This warm drew with the boot clock's lights,
+    // so the first real entry still compiled +28 programs (21 physical,
+    // measured by tools/qa/electron-editor-arrivals.js, nearest-twin diff
+    // pointing at the light-count fields). Draw the warm under the same
+    // override entry uses, then restore the clock's lighting.
+    const savedLightingOverride = lightingOverride;
+    setLightingOverride('day');
+    applyTimeWeather(prewarmMinuteOfDay, state.weather);
     fitSunShadow();
     renderer.shadowMap.needsUpdate = true;
     guardCourseWaterReflection.beginFrame();
-    try { composer.render(); } catch (e) { renderer.render(scene, camera); }
+    withWarmViewport(() => {
+      try { composer.render(); } catch (e) { renderer.render(scene, camera); }
+    });
+    setLightingOverride(savedLightingOverride);
+    applyTimeWeather(prewarmMinuteOfDay, state.weather);
+    fitSunShadow();
+    renderer.shadowMap.needsUpdate = true;
     phaseAt = markPrewarm('editor-camera-warm', phaseAt);
     walk.active = savedView.walkActive;
     heldRoot.visible = savedView.heldVisible;
