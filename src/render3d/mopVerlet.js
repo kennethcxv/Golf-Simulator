@@ -361,7 +361,13 @@ export const SHIPPED_MOP_YARN = Object.freeze({
   // 1.30 puts the hem at 0.1684 against a head radius of 0.168, so the yarn
   // reaches the rim exactly. Anchored at the middle, open at the hem: a cone
   // that fills the head rather than a ring that outlines it.
-  splay: 1.30,
+  // PLAYTEST 5: the first LIT frame of this head shows a shuttlecock -- straight
+  // white spikes radiating off a red disc. 1.30 was solved so the hem reached the
+  // rim (tips 0.1684 against radius 0.168) and that arithmetic is right; pushing
+  // every tip of a STRAIGHT strand to the rim is what makes a starburst. The
+  // reference's disc is strands HANGING and gathering, with gravity winning over
+  // the outward push, not strands fanned to their maximum radius.
+  splay: 0.42,
 });
 
 export function createVerletMopStrands({

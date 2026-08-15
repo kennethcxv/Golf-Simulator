@@ -810,3 +810,31 @@ value — it is strands that double back, which means either a hairpin chain in 
 solver (double the nodes) or authored loop geometry per strand. That is the same
 decision the hand faced between procedural and authored, and it should be made
 deliberately rather than by tuning one more constant.
+
+## MOP ROUND 2 — splay 1.30 → 0.42, and it stops being a shuttlecock
+
+`mop-v2-lit.png`. One number, and the head is a different object: **a compact
+bundle of white strands hanging below the red hub**, gathered rather than fanned.
+The spikes are gone. It reads as a mop.
+
+75/92 drawable, mop confirmed held, no page errors, no geometry rebuilt — the splay
+is a solver force, not a mesh.
+
+**Why the old number was wrong even though its arithmetic was right.** 1.30 was
+solved in Playtest 4 so the hem reached the rim: tips at 0.1684 against a head
+radius of 0.168, measured across a sweep. That is correct and it produced a
+starburst, because pushing every tip of a STRAIGHT strand out to the maximum radius
+is the definition of one. Eight passes of tuning never caught it because every one
+of them was checking a number — tip radius, coverage, part count — and the number
+was always satisfied.
+
+### What it still is not
+
+The reference is a **wide flat disc**, roughly twice as wide as it is deep. This is
+a **narrow barrel**: gathered, correct in character, too tall and too tight. The
+next move is a splay between these two — 0.42 gathers, 1.30 fans, and the disc
+lives somewhere near 0.7–0.9 — and possibly a shorter strand length so the hem
+flares rather than hangs.
+
+**That is now a bisection between two photographed endpoints rather than a guess,**
+which is the first time this head has been in that position across nine passes.
