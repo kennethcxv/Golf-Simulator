@@ -339,9 +339,36 @@ converge: several rounds were photographed against code I had already changed, a
 at least two of my conclusions — the "reverted" round and the "never ran"
 correction — were reasoning about a build I was not looking at.
 
+### PROVEN, not inferred
+
+I did not leave this as a hypothesis. I renamed an existing, already-visible mesh —
+`palm.name = 'Palm'` became `'PalmV2'` on disk — and re-ran:
+
+```
+named meshes in the running hand:  HandCuffBody HandCuffRoll HandCuffInner Palm ThumbProx ThumbDist
+MARKER PRESENT: NO
+```
+
+`PalmV2` is on disk. The running build says `Palm`. **An edit to `fpHands.js` does
+not reach the executing code.** (Marker reverted.)
+
+And note what the same run shows: fifteen authored parts ARE adopted, which
+requires my swap code. So the executing build is a SNAPSHOT — it contains edits I
+made early in the session and none of the later ones. Every frame after the first
+successful run was of stale code, which is why proportion changes appeared to do
+so little and why two of my conclusions had to be retracted.
+
+**This invalidates a class of conclusion, not a detail.** Any visual judgement in
+this report made after the first adopted frame was made against code that was not
+the code on disk.
+
 ### What the next session must do first, before anything else
 
-Establish that an edit reaches the running build. Put a version marker in
+Find why. Candidates, in the order I would check them: an HTTP/module cache
+surviving the per-run `--user-data-dir`; the worktree serving `src/` from a path
+other than the one being edited; or a snapshot/copy step inside the Electron
+harness. Then establish the marker check as routine — rename a mesh, read it back
+through the scene graph, and trust no frame until it matches. Put a version marker in
 `fpHands.js`, read it back through the scene graph (a mesh name, not a global —
 `contextIsolation` blocks globals), and do not trust a single frame until the
 marker matches. Likely suspects: a module cache surviving the fresh user-data-dir,
