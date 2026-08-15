@@ -24,7 +24,7 @@
 | 4 — items through the bag | **DONE.** Reproduced at 0.1375 yd, fixed to 0.000 |
 | 5 — my body blocks them | **PARTIAL.** Predicate re-checked, shove made gentle; separator NOT observed firing |
 | 6 — NPCs on the line | **NOT REPRODUCED.** Natural scenario built and run; caught a rung-4 jam of the wrong shape |
-| 7a — the rake | **NOT STARTED** |
+| 7a — the rake | **ROOT-CAUSED, NOT FIXED.** There is no rake in the tool registry |
 | 7b — `deskAction('exit')` | **DONE**, watched on the driver that found it |
 | 7c — the `sale-refused` storm | **DIAGNOSED, NOT FIXED** |
 | 7d — the stranger | **NOT STARTED** |
