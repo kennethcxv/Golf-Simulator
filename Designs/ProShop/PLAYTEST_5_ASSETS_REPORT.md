@@ -767,3 +767,46 @@ same object; against the four splayed rods of round 1 it is unrecognisable.
 reference, which is the honest limit of shapes built from lofted elliptical rings
 without a sculpt. Whether that gap matters is the owner's call, and it is now a
 call he can make from a frame rather than from a description.
+
+---
+
+# 2. THE MOP HEAD — STARTED, AND THE FIRST LIT FRAME IS DAMNING
+
+`mop-v1-lit.png` — 1:00 PM, lit, FOV 30, mop confirmed held at 75/92 drawable.
+**This is the first time the mop head has been photographed lit and in frame in
+any of these sessions.** It took one pitch adjustment to get it: the mop head hangs
+lower than the broom's, and at −0.28 it sat off the bottom edge.
+
+## What it actually looks like
+
+**A red disc with a fan of straight white spikes radiating out of it.** A
+shuttlecock. The strands are straight, rigid and splayed outward and UPWARD; they
+do not hang, they do not gather, and there is no disc of any kind.
+
+Against `MopReferenceImage.png` — a dense packed disc of white microfibre loops
+clamped under a red hub — it is not the same category of object.
+
+## What the previous eight passes were measuring
+
+Goal 25 and 26 tuned this head across eight rounds: strand count 480 → 640 → 820 →
+16 bands → 972, thickness, clump gather, collar radius, splay, hem beads, a
+microfibre pad, and the colour from grey to white. **Every one of those was
+measured on numbers — tip radius, coverage fraction, part counts — and none of them
+was ever looked at in a lit frame at the player camera.** The colour change and the
+pad landed. The silhouette never did, and nothing in the numbers would tell you.
+
+The likely culprit is `splay: 1.30` in `SHIPPED_MOP_YARN`, chosen in Playtest 4 to
+make the hem reach the rim (measured: tips at 0.1684 against a head radius of
+0.168). That number is correct and the result is a starburst, because pushing every
+tip to the rim on a straight strand IS a starburst. The reference's disc comes from
+strands that FOLD — they leave the hub, go out, and come back — which is exactly the
+"continuous loops rather than separate rods" the owner asked for and which the
+Verlet chain does not model.
+
+## Asset 2 status: STARTED, NOT MODELLED
+
+I have the frame and the diagnosis and not the fix. The fix is not another splay
+value — it is strands that double back, which means either a hairpin chain in the
+solver (double the nodes) or authored loop geometry per strand. That is the same
+decision the hand faced between procedural and authored, and it should be made
+deliberately rather than by tuning one more constant.
