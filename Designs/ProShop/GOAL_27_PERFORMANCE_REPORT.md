@@ -315,6 +315,21 @@ cacheKeys, enter the editor, diff, nearest-twin field analysis. Findings:
   outlier amplified is 60% smaller. Entry-time re-measure queued for the
   rested machine.
 
+## The page turn, MEASURED AT LAST — and the 55 ms floor was stale
+
+The item the goal called never-measured now is:
+`tools/qa/electron-page-turn-cost.js` stages a real sale (the golden
+capture's aimed click-to-bag, 3/3 packed), waits for the book's SETTLED
+open (`diagnostics().float === 1` — `isOpen()` goes true while the cover
+still swings, the instrument's last trap), and turns six times in both
+directions on a 5-spread, 9-page ledger. **Median worst frame per turn:
+25.6 ms; range 20.6–30.3.** The ~55 ms canvas-sync atom recorded in
+ledgerBook.js did not reproduce — the stack improved underneath the claim,
+and a dated correction now sits beside it in source. The turn misses the
+16.7 ms bar by 4–14 ms, not 38, which puts the once-rejected visibility
+split back on the table at the new per-upload cost — its A/B is the next
+experiment for this item, on the rested machine.
+
 ## The stall bailout — the afflicted machine becomes the test rig
 
 The stall signature made one more change both possible and verifiable

@@ -2690,6 +2690,15 @@ export function createLedgerBook({ THREE, state, anchor, counterTop, camera = nu
     // THREE hitch frames per turn and was reverted on the evidence. The
     // 16 ms bound is unreachable for that one frame on this stack, and the
     // report says so with this chain as the exhibit.
+    //
+    // GOAL 27 RE-MEASURE (2026-08-15, tools/qa/electron-page-turn-cost.js —
+    // the first instrument to turn REAL spreads, sale-staged): six turns,
+    // both directions, median WORST frame 25.6 ms, range 20.6-30.3. The
+    // ~55 ms canvas-sync atom above did NOT reproduce; the stack has
+    // improved underneath the claim. The turn now misses the 16.7 ms bar by
+    // 4-14 ms, which puts the once-rejected visibility split back on the
+    // table at the new per-upload cost — re-run its A/B before believing
+    // either era's numbers.
     const t0 = performance.now();
     turnDeferred.length = 0;
     if (direction > 0) {
