@@ -103,6 +103,15 @@ export function createSampleBank({ decode, fetchFn, now = () => 0 } = {}) {
           option: entry.option || null,
           optionLabel: entry.optionLabel || null,
           licence: entry.licence || null,
+          // PLAYTEST 5, ITEM 5: the recording's own title, carried through so a
+          // caller can choose a variant by WHAT WAS RECORDED rather than by a
+          // filename it would have to hardcode. `changeSelect` holds three
+          // variants -- "dollar bills flipping counting", "counting_paper_money"
+          // and "Coins.wav" -- and play() picks among them at random, so pressing
+          // a quarter played paper two times in three and clicking a twenty
+          // played coins one time in three. That is the crossover the owner
+          // reported, and the manifest already knew which was which.
+          title: entry.title || null,
         });
         meta.set(key, metaList);
         loadedCount += 1;
@@ -151,8 +160,34 @@ export function createSampleBank({ decode, fetchFn, now = () => 0 } = {}) {
      * `minGapSec` stops a rapid interaction (a handful of coins) machine-gunning
      * one identical file, which is the tell that gives a sample library away.
      */
-    play(cue, { ctx, destination, gain = 1, rate = 1, pitchJitter = 0.04, gainJitter = 0.08, minGapSec = 0.02, random = Math.random } = {}) {
-      const list = eligible(cue);
+    play(cue, {
+      ctx, destination, gain = 1, rate = 1, pitchJitter = 0.04, gainJitter = 0.08,
+      minGapSec = 0.02, random = Math.random, pick = null,
+    } = {}) {
+      let list = eligible(cue);
+      // PLAYTEST 5, ITEM 5 — CHOOSE THE VARIANT BY WHAT IT IS A RECORDING OF.
+      //
+      // `pick` receives each variant's manifest entry and keeps the ones it
+      // returns true for. It exists because one cue can legitimately hold
+      // recordings of two different MATERIALS -- changeSelect holds two paper
+      // takes and one of coins -- and picking among those at random makes the
+      // sound disagree with the thing on screen one time in three.
+      //
+      // Falls back to the unfiltered list rather than to silence: a filter that
+      // matches nothing means the recordings do not carry the distinction, and
+      // the old random pick is still better than no sound. Same reasoning as
+      // the family pin above.
+      if (pick && list && list.length) {
+        const entries = meta.get(cue);
+        const all = buffers.get(cue) || [];
+        if (entries && entries.length === all.length) {
+          const wanted = [];
+          for (let i = 0; i < all.length; i += 1) {
+            if (list.includes(all[i]) && pick(entries[i])) wanted.push(all[i]);
+          }
+          if (wanted.length) list = wanted;
+        }
+      }
       if (!list || !list.length || !ctx || !destination) return false;
       const t = now();
       const last = lastPlayed.get(cue);

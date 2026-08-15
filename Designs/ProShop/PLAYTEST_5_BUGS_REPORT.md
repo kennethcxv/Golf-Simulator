@@ -1,6 +1,6 @@
 # PLAYTEST 5 — WHAT I FOUND, WHAT I FIXED, AND WHAT I DID NOT FINISH
 
-## Probe-lie count this round: **6** (running total **43**)
+## Probe-lie count this round: **8** (running total **45**)
 
 | # | the instrument | what it claimed | what was actually true |
 |---|---|---|---|
@@ -18,6 +18,9 @@ looks OFTEN ENOUGH. Sample rate is a second axis of blindness and this file has
 no prior entry for it.
 
 | 43 | `electron-queue-speaks-too-early` v1 | **PASS — every line came from slot 0**, from a run its own fields called conclusive (queue 3 deep, highest slot 2) | The two predicates it was meant to tell apart AGREE until somebody LEAVES the line — the splice is the whole divergence. Nobody was served and nobody gave up in that run, so the window never opened and it graded a bug that could not have appeared. Its control asked "did a queue form"; the question was "did a queue form AND lose someone". Rewritten to require a removal from a non-empty line before it will call a run conclusive at all |
+
+| 44 | `electron-money-cue-graph` oscillator counter | the ledger cues start **0 oscillators** — the synth is gone | Its control cue was `uiTick`, which **now plays a recording**, so the control reported 0 and I had picked a control that could be fixed out from under it. Re-run with `keypadTap`, which is synth-only and cannot be: **still 0.** The oscillator tap does not work. Every oscillator count in item 5 is void; the synth-removal claim rests on a source test instead |
+| 45 | the same driver's "ledgerTurn (2nd inside 20 ms)" row | the second page turn inside the rate limit no longer falls through to the blip | The driver waits **260 ms** between fires. That row has never once been inside `minGapSec` (0.02 s) and does not test what its label says. The mechanism is read off the code and is NOT measured |
 
 The shape shared by 39 and 40 is worth naming, because it is not on the list in
 `FOUND_FALSE.md`: **a step that fails to happen reports the same green as a step
@@ -38,7 +41,7 @@ verdict must read that assertion — not just the measurement downstream of it.
 | 2 — customers announce from the back | **NOT REPRODUCED.** The array-vs-floor confusion C3 fixed for the hands is corrected for the mouth; one question for you at the end of the section |
 | 3 — my body is still solid | **AUDIT HALF DONE — your lead was exactly right.** Nudge half NOT DONE: two real defects fixed, four stagings, the player has still never taken a step. The reason is structural and the last call is yours |
 | 4 — walk-in tee time needs two attempts | **NOT REPRODUCED** — I drove the outdoor starter desk, which turns out to be DEAD: `cashierPose` is called and never defined. Your desk is the register monitor. One decision for you |
-| 5 — audio | not started |
+| 5 — audio | **ALL FOUR ADDRESSED, measured on the graph.** The sale-end sound existed on disk and was unreachable; the crossover is a random pick between a coin take and two paper ones. One half of the probe failed its control and is called out |
 | 6 — Blender assets | SKIPPED, second session owns it |
 
 ---
@@ -661,3 +664,145 @@ without you saying so is not a call I should make.
 
 **ITEM 4: NOT REPRODUCED.** Wrong desk, named cause for the one I did hit,
 mechanism proposed for the one you meant.
+
+---
+
+## 5 — AUDIO
+
+Every number below is read off the live Web Audio graph in Electron
+(`tools/qa/electron-money-cue-graph.js`, `qa/electron/money-cue-graph/`): the
+probe taps `createOscillator`, `createBufferSource` and `createGain` on the
+running AudioContext and fires each cue through the shipped `app.audio` API.
+
+**One half of that probe does not work and I am saying so before the results.**
+Its oscillator counter reported **0 for `keypadTap`**, which is synth-only —
+`if (!ctx) return;` and two oscillators, no bank call. The control failed twice
+(the first attempt used `uiTick`, which turns out to play a recording now, so the
+control was wrong *and* then the tap was wrong). **Every oscillator count in this
+section is therefore worthless.** The buffer counts and the gains are sound —
+they move, they differ per cue, and they track the code.
+
+### The synth under the book — removed, and here is why you heard BOTH
+
+`ledgerOpen`, `ledgerTurn` and `ledgerClose` each ran
+`if (sampled(cue)) return;` and then built a synth. The surprising word in your
+report was **AND**: you heard the blip *and* the page turn. That is not a missing
+recording — six `ledger-turn` takes are on disk. It is this:
+
+`sampleBank.play` refuses a cue that played less than **`minGapSec` = 0.02 s**
+ago. Refusing returns `false`. `false` means "fall through to the synth". So a
+quick second page turn plays **the recording once and the blip once** — the guard
+against double-triggering was converting the double trigger into the beep.
+
+All three fallbacks are gone, and the shared paper-hiss helper `ledgerLeaf` is
+deleted with them rather than left warm. Silence is the ruling if the bank ever
+refuses.
+
+Proven on the source rather than the graph, deliberately: a cue whose body
+contains no oscillator and no buffer cannot play one, whatever a broken counter
+says. `tests/register-cash-timing.test.js` now asserts the three bodies contain
+`sampled(...)` and none of `createOscillator`, `createBuffer`, `ledgerLeaf`,
+`checkoutTone` or `burst(`, and that `ledgerLeaf` no longer exists. Watched
+failing on the old audio.js, passing on this one.
+
+### Coin and cash crossing over — the manifest names the culprit
+
+`changeSelect` holds **three** recordings and `play()` picks among them **at
+random**:
+
+| file | what it is a recording of |
+|---|---|
+| `change-lift-1.ogg` | *"dollar bills flipping counting.wav"* — paper |
+| `change-lift-2.ogg` | *"counting_paper_money"* — paper |
+| `change-lift-3.ogg` | ***"Coins.wav by pinchos"*** — **coins** |
+
+So pressing a quarter played paper **two times in three**, and clicking a twenty
+played the coin take **one time in three**. Random is exactly why it reads as
+*crossing over* rather than as consistently wrong.
+
+`cashPickup` has the same fault the other way round: two coin takes
+(*"Coins.wav"*, *"coins being handled, shaken, rattled"*) and one paper
+(*"Cash Money sounds"*), also chosen at random, for taking change back off the
+counter.
+
+**Fixed by choosing the take that matches the money in your hand.** The
+recording's own title travels from the manifest through the sample bank, and
+`materialPick(denomination)` keeps the takes whose material matches — with
+`BILLS` imported from `sim/register.js` rather than restated, because a second
+copy of "which denominations are paper" is how a coin comes to sound like paper.
+No file is renamed, nothing is re-encoded, and a caller that does not know the
+denomination keeps its old behaviour. Both click sites now pass theirs.
+
+### The sound marking the end of a sale — it was on disk and unreachable
+
+`checkoutComplete` **already existed**, was **already being called** at the end of
+`finalizeTransaction`, and **already had a recording**:
+`checkout-complete-warm-1.ogg`, *"cash register old antique open close drawer
+with bell ring"*.
+
+It never asked the bank. So the code played a three-note sine arpeggio instead,
+and the graph measured that arpeggio at a peak of **0.032** while the cash drawer
+in the same checkout peaked at **0.592** — **18.5×, about 25 dB.** The loudest
+thing in your checkout was the furniture and the quietest was the outcome.
+
+One line — ask the bank first — and the till bell plays. Measured after:
+**0.032 → 0.982.**
+
+### The drawer — down 4.7 dB, and now on one constant
+
+`drawerOpen` and `drawerClose` both asked for 0.55, in two places. One
+`DRAWER_GAIN = 0.32` now.
+
+### Before and after, off the graph
+
+| cue | before | after |
+|---|---|---|
+| `drawerOpen` peak | 0.592 | **0.332** |
+| `drawerClose` peak | 0.591 | **0.309** |
+| `checkoutComplete` | **0 buffers**, peak 0.032 | **1 buffer**, peak **0.982** |
+| drawer : end-of-sale | **18.5 : 1** | **0.3 : 1** |
+| `ledgerOpen/Turn/Close` | synth fallback in each | 1 buffer each, no synth in the file |
+
+The ratio flipping from 18.5 to 0.3 is the whole item in one number: the sale's
+outcome is now louder than the furniture, which is the right way round.
+
+### What is NOT proven
+
+- **The oscillator counts.** Control failed twice. The synth-removal claim rests
+  on the source test, not on that probe.
+- **The "second turn inside 20 ms" row.** My driver waits 260 ms between fires,
+  so that row never actually landed inside `minGapSec` and does not test what its
+  label says. The `minGapSec` → synth mechanism is read from the code, not
+  measured.
+- **None of it heard.** I cannot listen. Every number here is about what the
+  graph was asked to build, not about what it sounds like in your room.
+
+---
+
+## A PATTERN THAT COST ME FOUR RED TESTS, AND ONE GAP IT REVEALED
+
+Four of this round's test failures were **source-text assertions tripped by a
+rename or by a comment**, not by a behaviour change:
+
+| test | what it pinned | what moved |
+|---|---|---|
+| `courseCameraIntegration` | the literal `scene().frameCourse()` | the null-scene fix cached `const sc = scene()` |
+| `scene-initialization-performance` | `body.indexOf('destroyCurrentScene()')` | **my own comment** mentioned the function |
+| `register-cash-timing` | `indexOf('function changeSelect()')` | the cue gained a denomination parameter |
+| `desk-accepts-tee-time-mid-sale` | the literal `counterQueue.indexOf(c) === 0` | item 2 replaced that predicate |
+| `qa-harness-integrity` | a register API named in a driver | **my own comment** named it, twice |
+| my own new flag test | `app.<flag>` in the predicate | **my own comment** named the removed flag |
+
+Every one of them was protecting a real contract — an ordering, a call, an
+API's existence — and every one located that contract by a string that a
+correct change was allowed to alter. Each is now matched on the stable half,
+and two of them additionally pin the NEW contract. None was loosened to pass.
+
+**The gap it revealed is worth more than the annoyance.**
+`tests/qa-harness-integrity.test.js` fails any QA harness that calls a register
+API the live code does not export. That rule is right, and it is why item 4's
+driver went red. **It does not apply to production.** `main.js:699` calls the
+same non-existent accessor that the test would reject in a driver, and has done
+since it was written, and nothing anywhere checks it. Extending that rule to
+`src/` would have caught item 4 the day it was introduced — and it is not a
+change I should make while its first finding is a bug whose fix is your call.

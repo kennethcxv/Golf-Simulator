@@ -7551,7 +7551,11 @@ export function createRegisterMode(B) {
     layoutSelectedChange();
     pulseCashierHand(mesh, 'select-change', 0.08);
     refillDrawerMoney();
-    if (!silent) sfx('changeSelect');
+    // PLAYTEST 5, ITEM 5: the cue is handed the denomination so it can pick a
+    // recording of the right MATERIAL. `changeSelect` holds two paper takes and
+    // one of coins and the bank was choosing among them at random, so a quarter
+    // sounded like a twenty two times in three.
+    if (!silent) sfx('changeSelect', denom);
     if (!deferDraw) drawScreen();
     return true;
   }
@@ -7573,7 +7577,7 @@ export function createRegisterMode(B) {
     // ITEM 2: taking change back off the counter is a PICK-UP, and it used to
     // play the same handle cue as laying it down. One gesture, two directions,
     // one sound -- so neither direction read as itself.
-    sfx('cashPickup');
+    sfx('cashPickup', mesh.userData.denom); // ITEM 5: coins for coins, paper for paper
     return true;
   }
 

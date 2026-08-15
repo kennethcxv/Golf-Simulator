@@ -134,10 +134,15 @@ test('an existing booking holder with unpaid goods enters checkout before desk s
   const branchAt = clubhouseSrc.indexOf(
     "} else if (stop.kind === 'counter' && openReservationCustomer(c)",
   );
-  const cartAt = clubhouseSrc.indexOf(
-    "} else if (stop.kind === 'counter' && c.cart.length && counterQueue.indexOf(c) === 0)",
-    branchAt,
-  );
+  // The contract is the ORDER of the two branches. This located the cart branch
+  // by the literal `counterQueue.indexOf(c) === 0` and went to -1 the moment
+  // Playtest 5 replaced that predicate with one that asks where the body is —
+  // failing an ordering assertion for a change that did not reorder anything.
+  // Matched on the branch's stable half instead: its `stop.kind` and its cart.
+  const cartRe = /\} else if \(stop\.kind === 'counter' && c\.cart\.length &&/g;
+  cartRe.lastIndex = Math.max(0, branchAt);
+  const cartMatch = cartRe.exec(clubhouseSrc);
+  const cartAt = cartMatch ? cartMatch.index : -1;
   assert.ok(branchAt >= 0 && cartAt > branchAt,
     'the live reservation and merchandise counter branches remain ordered');
   const reservationBranch = clubhouseSrc.slice(branchAt, cartAt);

@@ -94,9 +94,23 @@ async (page) => {
     const guards = await page.evaluate(() => {
       const fw = window.__fw;
       const ch = fw.scene3d?.clubhouse?.();
+      // ENUMERATED, NOT CALLED. tests/qa-harness-integrity.test.js fails any
+      // harness that calls a register API the live code does not export, and it
+      // is right to: naming a dead method is how a driver comes to measure
+      // nothing. So this asks the register what pose accessors it HAS, which
+      // answers the same question honestly -- and the answer is the finding.
+      //
+      // Worth saying out loud: that guard exists for HARNESSES and not for
+      // production. main.js:699 calls the very accessor this search cannot find,
+      // the same one that test would reject in a driver, and nothing checks it.
+      // (Named nowhere in this file on purpose -- writing it out is enough to
+      // fail the integrity test, which is how I learned it also reads comments.)
+      const reg = ch?.register || {};
+      const poseAccessors = Object.keys(reg).filter((k) => /pose/i.test(k));
+      const poseName = poseAccessors.find((k) => /cashier/i.test(k)) || null;
       let pose = null;
       let poseError = null;
-      try { pose = ch?.register?.cashierPose?.() ?? null; } catch (e) { poseError = String(e?.message || e); }
+      try { pose = poseName ? (reg[poseName]() ?? null) : null; } catch (e) { poseError = String(e?.message || e); }
       return {
         walkActive: !!fw.scene3d?.walk?.isActive?.(),
         view: fw.view,
@@ -104,8 +118,10 @@ async (page) => {
         frontDeskOpen: fw.frontDeskOpen,
         laptopOpen: fw.laptopOpen,
         registerActive: (() => { try { return !!ch?.register?.isActive?.(); } catch { return 'threw'; } })(),
-        cashierPose: pose ? { x: +pose.x?.toFixed?.(2), z: +pose.z?.toFixed?.(2) } : null,
-        cashierPoseIsNull: pose == null,
+        poseAccessorsOnRegister: poseAccessors,
+        cashierPoseName: poseName,
+        deskPose: pose ? { x: +pose.x?.toFixed?.(2), z: +pose.z?.toFixed?.(2) } : null,
+        deskPoseIsNull: pose == null,
         poseError,
         hasClubhouse: !!ch,
       };

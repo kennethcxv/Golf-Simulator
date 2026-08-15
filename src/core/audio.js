@@ -6,6 +6,32 @@
 import { BROOM_FEEL } from '../data/broomFeel.js';
 import { CLEANING_TOOLS } from '../data/cleaningTools.js';
 import { createSampleBank } from './sampleBank.js';
+// PLAYTEST 5, ITEM 5: which denominations are PAPER, from the module that owns
+// the answer, so the register and the audio cannot disagree about whether a 5 is
+// a note. Imported rather than restated — a second copy of this list is exactly
+// how a coin comes to sound like paper.
+import { BILLS } from '../sim/register.js';
+
+const BILL_DENOMINATIONS = new Set(BILLS);
+
+// PLAYTEST 5, ITEM 5 — pick the variant whose RECORDING matches the denomination
+// in the player's hand. Two cues hold recordings of both materials and the bank
+// chooses among a cue's variants at random, which is why coin and paper "cross
+// over" rather than being consistently wrong:
+//
+//   changeSelect  2 x paper, 1 x "Coins.wav"
+//   cashPickup    2 x coins, 1 x "Cash Money sounds"
+//
+// The title is the ground truth and travels from the manifest through
+// sampleBank's meta, so no file is renamed and nothing is re-encoded. Returns an
+// empty object for a caller that does not know the denomination — every existing
+// call site keeps its old behaviour rather than silently getting a filter.
+function materialPick(denomination) {
+  const denom = Number(denomination);
+  if (!Number.isFinite(denom)) return {};
+  const wantsPaper = BILL_DENOMINATIONS.has(denom);
+  return { pick: (entry) => /coin/i.test(entry?.title || '') !== wantsPaper };
+}
 
 export const CHECKOUT_CUE_APIS = Object.freeze([
   'productPlace', 'productPickup', 'productRotate',
@@ -799,87 +825,44 @@ export function makeAudio(preferences = null) {
     osc.stop(t0 + 0.34);
   }
 
-  // heavy ledger paper: longer and lower than the receipt hiss, with a spine
-  // creak under the leaf so it reads as a bound book and not a loose slip
-  function ledgerLeaf(t0, peak) {
-    const buf = ctx.createBuffer(1, Math.ceil(ctx.sampleRate * 0.3), ctx.sampleRate);
-    const d = buf.getChannelData(0);
-    for (let i = 0; i < d.length; i += 1) {
-      const t = i / d.length;
-      d[i] = (Math.random() * 2 - 1) * Math.pow(1 - t, 1.9) * (0.55 + 0.45 * Math.sin(t * 62));
-    }
-    const src = ctx.createBufferSource();
-    src.buffer = buf;
-    const hp = ctx.createBiquadFilter();
-    hp.type = 'highpass';
-    hp.frequency.value = varied(1700, 0.06);
-    const g = ctx.createGain();
-    g.gain.value = peak;
-    src.connect(hp).connect(g).connect(sfxBus);
-    src.start(t0);
-    src.stop(t0 + 0.3);
-  }
+  // PLAYTEST 5, ITEM 5: `ledgerLeaf` — the synthesised paper hiss — used to sit
+  // here as the shared body of all three ledger cues' fallbacks. With the
+  // fallbacks removed on the owner's ruling it had no callers left, so it is
+  // deleted rather than kept warm: a synth voice nothing plays is exactly how
+  // one comes back.
 
+  // PLAYTEST 5, ITEM 5 — THE OLD SYNTH IS STILL PLAYING UNDERNEATH THE BOOK.
+  //
+  //   "When I turn a page I hear the static blip AND the new page turn. Remove
+  //    the synth fallback from EVERY ledger cue, not just page turns. If the
+  //    recording is missing, silence is better than the beep."
+  //
+  // Ruling applied to all three ledger cues below. And the mechanism is worth
+  // recording, because "AND" was the surprising word: `sampled()` returns FALSE
+  // when the bank refuses to play, and the caller then fell through to the
+  // synth. The bank refuses for a reason that has nothing to do with a missing
+  // recording — `minGapSec` is 0.02, so a second turn inside 20 ms is declined.
+  // The recording plays for the first turn, the rate limiter declines the
+  // second, and the second becomes a BLIP. The guard against double-triggering
+  // was converting the double trigger into the synth.
+  //
+  // Six ledger-turn recordings, two open and two close are on disk, so this is
+  // not a trade against silence in practice — but silence is the instruction if
+  // it ever becomes one.
   function ledgerTurn() {
-    if (sampled('ledgerTurn')) return;
-    if (!ctx) return;
-    const t0 = ctx.currentTime;
-    ledgerLeaf(t0, 0.06);
-    const osc = ctx.createOscillator();
-    osc.type = 'triangle';
-    osc.frequency.setValueAtTime(varied(230, 0.08), t0);
-    osc.frequency.linearRampToValueAtTime(180, t0 + 0.08);
-    const g = ctx.createGain();
-    g.gain.setValueAtTime(0.012, t0);
-    g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.1);
-    osc.connect(g).connect(sfxBus);
-    osc.start(t0);
-    osc.stop(t0 + 0.12);
+    sampled('ledgerTurn');
   }
 
-  // the clasp frees, the cover thuds open, the first leaf settles
+  // the clasp frees, the cover thuds open, the first leaf settles — recorded.
+  // Synth fallback removed: see the ruling on ledgerTurn.
   function ledgerOpen() {
-    if (sampled('ledgerOpen')) return;
-    if (!ctx) return;
-    const t0 = ctx.currentTime;
-    const tick = ctx.createOscillator();
-    tick.type = 'square';
-    tick.frequency.value = varied(2400, 0.05);
-    const tg = ctx.createGain();
-    tg.gain.setValueAtTime(0.016, t0);
-    tg.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.03);
-    tick.connect(tg).connect(sfxBus);
-    tick.start(t0);
-    tick.stop(t0 + 0.04);
-    const osc = ctx.createOscillator();
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(120, t0 + 0.05);
-    osc.frequency.exponentialRampToValueAtTime(62, t0 + 0.17);
-    const g = ctx.createGain();
-    g.gain.setValueAtTime(0.09, t0 + 0.05);
-    g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.24);
-    osc.connect(g).connect(sfxBus);
-    osc.start(t0 + 0.05);
-    osc.stop(t0 + 0.26);
-    ledgerLeaf(t0 + 0.16, 0.045);
+    sampled('ledgerOpen');
   }
 
-  // the leaves settle, then the cover shuts on them
+  // the leaves settle, then the cover shuts on them — recorded.
+  // Synth fallback removed: see the ruling on ledgerTurn.
   function ledgerClose() {
-    if (sampled('ledgerClose')) return;
-    if (!ctx) return;
-    const t0 = ctx.currentTime;
-    ledgerLeaf(t0, 0.04);
-    const osc = ctx.createOscillator();
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(110, t0 + 0.12);
-    osc.frequency.exponentialRampToValueAtTime(56, t0 + 0.22);
-    const g = ctx.createGain();
-    g.gain.setValueAtTime(0.1, t0 + 0.12);
-    g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.3);
-    osc.connect(g).connect(sfxBus);
-    osc.start(t0 + 0.12);
-    osc.stop(t0 + 0.32);
+    sampled('ledgerClose');
   }
 
   // a terminal key: plastic under a finger — a tiny high tick over a short
@@ -1037,13 +1020,29 @@ export function makeAudio(preferences = null) {
     checkoutTone({ at: 0.012, freq: 2637, to: 2489, dur: 0.085, peak: 0.012 });
   }
 
+  // PLAYTEST 5, ITEM 5 — "The cash drawer opening and closing is too loud."
+  //
+  // It was 0.55 on both, and the number that makes the case is not the drawer's
+  // own level but what it sits next to. Read off the live audio graph
+  // (tools/qa/electron-money-cue-graph.js): drawerOpen peaked at 0.592 and
+  // drawerClose at 0.591, while `checkoutComplete` -- the sound that marks the
+  // END OF A SALE -- peaked at 0.032. A ratio of 18.5, about 25 dB. The loudest
+  // thing in the checkout was the furniture and the quietest was the outcome,
+  // which is why the same round asks for the drawer to come down AND for
+  // something to mark the sale: they are one mix problem seen from both ends.
+  //
+  // Down 4.7 dB. Deliberately a modest cut rather than a guess at the "right"
+  // level, because the till slide is a real recording chosen for its swell and
+  // burying it would be the opposite mistake.
+  const DRAWER_GAIN = 0.32;
+
   // the cash drawer: rolling slide, hard stop, and the till bell
   function drawer() {
     // The recording IS the slide and the stop at the end of travel -- it was
     // chosen for that (a ~500 ms swell into a hard transient). The bell is a
     // separate cue because a real till rings on the sale, not on every drawer
     // movement, and firing both together is what made this sound like a toy.
-    if (sampled('drawerOpen', sfxBus, { gain: 0.55 })) return;
+    if (sampled('drawerOpen', sfxBus, { gain: DRAWER_GAIN })) return;
     if (!ctx) return;
     const t0 = ctx.currentTime;
     const buf = ctx.createBuffer(1, ctx.sampleRate * 0.16, ctx.sampleRate);
@@ -1351,8 +1350,14 @@ export function makeAudio(preferences = null) {
   // to serve this was the same one that plays when cash goes DOWN: the two
   // gestures were acoustically identical, which is why the owner heard nothing
   // for one of them. Deliberately quiet -- it is a correction, not an event.
-  function cashPickup() {
-    if (sampled('cashPickup', sfxBus, { gain: 0.55 })) return;
+  // PLAYTEST 5, ITEM 5: the SAME crossover as changeSelect, in the opposite
+  // direction. cashPickup's three recordings are "Coins.wav", "coins being
+  // handled, shaken, rattled" and "Cash Money sounds_fieldtapes" — two coin, one
+  // paper — and the bank chose among them at random, so taking a note back off
+  // the counter rattled two times in three. Same material filter; same source of
+  // truth, which is what the recording is of.
+  function cashPickup(denomination) {
+    if (sampled('cashPickup', sfxBus, { gain: 0.55, ...materialPick(denomination) })) return;
     // No recording: the handle voice is a closer relative than silence. NOTE the
     // local name -- `coinHandle` is the EXPORTED key for this function and does
     // not exist as an identifier inside the module.
@@ -1481,7 +1486,7 @@ export function makeAudio(preferences = null) {
   }
 
   function drawerClose() {
-    if (sampled('drawerClose', sfxBus, { gain: 0.55 })) return;
+    if (sampled('drawerClose', sfxBus, { gain: DRAWER_GAIN })) return;
     checkoutNoise({ dur: 0.18, band: 720, toBand: 390, q: 0.55, peak: 0.027, attack: 0.008 });
     checkoutTone({ at: 0.045, freq: 120, to: 64, type: 'triangle', dur: 0.14, peak: 0.035, filter: 520 });
     checkoutTone({ at: 0.15, freq: 920, to: 610, type: 'square', dur: 0.042, peak: 0.015, filter: 1500 });
@@ -1702,18 +1707,29 @@ export function makeAudio(preferences = null) {
     checkoutTone({ at: 0.02, freq: 2600, to: 2400, type: 'sine', dur: 0.09, peak: 0.008 });
   }
 
-  function changeSelect() {
-    // PLAYTEST 4, ITEM 2 — "Taking change out of the drawer to hand over is
-    // silent. It needs its own voice, distinct from putting cash in and distinct
-    // from picking it back up."
-    //
-    // It was not quite silent: it was two triangle tones peaking at 0.016, which
-    // is a UI blip and not a hand. Measured on the graph, clicking a drawer slot
-    // started ZERO buffer sources. It now asks the bank first, and the bank has
-    // `changeSelect` recordings of its own — not billDeposit's (money going IN)
-    // and not cashPickup's (money coming back off the counter), because one
-    // gesture in three directions sharing one sound is why none of them read.
-    if (sampled('changeSelect', sfxBus)) return;
+  // PLAYTEST 5, ITEM 5 — "Coin and cash cues are firing on the wrong clicks.
+  // The coin sound should play only when I press a coin; the cash sound only
+  // when I click a note. They are crossing over."
+  //
+  // They were, and the manifest says so in plain English. `changeSelect` holds
+  // three recordings:
+  //
+  //   change-lift-1.ogg  "dollar bills flipping counting.wav"   paper
+  //   change-lift-2.ogg  "counting_paper_money"                 paper
+  //   change-lift-3.ogg  "Coins.wav by pinchos"                 COINS
+  //
+  // ...and sampleBank.play picks among a cue's variants AT RANDOM. So pressing a
+  // quarter played paper two times in three, and clicking a twenty played the
+  // coin recording one time in three. Random is exactly why it reads as
+  // "crossing over" rather than as consistently wrong.
+  //
+  // The gesture keeps its own voice — Playtest 4 was right that lifting change
+  // out of a drawer is neither depositing nor picking up off the counter — but
+  // the variant is now chosen by what the recording IS. The title travels from
+  // the manifest through the bank for this; no file is renamed and nothing is
+  // re-encoded.
+  function changeSelect(denomination) {
+    if (sampled('changeSelect', sfxBus, materialPick(denomination))) return;
     checkoutTone({ freq: 1320, to: 1110, type: 'triangle', dur: 0.052, peak: 0.016 });
     checkoutTone({ at: 0.026, freq: 660, to: 622.25, type: 'sine', dur: 0.07, peak: 0.009 });
   }
@@ -1743,8 +1759,23 @@ export function makeAudio(preferences = null) {
     checkoutTone({ at: 0.055, freq: 293.66, to: 440, type: 'sine', dur: 0.18, peak: 0.019 });
   }
 
+  // PLAYTEST 5, ITEM 5 — "Add a transaction-complete sound. There is nothing
+  // marking the end of a sale."
+  //
+  // There IS one, and it has been firing: simplifiedRegisterMode calls
+  // `sfx('checkoutComplete')` at the end of finalizeTransaction. It was simply
+  // inaudible. Measured on the graph, its three tones peaked at 0.032 against
+  // the cash drawer's 0.592 in the same checkout -- 18.5x, about 25 dB. A
+  // three-note figure that quiet under a till slide that loud is not a cue, it
+  // is a rumour.
+  //
+  // So this is not a new sound; it is the existing one raised to where a person
+  // can hear it, at roughly a third of the (now reduced) drawer rather than a
+  // eighteenth of the old one. It asks the bank first, like every other cue, so
+  // a recording can replace the arpeggio later without touching a call site.
   function checkoutComplete() {
-    for (const [at, freq, peak] of [[0, 587.33, 0.026], [0.095, 739.99, 0.028], [0.19, 880, 0.032]]) {
+    if (sampled('checkoutComplete', sfxBus)) return;
+    for (const [at, freq, peak] of [[0, 587.33, 0.10], [0.095, 739.99, 0.11], [0.19, 880, 0.125]]) {
       checkoutTone({ at, freq, to: freq * 1.006, type: 'sine', dur: 0.29, peak, attack: 0.012 });
     }
   }

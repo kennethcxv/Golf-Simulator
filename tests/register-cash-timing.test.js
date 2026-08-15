@@ -69,11 +69,60 @@ test('lifting change out of the drawer has recordings of its own', () => {
 test('changeSelect asks the sample bank before falling back to a tone', () => {
   // The recordings existing is not the same as them being reachable: uiError sat
   // in the manifest for a whole round while the code played oscillators.
+  //
+  // Matched WITHOUT pinning the parameter list. This read
+  // `indexOf('function changeSelect()')` and went to -1 the moment Playtest 5
+  // gave the cue a denomination, failing a contract that had not changed for a
+  // signature that had. Two tests in this repo went red that way in one session.
   const src = fs.readFileSync(path.join(REPO, 'src', 'core', 'audio.js'), 'utf8');
-  const body = src.slice(src.indexOf('function changeSelect()'));
+  const at = src.search(/function changeSelect\s*\(/);
+  assert.ok(at >= 0, 'changeSelect is gone from audio.js');
+  const body = src.slice(at);
   const end = body.indexOf('\n  }');
   assert.match(body.slice(0, end), /sampled\('changeSelect'/,
     'changeSelect must ask the bank first, or its recordings never play');
+});
+
+test('the money cues pick a recording of the right MATERIAL, not a random one', () => {
+  // PLAYTEST 5, ITEM 5 — "Coin and cash cues are firing on the wrong clicks."
+  //
+  // sampleBank.play chooses among a cue's variants at random, and two cues hold
+  // recordings of BOTH materials. The manifest says which is which in its own
+  // titles, so this asserts against the manifest rather than against a filename
+  // somebody would have to keep in their head.
+  const manifest = JSON.parse(fs.readFileSync(path.join(REPO, 'assets', 'audio', 'manifest.json'), 'utf8'));
+  const forCueLocal = (cue) => (manifest.samples || []).filter((s) => s.cue === cue);
+  const isCoin = (s) => /coin/i.test(s.title || '');
+
+  for (const cue of ['changeSelect', 'cashPickup']) {
+    const takes = forCueLocal(cue);
+    assert.ok(takes.length > 1, `${cue} needs more than one take for this to matter`);
+    const coins = takes.filter(isCoin).length;
+    assert.ok(coins > 0 && coins < takes.length,
+      `${cue} holds ${coins}/${takes.length} coin takes — if that is ever all or nothing, `
+      + 'the material filter has stopped being able to choose and this test should be revisited');
+  }
+
+  // And the code must actually ask for the distinction.
+  const src = fs.readFileSync(path.join(REPO, 'src', 'core', 'audio.js'), 'utf8');
+  assert.match(src, /function materialPick\(/,
+    'the material chooser is gone; the cues are back to picking at random');
+  for (const cue of ['changeSelect', 'cashPickup']) {
+    const at = src.search(new RegExp(`function ${cue}\\s*\\(`));
+    assert.ok(at >= 0, `${cue} is gone from audio.js`);
+    const body = src.slice(at, at + src.slice(at).indexOf('\n  }'));
+    assert.match(body, /materialPick\(/,
+      `${cue} must choose its take by material, or a quarter sounds like a twenty`);
+  }
+
+  // The register has to hand the denomination over, or the chooser gets nothing.
+  const reg = fs.readFileSync(
+    path.join(REPO, 'src', 'render3d', 'clubhouse', 'simplifiedRegisterMode.js'), 'utf8',
+  );
+  assert.match(reg, /sfx\('changeSelect', denom\)/,
+    'the change-lift click must carry its denomination');
+  assert.match(reg, /sfx\('cashPickup', mesh\.userData\.denom\)/,
+    'taking change back off the counter must carry its denomination');
 });
 
 test('the drawer sequence hands back a cash-entry point, not the whole drawer', () => {
@@ -89,4 +138,31 @@ test('the drawer sequence hands back a cash-entry point, not the whole drawer', 
   const fn = src.slice(src.indexOf('function drawerOpenSequence()'));
   assert.match(fn.slice(0, fn.indexOf('\n  }')), /return openAt \+ CASH_FOLLOWS_SLIDE_BY;/,
     'the sequence must return the cash entry point');
+});
+
+test('the ledger cues contain no synth voice at all', () => {
+  // PLAYTEST 5, ITEM 5 — "The old synth is still playing underneath the book...
+  // Remove the synth fallback from EVERY ledger cue, not just page turns. If the
+  // recording is missing, silence is better than the beep."
+  //
+  // Asserted on the SOURCE deliberately, and it is the stronger claim here. The
+  // graph probe that was meant to prove this at runtime failed its own control
+  // twice: it counted 0 oscillators for `keypadTap`, which is synth-only, so its
+  // zeros for the ledger proved nothing. A cue whose body contains no oscillator
+  // and no buffer cannot play one, whatever a counter says.
+  const src = fs.readFileSync(path.join(REPO, 'src', 'core', 'audio.js'), 'utf8');
+  for (const cue of ['ledgerOpen', 'ledgerTurn', 'ledgerClose']) {
+    const at = src.search(new RegExp(`function ${cue}\\s*\\(`));
+    assert.ok(at >= 0, `${cue} is gone from audio.js`);
+    const body = src.slice(at, at + src.slice(at).indexOf('\n  }'));
+    assert.ok(body.includes(`sampled('${cue}'`), `${cue} must ask the bank`);
+    for (const synth of ['createOscillator', 'createBuffer', 'ledgerLeaf', 'checkoutTone', 'burst(']) {
+      assert.equal(body.includes(synth), false,
+        `${cue} still builds a synth voice (${synth}) — silence is the ruling when the bank refuses`);
+    }
+  }
+  // The shared paper-hiss helper had no callers left once the three fallbacks
+  // went. A synth voice nothing plays is exactly how one comes back.
+  assert.equal(/function ledgerLeaf\s*\(/.test(src), false,
+    'ledgerLeaf survived with no callers');
 });
