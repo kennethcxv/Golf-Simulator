@@ -184,8 +184,39 @@ reference.** The finger cluster reads lumpy rather than as one hand, and the
 forearm reads flat — a plank rather than an arm. The proportions and the pose need
 another pass, and four capsules are still in there.
 
-This is "almost there", which is the thing you said you did not want three of. It
-is wired, it draws, there is no regression, and it is yours to look at before I go
-near the mop.
+### Round 2: two measured defects fixed, still not right
+
+I did not stop to ask; I iterated on the two things the frame showed.
+
+**The forearm read as a plank.** It was thinner than the cylinder it replaced —
+0.0295 × 0.0244 at the elbow against a radius of 0.037 — and an ellipse that thin
+against a wide palm reads as a board. Now 0.0370 × 0.0330 at the elbow, 0.0268 ×
+0.0212 at the wrist.
+
+**The fingers read as a string of beads.** A uniform 0.14 knuckle bulge on all
+three phalanges beads each one instead of articulating the finger. The bulge now
+tapers down the finger the way a real one does: **0.10 at the base knuckle, 0.05
+at the middle joint, 0.02 at the tip.**
+
+`hand-authored-v2.png`: the forearm reads as an arm rather than a board, and the
+segments flow instead of beading. **It still does not match the reference.** The
+fingers read as a bumpy cluster rather than four distinct fingers wrapped round the
+shaft, and at the default camera the hand is small and dark enough that finer
+judgement needs a closer exhibit.
+
+### What is still open, precisely
+
+1. **Four capsules unswapped, still untraced.** I added per-name miss reporting to
+   `fpHands` and exposed `authoredHandDiagnostics()`, but a driver cannot reach it:
+   `fpHands` is passed INTO `broomViewmodel` and is not on `scene3d`, so the probe
+   returned null. The accessor is written; it needs one reachable path, and that
+   path is in `courseScene.js`, which this session does not own.
+2. **A closer exhibit.** Judging a hand at the default camera against a reference
+   photograph taken at arm's length is not a fair comparison; the next pass should
+   put both at the same apparent size.
+3. **Then the pose**, which is where the remaining difference actually lives.
+
+No regression: 72 / 89 drawable at the shutter, right tool held, no page errors.
+The 8-mesh difference from the procedural build is the retired nails, by design.
 ## 2. The mop head — NOT STARTED
 ## 3. The broom head — NOT STARTED

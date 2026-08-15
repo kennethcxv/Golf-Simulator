@@ -435,11 +435,14 @@ function makeHand(mats, mirror = 1) {
   if (palm) { palm.userData.fpAsymmetric = true; swappable.push([palm, 'Palm']); }
   swappable.push([forearm, 'Forearm']);
 
-  const authored = { applied: 0, expected: swappable.length };
+  const authored = { applied: 0, expected: swappable.length, missed: [] };
   loadAuthoredHand().then((parts) => {
     if (!parts) return;
     for (const [mesh, name] of swappable) {
       if (adoptAuthored(mesh, parts.get(name), mirror)) authored.applied += 1;
+      // Named, not counted. "4 capsules left" cost a whole round of guessing;
+      // which four is a one-line answer if the miss says its own name.
+      else authored.missed.push(`${name}:${mesh ? 'no-part' : 'no-mesh'}`);
     }
     // The nails were a separate box per finger placed against a capsule. The
     // authored distal segment ends in a modelled tip, so they are retired rather
@@ -605,6 +608,12 @@ export function makeFpHands() {
   return {
     root,
     rigOffset,
+    // PLAYTEST 5, ITEM 6.1: which authored parts landed and which did not, by
+    // name. A count alone sent me hunting the scene graph for "the 4 capsules".
+    authoredHandDiagnostics: () => ({
+      right: right.authored ? { ...right.authored, missed: [...right.authored.missed] } : null,
+      left: left.authored ? { ...left.authored, missed: [...left.authored.missed] } : null,
+    }),
 
     // THE HAND MATERIALS, SHARED RATHER THAN REBUILT.
     //

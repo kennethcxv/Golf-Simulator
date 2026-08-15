@@ -213,17 +213,20 @@ FINGERS = [
 built = []
 for fname, flen, fthick in FINGERS:
     # proportions from the runtime: prox 0.40 of length, mid 0.34, dist 0.26
+    # The bulge tapers DOWN the finger: pronounced at the base knuckle, half that
+    # at the middle joint, almost nothing at the tip. A uniform bulge is what made
+    # the first build photograph as a string of beads rather than a finger.
     built.append(segment(f"{fname}Prox", flen * 0.40, fthick * 0.50, fthick * 0.40,
-                         fthick * 0.46, fthick * 0.37))
-    built.append(segment(f"{fname}Mid", flen * 0.34, fthick * 0.46, fthick * 0.37,
-                         fthick * 0.42, fthick * 0.34))
-    built.append(segment(f"{fname}Dist", flen * 0.26, fthick * 0.42, fthick * 0.34,
-                         fthick * 0.34, fthick * 0.29, knuckle_bulge=0.09))
+                         fthick * 0.47, fthick * 0.38, knuckle_bulge=0.10))
+    built.append(segment(f"{fname}Mid", flen * 0.34, fthick * 0.47, fthick * 0.38,
+                         fthick * 0.43, fthick * 0.35, knuckle_bulge=0.05))
+    built.append(segment(f"{fname}Dist", flen * 0.26, fthick * 0.43, fthick * 0.35,
+                         fthick * 0.35, fthick * 0.30, knuckle_bulge=0.02))
 
 built.append(segment("ThumbProx", 0.032, 0.0116, 0.0098, 0.0104, 0.0088))
 built.append(segment("ThumbDist", 0.027, 0.0104, 0.0088, 0.0086, 0.0076, knuckle_bulge=0.08))
 built.append(palm("Palm", 0.0335, 0.0165, 0.082, mirror=1.0))
-built.append(forearm("Forearm", 0.115, 0.0210, 0.0158, 0.0295, 0.0250))
+built.append(forearm("Forearm", 0.115, 0.0268, 0.0212, 0.0370, 0.0330))
 
 # AXIS. The parts are authored running down -Z because that is the axis fpHands
 # lays fingers along -- but `export_yup=True` converts Blender Z-up to glTF Y-up,
