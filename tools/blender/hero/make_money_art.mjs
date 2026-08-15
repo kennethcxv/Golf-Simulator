@@ -5,8 +5,29 @@
 // cutting this game from 349 materials to under 40. So every design here is a
 // CELL in a shared atlas: one mesh, one material, a UV offset per instance.
 //
-// Everything is generic by construction -- invented marks, no issuer names, no
-// real note reproduced.
+// REVISION PASS. Three things:
+//
+// 1. THE SCHEME MARK. The first version drew two overlapping circles in the
+//    corner of every card. That is Mastercard's mark whether or not it was
+//    meant as one, and a near-miss is the version that gets you a letter. Every
+//    card now carries an INVENTED glyph from GLYPHS below -- a chevron stack, a
+//    split hexagon, a notched diamond, a quartered square, an arc pair that
+//    does NOT overlap, a stepped triangle. None of them resembles a real
+//    network, and there is no contactless mark either: those four arcs are an
+//    EMVCo device, not a generic decoration.
+//
+// 2. THE CARDS WERE FLAT SWATCHES WITH A CHIP ON THEM. Now four families --
+//    metal, debit, consumer, corporate -- each with a gradient, an issuer
+//    block, a number band with an embossed pass, an expiry, a cardholder line,
+//    and a hologram patch on the premium ones.
+//
+// 3. THE CASH HAD NO GREEN. Currency reads as green before it reads as
+//    anything else. Now: green ink on warm paper, a portrait oval, corner
+//    numerals in all four corners, a guilloche border, a serial band, and a
+//    per-denomination accent so a 100 does not read as a 1.
+//
+// No issuer NAMES at all -- the cards carry an invented glyph and a category
+// word. That is the only way to be sure a name is not somebody's bank.
 //
 //   node tools/blender/hero/make_money_art.mjs
 import sharp from 'sharp';
@@ -20,82 +41,233 @@ const CARD_COLS = 4, CARD_ROWS = 3;      // 12 card faces
 const NOTE_COLS = 4, NOTE_ROWS = 2;      // 6 denominations + 2 wear variants
 const COIN_COLS = 2, COIN_ROWS = 2;      // 4 coin faces
 
-// What a real wallet varies: dark navy, matte black, silver, warm red,
-// bank-blue, green, a plain white one.
+// ---------------------------------------------------------------- glyphs ----
+// Invented scheme marks. Each takes a box and returns paths. Deliberately
+// geometric and deliberately not two interlocking circles.
+const GLYPHS = {
+  chevrons: (x, y, s, c) => `
+    <path d="M${x} ${y + s * 0.62} L${x + s * 0.30} ${y + s * 0.16} L${x + s * 0.60} ${y + s * 0.62}"
+          fill="none" stroke="${c}" stroke-width="${s * 0.13}" stroke-linecap="round"/>
+    <path d="M${x + s * 0.24} ${y + s * 0.88} L${x + s * 0.54} ${y + s * 0.42} L${x + s * 0.84} ${y + s * 0.88}"
+          fill="none" stroke="${c}" stroke-width="${s * 0.13}" stroke-linecap="round" opacity="0.6"/>`,
+  hexSplit: (x, y, s, c) => `
+    <path d="M${x + s * 0.42} ${y + s * 0.06} L${x + s * 0.80} ${y + s * 0.30} L${x + s * 0.80} ${y + s * 0.74}
+             L${x + s * 0.42} ${y + s * 0.98} L${x + s * 0.04} ${y + s * 0.74} L${x + s * 0.04} ${y + s * 0.30} Z"
+          fill="${c}" opacity="0.75"/>
+    <path d="M${x + s * 0.42} ${y + s * 0.06} L${x + s * 0.42} ${y + s * 0.98} L${x + s * 0.04} ${y + s * 0.74}
+             L${x + s * 0.04} ${y + s * 0.30} Z" fill="${c}"/>`,
+  diamond: (x, y, s, c) => `
+    <path d="M${x + s * 0.44} ${y} L${x + s * 0.88} ${y + s * 0.50} L${x + s * 0.44} ${y + s}
+             L${x} ${y + s * 0.50} Z" fill="none" stroke="${c}" stroke-width="${s * 0.11}"/>
+    <path d="M${x + s * 0.44} ${y + s * 0.26} L${x + s * 0.66} ${y + s * 0.50}
+             L${x + s * 0.44} ${y + s * 0.74} L${x + s * 0.22} ${y + s * 0.50} Z" fill="${c}"/>`,
+  quartered: (x, y, s, c) => `
+    <rect x="${x}" y="${y}" width="${s * 0.42}" height="${s * 0.42}" fill="${c}"/>
+    <rect x="${x + s * 0.50}" y="${y + s * 0.50}" width="${s * 0.42}" height="${s * 0.42}" fill="${c}"/>
+    <rect x="${x + s * 0.50}" y="${y}" width="${s * 0.42}" height="${s * 0.42}" fill="${c}" opacity="0.45"/>
+    <rect x="${x}" y="${y + s * 0.50}" width="${s * 0.42}" height="${s * 0.42}" fill="${c}" opacity="0.45"/>`,
+  // two arcs that face each other and never cross -- explicitly not a pair of
+  // interlocking circles
+  arcs: (x, y, s, c) => `
+    <path d="M${x + s * 0.34} ${y + s * 0.08} A ${s * 0.42} ${s * 0.42} 0 0 0 ${x + s * 0.34} ${y + s * 0.92}"
+          fill="none" stroke="${c}" stroke-width="${s * 0.14}" stroke-linecap="round"/>
+    <path d="M${x + s * 0.58} ${y + s * 0.08} A ${s * 0.42} ${s * 0.42} 0 0 1 ${x + s * 0.58} ${y + s * 0.92}"
+          fill="none" stroke="${c}" stroke-width="${s * 0.14}" stroke-linecap="round" opacity="0.55"/>`,
+  steps: (x, y, s, c) => `
+    <path d="M${x} ${y + s * 0.92} L${x + s * 0.26} ${y + s * 0.92} L${x + s * 0.26} ${y + s * 0.58}
+             L${x + s * 0.52} ${y + s * 0.58} L${x + s * 0.52} ${y + s * 0.24}
+             L${x + s * 0.78} ${y + s * 0.24} L${x + s * 0.78} ${y} L${x + s * 0.92} ${y}"
+          fill="none" stroke="${c}" stroke-width="${s * 0.12}" stroke-linejoin="miter"/>`,
+};
+const GLYPH_KEYS = Object.keys(GLYPHS);
+
+// Four families. No issuer names -- a glyph and a category word only.
 const CARDS = [
-  ['#16203a', '#c8cddb'], ['#111113', '#8f9298'], ['#b9bec6', '#2a2d33'],
-  ['#8c2b25', '#ecd9cf'], ['#1d4676', '#cfe0f2'], ['#1c5340', '#d6e8dc'],
-  ['#f0eee9', '#3a3f47'], ['#3b2a52', '#ded3ef'], ['#6b4a17', '#f0e2c4'],
-  ['#25303a', '#b9c6d2'], ['#701f3c', '#f0d2de'], ['#2f3b22', '#d8e2c8'],
+  { fam: 'metal', a: '#2b2f36', b: '#0d0f13', ink: '#e7ebf2', accent: '#c9a961', holo: true, cat: 'RESERVE' },
+  { fam: 'metal', a: '#3a3226', b: '#14110c', ink: '#f2e6cf', accent: '#d8b877', holo: true, cat: 'RESERVE' },
+  { fam: 'metal', a: '#232a33', b: '#0b0e12', ink: '#dfe6ef', accent: '#9fb4c9', holo: true, cat: 'PLATINUM' },
+  { fam: 'corporate', a: '#16345c', b: '#0b1c33', ink: '#cfe0f2', accent: '#6f9fd0', cat: 'BUSINESS' },
+  { fam: 'corporate', a: '#1d4a3e', b: '#0d2620', ink: '#cfe8dc', accent: '#63b393', cat: 'BUSINESS' },
+  { fam: 'corporate', a: '#3b2247', b: '#1b0f21', ink: '#e0d0ee', accent: '#a37fc4', cat: 'CORPORATE' },
+  { fam: 'debit', a: '#eceae5', b: '#cfccc4', ink: '#33383f', accent: '#5b6472', cat: 'DEBIT' },
+  { fam: 'debit', a: '#dfe4e8', b: '#bcc4cb', ink: '#2e343b', accent: '#4d6478', cat: 'DEBIT' },
+  { fam: 'debit', a: '#e6e2d6', b: '#c6c0ae', ink: '#3a382e', accent: '#6b6552', cat: 'DEBIT' },
+  { fam: 'consumer', a: '#c0392b', b: '#7d1f16', ink: '#ffe9e4', accent: '#ffb3a3', cat: 'CREDIT' },
+  { fam: 'consumer', a: '#1f7a8c', b: '#0d3d47', ink: '#e0f6fa', accent: '#7fd4e3', cat: 'CREDIT' },
+  { fam: 'consumer', a: '#d99a2b', b: '#8a5c10', ink: '#fff3dc', accent: '#ffd88a', cat: 'PREPAID' },
 ];
+
+// Green first. Then a per-denomination accent so a 100 does not read as a 1.
 const NOTES = [
-  ['1', '#5d7a5c'], ['5', '#7a6a5c'], ['10', '#5c6a7a'],
-  ['20', '#6a5c7a'], ['50', '#7a5c5c'], ['100', '#4f6b6b'],
+  { v: '1', word: 'ONE', accent: '#4a7c4e' },
+  { v: '5', word: 'FIVE', accent: '#7a6a43' },
+  { v: '10', word: 'TEN', accent: '#456b86' },
+  { v: '20', word: 'TWENTY', accent: '#6a5386' },
+  { v: '50', word: 'FIFTY', accent: '#8a4f45' },
+  { v: '100', word: 'HUNDRED', accent: '#2f6f66' },
 ];
+const INK = '#1b5230';           // the green everything is printed in
+const PAPER = '#bfcc9c';   // deliberately greener than real paper: under the
+                           // studio key the previous value washed to near-white
+                           // and the one cue that says 'money' was gone
+
 const COINS = [
-  ['25c', '#c9ccd2'], ['10c', '#c9ccd2'], ['5c', '#c3c6cc'], ['1c', '#b0763f'],
+  { v: '25', word: 'QUARTER', tone: '#c9ccd2', reeded: true },
+  { v: '10', word: 'DIME', tone: '#c9ccd2', reeded: true },
+  { v: '5', word: 'NICKEL', tone: '#c3c6cc', reeded: false },
+  { v: '1', word: 'PENNY', tone: '#b0763f', reeded: false },
 ];
 
-function cardCell(w, h, [bg, ink], i) {
+// ----------------------------------------------------------------- cards ----
+function cardCell(w, h, spec, i) {
+  const g = GLYPHS[GLYPH_KEYS[i % GLYPH_KEYS.length]];
+  const num = `${4000 + i * 7} ${1200 + i * 31} ${8800 - i * 13} ${1000 + i * 17}`;
+  const holo = spec.holo ? `
+    <rect x="${w * 0.70}" y="${h * 0.30}" width="${w * 0.12}" height="${h * 0.20}"
+          rx="${h * 0.02}" fill="url(#holo${i})" opacity="0.85"/>` : '';
+  // brushed streaks on the metal family; a soft sheen band on the rest
+  const texture = spec.fam === 'metal'
+    ? Array.from({ length: 26 }, (_, k) =>
+      `<rect x="0" y="${(k / 26) * h}" width="${w}" height="${h * 0.016}"
+             fill="#ffffff" opacity="${0.020 + (k % 3) * 0.010}"/>`).join('')
+    : `<path d="M0 ${h} L${w * 0.62} 0 L${w * 0.86} 0 L0 ${h * 0.72} Z"
+             fill="#ffffff" opacity="0.055"/>`;
   return `<g>
-    <rect width="${w}" height="${h}" rx="${h * 0.075}" fill="${bg}"/>
-    <rect x="${w * 0.07}" y="${h * 0.34}" width="${w * 0.145}" height="${h * 0.20}"
-          rx="${h * 0.030}" fill="#d9b451"/>
-    <path d="M ${w * 0.07} ${h * 0.44} H ${w * 0.215} M ${w * 0.142} ${h * 0.34}
-             V ${h * 0.54}" stroke="#8d7128" stroke-width="${h * 0.010}"/>
-    <g fill="${ink}" font-family="Helvetica, Arial, sans-serif">
-      <text x="${w * 0.07}" y="${h * 0.755}" font-size="${h * 0.115}"
-            letter-spacing="${h * 0.020}">•••• •••• •••• ${1000 + i * 7}</text>
-      <text x="${w * 0.07}" y="${h * 0.895}" font-size="${h * 0.070}"
-            letter-spacing="${h * 0.012}" opacity="0.85">CARDHOLDER</text>
-      <text x="${w * 0.70}" y="${h * 0.895}" font-size="${h * 0.070}"
-            opacity="0.85">${String(2 + (i % 8)).padStart(2, '0')}/3${i % 9}</text>
-      <circle cx="${w * 0.845}" cy="${h * 0.24}" r="${h * 0.085}" opacity="0.55"/>
-      <circle cx="${w * 0.905}" cy="${h * 0.24}" r="${h * 0.085}" opacity="0.32"/>
+    <defs>
+      <linearGradient id="cg${i}" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0" stop-color="${spec.a}"/><stop offset="1" stop-color="${spec.b}"/>
+      </linearGradient>
+      <linearGradient id="holo${i}" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0" stop-color="#8fd8ff"/><stop offset="0.33" stop-color="#c9a9ff"/>
+        <stop offset="0.66" stop-color="#9dffc4"/><stop offset="1" stop-color="#ffe08f"/>
+      </linearGradient>
+    </defs>
+    <rect width="${w}" height="${h}" rx="${h * 0.075}" fill="url(#cg${i})"/>
+    ${texture}
+    <!-- EMV chip: a generic contact plate, on every card ever issued -->
+    <rect x="${w * 0.075}" y="${h * 0.32}" width="${w * 0.135}" height="${h * 0.195}"
+          rx="${h * 0.028}" fill="${spec.accent}"/>
+    <g stroke="${spec.b}" stroke-width="${h * 0.011}" opacity="0.65">
+      <path d="M${w * 0.075} ${h * 0.417} H${w * 0.21}"/>
+      <path d="M${w * 0.1425} ${h * 0.32} V${h * 0.515}"/>
+      <path d="M${w * 0.107} ${h * 0.32} V${h * 0.515}"/>
+      <path d="M${w * 0.178} ${h * 0.32} V${h * 0.515}"/>
+    </g>
+    ${holo}
+    ${g(w * 0.800, h * 0.640, h * 0.225, spec.accent)}
+    <g fill="${spec.ink}" font-family="Helvetica, Arial, sans-serif">
+      <text x="${w * 0.075}" y="${h * 0.20}" font-size="${h * 0.088}"
+            letter-spacing="${h * 0.030}" opacity="0.9">${spec.cat}</text>
+      <!-- embossed pass: a dark offset copy under the light numerals -->
+      <text x="${w * 0.072}" y="${h * 0.712}" font-size="${h * 0.104}"
+            letter-spacing="${h * 0.007}" fill="${spec.b}" opacity="0.7">${num}</text>
+      <text x="${w * 0.070}" y="${h * 0.705}" font-size="${h * 0.104}"
+            letter-spacing="${h * 0.007}">${num}</text>
+      <text x="${w * 0.070}" y="${h * 0.845}" font-size="${h * 0.048}"
+            letter-spacing="${h * 0.010}" opacity="0.62">VALID THRU</text>
+      <text x="${w * 0.345}" y="${h * 0.845}" font-size="${h * 0.058}"
+            opacity="0.9">${String(1 + (i % 12)).padStart(2, '0')}/3${i % 9}</text>
+      <text x="${w * 0.075}" y="${h * 0.945}" font-size="${h * 0.068}"
+            letter-spacing="${h * 0.020}" opacity="0.85">CARDHOLDER NAME</text>
     </g>
   </g>`;
 }
 
-function noteCell(w, h, [value, tint], wear) {
-  const guilloche = Array.from({ length: 9 }, (_, k) =>
-    `<circle cx="${w * 0.5}" cy="${h * 0.5}" r="${h * (0.14 + k * 0.038)}"
-             fill="none" stroke="${tint}" stroke-width="0.9" opacity="0.30"/>`).join('');
+// ----------------------------------------------------------------- notes ----
+function noteCell(w, h, spec, wear) {
+  const R = h * 0.30;
+  const guilloche = Array.from({ length: 11 }, (_, k) =>
+    `<circle cx="${w * 0.255}" cy="${h * 0.50}" r="${R * (0.30 + k * 0.075)}"
+             fill="none" stroke="${INK}" stroke-width="0.8" opacity="0.22"/>`).join('');
+  const border = `
+    <rect x="${w * 0.022}" y="${h * 0.055}" width="${w * 0.956}" height="${h * 0.89}"
+          fill="none" stroke="${INK}" stroke-width="${h * 0.020}" opacity="0.85"/>
+    <rect x="${w * 0.040}" y="${h * 0.090}" width="${w * 0.920}" height="${h * 0.820}"
+          fill="none" stroke="${spec.accent}" stroke-width="${h * 0.008}" opacity="0.75"/>`;
+  const lathe = Array.from({ length: 40 }, (_, k) =>
+    `<line x1="${w * 0.040 + k * (w * 0.92 / 40)}" y1="${h * 0.090}"
+           x2="${w * 0.040 + k * (w * 0.92 / 40)}" y2="${h * 0.145}"
+           stroke="${INK}" stroke-width="0.7" opacity="0.28"/>`).join('');
+  const corners = [[0.10, 0.235], [0.90, 0.235], [0.10, 0.845], [0.90, 0.845]]
+    .map(([cx, cy]) => `<text x="${w * cx}" y="${h * cy}" font-size="${h * 0.145}"
+           text-anchor="middle" font-family="Georgia, serif" font-weight="bold"
+           fill="${INK}">${spec.v}</text>`).join('');
   return `<g>
-    <rect width="${w}" height="${h}" fill="#ddd8c6"/>
-    <rect x="${w * 0.02}" y="${h * 0.05}" width="${w * 0.96}" height="${h * 0.90}"
-          fill="none" stroke="${tint}" stroke-width="${h * 0.018}" opacity="0.8"/>
-    ${guilloche}
-    <circle cx="${w * 0.28}" cy="${h * 0.5}" r="${h * 0.28}" fill="${tint}" opacity="0.16"/>
-    <g font-family="Georgia, serif" fill="${tint}">
-      <text x="${w * 0.28}" y="${h * 0.60}" font-size="${h * 0.34}"
-            text-anchor="middle" font-weight="bold">${value}</text>
-      <text x="${w * 0.66}" y="${h * 0.38}" font-size="${h * 0.115}"
-            text-anchor="middle" letter-spacing="${h * 0.020}">UNITS</text>
-      <text x="${w * 0.66}" y="${h * 0.72}" font-size="${h * 0.075}"
-            text-anchor="middle" letter-spacing="${h * 0.014}"
-            opacity="0.8">LEGAL TENDER</text>
+    <rect width="${w}" height="${h}" fill="${PAPER}"/>
+    <rect width="${w}" height="${h}" fill="${spec.accent}" opacity="0.16"/>
+    <rect width="${w}" height="${h}" fill="#2f6b3d" opacity="0.18"/>
+    ${border}${lathe}${guilloche}
+    <!-- portrait oval: a plate, not a person -->
+    <ellipse cx="${w * 0.255}" cy="${h * 0.50}" rx="${R * 0.70}" ry="${R * 0.95}"
+             fill="${INK}" opacity="0.13"/>
+    <ellipse cx="${w * 0.255}" cy="${h * 0.50}" rx="${R * 0.70}" ry="${R * 0.95}"
+             fill="none" stroke="${INK}" stroke-width="${h * 0.012}" opacity="0.8"/>
+    <path d="M${w * 0.255 - R * 0.34} ${h * 0.50 + R * 0.52}
+             q ${R * 0.34} ${-R * 0.66} ${R * 0.68} 0 Z" fill="${INK}" opacity="0.42"/>
+    <ellipse cx="${w * 0.255}" cy="${h * 0.50 - R * 0.22}" rx="${R * 0.26}" ry="${R * 0.28}"
+            fill="${INK}" opacity="0.42"/>
+    <g font-family="Georgia, serif" fill="${INK}">
+      <text x="${w * 0.635}" y="${h * 0.395}" font-size="${h * 0.150}"
+            text-anchor="middle" letter-spacing="${h * 0.028}">UNITS</text>
+      <text x="${w * 0.635}" y="${h * 0.615}" font-size="${h * 0.230}"
+            text-anchor="middle" font-weight="bold">${spec.word}</text>
+      <text x="${w * 0.655}" y="${h * 0.760}" font-size="${h * 0.060}"
+            text-anchor="middle" letter-spacing="${h * 0.008}"
+            opacity="0.8">LEGAL TENDER FOR ALL DEBTS</text>
     </g>
-    ${wear ? `<rect width="${w}" height="${h}" fill="#6b5f43" opacity="${wear * 0.18}"/>` : ''}
+    <!-- serial band -->
+    <g font-family="Courier New, monospace" fill="${spec.accent}">
+      <text x="${w * 0.400}" y="${h * 0.885}" font-size="${h * 0.085}"
+            letter-spacing="${h * 0.012}">${String.fromCharCode(65 + (+spec.v % 7))}${
+              String(1043 + (+spec.v) * 977).padStart(8, '0')}${
+              String.fromCharCode(72 + (+spec.v % 5))}</text>
+    </g>
+    ${corners}
+    ${wear ? `<rect width="${w}" height="${h}" fill="#6b5f43" opacity="${wear * 0.16}"/>
+      <path d="M0 ${h * 0.34} Q ${w * 0.5} ${h * 0.30} ${w} ${h * 0.37}"
+            stroke="#6b5f43" stroke-width="${h * 0.014}" fill="none" opacity="0.30"/>` : ''}
   </g>`;
 }
 
-function coinCell(w, h, [value, tone]) {
+// ----------------------------------------------------------------- coins ----
+function coinCell(w, h, spec) {
   const r = Math.min(w, h) * 0.46;
-  const reeds = Array.from({ length: 48 }, (_, k) => {
-    const a = (k / 48) * Math.PI * 2;
-    return `<line x1="${w / 2 + Math.cos(a) * r * 0.90}" y1="${h / 2 + Math.sin(a) * r * 0.90}"
-                  x2="${w / 2 + Math.cos(a) * r}" y2="${h / 2 + Math.sin(a) * r}"
-                  stroke="#000" stroke-width="1.1" opacity="0.20"/>`;
+  const cx = w / 2, cy = h / 2;
+  const reeds = spec.reeded ? Array.from({ length: 72 }, (_, k) => {
+    const a = (k / 72) * Math.PI * 2;
+    return `<line x1="${cx + Math.cos(a) * r * 0.905}" y1="${cy + Math.sin(a) * r * 0.905}"
+                  x2="${cx + Math.cos(a) * r}" y2="${cy + Math.sin(a) * r}"
+                  stroke="#000" stroke-width="1.3" opacity="0.26"/>`;
+  }).join('') : '';
+  // a device: an abstract flag-and-pin, which is this game's own object and
+  // nobody's coinage
+  const device = `
+    <g stroke="#000" fill="none" opacity="0.40" stroke-linecap="round">
+      <path d="M${cx} ${cy - r * 0.44} V${cy + r * 0.40}" stroke-width="${r * 0.075}"/>
+      <path d="M${cx} ${cy - r * 0.42} L${cx + r * 0.34} ${cy - r * 0.26}
+               L${cx} ${cy - r * 0.10} Z" fill="#000" stroke-width="${r * 0.03}"/>
+      <ellipse cx="${cx}" cy="${cy + r * 0.44}" rx="${r * 0.30}" ry="${r * 0.09}"
+               stroke-width="${r * 0.05}"/>
+    </g>`;
+  const legend = Array.from({ length: 26 }, (_, k) => {
+    const a = (k / 26) * Math.PI * 2 - Math.PI / 2;
+    return `<circle cx="${cx + Math.cos(a) * r * 0.74}" cy="${cy + Math.sin(a) * r * 0.74}"
+                    r="${r * 0.015}" fill="#000" opacity="0.28"/>`;
   }).join('');
   return `<g>
-    <rect width="${w}" height="${h}" fill="${tone}"/>
-    <circle cx="${w / 2}" cy="${h / 2}" r="${r}" fill="${tone}"/>
-    <circle cx="${w / 2}" cy="${h / 2}" r="${r * 0.84}" fill="none"
-            stroke="#000" stroke-width="${r * 0.035}" opacity="0.22"/>
-    ${reeds}
-    <g text-anchor="middle" font-family="Georgia, serif" fill="#000" opacity="0.45">
-      <text x="${w / 2}" y="${h * 0.58}" font-size="${r * 0.62}"
-            font-weight="bold">${value}</text>
+    <rect width="${w}" height="${h}" fill="${spec.tone}"/>
+    <circle cx="${cx}" cy="${cy}" r="${r}" fill="${spec.tone}"/>
+    <!-- raised rim: a bright ring inside a dark one -->
+    <circle cx="${cx}" cy="${cy}" r="${r * 0.94}" fill="none" stroke="#000"
+            stroke-width="${r * 0.055}" opacity="0.20"/>
+    <circle cx="${cx}" cy="${cy}" r="${r * 0.885}" fill="none" stroke="#fff"
+            stroke-width="${r * 0.030}" opacity="0.30"/>
+    ${reeds}${legend}${device}
+    <g text-anchor="middle" font-family="Georgia, serif" fill="#000">
+      <text x="${cx}" y="${cy + r * 0.60}" font-size="${r * 0.22}"
+            letter-spacing="${r * 0.03}" opacity="0.42">${spec.word}</text>
+      <text x="${cx - r * 0.60}" y="${cy + r * 0.12}" font-size="${r * 0.34}"
+            font-weight="bold" opacity="0.45">${spec.v}</text>
     </g>
   </g>`;
 }
@@ -118,6 +290,30 @@ const noteCells = [
   noteCell(512, 218, NOTES[3], 2),
 ];
 const coinCells = COINS.map((c) => coinCell(256, 256, c));
+
+// A blunt sweep for the thing that got us here. Any near-miss of a real scheme
+// mark is a letter, so the check is mechanical rather than a memory of having
+// been careful.
+const banned = /mastercard|visa|amex|american express|maestro|discover|unionpay|jcb|interlock/i;
+for (const [name, cells] of [['cards', cardCells], ['notes', noteCells], ['coins', coinCells]]) {
+  const joined = cells.join('');
+  if (banned.test(joined)) throw new Error(`${name}: a real scheme name is in the artwork`);
+  const circles = [...joined.matchAll(/<circle[^>]*cx="([\d.]+)"[^>]*cy="([\d.]+)"[^>]*r="([\d.]+)"/g)]
+    .map((m) => m.slice(1).map(Number));
+  for (let i = 0; i < circles.length; i++) {
+    for (let j = i + 1; j < circles.length; j++) {
+      const [ax, ay, ar] = circles[i], [bx, by, br] = circles[j];
+      const d = Math.hypot(ax - bx, ay - by);
+      // overlapping but not concentric = interlocking rings
+      if (d > 1e-6 && d < ar + br && d > Math.abs(ar - br)) {
+        throw new Error(
+          `${name}: two circles at (${ax},${ay}) r${ar} and (${bx},${by}) r${br} ` +
+          `overlap without being concentric — that is the Mastercard shape`);
+      }
+    }
+  }
+  console.log(`${name}: no scheme name, ${circles.length} circles, none interlocking`);
+}
 
 for (const [name, svg] of [
   ['money_cards.png', atlas(CARD_COLS, CARD_ROWS, 512, 323, cardCells)],

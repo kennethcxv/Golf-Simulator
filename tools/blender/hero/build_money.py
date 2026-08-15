@@ -137,8 +137,10 @@ def build(broken=False):
         c.location = Vector((-0.185 + k * 0.045, -0.245, 0))
         p["coins"].append(c)
 
+    # 0.44, not 0.28: at a grazing angle the glossier value blew four of the
+    # twelve cards to flat white and the designs on them stopped existing
     card_mat = HS.pbr_textured("MoneyCards", os.path.join(TEX, "money_cards.png"),
-                               roughness=0.28)
+                               roughness=0.44)
     note_mat = HS.pbr_textured("MoneyNotes", os.path.join(TEX, "money_notes.png"),
                                roughness=0.86)
     silver = HS.pbr_textured("MoneyCoinSilver", os.path.join(TEX, "money_coins.png"),
