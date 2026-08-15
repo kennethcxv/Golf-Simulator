@@ -276,8 +276,46 @@ codebase already has `lastReservationTargetMismatchClause()` to name *which* cla
 disagrees; the entries in your log predate it, so the next step is one run with a
 build that emits the clause.
 
-**7a, 7d, 7e — NOT STARTED.** No work was done on them and I am not going to
-imply otherwise.
+**7a — NOT FIXED, but the hunt moved a long way.** Two items stalled on "the tool
+does not appear in the picture", so I asked the scene instead of guessing
+(`tools/qa/electron-tool-draws-at-all.js`). It splits the four candidate causes —
+a group left invisible, a group visible but parked elsewhere, a rig that never
+built, and a camera pointed the wrong way:
+
+| tool | in scene | visible | hidden ancestor | child meshes | distance to camera |
+|---|---|---|---|---|---|
+| mop | yes | true | none | 92 | 0.67 yd |
+| broom | yes | true | none | 89 | 1.51 yd |
+| rake | **no `Tool_rake`** | — | — | — | — |
+
+So the mop was **never suppressed**: it is in the graph, visible, unhidden, with 92
+meshes two feet from the camera. My screenshots simply did not have it in frame,
+and blaming the tutorial would have been wrong.
+
+The rake is the interesting one, and the diagnosis is now specific:
+
+- **There is no `rake` in `CLEANING_TOOLS` at all.** The registry holds washer,
+  vacuum, mop, broom, dustpan, spray, cloth, sponge, trashbag. So no `Tool_rake`
+  group is ever built by `buildToolViewmodels`, which is why `walk.setTool('rake')`
+  reports success for a tool the viewmodel system has never heard of.
+- Its held group exists anyway: `courseScene` hand-creates
+  `heldGroups.rake = new THREE.Group()` alongside hose, divot and washer, and only
+  the washer is given a name. So "no `Tool_rake` in the scene" is true AND the rake
+  still has a group — a distinction worth stating, because the probe could
+  otherwise read as "the rake does not exist".
+- `GRIPS.rake` DOES exist in `fpHands` (a grip and a **support** hand, both
+  `wrap`), so both hands are placed. But `toolViewmodels.gripsFor('rake')` returns
+  nothing (no registry entry), so the authored sockets are null and the hands fall
+  back to offsets authored in a different frame, while the rake's model sits at
+  `[0.42, -0.6, -0.95]` with its own rotation.
+
+**That is the shape of the photograph**: one hand gripping the shaft correctly and
+one hand floating, because only one of the two is being placed against geometry
+that is where its offsets expect. The next step is to give the rake a registry
+entry with real sockets, not to move the model.
+
+**7d, 7e — NOT STARTED.** No work was done on them and I am not going to imply
+otherwise.
 
 ---
 
