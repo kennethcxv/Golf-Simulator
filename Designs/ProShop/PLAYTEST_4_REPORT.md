@@ -27,8 +27,8 @@
 | 7a — the rake | **ROOT-CAUSED, NOT FIXED.** There is no rake in the tool registry |
 | 7b — `deskAction('exit')` | **DONE**, watched on the driver that found it |
 | 7c — the `sale-refused` storm | **DIAGNOSED, NOT FIXED** |
-| 7d — the stranger | **NOT STARTED** |
-| 7e — the static mesh merge | **NOT STARTED** |
+| 7d — the stranger | **HALF, and I was wrong about 6:01 AM.** Survey completed by following the prompts; still not inside |
+| 7e — the static mesh merge | **NOT STARTED.** The mechanism already exists; the trap in reusing it is named below |
 
 ---
 
@@ -314,8 +314,55 @@ one hand floating, because only one of the two is being placed against geometry
 that is where its offsets expect. The next step is to give the rake a registry
 entry with real sockets, not to move the model.
 
-**7d, 7e — NOT STARTED.** No work was done on them and I am not going to imply
-otherwise.
+**7d — HALF, AND I AM STRIKING MY OWN 6:01 AM FINDING.** Read off the game's own
+objective list at boot, minute 360.9:
+
+| | |
+|---|---|
+| objective 14 of 19 | **"Open the clubhouse for business"** |
+| hint | *"Review the opening requirements on the front-desk laptop."* — and when ready, *"Use the CLOSED hours sign on the porch, or the Opening page on the front-desk laptop."* |
+| blocked by | *"Bring any missing workstation or display back out of storage."* |
+
+The shop is shut on Day 1 **by design**, the instruction exists, it names both
+places to do it, and it sits behind 13 restoration objectives each of which states
+its own blocker. The twenty game-minutes I watched last session were spent on step
+2 of 19. Playtest 3's *"nothing tells a new player to open it"* was a fact about
+how far my driver got, not about the game.
+
+**Following the prompts worked where holding W did not.** Reading `campaignView`,
+looking around properly (a sustained sweep, which is what sets the flag), then
+taking the heading from the building: the `survey` objective goes **incomplete →
+complete**. That is the first half of the stranger question answered — a stranger
+can do what the game asks first.
+
+**Still not inside.** The player walks to x −360.16, z 10.09 and stops there, three
+consecutive samples at the same spot, with `enter` still blocked on *"Walk up to
+the porch first."* A plain E press does not take them through the green doors. The
+three-customer half is **still not run**, and the reason has moved from "my driver
+walked the wrong way" to "the doors did not open for a press that was not aimed".
+
+**7e — NOT STARTED, and the reason is a hazard worth writing down.**
+
+The merge does not need to be written from scratch: `batchPlacedStaticVisuals` in
+`src/render3d/assets51to100/propPlacement.js` already does exactly this job and is
+proven in production. It buckets by a vertex-palette descriptor (so materials
+differing only in colour merge into ONE bucket with vertex colours — which is most
+of the 349 materials), merges, checks it actually reduced draws before committing,
+and retires the sources with `layers.mask = 0`. Extending it to the rest of the
+static clubhouse is the shape of the work, not a rewrite.
+
+**The trap:** it sets `castShadow = false; receiveShadow = false` on everything it
+batches. That is correct for the placed props it was written for and would be a
+visible regression for the clubhouse architecture, which both casts and receives.
+Reusing the function unchanged would land a shadow change across the whole shop
+behind a performance commit, and the golden gate would then be diffing two changes
+at once.
+
+I did not start it because I do not have the room left to do it and verify it in
+the same session, and a half-applied merge in a hot shared file that silently
+changes shadowing is worse than an unstarted one. The measurement from last
+session stands: **1446 standing draw calls, 1037 mergeable meshes, 349 materials,
+−47.6% available against a 30% target.**
 
 ---
 
