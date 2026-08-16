@@ -12697,6 +12697,27 @@ export function makeCourseScene(canvas, state) {
     fitSunShadow();
     renderer.shadowMap.needsUpdate = true;
     phaseAt = markPrewarm('editor-camera-warm', phaseAt);
+    // GOAL 28 P4 — the first Tab's own state, drawn under the veil. The
+    // census put tab-overview at 1,490 ms first press (second ~14 ms); the
+    // handler itself measured 0.8 ms and the whole cost was the FIRST
+    // OVERVIEW FRAME: +10 program arrivals (renderer.info.programs,
+    // 171->181) for the one state no warm ever drew — the course-overview
+    // framing WITH the dirt-sense pillars revealed (Tab's own toast raises
+    // them). Draw exactly that state once, under the clock's own lighting
+    // (overview does not pin 'day' the way the editor does), then conceal.
+    frameCourse();
+    camera.updateMatrixWorld(true);
+    clubhouseApi?.syncCameraVisibility?.();
+    floraLodUpdate?.(true);
+    clubhouseApi?.setDirtReveal?.(1, true);
+    fitSunShadow();
+    renderer.shadowMap.needsUpdate = true;
+    guardCourseWaterReflection.beginFrame();
+    timedWarmDraw(() => withWarmViewport(() => {
+      try { composer.render(); } catch (e) { renderer.render(scene, camera); }
+    }));
+    clubhouseApi?.setDirtReveal?.(0, false);
+    phaseAt = markPrewarm('gesture-overview', phaseAt);
     walk.active = savedView.walkActive;
     heldRoot.visible = savedView.heldVisible;
     editorShadowFocus = savedView.editorShadowFocus;

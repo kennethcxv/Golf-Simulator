@@ -2374,19 +2374,25 @@ const handlers = {
     }
     resetCameraInput(); // the map opens still — nothing carries over from the walk
     if (app.courseMode === 'walk') {
+      performance.mark('ov-enter-start'); // Goal 28 P4: first-press attribution
       app.courseMode = 'overview';
       app.scene3d?.setOverviewPin?.(true);
+      performance.mark('ov-pin');
       exitWalk();
+      performance.mark('ov-exitwalk');
       // The overview is the half of dirt visibility that answers WHICH WAY to
       // go — House Flipper 2's Flipper Sense only lights what you already face,
       // and the documented complaint is exactly that. Standing pillars over
       // every remaining pile makes the map say where the work is.
       const ch = app.scene3d.clubhouse?.();
       const piles = ch?.setDirtReveal ? (ch.dirtSenseDiagnostics?.().clusters || 0) : 0;
+      performance.mark('ov-dirt-diag');
       ch?.setDirtReveal?.(1, true);
+      performance.mark('ov-dirt-reveal');
       toast(piles
         ? `Overview camera - ${piles} dirty spot${piles === 1 ? '' : 's'} marked. Tab returns you to your feet.`
         : 'Overview camera - Tab returns you to your feet.');
+      performance.mark('ov-enter-end');
     } else {
       app.courseMode = 'walk';
       app.scene3d.clubhouse?.()?.setDirtReveal?.(0, false);

@@ -201,3 +201,40 @@ pre-existing flake surfaced twice tonight and is now named:
 Electron child" fails under full-suite CPU pressure and passes 45/45 in
 isolation; it predates every Goal 28 change (it is the gate run's
 pipe-eaten "fail 1" from before P1 existed) and belongs in HARNESS_DEBT.
+
+## PHASE 4 — THE FIRST PRESSES
+
+**tab-overview — FIXED, red-green on a dedicated instrument.** The
+handler measured 0.8 ms (new ov-* marks); the entire cost was the FIRST
+OVERVIEW FRAME: +10 program arrivals (read straight off
+renderer.info.programs — NOT the census's void counter) for the one
+state no warm ever drew, the course framing WITH dirt-sense pillars
+revealed. The fix is `gesture-overview` in the prewarm: frameCourse +
+setDirtReveal(1) + one warm draw under the clock's lighting + conceal.
+Prewarm cost: 37.1 ms. Acceptance
+(`tools/qa/electron-overview-first-press.js`, planted-stall control
+caught in both runs): first-frame stall 435.5 ms RED -> **0 ms GREEN**,
+back-to-back on the same instrument. The +10 arrivals persist but now
+land from the warm binary cache inside a normal frame — the
+context-key lesson, observed from the other side.
+
+**register-till — OPEN.** Its gesture warm already runs and enters
+(history: +56 -> +31 geometries); the 215 ms residual needs a
+geometry/texture-upload attribution around enter() before any change.
+Next instrument named, not built: count geometries/textures/programs
+across the enter() span with the ticked warm on and off.
+
+**The tools, against 16.7 ms — NONE are real first-press stalls.** From
+the VALID tiered census earlier tonight (ambient window 12-26 ms,
+controls sane): every tool reads first 16.3-28.9 / second 12.4-26.3 with
+first ~= second per the per-surface control — the ambient floor, not
+first-press cost. The mop specifically: 24.1/23.9 cold, 20.4/23.3 warm.
+
+**The 02:30 census attempt is VOID and is itself evidence:** the planted
+~150 ms stall registered as 1,013 ms and every surface read ~0.5-1.5 s
+on first AND second press — the machine has decayed to ~1 fps ambient
+(the same boot that read 63.8 s at midnight read 80.0 s here). The decay
+curve across the night: 30.7 s (12:37) -> 49-69 s (22:00-23:00) ->
+63.8 s (00:20) -> 80.0 s (02:30), reboot and DXCache clear refuted as
+remedies mid-curve. Timing work stops per the Phase 0 rule; what ships
+tonight shipped on count/order/red-green evidence.
