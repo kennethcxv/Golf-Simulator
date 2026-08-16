@@ -350,35 +350,125 @@ def hoodie_folded(origin=(0, 0, 0), broken=""):
     # A FOLDED HOOD is a wedge lying across the back of the stack with its
     # OPENING EDGE facing forward -- that edge is the whole identification, and
     # a plain roll (which is what this was) has none of it.
+    # THE OPENING IS THE HOOD. Everything else about a folded hood is a soft
+    # lump, and a soft lump is what this was twice: the span term
+    # sqrt(1 - (2t-1)^2 * 0.92) tapers at BOTH ends, which is an ellipsoid,
+    # which is a bread roll. Then the "opening edge" was a separate tube laid
+    # along the front of a CLOSED dome -- and a tube on a closed surface is a
+    # moulding, not a mouth.
+    #
+    # Same lesson as the folded leaves: you cannot get a slot out of one
+    # surface. The mouth is cut with a boolean DIFFERENCE (reliable here, where
+    # union of swept tubes is not), so there is a real cavity with a real rim
+    # where the two surfaces meet, and something for the light not to reach.
     hood_rings = []
     for k in range(17):
         t = k / 16.0
-        span = math.sqrt(max(0.0, 1.0 - (2 * t - 1) ** 2 * 0.92))
+        # flat across most of its length and rounded only at the very ends: a
+        # hood folded across a stack is a WEDGE, not an egg
+        # never 0: a ring collapsed to a point makes degenerate faces and the
+        # loft caps them as a hard flat diagonal, which is the sharp face that
+        # showed on the left end
+        # A FLAP, not a dome. Rounded hard at the two ends so there is no flat
+        # facet where the loft caps it, and flat across everything between.
+        span = max(0.22, min(1.0, (1.0 - abs(2 * t - 1) ** 5.0) * 1.9))
         ring = []
-        for i in range(22):
-            a2 = 2 * math.pi * i / 22
-            # a wedge section: deep at the back, tapering to the front lip
+        for i2 in range(24):
+            a2 = 2 * math.pi * i2 / 24
             back = 0.5 + 0.5 * math.cos(a2)
-            depth = d * 0.205 * (0.35 + 0.65 * back)
-            rise = 0.0330 * (0.30 + 0.70 * back)
-            ring.append(Vector((ox - w * 0.33 + w * 0.66 * t,
-                                oy + d * 0.105 + math.sin(a2) * depth * span,
+            # LOW AND WIDE. At 36 mm of rise over a 0.68w span it stood up
+            # like a suitcase handle, and with a bar across its mouth that is
+            # exactly what it read as. A hood folded onto a stack is a soft
+            # band across the back third, barely proud of the cloth.
+            depth = d * 0.240 * (0.32 + 0.68 * back)
+            rise = 0.0165 * (0.30 + 0.70 * back)
+            # cloth, not a moulding: the flap wanders along its length and
+            # sags a little between its ends
+            rise *= 1.0 + 0.10 * math.sin(t * 7.1 + 0.6)
+            depth *= 1.0 + 0.055 * math.sin(t * 4.3 + 2.2)
+            ring.append(Vector((ox - w * 0.40 + w * 0.80 * t,
+                                oy + d * 0.115 + math.sin(a2) * depth * span,
                                 hz + math.cos(a2) * rise * span
                                 - 0.0060 * (1 - span))))
         hood_rings.append(ring)
-    p["hood"] = CL.loft("HoodFold_Hood", hood_rings, smooth=True)
-    # the opening's rolled edge, standing proud along the front of the wedge
-    p["hood_rim"] = CL.fold_line(
-        "HoodFold_HoodRim",
-        (ox - w * 0.30, oy - d * 0.030, hz + 0.0055),
-        (ox + w * 0.30, oy - d * 0.030, hz + 0.0055),
-        radius=0.0135, sides=12, sink=0.30)
-    p["cord"] = HS.cylinder("HoodFold_Cord",
-                            (ox - w * 0.05, oy - d * 0.24,
-                             CL.top_z(body, ox - w * 0.05, oy - d * 0.06)
-                             - 0.0008),
-                            0.0032, 0.1000, verts=8,
-                            rotation=Quaternion((0, 1, 0), math.pi / 2))
+    # TUCK THE ENDS CLOSED. CL.loft caps the first and last ring with a flat
+    # n-gon, and on a ring that is still 22% of full span that cap is a hard
+    # diagonal facet -- clearly visible on the left end of the flap in three
+    # rounds of renders. Cloth does not end in a plate; it rolls over. Same
+    # move as the sleeve cuff.
+    def tuck(ring, k):
+        cx = sum(q.x for q in ring) / len(ring)
+        cy = sum(q.y for q in ring) / len(ring)
+        cz = sum(q.z for q in ring) / len(ring)
+        # The nose has to stay ROUND. Pushing a ring shrunk to 15% a further
+        # 14.8 mm out makes a spike, and the render grew a small fin at each
+        # end. The push has to stay inside what the shrinking ring can still
+        # cover, so it is roughly proportional to the width that is left.
+        push = (0.0038, 0.0062, 0.0074)[k]
+        shrink = (0.82, 0.56, 0.26)[k]
+        sgn = -1.0 if ring is hood_rings[0] else 1.0
+        return [Vector((cx + sgn * push + (q.x - cx) * shrink,
+                        cy + (q.y - cy) * shrink,
+                        cz + (q.z - cz) * shrink)) for q in ring]
+
+    hood_rings = ([tuck(hood_rings[0], k) for k in (2, 1, 0)] + hood_rings
+                  + [tuck(hood_rings[-1], k) for k in (0, 1, 2)])
+    hood = CL.loft("HoodFold_Hood", hood_rings, smooth=True)
+
+    # the cutter: a flattened ellipsoid driven into the front face, tilted so
+    # the mouth looks forward and a little up, the way a hood lying on its back
+    # does
+    bpy.ops.mesh.primitive_uv_sphere_add(radius=1.0, segments=28, ring_count=16,
+                                         location=(ox - w * 0.005,
+                                                   oy - d * 0.078,
+                                                   hz + 0.0056))
+    cut = bpy.context.active_object
+    cut.name = "HoodFold_Mouth"
+    cut.scale = (w * 0.300, d * 0.105, 0.0132)
+    cut.rotation_euler = (math.radians(-22.0), 0.0, 0.0)
+    bpy.ops.object.transform_apply(location=False, rotation=True, scale=True)
+    m = hood.modifiers.new("Mouth", "BOOLEAN")
+    m.operation = "DIFFERENCE"
+    m.object = cut
+    m.solver = "EXACT"
+    hood = HS.apply_mods(hood)
+    bpy.data.objects.remove(cut, do_unlink=True)
+    p["hood"] = CL.smooth_by_angle(hood, 38.0)
+
+    # the rolled edge now runs ROUND THE MOUTH the boolean cut, instead of
+    # lying across a closed dome
+    rim, rnrm = [], []
+    for k in range(19):
+        u = -1.0 + 2.0 * k / 18.0
+        rim.append(Vector((ox + u * w * 0.296,
+                           oy - d * 0.070 + 0.0150 * u * u,
+                           hz + 0.0104 - 0.0074 * u * u)))
+        rnrm.append(Vector((0.0, -0.55, 1.0)).normalized())
+    p["hood_rim"] = CL.framed_sweep("HoodFold_HoodRim", rim, rnrm,
+                                    0.0062, 0.0038, sides=8)
+    # THE DRAWCORDS. On a folded hoodie these and the pocket are what identify
+    # it -- the hood is just a soft band. This was ONE cylinder lying under the
+    # rim where nothing could see it. Two cords now, running out of the mouth
+    # and down across the top face, each with a metal tip, laid on the MEASURED
+    # surface rather than at a nominal height.
+    for ci, cx in enumerate((-w * 0.075, w * 0.055)):
+        path_pts, nrm = [], []
+        for k in range(10):
+            t = k / 9.0
+            y = oy - d * 0.075 - d * 0.300 * t
+            wob = 0.0065 * math.sin(t * 3.1 + ci * 2.0) * t
+            z = (hz + 0.0060) * (1.0 - t) + (
+                CL.top_z(body, cx + wob, y) + 0.0028) * t
+            path_pts.append(Vector((cx + wob, y, z)))
+            nrm.append(Vector((0.0, 0.0, 1.0)))
+        p[f"cord{ci}"] = CL.framed_sweep(f"HoodFold_Cord{ci}", path_pts, nrm,
+                                         0.0030, 0.0026, sides=6)
+        tip = path_pts[-1]
+        p[f"cord_tip{ci}"] = HS.cylinder(
+            f"HoodFold_CordTip{ci}", (tip.x, tip.y - 0.0075, tip.z),
+            0.0035, 0.0130, verts=8,
+            rotation=Quaternion((1, 0, 0), math.pi / 2))
+
     return p
 
 
