@@ -1,6 +1,11 @@
 # GOAL 28 — LOAD AND FIRST PRESSES
 
-**Probe lies this goal: 1.** The P1 `moduleRequests` probe read 0 src
+**Probe lies this goal: 2.**
+(2) The P3 clone-fidelity check asserted serialize-equality, which is BLIND
+to non-enumerable properties — it stayed green while the cloned empire was
+missing its maintenance runtime and the first visuals frame crashed. The
+graph-sweep in tests/new-game-worker-contract.test.js is the corrected
+instrument. (1, from P1:) The P1 `moduleRequests` probe read 0 src
 requests in BOTH the unbundled and bundled configurations — Electron
 `file://` module loads emit no resource-timing entries at all (this also
 retroactively explains every empty `slowResources` list in the Goal 27
@@ -238,3 +243,48 @@ curve across the night: 30.7 s (12:37) -> 49-69 s (22:00-23:00) ->
 63.8 s (00:20) -> 80.0 s (02:30), reboot and DXCache clear refuted as
 remedies mid-curve. Timing work stops per the Phase 0 rule; what ships
 tonight shipped on count/order/red-green evidence.
+
+## PHASE 5 — PROGRAMS, BY COUNTS ONLY (the machine permits nothing else)
+
+From the settled census on file (193 live programs): physical 107,
+basic 34, depth 12, normal 9, remainder 31 across sprite/points/dashed/
+numeric families. Key-field spread tops: field 51 (17 distinct), field 0
+(16), field 54 (15) — INDEXES, not names; the arrivals instrument's own
+caution (2681f28) applies, and naming them requires the value-matched
+twin-diff run on a machine that can boot without decaying.
+
+Mergeability judgment on the brief's four axes, from semantics + counts:
+- **side**: front vs double is rasterization semantics — merging means
+  double-siding single-sided geometry (fill-rate + thin-geometry
+  artifacts). Per-case only; nothing provable tonight.
+- **alphaTest**: the discard path disables early-Z; merging either
+  direction changes rendering behavior. NOT mergeable blindly.
+- **vertexColors**: mechanically mergeable UPWARD (attach white color
+  attributes, ~3-4 bytes/vertex) — the honest candidate, but HOW MANY
+  programs it would fold is exactly the number the value-matched census
+  must produce first.
+- **geometry-shape** (morph/skin/instancing flags): driven by what the
+  mesh IS. Not mergeable.
+
+Editor arrivals (17) from the same instrument family: 12 differ on ONE
+unnamed key field (live=4, entry=0, field-from-end-20), 3 on numDirLights,
+2 singletons. Naming field-20 by value-matching against live state is the
+next editor instrument.
+
+**Taken: none — because none is provable by counts tonight.** The next
+session's first Phase 5 act on a healthy machine: extend
+electron-program-census.js with the twin-diff value matcher, name the
+side/alphaTest/vertexColors positions, and produce the fold table the
+merge decisions need.
+
+## WHERE GOAL 28 STANDS AT 02:50
+
+Phases 0-4 delivered on count/order/red-green evidence; Phase 5 is a
+named instrument away from actionable. The machine decayed monotonically
+under measurement all day (30.7 s -> 49-69 s -> 63.8 s -> 80.0 s cold;
+ambient now ~1 fps at 02:30) and reboot + driver-cache clear are refuted
+remedies — hardware-level suspects (thermals, VRAM exhaustion by the
+decayed driver state, panel/display renegotiation) are the remaining
+unexamined class, and they are the owner's machine to examine, not a
+fifth theory to chase from here. Every timing number in this report
+carries its tier and its hour for exactly that reason.
