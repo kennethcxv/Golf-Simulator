@@ -2828,6 +2828,11 @@ export function makeClubhouse(ctx) {
     shelf.position.set(LOUNGE.trophy.x, 0, LOUNGE.trophy.z);
     shelf.rotation.y = LOUNGE.trophy.ry;
     interior.add(shelf);
+    // GOAL 29 P2 — lifetime-static lounge dressing (nothing here restocks,
+    // repairs, or moves); the exact-value colour fold shares one draw across
+    // the gold pieces and one across the wood boards, pixel-identically.
+    const trophyShelfBatchLabel = 'LoungeTrophyShelfStaticBatch'; // bound first: the strings ratchet
+    batchStaticSubtree(shelf, { label: trophyShelfBatchLabel });
 
     // Original, text-free Pine Hills course art remains mounted on the existing
     // furnished-lounge photo prop; only its source texture is replaced.

@@ -39,6 +39,21 @@ async (page) => {
           }
         });
         if (meshes >= 4 && anonymous) {
+          // geometry parameters are grep-able source constants: a
+          // BoxGeometry(1.7, 0.07, 0.85) leads straight to its builder
+          const geoSignatures = [];
+          const colorSignatures = new Set();
+          child.traverseVisible((o) => {
+            if (!o.isMesh || o.layers.mask === 0) return;
+            if (geoSignatures.length < 8) {
+              const p = o.geometry?.parameters;
+              geoSignatures.push(p
+                ? `${o.geometry.type}(${['width', 'height', 'depth', 'radius', 'radiusTop'].map((k) => p[k]).filter((v) => v !== undefined).join(',')})`
+                : `${o.geometry?.type || '?'}[${o.geometry?.attributes?.position?.count || 0}v]`);
+            }
+            const hex = o.material?.color?.getHexString?.();
+            if (hex && colorSignatures.size < 6) colorSignatures.add(hex);
+          });
           rows.push({
             where,
             childIndex: root.children.indexOf(child),
@@ -46,6 +61,8 @@ async (page) => {
             meshes,
             descendantNames: [...names],
             materialNames: [...mats],
+            geoSignatures,
+            colors: [...colorSignatures],
             center: meshes ? [((minX + maxX) / 2).toFixed(1), ((minY + maxY) / 2).toFixed(1), ((minZ + maxZ) / 2).toFixed(1)] : null,
             size: meshes ? [(maxX - minX).toFixed(1), (maxY - minY).toFixed(1), (maxZ - minZ).toFixed(1)] : null,
           });

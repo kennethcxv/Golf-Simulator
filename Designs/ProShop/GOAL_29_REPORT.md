@@ -23,9 +23,9 @@ FRAMES no frame >16.7 ms normal play mid-range; DRAWS <400 standing (from
 
 1. **The machine still reads degraded** (61.2 s warm vs 31.9 healthy, same
    20 s compile-stall signature), so the night ran on counts, per your rule.
-2. **Draws: 2419 → 2355 shop** (controlled instrument, measured pass
+2. **Draws: 2419 → 2325 shop** (controlled instrument, measured pass
    multiplier 2), goldens 13/13 — and the honest census says **<400 is
-   unreachable by static merging** (~1850 is the floor of that lever).
+   unreachable by static merging** (~1950 is the floor of that lever).
 3. **Programs: <120 is unreachable mechanically** — the "46 vertexColors
    folds" were 6 once the packed key bit was calibrated with planted pairs;
    the fold was built, measured, and REVERTED as not paying.
@@ -73,7 +73,7 @@ gl-programs at prewarm close: 121.
 
 ## Phases worked tonight (in doc order, degraded-machine set)
 
-- PHASE 2 — draw calls: CLOSED (four batches live, golden-gated; residual
+- PHASE 2 — draw calls: CLOSED (five batches live, golden-gated; residual
   map written)
 - PHASE 4 — programs: CLOSED HONESTLY (fold measured at 6, reverted;
   target declared unreachable mechanically)
@@ -143,7 +143,9 @@ mirrors ok. Evidence: `qa/electron/static-stability-census/census-g29.json`.
 
 **Consequence stated plainly: DRAWS < 400 in the shop is UNREACHABLE by
 static merging alone.** Perfect execution of every honest candidate is
-2421 − 2×285 ≈ 1851. The remainder lives in: 1129 flagged-stable meshes
+2421 − 2×285 ≈ 1851 by this census — and the floor RISES to ≈1950 after
+the hidden-subtree phantoms this census still carried were removed (the
+probe-lie note at the top; corrected figures in the residual map below). The remainder lives in: 1129 flagged-stable meshes
 (movable fixtures, doors, checkout/delivery/sheet06 contracts, sim items —
 each needs its own cohort mechanism: per-fixture batches that ride their
 anchors, rebatch-on-relay, door-frame-vs-leaf splits), skinned customers,
@@ -180,19 +182,19 @@ and a float32-exactness pin on the fold.
 
 ### Phase 2 close — the counted before/after (controls green in every run)
 
-| station | BEFORE (two runs) | AFTER (all four batches) | delta |
+| station | BEFORE (two runs) | AFTER (all five batches) | delta |
 |---|---|---|---|
-| shop, default spawn | 2419 / 2421 | **2355** | **−64..−66 info-calls** (≈32 objects at pass-mult 2) |
+| shop, default spawn | 2419 / 2421 | **2325** | **−94..−96 info-calls** (≈47 objects at pass-mult 2) |
 | out 45 yd facing course | 274 / 276 | 271 | −4 |
 | out 45 yd facing shop | 1889 | 1858 | −31 |
 
-41 source meshes are layer-suppressed into 10 batch meshes across four live
-batches (PineHillsV2StaticBatch, DeliveryRecyclingStation, two storage
-totes); goldens 13/13 ok with all of them live (strict scenes 0 / 0 /
+61 source meshes are layer-suppressed into 13 batch meshes across five live
+batches (PineHillsV2StaticBatch, the lounge trophy shelf,
+DeliveryRecyclingStation, two storage totes); goldens 13/13 ok with all of them live (strict scenes 0 / 0 /
 0.0006%), and the golden one-pixel control still catches a single flipped
 pixel. Modest by design: the honest census left only ~240 visible identity
 saves in the whole shop, and tonight took the ones whose owners are named.
-Evidence: qa/electron/goal29-draws/g29-{before2,slice1,slice2,after,after2}-result.json,
+Evidence: qa/electron/goal29-draws/g29-{before2,slice1,slice2,after,after2,after3}-result.json,
 golden-final.log, golden-control.log.
 
 Lint ratchet: 323 exactly after all edits.
@@ -220,17 +222,29 @@ Lint ratchet: 323 exactly after all edits.
 ### Where the rest of the shop's draws live (the residual map)
 
 census-g29b read 269 identity saves; subtract the hidden-subtree phantoms
-its own successor exposed (gondola 25, suppressed lounge 4) and the 19
-already taken, and the honest REMAINING identity headroom is ~221 draws
-(~440 info-calls at ×2) across: an anonymous 35-mesh procedural
-exterior assembly (group idx142, 13×4.5×7.7 yd — 29), a 21-mesh mid-shop
-tower (interior idx138 — 17), a 7×10-mesh anonymous fixture wave on the
-shop floor (~35), merch storage-tote kit instances (~12), parking bays (6),
-Fixture_backcounter (9, movable-fixture mechanics needed), doors
-(~121 across five door systems — leaf/frame split needed), and a long tail
-of ≤5s. Identified by world-position signature
-(qa/electron/goal29-draws/root-identify.json); each needs its OWNER named
-before merging — the gondola/door/progression lessons are exactly why
+its own successor exposed (gondola 25, suppressed lounge 4) and what
+tonight took (~48), and the honest REMAINING identity headroom is ~190
+draws (~380 info-calls at ×2). The anonymous roots were then NAMED by
+their geometry signatures — BoxGeometry parameters are grep-able source
+constants (qa/electron/goal29-draws/root-identify.json):
+
+- **group idx142 (29 saves) = the EXTERIOR NEGLECT LAYER** (exterior.js:
+  weed tufts, gutter clumps, cobwebs) — every subtree is a restoration
+  E-verb target whose `visible` flips when the player pulls/clears it.
+  Unmergeable as a unit; per-verb-cohort batches would buy ~2–3 saves per
+  tuft. Left.
+- **interior idx155–161 (7×5 saves) = shelf product-card proxies** — they
+  rebuild when stock changes; merging without rebatch-on-restock wiring
+  would freeze the shelves. Left, mechanism named.
+- **interior idx138 (17 saves) = the lounge trophy shelf**
+  (clubhouse.js, lounge dressing: two boards, three procedural gold cups,
+  magazines — lifetime-static). TAKEN as tonight's final slice.
+- Still owner-less or mechanism-heavy: parking bays (6),
+  Fixture_backcounter (9, movable-fixture mechanics), doors (~121 across
+  five systems — leaf/frame split), and a long tail of ≤5s.
+
+Three of the four identifications turned out to be verb targets or
+restock-mutable — the gondola/door/progression lessons are exactly why
 anonymous subtrees do not get merged on idle-stability evidence.
 
 ---
