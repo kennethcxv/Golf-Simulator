@@ -28,7 +28,71 @@ import os
 import sys
 
 import bpy
+import numpy as np
 from mathutils import Vector
+
+# ---------------------------------------------------------------------------
+# the blank-frame guard
+#
+# Eleven frames in the shipped hero set contained NO SUBJECT -- a flat grey card
+# and nothing else -- and three of them were cited as evidence in a report. The
+# cause was one thing in every case: `backdrop()` puts a large plane 1.05 subject
+# radii BELOW the subject, and any camera at an elevation under about -12 degrees
+# sits beneath that plane and photographs its underside. Every under-, palmar-,
+# reel- and spinner-view in the set was such a camera.
+#
+# Two changes close it. `render()` now HIDES the backdrop when the camera is
+# below it (an under-view wants the object's underside, never the floor's), and
+# then MEASURES the written frame and fails the build if the frame is empty.
+#
+# The threshold is measured, not guessed. `blank_frame_scan.mjs` scored all 569
+# frames in qa/hero: the eleven blank ones scored 0.9-1.5 on this statistic and
+# the next frame up scored 40.9. Anything between separates them; 8.0 is a
+# 5x margin on one side and a 5x margin on the other.
+BLANK_EDGE_MIN = 8.0
+_ALLOW_BLANK = {"on": False}      # only the negative control turns this off
+
+
+def frame_edge_score(path):
+    """99.9th percentile of the local gradient magnitude of a written frame.
+
+    An image holding any object has hard edges somewhere. An image that is only
+    the world gradient plus a flat card has none -- both are smooth by
+    construction, which is what makes this separate them by a factor of 30 and
+    not by a few percent.
+    """
+    # Absolute: bpy resolves a relative path against the .blend, not the cwd,
+    # and factory-startup has no .blend.
+    img = bpy.data.images.load(os.path.abspath(path), check_existing=False)
+    try:
+        # Raw values. Left as sRGB the guard would be measuring the view
+        # transform as much as the frame.
+        img.colorspace_settings.name = "Non-Color"
+        w, h = img.size
+        buf = np.empty(w * h * 4, dtype=np.float32)
+        img.pixels.foreach_get(buf)
+    finally:
+        bpy.data.images.remove(img)
+    a = buf.reshape(h, w, 4)
+    g = (a[:, :, 0] * 0.299 + a[:, :, 1] * 0.587 + a[:, :, 2] * 0.114) * 255.0
+    step = max(1, w // 240)           # match the scanner's sample density
+    g = g[::step, ::step]
+    gx = g[1:-1, 2:] - g[1:-1, :-2]
+    gy = g[2:, 1:-1] - g[:-2, 1:-1]
+    return float(np.percentile(np.hypot(gx, gy).ravel(), 99.9))
+
+
+def assert_frame_has_subject(path):
+    score = frame_edge_score(path)
+    if score < BLANK_EDGE_MIN and not _ALLOW_BLANK["on"]:
+        raise SystemExit(
+            f"BUILD FAILED: {os.path.basename(path)} contains no subject "
+            f"(edge score {score:.2f}, floor {BLANK_EDGE_MIN}). The camera "
+            f"photographed empty space or the back of the backdrop. A frame "
+            f"with nothing in it must never reach the report -- three of these "
+            f"were cited as evidence in Goal 27.")
+    return score
+
 
 # ---------------------------------------------------------------------------
 # scene
@@ -241,8 +305,25 @@ def render(cam, path, res=(1100, 1100)):
     scene.render.resolution_percentage = 100
     scene.render.filepath = path
     os.makedirs(os.path.dirname(path), exist_ok=True)
-    bpy.ops.render.render(write_still=True)
-    print(f"  rendered {os.path.basename(path)}")
+
+    # A camera BELOW the backdrop sees nothing but the back of the backdrop.
+    # Hiding it is what an under-view wanted in the first place -- the point of
+    # the shot is the object's underside, and the floor was never the subject.
+    floor = bpy.data.objects.get("Backdrop")
+    was_hidden = None
+    if floor is not None and cam.location.z < floor.location.z:
+        was_hidden = floor.hide_render
+        floor.hide_render = True
+        print(f"  (backdrop hidden: {os.path.basename(path)} is shot from "
+              f"{(floor.location.z - cam.location.z) * 1000:.0f} mm below it)")
+    try:
+        bpy.ops.render.render(write_still=True)
+    finally:
+        if was_hidden is not None:
+            floor.hide_render = was_hidden
+
+    score = assert_frame_has_subject(path)
+    print(f"  rendered {os.path.basename(path)}  (edge {score:.0f})")
     return path
 
 
