@@ -589,6 +589,33 @@ def solidify(obj, thickness, offset=0.0, rim=True):
     return obj
 
 
+def weld_union(objects, name):
+    """Boolean the pieces into ONE closed shell, rather than merely joining them.
+
+    `join` puts several meshes in one object and leaves them intersecting, and
+    that breaks every parity test in this module: a ray through the overlap of
+    two welded cylinders crosses four surfaces where the point is inside one
+    solid, so the count comes out even and the point reports as OUTSIDE.
+
+    Found on the spreader. Its wheel is a tyre and a hub joined coaxially, and
+    the axle's end caps sit deep inside the hub -- yet `assert_touching` said
+    the axle was "16.00 mm from Wheel_0 and not embedded in it". 16 mm is the
+    hub's wall, which is what the fallback gap test measures once parity has
+    wrongly said outside. The geometry was right and the mesh was not closed in
+    the sense the test needs.
+
+    A wheel is one solid, so it is built as one.
+    """
+    base = objects[0]
+    for other in objects[1:]:
+        m = base.modifiers.new("Weld", "BOOLEAN")
+        m.operation, m.object, m.solver = "UNION", other, "EXACT"
+        base = apply_mods(base)
+        bpy.data.objects.remove(other, do_unlink=True)
+    base.name = name
+    return recalc_normals(base)
+
+
 def join(objects, name):
     bpy.ops.object.select_all(action="DESELECT")
     for o in objects:

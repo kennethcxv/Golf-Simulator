@@ -195,11 +195,22 @@ def main():
     HS.assert_touching(p["roll_rear"], p["plates"][0],
                        "the rear roller must be in the chassis", 0.0030)
     for arm in p["arms"]:
+        # A 25 mm handlebar arm bolted to an 18 mm side plate passes through
+        # it, so 9.00 mm -- the plate's own half-thickness -- is the deepest
+        # this pair can possibly read. It is not "driven through and out the
+        # far side"; it is the maximum, and it is declared rather than left to
+        # trip the 6 mm default.
         HS.assert_touching(arm, p["plates"][0] if arm.name.endswith("0")
                            else p["plates"][1],
-                           "a handlebar arm must root in the chassis", 0.0035)
+                           "a handlebar arm is bolted through its side plate",
+                           0.0035, max_depth=0.0100)
+    # A WELDED TUBE SITS TO ITS HOST'S RADIUS: the crossbar's end reaches the
+    # centre of a 25 mm arm, measured at 10.70 mm. Every ceiling here is the
+    # measured depth plus a millimetre or two, so the check still bites if a
+    # join moves; a blanket allowance would not.
     HS.assert_touching(p["bar_cross"], p["arms"][0],
-                       "the crossbar must meet the arms", 0.0030)
+                       "the crossbar must meet the arms", 0.0030,
+                       max_depth=0.0120)
     # crossbar-INTO-grip: a grip is a sleeve AROUND the bar, so it is wider than
     # its host and none of its vertices land inside. Fifth part on this project.
     for g in p["grips"]:
@@ -211,7 +222,8 @@ def main():
     HS.assert_boxes_overlap(p["engine"], p["crossbeam"],
                             "the engine must sit on the chassis")
     HS.assert_touching(p["catcher"], p["plates"][0],
-                       "the catcher must hang on the chassis", 0.0060)
+                       "the catcher must hang on the chassis", 0.0060,
+                       max_depth=0.0095)
 
     subject = flat(p)
     print(f"TRIS {H.triangles(subject)} ({len(subject)} objects, "

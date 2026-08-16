@@ -108,7 +108,10 @@ def build(broken=""):
     p["wheels"] = []
     for k, sx in enumerate((-1, 1)):
         x = sx * (TRACK * 0.5 + gap)
-        p["wheels"].append(HS.join([
+        # WELD, not join: a tyre and a hub left intersecting inside one object
+        # make parity meaningless, and the axle -- whose end caps are deep in
+        # the hub -- came back as "16.00 mm from Wheel_0 and not embedded".
+        p["wheels"].append(HS.weld_union([
             HS.cylinder(f"Tyre_{k}", (x, -0.1200, WHEEL_R), WHEEL_R, 0.0520,
                         verts=22, rotation=rot_x()),
             HS.cylinder(f"Hub_{k}", (x, -0.1200, WHEEL_R), WHEEL_R * 0.42, 0.0620,
@@ -195,16 +198,24 @@ def main():
     HS.assert_rooted(p["fins"], p["plate"], "the spinner fins",
                      min_verts=3, min_depth=0.0015)
     for w in p["wheels"]:
-        HS.assert_touching(p["axle"], w, "a wheel must be on the axle", 0.0030)
+        # The axle RUNS THROUGH the wheel, by design and by the comment above
+        # it, so 21 mm inside is the intent and not an accident. Declared.
+        HS.assert_touching(p["axle"], w, "a wheel must be on the axle", 0.0030,
+                           max_depth=0.0240)
     HS.assert_boxes_overlap(p["hopper"], p["rails"][0],
                             "the hopper must sit on the frame")
+    # As on the mower: each ceiling is the measured weld depth plus a
+    # millimetre or two, not a blanket allowance.
     HS.assert_touching(p["crossrail"], p["rails"][0],
-                       "the cross rail must meet the side rails", 0.0030)
+                       "the cross rail must meet the side rails", 0.0030,
+                       max_depth=0.0080)
     for k, arm in enumerate(p["arms"]):
         HS.assert_touching(arm, p["rails"][k],
-                           "a handlebar arm must root in the frame", 0.0035)
+                           "a handlebar arm must root in the frame", 0.0035,
+                           max_depth=0.0120)
     HS.assert_touching(p["bar_cross"], p["arms"][0],
-                       "the crossbar must meet the arms", 0.0030)
+                       "the crossbar must meet the arms", 0.0030,
+                       max_depth=0.0120)
     for g in p["grips"]:
         HS.assert_touching(p["bar_cross"], g, "a grip must be on the crossbar", 0.0030)
     # boxes_overlap: the hopper is a thin SHELL narrowing to its opening, and

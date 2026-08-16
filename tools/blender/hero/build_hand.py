@@ -257,6 +257,34 @@ def build_skeleton(fingers, thumb):
     sk.add("t_ip", tuple(tj[2]), THUMB_R[2], parent="t_mcp")
     sk.add("t_tip", tuple(tj[3]), THUMB_R[3], parent="t_ip")
 
+    # THE FIRST WEB SPACE. On a hand gripping a shaft the skin between the
+    # thumb and the index finger is a closed membrane, and there was no bone
+    # spanning it -- so the Skin modifier left an opening and the PALMAR
+    # SILHOUETTE showed white daylight straight through the hand. That control
+    # is the only reason this was found: the lit palmar render showed a dark
+    # slot that could equally have been a shadow, and the radial view showed
+    # nothing at all.
+    #
+    # Hung off t_cmc rather than bridged between the two chains, because a loop
+    # in the skeleton is what the Skin modifier answers with a second closed
+    # hull -- the 546-vertex floating thumb, twice.
+    # TWO nodes, not one: a single node at the knuckles narrowed the opening
+    # and left it open further out, where the gap is really between the thumb's
+    # proximal segment and the index's. The membrane has to reach as far as the
+    # thumb does.
+    web = tj[1].lerp(Vector(MCP["index"]), 0.46)
+    sk.add("t_web", (web.x, web.y, web.z - 0.0020), (0.0165, 0.0118),
+           parent="t_cmc")
+    ij = fingers["index"]["joints"]
+    web2 = tj[2].lerp(ij[1], 0.46)
+    sk.add("t_web2", (web2.x, web2.y, web2.z - 0.0010), (0.0152, 0.0112),
+           parent="t_web")
+    # and from the INDEX side as well. Closing a gap from one edge only means
+    # chasing it across; the membrane has two attachments on a real hand.
+    web3 = ij[0].lerp(tj[2], 0.34)
+    sk.add("i_web", (web3.x, web3.y, web3.z - 0.0008), (0.0140, 0.0104),
+           parent="k_index")
+
     # Hypothenar: the pad along the little-finger edge, deeper than people expect
     # and the reason the ulnar silhouette of a fist is a curve.
     sk.add("hy1", (-0.0245, 0.0400, 0.0000), (0.0138, 0.0126), parent="palm2")

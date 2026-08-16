@@ -152,8 +152,26 @@ def main():
     p = build(broken=broken)
 
     HS.assert_rooted(p["tines"], p["head"], "rake tines", min_verts=3, min_depth=0.0025)
+    # A RAKE'S SOCKET IS MOULDED DEEP. The ferrule reaches 18.9 mm into a 38 mm
+    # head, which is its middle, and that is how the object is made -- so the
+    # depth is declared here rather than left to the 6 mm default that the
+    # rebuilt assertion applies to everything else.
+    #
+    # What would actually be wrong is the ferrule coming out of the UNDERSIDE
+    # among the tines, and no depth number can tell you that. It needs its own
+    # measurement, so it gets one.
     HS.assert_touching(p["ferrule"], p["head"],
-                       "the ferrule must be seated in the head", max_gap=0.0015)
+                       "the ferrule is socketed into the head, as a moulded "
+                       "rake is", max_gap=0.0015, max_depth=0.0220)
+    flo = min((p["ferrule"].matrix_world @ v.co).z
+              for v in p["ferrule"].data.vertices)
+    hlo = min((p["head"].matrix_world @ v.co).z for v in p["head"].data.vertices)
+    if flo < hlo + 0.0040:
+        raise SystemExit(
+            f"BUILD FAILED: the ferrule stops {(flo - hlo) * 1000:.1f} mm above "
+            f"the head's underside -- it is coming through among the tines")
+    print(f"  socket clearance assertion passed: the ferrule stops "
+          f"{(flo - hlo) * 1000:.1f} mm above the head's underside")
     HS.assert_touching(p["shaft"], p["ferrule"],
                        "the shaft must be seated in the ferrule", max_gap=0.0015)
 
