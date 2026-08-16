@@ -533,17 +533,41 @@ def drop_to_floor(objects, clearance=0.0):
     if not zs:
         raise SystemExit("BUILD FAILED: drop_to_floor: no mesh vertices to "
                          "measure a base from")
-    drop = min(zs) - clearance
+    was = min(zs)
+    drop = was - clearance
     for ob in objects:
         if ob.type == "MESH":
+            # MEASURE IN WORLD, SHIFT IN LOCAL -- and they are not the same
+            # thing the moment an object carries a rotation or a scale. The
+            # first version subtracted `drop` straight off v.co.z, which is
+            # local, and the rake still shipped with its base 48.9 mm under the
+            # floor while this function printed "now 0.0". A part built with
+            # HS.cylinder(rotation=...) has a non-identity matrix_world and its
+            # local z is not the world's.
+            #
+            # v_world' = M @ v_local + d, so v_local' = v_local + M^-1 @ d.
+            local = ob.matrix_world.inverted().to_3x3() @ Vector((0.0, 0.0, -drop))
             for v in ob.data.vertices:
-                v.co.z -= drop
+                v.co += local
             ob.data.update()
         else:
             ob.location = Vector((ob.location.x, ob.location.y,
                                   ob.location.z - drop))
-    print(f"  dropped to floor: base was {min(zs) * 1000:+.1f} mm, now "
-          f"{clearance * 1000:.1f} mm")
+
+    # AND CHECK IT. This function reported success while being wrong, which is
+    # the one thing an instrument must not do.
+    now = []
+    for ob in objects:
+        if ob.type == "MESH":
+            mw = ob.matrix_world
+            now.extend((mw @ v.co).z for v in ob.data.vertices)
+    got = min(now)
+    if abs(got - clearance) > 1e-5:
+        raise SystemExit(
+            f"BUILD FAILED: drop_to_floor asked for a base at "
+            f"{clearance * 1000:.1f} mm and got {got * 1000:+.3f} mm")
+    print(f"  dropped to floor: base was {was * 1000:+.1f} mm, now "
+          f"{got * 1000:.1f} mm (verified)")
     return drop
 
 

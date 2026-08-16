@@ -251,6 +251,22 @@ def main():
                          res=(900, 900))
 
     if not broken:
+        # Wheeled equipment standing on the ground. The named root marks the
+        # ORIGIN, not the base -- it is at (0,0,0) while the geometry reached
+        # 179 mm below it -- so the root alone does not put the wheels on the
+        # grass.
+        # Bake the object locations first: bake_gltf_axis permutes VERTICES
+        # and leaves each object's own location in the old convention, so any
+        # part with a transform lands in the wrong place. Proven on the rake,
+        # which shipped 1,750 mm tall against a 970 mm scene. Meshes only --
+        # an EMPTY's location is the whole point of it.
+        bpy.ops.object.select_all(action="DESELECT")
+        for o in subject:
+            o.select_set(True)
+        bpy.context.view_layer.objects.active = subject[0]
+        bpy.ops.object.transform_apply(location=True, rotation=False,
+                                       scale=False)
+        H.drop_to_floor(subject)
         H.bake_gltf_axis(subject)
         root = H.named_root(ROOT_NAME, subject)
         H.export_glb(subject + [root], OUT_GLB)
