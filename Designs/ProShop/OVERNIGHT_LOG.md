@@ -8,11 +8,11 @@ Started from `Designs/ProShop/Overnight_Assets.md`.
 | asset | verdict | rounds | triangles | new materials | wired |
 |---|---|---|---|---|---|
 | cap (apparel v2) | **PASS** | 7 | 11,874 | 0 (shares ApparelCloth/Trim) | no |
-| polo folded (apparel v2) | **PASS** | 8 | 6,100 | 0 | no |
+| polo folded (apparel v2) | **PASS** | 8 | 6,100 | 0 | no (GLB written for the FIRST time tonight) |
 | tee folded | **PASS** | 2 | 4,812 | 0 | no |
 | hoodie folded | ITERATE | 1 | 4,608 | 0 | no |
 | trousers folded | ITERATE | 2 | 4,548 | 0 | no |
-| polo hung (apparel v2) | **PASS** | 10 | 10,780 | 0 | no |
+| polo hung (apparel v2) | **PASS** | 10 | 10,780 | 0 | no (GLB written for the FIRST time tonight) |
 | tee / hoodie hung | **PARKED, not started** | 0 | — | 0 | no |
 | register (lane head) | **PASS** | 4 | 5,816 | 0 (5 slots, existing family) | no |
 | money (notes + coins) | **PASS** | 3 | 1,384 | 0 | no |
@@ -27,7 +27,7 @@ Started from `Designs/ProShop/Overnight_Assets.md`.
 | hose nozzle | **PASS** | 1 | 1,116 | 0 | no |
 | spray bottle | **PASS** | 3 | 1,420 | 0 | no |
 | divot pail | **PASS** | 1 | 1,468 | 0 | no |
-| divot tool | **PASS** | 2 | 1,024 | 0 | no |
+| divot tool | **PASS** | 2 | 560 | 0 | no |
 | dustpan | **PASS** | 2 | 1,432 | 0 | no |
 | retail gondola | **PASS** | 2 | 1,304/bay | 0 | no |
 | ledger book | **PASS** | 2 | 6,656 | 0 | no |
