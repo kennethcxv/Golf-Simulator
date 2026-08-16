@@ -295,39 +295,143 @@ def tee_folded(origin=(0, 0, 0), broken=""):
     return p
 
 
+# A tee's proportions off a men's medium, in the same terms the polo uses.
+TEE_SPEC = {
+    "sh_half": 0.2060, "length": 0.5600, "neck_half": 0.3600,
+    "shoulder_drop": 0.0320, "scoop_front": 0.0330, "scoop_back": 0.0230,
+    "width_profile": ((0.00, 1.000), (0.15, 1.120), (0.55, 1.070),
+                      (1.00, 1.150)),
+    "depth_chest": 0.0790, "depth_hem": 0.0740,
+}
+TEE_CLOTH = 0.0020
+
+
 def tee_hung(origin=(0, 0, 0), broken=""):
+    """PANELS, like the polo. CL.draped made one closed lens-section tube, and
+    a tube has no side seam, no shoulder seam and no armhole -- so the tee hung
+    came out as a slab with a scalloped hem, a neck slot like a carrier bag's
+    handle and two sleeves floating off it at angles."""
     ox, oy, oz = origin
     p = {}
     SH = oz + 0.3100
-    p["hanger"], p["hook"] = CL.hanger("TeeHung_Hanger", (ox, oy, SH), halfw=0.0860,
-                                          drop=0.0520, rod=0.0058)
-    p["body"] = CL.draped("TeeHung_Body", SH - 0.0120, 0.2000, 0.2280,
-                          0.2950, 0.0720, centre=(ox, oy), neck=0.0250,
-                          shoulder_drop=0.0130)
-    for side in (-1, 1):
-        nm = "L" if side < 0 else "R"
-        d = Vector((side * 0.60, 0, -0.80))
+    panel, side_u, top_edge = CL.hung_body(TEE_SPEC)
+    NU, NV = 25, 19
+    for front in (True, False):
+        key = "front" if front else "back"
+        seed = 0.0 if front else 1.7
+        surf = CL.grid_surface(
+            f"TeeHung_{key.capitalize()}",
+            (lambda f, sd: (lambda u, v: panel(f, side_u(u), v, sd)
+                            + Vector((ox, oy, SH))))(front, seed),
+            nu=NU, nv=NV, smooth=True)
+        p[key] = CL.smooth_by_angle(
+            CL.thicken(surf, TEE_CLOTH, offset=-1.0 if front else 1.0))
+
+    # the three lines a tube cannot have
+    for nm, sgn in (("L", -1.0), ("R", 1.0)):
+        pts, nrms = [], []
+        for k in range(15):
+            v = 0.030 + 0.955 * k / 14.0
+            pts.append(panel(True, sgn, v) + Vector((ox, oy, SH)))
+            nrms.append(Vector((sgn, 0.0, 0.0)))
+        p[f"seam{nm}"] = CL.framed_sweep(f"TeeHung_Seam{nm}", pts, nrms,
+                                         0.0028, 0.0020, sides=6, taper=2)
+        pts, nrms = [], []
+        for k in range(11):
+            u = sgn * (TEE_SPEC["neck_half"]
+                       + (0.985 - TEE_SPEC["neck_half"]) * k / 10.0)
+            pts.append(Vector((ox + u * TEE_SPEC["sh_half"], oy,
+                               SH + top_edge(u, True) + 0.0008)))
+            nrms.append(Vector((0.0, 0.0, 1.0)))
+        p[f"shoulder{nm}"] = CL.framed_sweep(
+            f"TeeHung_Shoulder{nm}", pts, nrms, 0.0055, 0.0016, sides=6,
+            taper=2)
+
+        # sleeves off the shoulder points, flat because an empty sleeve is
+        # THE ROOT HAS TO SIT WHERE THE BODY HAS DEPTH. At u = 0.90, v = 0 the
+        # panel is 6 mm from its centre plane -- the shoulder is deliberately
+        # flat there -- so a 70 mm sleeve hung off it reads as a mug stuck to a
+        # razor edge, which is what the first render showed on both sides.
+        # Measured off the panel at v = 0.10, where there is something to sew
+        # into, and the radius brought down to match what it meets.
+        anchor = panel(True, sgn * 0.885, 0.10) + Vector((ox, oy, SH))
+        root = Vector((anchor.x, oy, anchor.z + 0.0090))
+        dvec = Vector((sgn * 0.80, 0.0, -0.60)).normalized()
         p[f"sleeve{nm}"] = CL.sleeve_from_body(
-            f"TeeHung_Sleeve{nm}",
-            (ox + side * 0.0770, oy, SH - 0.0240), d, 0.1060, 0.0358, 0.0300,
-            droop=0.09, cuff=0.06)
-        p[f"seam{nm}"] = CL.ribbed_ring(
-            f"TeeHung_Seam{nm}",
-            (ox + side * 0.0770, oy, SH - 0.0240), d, 0.0360, 0.0060,
-            ribs=1, depth=0.0004, sides=20)
-    # a RIBBED crew neck, not a smooth tube
-    neck_z = SH - 0.0120 - 0.0130 - 0.0250
+            f"TeeHung_Sleeve{nm}", root, dvec, 0.1560, 0.0620, 0.0530,
+            droop=0.16, sides=16, steps=8, seam_in=0.0240, flat=0.50)
+        sv = Vector((0.0, 0.0, 1.0)).cross(dvec).normalized()
+        uv = dvec.cross(sv).normalized()
+        pts, nrms = [], []
+        NA = 17
+        for k in range(NA):
+            a = 2.0 * math.pi * k / NA
+            q = root + sv * (math.cos(a) * 0.0608) + uv * (
+                math.sin(a) * 0.0608 * 0.50)
+            pts.append(q)
+            nrms.append((q - root).normalized())
+        p[f"armhole{nm}"] = CL.framed_sweep(
+            f"TeeHung_Armhole{nm}", pts, nrms, 0.0024, 0.0016, closed=True,
+            sides=6)
+        # A TEE SLEEVE HAS A HEM, NOT A RIBBED CUFF -- and the ribbed band was
+        # making the fault as well as being wrong. ribbed_ring is a band
+        # CENTRED on its point, so with the sleeve's closed tip 3 mm behind its
+        # outer face there was a shallow annular recess, and looking down the
+        # sleeve that is a hollow mouth. The same shape of fault as the polo's
+        # "flat disc", which was also a ring hung off the end of the cloth.
+        #
+        # sleeve_from_body already closes its own tip to a slot. All this needs
+        # is the stitch line of the hem, set back on the cloth where it belongs.
+        hem_c = root + dvec * 0.1170
+        hem_pts, hem_n = [], []
+        hs = Vector((0.0, 0.0, 1.0)).cross(dvec).normalized()
+        hu = dvec.cross(hs).normalized()
+        for k in range(19):
+            a = 2.0 * math.pi * k / 18.0
+            q = hem_c + hs * (math.cos(a) * 0.0568) + hu * (
+                math.sin(a) * 0.0568 * 0.50)
+            hem_pts.append(q)
+            hem_n.append((q - hem_c).normalized())
+        p[f"cuff{nm}"] = CL.framed_sweep(
+            f"TeeHung_Cuff{nm}", hem_pts, hem_n, 0.0042, 0.0016, closed=True,
+            sides=6)
+
+    # A RIBBED CREW NECK on the panel neckline, measured off the panels rather
+    # than floated at a guessed height.
     ring = []
-    for s in range(25):
-        a = 2 * math.pi * s / 24.0
-        rr = 1.0 + 0.055 * math.cos(18 * a)
-        ring.append(Vector((ox + math.cos(a) * 0.0345 * rr,
-                            oy + math.sin(a) * 0.0195 * rr,
-                            neck_z + 0.0155 - 0.0035 * math.cos(a))))
-    p["neck_rib"] = CL._sweep("TeeHung_NeckRib", ring, 0.0058, sides=7)
-    pz = neck_z - 0.0760
+    for k in range(33):
+        a = 2 * math.pi * k / 32.0
+        uu = math.cos(a) * TEE_SPEC["neck_half"] * 0.97
+        frontish = math.sin(a) < 0.0
+        q = panel(frontish, uu, 0.0) + Vector((ox, oy, SH))
+        rr = 1.0 + 0.05 * math.cos(20 * a)
+        ring.append(Vector((q.x * rr, q.y * 1.02, q.z + 0.0030)))
+    p["neck_rib"] = CL._sweep("TeeHung_NeckRib", ring, 0.0056, sides=8)
+
+    # the hem, turned as a real band all the way round
+    hem, hnrm = [], []
+    NH = 41
+    for k in range(NH):
+        t = k / (NH - 1.0)
+        frontish = t < 0.5
+        uu = side_u((t * 2.0) if frontish else (2.0 - t * 2.0))
+        q = panel(frontish, uu, 1.0) + Vector((ox, oy, SH))
+        hem.append(q)
+        hnrm.append(Vector((0.0, 0.0, 1.0)))
+    p["hem"] = CL.framed_sweep("TeeHung_Hem", hem, hnrm, 0.0090, 0.0026,
+                               sides=6, closed=True)
+
+    p["hanger"], p["hook"] = CL.hanger(
+        "TeeHung_Hanger", (ox, oy, SH + 0.0180), halfw=0.0860, drop=0.0520,
+        rod=0.0058)
+
+    # PLACED OFF THE PANEL, not off a guessed height. Asking surface_y for a
+    # z picked by eye failed outright -- "the part being placed there is off
+    # the garment, not on it" -- and the panel function already knows exactly
+    # where its own surface is.
+    chest = panel(True, 0.0, 0.30) + Vector((ox, oy, SH))
     p["print"] = CL.decal("TeeHung_Print",
-                          (ox, CL.surface_y(p["body"], ox, pz) + 0.0006, pz),
+                          (chest.x, chest.y - 0.0016, chest.z),
                           (0, -1, 0), (0.0980, 0.0820))
     return p
 
@@ -798,12 +902,25 @@ DEEP = {
                   ("cuffL", "sleeveL"), ("cuffR", "sleeveR"),
                   ("body", "print"), ("sleeveL", "badge"),
                   ("body", "badge")],
-    "tee-hung": [("hanger", "hook"), ("body", "hook"), ("body", "hanger"), ("body", "sleeveL"), ("body", "sleeveR"),
-                 ("body", "neck_rib"), ("hanger", "sleeveL"),
-                 ("hanger", "sleeveR"), ("hanger", "neck_rib"),
-                 ("body", "seamL"), ("body", "seamR"),
-                 ("seamL", "sleeveL"), ("seamR", "sleeveR"),
-                 ("body", "print")],
+    # The tee hung is PANELS now, so "body" is front and back, and a sleeve
+    # sewn into a body is supposed to be inside it -- seam_in drives it there
+    # on purpose. Same set the polo hung declares.
+    "tee-hung": [("hanger", "hook"), ("hanger", "neck_rib"),
+                 ("neck_rib", "hem")]
+    + [(b, o) for b in ("front", "back")
+       for o in ("hook", "hanger", "sleeveL", "sleeveR", "neck_rib", "print",
+                 "hem", "seamL", "seamR", "shoulderL", "shoulderR",
+                 "armholeL", "armholeR", "cuffL", "cuffR")]
+    + [("front", "back")]
+    + [(f"sleeve{k}", f"seam{k}") for k in ("L", "R")]
+    + [(f"sleeve{k}", f"shoulder{k}") for k in ("L", "R")]
+    + [(f"sleeve{k}", f"armhole{k}") for k in ("L", "R")]
+    + [(f"sleeve{k}", f"cuff{k}") for k in ("L", "R")]
+    + [(f"seam{k}", f"armhole{k}") for k in ("L", "R")]
+    + [(f"shoulder{k}", f"armhole{k}") for k in ("L", "R")]
+    + [(f"seam{k}", "hem") for k in ("L", "R")]
+    + [("hanger", f"sleeve{k}") for k in ("L", "R")]
+    + [("hanger", f"shoulder{k}") for k in ("L", "R")],
     "hoodie-hung": [("hanger", "hook"), ("body", "hook"), ("body", "hanger"), ("body", "sleeveL"), ("body", "sleeveR"),
                     ("body", "hood"), ("body", "pocket"), ("body", "cordL"),
                     ("body", "cordR"), ("hanger", "hood"), ("hanger", "sleeveL"),

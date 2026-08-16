@@ -430,6 +430,89 @@ def fold_line(name, start, end, radius, sides=10, sink=0.45):
 # the hung garment
 
 
+def hung_body(spec):
+    """A hung garment's FRONT and BACK panels, as the polo hung is built.
+
+    `draped()` makes one closed lens-section tube, and a tube has no side seam,
+    no shoulder seam and no armhole -- the three lines that tell an eye it is a
+    shirt. Every garment built on it reads as a soft slab with sleeves stuck
+    to it, which is exactly what the tee hung and the hoodie hung still do.
+
+    This is the polo's panel construction, generalised. It is a separate
+    function rather than a refactor of build_polo because that polo is PASS
+    after ten rounds and is not worth risking to save a duplicate; if the two
+    ever need to agree, this is the one to keep.
+
+    Returns (panel_fn, side_u, top_edge). `panel_fn(front, u, v, seed)` takes u
+    from -1 to +1 across the body and v from 0 at the shoulder to 1 at the hem,
+    and y is ZERO at u = +/-1 by construction, so the two panels MEET at the
+    side seams instead of being halves of a tube that never had one.
+    """
+    sh = spec["sh_half"]
+    length = spec["length"]
+    neck_half = spec["neck_half"]
+    drop = spec["shoulder_drop"]
+    scoop_f = spec["scoop_front"]
+    scoop_b = spec["scoop_back"]
+    prof = spec["width_profile"]
+    d_chest = spec["depth_chest"]
+    d_hem = spec["depth_hem"]
+    hang_u = spec.get("hanger_u", 0.845)
+    z_sh = spec.get("shoulder_z", 0.0)
+    flare = spec.get("hem_side_drop", 0.0090)
+
+    def table(v):
+        for i in range(len(prof) - 1):
+            a, b = prof[i], prof[i + 1]
+            if v <= b[0]:
+                t = (v - a[0]) / (b[0] - a[0]) if b[0] > a[0] else 0.0
+                t = t * t * (3.0 - 2.0 * t)
+                return a[1] + (b[1] - a[1]) * t
+        return prof[-1][1]
+
+    def top_edge(u, front):
+        a = abs(u)
+        if a >= neck_half:
+            t = (a - neck_half) / (1.0 - neck_half)
+            return z_sh - drop * (t ** 1.25)
+        sc = scoop_f if front else scoop_b
+        return z_sh - sc * (1.0 - (a / neck_half) ** 2) ** 0.85
+
+    def side_u(t01):
+        """Sample CLUSTERED at the side seams.
+
+        The section arrives at the seam with a vertical tangent, so the panels
+        meet ROUNDED -- but sampled uniformly the last step collapses a fifth
+        of the depth into one facet and it reads as a hard crease. sin() puts
+        the vertices where the curve is tight.
+        """
+        return math.sin((-1.0 + 2.0 * t01) * math.pi * 0.5)
+
+    def panel_fn(front, u, v, seed=0.0):
+        w = sh * table(v)
+        x = u * w
+        # The top edge's shape must NOT reach the hem: cloth hanging free
+        # forgets the line it was cut on within a hand's width, and carrying it
+        # all the way down puts the neck scoop and shoulder drop into the hem
+        # as a scallop -- which is what both of these still have.
+        settle = min(1.0, v / 0.32) ** 1.15
+        z = top_edge(u, front) * (1.0 - settle) - length * v
+        z += 0.0060 * math.exp(-(((abs(u) - hang_u) / 0.145) ** 2)) * max(
+            0.0, 1.0 - v / 0.22) ** 1.3
+        z -= flare * (abs(u) ** 3.0) * (v ** 2.2)
+        open_up = 0.30 + 0.70 * min(1.0, (v / 0.34)) ** 1.4
+        if abs(u) < neck_half:
+            open_up += 0.58 * (1.0 - (abs(u) / neck_half) ** 2) * max(
+                0.0, 1.0 - v / 0.22)
+        depth = (d_chest + (d_hem - d_chest) * v) * open_up
+        bow = math.cos(u * math.pi * 0.5) ** 0.72
+        fold = 0.0042 * math.sin(u * 5.2 + seed) * min(1.0, v * 2.6)
+        y = (depth * bow + fold) * (-1.0 if front else 1.0)
+        return Vector((x, y, z))
+
+    return panel_fn, side_u, top_edge
+
+
 def draped(name, shoulder_z, width, hem_width, length, depth, centre=(0, 0),
            neck=0.052, shoulder_drop=0.010, nu=25, nv=19, wobble=0.0022):
     """A shirt hanging from a hanger.
