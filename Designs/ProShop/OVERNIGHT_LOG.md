@@ -241,6 +241,18 @@ paying for a 200-sample turntable, so in practice nobody does, and the tree
 quietly drifts. A first sweep of all 22 builders in their default mode changed
 nothing at all, which is how it was found.
 
+AND THE SHARPEST CASE: **the apparel v2 polo has never been exported at all.**
+Not stale -- absent. `build_polo.py` writes
+`apparel_polo_{state}_{way}.glb`, and no such file has ever existed on disk,
+because nobody has run that builder in Cycles. Eighteen rounds of work across
+two sessions -- the panel rebuild, the collar with real points, the leaf stack,
+the side-seam sampling, the closed cuffs -- and the deliverable was never
+written once. It exists as renders.
+
+Anything that had gone looking for the v2 polo to wire it would have found the
+v1 `apparel_polo_folded.glb` from `build_apparel.py` sitting there under a
+plausible name, and wired that instead.
+
 The fix is an export-only path that does not render. It is a small change in
 each builder's main() and it is not one to make untested at this hour across
 twenty files, so the sweep is running as `-- cycles views=1` instead and the
