@@ -31,8 +31,21 @@ Started from `Designs/ProShop/Overnight_Assets.md`.
 | ledger book | **PASS** | 2 | 6,656 | 0 | — |
 | retail gondola | ITERATE | 1 | 872/bay | 0 | — |
 | merch + softgoods | **PASS, reserved** | 1 | 1,480 | 0 | — |
+| mop head | **PASS** | 1 | — | 0 | — |
 
-## STANDING GATE: THE BLANK FRAMES
+## HALF B — NOT STARTED, DELIBERATELY
+
+The brief is explicit: Half B does not begin until Half A is genuinely done and
+every asset has a written PASS. Half A is not done — the dustpan, the divot
+tool, the gondola and the whole folded-apparel family are ITERATE or PARKED. So
+nothing was wired tonight, and no in-game photographs were taken.
+
+Wiring drafts in would bury exactly the faults this night was for finding, which
+is the reason the brief puts the halves in that order. **Zero deltas to report
+against the parallel session's 193 programs and 1,443 draws: nothing of mine
+entered the build.**
+
+## STANDING GATE: THE BLANK FRAMES — NOW GREEN
 
 Nine frames on disk score 1.4–2.2 against a floor of 8. All of them are the same
 fault as the cap's `underbrim` camera: a shot aimed below or behind its subject
