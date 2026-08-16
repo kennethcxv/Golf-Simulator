@@ -181,6 +181,34 @@ The golden gate was NOT run. It captures through Electron, and a parallel
 session is measuring frame timings on this machine; starting a second Electron
 would corrupt their numbers as surely as it would mine.
 
+## THE APPAREL ATLAS: THE GAME ALREADY SOLVES THIS
+
+I flagged that the atlas is embedded separately in all ten apparel GLBs --
+12.6 MB of the 14.7 MB total -- and the brief says to fix it before wiring or
+ship twelve copies of one image. **At runtime you do not ship twelve copies.**
+
+`src/render3d/sharedTexturePool.js` interns textures ACROSS files by name, and
+`gltfCache.js` calls it on every GLB as it loads. Unnamed textures are skipped
+deliberately ("no stable cross-file identity"), and the question is therefore
+only whether the atlas carries a name. It does:
+
+    apparel_polo_folded.glb   image[0] name='apparel_atlas'
+    apparel_cap_navy.glb      image[0] name='apparel_atlas'
+    merch_drinks.glb          image[0] name='merch_labels'
+
+So the ten copies collapse to ONE GPU texture on load: `internTextures` swaps
+`material[slot]` for the pooled one and counts the saving in `displacedBytes`.
+
+**The 12.6 MB is a DISK and PARSE cost, not a GPU-memory cost.** That is still
+worth something -- it is ten PNG decodes at load and 12 MB of install size --
+but it is not the thing the brief was worried about, and rebuilding the apparel
+export to avoid it would be work against a problem the codebase already
+handles.
+
+There is even an A/B harness for it, `tools/qa/proshop-texture-sharing-ab.js`,
+which sets `__FW_DISABLE_TEXTURE_INTERNING` and compares the two runs. When the
+apparel is wired I will measure it there rather than assume either way.
+
 ## THE FRAMES THAT BACK EACH CLAIM
 
 `qa/` is gitignored, so these are on the machine rather than in the tree.
