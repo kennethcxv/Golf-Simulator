@@ -12,7 +12,7 @@ Started from `Designs/ProShop/Overnight_Assets.md`.
 | tee folded | **PASS** | 2 | 4,812 | 0 | no |
 | hoodie folded | ITERATE | 1 | 4,608 | 0 | no |
 | trousers folded | ITERATE | 2 | 4,548 | 0 | no |
-| polo hung (apparel v2) | **PARKED** at 8 | 8 | 9,980 | 0 | no |
+| polo hung (apparel v2) | **PASS** | 10 | 10,780 | 0 | no |
 | tee / hoodie hung | **PARKED, not started** | 0 | — | 0 | no |
 | register (lane head) | **PASS** | 4 | 5,816 | 0 (5 slots, existing family) | no |
 | money (notes + coins) | **PASS** | 3 | 1,384 | 0 | no |
@@ -34,6 +34,89 @@ Started from `Designs/ProShop/Overnight_Assets.md`.
 | merch + softgoods | **PASS, reserved** | 1 | 1,480 | 0 | no |
 | mop head | **PASS** | 1 | 5,616 | 0 | no |
 | broom head | **CUT** (re-examined, stands) | 2 | 2,820 | — | no |
+
+## SECOND SESSION — THE PANEL REBUILD, THE TWO RE-EXAMINED CALLS, THE THREE ITERATES
+
+### The apparel panel rebuild (the highest-leverage job, and it landed)
+
+`CL.folded()` stepped ONE lofted surface in and out at each leaf boundary. A
+step is not a layer: no thickness of its own, nothing behind it to cast into,
+no edge you could pinch. `folded_stack()` builds each leaf as its own closed
+shell, and all four garments are on it.
+
+The reading that forced the block was wrong: `assert_all_one_piece` is per
+PART, not per asset. The cap ships six separate panel objects and passes it.
+
+Three things found on the way, each with a control watched failing:
+
+- **Leaf k's top sheet and leaf k+1's bottom sheet must carry the SAME vertical
+  displacement.** Per-leaf droop scale and crease phase was up to 2.9 mm of
+  differential across a 0.9 mm gap -- the leaves would have laced through each
+  other. A shared field makes non-intersection structural, not tuned.
+- **A roll radius equal to half the ply thickness is a sausage.** The first
+  render was a stack of air mattresses. Cloth tapers over two or three times
+  its own thickness and then turns.
+- **The general assembly check CANNOT SEE leaves lacing through each other.**
+  MAX_SEAT_DEPTH is 6 mm and a ply is 9.9 mm, so leaves driven 4 mm into each
+  other PASSED. The control found that, not a render. `assert_leaves_clear`
+  gives them a 0.6 mm ceiling and refuses to run rather than pass if nothing
+  is named leafN.
+
+And two defects the port exposed, both pre-existing: `CL.decal`'s frame was a
+world-up cross product with a sign calibrated off one render of a chest print,
+so on the flat-lying tee PINE HILLS printed upside down and backwards (fixed by
+the invariant udir x vdir = n); and the trousers waistband was placed at
+`oz + h`, where the lofted block used to end rather than where the stack's
+surface is, so a 22.5 mm tube stood 20 mm clear of the cloth and read as an
+open trough.
+
+### The hung polo — both faults were somewhere else
+
+- The side "hard vertical crease" is not a crease. The section arrives at the
+  seam with a vertical tangent; the panels meet ROUNDED. It was the SAMPLING:
+  with u uniform the last step collapsed 21 mm of section into one facet.
+- The "sleeve ends in a flat disc" is not the sleeve's cap. The cuff ring was
+  hung 17 mm PAST the sleeve's tip like a napkin ring, and the disc is the
+  cavity you saw through it.
+
+### The three ITERATEs, all now PASS
+
+- **Dustpan.** The shading band was TWO faults and neither was the one in the
+  review. The rail doubled back on itself (station 3 at y -60.0, station 4 at
+  -55.0) so the loft folded; and flat shading on a floor that sweeps up 78 mm
+  facets its specular into rows. Fixing the fold moved the band not at all,
+  which is what said there was a second cause. Plus a returned flange on the
+  wall tops, and three materials that are actually different colours.
+- **Divot tool.** Both halves of "reads as a paperclip" were section faults: a
+  four-point handle section is a slab whatever its outline, and straight
+  5-sided prisms are flat blades. Twelve-point section with a thumb dish, and
+  prongs that are round, taper, splay and dip.
+- **Gondola.** Base feet, which change the SILHOUETTE -- unlike the slot
+  columns, which were interior detail and measured invisible. Adding them found
+  two silent omissions: `flat()` did not list them so nothing counted, checked
+  or exported them, and with no material they rendered default white.
+
+### The two calls re-examined
+
+**THE BROOM CUT STANDS, for a different reason than I cut it.** Rendered
+side by side (`qa/hero/broom_compare/`). I nearly compared against the wrong
+object: the four-primitive broom in cleaningTools.js is the one-frame fallback,
+and the broom actually seen is `asset_074_broom_fp.glb`, whose bristles are
+5,184 triangles. On the real comparison mine loses -- but its BRISTLES beat the
+shipping asset's, which are thirty fat separated pegs you can see between. Mine
+loses on materials: flat brown block against real wood grain, a black stub
+against a brass ferrule. Geometry was never the problem.
+
+**THE HAND CALL WAS WRONG.** `web_probe` unprojects the hole's own pixel. The
+ray passes 19.6 mm from t_cmc and 20.5 mm from palm2, and 26 mm from t_web and
+t_web2 -- so it is NOT the first web space. It is proximal to it, between the
+ball of the thumb and the palm: the thenar eminence, the thickest flesh on a
+hand, which has no opening in it. t_cmc sits 33.5 mm from palm1 with 30.7 mm of
+radius between them and no edge joining them. A two-node thenar ridge takes the
+opening from 2,364 px to 718 px at no triangle cost. 718 px remain.
+
+The probe also caught its own first version out: rendered without the shaft it
+reported the GRIP TUNNEL as the worst hole in the hand.
 
 ## HALF B — MEASURED, AND BLOCKED ON SOMETHING REAL
 
