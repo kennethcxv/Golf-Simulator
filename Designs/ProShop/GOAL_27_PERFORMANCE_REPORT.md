@@ -2,6 +2,40 @@
 
 ---
 
+# POST-REBOOT VERIFICATION (2026-08-15, 22:05–22:30) — THE CLEAR DID NOT LAND
+
+**Probe lies this session: 0** (both negative controls passed in both runs:
+planted 400 ms stall caught at 415.8 / 420.8 ms; segment sums exact).
+
+The machine rebooted at 22:05:27. **But `%LOCALAPPDATA%\NVIDIA\DXCache` was
+NOT cleared** — 593 files / 18.6 GB still on disk, oldest file dated
+**8/22/2025**. A cleared cache cannot contain year-old files; whatever was
+cleared, it was not this directory. So tonight's boots test **reboot-only**,
+not the DXCache theory.
+
+| run | tier | spawn→playable | bailout | giant single rAF gaps |
+|---|---|---|---|---|
+| postreboot-warm1 | boot 1 after reboot (OS-cold) | **60.8 s** | fired @21.9 s | 22.1 / 11.5 / 13.6 s |
+| postreboot-warm2 | boot 2 (true warm) | **52.2 s** | fired @20.7 s | 20.9 / 18.7 s |
+| (reference) healthy-era warm | | 31.9 s | — | — |
+| (reference) degraded quiet-window | | 58.7 s | fired | 3 giant gaps |
+
+**Verdict: reboot alone does not remedy the machine.** The "or reboot" arm
+of the remedy on file is refuted by measurement. The DXCache-clear arm is
+**untested, not refuted** — the remedy was never applied. Per the standing
+instruction, no fourth machine theory is being chased; the tiered
+measurement slate (spread-texture ship-gate, arrivals re-measure, 16.7 ms
+first-press census, ambient frame time, cold/warm medians) stays parked
+until the machine reads healthy, because every one of those numbers would
+otherwise be a degraded-machine number.
+
+The remedy-gated watch is re-armed (fires the warm verification boot the
+moment DXCache drops below 300 files / 5 GB) and logs to
+`qa/electron/load-breakdown/VERIFICATION_WATCH.md`. Evidence:
+`postreboot-warm{1,2}-result.json`.
+
+---
+
 # THE 10-SECOND TARGET (goal revision, 2026-08-15)
 
 **THE QUIET-WINDOW BOOT HAS RUN, AND IT CONVICTS THE DRIVER CACHE.** At
