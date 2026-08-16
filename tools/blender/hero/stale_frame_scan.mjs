@@ -80,6 +80,25 @@ if (framesStale) {
 // whatever was added last, and silently.
 const HERO_GLB = path.join('Assets', 'models', 'hero');
 
+// A BUILDER IS NOT THE ONLY THING THAT CHANGES AN EXPORT. Every builder
+// imports hero_lib, and most import hardsurface_lib or cloth_lib too; the
+// export path itself lives in hero_lib. Editing it invalidates all 40 files
+// while leaving every builder's mtime untouched, so a scan that compares only
+// against the builder reports the whole set FRESH at exactly the moment it is
+// all stale. That is not hypothetical: bake_gltf_axis was rewritten this
+// session and this scan said '0 exports are STALE' with every file on disk
+// predating the rewrite.
+const SHARED = ['hero_lib.py', 'hardsurface_lib.py', 'cloth_lib.py',
+                'skin_lib.py', 'outdoor_lib.py']
+  .map((f) => path.join(HERO, f))
+  .filter((f) => existsSync(f));
+let SHARED_AT = 0;
+let SHARED_NEWEST = null;
+for (const f of SHARED) {
+  const t = statSync(f).mtimeMs;
+  if (t > SHARED_AT) { SHARED_AT = t; SHARED_NEWEST = path.basename(f); }
+}
+
 function scanExports() {
   if (!existsSync(HERO_GLB)) return [];
   const owner = new Map();
@@ -109,9 +128,11 @@ function scanExports() {
       if (hit) b = hit[1];
     }
     if (!b) { out.push({ file: g, hours: null, builder: null }); continue; }
-    const bt = statSync(path.join(HERO, b)).mtimeMs;
+    const own = statSync(path.join(HERO, b)).mtimeMs;
+    const bt = Math.max(own, SHARED_AT);
+    const why = own >= SHARED_AT ? b : SHARED_NEWEST;
     const gt = statSync(path.join(HERO_GLB, g)).mtimeMs;
-    if (gt < bt) out.push({ file: g, hours: (bt - gt) / 3.6e6, builder: b });
+    if (gt < bt) out.push({ file: g, hours: (bt - gt) / 3.6e6, builder: why });
   }
   return out;
 }
