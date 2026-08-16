@@ -960,7 +960,8 @@ def cell_offset(obj, cell, cols=4, rows=3):
 
 
 def sleeve_from_body(name, root, direction, length, r0, r1, droop=0.10,
-                     sides=14, steps=9, seam_in=0.0035, cuff=0.0, flat=0.74):
+                     sides=14, steps=9, seam_in=0.0035, cuff=0.0, flat=0.52,
+                     close=True):
     """A sleeve that GROWS OUT OF a shoulder instead of being pushed into one.
 
     The old sleeve was a tapered tube whose end cap sat wherever it landed, and
@@ -993,6 +994,27 @@ def sleeve_from_body(name, root, direction, length, r0, r1, droop=0.10,
             ring.append(c + side * (math.cos(a) * r)
                         + up * (math.sin(a) * r * flat))
         rings.append(ring)
+    # THE CUFF ROLLS CLOSED. loft() caps the last ring flat, so a sleeve that
+    # ends at full section ends in a DISC -- and side-on that disc is the
+    # biggest single shape on a hung polo: a dark ellipse with a scalloped rim
+    # that reads as the open end of a drum. An empty sleeve does not gape. Its
+    # cuff is a folded hem and the opening is pressed nearly shut, so the
+    # section closes to a SLOT: the width goes on holding while the depth
+    # collapses. Same move draped() makes at the hem, for the same reason.
+    if close:
+        c = root + d * (length - seam_in)
+        c.z -= droop * length
+        r = r1 * (1.0 + (cuff or 0.0))
+        for k, (rs, fs, push) in enumerate(((0.88, 0.52, 0.0050),
+                                            (0.66, 0.22, 0.0082),
+                                            (0.38, 0.07, 0.0098))):
+            ring = []
+            for i in range(sides):
+                a = 2 * math.pi * i / sides
+                ring.append(c + d * push
+                            + side * (math.cos(a) * r * rs)
+                            + up * (math.sin(a) * r * flat * fs))
+            rings.append(ring)
     return loft(name, rings, smooth=True)
 
 

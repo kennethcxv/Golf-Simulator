@@ -199,14 +199,36 @@ def collar_surface(s, t):
     return q + n * out + Vector((0.0, 0.0, up))
 
 
+def side_u(t01):
+    """Panel u from a uniform sample, CLUSTERED AT THE SIDE SEAMS.
+
+    The hung polo's side "reads as a hard vertical crease where the panels
+    meet" -- and the section is not actually creased. y = D*cos(u*pi/2)**0.72
+    arrives at the seam with an infinite slope, which is a smooth vertical
+    tangent: the two panels meet ROUNDED. The crease is in the SAMPLING.
+
+    With u uniform, the last step runs from u = 0.9 to 1.0, and over that step
+    the depth falls from 25.4% to zero -- 21 mm of the section collapsed into
+    one facet, sitting almost perpendicular to the one before it. That is the
+    hard line, and no amount of reshaping the section removes it.
+
+    sin() clusters the samples where the curve is tight: the last step becomes
+    1.2% of u instead of 10%, eight times denser exactly at the turn. Same
+    lesson as the collar's points -- a tight curve needs vertices ON it.
+    """
+    return math.sin((-1.0 + 2.0 * t01) * math.pi * 0.5)
+
+
 def build_hung(p, way):
-    NU, NV = 21, 19
+    # NU up from 21: sin() spends its samples at the seams, so the centre goes
+    # from 0.10 to 0.157 of u per step and the placket sits on the centre.
+    NU, NV = 25, 19
     for front in (True, False):
         key = "front" if front else "back"
         seed = 0.0 if front else 2.1
         surf = CL.grid_surface(
             f"Polo_{key.capitalize()}",
-            (lambda f, s: (lambda u, v: body_panel(f, -1 + 2 * u, v, s)))(front, seed),
+            (lambda f, s: (lambda u, v: body_panel(f, side_u(u), v, s)))(front, seed),
             nu=NU, nv=NV, smooth=True)
         p[key] = CL.smooth_by_angle(CL.thicken(surf, CLOTH, offset=-1.0
                                                if front else 1.0))
@@ -254,8 +276,15 @@ def build_hung(p, way):
         p[f"armhole{side}"] = CL.framed_sweep(
             f"Polo_Armhole{side}", pts, nrms, 0.0026, 0.0018, closed=True,
             sides=6)
-        end = root + d * 0.1950
-        end.z -= 0.0075
+        # THE CUFF HAS TO SIT ON THE SLEEVE, NOT PAST THE END OF IT. At
+        # d*0.1950 with a 17.5 mm band it reached d*0.2038, while the sleeve's
+        # closed tip stops at d*0.1868 -- so the ring stood 17 mm proud of the
+        # cloth and you looked straight into a dark cavity. That is the "sleeve
+        # ends in a flat disc" fault: not the sleeve's cap at all, but a cuff
+        # hung off the end of it like a napkin ring. Centred on the sleeve's
+        # last full ring now, with the closed tip coming through it.
+        end = root + d * 0.1800
+        end.z -= 0.0062
         p[f"cuff{side}"] = CL.ribbed_ring(f"Polo_Cuff{side}", end, d,
                                           0.0608, 0.0175, ribs=22, depth=0.0019)
 
