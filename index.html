@@ -18,6 +18,9 @@
   <canvas id="game"></canvas>
   <div id="gl-root"></div>
   <div id="ui"></div>
+  <!-- GOAL 28 P1 measured the bundled graph (272 modules -> 1 request via
+       tools/bundle-app.mjs): renderer->menu moved 1968->1908 cold, 1933->1925
+       warm. The slice is not module fetch; the unbundled graph stays. -->
   <script type="module" src="src/main.js"></script>
 </body>
 </html>

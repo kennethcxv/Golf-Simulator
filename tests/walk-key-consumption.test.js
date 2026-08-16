@@ -140,5 +140,13 @@ test('the six cases are shared, so the browser and Electron drivers measure one 
 });
 
 test('the probe is a development surface and is never loaded otherwise', () => {
-  assert.match(mainJs, /if \(devSessionActive\(\)\) \{\s*\n\s*import\('\.\/debug\/inputProbe\.js'\)/);
+  // The import is base-anchored (Goal 28 P1: bundle-safe dynamic import) but
+  // the contract is unchanged: inputProbe is imported in exactly one place,
+  // dynamically, directly inside the devSessionActive() gate.
+  assert.match(
+    mainJs,
+    /if \(devSessionActive\(\)\) \{\s*\n\s*import\([^)]*['"]src\/debug\/inputProbe\.js['"][^)]*\)/,
+  );
+  const importSites = mainJs.match(/inputProbe\.js/g) || [];
+  assert.equal(importSites.length, 1, 'inputProbe.js must be referenced from exactly one import site');
 });

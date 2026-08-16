@@ -95,6 +95,12 @@ import {
   levelDivot,
 } from './sim/courseMaintenance.js';
 
+// GOAL 28 P1 attribution seam: everything ABOVE this mark is the static
+// dependency graph's fetch+parse+eval (three included — imports hoist);
+// everything from here to menu-mount is the app's own top-level init. The
+// load-breakdown driver reports it as pageMarks['app-eval-start'].
+performance.mark('app-eval-start');
+
 // A (Goal 20): before ANY listener is registered, a QA launch swaps the DOM's
 // pointer-lock primitive for one that does not seize the operator's real
 // cursor. Inert in the shipped game — see src/core/qaLookCapture.js.
@@ -1342,7 +1348,9 @@ function startGameNow(
   // advances in dailyTick; generating it here would post online deposits while
   // the opaque loading veil is still up and make Continue change saved cash.
   app.screen = 'game';
+  performance.mark('scene-construct-start');
   app.scene3d = makeCourseScene(canvas, state);
+  performance.mark('scene-construct-end');
   // GPU HEALTH (2026-08-13): the owner played a whole session at 3 fps because
   // his GPU process died and nothing in the game said so -- software rendering
   // spent a night masquerading as a performance regression. The watch names
@@ -2005,8 +2013,11 @@ function ensureLoadVeil() {
       showPlate(); // a different photograph of the club every load
       title.textContent = t || 'Loading';
       // the club you are arriving at, named. Falls back to the starting
-      // property so the very first load is not blank.
-      clubEl.textContent = activeState(app.empire)?.club?.name
+      // property so the very first load is not blank. Null-tolerant: the
+      // veil now rises BEFORE new-game state generation (Goal 28 P2), when
+      // app.empire does not exist yet — and the starting property is exactly
+      // the right name for that moment.
+      clubEl.textContent = (app.empire ? activeState(app.empire)?.club?.name : null)
         || app.state?.club?.name || STARTING_PROPERTY_NAME;
       stepEl.textContent = 'Building the course';
       fill.style.width = '12%';
@@ -4781,9 +4792,22 @@ function boot() {
     async onNewGame(mode) {
       // Begin in the authored three-hole fixer-upper. Later acquisitions belong
       // on the physical clubhouse laptop, after the player knows the space.
+      //
+      // GOAL 28 P2: the veil goes up BEFORE state generation — measured at
+      // 2,240 ms of synchronous work that used to run with the menu still on
+      // screen, so the click appeared to do nothing for two seconds. Two rAFs
+      // guarantee the veil's frame actually reaches the compositor before the
+      // block lands. The attribution marks stay; they are how the block was
+      // found and how any regression will be seen.
+      ensureLoadVeil().show('Founding the club');
+      await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+      performance.mark('ng-stategen-start');
       app.empire = newStarterEmpire(mode, (Math.random() * 2 ** 31) | 0);
+      performance.mark('ng-stategen-end');
       bootEmpire(app.empire);
+      performance.mark('ng-boot-returned');
       await autosave();
+      performance.mark('ng-autosave-done');
     },
     async onContinue() {
       // H2: the rotated generation is a real fallback, not just a file on disk.
@@ -5071,7 +5095,7 @@ app.editorUi = () => editorUi; // QA hook: drive the editor from tooling
 // The flag is read inline rather than imported, so the overlay module is never
 // fetched or parsed unless it is actually asked for.
 if (new URLSearchParams(window.location.search).get('keydebug') === '1') {
-  import('./debug/keyCapture.js')
+  import(/* @vite-ignore */ new URL('src/debug/keyCapture.js', document.baseURI).href)
     .then(({ startKeyCapture }) => startKeyCapture(app))
     .catch((e) => console.error('key capture failed to start', e));
 }
@@ -5082,7 +5106,7 @@ if (new URLSearchParams(window.location.search).get('keydebug') === '1') {
 // routes is two measurements. Nothing is installed until a driver calls arm(); the object
 // here is inert.
 if (devSessionActive()) {
-  import('./debug/inputProbe.js')
+  import(/* @vite-ignore */ new URL('src/debug/inputProbe.js', document.baseURI).href)
     .then(({ createInputProbe, SIX_KEY_CASES }) => {
       app.inputProbe = createInputProbe(app);
       app.inputProbe.cases = SIX_KEY_CASES;

@@ -1,6 +1,12 @@
 # GOAL 28 — LOAD AND FIRST PRESSES
 
-**Probe lies this goal: 0 so far.** (Carried context from Goal 27's front:
+**Probe lies this goal: 1.** The P1 `moduleRequests` probe read 0 src
+requests in BOTH the unbundled and bundled configurations — Electron
+`file://` module loads emit no resource-timing entries at all (this also
+retroactively explains every empty `slowResources` list in the Goal 27
+runs). A probe that reads the same value in both worlds measures nothing;
+it is void and labeled so. The request-collapse claim rides the esbuild
+metafile (272 inputs) and the flat timing instead. (Carried context from Goal 27's front:
 the census program-counter control is VOID until fixed — any program-count
 claim below that relies on it will be labeled. Frame/time claims don't.)
 
@@ -63,3 +69,78 @@ subtracts the ambient floor). No total spawn→playable claim will be made
 for any change until the machine is healthy.
 
 ---
+
+## PHASE 1 — THE MODULE GRAPH: BUNDLED, MEASURED, REFUTED, REVERTED
+
+**Before (tonight's tiers, renderer→menu):** cold 1968.2 / 2079.4 / 1945
+(median **1968**), warm 1933.1 / 1957.9 / 1924.4 (median **1933**).
+Noise band ±80 ms.
+
+**The change:** `tools/bundle-app.mjs` (esbuild; `three` and
+`three/addons/*` external per the import-map rule) collapsed the live
+graph — **272 modules by esbuild metafile** — into one 5.76 MB ESM file;
+two one-line source fixes made the graph bundle-safe (recastNav and the
+two debug imports now resolve via `document.baseURI`, correct in both
+worlds). Boots clean, zero page errors.
+
+**After:** cold 1913.5 / 1907.6 / 1870.5 (median **1908**), warm 1923.4 /
+1932.2 / 1924.6 (median **1925**). Delta −60 ms cold / −8 ms warm.
+
+**Verdict: the lever is dead — the ~1.9 s slice was never module
+fetching.** index.html is reverted to the unbundled graph (the
+no-build-step contract is worth more than −60 ms); the bundler tool and
+the two base-anchored fixes stay.
+
+**Where the slice actually goes** (new permanent seam:
+`performance.mark('app-eval-start')` after main.js's import block, i.e.
+after the ENTIRE static graph incl. three evaluates; driver now reports
+pageMarks):
+
+| segment | cold | warm |
+|---|---|---|
+| renderer origin → app-eval-start (fetch+parse+eval of all 272 modules + three) | 862 ms | 877 ms |
+| app-eval-start → menu interactive (the app's own top-level init + menu mount) | 1042 ms | 1054 ms |
+
+The bigger half is app init, not loading — that block is main-thread and
+belongs to the same family as Phase 2's two blocks. It gets attributed
+(not guessed) when Phase 3 touches the menu region.
+
+## PHASE 2 — THE TWO MAIN-THREAD BLOCKS: ATTRIBUTED EXACTLY, THE FREEZE MADE INVISIBLE
+
+**Measured before any change** (new marks `ng-stategen-*`,
+`scene-construct-*`, driver reports pageMarks; p2-attr-idlecold):
+- Block A = `newStarterEmpire` alone: **2,240 ms**, synchronous, in the
+  click handler — and the veil historically rose AFTER it (veilShown ≈
+  4607 > stategen-end ≈ 4384 in every pre-change run). The player click
+  froze the MENU for two-plus seconds with no acknowledgment at all.
+- Block B = `makeCourseScene`: **1,040 ms**, already behind the veil.
+- `bootEmpire` returns in 0.6 ms; autosave ≈ 146 ms. The old "teardown"
+  guess was wrong on a fresh boot — teardown is a no-op there.
+
+**The change:** the veil rises FIRST in `onNewGame` ("Founding the club"),
+with a double-rAF yield so its frame reaches the compositor before the
+block lands; `veil.show()` made null-empire-tolerant (it used to read
+`activeState(app.empire)` and threw — caught by a watched-fail boot, fixed,
+and the fallback name is exactly right for a new game). One frozen-menu
+regression pin updated for shape, contract intact
+(`walk-key-consumption`: inputProbe still imported exactly once, still
+dev-gated).
+
+**Why no worker and no construction chunking:** the veil's photograph
+drift/dissolve is CSS transform+opacity — compositor-threaded, immune to
+main-thread blocks. VIEWED CLIP (`qa/clips/p2-veilfirst/`, frames mapped
+by the run's own marks): frame 43 veil card up one frame into the block;
+frames 60 → 70 → 80 show the plate dissolving IN while stategen still
+blocks (ends at 83); frame 86 the same through makeCourseScene. The
+loading state demonstrably animates through both blocks, which is the
+brief's experience goal — a worker for state-gen would animate only the
+progress bar and walks into the teardown class fce48b2 documents; internal
+deferral of scene construction is the room-first ground where debt was
+proven conserved. Declined, on that evidence.
+
+**Order invariant, both tiers:** `veilShown <= ng-stategen-start` TRUE in
+6/6 verification boots (3 cold, 3 warm). click→scene medians for the
+record — cold 6.24 s, warm 3.91 s — carry the machine caveat (the box
+sank further during the night; the pre-change warm was ~3.6-3.7 s and the
+reorder's honest cost is two veil frames, ~35 ms). Full suite 3685/3685,
+lint ratchet clean, inner exits read directly.

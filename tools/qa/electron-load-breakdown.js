@@ -111,6 +111,15 @@ async (page) => {
     .slice(0, 25));
 
   out.marks = T.marks;
+  // page-side performance.mark()s (GOAL 28 P1: 'app-eval-start' splits the
+  // renderer->menu slice into deps-eval vs app-init) + a resource count so
+  // the request-collapse claim is count-verified, not inferred
+  out.pageMarks = await page.evaluate(() => Object.fromEntries(
+    performance.getEntriesByType('mark').map((m) => [m.name, +m.startTime.toFixed(1)])));
+  out.moduleRequests = await page.evaluate(() => ({
+    src: performance.getEntriesByType('resource').filter((r) => /\/src\/.*\.js/.test(r.name)).length,
+    bundle: performance.getEntriesByType('resource').filter((r) => /main\.bundle\.js/.test(r.name)).length,
+  }));
   out.gapCount = T.gaps.length;
   out.gaps = T.gaps.filter((g) => g.ms > 60).slice(0, 40);
   out.prewarm = prewarm;

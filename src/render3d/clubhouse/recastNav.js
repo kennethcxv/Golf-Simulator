@@ -96,7 +96,9 @@ export function createRecastNav({ loadModule } = {}) {
   };
 
   const importModule = loadModule || (() => import(
-    /* @vite-ignore */ new URL('../../../vendor/recast-navigation.module.js', import.meta.url).href
+    // base-anchored, not import.meta.url: this module may execute from the
+    // bundled graph, whose file lives nowhere near src/render3d/clubhouse/
+    /* @vite-ignore */ new URL('vendor/recast-navigation.module.js', document.baseURI).href
   ));
 
   async function ensure() {
