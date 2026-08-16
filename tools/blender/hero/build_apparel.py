@@ -115,8 +115,10 @@ def polo_folded(origin=(0, 0, 0), broken=""):
     ox, oy, oz = origin
     p = {}
     w, d, h = FOLD_POLO
-    p["body"] = CL.folded("PoloFold_Body", (ox, oy, oz), FOLD_POLO,
-                          leaves=3, sag=0.0030, crease=0.0034, seed=0.4)
+    p.update(CL.folded_stack("PoloFold", (ox, oy, oz), FOLD_POLO,
+                             leaves=4, sag=0.0030, crease=0.0034, seed=0.4,
+                             wander=1.7))
+    body = CL.top_leaf(p)
 
     # the sleeve folded underneath shows as a soft ridge across the body
     p["sleeve_ridge"] = CL.fold_line(
@@ -128,7 +130,7 @@ def polo_folded(origin=(0, 0, 0), broken=""):
     # the collar, splayed open at the back edge of the fold. Its base comes
     # from the MEASURED top face: the nominal fold height is above the sagged
     # surface, and a collar placed there sinks into the shirt.
-    cz = CL.top_z(p["body"], ox + w * 0.03, oy + d * 0.20) + 0.0018
+    cz = CL.top_z(body, ox + w * 0.03, oy + d * 0.20) + 0.0018
     if broken == "collar":
         # THE BROKEN VARIANT: the collar lifted clear of the shirt. It still
         # looks like a collar from directly above, which is how a detached one
@@ -163,14 +165,14 @@ def polo_folded(origin=(0, 0, 0), broken=""):
     p["print"] = CL.decal(
         "PoloFold_Chest",
         (ox - w * 0.26, oy - d * 0.20,
-         CL.top_z(p["body"], ox - w * 0.26, oy - d * 0.20) - 0.0006),
+         CL.top_z(body, ox - w * 0.26, oy - d * 0.20) - 0.0006),
         (0, 0, 1), (0.0400, 0.0400))
 
     # the size tag, protruding from the right edge. MEASURED against the body,
     # not predicted: guessing put it 19.93 mm inside and then, re-guessed, clear
     # of the shirt entirely, and assert_assembly failed both.
     tag_hw = 0.0165
-    ex = CL.edge_x(p["body"], oz + h * 0.50, oy - d * 0.10)
+    ex = CL.edge_x(body, oz + h * 0.50, oy - d * 0.10)
     p["tag"] = HS.box("PoloFold_Tag",
                       (ox + ex + tag_hw - 0.0030, oy - d * 0.10, oz + h * 0.50),
                       (tag_hw * 2, 0.0170, 0.0014))
@@ -250,20 +252,28 @@ def tee_folded(origin=(0, 0, 0), broken=""):
     all three called out in the review as missing."""
     ox, oy, oz = origin
     w, d, h = FOLD_TEE
-    p = {"body": CL.folded("TeeFold_Body", (ox, oy, oz), FOLD_TEE,
-                           leaves=4, sag=0.0026, crease=0.0026, seed=1.7)}
-    surf = CL.top_z(p["body"], ox, oy + d * 0.20)
+    p = dict(CL.folded_stack("TeeFold", (ox, oy, oz), FOLD_TEE,
+                             leaves=4, sag=0.0026, crease=0.0026, seed=1.7,
+                             wander=1.7))
+    body = CL.top_leaf(p)
+    surf = CL.top_z(body, ox, oy + d * 0.20)
 
     # THE NECK RIB, as real ribbed geometry rather than a smooth arc
+    # A 10% SCALLOP AT 22 CYCLES IS NOT RIBBING, it is a tear. Sampled at 15
+    # points the scallop aliases badly, and on a 13.6 mm sausage floating
+    # 2.2 mm clear of the cloth the whole thing rendered as a ragged white
+    # strip laid on the shirt -- it read as a rip, not a neckline. Ribbing is
+    # FINE relief on a band that lies down: the band is the cue, the rib is
+    # texture on it. Sampled dense enough to carry what is left of it.
     arc = []
-    for si in range(15):
-        t = si / 14.0
+    for si in range(41):
+        t = si / 40.0
         a = math.pi * (0.14 + 0.72 * t)
-        rr = 1.0 + 0.10 * math.cos(22 * a)
+        rr = 1.0 + 0.016 * math.cos(26 * a)
         arc.append(Vector((ox + math.cos(a) * w * 0.185 * rr,
                            oy + d * 0.235 + math.sin(a) * d * 0.115 * rr,
-                           surf + 0.0022)))
-    p["neck_rib"] = CL._sweep("TeeFold_NeckRib", arc, 0.0068, sides=7)
+                           surf + 0.0004)))
+    p["neck_rib"] = CL._sweep("TeeFold_NeckRib", arc, 0.0034, sides=8)
 
     # THE SLEEVE EDGES: a folded tee shows the sleeve fold at each side
     for i, sgn in enumerate((-1, 1)):
@@ -325,8 +335,10 @@ def tee_hung(origin=(0, 0, 0), broken=""):
 def hoodie_folded(origin=(0, 0, 0), broken=""):
     ox, oy, oz = origin
     w, d, h = FOLD_HOOD
-    p = {"body": CL.folded("HoodFold_Body", (ox, oy, oz), FOLD_HOOD,
-                           leaves=2, sag=0.0034, crease=0.0030, seed=2.4)}
+    p = dict(CL.folded_stack("HoodFold", (ox, oy, oz), FOLD_HOOD,
+                             leaves=4, sag=0.0034, crease=0.0030, seed=2.4,
+                             wander=1.5))
+    body = CL.top_leaf(p)
     # the hood folded on top: a fat soft roll across the back half
     hz = oz + h + 0.0140
     if broken == "hood":
@@ -363,7 +375,7 @@ def hoodie_folded(origin=(0, 0, 0), broken=""):
         radius=0.0135, sides=12, sink=0.30)
     p["cord"] = HS.cylinder("HoodFold_Cord",
                             (ox - w * 0.05, oy - d * 0.24,
-                             CL.top_z(p["body"], ox - w * 0.05, oy - d * 0.06)
+                             CL.top_z(body, ox - w * 0.05, oy - d * 0.06)
                              - 0.0008),
                             0.0032, 0.1000, verts=8,
                             rotation=Quaternion((0, 1, 0), math.pi / 2))
@@ -461,8 +473,10 @@ def hoodie_hung(origin=(0, 0, 0), broken=""):
 def trousers_folded(origin=(0, 0, 0), broken=""):
     ox, oy, oz = origin
     w, d, h = FOLD_TROU
-    p = {"body": CL.folded("TrouFold_Body", (ox, oy, oz), FOLD_TROU,
-                           leaves=2, sag=0.0028, crease=0.0026, seed=3.1)}
+    p = dict(CL.folded_stack("TrouFold", (ox, oy, oz), FOLD_TROU,
+                             leaves=4, sag=0.0028, crease=0.0026, seed=3.1,
+                             wander=1.4))
+    body = CL.top_leaf(p)
     # THE FOLD END IS A FAT ROLL -- it is the whole read on the reference stack
     p["fold_roll"] = CL.fold_line("TrouFold_Roll",
                                   (ox - w * 0.46, oy - d * 0.40, oz + h * 0.52),
@@ -472,21 +486,28 @@ def trousers_folded(origin=(0, 0, 0), broken=""):
     # vanished under lighting -- the review's words. Everything here is 2-3x
     # the old projection, which is what it takes to cast a shadow at the
     # distance a player stands.
+    # ...but relief measured off the NOMINAL fold height is relief measured
+    # off nothing. oz + h is where the block used to end; the stack's real top
+    # is lower, so a 22.5 mm tube put there stood 20 mm clear of the cloth and
+    # read as an open trough lying across the trousers with the belt loops
+    # stranded on its rim. It sits on the MEASURED surface now, at a radius a
+    # waistband actually has.
+    wx = ox + w * 0.355
+    wz = CL.top_z(body, wx, oy) + 0.0020
     p["waistband"] = CL.fold_line("TrouFold_Waistband",
-                                  (ox + w * 0.355, oy - d * 0.42, oz + h + 0.0035),
-                                  (ox + w * 0.355, oy + d * 0.42, oz + h + 0.0035),
-                                  radius=0.0225, sides=14, sink=0.34)
+                                  (wx, oy - d * 0.40, wz),
+                                  (wx, oy + d * 0.40, wz),
+                                  radius=0.0115, sides=14, sink=0.55)
     for i, sgn in enumerate((-1, 1)):
         p[f"loop{i}"] = HS.box(f"TrouFold_Loop{i}",
-                               (ox + w * 0.355, oy + sgn * d * 0.21,
-                                oz + h + 0.0125),
-                               (0.0210, 0.0115, 0.0115), bevel=0.0022)
+                               (wx, oy + sgn * d * 0.21, wz + 0.0034),
+                               (0.0175, 0.0092, 0.0082), bevel=0.0018)
     # a welt pocket: a raised patch with a flap over it, as the reference has
     # A WELT POCKET is two lips with a slot between them, not a slab stuck on
     # the leg. The slab read as a floating plate; the slot casts the shadow
     # that makes it read as a pocket.
     px, py = ox + w * 0.045, oy + d * 0.150
-    pz = CL.top_z(p["body"], px, py)
+    pz = CL.top_z(body, px, py)
     for i, off in enumerate((-0.0130, 0.0130)):
         p[f"pocket_welt{i}"] = CL.strip(
             f"TrouFold_Welt{i}",
@@ -727,8 +748,21 @@ def check(name, parts):
     """Every pair, every part, with the deliberate ones named."""
     mesh = {k: v for k, v in parts.items()
             if hasattr(v, "data") and getattr(v.data, "vertices", None) is not None}
+    allow = list(DEEP.get(name, ()))
+    leaves = sorted(k for k in mesh if k.startswith("leaf"))
+    if leaves:
+        # The folded body is a STACK now. Every pair that named "body" was
+        # naming the one lofted block that used to be there, and it means all
+        # of the leaves -- expanded here rather than in four hand-written
+        # tables, because a pair list you have to remember to extend per
+        # garment is the exact shape of fault assert_assembly exists to stop.
+        allow = ([pr for pr in allow if "body" not in pr]
+                 + [(lf, o) for pr in allow if "body" in pr
+                    for o in pr if o != "body" for lf in leaves])
     HS.assert_all_one_piece(mesh, f"{name}: every part is one piece")
-    HS.assert_assembly(mesh, f"{name}: the assembly", allow=DEEP.get(name, ()))
+    HS.assert_assembly(mesh, f"{name}: the assembly", allow=allow)
+    if leaves:
+        CL.assert_leaves_clear(mesh, f"{name}: the leaves stand clear")
 
 
 def main():

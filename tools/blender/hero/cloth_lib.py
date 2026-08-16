@@ -669,6 +669,20 @@ def collar_flat(name, centre, halfw=0.052, back=0.030, forward=0.030,
     return HS.apply_mods(obj)
 
 
+def top_leaf(parts):
+    """The leaf everything else sits on -- collar, placket, band, print.
+
+    Named rather than indexed, because `p["leaf3"]` in a builder that later
+    changes its leaf count is a silent wrong answer: top_z would happily
+    measure the middle of the stack and put the collar inside it.
+    """
+    ns = sorted((k for k in parts if k.startswith("leaf")),
+                key=lambda k: int(k[4:]))
+    if not ns:
+        raise SystemExit("BUILD FAILED: top_leaf: no parts named leafN")
+    return parts[ns[-1]]
+
+
 def assert_leaves_clear(parts, label, tol=0.0006):
     """Leaves may TOUCH. They may not lace through one another.
 
@@ -1023,12 +1037,24 @@ def decal(name, centre, normal, size, lift=0.0016):
     """
     c = Vector(centre)
     n = Vector(normal).normalized()
-    up = Vector((0, 0, 1))
-    side = n.cross(up)
-    if side.length < 1e-6:
-        side = Vector((1, 0, 0))
-    side.normalize()
-    up = side.cross(n).normalized()
+    # THE FRAME IS FIXED BY udir x vdir = n, and nothing else. The old one
+    # derived `side` from a world-up cross product and then subtracted u from
+    # 0.5 to correct the handedness -- a sign calibrated by reading ONE render,
+    # of a chest print on a hung shirt. It only ever worked for that case. On
+    # the folded tee the normal is straight up, the cross product degenerates
+    # to the (1, 0, 0) fallback, and the print came out rotated 180 degrees:
+    # PINE HILLS upside down and running right to left.
+    #
+    # A decal lying flat has no world-up to borrow, so the choice has to be
+    # made deliberately: its text points to the BACK of the garment, so that
+    # somebody standing at the front of the shelf reads it the right way up.
+    if abs(n.z) > 0.9:
+        vdir = Vector((0.0, 1.0, 0.0))
+    else:
+        vdir = Vector((0.0, 0.0, 1.0))
+    vdir = (vdir - n * vdir.dot(n)).normalized()
+    side = vdir.cross(n).normalized()
+    up = vdir
     w, h = size[0] * 0.5, size[1] * 0.5
     verts, faces = [], []
     for sgn in (-1, 1):
@@ -1056,10 +1082,10 @@ def decal(name, centre, normal, size, lift=0.0016):
                 uv.data[li].uv = (0.02, 0.02)
                 continue
             rel = co - c
-            # MINUS: side = n.cross(up) points to the viewer's LEFT for a
-            # forward-facing decal, so a plain +u printed the wordmark
-            # backwards. Read the render, not the maths.
-            u = 0.5 - rel.dot(side) / (2 * w)
+            # No sign correction here any more: `side` is built as
+            # vdir x n, so u already runs to the reader's right for any
+            # orientation. The old minus was a per-case patch.
+            u = 0.5 + rel.dot(side) / (2 * w)
             v = 0.5 + rel.dot(up) / (2 * h)
             uv.data[li].uv = (0.02 + 0.96 * min(1.0, max(0.0, u)),
                               0.02 + 0.96 * min(1.0, max(0.0, v)))
