@@ -33,13 +33,42 @@ from mathutils import Vector
 # the assertions
 
 
+def point_inside(host, p_world, eps=1e-6, limit=64):
+    """Is world point `p_world` inside `host`'s closed volume? Crossing count.
+
+    THE SIGN COMES FROM PARITY, NOT FROM A SURFACE NORMAL, and that is the whole
+    point of this function. The previous version took the sign from the closest
+    face's normal, which is wrong for every hollow object in the project: for a
+    point in a shell's CAVITY the closest face is the INNER wall, whose normal
+    faces into the cavity, so the dot product flips and the point reports as
+    deeply inside the material.
+
+    Measured on the basket: the handles arc over the open top and the normal test
+    called 33 of 78 vertices "inside" a 6 mm shell, up to 71.85 mm deep. Parity
+    says 4 -- the four leg-end vertices that are genuinely in the rim material,
+    which is where the pivot belongs. Same mesh, same points, one lie removed.
+
+    A solidified shell's manifold interior IS the wall material, so parity is
+    exact for it, and for a solid block it agrees with the old test everywhere.
+    """
+    local = host.matrix_world.inverted() @ p_world
+    direction = Vector((1.0, 0.0, 0.0))
+    origin = local.copy()
+    crossings = 0
+    for _ in range(limit):
+        ok, loc, _nrm, _i = host.ray_cast(origin, direction)
+        if not ok:
+            break
+        crossings += 1
+        origin = loc + direction * eps
+    return crossings % 2 == 1
+
+
 def point_depth_inside(host, p_world):
     """How far inside `host` is world point `p_world`? Negative means outside.
 
-    Uses closest-point-on-mesh and the sign of the surface normal, which is exact
-    for the convex blocks and shells these assets are made of.
-
-    The point is converted into the HOST'S LOCAL SPACE first, because
+    Sign from `point_inside` (parity), magnitude from the distance to the nearest
+    surface. The point is converted into the HOST'S LOCAL SPACE first, because
     closest_point_on_mesh takes local coordinates. The first version passed world
     coordinates straight in, which is silently correct for a host whose origin
     happens to sit at the world origin -- true for the broom block and the
@@ -47,10 +76,11 @@ def point_depth_inside(host, p_world):
     nozzle sunk 7 mm into the head as being 2.2 mm outside it.
     """
     local = host.matrix_world.inverted() @ p_world
-    ok, loc, nrm, _ = host.closest_point_on_mesh(local)
+    ok, loc, _nrm, _ = host.closest_point_on_mesh(local)
     if not ok:
         return -1e9
-    return -(local - loc).dot(nrm.normalized())
+    d = (local - loc).length
+    return d if point_inside(host, p_world) else -d
 
 
 def assert_rooted(parts, host, label, min_verts=3, min_depth=0.0015):
@@ -93,7 +123,22 @@ def surface_gap(a, b):
     return best
 
 
-def assert_touching(a, b, label, max_gap=0.0015, require_surface=False):
+MAX_SEAT_DEPTH = 0.0060
+"""How far a part may be inside another and still be called 'attached'.
+
+There was no such number, and that is why the wand shipped. `assert_touching`
+returned PASS the moment a part was 0.2 mm inside its host and never looked at
+how much more -- so a grip driven 20.26 mm into a body 41.6 mm thick printed as
+`GripSocket is embedded in GunBody by 19.47 mm` in green. Attached is a few
+millimetres. Twenty is out the other side.
+
+Where deep insertion is intended (a shaft in a socket), pass `max_depth`
+explicitly and say why. Silence must mean the tight default, not no limit.
+"""
+
+
+def assert_touching(a, b, label, max_gap=0.0015, require_surface=False,
+                    max_depth=MAX_SEAT_DEPTH):
     """Connected means ABUTTING or EMBEDDED, and the first version only tested
     the first.
 
@@ -112,6 +157,12 @@ def assert_touching(a, b, label, max_gap=0.0015, require_surface=False):
     deepest = -1e9 if require_surface else max(
         (point_depth_inside(b, mwa @ v.co) for v in a.data.vertices), default=-1e9)
     if deepest > 0.0002:
+        if deepest > max_depth:
+            raise SystemExit(
+                f"BUILD FAILED: {label} -- {a.name} is {deepest * 1000:.2f} mm "
+                f"INSIDE {b.name}, past the {max_depth * 1000:.1f} mm a seated "
+                f"part may sink. This is not attachment, it is one part driven "
+                f"through another; pass max_depth explicitly if it is intended.")
         print(f"  connection assertion passed: {a.name} is embedded in "
               f"{b.name} by {deepest * 1000:.2f} mm ({label})")
         return
@@ -257,6 +308,93 @@ def assert_boxes_overlap(a, b, label, min_overlap=0.0020):
             f"{worst * 1000:+.2f} mm on {axis}; they do not share volume")
     print(f"  overlap assertion passed: {a.name} shares "
           f"{worst * 1000:.1f} mm with {b.name} ({label})")
+
+
+def _world_box(o):
+    pts = [o.matrix_world @ Vector(c) for c in o.bound_box]
+    return (Vector((min(p.x for p in pts), min(p.y for p in pts), min(p.z for p in pts))),
+            Vector((max(p.x for p in pts), max(p.y for p in pts), max(p.z for p in pts))))
+
+
+def _boxes_clear(a, b, slack=0.0):
+    alo, ahi = _world_box(a)
+    blo, bhi = _world_box(b)
+    return any(min(ahi[i], bhi[i]) - max(alo[i], blo[i]) < -slack for i in range(3))
+
+
+def assert_assembly(parts, label, allow=(), max_depth=MAX_SEAT_DEPTH,
+                    require_attached=True):
+    """EVERY pair, not a hand-written list of pairs.
+
+    The wand has 12 parts -- 66 pairs -- and its builder named 11 of them. The
+    pair the fault was in, grip against body, was not one of the 11, so a grip
+    driven 20 mm through the body was never looked at by anything. Four more
+    faulty pairs were likewise simply absent. A check you have to REMEMBER to
+    write per pair gets forgotten exactly where the modelling is hardest and the
+    parts are most crowded, which is where the faults are.
+
+    So this walks all of them and fails closed. `allow` names the pairs where
+    deep interpenetration is deliberate, as {("grip", "socket"), ...} -- naming
+    one is a decision on the record, forgetting one is now a build failure
+    instead of silence.
+
+    `parts` is {name: object}. Also requires every part to touch at least one
+    other, which is the loose-shell fault from the other direction.
+    """
+    allow = {tuple(sorted(p)) for p in allow}
+    names = sorted(parts)
+    faults, attached = [], {n: False for n in names}
+    for i, na in enumerate(names):
+        for nb in names[i + 1:]:
+            a, b = parts[na], parts[nb]
+            if _boxes_clear(a, b):
+                continue                      # cannot touch, cheap reject
+            deepest = max((point_depth_inside(b, a.matrix_world @ v.co)
+                           for v in a.data.vertices), default=-1e9)
+            other = max((point_depth_inside(a, b.matrix_world @ v.co)
+                         for v in b.data.vertices), default=-1e9)
+            deep = max(deepest, other)
+            if deep > 0.0002:
+                attached[na] = attached[nb] = True
+                if deep > max_depth and tuple(sorted((na, nb))) not in allow:
+                    faults.append(f"{na} and {nb} interpenetrate by "
+                                  f"{deep * 1000:.2f} mm "
+                                  f"(limit {max_depth * 1000:.1f})")
+            elif min(surface_gap(a, b), surface_gap(b, a)) <= 0.0015:
+                attached[na] = attached[nb] = True
+    if require_attached:
+        for n in names:
+            if not attached[n]:
+                faults.append(f"{n} touches nothing -- it is a loose part")
+    if faults:
+        raise SystemExit(
+            f"BUILD FAILED: {label} -- {len(faults)} assembly faults across "
+            f"{len(names)} parts ({len(names) * (len(names) - 1) // 2} pairs "
+            f"checked)\n  " + "\n  ".join(faults[:8])
+            + (f"\n  ... and {len(faults) - 8} more" if len(faults) > 8 else ""))
+    print(f"  assembly assertion passed: {len(names)} parts, "
+          f"{len(names) * (len(names) - 1) // 2} pairs, none interpenetrating "
+          f"past {max_depth * 1000:.1f} mm, none loose ({label})")
+
+
+def assert_all_one_piece(parts, label, allow=()):
+    """`assert_one_piece` over EVERY part, not one hand-picked part per asset.
+
+    The dustpan called it on the pan and not on the handle, and the handle is
+    three disconnected cylinders -- [24, 24, 24] -- held to the pan by two
+    vertices. Same failure mode as the pair list: a per-part check that has to be
+    remembered per part.
+    """
+    allow = set(allow)
+    faults = []
+    for name in sorted(parts):
+        s = shells(parts[name])
+        if len(s) != 1 and name not in allow:
+            faults.append(f"{name} is {len(s)} separate pieces {s[:6]}")
+    if faults:
+        raise SystemExit(f"BUILD FAILED: {label} -- " + "; ".join(faults))
+    print(f"  continuity assertion passed: all {len(parts)} parts are one piece "
+          f"each ({label})")
 
 
 def shells(obj):

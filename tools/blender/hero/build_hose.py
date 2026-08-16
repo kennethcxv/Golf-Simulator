@@ -226,4 +226,9 @@ def main():
         H.verify_sockets(OUT_GLB, ["SOCKET_GripPrimary", "SOCKET_GripSupport"])
 
 
-main()
+# Guarded so the module can be IMPORTED without building. An unguarded main()
+# meant every audit that imported a builder silently re-rendered and re-exported
+# its asset as a side effect. Blender runs a --python script as __main__, so the
+# command line is unchanged.
+if __name__ == "__main__":
+    main()
