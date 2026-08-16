@@ -576,91 +576,167 @@ def hoodie_folded(origin=(0, 0, 0), broken=""):
     return p
 
 
+# A hoodie is boxier than a tee and longer: wider through the shoulder, almost
+# no waist, and it hangs heavier so the hem barely flares.
+HOOD_SPEC = {
+    "sh_half": 0.2360, "length": 0.6100, "neck_half": 0.3400,
+    "shoulder_drop": 0.0400, "scoop_front": 0.0260, "scoop_back": 0.0200,
+    "width_profile": ((0.00, 1.000), (0.16, 1.075), (0.60, 1.055),
+                      (1.00, 1.060)),
+    "depth_chest": 0.1000, "depth_hem": 0.0940, "hem_side_drop": 0.0045,
+}
+HOOD_CLOTH = 0.0030
+
+
 def hoodie_hung(origin=(0, 0, 0), broken=""):
+    """PANELS, like the polo and the tee. The hoodie's hood, pocket and cords
+    always read; the BODY under them was a draped tube with a scalloped hem and
+    two stiff pipes for sleeves."""
     ox, oy, oz = origin
     p = {}
     SH = oz + 0.3600
-    p["hanger"], p["hook"] = CL.hanger("HoodHung_Hanger", (ox, oy, SH), halfw=0.0900,
-                                          drop=0.0560, rod=0.0058)
-    p["body"] = CL.draped("HoodHung_Body", SH - 0.0150, 0.2350, 0.2450,
-                          0.3400, 0.1050, centre=(ox, oy), neck=0.0180,
-                          shoulder_drop=0.0150)
-    # THE HOOD HAS AN OPENING. The first version was a bent tube -- a ring, as
-    # the review said, with the hanger's hook showing straight through it. A
-    # hood is a ROLLED RIM around a hole with a SHELL behind it, and the two
-    # together are what makes it read as something you could put your head in.
-    # BEHIND the neck, not over it. At y=-0.005 the hood sat around the
-    # hanger's hook and the hook poked out through the shell as a white
-    # speck -- visible in tt04 only, which is where the last version of
-    # this same fault was caught too.
-    rim_c = Vector((ox, oy + 0.0225, SH + 0.0215))
-    RIM_A, RIM_B = 0.0620, 0.0530          # the opening's half-width and height
+    panel, side_u, top_edge = CL.hung_body(HOOD_SPEC)
+    NU, NV = 25, 19
+    for front in (True, False):
+        key = "front" if front else "back"
+        seed = 0.0 if front else 2.4
+        surf = CL.grid_surface(
+            f"HoodHung_{key.capitalize()}",
+            (lambda f, sd: (lambda u, v: panel(f, side_u(u), v, sd)
+                            + Vector((ox, oy, SH))))(front, seed),
+            nu=NU, nv=NV, smooth=True)
+        p[key] = CL.smooth_by_angle(
+            CL.thicken(surf, HOOD_CLOTH, offset=-1.0 if front else 1.0))
+
+    for nm, sgn in (("L", -1.0), ("R", 1.0)):
+        pts, nrms = [], []
+        for k in range(15):
+            v = 0.030 + 0.955 * k / 14.0
+            pts.append(panel(True, sgn, v) + Vector((ox, oy, SH)))
+            nrms.append(Vector((sgn, 0.0, 0.0)))
+        p[f"seam{nm}"] = CL.framed_sweep(f"HoodHung_Seam{nm}", pts, nrms,
+                                         0.0032, 0.0022, sides=6, taper=2)
+        pts, nrms = [], []
+        for k in range(11):
+            u = sgn * (HOOD_SPEC["neck_half"]
+                       + (0.985 - HOOD_SPEC["neck_half"]) * k / 10.0)
+            pts.append(Vector((ox + u * HOOD_SPEC["sh_half"], oy,
+                               SH + top_edge(u, True) + 0.0010)))
+            nrms.append(Vector((0.0, 0.0, 1.0)))
+        p[f"shoulder{nm}"] = CL.framed_sweep(
+            f"HoodHung_Shoulder{nm}", pts, nrms, 0.0062, 0.0018, sides=6,
+            taper=2)
+
+        # long sleeves, hanging much closer to the body than a tee's, and
+        # anchored where the panel HAS depth rather than on its flat shoulder
+        anchor = panel(True, sgn * 0.885, 0.11) + Vector((ox, oy, SH))
+        root = Vector((anchor.x, oy, anchor.z + 0.0100))
+        dvec = Vector((sgn * 0.40, 0.0, -0.92)).normalized()
+        p[f"sleeve{nm}"] = CL.sleeve_from_body(
+            f"HoodHung_Sleeve{nm}", root, dvec, 0.3450, 0.0730, 0.0455,
+            droop=0.05, sides=16, steps=11, seam_in=0.0260, flat=0.62)
+        sv = Vector((0.0, 0.0, 1.0)).cross(dvec).normalized()
+        uv = dvec.cross(sv).normalized()
+        pts, nrms = [], []
+        for k in range(17):
+            a = 2.0 * math.pi * k / 17
+            q = root + sv * (math.cos(a) * 0.0716) + uv * (
+                math.sin(a) * 0.0716 * 0.62)
+            pts.append(q)
+            nrms.append((q - root).normalized())
+        p[f"armhole{nm}"] = CL.framed_sweep(
+            f"HoodHung_Armhole{nm}", pts, nrms, 0.0026, 0.0018, closed=True,
+            sides=6)
+        # a hoodie DOES have a ribbed cuff -- seated ON the sleeve with the
+        # closed tip proud of it, which is the whole lesson of the polo's
+        # "flat disc" and the tee's hollow sleeve
+        end = root + dvec * 0.3060
+        p[f"cuff{nm}"] = CL.ribbed_ring(f"HoodHung_Cuff{nm}", end, dvec,
+                                        0.0468, 0.0230, ribs=16, depth=0.0020)
+
+    # THE HOOD: a rolled rim round a hole with a shell behind it, sat BEHIND
+    # the neck so the hanger's hook does not show through it. Measured off the
+    # panel's own neckline instead of a nominal height -- it used to float
+    # clear of the shoulders like a helmet.
+    neck_back = panel(False, 0.0, 0.0) + Vector((ox, oy, SH))
+    # BIGGER AND LOWER. At 70 x 57 mm sat 30 mm above the neckline it read as
+    # a small pod parked behind the shoulders with daylight under it. A hood is
+    # nearly as wide as the neck opening and it SITS ON the neckline -- the
+    # gap under it is the fault, not the shape.
+    rim_c = Vector((ox, neck_back.y + 0.0230, neck_back.z + 0.0120))
+    RIM_A, RIM_B = 0.0980, 0.0760
     rim_pts = []
     for s_i in range(29):
         a_i = 2 * math.pi * s_i / 28
         rim_pts.append(rim_c + Vector((math.cos(a_i) * RIM_A, 0.0,
                                        math.sin(a_i) * RIM_B))
-                       + Vector((0.0, math.sin(a_i) * 0.0130, 0.0)))
-    p["hood_rim"] = CL._sweep("HoodHung_Rim", rim_pts, 0.0072, sides=9)
+                       + Vector((0.0, math.sin(a_i) * 0.0140, 0.0)))
+    p["hood_rim"] = CL._sweep("HoodHung_Rim", rim_pts, 0.0078, sides=9)
 
-    # the shell behind the opening: a dome the head would go into
     def hood_shell(u, v):
         a_i = 2 * math.pi * u
-        # v 0 at the rim, 1 at the back of the hood
-        depth = 0.0940 * v
-        # the shell starts at FULL rim width so it closes the opening from
-        # most angles; a shell narrower than its rim reads as a bare ring
+        depth = 0.1240 * v
         k = math.sqrt(max(0.0, 1.0 - v * v * 0.58))
         return rim_c + Vector((math.cos(a_i) * RIM_A * 1.02 * k,
-                               0.0075 + depth,
+                               0.0080 + depth,
                                math.sin(a_i) * RIM_B * 0.98 * k
-                               - 0.0090 * v * v))
+                               - 0.0100 * v * v))
     shell = CL.grid_surface("HoodHung_Shell", hood_shell, nu=29, nv=11,
                             smooth=True)
     CL._weld_and_cap(shell)
     p["hood"] = shell
 
-    for side in (-1, 1):
-        nm = "L" if side < 0 else "R"
-        d = Vector((side * 0.36, 0, -0.933))
-        p[f"sleeve{nm}"] = CL.sleeve_from_body(
-            f"HoodHung_Sleeve{nm}",
-            (ox + side * 0.0905, oy, SH - 0.0300), d, 0.2160, 0.0462, 0.0318,
-            droop=0.05, cuff=0.14)
-        p[f"seam{nm}"] = CL.ribbed_ring(
-            f"HoodHung_Seam{nm}",
-            (ox + side * 0.0905, oy, SH - 0.0300), d, 0.0464, 0.0064,
-            ribs=1, depth=0.0004, sides=20)
-        p[f"cuff{nm}"] = CL.ribbed_ring(
-            f"HoodHung_Cuff{nm}",
-            Vector((ox + side * 0.0905, oy, SH - 0.0300))
-            + Vector(d).normalized() * 0.2035, d, 0.0326, 0.0165,
-            ribs=14, depth=0.0018)
-        p[f"cord{nm}"] = HS.cylinder(
-            f"HoodHung_Cord{nm}", (ox + side * 0.0170, oy - 0.0430,
-                                   SH - 0.0900),
-            0.0030, 0.0900, verts=8)
-    # kangaroo pocket: a band across the lower front
-    # the kangaroo pocket: a patch with a real lip at its top edge, which is
-    # what casts the shadow line the reference shows
+    # the cords, out of the rim and down the chest, ON the measured panel
+    for ci, sgn in ((0, -1.0), (1, 1.0)):
+        cpts, cn = [], []
+        for k in range(9):
+            t = k / 8.0
+            v = 0.055 + 0.330 * t
+            q = panel(True, sgn * 0.085, v) + Vector((ox, oy, SH))
+            cpts.append(Vector((q.x, q.y - 0.0042, q.z)))
+            cn.append(Vector((0.0, -1.0, 0.0)))
+        p[f"cord{ci}"] = CL.framed_sweep(f"HoodHung_Cord{ci}", cpts, cn,
+                                         0.0030, 0.0026, sides=6)
+
+    # THE KANGAROO POCKET, conformed to the panel rather than floated in front
+    # of it: a patch with a real lip at its top edge, which is what casts the
+    # shadow line the reference shows.
     prings = []
-    for s in range(13):
-        t = s / 12.0
-        x = ox + (t - 0.5) * 0.1820
+    for s_i in range(13):
+        t = s_i / 12.0
+        uu = (t - 0.5) * 0.94
+        base = panel(True, uu, 0.62) + Vector((ox, oy, SH))
         bulge = 1.0 - 0.30 * abs(t - 0.5) * 2
         ring = []
-        for i in range(12):
-            b = 2 * math.pi * i / 12
-            ring.append(Vector((x, oy - 0.0455 + math.sin(b) * 0.0145 * bulge,
-                                SH - 0.2130 + math.cos(b) * 0.0350)))
+        for i2 in range(12):
+            b = 2 * math.pi * i2 / 12
+            ring.append(Vector((base.x,
+                                base.y - 0.0100 + math.sin(b) * 0.0135 * bulge,
+                                base.z + math.cos(b) * 0.0380)))
         prings.append(ring)
     p["pocket"] = CL.loft("HoodHung_Pocket", prings, smooth=True)
     lip = []
-    for s in range(13):
-        t = s / 12.0
-        x = ox + (t - 0.5) * 0.1860
-        lip.append(Vector((x, oy - 0.0505, SH - 0.1790 - 0.0035 * math.cos(t * 3))))
-    p["pocket_lip"] = CL.strip("HoodHung_PocketLip", lip, 0.0075, 0.0038)
+    for s_i in range(13):
+        t = s_i / 12.0
+        uu = (t - 0.5) * 0.96
+        q = panel(True, uu, 0.545) + Vector((ox, oy, SH))
+        lip.append(Vector((q.x, q.y - 0.0052, q.z)))
+    p["pocket_lip"] = CL.strip("HoodHung_PocketLip", lip, 0.0078, 0.0040)
+
+    hem, hnrm = [], []
+    NH = 41
+    for k in range(NH):
+        t = k / (NH - 1.0)
+        frontish = t < 0.5
+        uu = side_u((t * 2.0) if frontish else (2.0 - t * 2.0))
+        hem.append(panel(frontish, uu, 1.0) + Vector((ox, oy, SH)))
+        hnrm.append(Vector((0.0, 0.0, 1.0)))
+    p["hem"] = CL.framed_sweep("HoodHung_Hem", hem, hnrm, 0.0135, 0.0038,
+                               sides=6, closed=True)
+
+    p["hanger"], p["hook"] = CL.hanger(
+        "HoodHung_Hanger", (ox, oy, SH + 0.0200), halfw=0.0900, drop=0.0560,
+        rod=0.0058)
     return p
 
 
@@ -921,20 +997,30 @@ DEEP = {
     + [(f"seam{k}", "hem") for k in ("L", "R")]
     + [("hanger", f"sleeve{k}") for k in ("L", "R")]
     + [("hanger", f"shoulder{k}") for k in ("L", "R")],
-    "hoodie-hung": [("hanger", "hook"), ("body", "hook"), ("body", "hanger"), ("body", "sleeveL"), ("body", "sleeveR"),
-                    ("body", "hood"), ("body", "pocket"), ("body", "cordL"),
-                    ("body", "cordR"), ("hanger", "hood"), ("hanger", "sleeveL"),
-                    ("hanger", "sleeveR"), ("hood", "sleeveL"),
-                    ("hood", "sleeveR"), ("body", "seamL"), ("body", "seamR"),
-                    ("hood", "hood_rim"), ("body", "hood_rim"),
-                    ("hanger", "hood_rim"), ("hook", "hood_rim"),
-                    ("hood", "hook"), ("pocket", "pocket_lip"),
-                    ("body", "pocket_lip"),
-                    ("seamL", "sleeveL"), ("seamR", "sleeveR"),
-                    ("cuffL", "sleeveL"), ("cuffR", "sleeveR"),
-                    ("hood", "seamL"), ("hood", "seamR")],
-    # A sweatband is inside the cap and the seams and eyelets are sewn through
-    # it -- each named, so anything NOT named that interpenetrates still fails.
+    "hoodie-hung": [("hanger", "hook"), ("hood", "hood_rim"),
+                    ("hood", "hanger"), ("hood", "hook"),
+                    ("hood_rim", "hanger"), ("hood_rim", "hook"),
+                    ("pocket", "pocket_lip")]
+    + [(b, o) for b in ("front", "back")
+       for o in ("hook", "hanger", "sleeveL", "sleeveR", "hood", "hood_rim",
+                 "pocket", "pocket_lip", "cord0", "cord1", "hem",
+                 "seamL", "seamR", "shoulderL", "shoulderR",
+                 "armholeL", "armholeR", "cuffL", "cuffR")]
+    + [("front", "back")]
+    + [(f"sleeve{k}", f"seam{k}") for k in ("L", "R")]
+    + [(f"sleeve{k}", f"shoulder{k}") for k in ("L", "R")]
+    + [(f"sleeve{k}", f"armhole{k}") for k in ("L", "R")]
+    + [(f"sleeve{k}", f"cuff{k}") for k in ("L", "R")]
+    + [(f"seam{k}", f"armhole{k}") for k in ("L", "R")]
+    + [(f"shoulder{k}", f"armhole{k}") for k in ("L", "R")]
+    + [(f"seam{k}", "hem") for k in ("L", "R")]
+    + [("hanger", f"sleeve{k}") for k in ("L", "R")]
+    + [("hanger", f"shoulder{k}") for k in ("L", "R")]
+    + [("hood", f"shoulder{k}") for k in ("L", "R")]
+    + [("hood_rim", f"shoulder{k}") for k in ("L", "R")]
+    + [(f"cord{n}", "pocket") for n in (0, 1)]
+    + [(f"cord{n}", "pocket_lip") for n in (0, 1)]
+    + [(f"cord{n}", "hood_rim") for n in (0, 1)],
     "cap": [("crown", "brim"), ("crown", "button"), ("crown", "sweatband"),
             ("crown", "buttonring"), ("brim", "stitch0"), ("brim", "stitch1"),
             ("brim", "stitch2"), ("crown", "strap0"), ("crown", "strap1")]
