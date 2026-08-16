@@ -855,3 +855,99 @@ or use `assert_boxes_overlap`, which exists for exactly this shape.
 And a thin box has **no vertices except its end corners**, so any assertion that
 samples vertices can only ever sample its ends. That is why burying a divider's
 ends 3 mm deeper moved its rooting number by nothing at all.
+
+---
+
+# THE ASSET QUEUE — PARTS 1, 2 AND 3
+
+## Part 1 — the outdoor tools
+
+**80,132 triangles across four single meshes became 7,916 across seven assets on
+six shared materials.**
+
+| tool | was | now | sockets / root |
+|---|---|---|---|
+| Bunker rake | 20,192 (1 mesh) | **784** | Primary 16.8 mm, Support 13.3 mm |
+| Hose nozzle | 20,313 (1 mesh) | **1,116** | Primary 3.5 mm, Support 10.9 mm |
+| Divot fork | 19,812 (1 mesh) | **152** | Primary 5.9 mm |
+| Divot pail | 19,815 (1 mesh) | **1,468** | Primary 8.9 mm, Support 0.2 mm |
+| Pressure wand | 788, no socket | **1,208** | Primary 4.2 mm, Support 9.6 mm |
+| Greens mower | — | **1,680** | root `Tool_greens_mower` |
+| Rotary spreader | — | **1,508** | root `Tool_rotary_spreader` |
+
+Every socket is asserted twice — geometrically against the part a hand closes
+on, and **by name in the exported file**. Each control uses the real measured
+fault: rake 0.81 yd, hose 0.97, divot 0.72.
+
+**The verifier was wrong and nearly shipped a broken socket.** It tolerated a
+`.NNN` suffix, which `gripsFor()` cannot resolve. Tightening it to an exact
+match then failed on GOOD files, because Blender's importer renames on collision
+too. It now parses the GLB's JSON chunk and reads the file's own node names —
+the same question the game asks.
+
+**On the hose's support hand**, which the queue asked me to decide: it should
+exist, and not because a hose nozzle is two-handed. It is held in one. It is
+that `support: null` gives the animation nothing to aim the other arm at.
+
+## Part 2 — the universal rack
+
+Photographed both existing assets first. `retail_gondola.glb` **reads correctly**
+and is kept as the visual reference; it is one size, three fixed shelves, six
+materials, no measurable surface. The stockroom rack's shelves visibly stop short
+of the upright.
+
+| size | shelf | usable top W × D | lip | clear above |
+|---|---|---|---|---|
+| low | 0 / 1 | 1.1320 × 0.3975 | 0.0200 | 0.6250 / 0.0865 |
+| standard | 0–2 / 3 | 1.1320 × 0.3975 | 0.0200 | 0.3797 / 0.1345 |
+| tall | 0–3 / 4 | 1.1320 × 0.3975 | 0.0200 | 0.4065 / 0.1785 |
+
+11 shelves, three sizes, **872 tris** per standard bay, **zero new materials**.
+The usable rectangle is measured between the inner faces of the uprights and
+BEHIND the lip — the rectangle the packer can actually fill.
+
+## Part 3 — the merchandise
+
+| family | tris | materials | covers |
+|---|---|---|---|
+| Golf balls | 4,862 | 2 | balls1/2/3 from one box mesh + a 3-cell atlas |
+| Drinks & snacks | 766 | 2 | 4 shapes × an 8-cell atlas = all 7 SKUs |
+| Apparel (folded + hung) | 762 | 1 | 6 SKUs × 2 presentations, same 6 cells |
+| Headwear | 534 | shared | cap1, cap2, visor1 |
+| Carded | 184 | shared | glove1/2, tees1, marker/divot/scorecard |
+
+Dimples are GEOMETRY and asserted: **0.795 mm of measured relief** on a 46.68 mm
+ball, read off the mesh. There is no normal-map channel in this palette.
+
+**Not modelled, deliberately:** 10 clubs, 2 bags, 2 shoes, 14 decor placeables —
+outside the brief's groups. Still open within accessories: range2, sunglasses2,
+bottle1 and umb1 have their own silhouettes (four meshes on the same atlas);
+towel1 reuses the folded-apparel mesh outright.
+
+## BALLMARK, DEBRIS AND FUNGICIDE — what each should be, and the cost
+
+The queue asked me not to model these and to say what they are. Read from
+source rather than guessed:
+
+**BALLMARK is not a prop.** `courseScene.js:7027` draws it as a coloured dot,
+`{color: 0x72834c, size: 0.018}`, and `main.js:1036` repairs it with `divot` —
+the fork built in Part 1. It is a ground defect on a green. It should be a
+shallow depression **decal** plus two or three displaced turf tufts.
+**Cost: zero new meshes and zero materials as a decal on the existing turf**;
+about 60 tris if the tufts are real geometry off the course vegetation atlas.
+Recommend the decal.
+
+**DEBRIS already has a system and no art.** `cleaningTools.js:70` defines it as
+"leaves, grit, wrappers — swept and scooped" and `:580` as "loose piles sitting
+ON the floor". The gap is that no mesh is bound to the class. Three low meshes
+(a leaf, a grit pile, a wrapper) on ONE atlas.
+**Cost: ~150 tris total, 1 material, 3 SKU-equivalent cells.**
+
+**FUNGICIDE IS NOT THE SPRAY BOTTLE.** The brief guessed it might be, and the
+source says otherwise: `main.js:1034` binds `fungicide: 'hose'`, and
+`balance.js:169` gives it `fungicideCostPerCell` and `fungicideProtectionDays`.
+It is a per-cell treatment applied with the hose nozzle already built, so it
+needs **no held prop at all**. What it needs is somewhere to come from — a
+treatment jug or drum on the stockroom rack.
+**Cost: one jug mesh ~200 tris, one more cell on the merch label atlas, zero
+new materials.**
