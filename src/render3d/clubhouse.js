@@ -17,6 +17,7 @@ import { clamp, rngOf } from '../core/utils.js';
 import { LAPTOP, screenCornersLocal, screenNormalLocal } from '../core/laptopRig.js';
 import { characterYawToward, makeCharacter } from './characterAsset.js';
 import { batchStaticSubtree } from './staticSubtreeBatch.js';
+import { freezeStaticMatrices } from './matrixFreeze.js';
 import { makeSoftParticleTexture } from './proceduralTextures.js';
 import { SHOP_CATALOG, SHELF_CAP, DECOR_SPOTS } from '../data/shopItems.js';
 import {
@@ -2833,6 +2834,7 @@ export function makeClubhouse(ctx) {
     // the gold pieces and one across the wood boards, pixel-identically.
     const trophyShelfBatchLabel = 'LoungeTrophyShelfStaticBatch'; // bound first: the strings ratchet
     batchStaticSubtree(shelf, { label: trophyShelfBatchLabel });
+    freezeStaticMatrices(shelf, { label: trophyShelfBatchLabel }); // GOAL 30 LEVER B
 
     // Original, text-free Pine Hills course art remains mounted on the existing
     // furnished-lounge photo prop; only its source texture is replaced.
@@ -2882,6 +2884,7 @@ export function makeClubhouse(ctx) {
       // per material bucket, pixel-identically (shadow flags preserved).
       const recyclingBatchLabel = 'DeliveryRecyclingStationStaticBatch'; // bound first: the strings ratchet
       batchStaticSubtree(recyclingStation, { label: recyclingBatchLabel });
+      freezeStaticMatrices(recyclingStation, { label: recyclingBatchLabel }); // GOAL 30 LEVER B
     });
 
     // receiving pad — deliveries will land here (gravel patch + posts)
