@@ -66,6 +66,7 @@ test('Electron main process registers one secured handler per native bridge chan
   for (const channel of [
     'fw:save', 'fw:load', 'fw:load-status', 'fw:load-record', 'fw:delete', 'fw:list',
     'fw:display-info', 'fw:set-window-mode', 'fw:set-resolution', 'fw:quit',
+    'fw:gpu-driver-versions',
   ]) {
     const registrations = source.split(`ipcMain.handle('${channel}'`).length - 1;
     assert.equal(registrations, 1, `${channel} must be registered exactly once`);

@@ -17,15 +17,36 @@
 // (tests/qa-boot-seed-pin.test.js) and stays intact.
 import { newStarterEmpire, serializeEmpire } from '../sim/empire.js';
 
+// courseMaintenance.runtime is the state graph's one non-enumerable (the
+// contract test sweeps this), and structured clone drops it. Its content is
+// WORLD-MEANINGFUL, not just cache: runtime.coarseShadow holds the coarse
+// values as of the last fine-import, so the first tick can land the coarse
+// drift generation-time systems wrote AFTER that capture. A heal that
+// recaptures from current coarse cells zeroes that pending import and the
+// world renders differently (the goldens caught it as floor-grime drift).
+// So the runtime rides the clone under an enumerable alias, and the adopter
+// in main.js moves it back behind the non-enumerable property.
+const carryRuntimes = (empire, on) => {
+  for (const holding of empire.holdings || []) {
+    const model = holding?.state?.courseMaintenance;
+    if (!model) continue;
+    if (on && model.runtime) model.runtimeCarry = model.runtime;
+    else if (!on) delete model.runtimeCarry;
+  }
+};
+
 self.onmessage = (event) => {
   const { token, mode, seed } = event.data || {};
   try {
     const empire = newStarterEmpire(mode, seed);
     try {
+      carryRuntimes(empire, true);
       self.postMessage({ token, empire });
     } catch {
       // not structured-clonable (a function or exotic object crept into the
-      // sim state): fall back to the save envelope, which the caller revives
+      // sim state): fall back to the save envelope, which the caller revives.
+      // The alias comes off first so the envelope stays save-shaped.
+      carryRuntimes(empire, false);
       self.postMessage({ token, json: serializeEmpire(empire) });
     }
   } catch (error) {

@@ -279,6 +279,29 @@ canvas#game {
 }
 
 .load-veil-step { margin-top: 12px; font-size: 12.5px; color: #7f8a80; min-height: 16px; }
+
+/* FIRST-RUN COMPILE SCREEN: title / one line of why / a real count under the
+   bar. Hidden unless the veil carries the compiling state, so every ordinary
+   load renders exactly as before. Tabular numerals keep the climbing count
+   from jittering the line width. */
+.load-veil-compile-note,
+.load-veil-compile-count { display: none; }
+.load-veil-compiling .load-veil-title { color: #cdd6cc; margin-bottom: 8px; }
+.load-veil-compiling .load-veil-compile-note {
+  display: block;
+  font-size: 12.5px;
+  color: #aab5aa;
+  margin-bottom: 20px;
+}
+.load-veil-compiling .load-veil-compile-count {
+  display: block;
+  margin-top: 10px;
+  font-size: 13px;
+  color: #cdd6cc;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.06em;
+}
+.load-veil-compiling .load-veil-step { display: none; }
 .load-veil-tip {
   min-height: 38px;
   margin: 28px auto 0;

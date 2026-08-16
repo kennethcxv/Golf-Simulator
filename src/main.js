@@ -10,7 +10,7 @@ import { installQaLookCapture } from './core/qaLookCapture.js';
 import { createFrameCap } from './core/frameCap.js';
 import { createStartupHold, installStartupInputHold } from './core/startupHold.js';
 import { ringingPhoneRequest, acceptBookingRequest, declineBookingRequest, fmtSlot } from './sim/reservations.js';
-import { devSessionActive } from './data/clubhouseVariant.js';
+import { devSessionActive, resolveClubhouseVariant } from './data/clubhouseVariant.js';
 import { HOLE_STATUS, TURF_ZONES, ZONE } from './sim/constants.js';
 import {
   EMPIRE_VERSION, newStarterEmpire, buyProperty, sellProperty, switchProperty, activeState,
@@ -45,6 +45,7 @@ import { makePhoneUi } from './ui/phone.js';
 import { makeSettingsPanel } from './ui/settingsPanel.js';
 import { makeToolWheel } from './ui/toolWheel.js';
 import { makeToolTuner } from './ui/toolTuner.js';
+import { startCompileScreen, primeDriverVersions } from './ui/compileScreen.js';
 import { quadTransform, uvAt } from './core/laptopProjection.js';
 import { makeAudio } from './core/audio.js';
 import {
@@ -1302,11 +1303,24 @@ function generateStarterEmpire(mode, seed) {
   return new Promise((resolve) => {
     const fallback = (why) => {
       if (why) console.warn(`new-game worker fell back to sync generation: ${why}`);
+      performance.mark('ng-leg-sync-fallback');
       resolve(newStarterEmpire(mode, seed));
     };
     let worker;
     try {
-      worker = new Worker(new URL('src/workers/newGameGeneration.js', document.baseURI), { type: 'module' });
+      // The worker is its own module graph with NO preload and NO page query:
+      // left alone it resolves the DEFAULT clubhouse variant while the page
+      // runs pine-hills-v2, and generation seeds the wrong room's layout —
+      // the goldens caught that as deterministic floor drift on every
+      // worker-path New Game (sync A/B green, worker red, empire values
+      // equal in Node where both sides share one environment). The variant
+      // resolver's first source is the query string, so the page's RESOLVED
+      // variant (flag, query, or stored setting alike) rides the worker URL
+      // and the worker's shopLayout freezes the same datums at module eval.
+      const workerUrl = new URL('src/workers/newGameGeneration.js', document.baseURI);
+      const variant = resolveClubhouseVariant()?.variant;
+      if (variant) workerUrl.searchParams.set('clubhouse', variant);
+      worker = new Worker(workerUrl, { type: 'module' });
     } catch (error) {
       fallback(error?.message || error);
       return;
@@ -1337,14 +1351,29 @@ function generateStarterEmpire(mode, seed) {
             return;
           }
           // structured clone drops non-enumerable properties, and the course
-          // maintenance model keeps its runtime (dirtyRows etc.) exactly
-          // there — rebuild it now (measured 3 ms) or the first visuals
-          // frame dies on model.runtime.dirtyRows. The contract test sweeps
-          // the whole state graph so any FUTURE non-enumerable fails loudly
-          // in the suite instead of here.
+          // maintenance model keeps its runtime exactly there. The worker
+          // aliases it enumerably (runtimeCarry) because its coarseShadow is
+          // world-meaningful — the pending coarse-to-fine import lives in it,
+          // and a rebuilt shadow loses that import (goldens caught the drift).
+          // Move the carried runtime back behind the non-enumerable property;
+          // ensureCourseMaintenance stays as the backstop heal if a carry is
+          // ever absent, and the contract test value-diffs the whole graph.
+          let carried = 0;
           for (const holding of empire.holdings) {
-            if (holding?.state?.courseMaintenance) ensureCourseMaintenance(holding.state);
+            const model = holding?.state?.courseMaintenance;
+            if (!model) continue;
+            if (model.runtimeCarry) {
+              Object.defineProperty(model, 'runtime', {
+                configurable: true,
+                enumerable: false,
+                value: model.runtimeCarry,
+              });
+              delete model.runtimeCarry;
+              carried += 1;
+            }
+            ensureCourseMaintenance(holding.state);
           }
+          performance.mark(`ng-leg-clone-adopt-carried-${carried}`);
           finish(resolve, empire);
           return;
         }
@@ -1724,6 +1753,12 @@ function startGameNow(
   veil.show(`Arriving at ${state.clubName}`);
   app.prewarming = true;
   const sceneRef = app.scene3d;
+  // FIRST-RUN COMPILE SCREEN: on a fresh profile (or after a driver update)
+  // the load ahead is real shader compilation, so the veil says so the way
+  // shipped games do, with the live program count as the number. The stamp
+  // that gates it is written by finish(true) only after the belt warm — an
+  // aborted first run shows the screen again next boot, which is the truth.
+  const compileScreen = startCompileScreen({ renderer: sceneRef.renderer, veil });
   let prewarmSucceeded = false;
   let degradedPrewarmNotice = null;
   sceneRef
@@ -1753,6 +1788,7 @@ function startGameNow(
       // the scene that replaced it.
       if (app.scene3d !== sceneRef || generation !== sceneStartGeneration) return;
       sceneStartGeneration += 1;
+      compileScreen.finish(false); // no stamp: an unfinished compile is not done
       veil.set('Course loading could not finish safely');
       destroyCurrentScene({ hideVeil: false });
       showFatalPanel({
@@ -1764,9 +1800,9 @@ function startGameNow(
     .finally(async () => {
       if (!prewarmSucceeded
         || app.scene3d !== sceneRef
-        || generation !== sceneStartGeneration) return;
+        || generation !== sceneStartGeneration) { compileScreen.finish(false); return; }
       const startupCompletion = startupHold.complete(startupToken, sceneRef);
-      if (!startupCompletion) return;
+      if (!startupCompletion) { compileScreen.finish(false); return; }
       app.speedIdx = startupCompletion.intendedSpeedIdx;
       lastTs = performance.now();
       app.prewarming = false;
@@ -1800,7 +1836,11 @@ function startGameNow(
       // The clip standard moved them here from the deferred slot — see
       // warmBeltThroughLiveLoop.
       await warmBeltThroughLiveLoop(sceneRef, generation, () => sceneStartGeneration);
-      if (app.scene3d !== sceneRef || generation !== sceneStartGeneration) return;
+      if (app.scene3d !== sceneRef || generation !== sceneStartGeneration) { compileScreen.finish(false); return; }
+      // The compile work under this veil is done (prewarm + belt warm), so the
+      // stamp is earned: land the count on n / n and gate the screen off for
+      // every later boot on this profile and driver.
+      compileScreen.finish(true);
       // Yield through two animation frames instead — the same paint-yield idiom
       // startGame uses. The startup hold is released above, so the first of
       // those is a real production frame drawn from the walk camera, and the
@@ -1962,7 +2002,9 @@ function ensureLoadVeil() {
       <div class="load-veil-logo">GOLF EMPIRE</div>
       <div class="load-veil-club"></div>
       <div class="load-veil-title"></div>
+      <div class="load-veil-compile-note"></div>
       <div class="load-veil-bar" role="progressbar" aria-label="Loading game" aria-valuemin="0" aria-valuemax="100" aria-valuenow="8"><div class="load-veil-fill"></div></div>
+      <div class="load-veil-compile-count" aria-hidden="true"></div>
       <div class="load-veil-step"></div>
       <div class="load-veil-tip" aria-live="off"></div>
     </div>`;
@@ -2060,6 +2102,13 @@ function ensureLoadVeil() {
   const fill = el.querySelector('.load-veil-fill');
   const tip = el.querySelector('.load-veil-tip');
   const progress = el.querySelector('[role="progressbar"]');
+  const compileNote = el.querySelector('.load-veil-compile-note');
+  const compileCountEl = el.querySelector('.load-veil-compile-count');
+  // FIRST-RUN COMPILE SCREEN state. While on, the compile block owns the title
+  // and the bar (the bar becomes REAL progress: programs built over programs
+  // expected), and set()'s phase labels stay out of the way.
+  let compileOn = false;
+  let shownTitle = '';
   const STEPS = ['Compiling shaders', 'Uploading textures', 'Warming the view'];
   let revision = 0;
   let hideTimer = null;
@@ -2093,6 +2142,13 @@ function ensureLoadVeil() {
       if (hideTimer !== null) clearTimeout(hideTimer);
       hideTimer = null;
       showPlate(); // a different photograph of the club every load
+      shownTitle = t || 'Loading';
+      // a new load decides the compile screen afresh; stale mode must not leak
+      compileOn = false;
+      el.classList.remove('load-veil-compiling');
+      delete el.dataset.compileMode;
+      compileNote.textContent = '';
+      compileCountEl.textContent = '';
       title.textContent = t || 'Loading';
       // the club you are arriving at, named. Falls back to the starting
       // property so the very first load is not blank. Null-tolerant: the
@@ -2112,6 +2168,10 @@ function ensureLoadVeil() {
       el.style.opacity = '1';
     },
     set(label) {
+      // While the compile screen is up, the count pump owns the bar and the
+      // compile block carries the story; a phase label under it would just
+      // repeat the title ("Compiling shaders" is one of the phases).
+      if (compileOn) return;
       stepEl.textContent = label;
       const i = STEPS.indexOf(label);
       if (i >= 0) {
@@ -2119,6 +2179,33 @@ function ensureLoadVeil() {
         fill.style.width = `${value}%`;
         progress.setAttribute('aria-valuenow', String(value));
       }
+    },
+    compileBegin(mode, titleText, line2) {
+      compileOn = true;
+      el.classList.add('load-veil-compiling');
+      el.dataset.compileMode = mode;
+      title.textContent = titleText;
+      compileNote.textContent = line2;
+      compileCountEl.textContent = '';
+      stepEl.textContent = '';
+      fill.style.width = '0%';
+      progress.setAttribute('aria-valuenow', '0');
+    },
+    compileCount(done, total) {
+      if (!compileOn) return;
+      compileCountEl.textContent = `${done} / ${total}`;
+      const pct = total > 0 ? Math.round((done / total) * 100) : 0;
+      fill.style.width = `${pct}%`;
+      progress.setAttribute('aria-valuenow', String(pct));
+    },
+    compileEnd() {
+      if (!compileOn) return;
+      compileOn = false;
+      el.classList.remove('load-veil-compiling');
+      delete el.dataset.compileMode;
+      title.textContent = shownTitle || 'Loading';
+      compileNote.textContent = '';
+      compileCountEl.textContent = '';
     },
     hide() {
       const expectedRevision = revision;
@@ -2139,6 +2226,7 @@ function ensureLoadVeil() {
       }, preferences.values.accessibility.reducedMotion ? 0 : 420);
     },
   };
+  app.loadVeil = loadVeil; // reachable from QA via window.__fw (planted-activation control)
   return loadVeil;
 }
 
@@ -5180,6 +5268,14 @@ boot();
 // be testing the wrong thing.
 app.autosave = autosave;
 window.__fw = app;
+
+// The GPU process's driver version, primed for the compile screen's gate. It
+// resolves in milliseconds while the player is still on the menu; if a load
+// ever starts first, the gate compares GL strings only for that boot and says
+// nothing (unknown is not "changed").
+window.fairwayNative?.gpuDriverVersions?.()
+  .then((versions) => primeDriverVersions(versions))
+  .catch(() => {});
 app.editorUi = () => editorUi; // QA hook: drive the editor from tooling
 
 // ?keydebug=1 — watch a REAL keypress travel from the OS to the walker. Off by

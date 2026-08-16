@@ -420,3 +420,25 @@ with its own rule reverted, in all three configurations tried. Its checks are
 renamed `noRegression_*` for that reason. Recorded here because the SHAPE
 recurs: a scenario that cannot reach the code it is aimed at looks exactly like
 a scenario in which the code already works.
+
+---
+
+## Goal 29 (compile screen session, 2026-08-16)
+
+**5 — the orchestrator contract test's git fingerprint had a 10 s budget in a
+repo whose binary diff costs 18.8 s.** `repositoryMetadata` in
+`tools/qa/goal24-interaction-performance.mjs` runs
+`git diff --binary --no-ext-diff HEAD` under `spawnSync {timeout: 10_000}`.
+The standing LFS pointer wedge keeps 34 vendor GLBs permanently "modified",
+and the binary patch of them measured 18.8 s of git time, so the fingerprint
+ETIMEDOUTed and the test 'orchestrator never starts a second Electron child
+after the first child exits nonzero' failed with a git error that had nothing
+to do with the contract under test. This was ALSO the full-gate's hidden
+fail-1 on 2026-08-15 (load-dependent then, deterministic by morning) — it was
+recorded as "flake" that night, which was wrong: it is an instrument time
+budget below the repository's measured floor, the same fault class the
+helper's own maxBuffer comment already fixed for SPACE. Timeout raised to
+120 s with the measurement in a comment; isolation went 44/45 → 45/45 on the
+change alone. The general shape: **any instrument that shells out to git in
+this repo must budget for the wedge's 34 binary-diffed GLBs, or its failures
+will masquerade as product failures.**

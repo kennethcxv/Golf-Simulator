@@ -2835,7 +2835,13 @@ export function repositoryMetadata(root = ROOT) {
       encoding: 'utf8',
       shell: false,
       windowsHide: true,
-      timeout: 10_000,
+      // The same binary patches that forced maxBuffer up also cost TIME:
+      // `git diff --binary --no-ext-diff HEAD` measured 18.8 s on 2026-08-16
+      // with the standing 34 modified vendor GLBs (the LFS pointer wedge).
+      // At 10 s this fingerprint ETIMEDOUTed and took the orchestrator
+      // contract test down with an error that had nothing to do with the
+      // contract under test.
+      timeout: 120_000,
       // Binary asset patches in this repository routinely exceed Node's
       // spawnSync default (~1 MiB). Truncating them would make two unknown
       // fingerprints compare equal, so retain the complete patch or fail.

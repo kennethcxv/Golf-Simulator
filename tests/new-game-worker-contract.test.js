@@ -56,6 +56,82 @@ test('structured clone drops exactly the known runtime slot, and ensure heals it
   assert.ok(clone.holdings[0].state.courseMaintenance.runtime, 'ensure must rebuild the runtime in place');
 });
 
+// THE CARRY: runtime is not just cache. runtime.coarseShadow holds the coarse
+// values as of the last fine-import, so the first tick can land the coarse
+// drift that generation-time systems wrote after that capture. A heal that
+// recaptures from current cells zeroes that pending import — serialize-equal,
+// value-different, and the goldens caught it as floor-grime drift on every
+// worker-path New Game (2026-08-16). So the worker aliases runtime enumerably
+// (runtimeCarry), the adopter moves it back non-enumerable, and this test
+// value-diffs the ENTIRE graph — runtime included — against the sync product.
+// Removing the carry turns this red with named paths, not a pixel diff.
+test('the worker protocol (carry, clone, adopt) is value-identical to sync generation', () => {
+  const original = newStarterEmpire('relaxed', 424242);
+  for (const holding of original.holdings) {
+    const model = holding?.state?.courseMaintenance;
+    if (model?.runtime) model.runtimeCarry = model.runtime; // worker side
+  }
+  const clone = structuredClone(original);
+  for (const holding of original.holdings) delete holding?.state?.courseMaintenance?.runtimeCarry;
+  for (const holding of clone.holdings) { // adopter side (main.js)
+    const model = holding?.state?.courseMaintenance;
+    if (!model) continue;
+    if (model.runtimeCarry) {
+      Object.defineProperty(model, 'runtime', {
+        configurable: true, enumerable: false, value: model.runtimeCarry,
+      });
+      delete model.runtimeCarry;
+    }
+    ensureCourseMaintenance(holding.state);
+  }
+  const model = clone.holdings[0].state.courseMaintenance;
+  assert.equal(Object.getOwnPropertyDescriptor(model, 'runtime').enumerable, false,
+    'the adopted runtime must return to its non-enumerable slot');
+  assert.ok(!('runtimeCarry' in model), 'the enumerable alias must not survive adoption');
+  assert.equal(serializeEmpire(clone), serializeEmpire(original),
+    'adoption must leave the save serialization untouched');
+
+  const diffs = [];
+  const seen = new Set();
+  const walk = (a, b, path, depth) => {
+    if (diffs.length >= 25 || depth > 14 || a === b) return;
+    const ta = Object.prototype.toString.call(a);
+    const tb = Object.prototype.toString.call(b);
+    if (ta !== tb) { diffs.push(`${path}: type ${ta} vs ${tb}`); return; }
+    if (ArrayBuffer.isView(a)) {
+      if (a.length !== b.length) { diffs.push(`${path}: typed length ${a.length} vs ${b.length}`); return; }
+      for (let i = 0; i < a.length; i += 1) {
+        if (a[i] !== b[i]) { diffs.push(`${path}[${i}]: ${a[i]} vs ${b[i]}`); return; }
+      }
+      return;
+    }
+    if (a === null || typeof a !== 'object') {
+      if (!(Number.isNaN(a) && Number.isNaN(b))) diffs.push(`${path}: ${String(a)} vs ${String(b)}`);
+      return;
+    }
+    if (seen.has(a)) return;
+    seen.add(a);
+    if (a instanceof Map) {
+      if (a.size !== b.size) { diffs.push(`${path}: Map size ${a.size} vs ${b.size}`); return; }
+      for (const [k, v] of a) walk(v, b.get(k), `${path}.get(${k})`, depth + 1);
+      return;
+    }
+    if (a instanceof Set) {
+      if (a.size !== b.size) diffs.push(`${path}: Set size ${a.size} vs ${b.size}`);
+      return;
+    }
+    const bKeys = new Set(Object.getOwnPropertyNames(b));
+    for (const key of Object.getOwnPropertyNames(a)) {
+      if (!bKeys.delete(key)) { diffs.push(`${path}.${key}: missing after adoption`); continue; }
+      walk(a[key], b[key], `${path}.${key}`, depth + 1);
+    }
+    for (const key of bKeys) diffs.push(`${path}.${key}: extra after adoption`);
+  };
+  walk(original, clone, 'empire', 0);
+  assert.deepEqual(diffs, [],
+    `the adopted worker product must be value-identical to sync generation:\n  ${diffs.join('\n  ')}`);
+});
+
 // The worker's DataCloneError fallback leg revives through the save
 // machinery; a fresh empire must round-trip it with a CLEAN report — zero
 // migrations, zero repairs — or the fallback would silently ship a healed

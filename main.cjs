@@ -578,6 +578,24 @@ ipcMain.handle('fw:crash-log', (event) => {
   return { path: reporter().logPath, tail: reporter().tail() };
 });
 
+// FIRST-RUN COMPILE SCREEN: the driver identity behind the "your graphics
+// driver was updated" rebuild notice. The GL strings the renderer can read
+// carry no driver version on this Electron build, so it comes from the GPU
+// process: every distinct driverVersion reported, sorted and joined — a driver
+// update changes its entry whichever adapter it lands on. Empty string means
+// unknown, and the gate treats unknown as no evidence of change.
+ipcMain.handle('fw:gpu-driver-versions', async (event) => {
+  assertTrusted(event);
+  try {
+    const info = await app.getGPUInfo('basic');
+    return [...new Set((info?.gpuDevice || [])
+      .map((device) => device?.driverVersion)
+      .filter((version) => typeof version === 'string' && version))].sort().join(',');
+  } catch {
+    return '';
+  }
+});
+
 app.whenReady().then(createWindow);
 app.on('window-all-closed', () => app.quit());
 app.on('activate', () => { if (!win) createWindow(); });

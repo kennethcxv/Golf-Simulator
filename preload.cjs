@@ -37,4 +37,8 @@ contextBridge.exposeInMainWorld('fairwayNative', {
   // over the shipped defaults at boot — what you tune is what ships.
   readToolFeel: () => ipcRenderer.invoke('fw:read-tool-feel'),
   saveToolFeel: (overrides) => ipcRenderer.invoke('fw:save-tool-feel', overrides),
+  // FIRST-RUN COMPILE SCREEN: ANGLE's unmasked renderer string on this Electron
+  // build carries no driver version, so the "your graphics driver was updated"
+  // gate needs the GPU process's own report of it.
+  gpuDriverVersions: () => ipcRenderer.invoke('fw:gpu-driver-versions'),
 });

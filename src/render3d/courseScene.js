@@ -12714,7 +12714,7 @@ export function makeCourseScene(canvas, state) {
     renderer.shadowMap.needsUpdate = true;
     guardCourseWaterReflection.beginFrame();
     timedWarmDraw(() => withWarmViewport(() => {
-      try { composer.render(); } catch (e) { renderer.render(scene, camera); }
+      try { composer.render(); } catch { renderer.render(scene, camera); }
     }));
     clubhouseApi?.setDirtReveal?.(0, false);
     phaseAt = markPrewarm('gesture-overview', phaseAt);

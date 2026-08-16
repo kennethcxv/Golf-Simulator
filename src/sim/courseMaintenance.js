@@ -996,8 +996,30 @@ export function initCourseMaintenance(state) {
 
 export function ensureCourseMaintenance(state) {
   if (!state.courseMaintenance) return initCourseMaintenance(state);
-  if (!state.courseMaintenance.runtime) makeRuntime(state.courseMaintenance, state);
-  return state.courseMaintenance;
+  const model = state.courseMaintenance;
+  if (!model.runtime) {
+    // A model that arrives without its runtime is PERSISTED-complete but
+    // cache-less: structured clone drops the non-enumerable runtime (the
+    // new-game worker handoff). Topology alone is NOT a faithful heal — the
+    // build and load tails also leave a full coarse shadow and fresh encoded
+    // caches, and an EMPTY shadow makes the first coarse sync treat every
+    // cell as changed and rewrite coarse state the generation already wrote.
+    // The goldens caught that as floor-grime drift on every New Game boot
+    // (sync-generation A/B green, worker red; the value-level delta was
+    // exactly coarseShadow/encodedSurface/encodedFields/revision/scoreDirty).
+    makeRuntime(model, state);
+    captureCourseMaintenanceCoarseShadow(state, model);
+    model.runtime.encodedSurface = encodeTypedArray(
+      model.surface,
+      model.width,
+      model.height,
+      'surface',
+    );
+    model.runtime.encodedFields = encodeCourseMaintenanceFields(model);
+    model.runtime.encodedRevision = model.runtime.saveRevision;
+    model.runtime.scoreDirty = false;
+  }
+  return model;
 }
 
 export function maintenanceCellSaveId(model, index) {
