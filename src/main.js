@@ -77,6 +77,7 @@ import {
   applyDivotMix,
   applyFungicideCourseMaintenancePath,
   clearCourseMaintenanceDebris,
+  ensureCourseMaintenance,
   fertilizeCourseMaintenancePath,
   finalizeCourseMaintenanceAction,
   flagCourseMaintenanceDisease,
@@ -1283,6 +1284,87 @@ function destroyCurrentScene({ hideVeil = false } = {}) {
     });
   }
   return pendingSceneBarrier;
+}
+
+// GOAL 28 P3 — starter-empire generation off the main thread. The 2,240 ms
+// newStarterEmpire block runs in a module worker while the veil's compositor
+// animation AND its JS-driven progress bar stay alive (the main thread is
+// free). The product crosses back as serializeEmpire's own string and is
+// revived through deserializeEmpireWithReport — the shipping save/Continue
+// machinery — and is accepted only if that revive reports a byte-clean pass
+// (no migrations, no repairs). ANY other outcome — worker error, timeout,
+// construction failure, dirty revive — falls back to synchronous
+// newStarterEmpire with the SAME seed, so both paths are deterministic and
+// identical in result. The worker owns no scene, no GL, no listeners;
+// abandoning it is terminate() + GC.
+const NEW_GAME_WORKER_TIMEOUT_MS = 8000;
+function generateStarterEmpire(mode, seed) {
+  return new Promise((resolve) => {
+    const fallback = (why) => {
+      if (why) console.warn(`new-game worker fell back to sync generation: ${why}`);
+      resolve(newStarterEmpire(mode, seed));
+    };
+    let worker;
+    try {
+      worker = new Worker(new URL('src/workers/newGameGeneration.js', document.baseURI), { type: 'module' });
+    } catch (error) {
+      fallback(error?.message || error);
+      return;
+    }
+    const token = `ng-${seed}-${Date.now()}`;
+    let settled = false;
+    const finish = (fn, arg) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(watchdog);
+      worker.terminate();
+      fn(arg);
+    };
+    const watchdog = setTimeout(() => finish(fallback, `timeout after ${NEW_GAME_WORKER_TIMEOUT_MS} ms`), NEW_GAME_WORKER_TIMEOUT_MS);
+    worker.onerror = (event) => finish(fallback, event?.message || 'worker error');
+    worker.onmessage = (event) => {
+      const data = event.data || {};
+      if (data.token !== token) return; // stale/foreign message: keep waiting, watchdog covers us
+      if (data.error) { finish(fallback, data.error); return; }
+      try {
+        if (data.empire) {
+          // the runtime object, structured-cloned: same code, same seed, no
+          // main-thread generation. Cheap shape sanity only — this is our own
+          // product, not foreign data.
+          const empire = data.empire;
+          if (!Array.isArray(empire.holdings) || !empire.holdings.length || !empire.activeId) {
+            finish(fallback, 'worker product failed shape sanity');
+            return;
+          }
+          // structured clone drops non-enumerable properties, and the course
+          // maintenance model keeps its runtime (dirtyRows etc.) exactly
+          // there — rebuild it now (measured 3 ms) or the first visuals
+          // frame dies on model.runtime.dirtyRows. The contract test sweeps
+          // the whole state graph so any FUTURE non-enumerable fails loudly
+          // in the suite instead of here.
+          for (const holding of empire.holdings) {
+            if (holding?.state?.courseMaintenance) ensureCourseMaintenance(holding.state);
+          }
+          finish(resolve, empire);
+          return;
+        }
+        // JSON envelope (worker hit DataCloneError): revive through the save
+        // machinery — this path regenerates the course and costs ~2 s, which
+        // is why it is the fallback and not the design.
+        performance.mark('ng-revive-start');
+        const loaded = deserializeEmpireWithReport(data.json);
+        performance.mark('ng-revive-end');
+        if (loaded.report.migrations.length || loaded.report.recovered) {
+          finish(fallback, 'worker product needed migrations/repairs (shape drift)');
+          return;
+        }
+        finish(resolve, loaded.empire);
+      } catch (error) {
+        finish(fallback, error?.message || error);
+      }
+    };
+    worker.postMessage({ token, mode, seed });
+  });
 }
 
 function startGame(state, loadNotice = null) {
@@ -4799,10 +4881,16 @@ function boot() {
       // guarantee the veil's frame actually reaches the compositor before the
       // block lands. The attribution marks stay; they are how the block was
       // found and how any regression will be seen.
+      // The seed draw is the FIRST random call in this handler: the QA seed
+      // pin intercepts Math.random in exactly this frame
+      // (tests/qa-boot-seed-pin.test.js), and veil.show() below draws random
+      // numbers of its own for the plate pick — the suite's pin test caught
+      // the seed landing on the photograph when the veil went first.
+      const seed = (Math.random() * 2 ** 31) | 0;
       ensureLoadVeil().show('Founding the club');
       await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
       performance.mark('ng-stategen-start');
-      app.empire = newStarterEmpire(mode, (Math.random() * 2 ** 31) | 0);
+      app.empire = await generateStarterEmpire(mode, seed);
       performance.mark('ng-stategen-end');
       bootEmpire(app.empire);
       performance.mark('ng-boot-returned');

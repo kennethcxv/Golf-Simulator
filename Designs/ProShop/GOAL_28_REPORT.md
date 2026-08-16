@@ -144,3 +144,60 @@ record — cold 6.24 s, warm 3.91 s — carry the machine caveat (the box
 sank further during the night; the pre-change warm was ~3.6-3.7 s and the
 reorder's honest cost is two veil frames, ~35 ms). Full suite 3685/3685,
 lint ratchet clean, inner exits read directly.
+
+## PHASE 3 — MENU-TIME OVERLAP: THE SAFE HALF BUILT, THE UNSAFE HALF REFUSED WITH EVIDENCE
+
+**Module warm during menu: already free.** The P1 seam proves the entire
+272-module graph (three included) finishes evaluating at ~862 ms — before
+the menu exists. There is nothing left to warm.
+
+**Menu-time STATE speculation: rejected as unsafe, by contract.** The QA
+seed pin (tests/qa-boot-seed-pin.test.js) intercepts the Math.random draw
+INSIDE the onNewGame stack frame; every deterministic driver and the
+golden gate depend on it. A seed drawn during menu idle bypasses the pin
+silently. The safe inversion was built instead:
+
+**The New Game click now generates off the main thread.** The seed draw
+stays in onNewGame (pin intact); a module worker
+(`src/workers/newGameGeneration.js`) runs newStarterEmpire and posts the
+RUNTIME empire via structured clone; the main thread adopts it after a
+3 ms `ensureCourseMaintenance` heal. Three watched failures shaped it:
+1. First worker design posted the SAVE JSON — and the revive
+   (`deserializeEmpireWithReport`) blocked the main thread 2,091 ms,
+   because a save stores the SEED and revive REGENERATES the course
+   (cpu-profile: hash2 / closestOnRoute / designCourse own ~all of it;
+   JSON.parse is 3 ms of 3,500). The same cost is what every CONTINUE
+   click pays today — measured, named, left as the next lever (the same
+   worker+ensure shape fits it).
+2. Structured clone drops non-enumerable properties: the first clone boot
+   died on `model.runtime.dirtyRows` at the first visuals frame — while
+   the serialize-equality fidelity test stayed GREEN (blind to
+   non-enumerables). The contract test now sweeps every own property in
+   the state graph and demands the runtime slot is the ONLY casualty
+   (tests/new-game-worker-contract.test.js).
+3. The fallback path was watched failing first: a bogus worker URL boot
+   logged the warn and booted clean through synchronous generation with
+   the same seed (qa/p3-fallback-control.log).
+
+**Acceptance (machine-independent, per the Phase 0 rule):** the stategen
+span's main-thread gap log. Before: one 2,168-2,343 ms single gap in
+every boot. After: **zero gaps > 60 ms inside the span** (p3-final-cold1:
+span 2,329 ms, gaps [], errs []), tiered verification below. Clone
+fidelity 6/6 seeds×modes; fresh-empire save round-trip reports clean;
+suite runs after the boots to avoid contending with the gap instrument.
+
+**Tiered verification (7/7 boots):** stategen spans 2,285-2,408 ms with
+ZERO main-thread gaps >60 ms inside the span, zero errors, zero
+fallbacks — 3 cold, 3 warm, 1 clip run. CLIP VIEWED
+(`qa/clips/p3-worker/`): frames 30 and 44, both inside the generation
+window (frames 24-48), show two DIFFERENT photographs — the veil
+cross-faded plates mid-generation. Suite 3688/3688 after two pin
+re-anchors (the seed-pin test moved to the new draw shape and got
+stronger: the draw must now also precede the veil's own plate
+randomness — the suite caught the seed landing on the photograph when
+the veil went first, exactly the class the pin exists for). One
+pre-existing flake surfaced twice tonight and is now named:
+`goal24-interaction-performance-orchestrator` "never starts a second
+Electron child" fails under full-suite CPU pressure and passes 45/45 in
+isolation; it predates every Goal 28 change (it is the gate run's
+pipe-eaten "fail 1" from before P1 existed) and belongs in HARNESS_DEBT.

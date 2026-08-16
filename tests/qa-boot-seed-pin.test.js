@@ -125,8 +125,18 @@ test('production onNewGame keeps the pinned seed draw as its first random call',
     /async onNewGame\(mode\) \{([\s\S]*?)\r?\n\s*\},\r?\n\s*async onContinue/,
   );
   assert.ok(match, 'production onNewGame body must remain discoverable');
-  const randomCalls = [...match[1].matchAll(/Math\.random\s*\(/g)];
+  const body = match[1];
+  const randomCalls = [...body.matchAll(/Math\.random\s*\(/g)];
   assert.equal(randomCalls.length, 1, 'onNewGame must have one deterministic seed draw');
-  const seedAssignment = match[1].indexOf('app.empire = newStarterEmpire');
-  assert.ok(seedAssignment >= 0 && randomCalls[0].index > seedAssignment);
+  // Goal 28 P3 moved generation off-thread: the draw now happens on its own
+  // line and is handed to generateStarterEmpire. The contract is unchanged
+  // and strengthened: the single draw feeds generation, and it precedes the
+  // veil (whose plate pick consumes Math.random of its own — the suite
+  // caught the seed landing on the photograph when the veil went first).
+  const seedDraw = body.indexOf('const seed = (Math.random()');
+  const generation = body.indexOf('app.empire = await generateStarterEmpire(mode, seed)');
+  const veil = body.indexOf('ensureLoadVeil');
+  assert.ok(seedDraw >= 0, 'the seed draw must stay a named, discoverable line');
+  assert.ok(generation > seedDraw, 'the drawn seed must feed empire generation');
+  assert.ok(veil === -1 || seedDraw < veil, 'the seed draw must precede the veil and its plate randomness');
 });
