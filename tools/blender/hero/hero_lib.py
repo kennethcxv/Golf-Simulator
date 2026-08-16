@@ -447,6 +447,24 @@ def socket(name, location):
     return ob
 
 
+def named_root(name, objects):
+    """A named parent node for a pushed tool.
+
+    The mower and the spreader currently export with NO root: their parts land
+    directly under `Scene`, which is the same naming gap that made Tool_rake
+    unfindable for two sessions. A tool the code cannot name is a tool the code
+    cannot place.
+    """
+    root = bpy.data.objects.new(name, None)
+    root.empty_display_type = "ARROWS"
+    root.empty_display_size = 0.08
+    bpy.context.collection.objects.link(root)
+    for ob in objects:
+        ob.parent = root
+        ob.matrix_parent_inverse = root.matrix_world.inverted()
+    return root
+
+
 def verify_sockets(path, names):
     """Read the exported GLB's own node names out of the FILE.
 

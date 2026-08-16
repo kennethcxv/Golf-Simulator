@@ -377,6 +377,14 @@ def prism(name, base, direction, length, radius_a, radius_b, sides=5, twist=0.0)
     return mesh_from(name, verts, faces)
 
 
+def solidify(obj, thickness, offset=0.0, rim=True):
+    """Give a surface a wall. Sheet parts -- reel blades, catcher panels --
+    have to have thickness or they vanish edge-on and read as decals."""
+    m = obj.modifiers.new("Solid", "SOLIDIFY")
+    m.thickness, m.offset, m.use_rim = thickness, offset, rim
+    return obj
+
+
 def join(objects, name):
     bpy.ops.object.select_all(action="DESELECT")
     for o in objects:
