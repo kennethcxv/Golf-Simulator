@@ -1,4 +1,4 @@
-"""THE SHARED MATERIAL LIBRARY for the outdoor tools.
+"""THE SHARED MATERIAL LIBRARY for the outdoor tools AND the retail rack.
 
 The queue's rule: "Rebuild as real parts on a shared material library", with the
 target of a small shared library across the whole batch. The four tools this
@@ -34,6 +34,7 @@ PALETTE = {
     "brass": ((0.4020, 0.2760, 0.0920), 0.28, 0.88),  # couplings, ferrules
     "wood": ((0.0980, 0.0300, 0.0140), 0.66, 0.0),    # rake and tool shafts
     "green": ((0.0210, 0.0580, 0.0400), 0.44, 0.0),   # the shop's own green
+    "oak": ((0.2400, 0.1580, 0.0760), 0.62, 0.0),     # shelf boards, shop oak
 }
 
 
