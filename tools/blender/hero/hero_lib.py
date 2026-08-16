@@ -448,33 +448,43 @@ def socket(name, location):
 
 
 def verify_sockets(path, names):
-    """Load the exported GLB BACK and find the sockets by name.
+    """Read the exported GLB's own node names out of the FILE.
 
-    Not a check that the empty exists in the scene -- a check that it survived
-    the exporter, which is the only question that matters. Blender's glTF
-    exporter drops objects that are not selected, and an empty with no children
-    is exactly the kind of thing an exporter quietly discards.
+    Not via Blender's importer. The importer renames on collision, so a
+    perfectly good SOCKET_GripPrimary comes back as SOCKET_GripPrimary.002
+    purely because the object that produced it is still in the scene -- and a
+    check that tolerated the suffix would equally have tolerated a genuinely
+    suffixed node, which gripsFor() cannot resolve because it looks the name up
+    exactly. Parsing the glTF JSON chunk asks the file the same question the
+    game asks it.
     """
-    before = {o.name for o in bpy.data.objects}
-    bpy.ops.import_scene.gltf(filepath=path)
-    imported = [o for o in bpy.data.objects if o.name not in before]
-    found = {}
+    import json
+    import struct
+    with open(path, "rb") as fh:
+        blob = fh.read()
+    magic, _ver, _len = struct.unpack_from("<4sII", blob, 0)
+    if magic != b"glTF":
+        raise SystemExit(f"BUILD FAILED: {path} is not a GLB")
+    off, doc = 12, None
+    while off < len(blob):
+        clen, ctype = struct.unpack_from("<II", blob, off)
+        if ctype == 0x4E4F534A:
+            doc = json.loads(blob[off + 8: off + 8 + clen].decode("utf-8"))
+            break
+        off += 8 + clen + (-clen % 4)
+    if doc is None:
+        raise SystemExit(f"BUILD FAILED: {path} has no JSON chunk")
+    present = [n.get("name", "") for n in doc.get("nodes", [])]
     for want in names:
-        hit = next((o for o in imported if o.name == want
-                    or o.name.startswith(want + ".")), None)
-        if hit is None:
+        if want not in present:
             raise SystemExit(
                 f"BUILD FAILED: {os.path.basename(path)} has no node named "
                 f"{want}. The tool will fall back to LEGACY_GRIPS and the hands "
                 f"will sit where the table says, not where the grip is. "
-                f"Nodes present: {sorted(o.name for o in imported)[:14]}")
-        found[want] = hit.matrix_world.translation.copy()
-    for k, v in found.items():
-        print(f"  socket verified in the exported GLB: {k} at "
-              f"({v.x:.4f}, {v.y:.4f}, {v.z:.4f})")
-    for o in imported:
-        bpy.data.objects.remove(o, do_unlink=True)
-    return found
+                f"Nodes in the file: {sorted(present)}")
+    print(f"  sockets verified IN THE FILE {os.path.basename(path)}: "
+          f"{', '.join(names)}  (of {len(present)} nodes)")
+    return present
 
 
 def argv_after_dashes():
