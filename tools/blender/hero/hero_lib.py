@@ -574,12 +574,25 @@ def drop_to_floor(objects, clearance=0.0):
 
 def _part_bounds(objs):
     """World bounds per part, keyed by name with any .001 suffix removed."""
+    # THE EVALUATED MESH, not the raw one. export_apply=True means the exporter
+    # writes the mesh with its MODIFIERS ON, so measuring ob.data.vertices
+    # compares the file against geometry that was never in it. The lane head's
+    # Reg_TermBody came out 1.71 mm adrift on nothing worse than a live bevel,
+    # which is the tell: a scramble is hundreds of millimetres, a modifier is
+    # one or two.
+    dg = bpy.context.evaluated_depsgraph_get()
     out = {}
     for ob in objs:
-        if ob.type != "MESH" or not ob.data.vertices:
+        if ob.type != "MESH":
+            continue
+        ev = ob.evaluated_get(dg)
+        me = ev.to_mesh()
+        if not me.vertices:
+            ev.to_mesh_clear()
             continue
         mw = ob.matrix_world
-        pts = [mw @ v.co for v in ob.data.vertices]
+        pts = [mw @ v.co for v in me.vertices]
+        ev.to_mesh_clear()
         out[re.sub(r"[.]\d{3}$", "", ob.name)] = (
             Vector((min(q.x for q in pts), min(q.y for q in pts),
                     min(q.z for q in pts))),
@@ -722,8 +735,23 @@ def assert_export_faithful(objects, path, tol=EXPORT_TOL):
             "BUILD FAILED: assert_export_faithful ran with nothing stashed -- "
             "bake_gltf_axis must be called on these objects first, or there "
             "is nothing to compare the file against.")
-    want = _PRE_BAKE["parts"]
-    want_socks = _PRE_BAKE["socks"]
+    # ONLY THE PARTS THIS CALL IS EXPORTING. A builder may bake once and then
+    # write several files out of the same scene -- build_merch does exactly
+    # that, five sets in one pass -- and the stash then holds every part in the
+    # scene. Comparing all of them against one file reports the other four
+    # sets' parts as "missing", which is what it did: thirteen bottles, cans
+    # and snack bags declared absent from merch_golf_balls.glb. The file was
+    # fine; the check was asking the wrong question.
+    mine = {re.sub(r"[.]\d{3}$", "", o.name)
+            for o in objects if o.type == "MESH"}
+    want = {n: b for n, b in _PRE_BAKE["parts"].items() if n in mine}
+    want_socks = {n: q for n, q in _PRE_BAKE["socks"].items()
+                  if n in {o.name for o in objects if o.type == "EMPTY"}}
+    if not want:
+        raise SystemExit(
+            f"BUILD FAILED: nothing this export writes was in the pre-bake "
+            f"stash for {os.path.basename(path)} -- bake_gltf_axis was called "
+            f"on a different set of objects, so the file is unverified.")
 
     before = set(bpy.data.objects)
     bpy.ops.import_scene.gltf(filepath=path)
