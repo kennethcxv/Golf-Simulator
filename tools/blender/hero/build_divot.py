@@ -78,24 +78,33 @@ def build_fork(M, broken=""):
     p = {}
     o = FORK_AT
     # a flattened handle that swells at the thumb and tapers to the neck
-    hv, hf = [], []
-    STEPS = 9
+    # A FOUR-CORNER SECTION IS A SLAB. The handle was lofted through four
+    # points -- a rectangle -- so every frame showed a flat plate with hard
+    # chamfered edges, and with two straight wires off the end of it the whole
+    # tool read as a paperclip. A pitchmark repairer is a forged, waisted thing
+    # you pinch between finger and thumb: rounded across, dished where the
+    # thumb goes, and thickest at the neck where it takes the leverage.
+    STEPS, SEC = 11, 12
+    rings = []
     for s in range(STEPS):
         t = s / (STEPS - 1)
         y = o.y - F_HANDLE * 0.5 + F_HANDLE * t
         w = F_WIDE * (0.52 + 0.48 * math.sin(math.pi * (0.18 + 0.72 * t)))
         th = F_THICK * (0.85 + 0.15 * math.sin(math.pi * t))
-        for (sx, sz) in ((-1, -1), (1, -1), (1, 1), (-1, 1)):
-            hv.append(Vector((o.x + sx * w * 0.5, y, o.z + sz * th * 0.5)))
-    for s in range(STEPS - 1):
-        a, b = s * 4, (s + 1) * 4
-        for k in range(4):
-            q = (k + 1) % 4
-            hf.append((a + k, a + q, b + q, b + k))
-    hf.append((3, 2, 1, 0))
-    last = (STEPS - 1) * 4
-    hf.append((last, last + 1, last + 2, last + 3))
-    p["handle"] = HS.mesh_from("ForkHandle", hv, hf)
+        # the thumb dish: a scoop out of the upper face over the middle third
+        dish = 0.26 * math.exp(-(((t - 0.34) / 0.20) ** 2))
+        ring = []
+        for j in range(SEC):
+            a = 2 * math.pi * j / SEC
+            ca, sa = math.cos(a), math.sin(a)
+            ex = 2.0 / 3.4                      # rounded rectangle, not a box
+            rx = math.copysign(abs(ca) ** ex, ca) * w * 0.5
+            rz = math.copysign(abs(sa) ** ex, sa) * th * 0.5
+            if sa > 0.0:
+                rz *= 1.0 - dish * sa
+            ring.append(Vector((o.x + rx, y, o.z + rz)))
+        rings.append(ring)
+    p["handle"] = loft("ForkHandle", rings, close_bottom=True, close_top=True)
 
     # two prongs off the neck. The same "many small things on one big thing"
     # class as the rake's tines, so the same assertion and the same control.
@@ -103,9 +112,26 @@ def build_fork(M, broken=""):
     p["prongs"] = []
     for k, sx in enumerate((-1, 1)):
         base = Vector((o.x + sx * 0.0058, o.y + F_HANDLE * 0.5 - 0.0140 + drop, o.z))
-        p["prongs"].append(HS.prism(
-            f"ForkProng_{k}", base, Vector((sx * 0.16, 1, -0.06)),
-            F_PRONG + 0.014, 0.0026, 0.0013, sides=5))
+        # STRAIGHT FLAT BLADES ARE THE OTHER HALF OF THE PAPERCLIP. A real
+        # prong is round in section, tapers hard to a point, splays as it goes
+        # and dips at the tip -- the dip is what lets it get under the turf.
+        L, PN, PS = F_PRONG + 0.014, 8, 8
+        rings = []
+        for i in range(PN):
+            t = i / (PN - 1.0)
+            cx = base.x + sx * (0.0090 * t + 0.0052 * t * t)
+            cy = base.y + L * t
+            cz = base.z - 0.0125 * t * t
+            r = 0.0031 * (1.0 - t) ** 0.62 + 0.0005
+            ring = []
+            for j in range(PS):
+                a = 2 * math.pi * j / PS
+                rings_pt = Vector((cx + math.cos(a) * r, cy,
+                                   cz + math.sin(a) * r * 0.78))
+                ring.append(rings_pt)
+            rings.append(ring)
+        p["prongs"].append(loft(f"ForkProng_{k}", rings, close_bottom=True,
+                                close_top=True))
 
     # a stamped badge on the thumb face -- one specular event on a tool that is
     # otherwise all matte metal
