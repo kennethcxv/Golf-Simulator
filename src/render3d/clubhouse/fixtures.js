@@ -37,6 +37,7 @@ import { DELIVERY_EQUIPMENT_DEFAULT_LAYOUT } from './deliveryEquipment.js';
 import { createMovableFixtureCoreBatcher } from './fixtureCoreBatching.js';
 import { batchRigidVisualsByPbrResponse } from './rigidVisualBatch.js';
 import { batchStaticSubtree } from '../staticSubtreeBatch.js';
+import { freezeStaticMatrices } from '../matrixFreeze.js';
 import { shopTierIndex } from '../../sim/shopProgression.js';
 
 // The payment terminal remains in its authored hierarchy because register mode
@@ -127,6 +128,7 @@ export function buildFixtures(B) {
     colBoxAt, L2W, state, hooks,
   } = B;
   const fixtureCoreBatcher = createMovableFixtureCoreBatcher(merch);
+  const fixtureInternalsFreezeLabel = 'FixtureInternalsMatrixFreeze'; // bound first: the strings ratchet
 
   // Only what the fixture loop lays down is re-layable; the counter, the rug and the lounge are
   // architecture, not furniture the player pushes around.
@@ -1216,6 +1218,12 @@ export function buildFixtures(B) {
       interior.add(g);
       fixtureAnchors.set(f.id, g);
       fixtureProp(f);
+      // GOAL 30 LEVER B — fixture INTERNALS never move relative to their
+      // root; freezeStaticMatrices skips the passed root itself, so `g`
+      // keeps auto matrices (build mode re-lays fixtures, cheap insurance)
+      // while shelves, panels and signs under it stop paying updateMatrix.
+      // Controller-driven children (the cooler slab) are contract-blocked.
+      freezeStaticMatrices(g, { label: fixtureInternalsFreezeLabel });
     }
     activeFixtureId = null;
     tracking = false;
@@ -1263,6 +1271,18 @@ export function buildFixtures(B) {
   }
 
   layFixtures();
+  // GOAL 30 LEVER B — the first lay runs before the kit lands, so the inline
+  // freeze in layFixtures saw near-empty groups (shelf/backshelf visuals
+  // mount inside merch.onReady callbacks). One deferred pass, registered
+  // AFTER those mounts, freezes what actually arrived. Relays after the kit
+  // is ready mount synchronously and are covered by the inline freeze.
+  if (merch) {
+    merch.onReady(() => {
+      for (const g of fixtureAnchors.values()) {
+        freezeStaticMatrices(g, { label: fixtureInternalsFreezeLabel });
+      }
+    });
+  }
 
   // --- Sheet-03 standing decor (architecture, not re-layable furniture) -----
   const gondolaRoot = new THREE.Group();
@@ -1299,6 +1319,10 @@ export function buildFixtures(B) {
     const gondolaBatchLabel = 'TieredRetailGondolaStaticBatch'; // bound first: the strings ratchet
     const outcome = batchStaticSubtree(gondolaRoot, { label: gondolaBatchLabel });
     gondolaBatched = !!outcome?.visual;
+    // GOAL 30 LEVER B — the revealed shell holds one pose; slot sockets can
+    // freeze too (a future product lands UNDER a socket with its own auto
+    // matrices, and a frozen parent still propagates a valid matrixWorld)
+    if (gondolaBatched) freezeStaticMatrices(gondolaRoot, { label: gondolaBatchLabel });
   }
   function refreshTierDressing() {
     const active = shopTierIndex(state) >= 2;
@@ -1539,6 +1563,8 @@ export function buildStockroomDressing(B) {
       // and the kit's material ownership are untouched).
       const toteBatchLabel = `ToteStaticBatch_${t.name}`; // bound first: the strings ratchet
       batchStaticSubtree(tote, { label: toteBatchLabel });
+      // GOAL 30 LEVER B — a placed tote never moves again either
+      freezeStaticMatrices(tote, { label: toteBatchLabel });
     }
   });
 

@@ -40,6 +40,16 @@ async (page) => {
     app.scene3d.walk.clearKeys?.();
   });
   await page.waitForTimeout(1500);
+  // GOAL 30 — when the stability freeze exists, the standing measurement must
+  // sample the SETTLED post-freeze state, not the arming window (frame 900 of
+  // active walk). Wait for the freeze to have fired if the build carries it.
+  if (process.env.QA_CHURN_WAIT_FREEZE === '1') {
+    await page.waitForFunction(
+      () => (window.__fw.scene3d.matrixFreezeDiagnostics?.()?.outcome || null) !== null,
+      null, { timeout: 180000 },
+    );
+    await page.waitForTimeout(2500);
+  }
 
   // static counts + the patch, installed once
   out.static = await page.evaluate(() => {
@@ -69,7 +79,10 @@ async (page) => {
     const tick = () => {
       state.frames.push(state.current);
       state.current = 0;
-      if (state.frames.length < 200) requestAnimationFrame(tick);
+      // 5000-frame ceiling: phases clear frames[] between windows, and the
+      // 200 cap died mid-run once the goal-30 freeze wait stretched the
+      // timeline (withPlants read an empty array and reported null)
+      if (state.frames.length < 5000) requestAnimationFrame(tick);
     };
     requestAnimationFrame(tick);
     return {

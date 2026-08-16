@@ -10,6 +10,10 @@ import { t } from '../core/i18n.js';
 import { Sky } from 'three/addons/objects/Sky.js';
 import { BINDABLE_ACTIONS, DEFAULT_BINDINGS, keyForAction } from '../core/keyBindings.js';
 import { CachedGLTFLoader as GLTFLoader, clearGltfCache } from './gltfCache.js';
+import {
+  freezeStaticMatrices, matrixFreezeSnapshot, stabilityFreeze,
+  matrixFreezeWatchdogTick, matrixFreezeDiagnostics, matrixFreezeReset,
+} from './matrixFreeze.js';
 import { createAssetIdleBarrier } from './assetIdleBarrier.js';
 import { initKTX2, ktx2Diagnostics } from './ktx2Support.js';
 import { sharedTextureDiagnostics } from './sharedTexturePool.js';
@@ -10721,6 +10725,16 @@ export function makeCourseScene(canvas, state) {
   // twice inside one production callback.  This monotonic, snapshot-only count
   // gives the QA resource probe that missing absolute denominator.
   let composedRenders = 0;
+  // GOAL 30 LEVER B — stability-freeze state. The register, checkout
+  // hardware and ledger book are feel surfaces: their gestures play ON
+  // CAMERA at arm's length, where even the watchdog's one-time
+  // few-frame thaw pop would be visible. They keep auto matrices for good.
+  const STABILITY_FREEZE_FEEL_SURFACES = new Set([
+    'SimplifiedFrontDeskRegister', 'CheckoutHardwareVisualRoot', 'FrontDeskLedgerBook',
+  ]);
+  let stabilityFreezeFrames = 0;
+  let stabilityFreezeSnapshotMap = null;
+  let stabilityFreezeOutcome = null;
 
   // SHADOW FITTING. On foot, only the ±120 yards around the player can ever be read — so
   // that is all the shadow map covers: a 2048 map over 240yd is 2.5× the texel density the
@@ -10970,6 +10984,24 @@ export function makeCourseScene(canvas, state) {
   function render(dtMs, st) {
     if (sceneDisposed) return;
     composedRenders += 1;
+    // GOAL 30 LEVER B second stage — the stability freeze. Frame 600 samples
+    // every matrixWorld; frame 900 freezes what stayed bit-identical across
+    // that five-second window (minus contract movers and the named feel
+    // surfaces below); every frame after, the watchdog re-verifies a slice
+    // and thaws anything a verb wrote to — at worst ~7 frames late, once.
+    if (!globalThis.__FW_DISABLE_STABILITY_FREEZE && walk.active) {
+      stabilityFreezeFrames += 1;
+      if (stabilityFreezeFrames === 600) {
+        stabilityFreezeSnapshotMap = matrixFreezeSnapshot(scene);
+      } else if (stabilityFreezeFrames === 900 && stabilityFreezeSnapshotMap) {
+        stabilityFreezeOutcome = stabilityFreeze(scene, stabilityFreezeSnapshotMap, {
+          exclude: (node) => STABILITY_FREEZE_FEEL_SURFACES.has(node.name),
+        });
+        stabilityFreezeSnapshotMap = null;
+      } else if (stabilityFreezeFrames > 900) {
+        matrixFreezeWatchdogTick();
+      }
+    }
     guardCourseWaterReflection.beginFrame();
     updatePlayerPin();
     time += dtMs / 1000;
@@ -11139,6 +11171,7 @@ export function makeCourseScene(canvas, state) {
   function dispose() {
     if (sceneDisposed) return { alreadyDisposed: true };
     sceneDisposed = true;
+    matrixFreezeReset();
     gtao.render = gtaoRender;
     treeBuildToken += 1;
     if (walk.active) walkExit();
@@ -11381,6 +11414,18 @@ export function makeCourseScene(canvas, state) {
       onLoaded(clone);
     });
   };
+  // GOAL 30 LEVER B — dressing that provably never moves after placement
+  // stops paying updateMatrix. An explicit allowlist, NOT a default: the
+  // tractor is a vehicle, and the chore trio (leaves, can, belt) gets taken.
+  // Frozen AFTER the caller's onLoaded — the club sign's neglect lean is
+  // applied in its callback and must land in the frozen matrix.
+  const STATIC_PUT_MODELS = new Set([
+    'vendor/models/shed.glb', 'vendor/models/workbench.glb',
+    'vendor/models/tool_chest.glb', 'vendor/models/club_sign.glb',
+    'vendor/models/clubhouse_ext_opt.glb', 'vendor/models/tee_sign_broken.glb',
+    'vendor/models/course_sign.glb',
+  ]);
+  const putModelFreezeLabel = 'CoursePutModelMatrixFreeze'; // bound first: the strings ratchet
   const putModel = (url, scale, x, z, ry, onLoaded) => {
     loadPutModel(url, (m) => {
         m.scale.setScalar(scale);
@@ -11389,6 +11434,7 @@ export function makeCourseScene(canvas, state) {
         m.rotation.y = ry;
         scene.add(m);
         if (onLoaded) onLoaded(m);
+        if (STATIC_PUT_MODELS.has(url)) freezeStaticMatrices(m, { label: putModelFreezeLabel });
     });
   };
 
@@ -13082,6 +13128,15 @@ export function makeCourseScene(canvas, state) {
       promise: whenAssetsIdle(timeoutMs),
     }),
     clubhouse: () => clubhouseApi,
+    // GOAL 30 LEVER B — the stability freeze's live counters, for the churn
+    // instrument and the watchdog's own acceptance driver
+    matrixFreezeDiagnostics: () => ({
+      ...matrixFreezeDiagnostics(),
+      framesSinceWalk: stabilityFreezeFrames,
+      outcome: stabilityFreezeOutcome
+        ? { frozen: stabilityFreezeOutcome.frozen, skippedReasons: stabilityFreezeOutcome.skippedReasons }
+        : null,
+    }),
     walk: {
       enter: walkEnter,
       exit: walkExit,

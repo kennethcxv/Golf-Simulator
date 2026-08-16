@@ -7,6 +7,7 @@
 
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+import { freezeStaticMatrices } from '../matrixFreeze.js';
 import { CLEANING_TOOLS } from '../../data/cleaningTools.js';
 import { INTERIOR } from '../../data/shopLayout.js';
 import { facilityInstalled } from '../../sim/campaign.js';
@@ -22,6 +23,8 @@ import {
 } from './runtimeManifest.js';
 
 export { PLACED_ASSET_NUMBERS, PROP_PLACEMENTS };
+
+const propStaticFreezeLabel = 'PropPlacementMatrixFreeze'; // bound first: the strings ratchet
 
 /** Authored replacements for temporary or older clubhouse visuals. */
 export const SUPERSEDES = Object.freeze([
@@ -1040,6 +1043,18 @@ export function buildProps({
         ? (manifest.interactionSockets.find((name) => /Grip|Carry/i.test(name)) || 'SOCKET_PLACEMENT')
         : (manifest.interactionSockets.find((name) => /Handle|Trigger|Switch|Grip/i.test(name)) || 'SOCKET_PLACEMENT'));
       registerWalkProp(entry, { tool: placement.tool || null, socket: focusSocket });
+    }
+
+    // GOAL 30 LEVER B — an entry with no fixture anchor, no live visual
+    // hierarchy, no animation controller and no tool or interaction verb
+    // holds this pose for the room's life; its subtree stops paying
+    // updateMatrix every composer pass. Everything with a verb keeps auto
+    // matrices — a set-down repositions the world root. Visibility gating
+    // does NOT block here: this module owns the gate, and refreshVisibility
+    // writes `visible` only, never a transform.
+    if (!fixtureId && !needsLiveVisualHierarchy
+      && !entry.controller && !placement.tools && !placement.tool && !placement.interaction) {
+      freezeStaticMatrices(root, { label: propStaticFreezeLabel, ignoreVisibilityGate: true });
     }
 
     // The declared hull, fitted to what actually loaded rather than to a number

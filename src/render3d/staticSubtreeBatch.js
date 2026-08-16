@@ -221,6 +221,11 @@ export function batchStaticSubtree(root, { label = 'StaticSubtreeBatch', exclude
     for (const source of bucket.sources) {
       source.layers.mask = 0;
       source.userData.staticSubtreeBatchSuppressed = true;
+      // a suppressed source's geometry is baked into the batch: even if its
+      // matrix changed, the batch could not follow, so its per-frame
+      // updateMatrix is pure waste (Goal 30 Lever B — the free win)
+      source.matrixAutoUpdate = false;
+      source.userData.matrixFrozen = label;
       taken += 1;
     }
   }
@@ -232,6 +237,8 @@ export function batchStaticSubtree(root, { label = 'StaticSubtreeBatch', exclude
         if (source.userData.staticSubtreeBatchSuppressed) {
           source.layers.mask = 1;
           delete source.userData.staticSubtreeBatchSuppressed;
+          source.matrixAutoUpdate = true;
+          delete source.userData.matrixFrozen;
         }
       }
     }
@@ -240,6 +247,12 @@ export function batchStaticSubtree(root, { label = 'StaticSubtreeBatch', exclude
   }
 
   root.add(batchRoot);
+  // the batch itself never moves either: freeze it after one authoritative pass
+  batchRoot.updateMatrixWorld(true);
+  batchRoot.traverse((o) => {
+    o.matrixAutoUpdate = false;
+    o.userData.matrixFrozen = label;
+  });
   return {
     visual: batchRoot,
     label,

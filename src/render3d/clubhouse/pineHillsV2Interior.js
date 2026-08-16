@@ -52,6 +52,7 @@ import {
 } from './pineHillsInterior.js';
 import { makeV2ArchitectureMaterials } from './materials.js';
 import { batchStaticSubtree } from '../staticSubtreeBatch.js';
+import { freezeStaticMatrices } from '../matrixFreeze.js';
 
 // The resized room's ceiling (OVERNIGHT_REPORT.md §3, item 10): 2.80 yd = 2.56 m
 // under the original 2.93 m shell, with exposed grey beams just below it.
@@ -927,6 +928,15 @@ export function createPineHillsV2Interior({
     exclude: (node) => staticBatchExclusions.has(node)
       || node.name === 'PineHillsOfficeDoorFinishedReveal',
   });
+  // GOAL 30 LEVER B — the same owner-known mutable inventory gates the matrix
+  // freeze: everything else in this layer holds one pose for the layer's life,
+  // so it stops paying updateMatrix every composer pass.
+  const staticFreezeLabel = 'PineHillsV2MatrixFreeze'; // bound first: the strings ratchet
+  const staticMatrixFreeze = freezeStaticMatrices(group, {
+    label: staticFreezeLabel,
+    exclude: (node) => staticBatchExclusions.has(node)
+      || node.name === 'PineHillsOfficeDoorFinishedReveal',
+  });
 
   const ready = Promise.resolve(Object.freeze({ loaded: 0, failed: 0, greybox: true }));
 
@@ -987,6 +997,7 @@ export function createPineHillsV2Interior({
           identityBuckets: staticDressingBatch.identityBuckets,
         }
         : { skipped: staticDressingBatch?.skipped || 'unknown' },
+      staticMatrixFreeze,
       greyVolumes: greyStaticRoots.size + greyFixtureRoots.size,
       architectureMaterials: archMaterials.materials.length,
       suppressedLegacy: [...suppressedLegacy],
