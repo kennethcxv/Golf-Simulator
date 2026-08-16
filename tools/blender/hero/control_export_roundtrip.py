@@ -63,15 +63,8 @@ def subject_of(mod):
     if mod == "rake":
         import build_rake as B
         p = B.build()
-        parts = [p["head"], p["ferrule"], p["shaft"], p["grip"],
-                 HS.join(p["tines"], "RakeTines")]
-        bpy.ops.object.select_all(action="DESELECT")
-        for o in parts:
-            o.select_set(True)
-        bpy.context.view_layer.objects.active = parts[0]
-        bpy.ops.object.transform_apply(location=True, rotation=False,
-                                       scale=False)
-        return parts
+        return [p["head"], p["ferrule"], p["shaft"], p["grip"],
+                HS.join(p["tines"], "RakeTines")]
     if mod == "rack":
         # build_rack is one of only two builders that bakes its object
         # locations before the axis swap, and the control has to reproduce that
@@ -81,14 +74,7 @@ def subject_of(mod):
         import build_rack as B
         import outdoor_lib as OL
         p = B.build_one(OL.palette(), "ctl", 1.5, 4, 0.0)
-        parts = B.flat(p)
-        bpy.ops.object.select_all(action="DESELECT")
-        for o in parts:
-            o.select_set(True)
-        bpy.context.view_layer.objects.active = parts[0]
-        bpy.ops.object.transform_apply(location=True, rotation=False,
-                                       scale=False)
-        return parts
+        return B.flat(p)
     raise SystemExit(f"CONTROL FAILED: no subject recipe for {mod}")
 
 
@@ -151,8 +137,31 @@ def main():
             "bake_gltf_axis permutes vertices and leaves object transforms in "
             "the old convention; parts that skip HS.apply_mods keep a "
             "transform and land in the wrong place.")
+    # AND THE NEGATIVE CONTROL. The round-trip check now lives inside
+    # export_glb, so a builder that scrambles its GLB fails its own build. That
+    # claim is only worth anything if the check has been watched failing on a
+    # build that really is scrambled -- so turn the transform bake off, which
+    # is precisely the fault as it shipped, and require the export to refuse.
+    print()
+    print("  negative control: the same export with the transform bake OFF")
+    H.BAKE_TRANSFORMS = False
+    try:
+        subject = subject_of("rake")
+        H.bake_gltf_axis(subject)
+        H.export_glb(subject, os.path.join(OUT, "rake-UNBAKED.glb"))
+    except SystemExit as e:
+        first = str(e).splitlines()[0]
+        print(f"    ok    refused: {first}")
+    else:
+        raise SystemExit(
+            "CONTROL FAILED: with the transform bake off the export still "
+            "passed, so the round-trip check is not measuring anything.")
+    finally:
+        H.BAKE_TRANSFORMS = True
+
+    print()
     print("CONTROL PASSED — every asset checked survives the round trip "
-          "unchanged.")
+          "unchanged, and the check refuses a build that does not.")
 
 
 if __name__ == "__main__":

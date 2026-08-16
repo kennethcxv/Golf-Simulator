@@ -226,23 +226,8 @@ def main():
         # A bunker rake stands or leans against something; the game's props
         # all sit with their base at exactly z = 0 and this one straddled the
         # origin by 830 mm.
-        # BAKE THE OBJECT LOCATIONS FIRST. bake_gltf_axis permutes VERTEX
-        # coordinates and leaves each object's own location alone, so any part
-        # with a non-identity transform ends up with its geometry in the new
-        # convention and its position still in the old one. RakeGrip sits at
-        # (0, -0.7481, 0.8463) and was exported 748 mm BELOW the origin instead
-        # of 846 mm along it: the rake is 970 mm tall in the scene and shipped
-        # 1,750 mm tall. Nothing caught it because every check and every render
-        # looks at the scene, and the file is written last.
-        #
-        # MESHES ONLY -- the sockets are EMPTYs whose locations are the whole
-        # point of them, and bake_gltf_axis permutes those itself.
-        bpy.ops.object.select_all(action="DESELECT")
-        for o in exportable:
-            o.select_set(True)
-        bpy.context.view_layer.objects.active = exportable[0]
-        bpy.ops.object.transform_apply(location=True, rotation=False,
-                                       scale=False)
+        # (The location bake that used to be here is inside bake_gltf_axis
+        # now, so it happens for every builder and cannot be forgotten.)
         H.drop_to_floor(exportable + socks)
         H.bake_gltf_axis(exportable + socks)
         H.export_glb(exportable + socks, OUT_GLB)

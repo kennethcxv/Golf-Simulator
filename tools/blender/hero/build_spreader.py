@@ -262,17 +262,8 @@ def main():
     if not broken:
         # Same as the mower: the root is at the origin and the geometry sat
         # 249 mm below it.
-        # Bake the object locations first: bake_gltf_axis permutes VERTICES
-        # and leaves each object's own location in the old convention, so any
-        # part with a transform lands in the wrong place. Proven on the rake,
-        # which shipped 1,750 mm tall against a 970 mm scene. Meshes only --
-        # an EMPTY's location is the whole point of it.
-        bpy.ops.object.select_all(action="DESELECT")
-        for o in subject:
-            o.select_set(True)
-        bpy.context.view_layer.objects.active = subject[0]
-        bpy.ops.object.transform_apply(location=True, rotation=False,
-                                       scale=False)
+        # (The location bake that used to be here is inside bake_gltf_axis
+        # now, so it happens for every builder and cannot be forgotten.)
         H.drop_to_floor(subject)
         H.bake_gltf_axis(subject)
         root = H.named_root(ROOT_NAME, subject)

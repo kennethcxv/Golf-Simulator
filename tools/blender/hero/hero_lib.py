@@ -25,11 +25,12 @@ bright rim. Nothing here flatters the model.
 
 import math
 import os
+import re
 import sys
 
 import bpy
 import numpy as np
-from mathutils import Vector
+from mathutils import Vector, Matrix
 
 # ---------------------------------------------------------------------------
 # the blank-frame guard
@@ -571,6 +572,22 @@ def drop_to_floor(objects, clearance=0.0):
     return drop
 
 
+def _part_bounds(objs):
+    """World bounds per part, keyed by name with any .001 suffix removed."""
+    out = {}
+    for ob in objs:
+        if ob.type != "MESH" or not ob.data.vertices:
+            continue
+        mw = ob.matrix_world
+        pts = [mw @ v.co for v in ob.data.vertices]
+        out[re.sub(r"[.]\d{3}$", "", ob.name)] = (
+            Vector((min(q.x for q in pts), min(q.y for q in pts),
+                    min(q.z for q in pts))),
+            Vector((max(q.x for q in pts), max(q.y for q in pts),
+                    max(q.z for q in pts))))
+    return out
+
+
 def bake_gltf_axis(objects):
     """Blender +Y -> glTF -Z, established by marker probe off exported accessor
     bounds. Baked into the VERTICES, never left as an object rotation: the
@@ -579,6 +596,47 @@ def bake_gltf_axis(objects):
 
         (x, y, z)_blender  ->  (x, z, -y)_gltf
     """
+    global _PRE_BAKE
+    _PRE_BAKE = {
+        "parts": _part_bounds([o for o in objects if o.type == "MESH"]),
+        "socks": {o.name: o.matrix_world.translation.copy()
+                  for o in objects if o.type == "EMPTY"},
+    }
+
+    # FLATTEN THE OBJECT TRANSFORM FIRST, or the permutation is only half done.
+    #
+    # This function used to permute the VERTICES and leave each object's own
+    # matrix alone, and the exporter writes that matrix through unchanged. So
+    # any part with a non-identity transform shipped with its geometry in the
+    # new convention and its position still in the old one. The bunker rake's
+    # grip sits at (0, -0.7481, 0.8463) and went out 748 mm BELOW the origin
+    # instead of 846 mm along it: 1,750 mm tall in the file against 970 mm in
+    # the scene.
+    #
+    # Nothing caught it for the length of this project because every assertion
+    # and every render looks at the BLENDER SCENE, and the GLB is written last
+    # and never read again. Correct frames, passing checks, wrong file.
+    #
+    # build_rack and build_register worked around it with a transform_apply
+    # before calling this. Doing it HERE fixes all 25 builders at once and
+    # cannot be forgotten by the next one, which is the whole reason it is here
+    # rather than in another 23 call sites.
+    for ob in objects if BAKE_TRANSFORMS else ():
+        if ob.type != "MESH":
+            continue
+        if ob.data.users > 1:
+            raise SystemExit(
+                f"BUILD FAILED: bake_gltf_axis: {ob.name} shares its mesh data "
+                f"with {ob.data.users - 1} other object(s), so baking its "
+                f"transform into the vertices would move them too. Make it "
+                f"single-user before exporting.")
+        mw = ob.matrix_world.copy()
+        if (mw - Matrix.Identity(4)).to_3x3().determinant() != 0.0 or                 mw.translation.length > 0.0:
+            for v in ob.data.vertices:
+                v.co = mw @ v.co
+            ob.matrix_world = Matrix.Identity(4)
+            ob.data.update()
+
     for ob in objects:
         if ob.type == "EMPTY":
             # A SOCKET has no vertices to bake the swap into, so its LOCATION
@@ -586,7 +644,9 @@ def bake_gltf_axis(objects):
             # used to do) leaves every socket in Blender space while the mesh
             # around it moves -- the hand would close on empty air, which is
             # the exact fault this part exists to kill.
-            x, y, z = ob.location
+            # WORLD location, for the same reason the meshes are flattened.
+            x, y, z = ob.matrix_world.translation
+            ob.matrix_world = Matrix.Identity(4)
             ob.location = Vector((x, z, -y))
             continue
         if ob.type != "MESH":
@@ -597,7 +657,23 @@ def bake_gltf_axis(objects):
         ob.data.update()
 
 
-def export_glb(objects, path):
+EXPORT_TOL = 2e-4          # 0.2 mm, well under anything that reads
+
+# Switched off ONLY by control_export_roundtrip.py, to reproduce the fault the
+# round-trip check exists to catch. A check that has never been watched failing
+# is not a check.
+BAKE_TRANSFORMS = True
+
+# What the asset looked like BEFORE the axis swap, stashed by bake_gltf_axis so
+# export_glb can check the written file against it. It has to be the PRE-bake
+# scene: comparing against the post-bake scene compares the file with something
+# that carries the very fault being looked for, and the two agree. The first
+# version of the round-trip check did exactly that and passed a build with the
+# transform bake switched off.
+_PRE_BAKE = None
+
+
+def export_glb(objects, path, verify=True):
     os.makedirs(os.path.dirname(path), exist_ok=True)
     bpy.ops.object.select_all(action="DESELECT")
     for ob in objects:
@@ -612,7 +688,101 @@ def export_glb(objects, path):
     )
     size = os.path.getsize(path)
     print(f"  exported {os.path.basename(path)}  ({size} bytes)")
+    if verify:
+        assert_export_faithful(objects, path)
     return path
+
+
+def assert_export_faithful(objects, path, tol=EXPORT_TOL):
+    """READ THE FILE BACK. The one check this pipeline never had.
+
+    Every assertion here runs on the Blender scene and every render photographs
+    it. The GLB is written last, and until now nothing ever looked at it again
+    -- so an export that scrambled the asset was invisible to all of it. That
+    is exactly what happened: the rake shipped 1,750 mm tall against a 970 mm
+    scene, with correct frames and a full set of passing checks.
+
+    So: re-import what was just written, put it back through the axis
+    permutation, and compare it with what was meant to go out. They must be the
+    same object. A builder that writes a scrambled GLB now fails its own build,
+    the way one that writes a blank frame does.
+    """
+    # PER PART, not one bounding box over the lot.
+    #
+    # A box over the whole asset is blind to a part that moves INSIDE it: with
+    # the transform bake off, the rake's grip is 846 mm out of place and the
+    # whole-asset box shifts 2.54 mm, because the grip is small and stays
+    # within what the shaft and head already describe.
+    #
+    # And the comparison is against the PRE-BAKE scene, captured by
+    # bake_gltf_axis. The importer undoes the axis swap on its way in, so a
+    # faithful file comes back exactly where the asset started.
+    if _PRE_BAKE is None:
+        raise SystemExit(
+            "BUILD FAILED: assert_export_faithful ran with nothing stashed -- "
+            "bake_gltf_axis must be called on these objects first, or there "
+            "is nothing to compare the file against.")
+    want = _PRE_BAKE["parts"]
+    want_socks = _PRE_BAKE["socks"]
+
+    before = set(bpy.data.objects)
+    bpy.ops.import_scene.gltf(filepath=path)
+    fresh = [o for o in bpy.data.objects if o not in before]
+    try:
+        got = _part_bounds([o for o in fresh if o.type == "MESH"])
+        got_socks = {}
+        for ob in fresh:
+            if ob.type == "EMPTY":
+                # THE ORIGINALS ARE STILL IN THE SCENE, so Blender hands the
+                # re-imported copies ".001" and a plain name match finds
+                # nothing. The first run reported both of the rake's sockets
+                # missing from a file that has them.
+                base = re.sub(r"[.]\d{3}$", "", ob.name)
+                if base in want_socks:
+                    got_socks[base] = ob.matrix_world.translation.copy()
+        if not got:
+            raise SystemExit(
+                f"BUILD FAILED: {os.path.basename(path)} came back with no "
+                f"mesh parts at all")
+
+        worst, worst_name = 0.0, ""
+        absent = []
+        for name, (lo, hi) in want.items():
+            if name not in got:
+                absent.append(name)
+                continue
+            glo, ghi = got[name]
+            d = max(abs(glo.x - lo.x), abs(ghi.x - hi.x), abs(glo.y - lo.y),
+                    abs(ghi.y - hi.y), abs(glo.z - lo.z), abs(ghi.z - hi.z))
+            if d > worst:
+                worst, worst_name = d, name
+        drift = {n: (got_socks[n] - q).length
+                 for n, q in want_socks.items() if n in got_socks}
+        missing = [n for n in want_socks if n not in got_socks]
+
+        if worst > tol or missing or absent or any(d > tol for d in drift.values()):
+            NL = chr(10)
+            msg = [
+                f"BUILD FAILED: {os.path.basename(path)} is not the asset "
+                f"that was built. Worst part '{worst_name}' moved "
+                f"{worst * 1000:.2f} mm (limit {tol * 1000:.2f}), over "
+                f"{len(want)} parts.",
+            ]
+            if absent:
+                msg.append(f"  parts missing from the file: {absent}")
+            if missing:
+                msg.append(f"  sockets missing from the file: {missing}")
+            far = {n: round(d * 1000, 2) for n, d in drift.items() if d > tol}
+            if far:
+                msg.append(f"  sockets that moved (mm): {far}")
+            raise SystemExit(NL.join(msg))
+        print(f"  round trip faithful: {len(want)} parts, worst "
+              f"{worst * 1000:.3f} mm"
+              + (f", {len(drift)} socket(s) exact" if drift else ""))
+        return worst
+    finally:
+        for ob in fresh:
+            bpy.data.objects.remove(ob, do_unlink=True)
 
 
 def socket(name, location):
