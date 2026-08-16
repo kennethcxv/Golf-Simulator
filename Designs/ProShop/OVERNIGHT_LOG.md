@@ -28,8 +28,8 @@ Started from `Designs/ProShop/Overnight_Assets.md`.
 | divot tool | ITERATE | 1 | 152 | 0 | — |
 | dustpan | ITERATE | 1 | 1,052 | 0 | — |
 | broom head | **CUT** | 1 | 2,820 | — | no |
-| ledger book | **PASS** | 1 | 6,656 | 0 | — |
-| retail gondola | **PASS** | 1 | 872/bay | 0 | — |
+| ledger book | **PASS** | 2 | 6,656 | 0 | — |
+| retail gondola | ITERATE | 1 | 872/bay | 0 | — |
 | merch + softgoods | **PASS, reserved** | 1 | 1,480 | 0 | — |
 
 ## STANDING GATE: THE BLANK FRAMES
@@ -123,6 +123,14 @@ instrument fault:
 stale frame passes every check and lies, because it is a real render of a real
 asset — just not of the asset as it is now.
 
+**It happened three times.** The rake's Cycles under-view stayed blank while
+its EEVEE twin was cured. Then the spray bottle. Then the ledger, where I made
+the ruling heavier, saw no change, and found `ledger-hero.png` was from 16:35
+the previous afternoon — that builder uses the `-eevee` suffix where the spray
+builder does not, so the two are exactly opposite and neither is wrong. On the
+same run the texture regenerated a second AFTER the render that was supposed to
+use it.
+
 It cost me two fixes on the spray bottle. Its liquid showed a stack of hard
 concentric lenses, I turned off `show_transparent_back` (no change), made the
 liquid opaque (no change), and only then checked the file's timestamp:
@@ -138,6 +146,26 @@ edit that only adds an assertion ceiling changes no pixels, and tonight I
 touched nearly every builder that way. It would have caught the one that lied,
 which is the point. The four assets whose GEOMETRY actually changed tonight —
 hand, wand, spray, spreader — were re-rendered in Cycles.
+
+### The ledger — PASS after one real fix
+
+The ruling was drawn at 1.6 px and 0.55 opacity over a 230 mm page and rendered,
+under AgX at -0.9 EV, as **blank paper**. A ledger with no ruling is a
+sketchbook, and this is the asset the owner reads at arm's length. Lines to
+3.0 px at 0.88, columns to 3.6 at 0.92, the red margin to 5.0 at 0.92, and the
+feint colour from #8d9bab to #5d6f85. It reads as an account book now.
+
+Notes not fixed: the turning page has a hard **kink** at its top rather than a
+smooth curl, and the page block's fore-edge reads as hard parallel lines rather
+than paper.
+
+### The retail gondola — ITERATE
+
+It reads as clean shop shelving: uprights, back panel, shelves with a metal
+front lip, three heights as a family. What is missing is the one feature that
+makes shelving read as SHOP shelving — the **punched slot column** down each
+upright. There are no base feet either, and the back panel is a plain sheet
+where a real gondola has pegboard or slatwall.
 
 ### The broom — CUT, confirmed
 

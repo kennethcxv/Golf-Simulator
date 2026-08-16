@@ -162,27 +162,31 @@ function ledgerPage() {
   const W = 1024;
   const H = 1400;
   const PAPER = '#d9cfb4';
-  const FEINT = '#8d9bab';
-  const RED = '#a4514a';
+  // HEAVIER AND DARKER. At 1.6 px and 0.55 opacity over a 230 mm page, under
+  // AgX at -0.9 EV, the ruling rendered as blank paper -- and the ruling is the
+  // entire reason this object is a ledger rather than a sketchbook. The owner
+  // studies this one at reading distance.
+  const FEINT = '#5d6f85';
+  const RED = '#93392f';
   const rows = 34;
   let lines = '';
   for (let i = 0; i < rows; i += 1) {
     const y = H * 0.115 + i * ((H * 0.855) / rows);
     lines += `<path d="M ${W * 0.055} ${y} H ${W * 0.955}" stroke="${FEINT}"
-                    stroke-width="1.6" opacity="0.55"/>`;
+                    stroke-width="3.0" opacity="0.88"/>`;
   }
   let cols = '';
   for (const x of [0.145, 0.660, 0.760, 0.860]) {
     cols += `<path d="M ${W * x} ${H * 0.075} V ${H * 0.975}" stroke="${FEINT}"
-                   stroke-width="1.8" opacity="0.62"/>`;
+                   stroke-width="3.6" opacity="0.92"/>`;
   }
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}">
     <rect width="${W}" height="${H}" fill="${PAPER}"/>
     ${lines}${cols}
-    <path d="M ${W * 0.105} 0 V ${H}" stroke="${RED}" stroke-width="2.6" opacity="0.70"/>
+    <path d="M ${W * 0.105} 0 V ${H}" stroke="${RED}" stroke-width="5.0" opacity="0.92"/>
     <path d="M ${W * 0.055} ${H * 0.085} H ${W * 0.955}" stroke="${FEINT}"
-          stroke-width="3.2" opacity="0.8"/>
-    <g font-family="Georgia, serif" fill="#4a4536" opacity="0.85">
+          stroke-width="5.4" opacity="0.95"/>
+    <g font-family="Georgia, serif" fill="#33301f" opacity="0.95">
       <text x="${W * 0.165}" y="${H * 0.062}" font-size="${W * 0.028}">DATE / PARTICULARS</text>
       <text x="${W * 0.672}" y="${H * 0.062}" font-size="${W * 0.024}">DR</text>
       <text x="${W * 0.772}" y="${H * 0.062}" font-size="${W * 0.024}">CR</text>
