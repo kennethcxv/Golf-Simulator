@@ -641,7 +641,7 @@ def wrap_uvs(obj, rings, name="UVMap"):
 
 
 def pbr(name, colour, roughness=0.5, metallic=0.0, transmission=0.0, ior=1.45,
-        coat=0.0, emission=None, alpha=1.0):
+        coat=0.0, emission=None, emission_strength=2.0, alpha=1.0):
     """`alpha` is the transparency a RASTER engine can draw.
 
     Transmission is a path-tracing feature. Cycles renders a transmissive bottle
@@ -662,6 +662,19 @@ def pbr(name, colour, roughness=0.5, metallic=0.0, transmission=0.0, ior=1.45,
         b.inputs["IOR"].default_value = ior
     if coat and "Coat Weight" in b.inputs:
         b.inputs["Coat Weight"].default_value = coat
+    # EMISSION WAS ACCEPTED AND SILENTLY DROPPED. The parameter has been in this
+    # signature the whole time and nothing ever read it, which is why the cash
+    # register's monitor rendered as a flat mint rectangle in BOTH engines and
+    # the review recorded "no emission in either" -- the brief asked for an
+    # emissive screen and the material never had one. An argument a function
+    # accepts and ignores is worse than one it rejects.
+    if emission is not None:
+        if "Emission Color" in b.inputs:
+            b.inputs["Emission Color"].default_value = (*emission, 1.0)
+        elif "Emission" in b.inputs:
+            b.inputs["Emission"].default_value = (*emission, 1.0)
+        if "Emission Strength" in b.inputs:
+            b.inputs["Emission Strength"].default_value = emission_strength
     if alpha < 1.0:
         b.inputs["Alpha"].default_value = alpha
         for attr, value in (("blend_method", "BLEND"),

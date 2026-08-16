@@ -286,7 +286,10 @@ function cardCell(w, h, spec, i) {
       <path d="M${w * 0.178} ${h * 0.32} V${h * 0.515}"/>
     </g>
     ${holo}
-    ${g(w * 0.800, h * 0.640, h * 0.225, spec.accent)}
+    <!-- The scheme mark moved UP, out of the card number. At 0.640h its box
+         spanned 0.53h-0.75h and the number's cap height starts at 0.68h, so the
+         two overlapped on every card. Top right, opposite the category. -->
+    ${g(w * 0.800, h * 0.255, h * 0.225, spec.accent)}
     <g fill="${spec.ink}" font-family="Helvetica, Arial, sans-serif">
       <text x="${w * 0.075}" y="${h * 0.20}" font-size="${h * 0.088}"
             letter-spacing="${h * 0.030}" opacity="0.9">${spec.cat}</text>
@@ -433,10 +436,14 @@ for (const [name, cells] of [['cards', cardCells], ['notes', noteCells], ['coins
   console.log(`${name}: no scheme name, ${circles.length} circles, none interlocking`);
 }
 
+// CARDS ONLY. The notes and coins this file used to emit are superseded by
+// make_money_art2.mjs, which builds them from the 1935-series reference -- six
+// denominations with their own tint, device and rosette count, and coins with a
+// real device, a beaded rim and a legend ring. Leaving the old writers here
+// meant whichever generator ran last won, and the old flat-green notes kept
+// coming back.
 for (const [name, svg] of [
   ['money_cards.png', atlas(CARD_COLS, CARD_ROWS, 512, 323, cardCells)],
-  ['money_notes.png', atlas(NOTE_COLS, NOTE_ROWS, 512, 218, noteCells)],
-  ['money_coins.png', atlas(COIN_COLS, COIN_ROWS, 256, 256, coinCells)],
 ]) {
   const file = path.join(OUT, name);
   await sharp(Buffer.from(svg)).png().toFile(file);

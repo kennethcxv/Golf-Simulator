@@ -41,7 +41,11 @@ CARD_MIN_T = 0.00060          # thinner than this and it phases through fingers
 CARD_CELLS = (4, 3)
 # A note: 156 x 66.3 x 0.11 mm. Drawn a little thicker so a single note reads.
 NOTE = (0.17060, 0.07251, 0.00035)
-NOTE_CELLS = (4, 2)
+# SIX denominations, each a genuinely different design -- own tint, own
+# device, own guilloche rosette count, own numeral placement. The old
+# eight-cell sheet was the same green eight times, which is why a stack
+# read as photocopied.
+NOTE_CELLS = (3, 2)
 # Coin diameters in yards, and which atlas cell each takes.
 COINS = [("quarter", 0.02653, 0.00191, 0), ("nickel", 0.02320, 0.00214, 2),
          ("penny", 0.02083, 0.00169, 3), ("dime", 0.01959, 0.00148, 1)]
@@ -125,10 +129,10 @@ def build(broken=False):
         c.location = Vector((-0.20 + (i % 4) * 0.115, 0.16 - (i // 4) * 0.075, 0))
         p["cards"].append(c)
 
-    # ---- 8 note faces: six denominations plus two wear variants
-    for i in range(8):
+    # ---- 6 note faces, one per denomination
+    for i in range(6):
         nt = flat_card(f"Note_{i}", NOTE, i, *NOTE_CELLS)
-        nt.location = Vector((-0.20 + (i % 4) * 0.190, -0.06 - (i // 4) * 0.090, 0))
+        nt.location = Vector((-0.20 + (i % 3) * 0.190, -0.06 - (i // 3) * 0.090, 0))
         p["notes"].append(nt)
 
     # ---- 4 coins: scaled instances of one disc, two metal tones
@@ -189,7 +193,7 @@ def main():
     tris = H.triangles(subject)
     print("")
     print("  === THE COST OF THE WHOLE SET ===")
-    print(f"  designs        12 cards + 8 note faces + 4 coins = 24")
+    print(f"  designs        12 cards + 6 note faces + 4 coins = 22")
     print(f"  MATERIALS      {len(p['materials'])}  (cards 1, notes 1, coins 2 — a "
           f"silver and a copper)")
     print(f"  programs       {len(p['materials'])} — one per material, no variants")
