@@ -23,7 +23,7 @@ FRAMES no frame >16.7 ms normal play mid-range; DRAWS <400 standing (from
 
 1. **The machine still reads degraded** (61.2 s warm vs 31.9 healthy, same
    20 s compile-stall signature), so the night ran on counts, per your rule.
-2. **Draws: 2419 → 2376 shop** (controlled instrument, measured pass
+2. **Draws: 2419 → 2355 shop** (controlled instrument, measured pass
    multiplier 2), goldens 13/13 — and the honest census says **<400 is
    unreachable by static merging** (~1850 is the floor of that lever).
 3. **Programs: <120 is unreachable mechanically** — the "46 vertexColors
@@ -73,15 +73,21 @@ gl-programs at prewarm close: 121.
 
 ## Phases worked tonight (in doc order, degraded-machine set)
 
-- PHASE 2 — draw calls (count-verifiable): in progress
-- PHASE 4 — programs (count-verifiable): queued
-- PHASE 6 — memory/payload instrumentation (count-verifiable): queued
-- PHASE 1/3/5/7 — deferred or partial: any timing acceptance is marked
-  DEGRADED-MACHINE and does not stand as a result.
+- PHASE 2 — draw calls: CLOSED (four batches live, golden-gated; residual
+  map written)
+- PHASE 4 — programs: CLOSED HONESTLY (fold measured at 6, reverted;
+  target declared unreachable mechanically)
+- PHASE 6 — memory/payload: INSTRUMENTED (three exact-byte controls green;
+  levers named)
+- PHASE 3 — BEFORE ledger written in counts; freeze + throttled acceptance
+  need the next session
+- PHASE 7 — till residual and editor arrivals attributed to named causes;
+  fixes scoped
+- PHASES 1/5 — timing-gated; scoped with tonight's count evidence attached
 
 ---
 
-## PHASE 2 — draw calls (in progress; numbers below are counts, valid on this machine)
+## PHASE 2 — draw calls (counts, valid on this machine)
 
 ### The instrument, controlled first
 
@@ -323,9 +329,16 @@ exact instrument Goal 28 named). Controls: planted upload read +1 geometry
 residual is two shader compiles. The gesture-register warm ENTERS the till
 (its mark shows in every prewarm) and still misses two variants — the
 first-equip lesson again (a real frame is more state than a warm draw).
-The instrument's second run dumps the two arrivals' cacheKeys and their
-nearest-twin diff axes, so next session's fix is surgical: make the warm
-draw those exact state combos.
+
+Both arrivals are physical-family, width 58, each exactly ONE key step from
+a settled twin at **index 48, value 2 → 1** — reproduced identically across
+three runs. The obvious theory is a light count; it is now MEASURED FALSE:
+a chain-visible light census taken before and during the till is byte-
+identical (1 dir+shadow / 1 hemi / 1 ambient / 7 point visible, hidden sets
+unchanged). Per the 2681f28 caution the field stays UNNAMED until a value
+match lands; the next session's first move is the arrivals driver's
+raw-tail dump on these two keys. The fix stays the same shape either way:
+make the gesture-register warm draw under the till's exact program state.
 
 ### The editor's residual arrivals: 17, unchanged — and the theory that
 ### explained them is now measured false

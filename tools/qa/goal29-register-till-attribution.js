@@ -35,7 +35,22 @@ async (page) => {
   const delta = (a, b) => ({ geometries: b.g - a.g, textures: b.t - a.t, programs: b.p - a.p });
 
   // ---- first press ------------------------------------------------------------
+  // light-state census, taken alongside the program census: if the till's
+  // arriving programs sit one key-step from their twins on a light-count
+  // field, the visible-light delta across enter() NAMES that field.
+  const lightCensus = () => page.evaluate(() => {
+    const counts = {};
+    window.__fw.scene3d.scene.traverse((o) => {
+      if (!o.isLight) return;
+      let chainVisible = true;
+      for (let n = o; n; n = n.parent) { if (!n.visible) { chainVisible = false; break; } }
+      const key = `${o.type}${o.castShadow ? '+shadow' : ''}${chainVisible ? '' : ':hidden'}`;
+      counts[key] = (counts[key] || 0) + 1;
+    });
+    return counts;
+  });
   const a = await snap();
+  out.lightsBefore = await lightCensus();
   await page.evaluate(() => {
     window.__g29keysBefore = (window.__fw.scene3d.renderer.info.programs || []).map((p) => String(p.cacheKey));
   });
@@ -47,6 +62,7 @@ async (page) => {
   });
   await page.waitForTimeout(2500);
   const b = await snap();
+  out.lightsDuring = await lightCensus();
   // name the arrivals: the new cacheKeys and where they differ from their
   // nearest settled twin (the fix needs the axis, not just the count)
   out.firstPressArrivals = await page.evaluate(() => {
