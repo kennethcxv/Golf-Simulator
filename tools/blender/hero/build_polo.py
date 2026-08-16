@@ -55,7 +55,7 @@ ATLAS_COLS, ATLAS_ROWS = 6, 5
 
 SH_HALF = 0.2250               # half the shoulder width
 Z_SH = 0.0000                  # the shoulder line; everything hangs below it
-LENGTH = 0.6900                # shoulder to hem
+LENGTH = 0.6350                # shoulder to hem
 NECK_HALF = 0.3300             # the neck opening, in u (fraction of the panel)
 SHOULDER_DROP = 0.0360         # how far the shoulder seam falls to its point
 SCOOP_FRONT = 0.0235           # a polo's neckline is nearly LEVEL; the
@@ -67,7 +67,7 @@ CLOTH = 0.0022
 # The body is WIDER below the armhole than at the shoulder, which is the line
 # that makes a hung shirt read as a hung shirt: the sleeves stand out above a
 # narrower shoulder and the body falls away underneath.
-WIDTH_PROFILE = ((0.00, 1.000), (0.14, 1.130), (0.55, 1.088), (1.00, 1.164))
+WIDTH_PROFILE = ((0.00, 1.000), (0.14, 1.135), (0.52, 1.058), (1.00, 1.215))
 DEPTH_CHEST = 0.0580
 DEPTH_HEM = 0.0500
 
@@ -104,10 +104,24 @@ def body_panel(front, u, v, seed=0.0):
     """
     w = SH_HALF * _profile(WIDTH_PROFILE, v)
     x = u * w
-    top = top_z(u, front)
+    # The top edge's shape must NOT reach the hem. Cloth hanging free forgets
+    # the line it was cut on within a hand's width, and carrying top_z all the
+    # way down meant the neck scoop, the shoulder drop and the hanger peak all
+    # arrived at the bottom edge and read as a scalloped wave. It was fixed
+    # twice as if it were a hem shape before it was traced to its source.
+    settle = min(1.0, v / 0.32) ** 1.15
+    top = top_z(u, front) * (1.0 - settle)
     z = top - LENGTH * v
+    # THE HANGER'S ENDS are under the cloth at |u| ~ 0.85, so the shoulder line
+    # peaks over them -- but only near the shoulder. Putting this in top_z()
+    # instead carried both peaks the whole length of the panel and came out as
+    # a four-humped wave along the hem, which read as a scallop and was fixed
+    # twice as if it were one.
+    z += 0.0060 * math.exp(-(((abs(u) - 0.845) / 0.145) ** 2)) * max(
+        0.0, 1.0 - v / 0.22) ** 1.3
     # the hem dips a little at the sides, as a shirt hem does
-    z += 0.0130 * (1.0 - abs(u) ** 1.6) * (v ** 2.4)
+    # a polo's hem is straight, with a small drop at the side vents
+    z -= 0.0090 * (abs(u) ** 3.0) * (v ** 2.2)
     # A shirt on a hanger is nearly FLAT across the shoulders and only opens
     # out below the chest. Bowing to full depth at v=0 made the neck hole
     # 116 mm front-to-back and left the collar floating 28.9 mm off the
@@ -126,6 +140,63 @@ def body_panel(front, u, v, seed=0.0):
     fold = 0.0042 * math.sin(u * 5.2 + seed) * min(1.0, v * 2.6)
     y = (depth * bow + fold) * (-1.0 if front else 1.0)
     return Vector((x, y, z))
+
+
+# ---------------------------------------------------------------------------
+# the collar
+#
+# CL.collar could not do this one. It sweeps a four-row section round a circle,
+# which is fine for a standing band and wrong for a polo: a polo collar rises
+# off the neckline as a STAND, folds over at a crest, and falls outward and
+# down to a free edge that ends in two points. Three separate things, and the
+# fold crest is the one your eye actually reads.
+#
+# So it is a surface over (s along the neckline, t across the collar), and the
+# neckline it follows is measured off the panels rather than assumed to be a
+# circle -- which is what left the first attempt floating 28.9 mm clear.
+
+GAP_U = 0.085                  # the points stop this far short of centre front
+COLLAR_PROFILE = ((0.00, 0.0000, 0.0000),
+                  (0.22, 0.0042, 0.0128),
+                  (0.44, 0.0108, 0.0208),    # the fold crest
+                  (0.62, 0.0208, 0.0172),
+                  (0.82, 0.0312, 0.0082),
+                  (1.00, 0.0398, -0.0038))   # the free edge, below the crest
+
+
+def _interp2(table, t):
+    for i in range(len(table) - 1):
+        a, b = table[i], table[i + 1]
+        if t <= b[0]:
+            k = (t - a[0]) / (b[0] - a[0]) if b[0] > a[0] else 0.0
+            k = k * k * (3.0 - 2.0 * k)
+            return (a[1] + (b[1] - a[1]) * k, a[2] + (b[2] - a[2]) * k)
+    return table[-1][1], table[-1][2]
+
+
+def neck_path(s):
+    """The neckline, from the right collar point round the back to the left."""
+    run = NECK_HALF - GAP_U
+    back = 2.0 * NECK_HALF
+    d = s * (2.0 * run + back)
+    if d <= run:
+        return body_panel(True, GAP_U + d, 0.0)
+    d -= run
+    if d <= back:
+        return body_panel(False, NECK_HALF - d, 0.0)
+    return body_panel(True, -NECK_HALF + (d - back), 0.0)
+
+
+def collar_surface(s, t):
+    q = neck_path(s)
+    n = Vector((q.x, q.y, 0.0))
+    n = n.normalized() if n.length > 1e-6 else Vector((0.0, -1.0, 0.0))
+    out, up = _interp2(COLLAR_PROFILE, t)
+    # the two ends ARE the collar points: they splay wider and fall lower
+    tip = max(0.0, 1.0 - min(s, 1.0 - s) / 0.17) ** 1.7
+    out *= 1.0 + 0.58 * tip
+    up -= 0.0245 * tip * (t ** 1.2)
+    return q + n * out + Vector((0.0, 0.0, up))
 
 
 def build_hung(p, way):
@@ -150,7 +221,7 @@ def build_hung(p, way):
             pts.append(q)
             nrms.append(Vector((sgn, 0.0, 0.0)))
         p[f"seam{side}"] = CL.framed_sweep(f"Polo_Seam{side}", pts, nrms,
-                                           0.0026, 0.0016, sides=6, taper=2)
+                                           0.0030, 0.0022, sides=6, taper=2)
         pts, nrms = [], []
         for i in range(11):
             u = sgn * (NECK_HALF + (0.985 - NECK_HALF) * i / 10.0)
@@ -163,23 +234,47 @@ def build_hung(p, way):
     # sleeves off the shoulder points, with ribbed cuffs
     for side, sgn in (("L", -1.0), ("R", 1.0)):
         root = Vector((sgn * SH_HALF * 0.90, 0.0, Z_SH - SHOULDER_DROP * 0.72))
-        d = Vector((sgn * 0.93, 0.0, -0.37)).normalized()
+        d = Vector((sgn * 0.86, 0.0, -0.52)).normalized()
         p[f"sleeve{side}"] = CL.sleeve_from_body(
-            f"Polo_Sleeve{side}", root, d, 0.2050, 0.0700, 0.0570,
-            droop=0.10, sides=16, steps=9, seam_in=0.0180)
-        end = root + d * 0.2020
+            f"Polo_Sleeve{side}", root, d, 0.1980, 0.0730, 0.0605,
+            droop=0.20, sides=16, steps=9, seam_in=0.0180, flat=0.56)
+        # THE ARMHOLE. A sleeve that simply emerges from a body has no seam,
+        # and the join is the line that says the sleeve was sewn on.
+        side_v = Vector((0.0, 0.0, 1.0)).cross(d).normalized()
+        upv = d.cross(side_v).normalized()
+        pts, nrms = [], []
+        NA = 17
+        for i in range(NA):
+            ang = 2.0 * math.pi * i / NA
+            r = 0.0715
+            q = root + side_v * (math.cos(ang) * r) + upv * (
+                math.sin(ang) * r * 0.56)
+            pts.append(q)
+            nrms.append((q - root).normalized())
+        p[f"armhole{side}"] = CL.framed_sweep(
+            f"Polo_Armhole{side}", pts, nrms, 0.0026, 0.0018, closed=True,
+            sides=6)
+        end = root + d * 0.1950
+        end.z -= 0.0075
         p[f"cuff{side}"] = CL.ribbed_ring(f"Polo_Cuff{side}", end, d,
-                                          0.0575, 0.0180, ribs=20, depth=0.0016)
+                                          0.0608, 0.0175, ribs=22, depth=0.0019)
 
     # the collar: one band round the neck with a V left open at the front
-    # `height` in CL.collar is a BASE OFFSET, not the collar's height: the rows
-    # stack a further `stand` on top of it, so height=0.062 built a collar
-    # 87 mm tall -- a chef's toque standing clear of the neckline, which is why
-    # it read as loose however wide it was made. Measured, not guessed.
-    p["collar"] = CL.collar("Polo_Collar", (0.0, 0.0, Z_SH - 0.0180),
-                            SH_HALF * NECK_HALF * 1.00, 0.0520,
-                            0.0270, thickness=0.0070, sides=44,
-                            point_drop=0.58, gap=0.74, fall=0.42)
+    NS, NT = 49, 7
+    surf = CL.grid_surface("Polo_Collar", collar_surface, nu=NS, nv=NT,
+                           smooth=True)
+    p["collar"] = CL.smooth_by_angle(CL.thicken(surf, 0.0017, offset=0.0), 50.0)
+    # the topstitch that runs round a collar's free edge
+    pts, nrms = [], []
+    for i in range(NS):
+        sv = i / (NS - 1.0)
+        q = collar_surface(sv, 0.885)
+        nx = (collar_surface(sv, 0.885) - collar_surface(sv, 0.70))
+        pts.append(q)
+        nrms.append(Vector((0.0, 0.0, 1.0)) if nx.length < 1e-9
+                    else Vector((0.0, 0.0, 1.0)))
+    p["collar_stitch"] = CL.framed_sweep("Polo_CollarStitch", pts, nrms,
+                                         0.0007, 0.0006, sides=4, taper=2)
 
     # THE PLACKET, with the stitched box at its foot the macro shows
     y_front = body_panel(True, 0.0, 0.10).y
@@ -195,24 +290,28 @@ def build_hung(p, way):
         [Vector((0, -1, 0))] * 4, 0.0016, 0.0011, closed=True, sides=5)
     for k, t in enumerate((0.16, 0.52)):
         q = path[0].lerp(path[-1], t)
-        p[f"button{k}"] = CL.stud(f"Polo_Button{k}", q + Vector((0, 0.0010, 0)),
-                                  Vector((0, -1, 0)), 0.0058, 0.0034, sides=14)
+        p[f"button{k}"] = CL.stud(f"Polo_Button{k}", q + Vector((0, -0.0022, 0)),
+                                  Vector((0, -1, 0)), 0.0062, 0.0030, sides=16)
 
-    # the hem, turned and stitched all the way round
+    # THE HEM, as one closed loop: down the front, back along the back. The
+    # first version walked u = cos(a) and switched panels at the sides, which
+    # put a zigzag right across the bottom of every frame.
     pts, nrms = [], []
-    N = 56
-    for i in range(N):
-        a = 2.0 * math.pi * i / N
-        u = math.cos(a)
-        q = body_panel(math.sin(a) < 0.0, u, 0.988)
+    NH = 64
+    for i in range(NH):
+        t = i / NH
+        if t < 0.5:
+            u = -0.995 + 2.0 * 0.995 * (t / 0.5)
+            q = body_panel(True, u, 0.992)
+            n = Vector((q.x, q.y * 2.4, 0.0)).normalized()
+        else:
+            u = 0.995 - 2.0 * 0.995 * ((t - 0.5) / 0.5)
+            q = body_panel(False, u, 0.992)
+            n = Vector((q.x, q.y * 2.4, 0.0)).normalized()
         pts.append(q)
-        n = Vector((0.0, -1.0 if math.sin(a) < 0 else 1.0, 0.0))
-        if abs(u) > 0.96:
-            n = Vector((1.0 if u > 0 else -1.0, 0.0, 0.0))
-        pts[-1] = q
         nrms.append(n)
-    p["hem"] = CL.framed_sweep("Polo_Hem", pts, nrms, 0.0090, 0.0016,
-                               closed=True, sides=6, square=0.80)
+    p["hem"] = CL.framed_sweep("Polo_Hem", pts, nrms, 0.0078, 0.0019,
+                               closed=True, sides=6, square=0.82)
 
     # the chest badge, shaped and curved on to the front panel like the cap's
     NUC, NVC = 9, 9
@@ -331,7 +430,9 @@ def cell_for(part, way):
         return CHEST_CELL
     if n in ("hanger", "hook", "size_band"):
         return TRIM_CELL
-    if (n.startswith("button") or n.startswith("cuff")
+    if n.startswith("button"):
+        return TRIM_CELL
+    if (n.startswith("cuff")
             or n == "collar" or n.startswith("placket")):
         return trim
     return base
@@ -345,6 +446,8 @@ def materials():
 
 DEEP = {
     "hung": [("front", "back"), ("front", "collar"), ("back", "collar"),
+             ("collar", "collar_stitch"), ("front", "collar_stitch"),
+             ("back", "collar_stitch"), ("collar_stitch", "hanger"),
              ("front", "placket"), ("front", "placket_box"),
              ("placket", "placket_box"), ("front", "badge"),
              ("front", "hem"), ("back", "hem"), ("front", "hanger"), ("back", "hanger"), ("hanger", "hook"),
@@ -355,12 +458,17 @@ DEEP = {
     + [(f"sleeve{k}", f"seam{k}") for k in ("L", "R")]
     + [(f"sleeve{k}", f"shoulder{k}") for k in ("L", "R")]
     + [(f"sleeve{k}", f"cuff{k}") for k in ("L", "R")]
+    + [(b, f"armhole{k}") for b in ("front", "back") for k in ("L", "R")]
+    + [(f"sleeve{k}", f"armhole{k}") for k in ("L", "R")]
+    + [(f"seam{k}", f"armhole{k}") for k in ("L", "R")]
+    + [(f"shoulder{k}", f"armhole{k}") for k in ("L", "R")]
+    + [("hanger", f"armhole{k}") for k in ("L", "R")]
     + [(f"sleeve{k}", "hanger") for k in ("L", "R")]
     + [(f"shoulder{k}", "collar") for k in ("L", "R")]
     + [(f"shoulder{k}", "hanger") for k in ("L", "R")]
     + [(f"seam{k}", "hem") for k in ("L", "R")]
     + [("placket", "collar"), ("placket", "button0"), ("placket", "button1"),
-       ("collar", "button0")],
+       ("collar", "button0"), ("placket", "collar_stitch")],
     "folded": [("body", "collar"), ("body", "placket"), ("body", "size_band"),
                ("body", "sleeve_fold0"), ("body", "sleeve_fold1"),
                ("collar", "placket"), ("placket", "button0"),

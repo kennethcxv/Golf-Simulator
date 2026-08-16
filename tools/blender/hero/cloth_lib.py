@@ -648,7 +648,7 @@ def cell_offset(obj, cell, cols=4, rows=3):
 
 
 def sleeve_from_body(name, root, direction, length, r0, r1, droop=0.10,
-                     sides=14, steps=9, seam_in=0.0035, cuff=0.0):
+                     sides=14, steps=9, seam_in=0.0035, cuff=0.0, flat=0.74):
     """A sleeve that GROWS OUT OF a shoulder instead of being pushed into one.
 
     The old sleeve was a tapered tube whose end cap sat wherever it landed, and
@@ -679,7 +679,7 @@ def sleeve_from_body(name, root, direction, length, r0, r1, droop=0.10,
         for i in range(sides):
             a = 2 * math.pi * i / sides
             ring.append(c + side * (math.cos(a) * r)
-                        + up * (math.sin(a) * r * 0.74))
+                        + up * (math.sin(a) * r * flat))
         rings.append(ring)
     return loft(name, rings, smooth=True)
 
