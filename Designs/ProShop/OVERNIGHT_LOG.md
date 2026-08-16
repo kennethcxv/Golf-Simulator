@@ -159,13 +159,28 @@ Notes not fixed: the turning page has a hard **kink** at its top rather than a
 smooth curl, and the page block's fore-edge reads as hard parallel lines rather
 than paper.
 
-### The retail gondola — ITERATE
+### The retail gondola — ITERATE, and one thing tried and taken back out
 
 It reads as clean shop shelving: uprights, back panel, shelves with a metal
 front lip, three heights as a family. What is missing is the one feature that
 makes shelving read as SHOP shelving — the **punched slot column** down each
 upright. There are no base feet either, and the back panel is a plain sheet
 where a real gondola has pegboard or slatwall.
+
+**I built the slot columns and then removed them.** Worth recording as a
+measurement rather than an opinion:
+
+- The first cut went through the full post width, and the very next shelf landed
+  in the void it left. `assert_rooted` failed the build immediately. That is the
+  check doing exactly its job on a fault I had just created.
+- Made shallow and on the inner face only, it cut cleanly — and took the
+  standard bay from **872 to 1,736 triangles. It doubled the bay.**
+- At the distance a player walks past shelving, a 5.5 mm recess on an inner face
+  **does not read at all.** The render before and after is the same picture.
+
+Doubling the largest object in the shop for something invisible is not a trade
+worth making. `_slot()` stays in the file, uncalled, because the number is the
+useful part: if this ever wants doing, it wants doing in the texture.
 
 ### The broom — CUT, confirmed
 

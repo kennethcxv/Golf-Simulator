@@ -53,6 +53,42 @@ SIZES = [("low", 0.9000, 2, -1.5000), ("standard", 1.5000, 4, 0.0000),
          ("tall", 2.0500, 5, 1.5000)]
 
 
+SLOT_N = 18              # punched slots down each upright
+SLOT_W = 0.0110
+SLOT_H = 0.0225
+SLOT_D = 0.0055          # how far into the upright the slot is punched
+
+
+def _slot(post, height, sx):
+    """Punch the shelf-slot column into one upright.
+
+    The one feature that makes shelving read as SHOP shelving rather than as a
+    bookcase, and it was missing entirely. Cut, not painted: a boolean of one
+    joined cutter per post, so it is a real recess that catches raking light.
+    This is the largest object in the shop and the player walks its length.
+    """
+    lo = height * 0.10
+    span = height * 0.80
+    cutters = []
+    for i in range(SLOT_N):
+        z = lo + span * i / (SLOT_N - 1.0)
+        # SHALLOW, and on the INNER face only. Cutting the full POST_W went
+        # straight through the upright, and the very next shelf landed in the
+        # void it left -- assert_rooted caught it on the first build, which is
+        # the check doing exactly its job.
+        cutters.append(HS.box(
+            f"{post.name}_s{i}",
+            (post.location.x - sx * (POST_W * 0.5 - SLOT_D * 0.5),
+             post.location.y, z),
+            (SLOT_D, SLOT_W, SLOT_H)))
+    cut = HS.join(cutters, f"{post.name}_slots")
+    m = post.modifiers.new("Slots", "BOOLEAN")
+    m.operation, m.object, m.solver = "DIFFERENCE", cut, "EXACT"
+    out = HS.apply_mods(post)
+    bpy.data.objects.remove(cut, do_unlink=True)
+    return out
+
+
 def build_one(M, label, height, shelves, x0, broken=""):
     """One gondola. `x0` only parks it beside the others for the group shot."""
     p = {"label": label, "height": height, "shelves": [], "lips": []}
@@ -67,6 +103,14 @@ def build_one(M, label, height, shelves, x0, broken=""):
                 (x0 + sx * (hw - POST_W * 0.5), sy * (hd - POST_D * 0.5),
                  height * 0.5),
                 (POST_W, POST_D, height), bevel=0.0035, segments=2)))
+
+    # SLOT COLUMNS: TRIED AND REMOVED. A real gondola upright carries a punched
+    # column of shelf slots, and _slot() below cuts one. Measured: it took the
+    # standard bay from 872 to 1,736 triangles -- it DOUBLED the bay -- and at
+    # the distance a player walks past shelving a 5.5 mm recess on an inner
+    # face does not read at all. Kept in the file, not called, because the
+    # measurement is the useful part: if this ever wants doing it wants doing
+    # in the texture, not the mesh.
 
     # ---- back panel, let into the rear posts
     p["back"] = HS.apply_mods(HS.box(
