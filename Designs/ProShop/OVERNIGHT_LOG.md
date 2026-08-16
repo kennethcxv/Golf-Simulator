@@ -181,6 +181,66 @@ The golden gate was NOT run. It captures through Electron, and a parallel
 session is measuring frame timings on this machine; starting a second Electron
 would corrupt their numbers as surely as it would mine.
 
+## PART 1 — THE EXPORT FAULT, CLOSED
+
+### The fix is in ONE place
+
+`bake_gltf_axis` now flattens each mesh's world transform into its vertices
+before permuting them, so nothing is left in the old convention. That fixes all
+25 builders at once and cannot be forgotten by the 26th. `build_rack` and
+`build_register` had worked around it with their own `transform_apply`; the
+three I added to rake, mower and spreader last night are removed, so there is
+one mechanism rather than two.
+
+Doing it centrally also handles ROTATION and SCALE, which a location-only
+`transform_apply` does not, and it refuses outright on multi-user mesh data
+instead of quietly moving another object's geometry.
+
+### The check is inside the build
+
+`H.export_glb` re-imports what it just wrote and compares it with what was
+meant to go out. **A builder that writes a scrambled GLB now fails its own
+build**, the way one that writes a blank frame does. The standalone control
+stays as the negative case.
+
+### Getting the check right took five attempts, and the control caught all five
+
+This is the part worth reading, because every one of them would have shipped a
+green result over a broken file.
+
+1. **Matched sockets by name.** The originals are still in the scene, so
+   Blender hands the re-imported copies `.001` and a plain name match finds
+   nothing. It reported both of the rake's sockets missing from a file that
+   has them.
+2. **Compared one bounding box over the whole asset.** With the bake off, the
+   rake's grip is out of place by more than a metre and the whole-asset box
+   moves **2.54 mm** -- the grip is small and sits inside what the shaft and
+   head already describe. Per part now, and it names the part: the same case
+   reports **"Worst part 'RakeGrip' moved 1594.40 mm"**.
+3. **Compared the file against the POST-bake scene.** Which carries the very
+   fault being looked for, so the two agreed and a build with the transform
+   bake switched off PASSED. `bake_gltf_axis` stashes the pre-bake state and
+   the comparison runs against that.
+4. **Demanded every part in the stash from every file.** `build_merch` bakes
+   once and writes several files out of one scene, so each export looked like
+   it was missing the other sets -- thirteen bottles, cans and snack bags
+   declared absent from `merch_golf_balls.glb`. Scoped to the objects each
+   export call actually writes.
+5. **Measured the raw mesh, not the evaluated one.** `export_apply=True` writes
+   meshes with their MODIFIERS ON, so the stash was comparing against geometry
+   that was never in the file. The lane head's `Reg_TermBody` came out 1.71 mm
+   adrift on a live bevel. The magnitude was the tell -- a scramble is hundreds
+   of millimetres, a modifier is one or two.
+
+Faults 4 and 5 only appeared when the gate was run across all 25 builders. A
+spot check on the rake would have passed and I would have called it done.
+
+### The negative control is permanent
+
+`H.BAKE_TRANSFORMS = False` reproduces the fault exactly as it shipped, and
+`control_export_roundtrip.py` requires the export to refuse. A check that has
+never been watched failing is not a check.
+
 ## THE APPAREL ATLAS: THE GAME ALREADY SOLVES THIS
 
 I flagged that the atlas is embedded separately in all ten apparel GLBs --
