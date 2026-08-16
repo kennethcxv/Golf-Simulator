@@ -177,7 +177,11 @@ async (page) => {
         }
         setTimeout(() => {
           const worst = Math.max(...sampling);
-          results.push({ dir, worstMs: +worst.toFixed(1), frames: sampling.length });
+          const ps = lb.diagnostics?.()?.paintStats || {};
+          results.push({
+            dir, worstMs: +worst.toFixed(1), frames: sampling.length,
+            paintMs: ps.lastTurnFrameMs ?? null,
+          });
           if (results.length % 2 === 0) dir = -dir;
           sampling = null;
           requestAnimationFrame(drive);

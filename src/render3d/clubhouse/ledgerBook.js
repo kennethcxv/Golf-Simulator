@@ -401,6 +401,72 @@ export function createLedgerBook({ THREE, state, anchor, counterTop, camera = nu
   const rightFace = makePageCanvas();
   const titleFace = makePageCanvas();
 
+  // GOAL 27 — THE PRE-UPLOADED SPREAD CACHE. The turn's 20-26 ms worst frame
+  // is per-upload overhead (measured; the split and two sharing designs are
+  // dead-ends documented at turnPage). So the uploads move OFF the turn
+  // frame entirely: while the book sits open and idle, the spreads either
+  // side of the current one are painted into spare full-res pairs and
+  // uploaded on idle frames; a turn that finds its target cached SWAPS the
+  // static faces' pairs (zero static-face paints, zero uploads on the turn
+  // frame — only the two half-res leaf paints remain) and returns the old
+  // pairs to the pool. Cache validity is model IDENTITY — a rebuilt model
+  // invalidates everything automatically. Any miss falls back to the
+  // batched paint, which is today's behavior to the letter.
+  let cachedRenderer = null; // stashed by prewarmVisual; upload-at-fill uses it
+  const pairPool = [];
+  const spreadCache = { forModel: null, entries: new Map() };
+  const takePair = () => pairPool.pop() || makePageCanvas();
+  const releaseEntry = (entry) => {
+    if (!entry) return;
+    if (pairPool.length < 6) pairPool.push(entry.left, entry.right);
+    spreadCache.entries.delete(entry.spreadIdx);
+  };
+  const spreadCacheInvalidateIfStale = () => {
+    if (spreadCache.forModel === model) return;
+    for (const entry of [...spreadCache.entries.values()]) releaseEntry(entry);
+    spreadCache.forModel = model;
+  };
+  const paintPairForSpread = (pair, side, spreadIdx) => {
+    if (side === 'left') {
+      paintIndexWith(model, pair, spreadIdx * 2);
+      pageFoot(pair.canvas.getContext('2d'), 'left', spreadIdx * 2 + 1);
+    } else {
+      paintIndexWith(model, pair, spreadIdx * 2 + 1);
+      pageFoot(pair.canvas.getContext('2d'), 'right', spreadIdx * 2 + 2);
+    }
+    pair.texture.needsUpdate = true;
+    if (cachedRenderer) { try { cachedRenderer.initTexture(pair.texture); } catch { /* uploads at swap instead */ } }
+  };
+  const cacheFillOneMissingNeighbor = () => {
+    if (!model || bookState !== 'open' || leaf) return;
+    spreadCacheInvalidateIfStale();
+    const total = spreadCount();
+    for (const candidate of [spread + 1, spread - 1]) {
+      if (candidate < 0 || candidate >= total) continue;
+      if (spreadCache.entries.has(candidate)) continue;
+      const entry = { spreadIdx: candidate, left: takePair(), right: takePair(), forModel: model };
+      paintPairForSpread(entry.left, 'left', candidate);
+      paintPairForSpread(entry.right, 'right', candidate);
+      spreadCache.entries.set(candidate, entry);
+      return; // one neighbor per idle tick — the fill must never hitch
+    }
+  };
+  const spreadCacheTake = (spreadIdx) => {
+    spreadCacheInvalidateIfStale();
+    const entry = spreadCache.entries.get(spreadIdx);
+    if (!entry || entry.forModel !== model) return null;
+    spreadCache.entries.delete(spreadIdx);
+    return entry;
+  };
+  const swapFacePair = (face, pair) => {
+    const old = { canvas: face.canvas, texture: face.texture, draws: face.draws };
+    face.canvas = pair.canvas;
+    face.texture = pair.texture;
+    face.draws = pair.draws;
+    if (face.mesh?.material) face.mesh.material.map = face.texture;
+    return old;
+  };
+
   // ---- the turning leaf: a real sheet that BENDS through the turn ----------
   // One shared segmented geometry deformed per-frame; front and back meshes
   // carry the outgoing and incoming page canvases.
@@ -2370,6 +2436,7 @@ export function createLedgerBook({ THREE, state, anchor, counterTop, camera = nu
   // book if the veil lifted mid-animation.
   let visualPrewarmed = false;
   function prewarmVisual(renderer, camera, scene) {
+    if (renderer) cachedRenderer = renderer; // the spread cache's upload-at-fill handle
     if (visualPrewarmed || !renderer || !camera || !scene) return false;
     prewarm();
     // 1. the uploads. initTexture pushes a texture to the GPU without needing
@@ -2719,7 +2786,24 @@ export function createLedgerBook({ THREE, state, anchor, counterTop, camera = nu
     }
     spread = next;
     lastJumpedSection = null; // turning a page leaves the jump behind
-    paintSpread();
+    // cached target: swap in the pre-painted, pre-uploaded pairs — the turn
+    // frame carries only the two half-res leaf paints above. Miss: today's
+    // batched paint, to the letter.
+    const cachedSpread = spreadCacheTake(next);
+    if (cachedSpread) {
+      const oldLeft = swapFacePair(leftFace, cachedSpread.left);
+      const oldRight = swapFacePair(rightFace, cachedSpread.right);
+      if (pairPool.length < 6) pairPool.push(oldLeft, oldRight);
+      lastPaint = {
+        entries: model.entries.length,
+        notes: model.notes.length,
+        spread,
+        painted: 2,
+        contentReady: true,
+      };
+    } else {
+      paintSpread();
+    }
     paintStats.lastTurnFrameMs = +(performance.now() - t0).toFixed(1);
     leaf = { direction: direction > 0 ? 1 : -1, t: 0, settled: false };
     leafPivot.visible = true;
@@ -2823,6 +2907,9 @@ export function createLedgerBook({ THREE, state, anchor, counterTop, camera = nu
   }
 
   function update(dt) {
+    // idle spread-cache fill: one missing neighbor per tick, only while the
+    // book is open with no leaf in flight — the fill must never hitch
+    cacheFillOneMissingNeighbor();
     // the leaf turn, whatever else is happening: an eased arc with a real
     // paper BEND through the middle and a settle cue as it lands
     if (leaf) {
