@@ -322,6 +322,15 @@ def _boxes_clear(a, b, slack=0.0):
     return any(min(ahi[i], bhi[i]) - max(alo[i], blo[i]) < -slack for i in range(3))
 
 
+def is_closed(obj):
+    """Watertight: every edge shared by exactly two faces."""
+    bm = bmesh.new()
+    bm.from_mesh(obj.data)
+    bad = any(len(e.link_faces) != 2 for e in bm.edges)
+    bm.free()
+    return not bad
+
+
 def assert_assembly(parts, label, allow=(), max_depth=MAX_SEAT_DEPTH,
                     require_attached=True):
     """EVERY pair, not a hand-written list of pairs.
@@ -343,7 +352,18 @@ def assert_assembly(parts, label, allow=(), max_depth=MAX_SEAT_DEPTH,
     """
     allow = {tuple(sorted(p)) for p in allow}
     names = sorted(parts)
+    # EVERY inside/outside test here is a parity test, and parity is only
+    # defined for a closed surface. Asked about an open strip it answers
+    # confidently and wrongly -- an open collar band reported a placket 47 mm
+    # inside it. Refuse to measure rather than measure nonsense.
+    open_parts = [n for n in names if not is_closed(parts[n])]
+    if open_parts:
+        raise SystemExit(
+            f"BUILD FAILED: {label} -- these parts are not closed surfaces, so "
+            f"no inside/outside test can be trusted about them: "
+            f"{', '.join(open_parts)}")
     faults, attached = [], {n: False for n in names}
+    nearest = {n: (1e9, "") for n in names}
     for i, na in enumerate(names):
         for nb in names[i + 1:]:
             a, b = parts[na], parts[nb]
@@ -360,12 +380,25 @@ def assert_assembly(parts, label, allow=(), max_depth=MAX_SEAT_DEPTH,
                     faults.append(f"{na} and {nb} interpenetrate by "
                                   f"{deep * 1000:.2f} mm "
                                   f"(limit {max_depth * 1000:.1f})")
-            elif min(surface_gap(a, b), surface_gap(b, a)) <= 0.0015:
-                attached[na] = attached[nb] = True
+            else:
+                gap = min(surface_gap(a, b), surface_gap(b, a))
+                if gap <= 0.0015:
+                    attached[na] = attached[nb] = True
+                else:
+                    # Remember the near miss. "touches nothing" with no number
+                    # tells you a part is loose but not by how much, and the fix
+                    # is always a distance.
+                    if gap < nearest[na][0]:
+                        nearest[na] = (gap, nb)
+                    if gap < nearest[nb][0]:
+                        nearest[nb] = (gap, na)
     if require_attached:
         for n in names:
             if not attached[n]:
-                faults.append(f"{n} touches nothing -- it is a loose part")
+                g, who = nearest[n]
+                near = (f"; nearest is {who} at {g * 1000:.2f} mm"
+                        if who else "; nothing is even close")
+                faults.append(f"{n} touches nothing -- it is a loose part{near}")
     if faults:
         raise SystemExit(
             f"BUILD FAILED: {label} -- {len(faults)} assembly faults across "
