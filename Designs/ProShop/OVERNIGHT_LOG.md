@@ -141,6 +141,46 @@ opening from 2,364 px to 718 px at no triangle cost. 718 px remain.
 The probe also caught its own first version out: rendered without the shaft it
 reported the GRIP TUNNEL as the worst hole in the hand.
 
+## THE SUITE BASELINE IS ALREADY RED, AT 12
+
+`npm test` on this branch: **3,676 tests, 3,661 pass, 12 fail, 3 skipped.**
+
+None of them are mine, and that is checkable rather than asserted: this
+session's commits touch `tools/blender/hero/*` and this log, nothing else, and
+`grep -rln "models/hero\|blender/hero" tests/` returns nothing -- no test reads
+the hero pipeline at all.
+
+The failures:
+
+    Sheets 6-10 and first-person references resolve to the supplied files
+    assets that declare no collision ship no player blocker
+    Sheet-6 clean-Blender reimport evidence is complete and production-green
+    ceiling-light progression ... and all runtime files
+    tests\chairs.test.js
+    orchestrator never starts a second Electron child after the first exits nonzero
+    the shared set is the one the hands actually use
+    modern clubhouse source and exports retain production dimensions
+    D (Goal 23): the bands hang from a COLLAR, not from a point
+    B (Goal 25): 16-24 countable BUNCHES of many fine strands, not 16-24 rods
+    resort source/export/manifest remain reproducible
+    the tuning overlay takes pointer events
+
+The two that sound like mine are not: both come from
+`tests/mop-verlet-strands.test.js`, which imports `src/render3d/mopVerlet.js`
+and never touches a hero builder.
+
+The first run of the suite reported 11 and the second 12, so at least one of
+these is flaky -- most likely the Electron orchestrator one.
+
+**THIS MATTERS FOR THE WIRING RULE.** "Revert the asset if the suite fails"
+needs a baseline, and the baseline is not green. Anyone wiring must diff
+against these twelve, not against zero, or the first asset they wire will look
+like it broke eight things it never touched.
+
+The golden gate was NOT run. It captures through Electron, and a parallel
+session is measuring frame timings on this machine; starting a second Electron
+would corrupt their numbers as surely as it would mine.
+
 ## THE FRAMES THAT BACK EACH CLAIM
 
 `qa/` is gitignored, so these are on the machine rather than in the tree.
