@@ -383,7 +383,11 @@ def hoodie_hung(origin=(0, 0, 0), broken=""):
     # the review said, with the hanger's hook showing straight through it. A
     # hood is a ROLLED RIM around a hole with a SHELL behind it, and the two
     # together are what makes it read as something you could put your head in.
-    rim_c = Vector((ox, oy - 0.0050, SH + 0.0180))
+    # BEHIND the neck, not over it. At y=-0.005 the hood sat around the
+    # hanger's hook and the hook poked out through the shell as a white
+    # speck -- visible in tt04 only, which is where the last version of
+    # this same fault was caught too.
+    rim_c = Vector((ox, oy + 0.0225, SH + 0.0215))
     RIM_A, RIM_B = 0.0620, 0.0530          # the opening's half-width and height
     rim_pts = []
     for s_i in range(29):
