@@ -96,6 +96,29 @@ open trough.
   two silent omissions: `flat()` did not list them so nothing counted, checked
   or exported them, and with no material they rendered default white.
 
+### The two garments still ITERATE, with the diagnosis written down
+
+Both are the garment's own FURNITURE, not the leaf stack -- the stack works on
+all four. Neither is a tuning round; both want the same kind of rethink the
+leaves got, so they are parked rather than nudged.
+
+**The hoodie's hood reads as a bread roll.** It is a lofted wedge whose span
+term is `sqrt(1 - (2t-1)**2 * 0.92)`, so it tapers at BOTH ends into an
+ellipsoid -- which is a bread roll, exactly. And the thing that identifies a
+folded hood is the OPENING: a dark mouth facing forward with the cloth turning
+into it. Here the opening is a closed lofted surface with a separate rolled
+tube laid along the front of it, and a tube on a closed surface is a moulding,
+not a mouth. It needs the opening built as a real recess -- the same "you
+cannot get a slot out of one surface" problem the folded leaves had.
+
+**The trousers' welt pocket reads as two floating bars,** an equals sign lying
+on the leg. A welt is two lips with a SLOT between them and the slot is the
+whole cue; two strips with nothing between them are just two strips. Same
+shape of fault as the hood.
+
+The tee's print also still carries a visible white rectangle border, which is
+the decal artwork's own background rather than the geometry.
+
 ### The two calls re-examined
 
 **THE BROOM CUT STANDS, for a different reason than I cut it.** Rendered
