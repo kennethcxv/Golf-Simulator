@@ -221,149 +221,6 @@ def oval_n(a):
 # construction helpers
 
 
-def framed_sweep(name, pts, nrms, halfw, halfh, closed=False, sides=8,
-                 square=0.62, taper=0):
-    """A strip swept along a path with the surface normal GIVEN per point.
-
-    cloth_lib.strip derives its frame from the tangent and world up, which is
-    correct on a flat garment and wrong on a dome. Here the caller supplies the
-    normal, so a seam ridge stays flat against the panel all the way round the
-    crown instead of rolling over on to its side.
-
-    `taper` shrinks the section over that many rings at each end so the strip
-    DIES INTO the surface. Without it a seam ridge stops in a blunt square
-    block, which is what the centre-back seam did where it crossed the hem --
-    visible in the close-up as a white brick and in nothing else.
-    """
-    n = len(pts)
-    rings = []
-    for i, p in enumerate(pts):
-        sc = 1.0
-        if taper and not closed:
-            e = min(i, n - 1 - i)
-            sc = 0.22 + 0.78 * min(1.0, (e / float(taper)) ** 0.55)
-        nxt = pts[(i + 1) % n] if closed else pts[min(i + 1, n - 1)]
-        prv = pts[(i - 1) % n] if closed else pts[max(i - 1, 0)]
-        tan = (nxt - prv)
-        if tan.length < 1e-9:
-            tan = Vector((1, 0, 0))
-        tan.normalize()
-        nrm = Vector(nrms[i]).normalized()
-        side = tan.cross(nrm)
-        if side.length < 1e-6:
-            side = Vector((0, 0, 1)).cross(tan)
-        side.normalize()
-        nrm = side.cross(tan).normalized()
-        ring = []
-        for k in range(sides):
-            ang = 2.0 * math.pi * k / sides
-            ca, sa = math.cos(ang), math.sin(ang)
-            ring.append(
-                p + side * (math.copysign(abs(ca) ** square, ca) * halfw * sc)
-                + nrm * (math.copysign(abs(sa) ** square, sa) * halfh * sc))
-        rings.append(ring)
-    verts, faces = [], []
-    for r in rings:
-        verts.extend(r)
-    segs = n if closed else n - 1
-    for r in range(segs):
-        r2 = (r + 1) % n
-        for k in range(sides):
-            k2 = (k + 1) % sides
-            faces.append((r * sides + k, r * sides + k2,
-                          r2 * sides + k2, r2 * sides + k))
-    if not closed:
-        faces.append(tuple(range(sides - 1, -1, -1)))
-        b = (n - 1) * sides
-        faces.append(tuple(range(b, b + sides)))
-    return HS.mesh_from(name, verts, faces, smooth=True)
-
-
-def stud(name, base, direction, radius, height, sides=12):
-    """A snapback peg: a SMOOTH DOME on a short shank.
-
-    HS.prism gave a flat-shaded 10-sided stub, and at the frame size the rear
-    view is reviewed at that reads as a hexagonal nut screwed into the strap --
-    which is not a fault that exists at a third of frame, and is obvious once
-    the shot is framed off the subject's real extent.
-    """
-    d = Vector(direction).normalized()
-    up = Vector((0, 0, 1)) if abs(d.z) < 0.9 else Vector((1, 0, 0))
-    u = d.cross(up).normalized()
-    v = d.cross(u).normalized()
-    b0 = Vector(base)
-    rings = []
-    for (t, rf) in ((0.00, 1.00), (0.55, 1.00), (0.80, 0.86),
-                    (0.94, 0.60), (1.00, 0.26)):
-        c = b0 + d * (height * t)
-        rings.append([c + u * (math.cos(2 * math.pi * i / sides) * radius * rf)
-                      + v * (math.sin(2 * math.pi * i / sides) * radius * rf)
-                      for i in range(sides)])
-    return CL.loft(name, rings, close_bottom=True, close_top=True, smooth=True)
-
-
-def torus(name, centre, normal, major, minor, mseg=8, nseg=4):
-    """A sewn eyelet: a ring of thread standing proud of the panel."""
-    c = Vector(centre)
-    nz = Vector(normal).normalized()
-    side = nz.cross(Vector((0, 0, 1)))
-    if side.length < 1e-6:
-        side = Vector((1, 0, 0))
-    side.normalize()
-    up = nz.cross(side).normalized()
-    verts, faces = [], []
-    for i in range(mseg):
-        ai = 2.0 * math.pi * i / mseg
-        radial = side * math.cos(ai) + up * math.sin(ai)
-        for k in range(nseg):
-            ak = 2.0 * math.pi * k / nseg
-            verts.append(c + radial * (major + minor * math.cos(ak))
-                         + nz * (minor * math.sin(ak)))
-    for i in range(mseg):
-        i2 = (i + 1) % mseg
-        for k in range(nseg):
-            k2 = (k + 1) % nseg
-            faces.append((i * nseg + k, i * nseg + k2,
-                          i2 * nseg + k2, i2 * nseg + k))
-    return HS.mesh_from(name, verts, faces, smooth=True)
-
-
-def thicken(obj, thickness, offset=-1.0):
-    m = obj.modifiers.new("Thick", "SOLIDIFY")
-    m.thickness = thickness
-    m.offset = offset
-    m.use_rim = True
-    return HS.apply_mods(obj)
-
-
-def smooth_by_angle(obj, deg=42.0):
-    bpy.ops.object.select_all(action="DESELECT")
-    obj.select_set(True)
-    bpy.context.view_layer.objects.active = obj
-    try:
-        bpy.ops.object.shade_smooth_by_angle(angle=math.radians(deg))
-    except (AttributeError, RuntimeError, TypeError):
-        pass
-    return obj
-
-
-def grid_uv(obj, nu, nv, flip_u=False):
-    """UVs straight off the grid indices, for a part whose artwork has to land
-    in a known place. Vertex index is (row * nu + col) by construction in
-    grid_surface, and mesh_from reorders LOOPS but never vertices -- which is
-    the distinction the decal function had to learn the hard way."""
-    uv = obj.data.uv_layers.new(name="UVMap")
-    for poly in obj.data.polygons:
-        for li in poly.loop_indices:
-            vi = obj.data.loops[li].vertex_index
-            row, col = divmod(vi, nu)
-            u = col / (nu - 1.0)
-            uv.data[li].uv = (1.0 - u if flip_u else u,
-                              min(1.0, row / (nv - 1.0)))
-    obj["explicit_uv"] = True
-    return obj
-
-
 # ---------------------------------------------------------------------------
 # the parts
 
@@ -375,7 +232,7 @@ def build_crown(p):
             f"Cap_Panel{j}",
             (lambda jj: (lambda u, v: panel_surface(jj, u, v)))(j),
             nu=NU, nv=NV, smooth=True)
-        p[f"panel{j}"] = smooth_by_angle(thicken(surf, CLOTH, offset=-1.0))
+        p[f"panel{j}"] = CL.smooth_by_angle(CL.thicken(surf, CLOTH, offset=-1.0))
 
     # THE SEAMS, sitting in the grooves the panel tucks leave. 2.4 mm of relief
     # from the floor of the groove to the top of the ridge, against v1's raised
@@ -389,7 +246,7 @@ def build_crown(p):
             t = tl + 0.008 + (T_TOP - tl - 0.004) * (k / N)
             pts.append(crown_point(a, t))
             nrms.append(crown_normal(a, t))
-        p[f"seam{j}"] = framed_sweep(f"Cap_Seam{j}", pts, nrms,
+        p[f"seam{j}"] = CL.framed_sweep(f"Cap_Seam{j}", pts, nrms,
                                      0.0021, 0.0012, sides=6, taper=2)
 
     # THE HEM. Follows the base edge all the way round INCLUDING the arch, which
@@ -414,7 +271,7 @@ def build_crown(p):
             t = t_low(a) + 0.028
             pts.append(crown_point(a, t) - crown_normal(a, t) * 0.0002)
             nrms.append(crown_normal(a, t))
-        return framed_sweep(name, pts, nrms, 0.0019, 0.0006, sides=6,
+        return CL.framed_sweep(name, pts, nrms, 0.0019, 0.0006, sides=6,
                             square=0.75, taper=2)
 
     back = math.pi - OPEN_HALF
@@ -450,7 +307,7 @@ def build_crown(p):
             m = panel_mult(j, s)
             c = crown_point(a, t, m)
             n = crown_normal(a, t, m)
-            p[f"eyelet{j}_{e}"] = torus(f"Cap_Eyelet{j}_{e}", c + n * 0.0002,
+            p[f"eyelet{j}_{e}"] = CL.torus(f"Cap_Eyelet{j}_{e}", c + n * 0.0002,
                                         n, 0.0026 * (1.0 + 0.05 * math.sin(1.7 * k)),
                                         0.00090, mseg=9, nseg=4)
     return p
@@ -490,7 +347,7 @@ def build_brim(p):
     plate = CL.grid_surface(
         "Cap_Brim", lambda u, v: brim_surf(-UMAX + 2 * UMAX * u, v),
         nu=NU, nv=NV, smooth=True)
-    p["brim"] = smooth_by_angle(thicken(plate, BRIM_T, offset=0.0), 55.0)
+    p["brim"] = CL.smooth_by_angle(CL.thicken(plate, BRIM_T, offset=0.0), 55.0)
 
     # The FREE outline -- up one side, round the tip, down the other -- with an
     # inward direction at every point, taken off the surface itself. The stitch
@@ -533,7 +390,7 @@ def build_brim(p):
     up = [u if u.z > 0 else -u for u in up]
 
     # the rolled binding, right on the edge
-    p["binding"] = framed_sweep(
+    p["binding"] = CL.framed_sweep(
         "Cap_Binding", [e + up[i] * 0.0001 for i, e in enumerate(edge)],
         up, 0.0018, 0.0018, sides=6)
 
@@ -543,7 +400,7 @@ def build_brim(p):
     for row, d in enumerate((0.0042, 0.0088, 0.0138)):
         pts = [edge[i] + inward[i] * d + up[i] * (BRIM_T * 0.5 + 0.0002)
                for i in range(len(edge))]
-        p[f"stitch{row}"] = framed_sweep(f"Cap_Stitch{row}", pts, up,
+        p[f"stitch{row}"] = CL.framed_sweep(f"Cap_Stitch{row}", pts, up,
                                          0.0007, 0.00045, sides=4, taper=3)
 
     # THE BILL SEAM. Without it the bill simply intersects the crown and the
@@ -558,7 +415,7 @@ def build_brim(p):
         t = 0.052
         pts.append(crown_point(a, t) + crown_normal(a, t) * 0.0004)
         nrms.append(crown_normal(a, t))
-    p["billseam"] = framed_sweep("Cap_BillSeam", pts, nrms,
+    p["billseam"] = CL.framed_sweep("Cap_BillSeam", pts, nrms,
                                  0.0019, 0.0008, sides=6, square=0.75, taper=2)
     return p
 
@@ -574,7 +431,7 @@ def build_lining(p):
         c = oval_pt(a, 0.980, 0.0158)
         pts.append(c)
         nrms.append(oval_n(a))
-    p["sweatband"] = framed_sweep("Cap_Sweatband", pts, nrms,
+    p["sweatband"] = CL.framed_sweep("Cap_Sweatband", pts, nrms,
                                   0.0130, 0.0015, closed=True, sides=6,
                                   square=0.80)
     return p
@@ -599,7 +456,7 @@ def _tail(name, a0, a1, out, zt=0.0040, zb=0.0182, nu=25):
         base.z = (zc - hh * s) + 2.0 * hh * s * v
         return base
     surf = CL.grid_surface(name, f, nu=nu, nv=3, smooth=True)
-    return thicken(surf, 0.0022, offset=0.0)
+    return CL.thicken(surf, 0.0022, offset=0.0)
 
 
 def build_snapback(p):
@@ -641,14 +498,14 @@ def build_snapback(p):
     # diamond-shaped highlights down a strap that is supposed to be a flat
     # moulded band -- clear in the macro of the back and faintly present in the
     # rear view. The hole rims want to be sharp anyway.
-    p["strap_holes"] = smooth_by_angle(right, 30.0)
-    p["strap_pegs"] = smooth_by_angle(left, 30.0)
+    p["strap_holes"] = CL.smooth_by_angle(right, 30.0)
+    p["strap_pegs"] = CL.smooth_by_angle(left, 30.0)
 
     for i, a in enumerate(peg_as):
         n = oval_n(a)
         base = oval_pt(a, 1.006) + n * (-0.0016 + 0.0004)
         base.z = 0.0111
-        p[f"peg{i}"] = stud(f"Cap_Peg{i}", base, n, 0.0019, 0.0048)
+        p[f"peg{i}"] = CL.stud(f"Cap_Peg{i}", base, n, 0.0019, 0.0048)
     return p
 
 
@@ -681,8 +538,8 @@ def build_crest(p):
     # u=0 column is at a = -A_HALF, which is -x, which is the viewer's LEFT on
     # a cap facing -y, so u already runs left-to-right and flipping it mirrored
     # the wordmark. Read the render, not the maths.
-    grid_uv(surf, NU, NV, flip_u=False)
-    p["crest"] = thicken(surf, 0.0011, offset=-1.0)
+    CL.grid_uv(surf, NU, NV, flip_u=False)
+    p["crest"] = CL.thicken(surf, 0.0011, offset=-1.0)
 
     pts, nrms = [], []
     for i in range(NV):
@@ -699,7 +556,7 @@ def build_crest(p):
         d = q - Vector((0.0, 0.0, q.z))
         nrms.append(crown_normal(math.atan2(q.x / AX, -(q.y - APEX_Y) / AY)
                                  if d.length > 1e-9 else 0.0, 0.32))
-    p["crest_edge"] = framed_sweep("Cap_CrestEdge", pts, nrms,
+    p["crest_edge"] = CL.framed_sweep("Cap_CrestEdge", pts, nrms,
                                    0.0010, 0.0008, closed=True, sides=5)
     return p
 

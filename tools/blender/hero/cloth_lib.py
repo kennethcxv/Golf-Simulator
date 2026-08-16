@@ -767,3 +767,160 @@ def decal(name, centre, normal, size, lift=0.0016):
                               0.02 + 0.96 * min(1.0, max(0.0, v)))
     obj["explicit_uv"] = True
     return obj
+
+
+# ---------------------------------------------------------------------------
+# surface construction
+#
+# These came out of the cap, which is the first garment built from panels
+# rather than from primitives, and every remaining garment needs them: a strip
+# swept along a path with the surface normal SUPPLIED (because deriving it from
+# world up rolls the strip over on a curved body), a ring of thread, a moulded
+# stud, and UVs taken off grid indices so artwork lands where it was put.
+
+def framed_sweep(name, pts, nrms, halfw, halfh, closed=False, sides=8,
+                 square=0.62, taper=0):
+    """A strip swept along a path with the surface normal GIVEN per point.
+
+    cloth_lib.strip derives its frame from the tangent and world up, which is
+    correct on a flat garment and wrong on a dome. Here the caller supplies the
+    normal, so a seam ridge stays flat against the panel all the way round the
+    crown instead of rolling over on to its side.
+
+    `taper` shrinks the section over that many rings at each end so the strip
+    DIES INTO the surface. Without it a seam ridge stops in a blunt square
+    block, which is what the centre-back seam did where it crossed the hem --
+    visible in the close-up as a white brick and in nothing else.
+    """
+    n = len(pts)
+    rings = []
+    for i, p in enumerate(pts):
+        sc = 1.0
+        if taper and not closed:
+            e = min(i, n - 1 - i)
+            sc = 0.22 + 0.78 * min(1.0, (e / float(taper)) ** 0.55)
+        nxt = pts[(i + 1) % n] if closed else pts[min(i + 1, n - 1)]
+        prv = pts[(i - 1) % n] if closed else pts[max(i - 1, 0)]
+        tan = (nxt - prv)
+        if tan.length < 1e-9:
+            tan = Vector((1, 0, 0))
+        tan.normalize()
+        nrm = Vector(nrms[i]).normalized()
+        side = tan.cross(nrm)
+        if side.length < 1e-6:
+            side = Vector((0, 0, 1)).cross(tan)
+        side.normalize()
+        nrm = side.cross(tan).normalized()
+        ring = []
+        for k in range(sides):
+            ang = 2.0 * math.pi * k / sides
+            ca, sa = math.cos(ang), math.sin(ang)
+            ring.append(
+                p + side * (math.copysign(abs(ca) ** square, ca) * halfw * sc)
+                + nrm * (math.copysign(abs(sa) ** square, sa) * halfh * sc))
+        rings.append(ring)
+    verts, faces = [], []
+    for r in rings:
+        verts.extend(r)
+    segs = n if closed else n - 1
+    for r in range(segs):
+        r2 = (r + 1) % n
+        for k in range(sides):
+            k2 = (k + 1) % sides
+            faces.append((r * sides + k, r * sides + k2,
+                          r2 * sides + k2, r2 * sides + k))
+    if not closed:
+        faces.append(tuple(range(sides - 1, -1, -1)))
+        b = (n - 1) * sides
+        faces.append(tuple(range(b, b + sides)))
+    return HS.mesh_from(name, verts, faces, smooth=True)
+
+
+def stud(name, base, direction, radius, height, sides=12):
+    """A snapback peg: a SMOOTH DOME on a short shank.
+
+    HS.prism gave a flat-shaded 10-sided stub, and at the frame size the rear
+    view is reviewed at that reads as a hexagonal nut screwed into the strap --
+    which is not a fault that exists at a third of frame, and is obvious once
+    the shot is framed off the subject's real extent.
+    """
+    d = Vector(direction).normalized()
+    up = Vector((0, 0, 1)) if abs(d.z) < 0.9 else Vector((1, 0, 0))
+    u = d.cross(up).normalized()
+    v = d.cross(u).normalized()
+    b0 = Vector(base)
+    rings = []
+    for (t, rf) in ((0.00, 1.00), (0.55, 1.00), (0.80, 0.86),
+                    (0.94, 0.60), (1.00, 0.26)):
+        c = b0 + d * (height * t)
+        rings.append([c + u * (math.cos(2 * math.pi * i / sides) * radius * rf)
+                      + v * (math.sin(2 * math.pi * i / sides) * radius * rf)
+                      for i in range(sides)])
+    return loft(name, rings, close_bottom=True, close_top=True, smooth=True)
+
+
+def torus(name, centre, normal, major, minor, mseg=8, nseg=4):
+    """A sewn eyelet: a ring of thread standing proud of the panel."""
+    c = Vector(centre)
+    nz = Vector(normal).normalized()
+    side = nz.cross(Vector((0, 0, 1)))
+    if side.length < 1e-6:
+        side = Vector((1, 0, 0))
+    side.normalize()
+    up = nz.cross(side).normalized()
+    verts, faces = [], []
+    for i in range(mseg):
+        ai = 2.0 * math.pi * i / mseg
+        radial = side * math.cos(ai) + up * math.sin(ai)
+        for k in range(nseg):
+            ak = 2.0 * math.pi * k / nseg
+            verts.append(c + radial * (major + minor * math.cos(ak))
+                         + nz * (minor * math.sin(ak)))
+    for i in range(mseg):
+        i2 = (i + 1) % mseg
+        for k in range(nseg):
+            k2 = (k + 1) % nseg
+            faces.append((i * nseg + k, i * nseg + k2,
+                          i2 * nseg + k2, i2 * nseg + k))
+    return HS.mesh_from(name, verts, faces, smooth=True)
+
+
+def thicken(obj, thickness, offset=-1.0):
+    m = obj.modifiers.new("Thick", "SOLIDIFY")
+    m.thickness = thickness
+    m.offset = offset
+    m.use_rim = True
+    return HS.apply_mods(obj)
+
+
+def smooth_by_angle(obj, deg=42.0):
+    bpy.ops.object.select_all(action="DESELECT")
+    obj.select_set(True)
+    bpy.context.view_layer.objects.active = obj
+    try:
+        bpy.ops.object.shade_smooth_by_angle(angle=math.radians(deg))
+    except (AttributeError, RuntimeError, TypeError):
+        pass
+    return obj
+
+
+def grid_uv(obj, nu, nv, flip_u=False, flip_v=False):
+    """UVs straight off the grid indices, for a part whose artwork has to land
+    in a known place. Vertex index is (row * nu + col) by construction in
+    grid_surface, and mesh_from reorders LOOPS but never vertices -- which is
+    the distinction the decal function had to learn the hard way."""
+    uv = obj.data.uv_layers.new(name="UVMap")
+    for poly in obj.data.polygons:
+        for li in poly.loop_indices:
+            vi = obj.data.loops[li].vertex_index
+            row, col = divmod(vi, nu)
+            u = col / (nu - 1.0)
+            vv = min(1.0, row / (nv - 1.0))
+            # flip_v exists because a garment's own v runs DOWN the body while
+            # a texture's v runs UP the image. The polo's chest badge came out
+            # rotated 180 degrees -- read as "mirrored", fixed twice for the
+            # wrong reason -- until the two conventions were named.
+            uv.data[li].uv = (1.0 - u if flip_u else u,
+                              1.0 - vv if flip_v else vv)
+    obj["explicit_uv"] = True
+    return obj
