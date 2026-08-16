@@ -2,6 +2,111 @@
 
 ---
 
+# THE POST-CLEAR MEASUREMENT FRONT (2026-08-15, 22:05–23:30)
+
+**Probe lies this session: 3, all named.**
+1. **Tier mislabel (mine):** the first four post-reboot boots were tagged
+   "warm" but ran on run-electron's DEFAULT profile, which is a FRESH
+   TEMPORARY one — they were cold-tier runs. Discovered mid-session
+   (`prepareUserDataProfile`, mode `isolated-temporary`); every number
+   below is re-tiered correctly. The earlier committed section's "warm"
+   labels for remedy-warm1/2 are hereby corrected to COLD.
+2. **First-press census fresh-program control MISSED (+0) on BOTH tiers**
+   — the program counter is void per the driver's own contract. The
+   frame-gap numbers stand (the planted-stall control caught 119.1/117.8
+   ms). The counter regression is new and unexplained; logged, not chased.
+3. The remedy-gated watch's own verification boot crashed (renderer
+   "Target crashed") — replaced by a direct rerun, not silently dropped.
+
+## 1. The prediction: REFUTED (measured on the right tiers this time)
+
+DXCache confirmed cleared at 22:17 (593 files / 18.6 GB → 14 files /
+257 MB), machine rebooted 22:05, CPU quiet. Post-clear:
+
+| tier | runs | median | reference |
+|---|---|---|---|
+| **COLD** (fresh profile ×3) | 49.5 / 64.4 / 69.1 s | **64.4 s** | healthy-era capped cold 45.6 s; TODAY 12:37 attr-cold **30.7 s** |
+| **WARM** (persistent profile, boots 2–4) | 46.4 / 49.1 / 34.8 s | **46.4 s** | healthy era 31.9 s |
+
+The stall bailout fired on EVERY boot (8.3–29.6 s single warm draws);
+the signature is unchanged (2–3 giant single rAF gaps). And **DXCache did
+not grow across a full boot** (14 files / 257 MB before and after) — the
+game's compiles never touch the driver cache, so its size was never the
+mechanism. Suspects now refuted by measurement: co-tenant CPU, occlusion
+throttle, reboot, DXCache. Everything downstream of the DXCache diagnosis
+is void. Not chasing a fifth suspect, per order — but the one observation
+worth recording: attr-cold ran at **30.7 s at 12:37 TODAY** on this code,
+so whatever degrades this machine arrived this afternoon and SURVIVES a
+reboot + driver-cache clear. That is the shape of the next investigation,
+owner's call.
+
+**Both bars, both tiers: FAILED.** 10 s spawn-to-controllable: cold 64.4,
+warm 46.4. No-frame-over-16.7: violated during load (multi-second gaps)
+and in ambient (below).
+
+## 2. The waiting items, run anyway (every number carries the degraded-machine caveat)
+
+**Spread-texture cache — SHIPPED** (merge 6578299). The gate as written
+(clean-machine ptc < 16.7 median + viewed clip): the clip half PASSED —
+recorded, 643 frames extracted, tiles VIEWED: turns in both directions
+across three spreads, destination content correct under the moving leaf,
+no stale-cache flash, no blank/half-res leaf. The numeric half read
+23.6 ms median worst (worsts 19.6–24.8; no-cache baseline 25.6) — over
+the bar, but tonight's ambient measurement shows ANY 55-frame window on
+this machine tops 17–25 ms with no turn at all: the worst frame is
+ambient-owned. The mechanism's own cost is span-verified at 0.3–0.4 ms
+paint (was 10–15 ms), i.e. the turn no longer contributes above ambient.
+Ship, because the alternative re-adds real per-turn cost; the 16.7 gate
+transfers to the ambient/load investigation where the cost actually lives.
+
+**Editor arrivals: 17** (10 physical / 3 normal / 4 depth; zero materials
+born at entry; postclear-arrivals). The approach-zero prediction is
+UNTESTABLE tonight, not falsified: its precondition — the stall bailout
+not firing — still fails on every boot.
+
+**First-press census at 16.7 ms, both tiers** (postclear-census-cold /
+-warm): two REAL first-press stalls, tier-stable —
+`tab-overview` **1489.8 / 1550.4 ms** (second press 14.9 / 13.6) and
+`register-till` **215.7 / 214.9 ms** (second 13.6 / 12.4). Every other
+surface reads 16.3–28.9 first press with second presses 12.4–26.3 — the
+per-surface control says those are the ambient floor, not first-press
+costs. At the 33 ms bar the census passed everything except tab-overview
+and register-till; at 16.7 the bar is ambient-owned on this machine.
+
+**Ambient at owner 4K** (postclear-ambient, planted-stall control caught
+161.1 ms): inside shop **12.4 median / 14.4 p95 / 18.6 max**; outdoors
+5.5–8.3 median, p95 6.6–11. This matches the HEALTHY-era ambient run
+almost exactly (11.3/13.7/19.9) — steady-state rendering is fine; the
+degradation lives in compile/load paths only. One 8.7 s stall landed
+during the 30 s walk-out (first-walk compile storm) — load disease
+leaking into gameplay, same signature.
+
+## 3. The two levers, attributed (not built)
+
+Load is >10 s, so per order, attribution first. The ~5.7 s menu/scene
+slice is **degradation-independent** (identical in today's healthy
+attr-cold and every degraded boot):
+- renderer→menu ≈ 1.6–2.8 s: the unbundled ESM module graph — 290
+  modules, 8.2 MB source, parsed and evaluated per boot (no bundler by
+  design; the import map owns `three`). Lever: preload/bundle or start
+  scene work before the menu paints.
+- click→scene ≈ 3.6–3.8 s, TWO monolithic sync blocks: ~2.3 s from click
+  to the veil's first paint (new-game state build + previous-scene
+  teardown, `main.js:1302-1345`) and ~1.1-1.2 s of `makeCourseScene`
+  construction. Both block the main thread outright.
+- Menu-time warm overlap: the harness clicks in ~80 ms, but a human reads
+  the menu for seconds — module-graph warm and even scene pre-construction
+  could ride that window. NOT BUILT tonight: building a load optimization
+  on a machine that adds 15–35 s of noise to every load measurement cannot
+  produce a trustworthy A/B; the attribution above is the deliverable.
+
+Evidence: qa/electron/load-breakdown/{postreboot-*,remedy-*,warmseed,truewarm*},
+qa/electron/first-press-census/postclear-*, qa/electron/editor-arrivals/,
+qa/electron/postclear-ambient*, qa/clips/spread-gate/,
+qa/electron/load-breakdown/VERIFICATION_WATCH.md.
+
+---
+
 # THE DXCACHE THEORY IS REFUTED (2026-08-15, 22:17–22:45)
 
 The clear DID land (minutes after the first check below): DXCache dropped
