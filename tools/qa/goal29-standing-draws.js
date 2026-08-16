@@ -118,9 +118,13 @@ async (page) => {
     const s3 = window.__fw.scene3d;
     const scene = s3.scene;
     const cam = s3.camera;
-    // find any existing mesh to borrow constructors from
+    // find a PLAIN Mesh to borrow constructors from — the first mesh in
+    // traverse order is the addon Sky, whose constructor ignores its
+    // arguments (the Sky trap, goal29-properties-probe)
     let donor = null;
-    scene.traverse((o) => { if (!donor && o.isMesh && !Array.isArray(o.material) && o.geometry?.attributes?.position) donor = o; });
+    scene.traverse((o) => {
+      if (!donor && o.isMesh && o.constructor?.name === 'Mesh' && !Array.isArray(o.material) && o.geometry?.attributes?.position) donor = o;
+    });
     if (!donor) return { err: 'no donor mesh' };
     const GeoC = donor.geometry.constructor; // BufferGeometry
     const MatC = donor.material.constructor; // some Material
@@ -139,7 +143,9 @@ async (page) => {
       const mat = new MatC();
       if (mat.color?.setHex) mat.color.setHex(0xff00ff);
       mat.side = 2; // DoubleSide — orientation-proof
-      const mesh = new MeshC(tri, mat);
+      const mesh = new MeshC();
+      mesh.geometry = tri; // explicit: a subclass constructor may ignore args
+      mesh.material = mat;
       const p = cam.position.clone().add(dir.clone().multiplyScalar(2.2));
       mesh.position.set(p.x + (i % 5) * 0.35 - 0.7, p.y + Math.floor(i / 5) * 0.35 - 0.7, p.z);
       mesh.frustumCulled = false;

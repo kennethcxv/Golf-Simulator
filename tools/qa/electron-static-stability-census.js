@@ -51,14 +51,22 @@ async (page) => {
     const ch = s3.clubhouse();
 
     // ---- the planted mover -------------------------------------------------
+    // plain Mesh donors only: the first mesh in traverse order is the addon
+    // Sky, whose constructor ignores its arguments (the Sky trap)
     let donor = null;
-    s3.scene.traverse((o) => { if (!donor && o.isMesh && !Array.isArray(o.material) && o.geometry?.attributes?.position) donor = o; });
+    s3.scene.traverse((o) => {
+      if (!donor && o.isMesh && o.constructor?.name === 'Mesh' && !Array.isArray(o.material) && o.geometry?.attributes?.position) donor = o;
+    });
     const GeoC = donor.geometry.constructor;
     const BA = donor.geometry.attributes.position.constructor;
     const tri = new GeoC();
+    tri.setIndex?.(null);
+    for (const name of Object.keys(tri.attributes || {})) tri.deleteAttribute(name);
     tri.setAttribute('position', new BA(new Float32Array([0, 0, 0, 0.1, 0, 0, 0, 0.1, 0]), 3));
     tri.computeVertexNormals();
-    const mover = new donor.constructor(tri, donor.material);
+    const mover = new donor.constructor();
+    mover.geometry = tri;
+    mover.material = donor.material;
     mover.name = 'Goal29PlantedMover';
     mover.frustumCulled = false;
     ch.interior.add(mover);
@@ -82,9 +90,14 @@ async (page) => {
     };
     for (const root of [ch.interior, ch.group].filter(Boolean)) {
       root.updateMatrixWorld(true);
-      root.traverse((o) => {
+      // traverseVisible, not traverse + own-flag: a mesh with visible:true
+      // under a hidden ancestor (the tier-gated gondola, the suppressed
+      // lounge) never draws, and counting it repeats the repo's recorded
+      // scene-graph lie — the gondola sat in this census as 25 phantom saves
+      // until the batcher's honest walk refused it.
+      root.traverseVisible((o) => {
         if (!o.isMesh || o.isInstancedMesh || o.isSkinnedMesh) return;
-        if (!o.visible || o.layers.mask === 0) return;
+        if (o.layers.mask === 0) return;
         if (Array.isArray(o.material) || !o.material || !o.geometry?.attributes?.position) return;
         if (o.morphTargetInfluences?.length) return;
         candidates.set(o.id, {

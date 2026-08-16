@@ -442,3 +442,43 @@ helper's own maxBuffer comment already fixed for SPACE. Timeout raised to
 change alone. The general shape: **any instrument that shells out to git in
 this repo must budget for the wedge's 34 binary-diffed GLBs, or its failures
 will masquerade as product failures.**
+
+---
+
+## Goal 29 (optimization overnight, 2026-08-16)
+
+**6 — the Sky trap: a borrowed constructor that ignores its arguments.** The
+planted-draw and planted-twin controls built scene objects the repo-standard
+way — borrow the first mesh's constructor
+(`new donor.constructor(geometry, material)`) so the page never needs to
+import THREE. The first mesh in this scene's traverse order is the addon SKY,
+whose constructor takes NO arguments and builds its own ShaderMaterial and
+BoxGeometry, so every plant rendered the sky's material while the planted
+material attached to nothing. Three twin-diff runs read "MISSING PROGRAM" on
+all six plants before goal29-properties-probe.js chased it to
+`plantCtor: "Sky"` (it also explains the +25 info.memory.geometries the first
+draws-control run leaked — each Sky minted its own box). Every donor-built
+instrument now pins `constructor?.name === 'Mesh'` AND assigns
+geometry/material explicitly after construction. The general shape: **a
+subclass constructor is allowed to ignore its arguments; nothing built by
+borrowed constructor is proven to carry what you handed it until an assertion
+reads it back off the object.**
+
+**7 — instrument-time compiles mint phantom programs.** Calling
+`renderer.compile(scene, camera)` (or a direct `renderer.render`) from a
+probe, on a SETTLED boot, added +35..56 brand-new program cacheKeys — the
+direct path sees different light/scene state than the composer's frames, so
+it compiles variants that never occur in play. Any program census must
+snapshot `renderer.info.programs` BEFORE its own compile work and analyze
+that prefix only (the array is append-only); a census taken after pollutes
+its own population with programs the game never uses.
+
+**8 — own-flag visibility in scene walks counts geometry that never draws.**
+The stability census checked `o.visible` (the mesh's OWN flag) while
+traversing with `traverse()`, so meshes under a hidden ancestor — the
+tier-gated retail gondola, the suppressed member lounge — read as standing
+draw candidates. 25 of the census's "would-save" figure was a subtree that
+has never drawn in this variant tier. This is the standing layers.mask lie in
+a second costume: **the fix is traverseVisible (or an explicit ancestor-chain
+check), and the draws instrument's planted control now proves counts move
+only for geometry the GPU actually draws.**

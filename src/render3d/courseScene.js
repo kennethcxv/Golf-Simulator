@@ -12225,6 +12225,17 @@ export function makeCourseScene(canvas, state) {
       const unifiedLabel = 'materials-slot-unified';
       prewarmTimings.push({ label: unifiedLabel, ms: unified });
     }
+    // GOAL 29 P4 — TRIED AND REVERTED BEFORE SHIPPING, 2026-08-16: the
+    // vertex-colours fold. Goal 28's index-level twin census suggested ~46
+    // physical programs differed only on the vertexColors axis. The
+    // bit-calibrated rerun (goal29-program-twin-diff, planted-pair controls;
+    // vertexColors and alphaTest live in the SAME packed key integer, bits
+    // 1024 and 512) measured the truth: only SIX pairs differ by the vc bit
+    // — the other 40 are alphaTest and friends, which are semantic. Minus
+    // six programs does not pay for white colour attributes on every
+    // standard-material geometry (~tens of MB), so the fold was reverted the
+    // same hour it was written. Recorded so nobody re-derives the 46 from
+    // key positions again — calibrate the BIT, not the index.
     step('Compiling shaders');
     await tick();
     if (!alive()) return false;

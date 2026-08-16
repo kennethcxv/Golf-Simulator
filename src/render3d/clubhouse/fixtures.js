@@ -1279,19 +1279,31 @@ export function buildFixtures(B) {
     const gondola = merch.instantiateKit && merch.instantiateKit('retail_gondola');
     if (gondola) {
       gondolaRoot.add(gondola);
-      // GOAL 29 P2 — the gondola shell is lifetime-static decor. Its 24 slot
-      // sockets are empty Object3Ds and survive the merge untouched, so a
-      // future product line still lands under its socket and draws on its
-      // own; the tier gate toggles gondolaRoot and the batch rides it.
-      const gondolaBatchLabel = 'TieredRetailGondolaStaticBatch'; // bound first: the strings ratchet
-      batchStaticSubtree(gondolaRoot, { label: gondolaBatchLabel });
+      batchGondolaWhenRevealed();
     }
   });
   const gondolaCollider = colBoxAt(0.4, -0.9, 1.3, 0.7);
   let gondolaColliderActive = false;
+  let gondolaBatched = false;
+  // GOAL 29 P2 — the gondola shell is lifetime-static decor, but its root is
+  // TIER-GATED and the batcher's honest walk (traverseVisible) refuses a
+  // hidden subtree, so the collapse happens on the first frame the tier gate
+  // actually reveals it. Slot sockets are empty Object3Ds and survive the
+  // merge; a future product line still lands under its socket and draws on
+  // its own.
+  function batchGondolaWhenRevealed() {
+    if (gondolaBatched || !gondolaRoot.visible) return;
+    let hasMesh = false;
+    gondolaRoot.traverse((o) => { hasMesh = hasMesh || !!o.isMesh; });
+    if (!hasMesh) return; // the kit has not landed yet
+    const gondolaBatchLabel = 'TieredRetailGondolaStaticBatch'; // bound first: the strings ratchet
+    const outcome = batchStaticSubtree(gondolaRoot, { label: gondolaBatchLabel });
+    gondolaBatched = !!outcome?.visual;
+  }
   function refreshTierDressing() {
     const active = shopTierIndex(state) >= 2;
     gondolaRoot.visible = active;
+    if (active) batchGondolaWhenRevealed();
     if (active && !gondolaColliderActive) {
       rawAddCol(gondolaCollider);
       gondolaColliderActive = true;
@@ -1521,6 +1533,12 @@ export function buildStockroomDressing(B) {
       tote.position.set(t.x, t.y, t.z);
       tote.rotation.y = t.ry;
       interior.add(tote);
+      // GOAL 29 P2 — each tote is static dressing with authored kit
+      // materials; collapse it to one draw per material bucket in place
+      // (identity buckets reuse the material objects, so the authored look
+      // and the kit's material ownership are untouched).
+      const toteBatchLabel = `ToteStaticBatch_${t.name}`; // bound first: the strings ratchet
+      batchStaticSubtree(tote, { label: toteBatchLabel });
     }
   });
 
