@@ -641,7 +641,7 @@ def main():
                 H.silhouette(subject, cam,
                              os.path.join(out, f"{tag}{suffix}-silhouette.png"),
                              res=(1000, 1000))
-        if engine == "CYCLES" and "noexport" not in args:
+        if "noexport" not in args:
             H.bake_gltf_axis(subject)
             H.export_glb(subject, os.path.join(
                 GLB_DIR, f"apparel_polo_{name}_{way}.glb"))

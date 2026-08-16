@@ -219,7 +219,7 @@ def main():
     app.data.sensor_fit = "VERTICAL"
     H.render(app, os.path.join(OUT_RENDER, f"rake{suffix}-apparent.png"), res=(1600, 900))
 
-    if not broken and engine == "CYCLES":
+    if not broken:
         merged = HS.join(p["tines"], "RakeTines")
         exportable = [p["head"], p["ferrule"], p["shaft"], p["grip"], merged]
         socks = [p["sock_primary"], p["sock_support"]]

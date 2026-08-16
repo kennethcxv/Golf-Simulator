@@ -222,7 +222,7 @@ def main():
                          os.path.join(OUT_RENDER, f"hose{suffix}-silhouette.png"),
                          res=(900, 900))
 
-    if not broken and engine == "CYCLES":
+    if not broken:
         socks = [p["sock_primary"], p["sock_support"]]
         H.bake_gltf_axis(subject + socks)
         H.export_glb(subject + socks, OUT_GLB)

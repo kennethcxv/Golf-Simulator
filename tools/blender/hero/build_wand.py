@@ -363,7 +363,7 @@ def main():
             H.silhouette(subject, cam,
                          os.path.join(OUT_RENDER, f"wand{suffix}-silhouette.png"), res=(900, 900))
 
-    if not broken and engine == "CYCLES":
+    if not broken:
         sockets = [p["grip_socket"], p["lance_socket"]]
         H.bake_gltf_axis(subject + sockets)
         H.export_glb(subject + sockets, OUT_GLB)

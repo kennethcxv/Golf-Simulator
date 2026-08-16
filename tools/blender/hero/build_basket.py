@@ -358,7 +358,7 @@ def main():
     app.data.sensor_fit = "VERTICAL"
     H.render(app, os.path.join(OUT_RENDER, f"basket{suffix}-apparent.png"), res=(1600, 900))
 
-    if not broken and engine == "CYCLES":
+    if not broken:
         H.bake_gltf_axis(subject)
         H.export_glb(subject, OUT_GLB)
         print(f"FINAL TRIS {H.triangles(subject)}")

@@ -783,7 +783,7 @@ def main():
         H.render(cam, os.path.join(out, f"{tag}{suffix}-{label}.png"),
                  res=(1200, 1200))
 
-    if engine == "CYCLES" and "noexport" not in args:
+    if "noexport" not in args:
         H.bake_gltf_axis(subject)
         H.export_glb(subject, os.path.join(GLB_DIR, f"apparel_cap_{way}.glb"))
 

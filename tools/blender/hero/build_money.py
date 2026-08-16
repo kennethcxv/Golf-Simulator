@@ -217,7 +217,7 @@ def main():
         cam = H.camera(label, H.orbit_position(centre, dist, az, el), centre, lens=LENS)
         H.render(cam, os.path.join(OUT_RENDER, f"money{suffix}-{label}.png"), res=(1100, 1100))
 
-    if not broken and engine == "CYCLES":
+    if not broken:
         H.bake_gltf_axis(subject)
         H.export_glb(subject, OUT_GLB)
         print(f"FINAL TRIS {H.triangles(subject)}")

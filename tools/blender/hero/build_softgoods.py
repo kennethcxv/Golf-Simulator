@@ -245,7 +245,7 @@ def main():
                      elevation=22.0, lens=LENS, res=(900, 900))
     H.contact_sheet(tt, os.path.join(OUT_RENDER, f"soft{suffix}-turntable.png"), cols=4)
 
-    if not broken and engine == "CYCLES":
+    if not broken:
         H.bake_gltf_axis(subject)
         for name, g in (("merch_apparel", groups["apparel folded"] + groups["apparel hung"]),
                         ("merch_headwear", groups["headwear"]),

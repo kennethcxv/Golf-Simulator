@@ -311,7 +311,7 @@ def main():
         cam = H.camera(label, H.orbit_position(sc, sd, az, el), sc, lens=LENS)
         H.render(cam, os.path.join(OUT_RENDER, f"rack{suffix}-{label}.png"), res=(1100, 1100))
 
-    if not broken and engine == "CYCLES":
+    if not broken:
         for p in racks:
             parts = flat(p)
             for o in parts:

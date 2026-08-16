@@ -316,7 +316,7 @@ def main():
                          os.path.join(OUT_RENDER, f"divot{suffix}-silhouette.png"),
                          res=(900, 900))
 
-    if not broken and engine == "CYCLES":
+    if not broken:
         # Two objects cannot hold the same name in one scene, so the bucket's
         # primary was auto-renamed SOCKET_GripPrimary.001 and would have shipped
         # under a name gripsFor() cannot resolve. Export the fork, retire its

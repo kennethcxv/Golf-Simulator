@@ -348,7 +348,7 @@ def main():
                      elevation=24.0, lens=LENS, res=(900, 900))
     H.contact_sheet(tt, os.path.join(OUT_RENDER, f"merch{suffix}-turntable.png"), cols=4)
 
-    if not broken and engine == "CYCLES":
+    if not broken:
         H.bake_gltf_axis(subject)
         for name, group in (("merch_golf_balls", balls), ("merch_drinks", drinks)):
             root = H.named_root(f"Merch_{name.split('_', 1)[1]}", group)

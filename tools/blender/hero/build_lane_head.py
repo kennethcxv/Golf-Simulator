@@ -409,7 +409,7 @@ def main():
                        centre, lens=LENS)
         H.render(cam, os.path.join(OUT_RENDER, f"register{suffix}-{label}.png"),
                  res=(1200, 1200))
-    if not broken and engine == "CYCLES" and not shut:
+    if not broken and not shut:
         H.bake_gltf_axis(subject)
         H.export_glb(subject, os.path.join(GLB_DIR, "register_lane_head.glb"))
 

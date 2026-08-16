@@ -259,7 +259,7 @@ def main():
                          os.path.join(OUT_RENDER, f"spreader{suffix}-silhouette.png"),
                          res=(900, 900))
 
-    if not broken and engine == "CYCLES":
+    if not broken:
         H.bake_gltf_axis(subject)
         root = H.named_root(ROOT_NAME, subject)
         H.export_glb(subject + [root], OUT_GLB)

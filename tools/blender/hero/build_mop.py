@@ -311,7 +311,7 @@ def main():
             H.silhouette(subject, cam,
                          os.path.join(OUT_RENDER, f"mop{suffix}-silhouette.png"),
                          res=(900, 900))
-    if not broken and engine == "CYCLES":
+    if not broken:
         H.bake_gltf_axis(subject)
         H.export_glb(subject, os.path.join(GLB_DIR, "mop_head.glb"))
 

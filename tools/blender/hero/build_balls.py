@@ -299,7 +299,7 @@ def main():
     H.render(cam, os.path.join(OUT_RENDER, f"balls{suffix}-ball.png"),
              res=(1100, 1100))
 
-    if not broken and engine == "CYCLES":
+    if not broken:
         H.bake_gltf_axis(subject)
         H.export_glb(subject, os.path.join(GLB_DIR, f"balls_{line}.glb"))
 
