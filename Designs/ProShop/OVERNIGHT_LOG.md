@@ -335,18 +335,32 @@ origin convention and the stale exports are dealt with.** No in-game
 photographs were taken because there is nothing of mine in the game to
 photograph.
 
-### THE ORDER I WOULD DO IT IN
+### THE ORDER I WOULD DO IT IN, AND HOW FAR I GOT
 
-1. Regenerate all exports; re-verify mtimes. (Running.)
-2. Add a floor-origin option to the hero export so base z = 0 for props, and a
-   grip-origin for held tools. Re-export, re-measure.
-3. Sockets: only 5 of 39 carry any. `bunker_rake`, `divot_bucket`,
+1. ~~Regenerate all exports.~~ **DONE, and the cause fixed rather than the
+   symptom.** The 21 CYCLES gates are gone, so a default EEVEE run now writes
+   its deliverable and regeneration is minutes rather than hours. The whole set
+   has been rebuilt and the scan is the check.
+
+2. **Floor origin: helper written, not yet applied.** `H.drop_to_floor()` is in
+   `hero_lib`, does the sockets as well as the meshes, and is called by nothing
+   -- applying it mid-sweep would have left half the set on one convention and
+   half on the other. It wants applying to the genuinely floor-standing props
+   (mower, spreader, rake), NOT to the held tools, whose origin should relate
+   to their grip. The hose is not a candidate at all: theirs is a coiled hose,
+   mine is a nozzle.
+
+3. **Sockets.** Only 5 of 39 carry any: `bunker_rake`, `divot_bucket`,
    `divot_fork`, `hose_nozzle`, `pressure_wand`. The mower and the spreader are
-   two-handed pushed equipment and have NONE, which the brief asked for
-   explicitly. The bare-handed tools (spray, cloth, sponge, washer, trash bag)
-   correctly have none.
-4. Manifest entries, then one asset end to end with the gate run before and
-   after, then the rest one at a time.
+   two-handed pushed equipment with NONE, which the brief asked for by name.
+   The bare-handed tools correctly have none.
+
+4. **Decide the apparel atlas question** before wiring any garment -- ten GLBs
+   carrying 12.6 MB of the same image between them.
+
+5. Manifest entries, then ONE asset end to end with the suite run before and
+   after and diffed against the twelve pre-existing failures, then the rest one
+   at a time.
 
 ## STANDING GATE: THE BLANK FRAMES — NOW GREEN
 
