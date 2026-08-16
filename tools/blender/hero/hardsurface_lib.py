@@ -719,7 +719,8 @@ def wrap_uvs(obj, rings, name="UVMap"):
 
 
 def pbr(name, colour, roughness=0.5, metallic=0.0, transmission=0.0, ior=1.45,
-        coat=0.0, emission=None, emission_strength=2.0, alpha=1.0):
+        coat=0.0, emission=None, emission_strength=2.0, alpha=1.0,
+        show_back=True):
     """`alpha` is the transparency a RASTER engine can draw.
 
     Transmission is a path-tracing feature. Cycles renders a transmissive bottle
@@ -762,6 +763,11 @@ def pbr(name, colour, roughness=0.5, metallic=0.0, transmission=0.0, ior=1.45,
                     setattr(mat, attr, value)
                 except (TypeError, AttributeError):
                     pass
+        # SHOW_BACK OFF is what a game renderer does. With it on you see the
+        # object's own far wall through its near one, and on the spray bottle
+        # that drew the liquid loft's back rings as a stack of hard concentric
+        # ellipses -- read as banding or z-fighting, actually just both sides of
+        # a translucent solid being drawn at once.
         if hasattr(mat, "show_transparent_back"):
-            mat.show_transparent_back = True
+            mat.show_transparent_back = show_back
     return mat

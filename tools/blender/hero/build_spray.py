@@ -174,9 +174,14 @@ def build(broken=False):
     # ALPHA, not transmission. See hardsurface_lib.pbr: EEVEE draws a
     # transmissive body as a dark opaque blob and the game is a raster renderer.
     plastic = HS.pbr("SprayBody", (0.760, 0.830, 0.855), roughness=0.12,
-                     alpha=0.26)
-    fluid = HS.pbr("SprayLiquid", (0.120, 0.400, 0.270), roughness=0.06,
-                   alpha=0.72)
+                     alpha=0.26, show_back=False)
+    # THE LIQUID IS OPAQUE. It was alpha 0.72, so its own far wall drew through
+    # its near one and the loft's rings came out as a stack of hard concentric
+    # lenses across the bottle -- the single worst thing in this asset's frames.
+    # show_transparent_back=False did not touch it, which is what sent me here:
+    # a fluid seen THROUGH a translucent bottle does not need transparency of
+    # its own, and a game renderer would not give it any.
+    fluid = HS.pbr("SprayLiquid", (0.120, 0.400, 0.270), roughness=0.06)
     trim = HS.pbr("SprayTrim", (0.075, 0.190, 0.155), roughness=0.36, coat=0.30)
     dark = HS.pbr("SprayNozzle", (0.032, 0.034, 0.036), roughness=0.30, coat=0.20)
     body.data.materials.append(plastic)

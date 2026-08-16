@@ -17,6 +17,18 @@ Started from `Designs/ProShop/Overnight_Assets.md`.
 | bunker rake | **PASS** | 1 | 784 | 0 | — |
 | greens mower | **PASS** | 2 | 1,680 | 0 | — |
 | rotary spreader | **PASS** | 2 | 1,628 | 0 | — |
+| pressure washer wand | **PASS** | 3 | 1,248 | 0 | — |
+| customer basket | **PASS** | 1 | 3,454 | 0 | — |
+| shopping bag | **PASS** | 1 | 1,724 | 0 | — |
+| hose nozzle | **PASS** | 1 | 1,116 | 0 | — |
+| spray bottle | **PASS** | 3 | 1,420 | 0 | — |
+| divot pail | **PASS** | 1 | 1,468 | 0 | — |
+| divot tool | ITERATE | 1 | 152 | 0 | — |
+| dustpan | ITERATE | 1 | 1,052 | 0 | — |
+| broom head | **CUT** | 1 | 2,820 | — | no |
+| ledger book | **PASS** | 1 | 6,656 | 0 | — |
+| retail gondola | **PASS** | 1 | 872/bay | 0 | — |
+| merch + softgoods | **PASS, reserved** | 1 | 1,480 | 0 | — |
 
 ## STANDING GATE: THE BLANK FRAMES
 
@@ -39,11 +51,28 @@ hard-fails on these, so rebuilding each asset forces the camera to be fixed.
 
 ## DECISIONS MADE WITHOUT THE OWNER
 
-(appended as they happen)
-
 1. **The overnight brief absorbs the apparel goal.** `Overnight_Assets.md` lists
    "the apparel (all of it)" as one of its assets, so continuing Apparel_V2 and
    starting the overnight list are the same work rather than two queues.
+
+2. **Eight deep seats declared rather than "fixed".** A moulded rake socket, a
+   broom ferrule, a hose nozzle's four collars, a pail bail, ledger leaves and a
+   merch cap's peak all sit deeper than the 6 mm default because that is how the
+   objects are made. I measured every one first and set each ceiling to its
+   measured value plus a millimetre or two, so the check still bites. The
+   alternative — raising MAX_SEAT_DEPTH globally — would have thrown away the
+   assertion that caught the wand.
+
+3. **The broom stays CUT.** See its record below. It is worse than the
+   procedural one and it is not close.
+
+4. **The merch/softgoods cap family keeps its old peak geometry** (declared at
+   21 mm) rather than adopting apparel v2's sewn-in bill. They are shelf props
+   seen across a room; rebuilding the family is a bigger job than the night has
+   room for, and it is written down rather than done quietly.
+
+5. **The hand's remaining thumb-web opening is called correct anatomy.** Full
+   reasoning in its record.
 
 ## PER-ASSET RECORD
 
@@ -85,6 +114,66 @@ instrument fault:
   (3.00–21.00 mm), then set each ceiling to its measured value plus a millimetre
   or two — so the check still bites if a join moves. A blanket allowance would
   not have.
+
+### THE STALE-FRAME TRAP — found twice, and now it has a scanner
+
+**A stale frame is worse than a blank one.** A blank frame fails the gate; a
+stale frame passes every check and lies, because it is a real render of a real
+asset — just not of the asset as it is now.
+
+It cost me two fixes on the spray bottle. Its liquid showed a stack of hard
+concentric lenses, I turned off `show_transparent_back` (no change), made the
+liquid opaque (no change), and only then checked the file's timestamp:
+`spray-eevee-hero.png` was **hours old**. That builder writes no `-eevee`
+suffix, so the frame I wanted was `spray-hero.png` — where **both fixes had
+worked all along** and the banding was already gone. The rake had the same shape
+of problem earlier: its EEVEE under-view was cured while its Cycles twin stayed
+blank.
+
+`tools/blender/hero/stale_frame_scan.mjs` flags any frame older than the builder
+that makes it. It reports **496 of them**, but it over-reports by design: an
+edit that only adds an assertion ceiling changes no pixels, and tonight I
+touched nearly every builder that way. It would have caught the one that lied,
+which is the point. The four assets whose GEOMETRY actually changed tonight —
+hand, wand, spray, spreader — were re-rendered in Cycles.
+
+### The broom — CUT, confirmed
+
+Faults off `broom-hero.png`: the bristles are **flat vertical ribbons in single
+rows**, every one the same length and cut off square, so the brush reads as a
+comb; there are **clean vertical slots** at two places where bristle groups do
+not meet; and **you can see straight through the middle** of the head between
+the front and back rows. 218 objects and 2,820 triangles to look worse than the
+procedural build.
+
+I am judging this from the studio render rather than a side-by-side against the
+procedural one in game, and I am saying so. But the fault list is decisive on
+its own: nothing with visible slots through it ships regardless of what it is
+compared against. **The owner's earlier call stands.**
+
+### The dustpan — ITERATE, and I had it wrong first
+
+My first read said "no front lip, no back wall". Reading the builder corrected
+me: the pan is one lofted U-profile whose wall height goes to zero at the lip,
+so the lip is continuous with the pan by construction, and the rail does raise a
+back wall to 80 mm. Recording that because a hostile review that invents faults
+is as useless as one that misses them.
+
+What is actually wrong: the side walls end in a **hard knife edge** along their
+top; there is a **shading discontinuity** across the pan floor where the loft's
+lip rows change; the whole object is **one flat grey** that reads as pressed
+sheet metal rather than moulded plastic; and the handle is a plain telescopic
+tube with no grip and no hanging hole.
+
+### The divot tool — ITERATE
+
+The pail is good — moulded body, wire bail with ball pivots, a grip sleeve. Two
+notes: the rim is visibly **faceted** at 12-14 sides, and the sand is a **flat
+disc** with no mounding.
+
+The tool itself reads as a **paperclip**: two thin prongs and a flat white body
+with a yellow dot. At 75 mm it is the smallest thing in the set and it is the
+least convincing.
 
 ### The hand — PASS, with a reservation, parked at 6 rounds
 
