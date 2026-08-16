@@ -2,7 +2,46 @@
 
 ---
 
-# POST-REBOOT VERIFICATION (2026-08-15, 22:05–22:30) — THE CLEAR DID NOT LAND
+# THE DXCACHE THEORY IS REFUTED (2026-08-15, 22:17–22:45)
+
+The clear DID land (minutes after the first check below): DXCache dropped
+to **14 files / 257 MB** at 22:17, the machine had rebooted at 22:05, CPU
+was quiet. The verification then ran on a machine with every named suspect
+removed — and it is still degraded:
+
+| run | condition | spawn→playable | bailout | giant single rAF gaps |
+|---|---|---|---|---|
+| remedy-warm1 | boot 1 post-clear (cache rebuild) | **49.5 s** | @17.6 s | 17.8 / 17.2 / 5.1 s |
+| remedy-warm2 | boot 2 post-clear (fresh cache) | **69.1 s** | @29.6 s | 29.8 / 14.7 / 15.4 s |
+| healthy-era warm | (reference) | 31.9 s | — | — |
+
+**Probe lies: 0** (planted-stall control caught 416.6 / 416.4 ms; segment
+sums exact; inner exit codes read directly).
+
+Two facts kill the theory rather than merely wounding it:
+1. Boot 2 — with a rebuilt cache in place — is the WORST warm reading on
+   file, worse than any boot taken with the 18.6 GB cache present.
+2. **DXCache did not grow across a full boot** (14 files / 257 MB before
+   and after remedy-warm2). The game's shader compiles never pass through
+   the NVIDIA driver cache at all, so its size could never have been the
+   mechanism.
+
+The diagnosis was wrong, and per the standing instruction everything
+downstream of it needs rethinking rather than a fourth machine suspect:
+co-tenant CPU (refuted by the quiet-window boot), occlusion throttling
+(fixed, no change), reboot (refuted tonight), DXCache size (refuted
+tonight). What remains true and measured: the loss is always 2–3 giant
+SINGLE rAF gaps (5–30 s each) inside warm draws, the bailout timing tracks
+compile-hidden, and the run-to-run spread is now 49.5→69.1 s on identical
+conditions. Those are observations on file, not a new theory. The
+measurement slate (spread-texture ship-gate, arrivals, 16.7 ms census,
+ambient frame time, cold/warm medians) stays parked — every number would
+be a degraded-machine number. The remedy-gated watch is DISARMED; there is
+no remedy left to gate on.
+
+---
+
+# POST-REBOOT VERIFICATION (2026-08-15, 22:05–22:30) — superseded above: the clear landed minutes later
 
 **Probe lies this session: 0** (both negative controls passed in both runs:
 planted 400 ms stall caught at 415.8 / 420.8 ms; segment sums exact).
