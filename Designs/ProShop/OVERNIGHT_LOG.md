@@ -392,7 +392,60 @@ hard-fails on these, so rebuilding each asset forces the camera to be fixed.
 5. **The hand's remaining thumb-web opening is called correct anatomy.** Full
    reasoning in its record.
 
-## PER-ASSET RECORD
+## DECISIONS MADE WITHOUT THE OWNER — SECOND SESSION
+
+1. **Separate leaves, against the docstring that forbade them.** `folded()`
+   said a garment made of separate leaves would be the loose-shell fault
+   `assert_all_one_piece` exists to catch. It would not: that check is per
+   PART, and the cap already ships six panel objects. I read the assertion
+   rather than the comment about it.
+
+2. **The leaves touch rather than float.** `gap` is 0.9 mm, deliberately under
+   assert_assembly's 1.5 mm contact tolerance, because a floating ply is the
+   loose part that check is for. The visible slot comes from the rolls turning
+   away from the contact plane, not from air.
+
+3. **A tighter ceiling for the leaves alone,** 0.6 mm against the general
+   6 mm. Raising or reusing the global would have thrown away the check that
+   caught the wand.
+
+4. **The collar and placket moved to the body colour.** They were on the trim
+   cell, which made them noticeably darker and read as applied patches. Every
+   polo in the reference has a self-fabric collar. This changes the HUNG polo's
+   appearance too.
+
+5. **The broom cut STANDS but for a different reason,** and I have written the
+   reason down rather than quietly keeping the old one. Its bristles beat the
+   shipping asset's; it loses on materials.
+
+6. **The hand's thenar pad added, and its bulge accepted.** There is no radius
+   that closes the opening without standing proud -- closing it IS palmar
+   volume. A thenar eminence is the proudest thing on a palm, and it reads
+   correctly from the hero angle. Judged on the lit frame, not the silhouette.
+
+7. **The export gate removed from 21 builders.** Exports were conditional on
+   Cycles; that is why 27 were stale and why the v2 polo had never been written
+   at all. Exporting from EEVEE produces identical geometry. This changes what
+   every builder does on a default run, which is a real behavioural change and
+   the reason it is listed here.
+
+8. **The receipt slot declared at 11 mm** rather than raising MAX_SEAT_DEPTH.
+
+9. **The gondola's back panel left plain,** on my own measurement that relief
+   small enough to be cheap there is relief too small to read.
+
+10. **The golden gate deliberately not run,** because a parallel session is
+    measuring frame timings and a second Electron would corrupt both.
+
+## PER-ASSET RECORD (FIRST SESSION — SUPERSEDED WHERE THE TABLE DIFFERS)
+
+> These are the first session's notes, kept because the reasoning in them is
+> still the record of how each fault was found. Where a verdict here says
+> ITERATE or PARKED and the table at the top says PASS, **the table is
+> current**: the dustpan, the divot tool, the gondola, the folded polo and the
+> hung polo were all taken further in the second session. The broom's CUT is
+> unchanged, but the REASON for it changed -- see the re-examination above.
+
 
 ### Blank-frame gate — 9 down to 1
 
