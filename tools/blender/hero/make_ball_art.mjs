@@ -123,19 +123,34 @@ function dozenSheet(L) {
     <text x="832" y="218" text-anchor="middle" font-family="Helvetica,Arial,sans-serif"
           font-size="19" letter-spacing="5" fill="${L.dark}">ONE DOZEN</text>
 
-    <!-- END face and the back, 0,256 - 1024,512 -->
-    <rect x="0" y="256" width="1024" height="256" fill="${L.dark}"/>
-    <text x="512" y="330" text-anchor="middle" font-family="Georgia,serif"
-          font-size="40" letter-spacing="8" fill="${L.ink}"
+    <!-- BACK face, 0,256 - 768,512. Laid out for a 768x256 panel. -->
+    <rect x="0" y="256" width="768" height="256" fill="${L.dark}"/>
+    <text x="384" y="330" text-anchor="middle" font-family="Georgia,serif"
+          font-size="38" letter-spacing="7" fill="${L.ink}"
           opacity="0.9">${esc(L.brand)} &#183; ${esc(L.model)}</text>
     ${[0, 1, 2].map((i) => `
-      <line x1="300" y1="${372 + i * 40}" x2="724" y2="${372 + i * 40}"
+      <line x1="120" y1="${372 + i * 40}" x2="648" y2="${372 + i * 40}"
             stroke="${L.ink}" stroke-width="2" opacity="0.28"/>
-      <text x="300" y="${366 + i * 40}" font-family="Helvetica,Arial,sans-serif"
+      <text x="120" y="${366 + i * 40}" font-family="Helvetica,Arial,sans-serif"
             font-size="17" letter-spacing="2" fill="${L.ink}" opacity="0.65">
         ${['DRIVER DISTANCE', 'COVER DURABILITY', 'SCORING CONTROL'][i]}</text>
-      <rect x="600" y="${352 + i * 40}" width="${[104, 80, 92][i]}" height="10"
+      <rect x="${520}" y="${352 + i * 40}" width="${[104, 80, 92][i]}" height="10"
             fill="${L.accent}" opacity="0.9"/>`).join('')}
+
+    <!-- END face, 768,256 - 1024,392. ITS OWN PANEL at ITS OWN ASPECT (1.88),
+         because the end of a dozen box is 92 x 49 mm and type laid out for the
+         768-wide back arrives on it cropped: the square-on render read
+         "STREL . X-1 TOU". -->
+    <rect x="768" y="256" width="256" height="136" fill="${L.dark}"/>
+    <rect x="768" y="374" width="256" height="18" fill="${L.accent}"/>
+    <text x="896" y="304" text-anchor="middle" font-family="Georgia,serif"
+          font-size="30" letter-spacing="3" fill="${L.ink}">${esc(L.brand)}</text>
+    <text x="896" y="336" text-anchor="middle" font-family="Helvetica,Arial,sans-serif"
+          font-size="16" letter-spacing="4" fill="${L.accent}">${esc(L.model)}</text>
+    <text x="896" y="366" text-anchor="middle" font-family="Helvetica,Arial,sans-serif"
+          font-size="17" font-weight="bold" letter-spacing="3"
+          fill="${L.ink}">12 BALLS</text>
+    <rect x="768" y="392" width="256" height="120" fill="${L.dark}"/>
   </svg>`;
 }
 

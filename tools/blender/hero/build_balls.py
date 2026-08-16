@@ -109,25 +109,55 @@ def dimpled_ball(name, centre, radius=BALL_R, rings=54, seg=72,
 
 
 def _uv_box(obj, by_normal):
-    """Assign UVs BY MEASURED FACE NORMAL, not by index order.
+    """Assign each face's artwork BY MEASURED NORMAL and BY VERTEX POSITION.
 
-    Indexing by polygon order put the front panel's artwork on the top of the
-    dozen box: mesh_from recalculates normals, which can reorder the loops and
-    the polygons, so the sixth face is not reliably the sixth face. The normal
-    is a property of the geometry and cannot drift.
+    Two separate bugs, both fixed here:
 
-    `by_normal` maps ('bottom','top','front','back','left','right') to a quad.
+    Indexing by polygon ORDER put the front panel's print on the top of the
+    dozen box, because the bevel renumbers and splits polygons.
+
+    Assigning a fixed corner sequence MIRRORED the type on one side of the
+    sleeve -- "KESTREL" read backwards when the face was photographed square
+    on. A corner list is only correct for one winding, and the two opposite
+    faces of a box have opposite windings by construction. Position is
+    winding-independent: for each face, u runs along the axis that points to
+    the RIGHT of a viewer looking at that face from outside, and v runs up.
+
+    `by_normal` maps a face key to (u0, v0, u1, v1) in atlas space.
     """
     axes = {"bottom": Vector((0, 0, -1)), "top": Vector((0, 0, 1)),
             "front": Vector((0, -1, 0)), "back": Vector((0, 1, 0)),
             "left": Vector((-1, 0, 0)), "right": Vector((1, 0, 0))}
+    lo, hi = None, None
+    for v in obj.data.vertices:
+        w = obj.matrix_world @ v.co
+        lo = w.copy() if lo is None else Vector((min(lo.x, w.x), min(lo.y, w.y),
+                                                 min(lo.z, w.z)))
+        hi = w.copy() if hi is None else Vector((max(hi.x, w.x), max(hi.y, w.y),
+                                                 max(hi.z, w.z)))
+    centre = (lo + hi) * 0.5
     uv = obj.data.uv_layers.new(name="UVMap")
-    for p in obj.data.polygons:
-        n = p.normal
+    for poly in obj.data.polygons:
+        n = poly.normal
         key = max(axes, key=lambda k: n.dot(axes[k]))
-        quad = by_normal[key]
-        for k, li in enumerate(p.loop_indices):
-            uv.data[li].uv = quad[k]
+        nn = axes[key]
+        up = Vector((0, 1, 0)) if abs(nn.z) > 0.5 else Vector((0, 0, 1))
+        side = up.cross(nn)          # right, as seen from OUTSIDE the face
+        if side.length < 1e-6:
+            side = Vector((1, 0, 0))
+        side.normalize()
+        up = nn.cross(side).normalized()
+        ext_s = max(1e-6, abs(side.x) * (hi.x - lo.x) + abs(side.y)
+                    * (hi.y - lo.y) + abs(side.z) * (hi.z - lo.z))
+        ext_u = max(1e-6, abs(up.x) * (hi.x - lo.x) + abs(up.y)
+                    * (hi.y - lo.y) + abs(up.z) * (hi.z - lo.z))
+        u0, v0, u1, v1 = by_normal[key]
+        for li in poly.loop_indices:
+            w = obj.matrix_world @ obj.data.vertices[obj.data.loops[li].vertex_index].co
+            rel = w - centre
+            fu = min(1.0, max(0.0, 0.5 + rel.dot(side) / ext_s))
+            fv = min(1.0, max(0.0, 0.5 + rel.dot(up) / ext_u))
+            uv.data[li].uv = (u0 + (u1 - u0) * fu, v0 + (v1 - v0) * fv)
 
 
 def rounded_box(name, centre, size, bevel=0.0030, uvs=None):
@@ -162,20 +192,26 @@ def rounded_box(name, centre, size, bevel=0.0030, uvs=None):
 
 
 def rect(u0, v0, u1, v1):
-    return [(u0, v0), (u1, v0), (u1, v1), (u0, v1)]
+    """An atlas rectangle in (u0, v0, u1, v1) form. Faces are filled by
+    position, so the rectangle only has to say WHERE, not in which order."""
+    return (u0, v0, u1, v1)
 
 
 def sleeve(name, centre, broken=""):
     """A sleeve of three. The wrap is four panels in a row; the two wide faces
     get the printed panel, the two narrow ones the vertical strip."""
+    # EVERY RECT RUNS u0 < u1. Two of these used to be reversed, to compensate
+    # for the winding of the old corner-order UVs -- and with position-derived
+    # UVs that reversal IS the mirror. "KESTREL" printed backwards on the side
+    # panel and the dozen box's whole back strip read in a mirror.
     P = 0.25
     uvs = {
         "bottom": rect(0.02 * P, 0.02, 0.98 * P, 0.06),
         "top": rect(0.02 * P, 0.94, 0.98 * P, 0.98),
         "front": rect(0 * P, 0.0, 1 * P, 1.0),      # printed panel
-        "back": rect(3 * P, 0.0, 2 * P, 1.0),       # printed panel
+        "back": rect(2 * P, 0.0, 3 * P, 1.0),       # printed panel
         "left": rect(1 * P, 0.0, 2 * P, 1.0),       # vertical strip
-        "right": rect(4 * P, 0.0, 3 * P, 1.0),      # vertical strip
+        "right": rect(3 * P, 0.0, 4 * P, 1.0),      # vertical strip
     }
     return rounded_box(name, centre, SLEEVE, bevel=0.0022, uvs=uvs)
 
@@ -186,9 +222,10 @@ def dozen(name, centre, broken=""):
     uvs = {
         "front": rect(0.0, 0.5, 0.625, 1.0),
         "top": rect(0.625, 0.5, 1.0, 1.0),
-        "back": rect(0.625, 0.5, 0.0, 1.0),
-        "left": rect(0.30, 0.0, 0.70, 0.5),
-        "right": rect(0.70, 0.0, 0.30, 0.5),
+        "back": rect(0.0, 0.0, 0.75, 0.5),
+        # the end panel: image y 256..392 of 512, so v runs 0.2344..0.5
+        "left": rect(0.75, 0.2344, 1.0, 0.5),
+        "right": rect(0.75, 0.2344, 1.0, 0.5),
         "bottom": rect(0.02, 0.02, 0.20, 0.16),
     }
     return rounded_box(name, centre, DOZEN, bevel=0.0026, uvs=uvs)
