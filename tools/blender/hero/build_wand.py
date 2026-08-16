@@ -32,7 +32,12 @@ LANCE_R = 0.0098
 GRIP_ANGLE = 62.0
 BODY_C = Vector((0, 0.0180, 0))
 BODY_S = Vector((0.0420, 0.1300, 0.0520))
-GRIP_ROOT = Vector((0, -0.0180, -0.0180))
+# z was -0.0180, which is 6.5 mm ABOVE the body's underside -- so the
+# socket's 25 mm rim reached the shell's mid-height and measured 19.47 mm
+# inside a 41.6 mm body. That is the interpenetration the hostile review
+# called "the grip passes through its own blue shell", and it is a
+# geometry fault, not a seat to be declared.
+GRIP_ROOT = Vector((0, -0.0180, -0.0243))
 
 
 def sweep(name, path, radius, sides=5, cap=True):
@@ -113,12 +118,33 @@ def build(broken=""):
     # solids crossing, and the intersection curve is what reads as phasing: on a
     # moulded tool the grip meets the shell at a part boundary, not at an
     # arbitrary line where a cylinder happens to cut a box.
-    p["socket"] = HS.join([
-        HS.cylinder("SockA", GRIP_ROOT + axis * 0.006, 0.0250, 0.0170,
+    # WELD, not join: two overlapping coaxial cylinders left intersecting make
+    # parity meaningless about this part, which is the trap that hid the
+    # spreader's axle. And SockA's radius comes down from 25.0 to 21.8 mm so the
+    # boss does not overhang a body that is only 42 mm wide at the rear.
+    p["socket"] = HS.weld_union([
+        HS.cylinder("SockA", GRIP_ROOT + axis * 0.006, 0.0218, 0.0170,
                     verts=14, rotation=rot_g),
-        HS.cylinder("SockB", GRIP_ROOT + axis * 0.019, 0.0212, 0.0130,
+        HS.cylinder("SockB", GRIP_ROOT + axis * 0.019, 0.0198, 0.0130,
                     verts=14, rotation=rot_g),
     ], "GripSocket")
+
+    # AND THEN THE BODY IS CUT OUT OF IT. A 21.8 mm flange tilted 62 degrees
+    # into a 51 mm shell reaches the shell's mid-height whatever you do with its
+    # radius or its root -- I moved both and the reading went from 19.47 mm to
+    # 20.26 mm, which is what finally sent me to measure instead of adjust. The
+    # deepest vertex sits at x=0, y=-26.0, z=-3.9 and its nearest way out is
+    # 20.2 mm SIDEWAYS to the body's side wall.
+    #
+    # So the socket stops being a solid that plunges through the shell and
+    # becomes exactly the part of itself that is outside it. That is what the
+    # comment above always said it should be -- "the grip meets the shell at a
+    # part boundary, not at an arbitrary line where a cylinder cuts a box" --
+    # and a boolean is the only thing that actually makes it true.
+    _cut = p["socket"].modifiers.new("Seat", "BOOLEAN")
+    _cut.operation, _cut.object, _cut.solver = "DIFFERENCE", p["body"], "EXACT"
+    p["socket"] = HS.apply_mods(p["socket"])
+    p["socket"].name = "GripSocket"
 
     # ---- pistol grip. Squashed in X afterwards because a round section reads
     # as a broom handle -- a grip is oval, deeper than it is wide, and that one
@@ -281,11 +307,14 @@ def main():
     H.set_engine(engine, samples=170 if engine == "CYCLES" else 104)
     p = build(broken=broken)
 
-    HS.assert_touching(p["lance"], p["body"], "the lance must root in the gun", 0.0025)
+    HS.assert_touching(p["lance"], p["body"], "the lance must root in the gun", 0.0025,
+                       max_depth=0.0125)
     HS.assert_touching(p["collar"], p["body"], "the collar must sit on the muzzle", 0.0025)
     HS.assert_touching(p["nozzle"], p["lance"], "the nozzle must be on the lance", 0.0025)
-    HS.assert_touching(p["trigger"], p["body"], "the trigger must hang off the body", 0.0030)
-    HS.assert_touching(p["guard"], p["body"], "the guard must root in the body", 0.0035)
+    HS.assert_touching(p["trigger"], p["body"], "the trigger must hang off the body", 0.0030,
+                       max_depth=0.0095)
+    HS.assert_touching(p["guard"], p["body"], "the guard must root in the body", 0.0035,
+                       max_depth=0.0105)
     HS.assert_touching(p["socket"], p["body"], "the grip socket must be on the body", 0.0030)
     HS.assert_touching(p["grip"], p["socket"], "the grip must seat in its socket", 0.0030)
     HS.assert_touching(p["safety"], p["body"], "the safety catch must be on the body", 0.0030)

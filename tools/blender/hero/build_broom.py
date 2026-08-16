@@ -140,7 +140,8 @@ def main():
     # before it was trusted on the real one.
     HS.assert_rooted(tufts, block, "bristle tufts", min_verts=3, min_depth=0.0025)
     HS.assert_touching(ferrule, block, "the ferrule must sit on the block",
-                       max_gap=0.0015)
+                       max_gap=0.0015,
+                       max_depth=0.0180)
 
     subject = [block, ferrule] + tufts
     tris = H.triangles(subject)

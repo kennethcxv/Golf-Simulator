@@ -212,7 +212,8 @@ def main():
     HS.assert_touching(p["trigger"], p["head"],
                        "the trigger must be attached to the head", max_gap=0.0015)
     HS.assert_touching(p["nozzle"], p["head"],
-                       "the nozzle must be attached to the head", max_gap=0.0015)
+                       "the nozzle must be attached to the head", max_gap=0.0015,
+                       max_depth=0.0075)
     HS.assert_touching(p["collar"], p["body"],
                        "the collar must meet the bottle neck", max_gap=0.0020)
 

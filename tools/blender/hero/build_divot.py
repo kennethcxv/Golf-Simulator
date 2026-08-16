@@ -238,7 +238,8 @@ def main():
     HS.assert_socket_at(f["handle"], f["sock"], "the hand closes on the fork handle")
 
     HS.assert_rooted(b["lugs"], b["pail"], "the bail lugs", min_verts=3, min_depth=0.0010)
-    HS.assert_touching(b["bail"], b["lugs"][0], "the bail must sit in its lug", 0.0025)
+    HS.assert_touching(b["bail"], b["lugs"][0], "the bail must sit in its lug", 0.0025,
+                       max_depth=0.0085)
     HS.assert_touching(b["sleeve"], b["bail"], "the grip sleeve must be on the bail", 0.0025)
     HS.assert_socket_at(b["sleeve"], b["sock"], "the hand closes on the bail's sleeve")
     HS.assert_socket_at(b["pail"], b["sock_support"],

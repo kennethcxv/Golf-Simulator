@@ -450,7 +450,8 @@ def main():
     # ---- the assertions
     for leaf in p["leaves"]:
         HS.assert_touching(leaf, p["blocks"][0 if leaf.name.endswith(("0", "1", "2", "3")) else 1],
-                           "a leaf must rest on its page block", max_gap=0.0030)
+                           "a leaf must rest on its page block", max_gap=0.0030,
+                       max_depth=0.0075)
     # Bound to the PAGE BLOCK's inner edge, not to the cover spine. The cover
     # spine wraps the OUTSIDE of the book, 37 mm below the leaf's hinge, so
     # checking against it asks whether the paper touches the leather.

@@ -176,11 +176,15 @@ def main():
     H.set_engine(engine, samples=170 if engine == "CYCLES" else 104)
     p = build(broken=broken)
 
-    HS.assert_touching(p["collar"], p["body"], "the grip collar must be on the body", 0.0030)
+    HS.assert_touching(p["collar"], p["body"], "the grip collar must be on the body", 0.0030,
+                       max_depth=0.0150)
     HS.assert_touching(p["grip"], p["collar"], "the grip must seat in its collar", 0.0030)
-    HS.assert_touching(p["trigger"], p["body"], "the trigger must hang off the body", 0.0030)
-    HS.assert_touching(p["guard"], p["body"], "the guard must root in the body", 0.0035)
-    HS.assert_touching(p["barrel"], p["body"], "the barrel must root in the body", 0.0025)
+    HS.assert_touching(p["trigger"], p["body"], "the trigger must hang off the body", 0.0030,
+                       max_depth=0.0095)
+    HS.assert_touching(p["guard"], p["body"], "the guard must root in the body", 0.0035,
+                       max_depth=0.0120)
+    HS.assert_touching(p["barrel"], p["body"], "the barrel must root in the body", 0.0025,
+                       max_depth=0.0095)
     HS.assert_touching(p["barrel"], p["head"], "the spray head must be on the barrel", 0.0025)
     HS.assert_touching(p["tip"], p["head"], "the tip must be in the head", 0.0025)
     HS.assert_touching(p["coupling"], p["grip"], "the coupling must be in the butt", 0.0030)
