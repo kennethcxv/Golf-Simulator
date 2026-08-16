@@ -428,7 +428,15 @@ def main():
                             "the drawer face must be on the drawer")
     HS.assert_touching(p["pull"], p["face"], "the pull must be on the face", 0.0020)
     HS.assert_touching(p["brand"], p["face"], "the brand plate must be on the face", 0.0020)
-    HS.assert_touching(p["slot"], p["printer"], "the receipt slot must be in the printer", 0.0020)
+    # A DECLARED DEEP SEAT, measured first. The slot sits 11.00 mm inside the
+    # housing and that is what a receipt slot IS -- a mouth cut into the
+    # printer, not a part resting against it. Ceiling set to the measured
+    # depth plus a millimetre so the check still bites if it ever moves;
+    # raising MAX_SEAT_DEPTH globally instead would throw away the assertion
+    # that caught the wand's grip 20 mm inside its own shell.
+    HS.assert_touching(p["slot"], p["printer"],
+                       "the receipt slot must be in the printer", 0.0020,
+                       max_depth=0.0120)
     HS.assert_touching(p["coin_cup"], p["deck"], "the coin tray must sit on the deck", 0.0020)
     HS.assert_touching(p["coin_lip"], p["coin_cup"], "the mat must be in the coin tray", 0.0020)
     HS.assert_touching(p["stalk"], p["deck"], "the monitor stalk must meet the deck", 0.0025)

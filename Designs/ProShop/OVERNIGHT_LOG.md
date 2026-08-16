@@ -91,6 +91,34 @@ and signed off. A regeneration sweep over all 22 builders is running.
 `tools/blender/hero/stale_frame_scan.mjs` should grow a GLB mode. Same idea,
 higher stakes.
 
+### 4. AND THE ROOT CAUSE OF THE STALENESS: THE EXPORT IS GATED ON CYCLES
+
+Not carelessness. Twenty of the twenty-five builders export only under
+
+    if not broken and engine == "CYCLES":
+
+so every fast EEVEE iteration -- which is what all the review work is done in,
+by design, because Cycles is for the review frames and EEVEE is for the loop --
+regenerates the RENDERS and never the DELIVERABLE. The GLB on disk dates from
+whenever somebody last paid for a full Cycles turntable.
+
+That is a structural fault, not a mistake anyone made: **the deliverable is
+coupled to the slow render mode.** You cannot regenerate an export without also
+paying for a 200-sample turntable, so in practice nobody does, and the tree
+quietly drifts. A first sweep of all 22 builders in their default mode changed
+nothing at all, which is how it was found.
+
+The fix is an export-only path that does not render. It is a small change in
+each builder's main() and it is not one to make untested at this hour across
+twenty files, so the sweep is running as `-- cycles views=1` instead and the
+change is written down here.
+
+`build_register.py` was also RED, and had been for 20.8 hours: the receipt slot
+sits 11.00 mm inside the printer housing against a 6 mm ceiling. Declared at
+the measured depth plus a millimetre, the same way the eight overnight seats
+were. Nothing had noticed because a failing builder in EEVEE still writes its
+renders before the assertion runs -- and nothing exports in EEVEE anyway.
+
 ### WHAT THIS MEANS FOR THE DELTAS
 
 **Still zero deltas against the parallel session's 193 programs and 1,443
