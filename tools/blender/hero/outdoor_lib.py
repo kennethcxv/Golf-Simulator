@@ -48,6 +48,38 @@ def palette():
     return out
 
 
+def uv_cell(obj, cell, cols, rows):
+    """Point an instance at ONE cell of a shared atlas. The whole trick:
+    variety costs texture cells, not materials."""
+    cx, cy = cell % cols, cell // cols
+    for layer in obj.data.uv_layers:
+        for d in layer.data:
+            u, v = d.uv
+            d.uv = ((cx + u) / cols, ((rows - 1 - cy) + v) / rows)
+
+
+def label_quad(name, cx, cz, w, h, y, cell, cols, rows, flip=False):
+    """Artwork on its OWN quad, standing proud of whatever it labels.
+
+    Per-face UV logic on a bevelled box is not reliable: the chamfer strips
+    carry diagonal normals, and a planar x/z map collapses to a single stretched
+    line of the image on the top face -- which at any camera above the horizon
+    is most of what you see. The basket badge, the ledger label and the ball
+    boxes are all separate quads for this reason.
+    """
+    verts = [Vector((cx + sx * w * 0.5, y, cz + sz * h * 0.5))
+             for (sx, sz) in ((-1, -1), (1, -1), (1, 1), (-1, 1))]
+    ob = HS.mesh_from(name, verts, [(0, 1, 2, 3)])
+    uvl = ob.data.uv_layers.new(name="UVMap")
+    for li in ob.data.polygons[0].loop_indices:
+        co = ob.data.vertices[ob.data.loops[li].vertex_index].co
+        u = (co.x - (cx - w * 0.5)) / w
+        uvl.data[li].uv = (1.0 - u if flip else u,
+                           (co.z - (cz - h * 0.5)) / h)
+    uv_cell(ob, cell, cols, rows)
+    return ob
+
+
 def sweep(name, path, radius, sides=6, cap=True, smooth=True):
     """A tube along a path, cross-section held PERPENDICULAR to the tangent.
 
