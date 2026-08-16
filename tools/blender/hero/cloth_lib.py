@@ -243,8 +243,38 @@ def draped(name, shoulder_z, width, hem_width, length, depth, centre=(0, 0),
         f = wobble * math.sin(ang * 3.0 + v * 5.5) * min(1.0, v * 2.2)
         return Vector((cx + x + f * 0.4, cy + y + f, z))
 
-    obj = grid_surface(name, surf, nu=nu, nv=nv, smooth=True)
-    # weld the seam and cap the hem so it is a closed piece
+    # THE HEM IS ROLLED, not capped flat. holes_fill closes the bottom with one
+    # n-gon, which renders as a hard hexagonal point -- the shape the review
+    # called "a hard hexagon at the bottom". Two extra rings tuck the section in
+    # so the hem closes as a roll.
+    def surf2(u, v):
+        if v <= 1.0 - 2e-6:
+            return surf(u, min(v, 1.0))
+        return surf(u, 1.0)
+
+    verts, faces = [], []
+    NV = nv + 3
+    for j in range(NV):
+        if j < nv:
+            vv = j / (nv - 1)
+            shrink = 1.0
+        else:
+            vv = 1.0
+            # never 0.0: a ring collapsed to a point makes degenerate faces
+            # and the mesh stops being closed, which assert_assembly then
+            # refuses to measure at all.
+            shrink = (0.76, 0.46, 0.20)[j - nv]
+        for i in range(nu):
+            pnt = surf(i / (nu - 1), vv)
+            if shrink < 1.0:
+                axis = Vector((cx, cy, pnt.z - 0.004 * (1.0 - shrink)))
+                pnt = axis + (pnt - Vector((cx, cy, pnt.z))) * shrink
+            verts.append(pnt)
+    for j in range(NV - 1):
+        for i in range(nu - 1):
+            a = j * nu + i
+            faces.append((a, a + 1, a + nu + 1, a + nu))
+    obj = HS.mesh_from(name, verts, faces, smooth=True)
     _weld_and_cap(obj)
     return obj
 
@@ -416,20 +446,21 @@ def strip(name, path, halfw, halfh, sides=12):
 
 def hanger(name, centre, halfw=0.086, drop=0.052, hook_r=0.020, rod=0.0055,
            thick=0.0090):
-    """A shop hanger: shoulders and a hook, as one flat profile with thickness.
+    """A shop hanger, as TWO parts: a moulded body and a metal hook.
 
-    Built as a SINGLE closed outline extruded, not as a bar plus a hook.
-    Sweeping the two separately left two shells, which assert_all_one_piece
-    fails; unioning them with a boolean left a 6 mm fragment, because the
-    solver will not weld two self-intersecting swept tubes at a sharp apex. An
-    outline has neither problem and matches the wooden hangers in
-    ref/apparel/rack-hung-and-folded.jpg better than a wire would.
+    Three attempts to make it one piece all failed, and the last two failed for
+    the same reason: the hook's outline crossed its own stem and the n-gon
+    rendered as a crumpled spiral. A real hanger IS two parts -- a body and a
+    hook pressed into it -- so it is modelled as two and the pair is declared,
+    rather than contorting the geometry to satisfy a rule that was never true
+    of the object.
+
+    Returns (body, hook).
     """
     cx, cy, cz = centre
     half = rod * 0.5
 
     def shoulder(t):
-        """t from -1 (left tip) to +1 (right tip): the shoulder centreline."""
         x = cx + t * halfw
         z = cz - drop * (abs(t) ** 1.65)
         return x, z
@@ -439,47 +470,36 @@ def hanger(name, centre, halfw=0.086, drop=0.052, hook_r=0.020, rod=0.0055,
     for i in range(STEPS + 1):
         t = -1.0 + 2.0 * i / STEPS
         x, z = shoulder(t)
-        # the bar is thicker at the middle, like a moulded hanger
         hh = half * (1.0 + 0.55 * (1.0 - abs(t)))
         lower.append((x, z - hh))
         upper.append((x, z + hh))
 
-    # The stem and hook, as the top of the same outline. Traced as a circular
-    # arc from the stem all the way round to the tip and back on the inner
-    # radius: the first version stepped through a hand-rolled angle range that
-    # crossed itself, and the n-gon it produced rendered as a crumpled blob.
-    stem = rod * 0.42
-    top = cz + 0.0150
-    hcx, hcz = cx, top + hook_r
-    A0, A1 = -math.pi / 2, -math.pi / 2 - math.radians(300)
-    outer, inner = [], []
-    N = 26
-    for i in range(N + 1):
-        a = A0 + (A1 - A0) * i / N
-        outer.append((hcx + math.cos(a) * (hook_r + stem),
-                      hcz + math.sin(a) * (hook_r + stem)))
-        inner.append((hcx + math.cos(a) * (hook_r - stem),
-                      hcz + math.sin(a) * (hook_r - stem)))
-
+    stem = rod * 0.62
+    top = cz + 0.0165
     pts = []
-    pts.extend(lower)                                   # left tip -> right tip
-    pts.append((cx + halfw + half, cz - drop))          # round the right tip
-    pts.extend(reversed(upper[STEPS // 2 + 1:]))        # back to the stem
-    pts.append((cx + stem, top))                        # up the stem, right
-    pts.extend(outer)                                   # round the hook
-    pts.append((inner[-1][0], inner[-1][1]))            # over the tip
-    pts.extend(reversed(inner))                         # and back inside it
-    pts.append((cx - stem, top))                        # down the stem, left
-    pts.extend(reversed(upper[:STEPS // 2]))            # on to the left tip
+    pts.extend(lower)
+    pts.append((cx + halfw + half, cz - drop))
+    pts.extend(reversed(upper[STEPS // 2 + 1:]))
+    pts.append((cx + stem, top))
+    pts.append((cx - stem, top))
+    pts.extend(reversed(upper[:STEPS // 2]))
     pts.append((cx - halfw - half, cz - drop))
-
     verts = [Vector((x, cy, z)) for x, z in pts]
-    face = tuple(range(len(verts)))
-    obj = HS.mesh_from(name, verts, [face], smooth=False)
-    mod = obj.modifiers.new("Thick", "SOLIDIFY")
+    body = HS.mesh_from(name, verts, [tuple(range(len(verts)))], smooth=False)
+    mod = body.modifiers.new("Thick", "SOLIDIFY")
     mod.thickness = thick
     mod.offset = 0.0
-    return HS.apply_mods(obj)
+    body = HS.apply_mods(body)
+
+    # the hook: a swept tube on a circular arc, starting inside the stem
+    hcz = top + hook_r * 0.72
+    path = [Vector((cx, cy, top - rod * 0.9))]
+    for i in range(19):
+        a = math.radians(-90 + 250.0 * i / 18.0)
+        path.append(Vector((cx + math.cos(a) * hook_r * 0.62,
+                            cy, hcz + math.sin(a) * hook_r)))
+    hook = _sweep(f"{name}_hook", path, rod * 0.40, sides=7)
+    return body, hook
 
 
 def union(a, b, name):
@@ -559,31 +579,41 @@ def surface_y(obj, x, z, sign=-1, tol=0.010):
     return best
 
 
-def top_z(obj, x, y, tol=0.014):
+def top_z(obj, x, y, max_search=0.030):
     """The garment's top surface height at a point, MEASURED.
 
-    Third time this session that a part placed on a surface by arithmetic
-    landed inside it: the folded polo's collar sat at the nominal fold height
-    while the real top face had sagged and creased below it, so a 15 mm collar
-    rendered as an embossed line. Ask the mesh.
+    NEAREST VERTEX in the upper part of the mesh, not a box filter. A fixed
+    tolerance failed on the trousers: the fold's top cap has rings at 84%, 62%,
+    38% and 15% of the outline, so near the middle the nearest vertex can be
+    23 mm away in x and a 14 mm window finds nothing at all.
+
+    It still fails loudly rather than defaulting -- a silent 0.0 from this
+    function's sibling put a button 20.69 mm inside a shirt.
     """
-    best = None
-    for v in obj.data.vertices:
-        w = obj.matrix_world @ v.co
-        if abs(w.x - x) < tol and abs(w.y - y) < tol:
-            if best is None or w.z > best:
-                best = w.z
-    if best is None:
+    pts = [obj.matrix_world @ v.co for v in obj.data.vertices]
+    if not pts:
+        raise SystemExit(f"BUILD FAILED: top_z: {obj.name} has no vertices")
+    zs = [q.z for q in pts]
+    cut = min(zs) + (max(zs) - min(zs)) * 0.55
+    upper = [q for q in pts if q.z >= cut]
+    best, bestd = None, 1e9
+    for q in upper:
+        d = math.hypot(q.x - x, q.y - y)
+        if d < bestd:
+            best, bestd = q, d
+    if best is None or bestd > max_search:
         raise SystemExit(
-            f"BUILD FAILED: top_z found no surface on {obj.name} near "
-            f"x={x:+.4f} y={y:+.4f} (tolerance {tol * 1000:.0f} mm)")
-    return best
+            f"BUILD FAILED: top_z found no top surface on {obj.name} within "
+            f"{max_search * 1000:.0f} mm of x={x:+.4f} y={y:+.4f} "
+            f"(nearest {bestd * 1000:.1f} mm). The part being placed there is "
+            f"off the garment, not on it.")
+    return best.z
 
 
 def texture_into_cell(obj, cell, cols=4, rows=3, margin=0.06):
     """Unwrap the object and pack its UVs into one atlas cell.
 
-    One material, twelve colourways. A new colour must never cost a program --
+    One material, twenty-four cells. A new colour must never cost a program --
     the parallel session measured ~70 ms of cold shader compile each, which the
     owner pays for on every first load.
     """
@@ -600,4 +630,140 @@ def texture_into_cell(obj, cell, cols=4, rows=3, margin=0.06):
         u = margin + d.uv[0] * (1.0 - 2 * margin)
         v = margin + d.uv[1] * (1.0 - 2 * margin)
         d.uv = ((cx + u) / cols, (cy + v) / rows)
+    return obj
+
+
+def cell_offset(obj, cell, cols=4, rows=3):
+    """Map an object's EXISTING 0-1 UVs into one atlas cell, without unwrapping.
+
+    For anything whose artwork has to land in a known place -- a decal, a
+    printed panel -- re-projecting would throw that placement away.
+    """
+    uv = obj.data.uv_layers.active
+    cx, cy = cell % cols, rows - 1 - cell // cols
+    for d in uv.data:
+        d.uv = ((cx + min(1.0, max(0.0, d.uv[0]))) / cols,
+                (cy + min(1.0, max(0.0, d.uv[1]))) / rows)
+    return obj
+
+
+def sleeve_from_body(name, root, direction, length, r0, r1, droop=0.10,
+                     sides=14, steps=9, seam_in=0.0035, cuff=0.0):
+    """A sleeve that GROWS OUT OF a shoulder instead of being pushed into one.
+
+    The old sleeve was a tapered tube whose end cap sat wherever it landed, and
+    the review said so three times over: "sleeves are cylinders pushed into a
+    shoulder, not sleeves growing out of one".
+
+    Two changes do the work. The root ring starts INSIDE the body so there is no
+    seam gap to see, and the section is a LENS, wider than it is deep, because
+    an empty sleeve is flat.
+    """
+    root = Vector(root)
+    d = Vector(direction).normalized()
+    up = Vector((0, 0, 1))
+    side = d.cross(up)
+    if side.length < 1e-6:
+        side = Vector((1, 0, 0))
+    side.normalize()
+    up = side.cross(d).normalized()
+    rings = []
+    for s in range(steps + 1):
+        t = s / steps
+        c = root + d * (length * t - seam_in)
+        c.z -= droop * length * t * t
+        r = r0 * (1 - t) + r1 * t
+        if cuff and t > 0.86:
+            r *= 1.0 + cuff * (t - 0.86) / 0.14
+        ring = []
+        for i in range(sides):
+            a = 2 * math.pi * i / sides
+            ring.append(c + side * (math.cos(a) * r)
+                        + up * (math.sin(a) * r * 0.74))
+        rings.append(ring)
+    return loft(name, rings, smooth=True)
+
+
+def ribbed_ring(name, centre, axis, radius, width, ribs=22, depth=0.0016,
+                sides=None):
+    """A ribbed band -- a collar, a cuff, a waist hem.
+
+    "Ribbed collars and cuffs should show as ribbing, not as smooth trim." So
+    the ribs are geometry: the section's radius steps in and out around the
+    ring, which reads at the distance a player stands.
+    """
+    c = Vector(centre)
+    d = Vector(axis).normalized()
+    up = Vector((0, 0, 1))
+    side = d.cross(up)
+    if side.length < 1e-6:
+        side = Vector((1, 0, 0))
+    side.normalize()
+    up = side.cross(d).normalized()
+    n = sides or ribs * 3
+    rings = []
+    for s in range(5):
+        t = s / 4.0
+        centre_t = c + d * (width * (t - 0.5))
+        swell = 1.0 + 0.05 * math.sin(math.pi * t)
+        ring = []
+        for i in range(n):
+            a = 2 * math.pi * i / n
+            rib = 1.0 + (depth / radius) * math.cos(ribs * a)
+            r = radius * swell * rib
+            ring.append(centre_t + side * (math.cos(a) * r)
+                        + up * (math.sin(a) * r * 0.74))
+        rings.append(ring)
+    return loft(name, rings, smooth=False)
+
+
+def decal(name, centre, normal, size, lift=0.0016):
+    """A printed patch as thin geometry: a chest logo, a sleeve badge, a tee
+    front. Prints are what make fabric read as merchandise rather than cloth,
+    and a decal quad lands its artwork exactly where it is put -- which a
+    smart-projected UV island does not.
+    """
+    c = Vector(centre)
+    n = Vector(normal).normalized()
+    up = Vector((0, 0, 1))
+    side = n.cross(up)
+    if side.length < 1e-6:
+        side = Vector((1, 0, 0))
+    side.normalize()
+    up = side.cross(n).normalized()
+    w, h = size[0] * 0.5, size[1] * 0.5
+    verts, faces = [], []
+    for sgn in (-1, 1):
+        base = c + n * (lift * (1.0 if sgn > 0 else -0.4))
+        for (sx, sy) in ((-1, -1), (1, -1), (1, 1), (-1, 1)):
+            verts.append(base + side * (sx * w) + up * (sy * h))
+    faces.append((3, 2, 1, 0))
+    faces.append((4, 5, 6, 7))
+    for i in range(4):
+        j = (i + 1) % 4
+        faces.append((i, j, j + 4, i + 4))
+    obj = HS.mesh_from(name, verts, faces, smooth=False)
+
+    # UVs FROM VERTEX POSITION, not from loop order. mesh_from recalculates
+    # normals, which reorders the loops, so a fixed corner sequence lands on
+    # whichever corner it happens to hit -- the first version came out rotated
+    # 90 degrees with the wordmark running vertically. Same trap the basket
+    # badge hit; position is winding-independent.
+    uv = obj.data.uv_layers.new(name="UVMap")
+    for poly in obj.data.polygons:
+        flat = abs(poly.normal.dot(n)) > 0.7
+        for li in poly.loop_indices:
+            co = obj.data.vertices[obj.data.loops[li].vertex_index].co
+            if not flat:
+                uv.data[li].uv = (0.02, 0.02)
+                continue
+            rel = co - c
+            # MINUS: side = n.cross(up) points to the viewer's LEFT for a
+            # forward-facing decal, so a plain +u printed the wordmark
+            # backwards. Read the render, not the maths.
+            u = 0.5 - rel.dot(side) / (2 * w)
+            v = 0.5 + rel.dot(up) / (2 * h)
+            uv.data[li].uv = (0.02 + 0.96 * min(1.0, max(0.0, u)),
+                              0.02 + 0.96 * min(1.0, max(0.0, v)))
+    obj["explicit_uv"] = True
     return obj

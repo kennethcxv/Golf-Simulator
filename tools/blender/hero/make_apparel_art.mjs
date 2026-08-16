@@ -1,15 +1,23 @@
-// The apparel atlas: twelve cells, one material, every colourway a texture.
+// The apparel atlas: 24 cells, ONE material, every colourway and every print a
+// texture.
 //
-// The brief is explicit -- "Colours and patterns are TEXTURES on shared meshes,
-// not new models" -- and the material budget is the hard one: the parallel
-// session measured ~70 ms of cold compile per program, so a colourway that
-// costs a material costs a slice of the owner's first load.
+// The brief: "More colourways and more variety. These are shop stock -- a rail
+// of eight identical navy garments is not a shop." And: "Prints and logos on
+// the texture: a chest logo, a sleeve badge, a printed tee front. That is what
+// makes fabric read as merchandise rather than cloth." And: "Ribbed collars and
+// cuffs should show as ribbing, not as smooth trim."
 //
-// The knit is the point as much as the colour. Rendered flat, every garment in
-// the set read as moulded plastic whatever its shape, because real cloth breaks
-// up light at a scale you can see at 18 inches. This lays down a pique-style
-// cross-hatch plus low-frequency cloth noise, both subtle enough to survive a
-// player-camera downscale without turning into moire.
+// So the sheet is four rows:
+//
+//   row 0-1   twelve garment colourways, knitted
+//   row 2     six CONTRAST partners -- a cap's brim, a polo's collar and cuffs.
+//             Contrast trim is most of what stops a garment reading as a blank.
+//   row 3     the PRINTS: a chest roundel, a tee front, a sleeve badge, a cap
+//             monogram, a ribbing strip, and plain trim white.
+//
+// The knit is not decoration. Rendered flat, every garment read as moulded
+// plastic whatever its shape, because real cloth breaks up light at a scale the
+// eye resolves at 18 inches.
 //
 //   node tools/blender/hero/make_apparel_art.mjs
 import sharp from 'sharp';
@@ -20,31 +28,28 @@ const OUT = path.join('Assets', 'models', 'hero', 'textures');
 mkdirSync(OUT, { recursive: true });
 
 const CELL = 256;
-const COLS = 4;
-const ROWS = 3;
+const COLS = 6;
+const ROWS = 4;
 
-// Golf-shop colourways. Nothing here is a brand; they are the colours a pro
-// shop actually stocks.
-const CELLS = [
-  { name: 'navy', rgb: [38, 52, 84] },
-  { name: 'white', rgb: [232, 232, 228] },
-  { name: 'fairway', rgb: [46, 84, 62] },
-  { name: 'sky', rgb: [126, 166, 196] },
-  { name: 'sand', rgb: [196, 178, 146] },
-  { name: 'burgundy', rgb: [104, 40, 52] },
-  { name: 'charcoal', rgb: [64, 66, 70] },
-  { name: 'coral', rgb: [206, 116, 100] },
-  { name: 'stone', rgb: [162, 160, 152] },
-  { name: 'forest', rgb: [34, 60, 48] },
-  { name: 'butter', rgb: [222, 206, 150] },
-  { name: 'trim', rgb: [236, 236, 232] },   // buttons, hanger, eyelets
+const WAY = [
+  ['navy', [38, 52, 84], [22, 30, 52]],
+  ['white', [232, 232, 228], [176, 178, 176]],
+  ['fairway', [46, 84, 62], [26, 50, 38]],
+  ['sky', [126, 166, 196], [70, 104, 134]],
+  ['sand', [196, 178, 146], [140, 124, 96]],
+  ['burgundy', [104, 40, 52], [62, 22, 30]],
+  ['charcoal', [64, 66, 70], [36, 38, 42]],
+  ['coral', [206, 116, 100], [150, 72, 60]],
+  ['stone', [162, 160, 152], [110, 108, 102]],
+  ['forest', [34, 60, 48], [18, 36, 28]],
+  ['butter', [222, 206, 150], [166, 150, 100]],
+  ['cream', [230, 222, 204], [172, 164, 146]],
 ];
 
 function knit(w, h, base, seed) {
   const px = Buffer.alloc(w * h * 3);
   let s = seed * 9781 + 1;
   const rnd = () => ((s = (s * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff);
-  // low-frequency cloth mottle, precomputed on a coarse grid and interpolated
   const G = 16;
   const grid = Array.from({ length: (G + 1) * (G + 1) }, () => rnd() - 0.5);
   const at = (i, j) => grid[Math.min(G, j) * (G + 1) + Math.min(G, i)];
@@ -55,7 +60,6 @@ function knit(w, h, base, seed) {
       const fx = gx - i, fy = gy - j;
       const mottle = (at(i, j) * (1 - fx) + at(i + 1, j) * fx) * (1 - fy)
         + (at(i, j + 1) * (1 - fx) + at(i + 1, j + 1) * fx) * fy;
-      // pique cross-hatch: two out-of-phase ripples make a knit cell, not stripes
       const k = Math.sin(x * 0.78) * Math.sin(y * 0.78) * 0.5
         + Math.sin((x + y) * 0.42) * 0.22;
       const grain = (rnd() - 0.5) * 0.6;
@@ -69,15 +73,105 @@ function knit(w, h, base, seed) {
   return sharp(px, { raw: { width: w, height: h, channels: 3 } }).png().toBuffer();
 }
 
+const hex = (c) => '#' + c.map((v) => v.toString(16).padStart(2, '0')).join('');
+
+// ---- the prints -----------------------------------------------------------
+function flagMark(cx, cy, sc, col) {
+  return `<g stroke="${col}" fill="none" stroke-width="${5 * sc}"
+      stroke-linecap="round">
+      <path d="M${cx - 2 * sc},${cy + 26 * sc} L${cx - 2 * sc},${cy - 28 * sc}"/>
+      <path d="M${cx - 2 * sc},${cy - 26 * sc} L${cx + 26 * sc},${cy - 15 * sc}
+               L${cx - 2 * sc},${cy - 5 * sc}" fill="${col}"/>
+    </g>
+    <ellipse cx="${cx}" cy="${cy + 27 * sc}" rx="${17 * sc}" ry="${5 * sc}"
+             fill="none" stroke="${col}" stroke-width="${3.4 * sc}"/>`;
+}
+
+function chestRoundel() {
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${CELL}" height="${CELL}">
+    <rect width="${CELL}" height="${CELL}" fill="#24402f"/>
+    <circle cx="128" cy="112" r="62" fill="none" stroke="#e6e0cc" stroke-width="5"/>
+    <circle cx="128" cy="112" r="53" fill="none" stroke="#e6e0cc" stroke-width="2"/>
+    ${flagMark(128, 108, 1.05, '#e6e0cc')}
+    <text x="128" y="206" text-anchor="middle" font-family="Georgia,serif"
+          font-size="27" letter-spacing="4" fill="#e6e0cc">PINE HILLS</text>
+    <text x="128" y="232" text-anchor="middle" font-family="Helvetica,Arial"
+          font-size="15" letter-spacing="7" fill="#b9c8ad">GOLF CLUB</text>
+  </svg>`;
+}
+
+function teeFront() {
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${CELL}" height="${CELL}">
+    <rect width="${CELL}" height="${CELL}" fill="#e8e8e4"/>
+    <g stroke="#1d3326" stroke-width="7" stroke-linecap="round" fill="none">
+      <path d="M70,182 L150,74"/><path d="M186,182 L106,74"/>
+      <path d="M64,186 q10,12 22,4" /><path d="M192,186 q-10,12 -22,4"/>
+    </g>
+    <circle cx="128" cy="60" r="11" fill="#1d3326"/>
+    <text x="128" y="216" text-anchor="middle" font-family="Georgia,serif"
+          font-size="26" letter-spacing="3" fill="#1d3326">PINE HILLS</text>
+    <text x="128" y="240" text-anchor="middle" font-family="Helvetica,Arial"
+          font-size="13" letter-spacing="6" fill="#4d6a55">EST. 1962</text>
+  </svg>`;
+}
+
+function sleeveBadge() {
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${CELL}" height="${CELL}">
+    <rect width="${CELL}" height="${CELL}" fill="#1b2c46"/>
+    <rect x="26" y="52" width="204" height="152" rx="16" fill="none"
+          stroke="#d9c88a" stroke-width="5"/>
+    ${flagMark(128, 116, 1.25, '#d9c88a')}
+    <text x="128" y="188" text-anchor="middle" font-family="Georgia,serif"
+          font-size="24" letter-spacing="5" fill="#d9c88a">P H</text>
+  </svg>`;
+}
+
+function capMonogram() {
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${CELL}" height="${CELL}">
+    <rect width="${CELL}" height="${CELL}" fill="#5c2230"/>
+    <text x="128" y="150" text-anchor="middle" font-family="Georgia,serif"
+          font-size="96" font-weight="bold" letter-spacing="2"
+          fill="#efe6d2">PH</text>
+    <path d="M52,176 L204,176" stroke="#efe6d2" stroke-width="4"/>
+    <text x="128" y="208" text-anchor="middle" font-family="Helvetica,Arial"
+          font-size="16" letter-spacing="6" fill="#efe6d2">PINE HILLS</text>
+  </svg>`;
+}
+
+function ribbing() {
+  const bars = Array.from({ length: 32 }, (_, i) =>
+    `<rect x="${i * 8}" y="0" width="4" height="${CELL}" fill="#000"
+           opacity="${i % 2 ? 0.10 : 0.18}"/>`).join('');
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${CELL}" height="${CELL}">
+    <rect width="${CELL}" height="${CELL}" fill="#3a4a5e"/>${bars}</svg>`;
+}
+
+// ---------------------------------------------------------------------------
 const composite = [];
-for (let i = 0; i < CELLS.length; i++) {
-  const buf = await knit(CELL, CELL, CELLS[i].rgb, i + 1);
+let idx = 0;
+const names = [];
+async function place(buf, name) {
   composite.push({
     input: buf,
-    left: (i % COLS) * CELL,
-    top: Math.floor(i / COLS) * CELL,
+    left: (idx % COLS) * CELL,
+    top: Math.floor(idx / COLS) * CELL,
   });
+  names.push(`${idx}:${name}`);
+  idx++;
 }
+
+for (let i = 0; i < 12; i++) {
+  await place(await knit(CELL, CELL, WAY[i][1], i + 1), WAY[i][0]);
+}
+for (let i = 0; i < 6; i++) {
+  await place(await knit(CELL, CELL, WAY[i][2], 40 + i), `${WAY[i][0]}-dark`);
+}
+await place(await sharp(Buffer.from(chestRoundel())).png().toBuffer(), 'chest');
+await place(await sharp(Buffer.from(teeFront())).png().toBuffer(), 'teefront');
+await place(await sharp(Buffer.from(sleeveBadge())).png().toBuffer(), 'badge');
+await place(await sharp(Buffer.from(capMonogram())).png().toBuffer(), 'capmono');
+await place(await sharp(Buffer.from(ribbing())).png().toBuffer(), 'ribbing');
+await place(await knit(CELL, CELL, [236, 236, 232], 99), 'trim');
 
 const out = path.join(OUT, 'apparel_atlas.png');
 await sharp({
@@ -85,5 +179,5 @@ await sharp({
             background: { r: 0, g: 0, b: 0 } },
 }).composite(composite).png().toFile(out);
 
-console.log(`${out}  ${COLS * CELL}x${ROWS * CELL}  ${CELLS.length} cells: `
-  + CELLS.map((c) => c.name).join(', '));
+console.log(`${out}  ${COLS * CELL}x${ROWS * CELL}  ${idx} cells`);
+console.log(names.join('  '));
