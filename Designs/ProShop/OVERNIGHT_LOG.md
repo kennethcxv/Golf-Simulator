@@ -351,10 +351,24 @@ photograph.
    to their grip. The hose is not a candidate at all: theirs is a coiled hose,
    mine is a nozzle.
 
-3. **Sockets.** Only 5 of 39 carry any: `bunker_rake`, `divot_bucket`,
-   `divot_fork`, `hose_nozzle`, `pressure_wand`. The mower and the spreader are
-   two-handed pushed equipment with NONE, which the brief asked for by name.
-   The bare-handed tools correctly have none.
+3. **Sockets -- and A CORRECTION TO MY OWN FINDING.** Five assets carry
+   `SOCKET_GripPrimary`: `bunker_rake`, `divot_bucket`, `divot_fork`,
+   `hose_nozzle`, `pressure_wand`. I first wrote that the mower and the
+   spreader were missing theirs and that the brief had asked for them by name.
+   That is WRONG, and the builders say so in their own first line: "OUTDOOR
+   TOOL -- THE GREENS MOWER. Pushed, not held, so no grip sockets." They carry
+   a NAMED ROOT instead -- `Tool_greens_mower`, `Tool_rotary_spreader` -- and
+   `H.verify_sockets` checks for it on every build.
+
+   My audit script only matched names beginning `SOCKET_`, so it reported the
+   roots as absent sockets and I read that as a gap. The same blind spot hid
+   `Fixture_rack_low/standard/tall` and `Merch_apparel/carded/drinks/
+   golf_balls/headwear`, which are all correctly anchored too.
+
+   An instrument that only recognises one of the two conventions in the
+   codebase will report the other one as missing every time. Nothing was
+   wrong with the assets; the check was too narrow, and I nearly "fixed"
+   two assets that were already right.
 
 4. **Decide the apparel atlas question** before wiring any garment -- ten GLBs
    carrying 12.6 MB of the same image between them.
