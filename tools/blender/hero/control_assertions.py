@@ -221,6 +221,45 @@ if used != {mat}:
 print(f"  ok    every face of the punched part resolves to {mat.name}")
 
 print()
+print("=" * 78)
+print("PART 7 - the folded stack: leaves that lace through each other")
+print("=" * 78)
+# The whole point of folded_stack is that the leaves are SEPARATE closed
+# shells with air between them. Two ways that can go wrong and both have to be
+# caught: leaves driven through each other, and leaves floating apart. The
+# second one is not hypothetical -- the first build of it failed exactly that
+# way with "leaf0 touches nothing".
+import cloth_lib as CL  # noqa: E402
+
+for gap_mm, want_fail, why in ((0.9, False, "0.9 mm apart: a stack, in contact"),
+                               (-4.0, True, "-4 mm: leaves laced through"),
+                               (9.0, True, "9 mm apart: leaves floating")):
+    H.reset_scene()
+    parts = CL.folded_stack("Ctl", (0, 0, 0), (0.300, 0.230, 0.048),
+                            leaves=4, gap=gap_mm / 1000.0, seed=0.3)
+    expect(f"folded_stack at gap {gap_mm:+.1f} mm -- {why}", want_fail,
+           lambda p=parts: CL.assert_leaves_clear(p, "control: the stack"))
+
+H.reset_scene()
+parts = CL.folded_stack("CtlShell", (0, 0, 0), (0.300, 0.230, 0.048),
+                        leaves=4, seed=0.3)
+shells = {n: HS.shells(o) for n, o in parts.items()}
+bad = {n: s for n, s in shells.items() if len(s) != 1}
+print(f"  every leaf is one closed shell: "
+      f"{ {n: len(s) for n, s in shells.items()} }")
+if bad:
+    WRONG.append(f"a leaf came out in pieces: {bad}")
+closed = {n: HS.is_closed(o) for n, o in parts.items()}
+print(f"  every leaf is watertight: {closed}")
+if not all(closed.values()):
+    WRONG.append("a leaf is not a closed surface, so no parity test on the "
+                 "stack means anything")
+
+expect("assert_leaves_clear on parts with no leaves -- must refuse, not pass",
+       True,
+       lambda: CL.assert_leaves_clear({"body": parts["leaf0"]}, "control: empty"))
+
+print()
 if WRONG:
     raise SystemExit("CONTROL FAILED: " + "; ".join(WRONG))
 print("CONTROL PASSED — every new assertion has now been watched failing on the "

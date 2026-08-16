@@ -349,32 +349,45 @@ def build_hung(p, way):
 FOLD = (0.3080, 0.2360, 0.0450)
 
 
+LEAVES = 4
+
+
 def build_folded(p, way):
     w, d, h = FOLD
-    p["body"] = CL.folded("PoloFold_Body", (0, 0, 0), FOLD, leaves=4,
-                          sag=0.0032, crease=0.0038, seed=0.7)
+    p.update(CL.folded_stack("PoloFold", (0, 0, 0), FOLD, leaves=LEAVES,
+                             sag=0.0032, crease=0.0038, seed=0.7, wander=1.7))
+    # Everything that sits ON the garment measures off the TOP leaf. The stack
+    # is separate objects now, so there is no single "body" to ask.
+    body = p[f"leaf{LEAVES - 1}"]
 
     # the two sleeve folds, as ridges under the top leaf
     for k, sx in ((0, -1.0), (1, 1.0)):
         x = sx * w * 0.298
-        z = CL.top_z(p["body"], x, 0.0)
+        z = CL.top_z(body, x, 0.0)
         p[f"sleeve_fold{k}"] = CL.fold_line(
-            f"PoloFold_Sleeve{k}", (x, -d * 0.40, z - 0.0020),
-            (x + sx * 0.0060, d * 0.40, z - 0.0026), 0.0062, sides=9)
+            f"PoloFold_Sleeve{k}", (x, -d * 0.40, z - 0.0008),
+            (x + sx * 0.0060, d * 0.40, z - 0.0014), 0.0062, sides=9)
 
     # THE COLLAR, splayed flat with its points on the body
-    cz = CL.top_z(p["body"], 0.0, d * 0.30)
+    cz = CL.top_z(body, 0.0, d * 0.30)
+    # lift was 16.5 mm, which stood the whole band up off the shirt and was
+    # most of why it read as a handle. A collar pressed under three more
+    # garments is a few millimetres proud, no more, and 6.4 mm of thickness on
+    # a doubled knit band was about twice life.
     p["collar"] = CL.collar_flat("PoloFold_Collar", (0.0, d * 0.300, cz),
                                  halfw=0.0570, back=0.0300, forward=0.0330,
-                                 spread=1.66, reach=0.0330, thick=0.0064,
-                                 lift=0.0165, sides=35, rows=7)
+                                 spread=1.66, reach=0.0430, thick=0.0034,
+                                 lift=0.0062, sides=41, rows=8)
 
-    # the placket running down out of the collar's V, with its two buttons
-    top = CL.top_z(p["body"], 0.0, d * 0.16)
-    path = [Vector((0.0, d * 0.16 - 0.0148 * k, top + 0.0016 - 0.0002 * k))
+    # The placket runs OUT OF THE COLLAR'S V, with its two buttons. It used to
+    # start 52 mm forward of the notch, so it read as a luggage tag lying on
+    # the shirt rather than the opening the collar sits on either side of. It
+    # starts under the collar now and its top end is hidden by it.
+    top = CL.top_z(body, 0.0, d * 0.16)
+    path = [Vector((0.0, 0.0800 - 0.0214 * k, top + 0.0012 - 0.0002 * k))
             for k in range(8)]
-    p["placket"] = CL.strip("PoloFold_Placket", path, 0.0165, 0.0024, sides=8)
-    for k, t in enumerate((0.14, 0.55)):
+    p["placket"] = CL.strip("PoloFold_Placket", path, 0.0158, 0.0016, sides=8)
+    for k, t in enumerate((0.24, 0.52)):
         q = path[0].lerp(path[-1], t)
         p[f"button{k}"] = CL.stud(f"PoloFold_Button{k}",
                                   q + Vector((0, 0, 0.0012)),
@@ -388,26 +401,67 @@ def build_folded(p, way):
     # the air, so it rendered as a bag handle looped over the corner. It is a
     # band lying ON the cloth: down the front face, across the top, down the
     # back face, and it follows the garment's own surface the whole way.
+    # THE BAND MUST LIE ON THE CLOTH, and the first two attempts had it
+    # bridging: the top run was sampled off the garment but the wrap jumped
+    # straight to a fixed height at y = +/-d/2, so where the leaf rolls away
+    # under it the band carried on flat and stood off in the air. It read as a
+    # plastic strap over the top rather than a paper band round it.
+    #
+    # So the top run is sampled across the part of the leaf that HAS a top
+    # surface, and the turn down each face starts from wherever that run
+    # actually ended.
     bx = w * 0.320
-    band, nrms = [], []
-    NB = 22
-    for i in range(NB):
-        t = i / (NB - 1.0)
-        if t < 0.16:                       # up the front face
-            k = t / 0.16
-            band.append(Vector((bx, -d * 0.5 - 0.0012, h * (0.30 + 0.70 * k))))
-            nrms.append(Vector((0.0, -1.0, 0.25)).normalized())
-        elif t < 0.84:                     # across the top, on the cloth
-            k = (t - 0.16) / 0.68
-            y = -d * 0.5 + d * k
-            band.append(Vector((bx, y, CL.top_z(p["body"], bx, y) + 0.0011)))
-            nrms.append(Vector((0.0, 0.0, 1.0)))
-        else:                              # down the back face
-            k = (t - 0.84) / 0.16
-            band.append(Vector((bx, d * 0.5 + 0.0012, h * (1.0 - 0.70 * k))))
-            nrms.append(Vector((0.0, 1.0, 0.25)).normalized())
+    NTOP = 16
+    ys = [-d * 0.42 + (d * 0.84) * (i / (NTOP - 1.0)) for i in range(NTOP)]
+    zs = [CL.top_z(body, bx, y) + 0.0006 for y in ys]
+    # top_z answers with the NEAREST VERTEX, so walking a straight line across
+    # a polar grid the answer can jump a ring and bite a step out of the band's
+    # edge. One pass takes the step out; more than that flattens the very
+    # conformance this is for.
+    for i in range(1, NTOP - 1):
+        zs[i] = (zs[i - 1] + 2.0 * zs[i] + zs[i + 1]) * 0.25
+
+    # The turn down each face has to clear the WIDEST leaf at this x, not a
+    # nominal d/2 -- each leaf wanders by the better part of a centimetre and
+    # the band was cutting through two of them.
+    leaves = [p[f"leaf{i}"] for i in range(LEAVES)]
+    y_front = CL.edge_y(leaves, bx, -1.0) - 0.0018
+    y_back = CL.edge_y(leaves, bx, +1.0) + 0.0018
+
+    # AN EXPLICIT L, not a blended curve. Easing y and z together sent the band
+    # diagonally across the corner, and a diagonal there passes straight
+    # through the second leaf -- which is what bit that notch out of it. Paper
+    # goes out flat to past the widest ply and only then turns down, so the
+    # band stays at the top height until it is clear of everything and drops
+    # vertically after that. Nothing has to be tuned for it to miss.
+    def wrap(y_face, y_top, z_top, sign):
+        return [Vector((bx, y_face, h * 0.30)),
+                Vector((bx, y_face, h * 0.70)),
+                Vector((bx, y_face, z_top - 0.0035)),
+                Vector((bx, y_face - sign * 0.0055, z_top + 0.0008)),
+                Vector((bx, y_top, z_top))]
+
+    band = list(wrap(y_front, ys[0], zs[0], -1.0))
+    band += [Vector((bx, y, z)) for y, z in zip(ys, zs)][1:-1]
+    back = wrap(y_back, ys[-1], zs[-1], +1.0)
+    back.reverse()
+    band += back
+    # THE NORMAL COMES OFF THE PATH, not off a guess about which face we are
+    # on. Handing the turn a flat (0, 1, 0) put the normal 43 degrees from the
+    # tangent -- the band is turning down and running backwards at the same
+    # time -- and `framed_sweep`'s frame all but collapsed, so the band came
+    # out with a twist in it at the corner. This is the SAME fault as the hung
+    # polo's hem band at its two side turns, and it is on record there.
+    # The path is planar in x, so the in-plane perpendicular is exact.
+    nrms = []
+    for i in range(len(band)):
+        tan = band[min(i + 1, len(band) - 1)] - band[max(i - 1, 0)]
+        if tan.length < 1e-9:
+            tan = Vector((0.0, 1.0, 0.0))
+        tan.normalize()
+        nrms.append(Vector((0.0, -tan.z, tan.y)).normalized())
     p["size_band"] = CL.framed_sweep("PoloFold_Band", band, nrms,
-                                     0.0190, 0.0009, sides=6, square=0.88)
+                                     0.0132, 0.0007, sides=6, square=0.88)
     return p
 
 
@@ -433,8 +487,13 @@ def cell_for(part, way):
         return TRIM_CELL
     if n.startswith("button"):
         return TRIM_CELL
-    if (n.startswith("cuff")
-            or n == "collar" or n.startswith("placket")):
+    # A POLO'S COLLAR AND PLACKET ARE SELF-FABRIC. Putting them on the trim
+    # cell made both a good bit darker than the body, so the collar read as a
+    # dark bib applied to the shirt and the placket as a tag lying on it --
+    # both of them separate objects rather than parts of one garment. Every
+    # polo in polo-rail-shop.jpg has its collar in the body colour. The ribbed
+    # cuffs keep the trim cell; on those the contrast is real.
+    if n.startswith("cuff"):
         return trim
     return base
 
@@ -470,13 +529,16 @@ DEEP = {
     + [(f"seam{k}", "hem") for k in ("L", "R")]
     + [("placket", "collar"), ("placket", "button0"), ("placket", "button1"),
        ("collar", "button0"), ("placket", "collar_stitch")],
-    "folded": [("body", "collar"), ("body", "placket"), ("body", "size_band"),
-               ("body", "sleeve_fold0"), ("body", "sleeve_fold1"),
-               ("collar", "placket"), ("placket", "button0"),
-               ("placket", "button1"), ("body", "button0"),
-               ("body", "button1"), ("collar", "sleeve_fold0"),
-               ("collar", "sleeve_fold1"), ("body", "sleeve_fold0"),
-               ("size_band", "sleeve_fold1"), ("size_band", "sleeve_fold0")],
+    # NOTE what is NOT here: no (leafI, leafJ) pair. The leaves are the whole
+    # point of the rebuild and they have to stand clear of each other with air
+    # between them, so if two of them touch this check is meant to fail.
+    "folded": [("collar", "placket"), ("placket", "button0"),
+               ("placket", "button1"), ("collar", "sleeve_fold0"),
+               ("collar", "sleeve_fold1"),
+               ("size_band", "sleeve_fold1"), ("size_band", "sleeve_fold0")]
+    + [(f"leaf{i}", o) for i in range(LEAVES)
+       for o in ("collar", "placket", "size_band", "button0", "button1",
+                 "sleeve_fold0", "sleeve_fold1")],
 }
 
 STATES = {"hung": build_hung, "folded": build_folded}
@@ -487,6 +549,10 @@ def check(name, parts):
             if hasattr(v, "data") and getattr(v.data, "vertices", None)}
     HS.assert_all_one_piece(mesh, f"polo-{name}: every part is one piece")
     HS.assert_assembly(mesh, f"polo-{name}: the assembly", allow=DEEP[name])
+    if name == "folded":
+        # the general ceiling is 6 mm and these plies are 9.9 mm thick, so it
+        # cannot see a leaf laced halfway through its neighbour
+        CL.assert_leaves_clear(mesh, f"polo-{name}: the leaves stand clear")
 
 
 def main():

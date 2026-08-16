@@ -90,8 +90,213 @@ def grid_surface(name, fn, nu=21, nv=17, smooth=True):
 # the folded garment
 
 
-def folded(name, centre, size, leaves=3, sag=0.0026, crease=0.0018,
-           squareness=7.5, steps=64, seed=0.0):
+def folded_stack(prefix, centre, size, leaves=3, sag=0.0026, crease=0.0018,
+                 squareness=7.5, steps=40, seed=0.0, gap=0.0009,
+                 rollw=None, stagger=0.0026, wander=1.0):
+    """A folded garment: a stack of SEPARATE leaves, one closed shell each.
+
+    The version this replaces was a single loft whose rings stepped out and
+    back in at each leaf boundary. A step is not a layer. It has no thickness
+    of its own, nothing behind it to cast into, and no edge you could pinch, so
+    however much the top face was dished and creased the object stayed a
+    moulded lid -- and four garments were parked on that one fault.
+
+    `polo-rail-shop.jpg` says what a folded garment actually reads by, and it
+    is not the top face: it is the EDGES. Every ply ends in a soft roll that
+    takes a highlight along its crest, and under each roll is a dark slot where
+    the next ply starts. Highlight, slot, highlight, slot, four times up the
+    front. You cannot get a slot out of one surface -- it needs two surfaces
+    with air between them.
+
+    So each leaf is its own closed shell here: a flat plate whose whole
+    perimeter turns over in a half-round roll of absolute width `rollw`, with
+    `gap` of air above it. Same move that took the cap's crown from a dome to
+    six panels.
+
+    `assert_all_one_piece` is per PART, not per asset -- the cap ships six
+    separate panel objects and passes it. Separate leaves were never the
+    loose-shell fault that assertion catches; reading it that way is what
+    forced the block in the first place.
+
+    In the reference no two plies line up: the front edges wander in and out by
+    the better part of a centimetre over a 300 mm garment. `wander` scales that
+    and it is most of what stops the stack reading as machined.
+
+    `gap` is deliberately under `assert_assembly`'s 1.5 mm contact tolerance:
+    plies resting on each other are a stack, plies floating apart are the loose
+    part that check exists to catch, and the first cut of this failed it with
+    "leaf0 touches nothing". The slot you see in the reference is not that gap
+    -- it is the V-shaped groove where two rolls turn away from the contact
+    plane, and it opens to a full leaf thickness at the rim on its own.
+
+    Returns {"leaf0": obj, ...}, bottom leaf first.
+    """
+    cx, cy, cz = centre
+    w, d, h = size
+    exp = 2.0 / squareness
+    th = (h - gap * (leaves - 1)) / float(leaves)
+    half = th * 0.5
+    # THE ROLL IS WIDER THAN THE PLY IS THICK, and that ratio is the whole
+    # difference between cloth and an air mattress. Turning the edge over
+    # through a true half-round -- roll radius equal to half the thickness --
+    # gives every ply a uniform sausage all the way round, and the first render
+    # of this came out as a stack of inflatable cushions. Cloth has no
+    # stiffness to hold a tube: it tapers away over two or three times its own
+    # thickness and then turns. Vertical stays at `half`, horizontal runs out
+    # to `rollw`, so the edge is a flattened ellipse rather than a circle.
+    if rollw is None:
+        rollw = half * 2.25
+    if rollw >= min(w, d) * 0.30:
+        raise SystemExit(
+            f"BUILD FAILED: folded_stack {prefix}: a {rollw * 1000:.1f} mm "
+            f"edge roll leaves no flat on a {w * 1000:.0f} x {d * 1000:.0f} mm "
+            f"leaf")
+
+    # top pole, three flat rings, the roll down to the rim, the roll back
+    # under, one coarse ring underneath, bottom pole. The underside is coarse
+    # on purpose: it is never seen on any leaf but the bottom one, and the
+    # roll is where every triangle earns its place.
+    # The top sheet needs enough RADIAL rings to carry a crease. The first cut
+    # had three, so the whole top face of the garment was four samples across
+    # 300 mm and a 3.8 mm crease with two cycles in it could not be represented
+    # at all -- the render came back with a glassy top and I would have gone
+    # looking for the crease amplitude, which was never the problem.
+    #
+    # Only the TOP leaf's top sheet is ever seen: every leaf below it is
+    # covered to within one roll width of its own rim, and no leaf's underside
+    # shows at all bar the bottom one's. So the density goes where the pixels
+    # are and the rest stay coarse, which pays for itself twice over.
+    NR = 3
+    DENSE = (0.18, 0.34, 0.48, 0.61, 0.72, 0.82, 0.91, 1.0)
+    COARSE = (0.55, 0.85, 1.0)
+
+    def profile(dense):
+        pr = [("pole", 1.0)]
+        pr += [("flat", f, 1.0) for f in (DENSE if dense else COARSE)]
+        pr += [("roll", (s / NR) * (math.pi * 0.5), 1.0)
+               for s in range(1, NR + 1)]
+        pr += [("roll", (s / NR) * (math.pi * 0.5), -1.0)
+               for s in range(NR - 1, -1, -1)]
+        pr += [("flat", 0.62, -1.0), ("pole", -1.0)]
+        return pr
+
+    out = {}
+    for k in range(leaves):
+        ph = seed + k * 2.3999632          # golden angle: no two leaves agree
+        z0 = cz + k * (th + gap) + half
+        # each leaf is its own cut of cloth, its own size, sat a little further
+        # back and turned a degree or so off the one below it
+        sx = 1.0 - 0.013 * k + 0.011 * math.sin(ph * 1.7)
+        sy = 1.0 - 0.009 * k + 0.013 * math.sin(ph * 2.3 + 1.1)
+        ox = 0.0021 * math.sin(ph * 3.1)
+        oy = stagger * k + 0.0024 * math.sin(ph * 1.3 + 2.0)
+        rot = math.radians(1.7 * math.sin(ph * 0.9 + 0.4))
+        cr, sr = math.cos(rot), math.sin(rot)
+        top_leaf = (k == leaves - 1)
+        prof = profile(top_leaf)
+
+        # each leaf holds its corners a little differently
+        ex = exp * (1.0 + 0.11 * math.sin(ph * 1.4))
+
+        def boundary(a, _sx=sx, _sy=sy, _ph=ph, _ex=ex):
+            ca, sa = math.cos(a), math.sin(a)
+            wob = (1.0 + wander * (0.019 * math.sin(a * 2.0 + _ph)
+                                   + 0.012 * math.sin(a * 5.0 - _ph * 1.7)
+                                   + 0.008 * math.sin(a * 3.0 + _ph * 2.6)))
+            return (math.copysign(abs(ca) ** _ex, ca) * w * 0.5 * _sx * wob,
+                    math.copysign(abs(sa) ** _ex, sa) * d * 0.5 * _sy * wob)
+
+        def rollat(a, _ph=ph):
+            """A fold is not the same tightness the whole way round it."""
+            return rollw * (1.0 + 0.34 * math.sin(a * 2.0 + _ph * 1.9)
+                            + 0.19 * math.sin(a * 3.0 - _ph))
+
+        verts, faces = [], []
+        rings = []
+        for entry in prof:
+            if entry[0] == "pole":
+                rings.append(("pole", len(verts), entry[1]))
+                verts.append(Vector((cx + ox, cy + oy, z0 + half * entry[1])))
+                continue
+            start = len(verts)
+            for i in range(steps):
+                a = 2 * math.pi * i / steps
+                bx, by = boundary(a)
+                m = math.hypot(bx, by) or 1e-9
+                rw = rollat(a)
+                if entry[0] == "flat":
+                    # a fraction of the outline pulled in by one roll width
+                    s = max(0.0, 1.0 - rw / m) * entry[1]
+                    zf = entry[2]
+                else:
+                    # the roll: inset runs out as the surface turns over, so
+                    # the crest is the true outline and the width of the turn
+                    # is an absolute distance instead of scaling with the
+                    # radius the way a fractional inset would
+                    theta = entry[1]
+                    s = max(0.0, 1.0 - (rw * (1.0 - math.sin(theta))) / m)
+                    zf = entry[2] * math.cos(theta)
+                x, y = bx * s, by * s
+                xr, yr = x * cr - y * sr, x * sr + y * cr
+                px, py = cx + ox + xr, cy + oy + yr
+                u = xr / (w * 0.5)
+                q = yr / (d * 0.5)
+                # LEAF k's TOP SHEET AND LEAF k+1's BOTTOM SHEET MUST MOVE
+                # TOGETHER. Every leaf's lowest point sits exactly `gap` above
+                # the one below's highest, so as long as any vertical
+                # displacement is the SAME field for all of them, no two leaves
+                # can meet whatever their outlines do -- non-intersection is
+                # structural rather than something a gap has to be tuned to buy.
+                # The first cut gave each leaf its own droop scale and its own
+                # crease phase, which is up to 2.9 mm of differential across a
+                # 0.9 mm gap: the leaves would have laced through each other.
+                #
+                # A stack of cloth dishes as ONE body anyway, and it rumples as
+                # one, so a shared field is also the honest shape.
+                dfac = 1.0
+                if k == 0:
+                    dfac = 0.5 + 0.5 * zf     # the bottom ply lies on a shelf
+                droop = (1.0 - min(1.0, (u * u + q * q) * 0.80)) * sag * dfac
+                rumple = crease * 0.30 * (math.sin(1.9 * u + 1.4 * q + seed)
+                                          + 0.5 * math.sin(3.3 * q - 1.1 * u
+                                                           + seed * 2)) * 0.5
+                pz = z0 + half * zf - droop + rumple
+                # The top face of the stack is the only one anybody sees, so it
+                # gets the creases the sleeves folded underneath put in it.
+                # Nothing sits above it, so this one may differ freely.
+                if top_leaf and zf > 0.0:
+                    # 2.2 rad across the whole width is 0.7 of a cycle -- a
+                    # broad swell, not a crease, and smooth-shaded it turned
+                    # the top face glassy. A crease reads by how FAST the
+                    # normal turns, so the wavelength matters more than the
+                    # amplitude does.
+                    pz -= crease * zf * 0.5 * (
+                        math.sin(4.6 * u + 2.4 * q + ph)
+                        + 0.55 * math.sin(5.4 * q - 2.6 * u + ph * 2))
+                verts.append(Vector((px, py, pz)))
+            rings.append(("ring", start, entry[-1]))
+
+        for r in range(len(rings) - 1):
+            kind0, s0, _ = rings[r]
+            kind1, s1, _ = rings[r + 1]
+            if kind0 == "pole":
+                for i in range(steps):
+                    faces.append((s0, s1 + i, s1 + (i + 1) % steps))
+            elif kind1 == "pole":
+                for i in range(steps):
+                    faces.append((s1, s0 + (i + 1) % steps, s0 + i))
+            else:
+                for i in range(steps):
+                    j = (i + 1) % steps
+                    faces.append((s0 + i, s1 + i, s1 + j, s0 + j))
+
+        out[f"leaf{k}"] = HS.mesh_from(f"{prefix}_Leaf{k}", verts, faces,
+                                       smooth=True)
+    return out
+
+
+def _folded_removed(name, centre, size, leaves=3, sag=0.0026, crease=0.0018,
+                    squareness=7.5, steps=64, seed=0.0):
     """A folded garment: leaves stacked into one closed surface.
 
     Built as a single loft whose rings step OUT and back IN at each leaf
@@ -396,21 +601,60 @@ def collar_flat(name, centre, halfw=0.052, back=0.030, forward=0.030,
 
     Built as a strip between a NECK curve and a FREE-EDGE curve, nearly flat,
     lifting slightly along the fold and settling again at the points.
+
+    THE FREE EDGE IS NOT A SMOOTH ARC. That is what made the third attempt read
+    as a handbag handle again: both edges were parabolas, so the whole collar
+    was one crescent and a crescent lying on a shirt is a strap. What tells an
+    eye "collar" is the pair of POINTS and the notch between them -- two
+    straight runs meeting at a corner, with the placket starting in the gap.
+    So the free edge's forward reach is a piecewise profile with an actual
+    corner in it at |s| = SP, and the notch at the centre is what the V is.
     """
     cx, cy, cz = centre
+    SP = 0.30                      # where the points are, across the collar
+
+    def reach_at(a):
+        """Forward reach of the free edge, as a fraction of `reach`."""
+        if a < 0.09:               # the notch: the two points nearly meet
+            return 0.26 + 0.45 * (a / 0.09)
+        if a < SP:                 # front edge of the leaf, out to the point
+            t = (a - 0.09) / (SP - 0.09)
+            return 0.71 + 0.29 * t
+        t = (a - SP) / (1.0 - SP)  # and back to the shoulder, past the corner
+        return 1.0 - 0.86 * (t ** 0.78)
+
+    # A CORNER NEEDS A VERTEX ON IT. Sampling s uniformly puts the point
+    # somewhere inside a span and rounds it off into the blob this is trying to
+    # stop being, so the breakpoints are sampled exactly and the spans between
+    # them are filled.
+    breaks = (-1.0, -SP, -0.09, 0.09, SP, 1.0)
+    per = max(2, (sides - 1) // (len(breaks) - 1) + 1)
+    svals = []
+    for lo, hi in zip(breaks[:-1], breaks[1:]):
+        for q in range(per):
+            svals.append(lo + (hi - lo) * q / per)
+    svals.append(1.0)
+    sides = len(svals)
+
     verts, faces = [], []
-    for i in range(sides):
-        s = -1.0 + 2.0 * i / (sides - 1)
+    for s in svals:
         a = abs(s)
         inner = Vector((cx + s * halfw, cy + back * (1.0 - 0.35 * s * s), cz))
         outer = Vector((cx + s * halfw * spread,
-                        cy + back - forward - reach * s * s, cz))
+                        cy + back - forward * 0.35 - reach * reach_at(a), cz))
         for r in range(rows):
             t = r / (rows - 1)
             p = inner.lerp(outer, t)
-            # the fold stands proud; the two points settle onto the shirt
-            rise = (lift * math.sin(math.pi * min(1.0, t * 1.05)) ** 0.75
-                    * (1.0 - 0.62 * a ** 1.7))
+            # The band folds over: a crest partway across, then the fall to the
+            # free edge, which settles onto the shirt at the points.
+            crest = math.sin(math.pi * min(1.0, t * 0.92)) ** 0.62
+            rise = lift * crest * (1.0 - 0.55 * a ** 1.6)
+            # the free edge lifts off the cloth a little between the points --
+            # a collar never lies perfectly down, and the shadow under it is
+            # most of what separates it from a printed shape
+            if t > 0.72:
+                rise += lift * 0.30 * ((t - 0.72) / 0.28) ** 1.4 * max(
+                    0.0, 1.0 - (a / 0.55) ** 2)
             p.z = cz + rise
             verts.append(p)
     for i in range(sides - 1):
@@ -423,6 +667,49 @@ def collar_flat(name, centre, halfw=0.052, back=0.030, forward=0.030,
     mod.offset = -0.4
     mod.use_rim = True
     return HS.apply_mods(obj)
+
+
+def assert_leaves_clear(parts, label, tol=0.0006):
+    """Leaves may TOUCH. They may not lace through one another.
+
+    THE GENERAL ASSEMBLY CHECK DOES NOT COVER THIS and the control is what
+    found it: driven 4 mm into each other the leaves sailed through, because
+    the shared ceiling is MAX_SEAT_DEPTH at 6 mm and these plies are only
+    9.9 mm thick. Six millimetres of overlap is most of a ply -- for this one
+    part the general limit is meaningless, so it gets its own.
+    """
+    leaves = {k: v for k, v in parts.items() if k.startswith("leaf")}
+    if len(leaves) < 2:
+        raise SystemExit(
+            f"BUILD FAILED: {label} -- found {len(leaves)} parts named leafN, "
+            f"so this check measured nothing. Renaming the leaves must not be "
+            f"a way to switch it off.")
+    HS.assert_assembly(leaves, label, max_depth=tol)
+
+
+def edge_y(objs, x, sign, window=0.020):
+    """The extreme y of a set of parts near a given x -- MEASURED.
+
+    A band wrapped round a stack has to clear the widest thing in it, and the
+    widest thing is whichever leaf's wander happened to bulge there. Guessing
+    the face is at +/-d/2 put the polo's size band through two leaves at once,
+    and it looked like a bracket clipped over the front edge with cloth coming
+    through it. The pair was in the allow list, so nothing measured it either.
+    """
+    best = None
+    for ob in objs:
+        mw = ob.matrix_world
+        for v in ob.data.vertices:
+            q = mw @ v.co
+            if abs(q.x - x) > window:
+                continue
+            if best is None or (q.y * sign) > (best * sign):
+                best = q.y
+    if best is None:
+        raise SystemExit(
+            f"BUILD FAILED: edge_y found no geometry within "
+            f"{window * 1000:.0f} mm of x={x:+.4f}")
+    return best
 
 
 def strip(name, path, halfw, halfh, sides=12):
