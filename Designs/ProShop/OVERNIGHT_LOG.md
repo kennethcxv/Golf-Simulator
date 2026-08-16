@@ -225,6 +225,29 @@ the measured depth plus a millimetre, the same way the eight overnight seats
 were. Nothing had noticed because a failing builder in EEVEE still writes its
 renders before the assertion runs -- and nothing exports in EEVEE anyway.
 
+### 5. THE HALF OF THE DELTA TABLE I CAN GIVE, AND WHAT IT SAYS
+
+Read straight out of the GLB headers, so it is the shipped file rather than the
+builder's own count. Draws and programs need the asset in the game; triangles
+and texture bytes do not.
+
+**39 assets, 132,748 triangles, 14.7 MB of texture.**
+
+And the texture number is the finding: **12.6 MB of that 14.7 MB is ONE image,
+the apparel atlas, embedded separately in all ten apparel GLBs.** Between 1,081
+and 1,386 KB apiece, ten times over. Every other asset in the set is either
+untextured or carries well under 200 KB.
+
+The atlas was designed so a colourway never costs a program, and it does that
+job -- but each GLB carries its own copy of it, so unless the loader dedupes by
+content the ten of them are ten uploads of the same pixels. That is a decision
+to take before wiring the apparel, not after, and it is the sort of thing that
+does not show up until the memory number moves.
+
+A CORRECTION TO MY OWN NUMBER: the divot fork's commit message says 1,024
+triangles. The exported GLB is 560. The 1,024 was read off a build print rather
+than the file, and the file is what ships.
+
 ### WHAT THIS MEANS FOR THE DELTAS
 
 **Still zero deltas against the parallel session's 193 programs and 1,443
