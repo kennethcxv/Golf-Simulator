@@ -12667,6 +12667,28 @@ export function makeCourseScene(canvas, state) {
     // arrivals and measured NO change — they are not frame-coverage misses.
     // Their key diff still points at the light-count block; naming the exact
     // differing VALUES against a real entry's keys is the next instrument.)
+    // That instrument: record the light state this draw actually compiles
+    // under — visibility chain AND layers vs this camera, both of which gate
+    // the renderer's light count — for electron-editor-light-diff.js to diff
+    // against a real entry's settled state.
+    {
+      const warmLightState = [];
+      scene.traverse((o) => {
+        if (!o.isLight || o.isAmbientLight) return;
+        let vis = o.visible;
+        let p = o.parent;
+        while (vis && p) { vis = p.visible; p = p.parent; }
+        warmLightState.push({
+          t: o.type,
+          n: o.name || '',
+          s: !!o.castShadow,
+          i: +(+o.intensity).toFixed(2),
+          visChain: vis,
+          layerOk: o.layers.test(camera.layers),
+        });
+      });
+      if (typeof window !== 'undefined') window.__fwPrewarmEditorLightState = warmLightState;
+    }
     timedWarmDraw(() => withWarmViewport(() => {
       try { composer.render(); } catch (e) { renderer.render(scene, camera); }
     }));
@@ -12967,6 +12989,13 @@ export function makeCourseScene(canvas, state) {
     setBallVisual,
     setAimArc,
     setLightingOverride,
+    // Editor entry snaps the camera in one turn, but the clubhouse gates
+    // (interior draw-distance, lamp render budget, prop visibility) next
+    // settle inside the game loop — and entry's stretched first frames draw
+    // light states that exist only mid-entry, compiling one-off programs
+    // (measured 4→3→0 point lights across ~400 ms). This lets entry settle
+    // the gates in the same turn as the snap.
+    settleClubhouseCameraVisibility: () => clubhouseApi?.syncCameraVisibility?.() ?? null,
     frameCourse,
     frameHole,
     flyoverHole,

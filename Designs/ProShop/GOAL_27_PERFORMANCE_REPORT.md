@@ -330,6 +330,47 @@ cacheKeys, enter the editor, diff, nearest-twin field analysis. Findings:
   outlier amplified is 60% smaller. Entry-time re-measure queued for the
   rested machine.
 
+### The residual 11, ROOT-CAUSED AND STRUCTURALLY FIXED (16:48–17:40)
+
+The "state the live loop settles" explanation above was half right, and the
+half that was wrong hid the fix. Two new instruments closed it:
+
+- `tools/qa/electron-editor-light-diff.js` — the prewarm's editor warm draw
+  records the exact light state it compiles under (visibility chain AND
+  camera-layers, both of which gate three's light counts); a real entry's
+  settled state is enumerated the same way. **Verdict: IDENTICAL** — both
+  are 1 sun + 1 hemisphere, same 13 gated-out lamps. The residual programs
+  were never about the settled state at all.
+- `tools/qa/electron-editor-entry-transient.js` — every rAF through the
+  entry window: program count, per-type light tally, interior visibility.
+  **The transient caught red-handed:** pre-entry walking shows 4 PointLights
+  (the lamp render budget near the player); entry snaps the camera in one
+  turn but the clubhouse gates (interior draw-distance, per-lamp budget,
+  prop visibility) settle across the next few frames INSIDE the game loop —
+  and those first frames, already stretched by compiles, drew **3 point
+  lights with the interior still visible** (a state that exists for ~140 ms,
+  once) then settled at 0. The "4 vs 3" in every residual key was
+  numPointLights across THIS transient, not any state a warm could match —
+  which is exactly why re-syncing "flipped different lights": every entry
+  path through the gate system compiles its own one-frame states.
+
+**The fix is sequencing, not warming**: `courseEditor.show()` now calls the
+scene's `settleClubhouseCameraVisibility()` in the same turn as the camera
+snap, so the first drawn editor frame IS the settled state.
+**Measured (same tier, same machine, warm-skipped boots both sides):
+arrivals 28 → 19; transient light states 3 → 0** — the first sampled
+post-entry frame reads settled (1 dir + 1 hemi, interior hidden). The
+eliminated 9 were the one-frame-only class; the surviving 19 are
+settled-state programs the pre-veil editor warm compiles whenever the
+stall bailout has not skipped it (on these degraded boots it fires, so the
+warm's share re-appears in the diff; on a healthy boot the residual should
+now approach zero — that verification rides the same remedy-gated watch).
+Because entry is a hard camera cut, the old behaviour was a visible defect
+too: the interior LINGERED 1–3 stretched frames after the cut. Clip
+recorded and VIEWED: `qa/clips/g27-editor-entry` — frame-0421.png (42.0 s)
+is the porch, frame-0422.png (42.1 s) is the complete editor overhead, no
+lingering interior, no bare-shell flash between them (tiles-15).
+
 ## The page turn, MEASURED AT LAST — and the 55 ms floor was stale
 
 The item the goal called never-measured now is:

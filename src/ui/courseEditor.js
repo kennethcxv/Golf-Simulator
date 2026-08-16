@@ -3980,6 +3980,12 @@ export function makeCourseEditor(app, hooks) {
     const restoredHole = holesOf().find((h) => h.id === prefs.selectedHoleId) || holesOf()[0] || null;
     selectHole(restoredHole, { frame: false });
     setCameraView(prefs.cameraView || 'frame-hole', restoredHole);
+    // The camera snapped above, but the clubhouse visibility gates would
+    // otherwise settle across the next few (entry-stretched) frames, and each
+    // intermediate light state compiles programs that exist for one frame
+    // ever. Settle them now so the first drawn editor frame is the state the
+    // prewarm already compiled for.
+    scene().settleClubhouseCameraVisibility?.();
     refreshTop();
     applyToolCursor();
     window.addEventListener('pointerdown', pdHandler, true);
