@@ -253,6 +253,39 @@ def build_skeleton(fingers, thumb):
     # thumb has something to grow out of instead of sitting on top.
     tj = thumb["joints"]
     sk.add("t_cmc", tuple(tj[0]), (0.0132, 0.0120), parent="palmT")
+    # THE THENAR EMINENCE -- the pad at the base of the thumb, and the reason
+    # the palmar hole was NOT the first web space after all.
+    #
+    # Three rounds went into the web membrane and the fourth call was that what
+    # remained was correct anatomy. Unprojecting the hole's own pixel says
+    # otherwise: the ray through it passes 19.6 mm from t_cmc and 20.5 mm from
+    # palm2 -- inside palm2's own nominal radius -- and 26 mm from t_web and
+    # t_web2, the membrane bones. The opening is PROXIMAL to the web space, in
+    # the span between the ball of the thumb and the palm, which on a real hand
+    # is the thickest flesh there is and has no opening in it at all.
+    #
+    # t_cmc sits at x = +27.5 with a 13.2 mm radius and palm1 at x = -6.0 with
+    # 17.5 mm: 33.5 mm apart with 30.7 mm of radius between them, and no edge
+    # running directly from one to the other. The skin had nothing to close.
+    # Hung off t_cmc rather than bridged to palm1, for the usual reason -- a
+    # loop in the skeleton is answered with a second closed hull.
+    # THE HOLE AND THE BULGE ARE THE SAME DIMENSION. Thinning the pad through z
+    # from 12.5 mm to 10.2 mm took the opening straight back from 924 px to
+    # 2,292 px: what closes the gap is palmar volume, and palmar volume is what
+    # shows in the palmar silhouette. There is no radius that closes it without
+    # standing proud, so the question is not how to avoid the bulge -- it is
+    # whether the bulge is right. A thenar eminence IS the proudest thing on
+    # the palm. Judged on the LIT render rather than the silhouette, which is a
+    # diagnostic and not the deliverable.
+    # TWO NODES, NOT ONE, and this file already says why a few lines down: "with
+    # joints only, the Skin modifier bulges at every one and the finger reads
+    # as a string of sausages". One fat node slung between t_cmc and palm1 is
+    # that same sausage -- it closed the hole and read as a ball stuck on the
+    # edge of the palm. Spread along the span at moderate radius it blends.
+    sk.add("thenar", (0.0168, 0.0333, -0.0024), (0.0148, 0.0120),
+           parent="t_cmc")
+    sk.add("thenar2", (0.0061, 0.0336, -0.0003), (0.0152, 0.0118),
+           parent="thenar")
     sk.add("t_mcp", tuple(tj[1]), THUMB_R[1], parent="t_cmc")
     sk.add("t_ip", tuple(tj[2]), THUMB_R[2], parent="t_mcp")
     sk.add("t_tip", tuple(tj[3]), THUMB_R[3], parent="t_ip")
@@ -422,6 +455,152 @@ def shaft_material():
 # ---------------------------------------------------------------------------
 
 
+def web_probe(hand, sk, shaft, cam_c, cam_d, lens):
+    """WHERE IS THE HOLE? Unprojected, not guessed at.
+
+    Three rounds were spent moving skeleton nodes about to close the opening in
+    the thumb web, and the fourth call was that what remained is the first web
+    space and therefore correct. That call was made by LOOKING at a render and
+    reasoning about anatomy, which is exactly how the previous three wrong
+    calls were made too. The honest version is to measure it: find the hole in
+    the silhouette, unproject its centre back through the camera, and ask which
+    landmarks the ray actually passes between.
+
+    A silhouette is black on white, so a hole is WHITE PIXELS THAT THE
+    BACKGROUND CANNOT REACH -- flood fill from the border and whatever white is
+    left over is enclosed by hand.
+    """
+    scene = bpy.context.scene
+    RES = 900
+    cam = H.camera("WebProbe", H.orbit_position(cam_c, cam_d, -90, -66),
+                   cam_c, lens=lens)
+    # BOTH, and the difference is the whole discriminator.
+    #
+    # The first cut of this rendered the hand ALONE, reasoning that the shaft
+    # in frame could mask a gap. It does the opposite: a hand gripping a pole
+    # is SUPPOSED to have a tunnel through it, and with the pole taken out that
+    # tunnel is the largest "hole" in the picture. The probe duly reported it,
+    # 0.292% of frame, as the worst opening in the hand. It is not a hole, it
+    # is where the handle goes.
+    #
+    # An opening that survives WITH the shaft present is a real hole through
+    # the hand. One that only appears without it is the grip.
+    for tag, objs in (("with-shaft", [hand, shaft]), ("hand-only", [hand])):
+        _probe_pass(sk, cam, objs, tag, RES)
+
+
+def _probe_pass(sk, cam, objs, tag, RES):
+    scene = bpy.context.scene
+    path = os.path.join(OUT_RENDER, f"hand-webprobe-{tag}{SUFFIX}.png")
+    H.silhouette(objs, cam, path, res=(RES, RES))
+
+    img = bpy.data.images.load(path)
+    px = list(img.pixels)
+    w, h = img.size
+
+    def white(i, j):
+        return px[(j * w + i) * 4] > 0.5
+
+    seen = bytearray(w * h)
+    stack = []
+    for i in range(w):
+        for j in (0, h - 1):
+            if white(i, j) and not seen[j * w + i]:
+                seen[j * w + i] = 1
+                stack.append((i, j))
+    for j in range(h):
+        for i in (0, w - 1):
+            if white(i, j) and not seen[j * w + i]:
+                seen[j * w + i] = 1
+                stack.append((i, j))
+    while stack:
+        i, j = stack.pop()
+        for di, dj in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+            a, b = i + di, j + dj
+            if 0 <= a < w and 0 <= b < h and not seen[b * w + a] and white(a, b):
+                seen[b * w + a] = 1
+                stack.append((a, b))
+
+    blobs = []
+    mark = bytearray(w * h)
+    for j in range(h):
+        for i in range(w):
+            k = j * w + i
+            if seen[k] or mark[k] or not white(i, j):
+                continue
+            comp, st = [], [(i, j)]
+            mark[k] = 1
+            while st:
+                a, b = st.pop()
+                comp.append((a, b))
+                for da, db in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+                    c, d = a + da, b + db
+                    kk = d * w + c
+                    if (0 <= c < w and 0 <= d < h and not mark[kk]
+                            and not seen[kk] and white(c, d)):
+                        mark[kk] = 1
+                        st.append((c, d))
+            blobs.append(comp)
+    bpy.data.images.remove(img)
+
+    total = w * h
+    print(f"  WEB PROBE [{tag}]: {len(blobs)} enclosed opening(s) "
+          f"({os.path.basename(path)})")
+    if not blobs:
+        print("    no hole: the palmar silhouette is solid")
+        return
+    blobs.sort(key=len, reverse=True)
+
+    # the camera ray through a pixel, from the camera's own view frame
+    old = (scene.render.resolution_x, scene.render.resolution_y)
+    scene.render.resolution_x = scene.render.resolution_y = RES
+    frame = [c / -c.z for c in cam.data.view_frame(scene=scene)]
+    scene.render.resolution_x, scene.render.resolution_y = old
+    tr, br, bl, tl = frame
+    origin = cam.matrix_world.translation
+    rot = cam.matrix_world.to_3x3()
+
+    for n, comp in enumerate(blobs[:3]):
+        cu = sum(a for a, _ in comp) / len(comp)
+        cv = sum(b for _, b in comp) / len(comp)
+        u, v = (cu + 0.5) / w, (cv + 0.5) / h
+        p_cam = bl.lerp(br, u).lerp(tl.lerp(tr, u), v)
+        d = (rot @ p_cam).normalized()
+        area = 100.0 * len(comp) / total
+        # how close does this ray run to the handle it is gripping?
+        q = SHAFT_POINT - origin
+        cross = d.cross(SHAFT_DIR)
+        if cross.length > 1e-9:
+            axis_gap = abs(q.dot(cross.normalized()))
+        else:
+            axis_gap = (q - SHAFT_DIR * q.dot(SHAFT_DIR)).length
+        tunnel = "  <-- THE GRIP TUNNEL" if axis_gap < SHAFT_RADIUS else ""
+        print(f"    opening {n}: {len(comp)} px ({area:.3f}% of frame), "
+              f"centre pixel ({cu:.0f}, {cv:.0f}), ray passes "
+              f"{axis_gap * 1000:.1f} mm from the shaft axis "
+              f"(r {SHAFT_RADIUS * 1000:.1f}){tunnel}")
+        # WHICH LANDMARKS DOES THE RAY PASS BETWEEN? Distance from the ray to
+        # each named node, nearest first. This is the whole question: a ray
+        # threading between t_mcp and k_index is the first web space; one
+        # threading between two nodes that are supposed to be skinned together
+        # is a fault.
+        near = []
+        for name, node in sk.points.items():
+            q = node["co"] - origin
+            along = q.dot(d)
+            if along <= 0.0:
+                continue
+            radial = (q - d * along).length
+            r = node["radius"]
+            r = r if isinstance(r, (int, float)) else max(r)
+            near.append((radial - r, radial, r, name, along))
+        near.sort()
+        for gap, radial, r, name, along in near[:5]:
+            print(f"      {name:9s} ray passes {radial * 1000:6.1f} mm from the "
+                  f"node centre, {gap * 1000:+6.1f} mm outside its {r * 1000:.1f} mm "
+                  f"radius, at {along * 1000:.0f} mm depth")
+
+
 def main():
     args = H.argv_after_dashes()
     engine = "CYCLES" if "cycles" in args else "EEVEE"
@@ -565,6 +744,8 @@ def main():
     hand_r = 0.5 * math.sqrt((hx[-1] - hx[0]) ** 2 + (hy[-1] - hy[0]) ** 2
                              + (hz[-1] - hz[0]) ** 2)
     hand_d = H.fit_distance(hand_r, LENS, res=(1100, 1100), margin=1.22)
+
+    web_probe(hand, sk, shaft, hand_c, hand_d, LENS)
 
     for label, az, el in (("hero", -128, 22), ("dorsal", -90, 74),
                           ("palmar", -90, -66), ("ulnar", 178, 8), ("radial", 4, 8)):
