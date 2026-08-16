@@ -997,6 +997,16 @@ export function buildProps({
       needsLiveVisualHierarchy,
       visibilityGated: entryUsesIndependentVisibility(placement.n),
     };
+    // The flags that exclude an entry from static batching (movable fixture
+    // anchor, live visual hierarchy, state-gated visibility) lived ONLY in
+    // this entry record; every scene-graph walk — the stability census that
+    // sizes merge work included — was blind to them and counted movable
+    // fixtures as merge candidates. Mirror them where a traversal can see
+    // them. Nothing in src reads these; they exist for instruments and for
+    // any future batcher that walks the graph instead of the entry list.
+    if (fixtureId) root.userData.fixtureId = fixtureId;
+    if (entry.needsLiveVisualHierarchy) root.userData.liveVisualHierarchy = true;
+    if (entry.visibilityGated) root.userData.visibilityGated = true;
     if (entry.controller) mixers.push(entry.controller);
     entry.light = runtimeLight(root, placement, stateRecord);
     if (entry.light) lights.push(entry.light);

@@ -36,6 +36,7 @@ import {
 import { DELIVERY_EQUIPMENT_DEFAULT_LAYOUT } from './deliveryEquipment.js';
 import { createMovableFixtureCoreBatcher } from './fixtureCoreBatching.js';
 import { batchRigidVisualsByPbrResponse } from './rigidVisualBatch.js';
+import { batchStaticSubtree } from '../staticSubtreeBatch.js';
 import { shopTierIndex } from '../../sim/shopProgression.js';
 
 // The payment terminal remains in its authored hierarchy because register mode
@@ -1278,6 +1279,12 @@ export function buildFixtures(B) {
     const gondola = merch.instantiateKit && merch.instantiateKit('retail_gondola');
     if (gondola) {
       gondolaRoot.add(gondola);
+      // GOAL 29 P2 — the gondola shell is lifetime-static decor. Its 24 slot
+      // sockets are empty Object3Ds and survive the merge untouched, so a
+      // future product line still lands under its socket and draws on its
+      // own; the tier gate toggles gondolaRoot and the batch rides it.
+      const gondolaBatchLabel = 'TieredRetailGondolaStaticBatch'; // bound first: the strings ratchet
+      batchStaticSubtree(gondolaRoot, { label: gondolaBatchLabel });
     }
   });
   const gondolaCollider = colBoxAt(0.4, -0.9, 1.3, 0.7);

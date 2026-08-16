@@ -51,6 +51,7 @@ import {
   pineHillsRestorationObjectName,
 } from './pineHillsInterior.js';
 import { makeV2ArchitectureMaterials } from './materials.js';
+import { batchStaticSubtree } from '../staticSubtreeBatch.js';
 
 // The resized room's ceiling (OVERNIGHT_REPORT.md §3, item 10): 2.80 yd = 2.56 m
 // under the original 2.93 m shell, with exposed grey beams just below it.
@@ -905,6 +906,28 @@ export function createPineHillsV2Interior({
   sweepLegacyVisuals();
   refresh();
 
+  // GOAL 29 P2 — collapse the lifetime-static grey volumes to one draw per
+  // material bucket, pixel-identically (shadow flags preserved, nothing
+  // quantised). The exclusion set is this module's own mutable inventory —
+  // the builder knows it better than any generic walk can:
+  //   greyFixturesRoot     re-cut on every layout relay
+  //   deskRoot/boardsRoot  visibility follows the frontCounter facility
+  //   neglect + desk-mess  restoration toggles visible/scale/opacity/pose
+  //   greyChairB           straightened by the chair-crooked target
+  //   office door reveal   re-posed per installed door tier
+  // refresh() has already run, so restored-away neglect visuals are hidden
+  // and traverseVisible never offers them to the batch in the first place.
+  const staticBatchExclusions = new Set([
+    greyFixturesRoot, deskRoot, boardsRoot, fallenFrame, paperStack,
+    stickyNotes, overflowBin, greyChairB, ...neglectRoots.values(),
+  ]);
+  const staticBatchLabel = 'PineHillsV2StaticBatch'; // bound first: the strings ratchet
+  const staticDressingBatch = batchStaticSubtree(group, {
+    label: staticBatchLabel,
+    exclude: (node) => staticBatchExclusions.has(node)
+      || node.name === 'PineHillsOfficeDoorFinishedReveal',
+  });
+
   const ready = Promise.resolve(Object.freeze({ loaded: 0, failed: 0, greybox: true }));
 
   return {
@@ -955,7 +978,15 @@ export function createPineHillsV2Interior({
       coolerMounted: false,
       cleanupTargets: Object.keys(PINE_HILLS_V2_CLEANUP_POSES).length,
       interactions: interactionProps.length,
-      staticDressingBatch: null,
+      staticDressingBatch: staticDressingBatch?.visual
+        ? {
+          sourceDrawCalls: staticDressingBatch.sourceDrawCalls,
+          batchedDrawCalls: staticDressingBatch.batchedDrawCalls,
+          savedDrawCalls: staticDressingBatch.savedDrawCalls,
+          foldBuckets: staticDressingBatch.foldBuckets,
+          identityBuckets: staticDressingBatch.identityBuckets,
+        }
+        : { skipped: staticDressingBatch?.skipped || 'unknown' },
       greyVolumes: greyStaticRoots.size + greyFixtureRoots.size,
       architectureMaterials: archMaterials.materials.length,
       suppressedLegacy: [...suppressedLegacy],
@@ -966,6 +997,13 @@ export function createPineHillsV2Interior({
       disposed = true;
       for (const prop of interactionProps) removeProp?.(prop);
       group.removeFromParent();
+      // batch geometries and fold materials are minted by the merge, not in
+      // ownedGeometries/ownedMaterials
+      staticDressingBatch?.visual?.traverse?.((object) => {
+        if (!object.isMesh) return;
+        if (object.userData.disposeGeometry) object.geometry?.dispose?.();
+        if (object.material?.userData?.staticSubtreeBatchFoldMaterial) object.material.dispose();
+      });
       for (const geometry of ownedGeometries) geometry.dispose();
       ownedGeometries.clear();
       for (const material of ownedMaterials) material.dispose();

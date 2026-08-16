@@ -16,6 +16,7 @@ import { fitDistance } from '../core/screenFit.js';
 import { clamp, rngOf } from '../core/utils.js';
 import { LAPTOP, screenCornersLocal, screenNormalLocal } from '../core/laptopRig.js';
 import { characterYawToward, makeCharacter } from './characterAsset.js';
+import { batchStaticSubtree } from './staticSubtreeBatch.js';
 import { makeSoftParticleTexture } from './proceduralTextures.js';
 import { SHOP_CATALOG, SHELF_CAP, DECOR_SPOTS } from '../data/shopItems.js';
 import {
@@ -2872,6 +2873,10 @@ export function makeClubhouse(ctx) {
       fallbackBin.material.dispose();
       authored.name = 'DeliveryRecyclingStationAuthored';
       recyclingStation.add(authored);
+      // GOAL 29 P2 — the authored station is static stockroom decor; one draw
+      // per material bucket, pixel-identically (shadow flags preserved).
+      const recyclingBatchLabel = 'DeliveryRecyclingStationStaticBatch'; // bound first: the strings ratchet
+      batchStaticSubtree(recyclingStation, { label: recyclingBatchLabel });
     });
 
     // receiving pad — deliveries will land here (gravel patch + posts)
