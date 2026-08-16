@@ -141,6 +141,33 @@ opening from 2,364 px to 718 px at no triangle cost. 718 px remain.
 The probe also caught its own first version out: rendered without the shaft it
 reported the GRIP TUNNEL as the worst hole in the hand.
 
+## THE FRAMES THAT BACK EACH CLAIM
+
+`qa/` is gitignored, so these are on the machine rather than in the tree.
+
+| claim | frame |
+|---|---|
+| the folded polo is a stack of leaves, not a lid | `qa/hero/apparel_v2/polo/folded/polo-folded-fairway-eevee-threequarter.png` |
+| ...and its edges read from the front | `.../polo-folded-fairway-eevee-front.png` |
+| the collar has points and a notch | `.../polo-folded-fairway-eevee-top.png` |
+| the hung polo's side is a rounded turn, not a crease | `qa/hero/apparel_v2/polo/hung/polo-hung-fairway-eevee-side.png` |
+| ...and its sleeves are closed | `.../polo-hung-fairway-eevee-threequarter.png` |
+| the tee's print is the right way up | `qa/hero/apparel/tee-folded/tee-folded-eevee-top.png` |
+| the trousers' waistband is not a trough | `qa/hero/apparel/trousers-folded/trousers-folded-eevee-hero.png` |
+| the hoodie's hood is still a bread roll | `qa/hero/apparel/hoodie-folded/hoodie-folded-eevee-hero.png` |
+| **the broom, mine beside the shipping one** | `qa/hero/broom_compare/pair-hero-eevee.png` |
+| ...and at the size a player sees it | `qa/hero/broom_compare/pair-apparent-eevee.png` |
+| the hand's remaining opening, unprojected | `qa/hero/hand/hand-webprobe-with-shaft.png` |
+| ...and what the thenar pad does to the lit frame | `qa/hero/hand/hand-hero.png`, `hand-palmar.png` |
+| the dustpan has no band and no knife edge | `qa/hero/dustpan/dustpan-hero.png` |
+| the divot tool is not a paperclip | `qa/hero/divot/divot-eevee-fork.png` |
+| the gondola stands on feet | `qa/hero/rack/rack-eevee-hero.png` |
+
+Reference used, at full size: `ref/apparel/polo-rail-shop.jpg` for the folded
+stack, and `Designs/ProShop/Images/Goal_26/playtest5/broom-v1-lit.png` for what
+the broom actually looks like in the player's hands -- which is the frame that
+told me I was about to compare against the wrong object.
+
 ## HALF B — MEASURED, AND BLOCKED ON SOMETHING REAL
 
 Half B did not happen, and this time it is not because Half A was unfinished.
