@@ -78,7 +78,15 @@ async (page) => {
   // nearest-twin field diff: for each arrival, the before-key of the same
   // family with the fewest differing fields — the differing TAIL positions
   // name the frame-state axis the editor changes (three's key tail is a
-  // fixed parameter sequence; counting from the end survives define shifts)
+  // fixed parameter sequence; counting from the end survives define shifts).
+  //
+  // CAUTION, measured 2026-08-15: this name table was off by one for the
+  // residual-11 analysis — the vendored three pushes TWO boolean layer masks
+  // plus a separate outputColorSpace, so a position it named numDirLights
+  // was actually numPointLights (proven by electron-editor-entry-transient:
+  // the changing state was the lamp render budget). Positions here are a
+  // HINT; the rawTail dump below is the evidence — read values against the
+  // live scene's known state before trusting any name.
   const TAIL = [
     'customProgramCacheKey', 'outputColorSpace', 'booleanFlags', 'depthPacking',
     'numClipIntersection', 'numClippingPlanes', 'toneMapping', 'shadowMapType',
@@ -143,6 +151,26 @@ async (page) => {
     }
     if (best) out.valueTriples.push(best.found);
   }
+  // raw tails, verbatim: one arrival and its nearest twin, last 26 fields
+  // each — so a diff position can be named by matching VALUES to known live
+  // state (e.g. the light block reads 1,0,4,0,1,0 for 1 dir + 4 point +
+  // 1 hemi) instead of by trusting the TAIL table above.
+  out.rawTailSample = arrivals.slice(0, 2).map((k) => {
+    const kf = k.split(',');
+    let best = null;
+    for (const b of before) {
+      const bf = b.split(',');
+      if (bf[0] !== kf[0]) continue;
+      let diffs = 0;
+      const len = Math.max(kf.length, bf.length);
+      for (let i = 1; i <= len; i += 1) {
+        if (kf[kf.length - i] !== bf[bf.length - i]) diffs += 1;
+        if (diffs > 6) break;
+      }
+      if (!best || diffs < best.diffs) best = { diffs, twin: bf };
+    }
+    return { entryTail: kf.slice(-26), twinTail: (best?.twin || []).slice(-26) };
+  });
   out.programArrivals = arrivals.length;
   out.arrivalsByFamily = [...famCount.entries()].map(([f, n]) => ({ family: String(f).slice(0, 30), programs: n }));
   out.materialsBornAtEntry = newMats.length;
