@@ -124,6 +124,103 @@ expect("assert_no_overlap(handleA, handleB) — they really do clear", False,
                                     "the two handles", min_gap=0.0015))
 
 print()
+print("=" * 78)
+print("PART 5 — the COPLANAR GRAZE, on the two cap panels that exposed it")
+print("  a single axis-aligned parity ray is exact until it runs ALONG a face,")
+print("  and everything in this project has a flat bottom at z = 0")
+print("=" * 78)
+import build_cap as CP  # noqa: E402
+from mathutils import Vector  # noqa: E402
+
+H.reset_scene()
+cp = {}
+CP.build_crown(cp)
+lhs, rhs = cp["panel3"], cp["panel2"]
+
+
+def worst_depth(inside_fn):
+    worst, where = -1e9, None
+    for v in lhs.data.vertices:
+        w = lhs.matrix_world @ v.co
+        local = rhs.matrix_world.inverted() @ w
+        ok, loc, _n, _i = rhs.closest_point_on_mesh(local)
+        if not ok:
+            continue
+        d = (local - loc).length
+        d = d if inside_fn(local) else -d
+        if d > worst:
+            worst, where = d, w
+    return worst, where
+
+
+single_x = lambda p: HS._crossings(rhs, p, Vector((1.0, 0.0, 0.0)), 1e-6, 64)
+old, old_at = worst_depth(single_x)
+new, _new_at = worst_depth(lambda p: HS.point_inside(rhs, rhs.matrix_world @ p))
+
+print(f"  ONE +x ray (the shipped instrument): {old * 1000:+8.2f} mm  "
+      f"at z = {old_at.z * 1000:+.2f} mm")
+print(f"  three tilted rays, majority:         {new * 1000:+8.2f} mm")
+if old < 0.050:
+    WRONG.append("the +x graze no longer reproduces, so this control proves "
+                 "nothing about the fix")
+if new > 0.0006:
+    WRONG.append(f"two adjacent panels still read as {new * 1000:.2f} mm "
+                 f"inside each other")
+expect("assert_assembly on the two back panels alone", False,
+       lambda: HS.assert_assembly({"panel2": rhs, "panel3": lhs},
+                                  "two adjacent cap panels"))
+
+print()
+print("=" * 78)
+print("PART 6 — the EMPTY MATERIAL SLOT a boolean leaves behind")
+print("  the fault: append() lands in slot 1, the polygons all read slot 0,")
+print("  and the part renders in Blender's default white with perfect UVs")
+print("=" * 78)
+H.reset_scene()
+
+
+def punch(name):
+    t = HS.box(name, (0, 0, 0), (0.100, 0.060, 0.020))
+    c = HS.box(name + "Cut", (0, 0, 0), (0.020, 0.020, 0.080))
+    m = t.modifiers.new("Punch", "BOOLEAN")
+    m.operation, m.object, m.solver = "DIFFERENCE", c, "EXACT"
+    return t, c
+
+
+# RAW: convert() with no slot cleanup, which is what apply_mods used to do.
+raw, rawcut = punch("SlotRaw")
+bpy.context.view_layer.objects.active = raw
+bpy.ops.object.select_all(action="DESELECT")
+raw.select_set(True)
+bpy.ops.object.convert(target="MESH")
+raw = bpy.context.view_layer.objects.active
+bpy.data.objects.remove(rawcut, do_unlink=True)
+rawslots = list(raw.data.materials)
+rawidx = sorted({p.material_index for p in raw.data.polygons})
+print(f"  raw convert(): {len(rawslots)} slot(s) "
+      f"{[m and m.name for m in rawslots]}, polygons use {rawidx}")
+if not (rawslots and all(m is None for m in rawslots)):
+    WRONG.append("the boolean no longer leaves an empty slot, so this control "
+                 "proves nothing about the fix")
+
+target, cutter = punch("SlotTarget")
+punched = HS.apply_mods(target)
+bpy.data.objects.remove(cutter, do_unlink=True)
+
+slots = list(punched.data.materials)
+idx = sorted({p.material_index for p in punched.data.polygons})
+print(f"  apply_mods():  {len(slots)} slot(s) {[m and m.name for m in slots]}"
+      f", polygons use material_index {idx}")
+mat = HS.pbr("SlotProof", (0.2, 0.5, 0.3))
+punched.data.materials.append(mat)
+used = {punched.data.materials[p.material_index] for p in punched.data.polygons}
+print(f"  after append(): polygons resolve to {[m and m.name for m in used]}")
+if used != {mat}:
+    WRONG.append("a boolean result still renders with no material after "
+                 "append() -- the empty slot is back")
+print(f"  ok    every face of the punched part resolves to {mat.name}")
+
+print()
 if WRONG:
     raise SystemExit("CONTROL FAILED: " + "; ".join(WRONG))
 print("CONTROL PASSED — every new assertion has now been watched failing on the "

@@ -271,6 +271,46 @@ def fit_distance(subject_radius, lens_or_fov, res=(1000, 1000), is_fov=False, ma
     return subject_radius * margin / math.tan(half)
 
 
+def fit_view(objects, look_at, direction, lens, res=(1200, 1200), margin=1.06):
+    """Distance at which the subject's PROJECTED extent fills the frame.
+
+    fit_distance frames the bounding SPHERE, which is right for a compact
+    object and wasteful for a long one. A cap is 269 mm front-to-back and
+    142 mm tall, so its sphere is nearly two and a half times the height of its
+    front silhouette, and the square-on views came out with the cap occupying
+    about a third of the frame. Beside a reference photograph that fills its
+    tile, that is not a comparison anybody can make.
+
+    This measures the subject's real half-extents along the camera's own right
+    and up axes and fits the tighter of the two.
+
+    `direction` points FROM the camera TOWARD the subject.
+    """
+    d = Vector(direction).normalized()
+    right = d.cross(Vector((0.0, 0.0, 1.0)))
+    if right.length < 1e-6:
+        right = Vector((1.0, 0.0, 0.0))
+    right.normalize()
+    up = right.cross(d).normalized()
+    c = Vector(look_at)
+    hw = hh = 1e-6
+    for ob in objects:
+        if ob.type != "MESH":
+            continue
+        mw = ob.matrix_world
+        for v in ob.data.vertices:
+            r = (mw @ v.co) - c
+            hw = max(hw, abs(r.dot(right)))
+            hh = max(hh, abs(r.dot(up)))
+    # Blender fits the 36 mm sensor to the LONGER image axis.
+    half_long = math.atan(18.0 / lens)
+    ratio = min(res) / float(max(res))
+    half_short = math.atan(math.tan(half_long) * ratio)
+    half_x = half_long if res[0] >= res[1] else half_short
+    half_y = half_short if res[0] >= res[1] else half_long
+    return max(hw * margin / math.tan(half_x), hh * margin / math.tan(half_y))
+
+
 def subject_sphere(objects, weight_y=None):
     """Centre and radius of the subject, so shots frame the thing and not its
     bounding box corner. `weight_y` clamps a long tail -- a forearm should run

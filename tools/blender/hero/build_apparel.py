@@ -58,7 +58,7 @@ ATLAS = os.path.join(REPO, "Assets", "models", "hero", "textures",
 # The 24-cell atlas: 0-11 colourways, 12-17 their contrast partners, 18 chest
 # roundel, 19 tee front, 20 sleeve badge, 21 cap monogram, 22 ribbing, 23 trim.
 # ONE material for all of it -- a colourway must never cost a program.
-ATLAS_COLS, ATLAS_ROWS = 6, 4
+ATLAS_COLS, ATLAS_ROWS = 6, 5
 # Eight garments, eight different colourways: "a rail of eight identical navy
 # garments is not a shop".
 CELL = {"polo-folded": 2, "polo-hung": 0, "tee-folded": 11, "tee-hung": 1,

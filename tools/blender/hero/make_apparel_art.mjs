@@ -29,7 +29,16 @@ mkdirSync(OUT, { recursive: true });
 
 const CELL = 256;
 const COLS = 6;
-const ROWS = 4;
+// A FIFTH ROW for apparel v2. The cap needs four surfaces the first four rows
+// did not have -- an embroidered CREST that lands on a shaped patch, a darker
+// UNDERBRIM (the underside of a bill is never the colour of its top), a pale
+// cotton SWEATBAND, and a PLASTIC for the snapback.
+//
+// Growing the sheet downward is safe: cell n always sits at image row
+// floor(n / COLS), and cell_offset derives v as (ROWS - 1 - row) / ROWS, so
+// every existing cell keeps exactly the pixels it had. ATLAS_ROWS in
+// build_apparel.py and build_cap.py must match this number.
+const ROWS = 5;
 
 const WAY = [
   ['navy', [38, 52, 84], [22, 30, 52]],
@@ -60,10 +69,15 @@ function knit(w, h, base, seed) {
       const fx = gx - i, fy = gy - j;
       const mottle = (at(i, j) * (1 - fx) + at(i + 1, j) * fx) * (1 - fy)
         + (at(i, j + 1) * (1 - fx) + at(i + 1, j + 1) * fx) * fy;
-      const k = Math.sin(x * 0.78) * Math.sin(y * 0.78) * 0.5
-        + Math.sin((x + y) * 0.42) * 0.22;
+      // FINER. At 0.78 the diamonds came out about 3 mm across on a cap panel
+      // and the crown read as a quilted jacket rather than as cloth -- the
+      // texture was announcing its own scale. Doubling the frequency and
+      // easing the amplitude puts the weave below the size the eye resolves as
+      // a pattern and leaves only the light-breakup it is there for.
+      const k = Math.sin(x * 1.62) * Math.sin(y * 1.62) * 0.5
+        + Math.sin((x + y) * 0.88) * 0.22;
       const grain = (rnd() - 0.5) * 0.6;
-      const f = 1 + (k * 0.055) + (mottle * 0.085) + (grain * 0.020);
+      const f = 1 + (k * 0.038) + (mottle * 0.075) + (grain * 0.024);
       const o = (y * w + x) * 3;
       for (let c = 0; c < 3; c++) {
         px[o + c] = Math.max(0, Math.min(255, Math.round(base[c] * f)));
@@ -146,6 +160,51 @@ function ribbing() {
     <rect width="${CELL}" height="${CELL}" fill="#3a4a5e"/>${bars}</svg>`;
 }
 
+// ---- apparel v2: the four surfaces the cap needed --------------------------
+
+function twill(w, h, base, seed, pitch = 5, strength = 0.10) {
+  // A DIAGONAL weave, not a mottle. A bill's underside and a plastic strap are
+  // woven or moulded, and the knit function's soft blobs read as neither.
+  const px = Buffer.alloc(w * h * 3);
+  let s = seed * 7717 + 3;
+  const rnd = () => ((s = (s * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff);
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const diag = ((x + y) % pitch) / pitch;
+      const rib = Math.sin(diag * Math.PI * 2) * strength;
+      const grain = (rnd() - 0.5) * 0.035;
+      const f = 1 + rib + grain;
+      const o = (y * w + x) * 3;
+      for (let c = 0; c < 3; c++) {
+        px[o + c] = Math.max(0, Math.min(255, Math.round(base[c] * f)));
+      }
+    }
+  }
+  return sharp(px, { raw: { width: w, height: h, channels: 3 } }).png().toBuffer();
+}
+
+// The CREST is drawn to fill its cell, because the patch it lands on is already
+// shield-shaped GEOMETRY: the mesh clips the corners, the texture supplies the
+// embroidery. So the content is kept in a centred column and the bottom fifth
+// is left plain -- down there the shield has narrowed to its point and anything
+// drawn in the corners is cut away by the outline.
+function capCrest() {
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${CELL}" height="${CELL}">
+    <rect width="${CELL}" height="${CELL}" fill="#12301f"/>
+    <path d="M18,14 H238 V150 Q238,206 128,246 Q18,206 18,150 Z" fill="none"
+          stroke="#d8c68c" stroke-width="7" stroke-linejoin="round"/>
+    <path d="M30,26 H226 V148 Q226,196 128,231 Q30,196 30,148 Z" fill="none"
+          stroke="#d8c68c" stroke-width="2.5" stroke-linejoin="round"/>
+    ${flagMark(128, 84, 1.15, '#e8dcae')}
+    <path d="M46,124 H210" stroke="#d8c68c" stroke-width="3"/>
+    <text x="128" y="156" text-anchor="middle" font-family="Georgia,serif"
+          font-size="31" font-weight="bold" letter-spacing="2"
+          fill="#f2ead2">PINE HILLS</text>
+    <text x="128" y="182" text-anchor="middle" font-family="Helvetica,Arial"
+          font-size="15" letter-spacing="7" fill="#b8cba6">GOLF CLUB</text>
+  </svg>`;
+}
+
 // ---------------------------------------------------------------------------
 const composite = [];
 let idx = 0;
@@ -172,6 +231,14 @@ await place(await sharp(Buffer.from(sleeveBadge())).png().toBuffer(), 'badge');
 await place(await sharp(Buffer.from(capMonogram())).png().toBuffer(), 'capmono');
 await place(await sharp(Buffer.from(ribbing())).png().toBuffer(), 'ribbing');
 await place(await knit(CELL, CELL, [236, 236, 232], 99), 'trim');
+
+// row 4 -- apparel v2
+await place(await sharp(Buffer.from(capCrest())).png().toBuffer(), 'crest');
+await place(await twill(CELL, CELL, [56, 58, 62], 7, 5, 0.11), 'underbrim');
+await place(await twill(CELL, CELL, [214, 206, 186], 8, 3, 0.055), 'sweatband');
+await place(await twill(CELL, CELL, [42, 44, 48], 9, 9, 0.030), 'plastic');
+await place(await knit(CELL, CELL, [40, 84, 88], 61), 'teal');
+await place(await knit(CELL, CELL, [140, 76, 48], 62), 'rust');
 
 const out = path.join(OUT, 'apparel_atlas.png');
 await sharp({

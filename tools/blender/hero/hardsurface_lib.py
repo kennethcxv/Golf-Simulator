@@ -33,6 +33,40 @@ from mathutils import Vector
 # the assertions
 
 
+# THREE DIRECTIONS, NONE OF THEM AXIS-ALIGNED.
+#
+# The single +x ray this function used to cast is exact except when it runs
+# along a face, and "along a face" is not a rare accident in this project -- it
+# is the normal case, because nearly everything is modelled with a flat bottom
+# at z = 0. Two cap panels sitting side by side on that plane were reported as
+# interpenetrating BY 85.53 mm: the query point was a bottom-rim vertex at
+# z = +0.00, the +x ray grazed the neighbour's coplanar bottom rim and came back
+# with ONE crossing, and parity duly said "inside". Every other direction said
+# outside and the nearest surface was 85.53 mm away -- which is the tell, since
+# a point 85 mm from the nearest surface of a 2.6 mm shell cannot be in it.
+#
+# The directions below are mutually incommensurate and share no plane with any
+# axis pair, so a face would have to be built at one of these exact obliquities
+# to graze one -- and grazing all three at once is not reachable. Two are cast
+# and a third only breaks a tie, so the common case costs one extra ray.
+_PARITY_DIRS = (
+    Vector((0.5773503, 0.3313013, 0.7457043)).normalized(),
+    Vector((-0.4472136, 0.8090170, 0.3809524)).normalized(),
+    Vector((0.2672612, -0.5345225, 0.8017837)).normalized(),
+)
+
+
+def _crossings(host, local, direction, eps, limit):
+    origin, n = local.copy(), 0
+    for _ in range(limit):
+        ok, loc, _nrm, _i = host.ray_cast(origin, direction)
+        if not ok:
+            break
+        n += 1
+        origin = loc + direction * eps
+    return n % 2 == 1
+
+
 def point_inside(host, p_world, eps=1e-6, limit=64):
     """Is world point `p_world` inside `host`'s closed volume? Crossing count.
 
@@ -50,18 +84,17 @@ def point_inside(host, p_world, eps=1e-6, limit=64):
 
     A solidified shell's manifold interior IS the wall material, so parity is
     exact for it, and for a solid block it agrees with the old test everywhere.
+
+    AND THE DIRECTION MATTERS. See _PARITY_DIRS: one axis-aligned ray is exact
+    right up until it lies in the plane of a face, which on a model with a flat
+    bottom is most of the time.
     """
     local = host.matrix_world.inverted() @ p_world
-    direction = Vector((1.0, 0.0, 0.0))
-    origin = local.copy()
-    crossings = 0
-    for _ in range(limit):
-        ok, loc, _nrm, _i = host.ray_cast(origin, direction)
-        if not ok:
-            break
-        crossings += 1
-        origin = loc + direction * eps
-    return crossings % 2 == 1
+    first = _crossings(host, local, _PARITY_DIRS[0], eps, limit)
+    second = _crossings(host, local, _PARITY_DIRS[1], eps, limit)
+    if first == second:
+        return first
+    return _crossings(host, local, _PARITY_DIRS[2], eps, limit)
 
 
 def point_depth_inside(host, p_world):
@@ -572,7 +605,25 @@ def apply_mods(obj):
     bpy.ops.object.select_all(action="DESELECT")
     obj.select_set(True)
     bpy.ops.object.convert(target="MESH")
-    return bpy.context.view_layer.objects.active
+    out = bpy.context.view_layer.objects.active
+
+    # A BOOLEAN LEAVES AN EMPTY MATERIAL SLOT BEHIND, and every polygon points
+    # at it. The cap's punched snapback tail came out of the modifier with
+    # slots == [None] and material_index 0 on every face, so the builder's
+    # `data.materials.append(trim)` landed in slot 1, which nothing used, and
+    # the strap rendered in Blender's default white while the probe confirmed
+    # its UVs were exactly right. An hour went into the UVs before the slot was
+    # looked at.
+    #
+    # Dropping slots only when EVERY slot is empty cannot disturb a part that
+    # has real materials: an object whose only slots are None has no material
+    # to lose.
+    mats = list(out.data.materials)
+    if mats and all(m is None for m in mats):
+        out.data.materials.clear()
+        for poly in out.data.polygons:
+            poly.material_index = 0
+    return out
 
 
 def pbr_textured(name, image_path, roughness=0.9, uv_map="UVMap"):
