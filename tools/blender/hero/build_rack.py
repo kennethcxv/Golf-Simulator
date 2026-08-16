@@ -104,6 +104,26 @@ def build_one(M, label, height, shelves, x0, broken=""):
                  height * 0.5),
                 (POST_W, POST_D, height), bevel=0.0035, segments=2)))
 
+    # ---- BASE FEET. A gondola upright does not meet the floor: it stands on a
+    # levelling foot, and that foot is wider than the post so the whole run
+    # reads as standing ON something rather than growing out of the boards.
+    #
+    # Worth doing where the slot columns were not, and for a reason the slot
+    # measurement gave me: a foot changes the SILHOUETTE. The slots were a
+    # 5.5 mm recess on an inner face -- interior detail, invisible at walking
+    # distance, and it doubled the bay. Four feet are 96 triangles and they
+    # change the outline against the floor, which is the one thing that reads
+    # from across a shop.
+    p["feet"] = []
+    for sx in (-1, 1):
+        for sy in (-1, 1):
+            p["feet"].append(HS.apply_mods(HS.box(
+                f"{label}_Foot_{sx}_{sy}".replace("-", "n"),
+                (x0 + sx * (hw - POST_W * 0.5), sy * (hd - POST_D * 0.5),
+                 0.0075),
+                (POST_W * 1.75, POST_D * 1.55, 0.0150),
+                bevel=0.0028, segments=2)))
+
     # SLOT COLUMNS: TRIED AND REMOVED. A real gondola upright carries a punched
     # column of shelf slots, and _slot() below cuts one. Measured: it took the
     # standard bay from 872 to 1,736 triangles -- it DOUBLED the bay -- and at
@@ -152,7 +172,7 @@ def build_one(M, label, height, shelves, x0, broken=""):
             (WIDTH - POST_W * 2 + SEAT * 2, 0.0110, LIP_H),
             bevel=0.0018, segments=1)))
 
-    for o in p["posts"]:
+    for o in p["posts"] + p["feet"]:
         o.data.materials.append(M["poly"])
     p["back"].data.materials.append(M["poly"])
     p["kick"].data.materials.append(M["poly"])
@@ -160,6 +180,15 @@ def build_one(M, label, height, shelves, x0, broken=""):
         o.data.materials.append(M["oak"])
     for o in p["lips"]:
         o.data.materials.append(M["steel"])
+    # A PART WITH NO MATERIAL RENDERS DEFAULT WHITE, and that is how the feet
+    # came out of their first render: correct geometry, right place, glowing
+    # against a charcoal post. The same empty-slot fault the booleans hit. It
+    # is one loop to make it impossible rather than remembered.
+    bare = [o.name for o in flat(p) if not o.data.materials]
+    if bare:
+        raise SystemExit(
+            "BUILD FAILED: parts with no material, which render default "
+            "white: " + ", ".join(sorted(bare)))
     return p
 
 
@@ -192,8 +221,28 @@ def measure(p):
 
 
 def flat(p):
-    out = list(p["posts"]) + list(p["shelves"]) + list(p["lips"])
-    return out + [p["back"], p["kick"]]
+    """Every mesh in the bay, and CHECKED that it is every mesh.
+
+    The feet were built, placed and then not listed here, so they were not
+    counted, not asserted over, and not exported -- the bay still reported 872
+    triangles with four new parts in the scene. A hand-written list of parts
+    that has to be kept in step with the builder is the same fault shape as a
+    hand-written list of assertion pairs, and it fails the same way: silently,
+    on whatever was added last.
+    """
+    out = list(p["posts"]) + list(p["shelves"]) + list(p["lips"])         + list(p["feet"]) + [p["back"], p["kick"]]
+    listed = {id(o) for o in out}
+    missing = []
+    for key, val in p.items():
+        for ob in (val if isinstance(val, list) else [val]):
+            if (hasattr(ob, "data") and getattr(ob.data, "vertices", None)
+                    is not None and id(ob) not in listed):
+                missing.append(f"{key}:{ob.name}")
+    if missing:
+        raise SystemExit(
+            "BUILD FAILED: parts built but never listed in flat(), so nothing "
+            "counts, checks or exports them: " + ", ".join(sorted(missing)))
+    return out
 
 
 def main():
