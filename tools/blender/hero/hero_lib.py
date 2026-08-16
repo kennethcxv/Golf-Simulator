@@ -507,6 +507,46 @@ def bounds(objects):
     return lo, hi
 
 
+def drop_to_floor(objects, clearance=0.0):
+    """Put the asset's BASE at z = 0 before the axis bake.
+
+    Every prop the game loads sits with its base on the ground: measured, the
+    in-game rake, hose, spreader and mower all have min height exactly 0. The
+    hero exports straddle the origin instead -- only 6 of 39 have a base at
+    zero -- so dropping one into the world as-is buries it to the waist. That
+    is the single systematic thing standing between these assets and being
+    wireable, and it is here rather than in the game because the convention is
+    the exporter's job.
+
+    Call it IMMEDIATELY BEFORE bake_gltf_axis, on the same object list.
+
+    SOCKETS MOVE TOO. An empty has no vertices to translate, so its location
+    takes the shift -- exactly as bake_gltf_axis has to do for the axis swap.
+    Shifting the mesh and not the socket would put the hand where the tool used
+    to be, which is the fault that function's comment already warns about.
+    """
+    zs = []
+    for ob in objects:
+        if ob.type == "MESH":
+            mw = ob.matrix_world
+            zs.extend((mw @ v.co).z for v in ob.data.vertices)
+    if not zs:
+        raise SystemExit("BUILD FAILED: drop_to_floor: no mesh vertices to "
+                         "measure a base from")
+    drop = min(zs) - clearance
+    for ob in objects:
+        if ob.type == "MESH":
+            for v in ob.data.vertices:
+                v.co.z -= drop
+            ob.data.update()
+        else:
+            ob.location = Vector((ob.location.x, ob.location.y,
+                                  ob.location.z - drop))
+    print(f"  dropped to floor: base was {min(zs) * 1000:+.1f} mm, now "
+          f"{clearance * 1000:.1f} mm")
+    return drop
+
+
 def bake_gltf_axis(objects):
     """Blender +Y -> glTF -Z, established by marker probe off exported accessor
     bounds. Baked into the VERTICES, never left as an object rotation: the
