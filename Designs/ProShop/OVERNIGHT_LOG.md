@@ -211,10 +211,60 @@ told me I was about to compare against the wrong object.
 ## HALF B — MEASURED, AND BLOCKED ON SOMETHING REAL
 
 Half B did not happen, and this time it is not because Half A was unfinished.
-I went to wire, measured what wiring would take, and found four blockers and a
-root cause under them. All of it is written down with the numbers, because "it
+I went to wire, measured what wiring would take, and found five blockers. The
+first one below is the one that matters, and it means these assets could not
+have been wired successfully tonight by anybody. All of it is written down with the numbers, because "it
 did not work" is not a handover -- and because two of the four were only
 findable by measuring BEFORE touching the game rather than after.
+
+### 0. THE ONE THAT MATTERS: THE EXPORT SCRAMBLES THE ASSET
+
+Found last, and it is upstream of everything else here.
+
+The shipped bunker rake is **1,750 mm tall with its base 786 mm below the
+origin**. Its Blender scene is 970 mm tall with its base at -44. The file is
+not the asset.
+
+`H.bake_gltf_axis` permutes the VERTEX coordinates -- `(x,y,z) -> (x,z,-y)` --
+and does not touch the object's own LOCATION, which the exporter writes through
+unchanged. Any part with a non-identity transform therefore has its geometry in
+the new convention and its position still in the old one. `RakeGrip` sits at
+`(0, -0.7481, 0.8463)` and shipped 748 mm BELOW the origin instead of 846 mm
+along it.
+
+**Nothing catches it because every assertion and every render looks at the
+BLENDER SCENE.** The GLB is written last and never read again. The scene is
+correct in all of them; the file is wrong. A whole pipeline of instruments,
+none of which look at the deliverable.
+
+`tools/blender/hero/control_export_roundtrip.py` is the check that was missing:
+build, export, re-import, compare bounds. The axis bake and the importer's
+Y-up conversion are inverses, so a faithful export comes back where it started.
+Rake before: **786.25 mm out**. After: **0.00 mm**.
+
+**The fix already exists in this codebase.** `build_rack` and `build_register`
+call `transform_apply(location=True)` on their meshes before the axis swap, and
+the shipped rack measures 1225 x 484 x 1500 mm with its base at zero -- exactly
+its scene bounds. The other 23 builders do not.
+
+Applied and verified on the rake, the mower and the spreader. **23 of 40
+shipped files still have mesh nodes at non-zero translations** and want the
+same one-line fix. I have not made it across 23 files unverified at this hour;
+the control makes each one a two-minute job with proof.
+
+Meshes only -- sockets are EMPTYs whose locations are the point of them, and
+`bake_gltf_axis` permutes those separately.
+
+THE CONTROL CAUGHT ME OUT TOO, which is the best thing about it. Its first rack
+recipe skipped the `transform_apply` that `build_rack` actually performs, so it
+reported the rack scrambled by 1,318 mm when the shipped file is exactly right.
+It was measuring my own omission. An instrument's first result is a claim about
+the instrument.
+
+And `drop_to_floor`, which I wrote tonight, was wrong in the same family:
+measured in WORLD space, shifted in LOCAL, and printed "now 0.0 mm" while the
+rake stayed 48.9 mm under the floor. It verifies its own result now and fails
+if it did not achieve it.
 
 ### 1. NOT ONE HERO ASSET IS REFERENCED BY THE GAME
 
