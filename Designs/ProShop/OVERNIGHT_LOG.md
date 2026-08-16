@@ -8,42 +8,109 @@ Started from `Designs/ProShop/Overnight_Assets.md`.
 | asset | verdict | rounds | triangles | new materials | wired |
 |---|---|---|---|---|---|
 | cap (apparel v2) | **PASS** | 7 | 11,874 | 0 (shares ApparelCloth/Trim) | no |
-| register (lane head) | **PASS** | 4 | 5,816 | 0 (5 slots, existing family) | no |
-| money (notes + coins) | **PASS** | 3 | — | 0 | no |
-| golf balls + packaging | **PASS** | 3 | — | 0 | no |
+| polo folded (apparel v2) | **PASS** | 8 | 6,100 | 0 | no |
+| tee folded | **PASS** | 2 | 4,812 | 0 | no |
+| hoodie folded | ITERATE | 1 | 4,608 | 0 | no |
+| trousers folded | ITERATE | 2 | 4,548 | 0 | no |
 | polo hung (apparel v2) | **PARKED** at 8 | 8 | 9,980 | 0 | no |
-| polo folded (apparel v2) | **PARKED** | 3 | 6,462 | 0 | no |
-| tee / hoodie / trousers folded | **PARKED, not started** | 0 | — | 0 | no |
 | tee / hoodie hung | **PARKED, not started** | 0 | — | 0 | no |
-| hand | **PASS, reserved** | 6 | 5,178 | 0 | already wired |
-| bunker rake | **PASS** | 1 | 784 | 0 | — |
-| greens mower | **PASS** | 2 | 1,680 | 0 | — |
-| rotary spreader | **PASS** | 2 | 1,628 | 0 | — |
-| pressure washer wand | **PASS** | 3 | 1,248 | 0 | — |
-| customer basket | **PASS** | 1 | 3,454 | 0 | — |
-| shopping bag | **PASS** | 1 | 1,724 | 0 | — |
-| hose nozzle | **PASS** | 1 | 1,116 | 0 | — |
-| spray bottle | **PASS** | 3 | 1,420 | 0 | — |
-| divot pail | **PASS** | 1 | 1,468 | 0 | — |
-| divot tool | ITERATE | 1 | 152 | 0 | — |
-| dustpan | ITERATE | 1 | 1,052 | 0 | — |
-| broom head | **CUT** | 1 | 2,820 | — | no |
-| ledger book | **PASS** | 2 | 6,656 | 0 | — |
-| retail gondola | ITERATE | 1 | 872/bay | 0 | — |
-| merch + softgoods | **PASS, reserved** | 1 | 1,480 | 0 | — |
-| mop head | **PASS** | 1 | — | 0 | — |
+| register (lane head) | **PASS** | 4 | 5,816 | 0 (5 slots, existing family) | no |
+| money (notes + coins) | **PASS** | 3 | 1,384 | 0 | no |
+| golf balls + packaging | **PASS** | 3 | 7,848 | 0 | no |
+| hand | **PASS, reserved** | 6+3 | 5,178 | 0 | no — see below |
+| bunker rake | **PASS** | 1 | 784 | 0 | no |
+| greens mower | **PASS** | 2 | 1,680 | 0 | no |
+| rotary spreader | **PASS** | 2 | 1,628 | 0 | no |
+| pressure washer wand | **PASS** | 3 | 1,248 | 0 | no |
+| customer basket | **PASS** | 1 | 3,454 | 0 | no |
+| shopping bag | **PASS** | 1 | 1,724 | 0 | no |
+| hose nozzle | **PASS** | 1 | 1,116 | 0 | no |
+| spray bottle | **PASS** | 3 | 1,420 | 0 | no |
+| divot pail | **PASS** | 1 | 1,468 | 0 | no |
+| divot tool | **PASS** | 2 | 1,024 | 0 | no |
+| dustpan | **PASS** | 2 | 1,432 | 0 | no |
+| retail gondola | **PASS** | 2 | 1,304/bay | 0 | no |
+| ledger book | **PASS** | 2 | 6,656 | 0 | no |
+| merch + softgoods | **PASS, reserved** | 1 | 1,480 | 0 | no |
+| mop head | **PASS** | 1 | 5,616 | 0 | no |
+| broom head | **CUT** (re-examined, stands) | 2 | 2,820 | — | no |
 
-## HALF B — NOT STARTED, DELIBERATELY
+## HALF B — MEASURED, AND BLOCKED ON SOMETHING REAL
 
-The brief is explicit: Half B does not begin until Half A is genuinely done and
-every asset has a written PASS. Half A is not done — the dustpan, the divot
-tool, the gondola and the whole folded-apparel family are ITERATE or PARKED. So
-nothing was wired tonight, and no in-game photographs were taken.
+Half B did not happen, and this time it is not because Half A was unfinished.
+I went to wire, measured what wiring would take, and found three blockers. All
+three are written down with the numbers because "it did not work" is not a
+handover.
 
-Wiring drafts in would bury exactly the faults this night was for finding, which
-is the reason the brief puts the halves in that order. **Zero deltas to report
-against the parallel session's 193 programs and 1,443 draws: nothing of mine
-entered the build.**
+### 1. NOT ONE HERO ASSET IS REFERENCED BY THE GAME
+
+`grep -rn "models/hero" src/` returns nothing. `vendor/models/hero/` does not
+exist. No entry in `tools/vendor-models.manifest.json` has a `from` under
+`Assets/models/hero`. Every one of the 39 hero GLBs is a file on disk that
+nothing loads — including the hand, which the table used to say was "already
+wired". That was wrong and it is corrected above.
+
+So wiring is not flipping a switch. Each asset needs a vendor path, a manifest
+entry, and a call site.
+
+### 2. THE FOUR THAT LOOK LIKE DROP-IN SWAPS ARE NOT
+
+Four in-game GLBs share a name with a hero asset and are loaded by plain URL in
+`courseScene.js`, which would have let me wire them by replacing the FILE and
+changing no source at all — the safest wiring there is. Measured, they are not
+interchangeable:
+
+| asset | in game | hero | 
+|---|---|---|
+| rake | 56 x 411 x 982 mm, base at z=0, 20,192 tris | 460 x 971 x 1750 mm, z from -830, 784 tris |
+| hose nozzle | 915 x 877 x 980 mm, base at z=0 | 46 x 335 x 411 mm — **a different object**: theirs is a coiled hose, mine is the nozzle |
+| spreader | 790 x 1070 x 1026, base at z=0 | 780 x 1631 x 1175, z from -249 |
+| greens mower | 1092 x 1230 x 1057, base at z=0 | 613 x 1785 x 1106, z from -179 |
+
+The systematic part is the ORIGIN CONVENTION: every in-game prop sits with its
+base at z = 0, and the hero exports straddle the origin. Only 6 of 39 hero GLBs
+have base z = 0 (the three retail racks, the folded tee, the balls, the
+drinks). Dropping one in as-is buries it to the waist in the fairway.
+
+That is fixable and it is mine to fix — it is the export step, not the game.
+It is not a five-minute change and it is not one to make at 4am and leave
+untested, so it is written down rather than started.
+
+### 3. 27 OF THE 39 EXPORTS WERE STALE
+
+Before wiring anything I checked each GLB's mtime against its builder. **27 of
+39 were older than the builder that makes them** — up to 19.7 hours. The
+retail rack GLB on disk still had 872 triangles and 14 meshes when the builder
+had been making 1,304 in 18 objects for an hour.
+
+This is the stale-frame trap on the DELIVERABLE, and it is worse than the
+render version: a stale frame lies to me, a stale GLB lies to the game. I would
+have wired geometry that was neither what the builder makes nor what I reviewed
+and signed off. A regeneration sweep over all 22 builders is running.
+
+`tools/blender/hero/stale_frame_scan.mjs` should grow a GLB mode. Same idea,
+higher stakes.
+
+### WHAT THIS MEANS FOR THE DELTAS
+
+**Still zero deltas against the parallel session's 193 programs and 1,443
+draws. Nothing of mine entered the build, and nothing should have until the
+origin convention and the stale exports are dealt with.** No in-game
+photographs were taken because there is nothing of mine in the game to
+photograph.
+
+### THE ORDER I WOULD DO IT IN
+
+1. Regenerate all exports; re-verify mtimes. (Running.)
+2. Add a floor-origin option to the hero export so base z = 0 for props, and a
+   grip-origin for held tools. Re-export, re-measure.
+3. Sockets: only 5 of 39 carry any. `bunker_rake`, `divot_bucket`,
+   `divot_fork`, `hose_nozzle`, `pressure_wand`. The mower and the spreader are
+   two-handed pushed equipment and have NONE, which the brief asked for
+   explicitly. The bare-handed tools (spray, cloth, sponge, washer, trash bag)
+   correctly have none.
+4. Manifest entries, then one asset end to end with the gate run before and
+   after, then the rest one at a time.
 
 ## STANDING GATE: THE BLANK FRAMES — NOW GREEN
 
