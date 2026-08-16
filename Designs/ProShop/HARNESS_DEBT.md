@@ -482,3 +482,25 @@ has never drawn in this variant tier. This is the standing layers.mask lie in
 a second costume: **the fix is traverseVisible (or an explicit ancestor-chain
 check), and the draws instrument's planted control now proves counts move
 only for geometry the GPU actually draws.**
+
+**9 — texture.clone() shares its Source; assigning .image through the clone
+repaints the ORIGINAL.** The Goal 30 rebake probe grafted candidate pixels
+onto sign clones via `mat.map.clone()` then `nt.image = candidate` — but
+`.image` is a getter/setter over the SHARED `Source`, so both grafts wrote
+through to the live sign's texture and all three "resolutions" rendered the
+last-assigned 512. The width read-back control caught it (512/512/512). Rule:
+to give a mesh different pixels, hand it a texture that OWNS its source (the
+candidate loader's own texture object, or `new Source(image)` — the goal29
+till driver's pattern); never mutate `.image` on a clone. And a swap
+instrument must read the swapped property back off the LIVE object per frame.
+
+**10 — a staged camera spot is a CLAIM, not a fact: collider pushes and
+look-alike dressing both frame the wrong subject.** Two Goal 30 probe cuts
+shot the entrance's own flag pillars believing they were staged clones (the
+dressing flanks the sign at almost the clones' offsets), and two more cuts
+shot the groundskeeper's house because `walkEnter` shoves any spawn inside a
+prop collider (r + the walker's 0.34 body radius) up to 45 yd down +z rather
+than fail. Neither error is visible in green controls that only check the
+staged OBJECTS. Rules: after posing the player, read the achieved camera
+position back and fail beyond 0.5 yd; and project every staged subject into
+NDC and require it in-frame before trusting any screenshot to show it.
