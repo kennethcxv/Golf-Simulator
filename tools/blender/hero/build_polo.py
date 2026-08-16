@@ -68,8 +68,8 @@ CLOTH = 0.0022
 # that makes a hung shirt read as a hung shirt: the sleeves stand out above a
 # narrower shoulder and the body falls away underneath.
 WIDTH_PROFILE = ((0.00, 1.000), (0.14, 1.135), (0.52, 1.058), (1.00, 1.215))
-DEPTH_CHEST = 0.0580
-DEPTH_HEM = 0.0500
+DEPTH_CHEST = 0.0830
+DEPTH_HEM = 0.0760
 
 
 def _profile(table, v):
@@ -380,33 +380,34 @@ def build_folded(p, way):
                                   q + Vector((0, 0, 0.0012)),
                                   Vector((0, 0, 1)), 0.0056, 0.0032, sides=14)
 
-    # THE SIZE BAND. A printed paper band wrapped round one end of the garment,
-    # on every stack in the reference. It is the difference between shop stock
-    # and laundry, and no version of this garment has ever had one.
-    bx = w * 0.330
-    band = []
-    NB = 26
+    # THE SIZE BAND. A printed paper band wrapped round one end of the
+    # garment, on every stack in the reference.
+    #
+    # The first attempt built the path twice -- the second loop overwrote the
+    # first -- and the surviving one put the band on a semicircular arc through
+    # the air, so it rendered as a bag handle looped over the corner. It is a
+    # band lying ON the cloth: down the front face, across the top, down the
+    # back face, and it follows the garment's own surface the whole way.
+    bx = w * 0.320
+    band, nrms = [], []
+    NB = 22
     for i in range(NB):
         t = i / (NB - 1.0)
-        ang = math.pi * t
-        band.append(Vector((bx, -d * 0.5 - 0.004 + (d + 0.008) * t,
-                            h * 0.5 + 0.0)))
-    # wrap it: down the front, across the top, down the back
-    band = []
-    for i in range(NB):
-        t = i / (NB - 1.0)
-        a = math.pi * (t - 0.5)
-        band.append(Vector((bx,
-                            math.sin(a) * (d * 0.5 + 0.0055),
-                            h * 0.5 - 0.0010 + math.cos(a) * 0.0 )))
-    for i, q in enumerate(band):
-        t = i / (NB - 1.0)
-        edge = min(t, 1.0 - t)
-        q.z = CL.top_z(p["body"], bx, q.y) + 0.0012 if edge > 0.055 else q.z
-    p["size_band"] = CL.framed_sweep("PoloFold_Band", band,
-                                     [Vector((0, 0, 1))] * NB,
-                                     0.0180, 0.0011, sides=6, square=0.85,
-                                     taper=2)
+        if t < 0.16:                       # up the front face
+            k = t / 0.16
+            band.append(Vector((bx, -d * 0.5 - 0.0012, h * (0.30 + 0.70 * k))))
+            nrms.append(Vector((0.0, -1.0, 0.25)).normalized())
+        elif t < 0.84:                     # across the top, on the cloth
+            k = (t - 0.16) / 0.68
+            y = -d * 0.5 + d * k
+            band.append(Vector((bx, y, CL.top_z(p["body"], bx, y) + 0.0011)))
+            nrms.append(Vector((0.0, 0.0, 1.0)))
+        else:                              # down the back face
+            k = (t - 0.84) / 0.16
+            band.append(Vector((bx, d * 0.5 + 0.0012, h * (1.0 - 0.70 * k))))
+            nrms.append(Vector((0.0, 1.0, 0.25)).normalized())
+    p["size_band"] = CL.framed_sweep("PoloFold_Band", band, nrms,
+                                     0.0190, 0.0009, sides=6, square=0.88)
     return p
 
 

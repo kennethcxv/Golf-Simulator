@@ -124,12 +124,23 @@ def folded(name, centre, size, leaves=3, sag=0.0026, crease=0.0018,
             # as a moulded lid, which is exactly what the first render looked
             # like. On a real fold the leaves end at the FRONT and the SIDES;
             # the folded edge at the back is clean.
+            # THE LIPS ARE AT THE FRONT EDGE ONLY. The previous bias gave the
+            # sides 88% of the step and the BACK still 20%, so the leaves
+            # stepped in all the way round and the garment came out reading as
+            # a moulded lid with three concentric rings -- which is exactly
+            # what the folded polo's render showed.
+            #
+            # On the shop shelf (polo-rail-shop.jpg, a dozen stacks of it) the
+            # sides and the back of a folded garment are FOLDS: smooth, single
+            # curves. Only the front is a cut edge with layers ending at it,
+            # and that row of soft lips is the whole cue.
             front = 0.5 - 0.5 * sa
-            flank = abs(ca)
-            bias = 0.20 + 0.80 * max(front, flank * 0.85)
+            bias = front ** 1.7
             # and they do not line up: each leaf wanders a little around itself
-            wander = 1.0 + 0.011 * math.sin(a * 2.0 + leaf * 2.1 + seed)                 + 0.007 * math.sin(a * 5.0 - leaf * 1.3 + seed * 2)
-            sc = (0.93 + 0.07 * roll) * (1.0 - 0.075 * leaf * bias) * wander
+            wander = (1.0 + 0.017 * math.sin(a * 2.0 + leaf * 2.1 + seed)
+                      + 0.011 * math.sin(a * 5.0 - leaf * 1.3 + seed * 2)
+                      + 0.008 * math.sin(a * 3.0 + leaf * 4.7 - seed))
+            sc = (0.93 + 0.07 * roll) * (1.0 - 0.105 * leaf * bias) * wander
             x = math.copysign(abs(ca) ** (2.0 / squareness), ca) * w * 0.5 * sc
             y = math.copysign(abs(sa) ** (2.0 / squareness), sa) * d * 0.5 * sc
             ring.append(Vector((cx + x, cy + y, cz + h * t)))

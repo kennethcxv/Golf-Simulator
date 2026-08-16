@@ -11,8 +11,10 @@ Started from `Designs/ProShop/Overnight_Assets.md`.
 | register (lane head) | **PASS** | 4 | 5,816 | 0 (5 slots, existing family) | no |
 | money (notes + coins) | **PASS** | 3 | — | 0 | no |
 | golf balls + packaging | **PASS** | 3 | — | 0 | no |
-| polo hung (apparel v2) | ITERATE | 5 | 9,980 | 0 | no |
-| polo folded (apparel v2) | ITERATE | 1 | 6,510 | 0 | no |
+| polo hung (apparel v2) | **PARKED** at 8 | 8 | 9,980 | 0 | no |
+| polo folded (apparel v2) | **PARKED** | 3 | 6,462 | 0 | no |
+| tee / hoodie / trousers folded | **PARKED, not started** | 0 | — | 0 | no |
+| tee / hoodie hung | **PARKED, not started** | 0 | — | 0 | no |
 | hand | **PASS, reserved** | 6 | 5,178 | 0 | already wired |
 | bunker rake | **PASS** | 1 | 784 | 0 | — |
 | greens mower | **PASS** | 2 | 1,680 | 0 | — |
@@ -174,6 +176,43 @@ disc** with no mounding.
 The tool itself reads as a **paperclip**: two thin prongs and a flat white body
 with a yellow dot. At 75 mm it is the smallest thing in the set and it is the
 least convincing.
+
+### The apparel — the cap PASSES, everything else is PARKED
+
+**The cap is the one that is finished** and it is the proof that the panel
+approach works: six panel objects dished and tucked at their seams, a real hole
+at the apex under a covered button, a cut-away U at the back bound with its own
+tape and bridged by a working snapback, a bill whose two curvatures are driven
+by distance travelled forward. 11,874 tris, 44 parts, still the two shared
+apparel materials.
+
+**The polo is parked at 8 rounds**, the brief's limit. Its front reads as a polo
+— level hem, a collar with a stand and a fold crest and two points, visible
+buttons, a chest badge, flat sleeves. Its SIDE does not: the two panels meet at
+the side seam in a **hard vertical crease** where a hung shirt has a soft fold,
+and the sleeve's open end is a **flat disc** facing the camera. Giving the body
+real depth (58 to 83 mm) did not help, because the fault is the crease, not the
+thickness.
+
+**The folded garments are parked as a family, and here is the diagnosis.**
+`cloth_lib.folded()` builds one lofted block whose rings step in at each leaf,
+and the brief's own words apply to it exactly: a softened block stays a block.
+Tonight I improved it — the lips now appear at the FRONT EDGE ONLY, where the
+reference has them, instead of ringing the whole perimeter at 88% on the sides
+and 20% even at the back, which is what made it read as a moulded lid with
+concentric rings. That change improves all four folded garments at once. It is
+still a lid.
+
+What it needs is the treatment the cap's crown got: **the leaves built as
+separate surfaces, not as rings of one loft.** Until that happens the polo, tee,
+hoodie and trousers folded states are all the same object with different
+proportions, and iterating on any one of them individually is wasted work. That
+is why all four are parked together on one reason rather than four times over.
+
+Two things on the folded polo were plainly broken and are fixed: the size band
+was built twice in the same function (the second loop overwrote the first) and
+the survivor put it on a semicircular arc through the air, so it rendered as a
+bag handle looped over a corner. It now follows the garment's own surface.
 
 ### The hand — PASS, with a reservation, parked at 6 rounds
 
