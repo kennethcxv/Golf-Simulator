@@ -211,9 +211,10 @@ told me I was about to compare against the wrong object.
 ## HALF B — MEASURED, AND BLOCKED ON SOMETHING REAL
 
 Half B did not happen, and this time it is not because Half A was unfinished.
-I went to wire, measured what wiring would take, and found three blockers. All
-three are written down with the numbers because "it did not work" is not a
-handover.
+I went to wire, measured what wiring would take, and found four blockers and a
+root cause under them. All of it is written down with the numbers, because "it
+did not work" is not a handover -- and because two of the four were only
+findable by measuring BEFORE touching the game rather than after.
 
 ### 1. NOT ONE HERO ASSET IS REFERENCED BY THE GAME
 
