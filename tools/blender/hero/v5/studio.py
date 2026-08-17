@@ -51,8 +51,24 @@ def out_dir(*parts):
 # light
 
 
+def _drop(name):
+    """Remove an existing object of this name before making another.
+
+    Blender renames a collision to `key.001` and lights it anyway, so calling
+    retail_light twice in one script silently DOUBLES the rig -- ten lamps and
+    two backdrops. The driver's head close-ups came back two stops blown with a
+    white card floating in mid-frame, and nothing said so: the exposure looked
+    like a material bug and cost a round chasing near-black materials that were
+    correct all along.
+    """
+    ob = bpy.data.objects.get(name)
+    if ob is not None:
+        bpy.data.objects.remove(ob, do_unlink=True)
+
+
 def _area(name, loc, look_at, energy, size, colour=(1, 1, 1), shape='SQUARE',
           size_y=None):
+    _drop(name)
     d = bpy.data.lights.new(name, type='AREA')
     d.energy = energy
     d.size = size
@@ -169,6 +185,8 @@ def cyc(centre=(0, 0, 0), scale=1.0, value=0.84):
     """
     c = Vector(centre)
     d = max(0.6, scale * 7.0)
+    _drop("Cyc")
+    _drop("CycFloor")
     bpy.ops.mesh.primitive_plane_add(size=d, rotation=(math.pi / 2, 0, 0),
                                      location=(c.x, c.y + scale * 2.1, c.z))
     back = bpy.context.object
