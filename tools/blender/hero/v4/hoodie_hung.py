@@ -859,6 +859,27 @@ def fleece_material():
     b = nt.nodes["Principled BSDF"]
     b.inputs["Base Color"].default_value = (0.0295, 0.0345, 0.0620, 1.0)
     b.inputs["Roughness"].default_value = 0.955
+    # HEATHER. The board's fleece is a marl -- two yarns spun together, so the
+    # colour varies by about 30% at a 12 mm scale. Flat navy is the one thing
+    # left that says "material" rather than "cloth"; the nap noise is on the
+    # bump only and a bump alone cannot make a heather. Kept small enough that
+    # it reads as yarn and not as staining.
+    # AT THE YARN'S SCALE, NOT THE PANEL'S. Scale 88 puts the variation on an
+    # 11 mm blob and 75% of contrast across it: that is camouflage, not
+    # heather. A marl varies at the thickness of a thread, so the noise has to
+    # be an order of magnitude finer and a quarter as strong -- close up it is
+    # yarn, at a metre it is a slightly living surface, and neither reads as
+    # staining.
+    marl = nt.nodes.new("ShaderNodeTexNoise")
+    marl.inputs["Scale"].default_value = 640.0
+    marl.inputs["Detail"].default_value = 5.0
+    marl.inputs["Roughness"].default_value = 0.52
+    tint = nt.nodes.new("ShaderNodeMix")
+    tint.data_type = "RGBA"
+    tint.inputs["A"].default_value = (0.0268, 0.0314, 0.0568, 1.0)
+    tint.inputs["B"].default_value = (0.0332, 0.0388, 0.0688, 1.0)
+    nt.links.new(marl.outputs["Fac"], tint.inputs["Factor"])
+    nt.links.new(tint.outputs[2], b.inputs["Base Color"])
     if "Sheen Weight" in b.inputs:
         # SHEEN AT 0.30 WASHED THE NAVY OUT TO GREY. It is a retroreflective
         # term -- it lifts the whole surface at once, which is exactly what
@@ -1090,9 +1111,9 @@ def build():
     big = D.drape_folds(body, amp=1.0, z_top=-0.150, z_bot=Z_HEM,
                   harmonics=[(9, 0.0196, 0.9), (5, 0.0128, -0.5),
                              (16, 0.0058, 1.6)],
-                  seed=1.7, side_bias=0.38,
+                  seed=1.7, side_bias=0.54,
                   pred=lambda co: co.z < -0.150,
-                  gate=lambda co: 1.0 - D._smooth(abs(co.x), 0.160, 0.215))
+                  gate=lambda co: 1.0 - D._smooth(abs(co.x), 0.192, 0.246))
     print(f"  drape folds displace up to {big * 1000:.1f} mm")
     # The cloth GATHERS where it meets the ribbed band. At 72 columns the mesh
     # cannot resolve real 6 mm ribbing -- that belongs in the texture -- but it
@@ -1102,7 +1123,7 @@ def build():
                   harmonics=[(18, 0.0022, 0.0), (9, 0.0011, 0.4)],
                   seed=0.6, side_bias=0.25,
                   pred=lambda co: -0.700 < co.z < -0.600,
-                  gate=lambda co: 1.0 - D._smooth(abs(co.x), 0.160, 0.215))
+                  gate=lambda co: 1.0 - D._smooth(abs(co.x), 0.192, 0.246))
     D.band_pull(body, Z_WAIST_TOP, Z_HEM, amount=0.016)
     D.seam_groove(body, Z_WAIST_TOP, depth=0.0026, width=0.0060)
 
