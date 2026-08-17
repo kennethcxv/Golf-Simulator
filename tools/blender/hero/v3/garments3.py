@@ -65,7 +65,8 @@ ATLAS_COLS, ATLAS_ROWS = 6, 6
 # Eight garments, eight different colourways: "a rail of eight identical navy
 # garments is not a shop".
 CELL = {"polo-folded": 2, "polo-hung": 0, "tee-folded": 11, "tee-hung": 1,
-        "hoodie-folded": 6, "hoodie-hung": 9, "trousers-folded": 4, "cap": 5}
+        "hoodie-folded": 6, "hoodie-hung": 9, "trousers-folded": 4,
+        "trousers-hung": 8, "cap": 5, "cap-hung": 5}
 # each colourway's darker partner, for contrast trim
 CONTRAST = {0: 12, 1: 13, 2: 14, 3: 15, 4: 16, 5: 17,
             6: 12, 7: 17, 8: 13, 9: 14, 10: 16, 11: 13}
@@ -1195,17 +1196,205 @@ def cap(origin=(0, 0, 0), broken=""):
     return p
 
 
+
+def trousers_hung(origin=(0, 0, 0), broken=""):
+    """TROUSERS ON A CLAMP HANGER. Garment 9 of the ten, and it has never been
+    built -- not in v2, not in v1. "Polo, tee, hoodie, trousers, cap, folded
+    and hung" is ten states and the tree contained eight, which is worth
+    saying plainly rather than leaving to be discovered.
+
+    There is nothing to compare it against, so it does not get a v2/v3 frame:
+    a comparison with one garment in it is a photograph, not a comparison.
+    What it does get is the same six checks every other garment passes.
+
+    Construction: a bar hanger with a clamp, a waistband hanging from it, a
+    short seat that carries the two legs, and the legs themselves as tapered
+    lens-section tubes -- an empty trouser leg is flat, the same reason a
+    sleeve is. Each leg carries the pressed crease that made the folded pair
+    read as trousers rather than as a folded towel.
+    """
+    ox, oy, oz = origin
+    p = {}
+    SH = oz + 0.5400
+    HIPW, HIPD = 0.1660, 0.0700
+
+    p["hanger"], p["hook"] = CL.hanger(
+        "TrouHung_Hanger", (ox, oy, SH), halfw=0.0760, drop=0.0060,
+        rod=0.0060)
+    # THE CLAMP. A trouser hanger is a bar with a jaw on it, and the jaw is
+    # the only thing that says these are hanging from the waist rather than
+    # folded over a rail. It grips the waistband, so it is wider than the bar
+    # and it sits ON the cloth, not near it.
+    p["clamp"] = HS.box("TrouHung_Clamp", (ox, oy - 0.0052, SH - 0.0092),
+                        (0.1560, 0.0250, 0.0142), bevel=0.0026)
+
+    WZ = SH - 0.0210
+    # the waistband, a closed band hanging from the clamp
+    band, bnrm = [], []
+    NB = 41
+    for k in range(NB):
+        a = 2 * math.pi * k / (NB - 1.0)
+        wob = 1.0 + 0.030 * math.sin(a * 3.0 + 0.7)
+        band.append(Vector((ox + math.cos(a) * HIPW * 0.5 * wob,
+                            oy + math.sin(a) * HIPD * 0.5 * wob,
+                            WZ - 0.0030 * math.sin(a * 2.0))))
+        bnrm.append(Vector((0.0, 0.0, 1.0)))
+    p["waistband"] = CL.framed_sweep("TrouHung_Waistband", band, bnrm,
+                                     0.0062, 0.0215, sides=10, closed=True)
+    for i, fa in enumerate((0.085, 0.315, 0.585, 0.845)):
+        a = 2 * math.pi * fa
+        c = Vector((ox + math.cos(a) * HIPW * 0.5, oy + math.sin(a) * HIPD * 0.5,
+                    WZ))
+        n = Vector((math.cos(a), math.sin(a), 0.0)).normalized()
+        p[f"loop{i}"] = CL.fold_line(
+            f"TrouHung_Loop{i}",
+            (c + n * 0.0064 + Vector((0.0, 0.0, 0.0175))),
+            (c + n * 0.0070 + Vector((0.0, 0.0, -0.0175))),
+            radius=0.0044, sides=8, sink=0.30)
+
+    # THE SEAT, between the waistband and the legs. Without it the legs hang
+    # off the band like two pipes off a collar; a trouser has a body between
+    # the two and it is where the fullness is.
+    p["seat"] = CL.draped("TrouHung_Seat", WZ - 0.0170, HIPW, HIPW * 0.90,
+                          0.1180, HIPD, centre=(ox, oy), neck=0.0,
+                          shoulder_drop=0.0, nu=29, nv=9,
+                          wobble=0.0038, hem_curve=0.0, hem_wave=0.0026)
+
+    # THE LEGS. Tapered lens tubes, because an empty leg is flat -- the same
+    # reason a sleeve is, and the same builder.
+    LEG = 0.4450
+    for side in (-1, 1):
+        nm = "L" if side < 0 else "R"
+        root = Vector((ox + side * HIPW * 0.235, oy, WZ - 0.1080))
+        d = Vector((side * 0.055, 0.010, -0.998)).normalized()
+        (p[f"leg{nm}"], p[f"turnup{nm}"]) = CL.sleeve_from_body(
+            f"TrouHung_Leg{nm}", root, d, LEG, 0.0475, 0.0372,
+            droop=0.0, sides=16, steps=17, seam_in=0.0180, flat=0.66,
+            wobble=0.030,
+            bands=((f"TrouHung_Turnup{nm}", 0.880, 0.975, 0.0026),))
+        # the pressed crease, down the front of the leg
+        # ON THE LEG'S MEASURED SURFACE. Guessed at -30 mm and -25 mm the
+        # crease dived 16 mm inside the leg partway down, because the leg
+        # tapers and a straight line through a tapering tube does not stay on
+        # it. Every other trim in this file that sits on cloth asks the cloth
+        # where it is; this one has no excuse not to.
+        a0 = root + d * (LEG * 0.10)
+        a1 = root + d * (LEG * 0.955)
+        leg = p[f"leg{nm}"]
+        p[f"crease{nm}"] = CL.fold_line(
+            f"TrouHung_Crease{nm}",
+            # tol has to clear the RING PITCH. A 445 mm leg in 17 steps puts
+            # its rings 26 mm apart, and surface_y's 10 mm default lands
+            # between two of them and refuses -- correctly, it has no surface
+            # to answer with. It refuses rather than returning zero, which is
+            # the whole reason this is an error and not a trim in the floor.
+            (a0.x, CL.surface_y(leg, a0.x, a0.z, tol=0.030) + 0.0012, a0.z),
+            (a1.x, CL.surface_y(leg, a1.x, a1.z, tol=0.030) + 0.0010, a1.z),
+            radius=0.0044, sides=8, sink=0.44)
+
+    # a welt pocket at the hip, the same detail the folded pair carries
+    # ON THE SEAT'S MEASURED SURFACE. Placed at a fraction of the nominal hip
+    # depth they stood off the side of the garment like two pegs -- the seat
+    # is a drape and its depth is not its parameter.
+    for i, side in enumerate((-1, 1)):
+        wz0, wz1 = WZ - 0.0430 - 0.0060 * i, WZ - 0.0580 - 0.0060 * i
+        x0, x1 = ox + side * 0.0250, ox + side * 0.0545
+        p[f"welt{i}"] = CL.strip(
+            f"TrouHung_Welt{i}",
+            [Vector((x0, CL.surface_y(p["seat"], x0, wz0, tol=0.020) + 0.0006,
+                     wz0)),
+             Vector((x1, CL.surface_y(p["seat"], x1, wz1, tol=0.020) + 0.0010,
+                     wz1))],
+            0.0080, 0.0044)
+    return p
+
+
+def cap_hung(origin=(0, 0, 0), broken=""):
+    """THE CAP'S SECOND STATE: on a display peg, garment 10 of the ten.
+
+    Like the hung trousers, this one has never existed either -- the cap had
+    exactly one state, sitting crown-up -- so there is nothing to render it
+    beside. A pro shop hangs caps as well as shelving them, and a peg is a
+    genuinely different state: different orientation, different support, and
+    the underside and the rear closure both come into view for the first time.
+    It is not a second copy of the same shot.
+
+    Built by taking the cap the shelf state already passes and TILTING it on a
+    peg, rather than by writing a second cap. A second cap would be a second
+    thing to keep in step, and the whole argument of the fold rig is that one
+    mechanism reviewed properly beats two ported.
+    """
+    ox, oy, oz = origin
+    p = cap(origin=(0.0, 0.0, 0.0), broken=broken)
+
+    # tilted nose-down and turned a little off square, the way a cap sits on a
+    # peg with its own weight in the brim
+    piv = Vector((0.0, 0.0, 0.0430))
+    rot = (Quaternion(Vector((1.0, 0.0, 0.0)), math.radians(-15.0))
+           @ Quaternion(Vector((0.0, 0.0, 1.0)), math.radians(13.0)))
+    M = rot.to_matrix().to_4x4()
+    for ob in p.values():
+        if not hasattr(ob, "matrix_world"):
+            continue
+        mw = ob.matrix_world.copy()
+        mw.translation -= piv
+        mw = M @ mw
+        mw.translation += piv + Vector((ox, oy, oz))
+        ob.matrix_world = mw
+
+    # THE PEG. A dowel out of the wall with a stop at its end, going through
+    # the rear closure -- which is what is carrying the cap, so it has to be
+    # where the closure is rather than at a nominal height.
+    back = Vector((ox, oy, oz)) + rot @ (Vector((0.0, 0.1080, 0.0510)) - piv) + piv
+    p["peg"] = CL._sweep("CapHung_Peg",
+                         # STOPPING AT THE CLOSURE. Run 7.5 mm past it the peg
+                         # came out under the brim on the far side and read as
+                         # a skewer through the cap rather than a peg it is
+                         # hanging on.
+                         [Vector((back.x, back.y + 0.0520, back.z + 0.0092)),
+                          Vector((back.x, back.y + 0.0210, back.z + 0.0034)),
+                          Vector((back.x, back.y + 0.0042, back.z + 0.0006))],
+                         0.0052, sides=9)
+    p["peg_stop"] = CL.button("CapHung_PegStop",
+                              (back.x, back.y + 0.0016, back.z - 0.0002),
+                              (0.0, -1.0, 0.16), 0.0096, 0.0060)
+    return p
+
 GARMENTS = {
     "polo-folded": polo_folded, "polo-hung": polo_hung,
     "tee-folded": tee_folded, "tee-hung": tee_hung,
     "hoodie-folded": hoodie_folded, "hoodie-hung": hoodie_hung,
-    "trousers-folded": trousers_folded, "cap": cap,
+    "trousers-folded": trousers_folded,
+    "trousers-hung": trousers_hung, "cap": cap,
+    "cap-hung": cap_hung,
 }
 
 # Pairs where one part is deliberately deep inside another. Each is a decision
 # on the record, which is the point of the list -- a pair that is NOT here and
 # interpenetrates is a build failure now.
 DEEP = {
+    # CAP HUNG. The peg goes THROUGH the rear closure -- that is what hanging
+    # on a peg is -- and its stop sits against the cap.
+    "cap-hung": [("peg", "peg_stop"), ("peg", "closure"), ("peg", "crown"),
+                 ("peg", "strap0"), ("peg", "strap1"), ("peg", "buckle"),
+                 ("peg_stop", "closure"), ("peg_stop", "crown"),
+                 ("peg", "sweatband"), ("peg_stop", "sweatband")],
+    # TROUSERS HUNG. Every pair here is a join, and each one is named rather
+    # than defaulted: a leg GROWS OUT OF the seat the way a sleeve grows out
+    # of a body, the turn-up wraps the end of the leg it belongs to, and a
+    # pressed crease is a fold IN the leg, not a rod laid on it.
+    "trousers-hung": [("hanger", "hook"), ("hanger", "clamp"),
+                      ("clamp", "waistband"), ("hanger", "waistband"),
+                      ("waistband", "seat"), ("waistband", "loop0"),
+                      ("waistband", "loop1"), ("waistband", "loop2"),
+                      ("waistband", "loop3"), ("seat", "legL"),
+                      ("seat", "legR"), ("legL", "turnupL"),
+                      ("legR", "turnupR"), ("legL", "creaseL"),
+                      ("legR", "creaseR"), ("turnupL", "creaseL"),
+                      ("turnupR", "creaseR"), ("seat", "welt0"),
+                      ("seat", "welt1"), ("legL", "welt0"),
+                      ("legR", "welt1"), ("seat", "creaseL"),
+                      ("seat", "creaseR")],
     # A soft feature half-sunk into cloth so it merges -- a sleeve ridge under a
     # fold, the fat roll at a trouser fold, a waistband, a neck rib. Deep is the
     # intent for these: only the top of the roll should show.
@@ -1284,6 +1473,14 @@ DEEP = {
                         ("pocket", "pocket_welt1"), ("waistband", "loop0"),
                         ("waistband", "loop1")],
 }
+
+# THE HUNG CAP IS THE CAP, so it inherits every join the shelf state declares.
+# Re-typing them would be a second list to keep in step, and the first thing
+# that would happen is exactly what did happen on the first run: brim and
+# crown reported 24 mm of interpenetration on a pair that has been declared
+# deliberate since the cap was built.
+DEEP["cap-hung"] = DEEP["cap-hung"] + DEEP["cap"]
+
 
 
 def check(name, parts):

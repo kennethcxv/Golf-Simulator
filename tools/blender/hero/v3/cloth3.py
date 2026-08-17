@@ -1483,7 +1483,7 @@ def cell_offset(obj, cell, cols=4, rows=3):
 
 def sleeve_from_body(name, root, direction, length, r0, r1, droop=0.10,
                      sides=14, steps=9, seam_in=0.0035, cuff=0.0, flat=0.52,
-                     close=True, bands=()):
+                     close=True, bands=(), wobble=0.0):
     """A sleeve that GROWS OUT OF a shoulder instead of being pushed into one.
 
     The old sleeve was a tapered tube whose end cap sat wherever it landed, and
@@ -1513,8 +1513,15 @@ def sleeve_from_body(name, root, direction, length, r0, r1, droop=0.10,
         ring = []
         for i in range(sides):
             a = 2 * math.pi * i / sides
-            ring.append(c + side * (math.cos(a) * r)
-                        + up * (math.sin(a) * r * flat))
+            # AN EMPTY LEG IS NOT A PIPE. A sleeve is short enough to get away
+            # with a clean taper; a 445 mm trouser leg with nothing in it does
+            # not, and it read as tube stock. The folds run along the length
+            # and wander round the section, the same two-scale field draped()
+            # uses, at a fraction of it because a leg has a seam holding it.
+            f = 1.0 + wobble * (math.sin(a * 3.0 + t * 6.4)
+                                + 0.52 * math.sin(a * 5.0 - t * 3.7 + 1.9))
+            ring.append(c + side * (math.cos(a) * r * f)
+                        + up * (math.sin(a) * r * flat * f))
         rings.append(ring)
     # THE CUFF ROLLS CLOSED. loft() caps the last ring flat, so a sleeve that
     # ends at full section ends in a DISC -- and side-on that disc is the
@@ -1556,9 +1563,14 @@ def sleeve_from_body(name, root, direction, length, r0, r1, droop=0.10,
         r = r0 * (1 - t) + r1 * t
         if cuff and t > 0.86:
             r *= 1.0 + cuff * (t - 0.86) / 0.14
-        return [c + side * (math.cos(2 * math.pi * i / sides) * (r + out))
-                + up * (math.sin(2 * math.pi * i / sides) * (r * flat + out))
-                for i in range(sides)]
+        out_ring = []
+        for i in range(sides):
+            a = 2 * math.pi * i / sides
+            f = 1.0 + wobble * (math.sin(a * 3.0 + t * 6.4)
+                                + 0.52 * math.sin(a * 5.0 - t * 3.7 + 1.9))
+            out_ring.append(c + side * (math.cos(a) * (r * f + out))
+                            + up * (math.sin(a) * (r * flat * f + out)))
+        return out_ring
 
     made = [sleeve]
     for bname, t0, t1, out in bands:
