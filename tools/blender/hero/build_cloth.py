@@ -71,14 +71,120 @@ def rounded_block(name, centre, size, roundness=0.34, cols=14, stacks=9):
 
 def build_sponge(broken=False):
     """Two layers, a real part boundary: foam body and abrasive pad."""
-    body_h = SPONGE[2] * (1 - SCOUR_FRAC)
     # ONE block, two materials split by height. Stacking a second solid on top
     # gave the scour pad a rim that overhung the body and read as a lid with a
     # seam -- a bonded abrasive layer is flush with the sides, and the only thing
     # that changes at the boundary is the surface.
     sponge = rounded_block("Sponge", (0, 0, SPONGE[2] * 0.5),
-                           SPONGE, roundness=0.34, cols=18, stacks=11)
+                           SPONGE, roundness=0.34, cols=44, stacks=27)
+    pit_and_squash(sponge)
     return sponge
+
+
+def pit_and_squash(ob):
+    """Open-cell foam, and a sponge that has been used.
+
+    A smooth superellipsoid is a bar of soap. What identifies foam is that its
+    surface is PITTED -- open cells breaking the skin -- and pits sit on the
+    silhouette, so a bump map cannot do it: at 44 x 27 the block carries them
+    for 2,300 triangles. Three octaves, because one gives a golf ball.
+
+    And a sponge in a bucket is not a machined solid. It has been squeezed:
+    one long face bows in, the opposite one out, and the whole block leans a
+    couple of degrees off square. Perfect symmetry is most of what made this
+    read as a primitive with rounded corners.
+    """
+    import random
+    rnd = random.Random(70154)
+    # a fixed set of cell centres on the unit sphere, so the pitting is stable
+    cells = []
+    for _ in range(78):
+        v = Vector((rnd.uniform(-1, 1), rnd.uniform(-1, 1), rnd.uniform(-1, 1)))
+        if v.length < 1e-6:
+            continue
+        cells.append((v.normalized(), rnd.uniform(0.55, 1.0)))
+
+    hx, hy, hz = (v * 0.5 for v in SPONGE)
+    cz = SPONGE[2] * 0.5
+    for vert in ob.data.vertices:
+        p = vert.co
+        d = Vector(((p.x) / hx, (p.y) / hy, (p.z - cz) / hz))
+        n = d.normalized() if d.length > 1e-6 else Vector((0, 0, 1))
+        # pits: a well wherever the surface passes near a cell centre
+        pit = 0.0
+        for (c, w) in cells:
+            k = max(0.0, n.dot(c))
+            pit = max(pit, w * (k ** 34.0))
+        # a finer second octave so the skin is never locally smooth
+        fine = (math.sin(p.x * 640.0 + 1.3) * math.sin(p.y * 590.0 - 0.4)
+                * math.sin(p.z * 610.0 + 2.1))
+        off = -0.0043 * pit - 0.00095 * fine
+        # the squeeze: one flank in, the other out, and a slight lean
+        off += 0.0022 * n.y * (1.0 - abs(n.z) ** 2)
+        off -= 0.0014 * (n.x ** 2) * n.y
+        vert.co = p + n * off
+    ob.data.update()
+
+
+def surface_material(name, colour, rough, scale, strength, dist, spread,
+                     detail=6.0):
+    """A cloth/foam material with a real surface: noise on the BUMP for the
+    texture and a narrow tint either side on COLOUR for the microvariation.
+
+    The apparel pass learned both halves of this the hard way. Bump alone
+    leaves a panel facing the key at one flat value across its whole width;
+    colour variation coarser than the yarn or the cell reads as staining.
+    """
+    mat = HS.pbr(name, colour, roughness=rough)
+    nt = mat.node_tree
+    b = nt.nodes["Principled BSDF"]
+    n = nt.nodes.new("ShaderNodeTexNoise")
+    n.inputs["Scale"].default_value = scale
+    n.inputs["Detail"].default_value = detail
+    n.inputs["Roughness"].default_value = 0.58
+    bump = nt.nodes.new("ShaderNodeBump")
+    bump.inputs["Strength"].default_value = strength
+    bump.inputs["Distance"].default_value = dist
+    nt.links.new(n.outputs["Fac"], bump.inputs["Height"])
+    nt.links.new(bump.outputs["Normal"], b.inputs["Normal"])
+    v = nt.nodes.new("ShaderNodeTexNoise")
+    v.inputs["Scale"].default_value = scale * 0.42
+    v.inputs["Detail"].default_value = 4.0
+    t = nt.nodes.new("ShaderNodeMix")
+    t.data_type = "RGBA"
+    lo, hi = 1.0 - spread, 1.0 + spread
+    t.inputs["A"].default_value = (colour[0] * lo, colour[1] * lo,
+                                   colour[2] * lo, 1.0)
+    t.inputs["B"].default_value = (colour[0] * hi, colour[1] * hi,
+                                   colour[2] * hi, 1.0)
+    nt.links.new(v.outputs["Fac"], t.inputs["Factor"])
+    nt.links.new(t.outputs[2], b.inputs["Base Color"])
+    return mat
+
+
+def sweep_tube(name, pts, radius, sides=8):
+    """A closed tube along a polyline. Used for the cloth's overlocked hem --
+    the only edge detail a folded microfibre cloth actually has."""
+    verts, faces = [], []
+    n = len(pts)
+    for i, p in enumerate(pts):
+        tan = Vector(pts[min(n - 1, i + 1)]) - Vector(pts[max(0, i - 1)])
+        tan = tan.normalized() if tan.length > 1e-9 else Vector((0, 1, 0))
+        e1 = tan.cross(Vector((0, 0, 1)))
+        if e1.length < 1e-6:
+            e1 = tan.cross(Vector((1, 0, 0)))
+        e1.normalize()
+        e2 = tan.cross(e1).normalized()
+        for k in range(sides):
+            a = 2 * math.pi * k / sides
+            verts.append(Vector(p) + e1 * (radius * math.cos(a))
+                         + e2 * (radius * math.sin(a)))
+    for i in range(n - 1):
+        for k in range(sides):
+            a = i * sides + k
+            b = i * sides + (k + 1) % sides
+            faces.append((a, b, b + sides, a + sides))
+    return HS.mesh_from(name, verts, faces, smooth=True)
 
 
 def build_cloth(broken=False):
@@ -116,11 +222,28 @@ def build_cloth(broken=False):
             a = j * STEPS + i
             faces.append((a, a + 1, a + STEPS + 1, a + STEPS))
     cloth = HS.mesh_from("Cloth", verts, faces, smooth=True)
+    # A MICROFIBRE CLOTH HAS AN OVERLOCKED EDGE, and a real one does not lie
+    # with its two free edges parallel. Both were missing and the render was a
+    # flat blue slab: the hem is the only line on the object.
+    hem = []
+    for j in range(ROWS):
+        t = j / (ROWS - 1)
+        y = (t - 0.5) * CLOTH[1]
+        hem.append(Vector((ox - CLOTH[0] * 0.5 + 0.0030 * math.sin(t * 5.1),
+                           y, 0.0138 + 0.0035 * math.sin(t * math.pi * 1.8)
+                           * 0.6)))
+    stitch = sweep_tube("ClothHem", hem, 0.0016, sides=7)
     solid = cloth.modifiers.new("Thickness", "SOLIDIFY")
     solid.thickness = 0.0030
     solid.offset = 0.0
     solid.use_rim = True
     cloth = HS.apply_mods(cloth)
+    if stitch is not None:
+        bpy.ops.object.select_all(action='DESELECT')
+        stitch.select_set(True)
+        cloth.select_set(True)
+        bpy.context.view_layer.objects.active = cloth
+        bpy.ops.object.join()
     if broken:
         # THE DELIBERATELY BROKEN VARIANT: slide the cloth into the sponge. It
         # still looks like a cloth beside a sponge from three of eight angles,
@@ -142,15 +265,38 @@ def main():
     sponge = build_sponge()
     cloth = build_cloth(broken=broken)
 
-    foam = HS.pbr("SpongeFoam", (0.620, 0.360, 0.022), roughness=0.95)
-    scour = HS.pbr("SpongeScour", (0.014, 0.062, 0.026), roughness=0.92)
-    fabric = HS.pbr("ClothFabric", (0.016, 0.070, 0.115), roughness=0.97)
+    # MUTED, AND WITH A SURFACE. The first pass was flat saturated primary
+    # colour on three smooth objects -- a toy sponge and a rubber mat. Real
+    # retail cleaning stock is duller than that, and the thing that actually
+    # identifies each of these is its SURFACE: open cells on the foam, coarse
+    # matted fibre on the scour pad, a fine pile on the microfibre.
+    # SCALE IS IN GENERATED SPACE, WHICH IS THE BOUNDING BOX -- 0 to 1, not
+    # metres. 900 on a 112 mm sponge is eight noise cells per millimetre:
+    # sub-pixel at any camera that shows the whole object, so it averaged to
+    # flat and both objects rendered as untextured colour. About one cell per
+    # millimetre is what the eye reads as foam or as pile, which on this
+    # bounding box is 120-260.
+    foam = surface_material("SpongeFoam", (0.520, 0.318, 0.036),
+                            rough=0.96, scale=135.0, strength=0.46,
+                            dist=0.0013, spread=0.20)
+    scour = surface_material("SpongeScour", (0.020, 0.064, 0.030),
+                             rough=0.94, scale=260.0, strength=0.70,
+                             dist=0.0010, spread=0.30, detail=8.0)
+    fabric = surface_material("ClothFabric", (0.034, 0.086, 0.128),
+                              rough=0.975, scale=210.0, strength=0.26,
+                              dist=0.00055, spread=0.10)
     sponge.data.materials.append(foam)
     sponge.data.materials.append(scour)
     cloth.data.materials.append(fabric)
+    n_scour = 0
     for poly in sponge.data.polygons:
         if poly.center.z > SPONGE[2] * (1.0 - SCOUR_FRAC):
             poly.material_index = 1
+            n_scour += 1
+    print(f"  scour pad: {n_scour} of {len(sponge.data.polygons)} faces")
+    if n_scour < 40:
+        raise SystemExit("BUILD FAILED: the scour pad got no faces -- the pit "
+                         "displacement has moved the top below the split")
 
     HS.assert_no_overlap(cloth, sponge, "the cloth must not be inside the sponge",
                          min_gap=0.0020)
