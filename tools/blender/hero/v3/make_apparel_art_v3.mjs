@@ -334,6 +334,14 @@ await place(await sharp(await sharp(await knit(Math.round(CELL * 2.2),
     Math.round(CELL * 2.2), WAY[0][1], 1)).resize(CELL, CELL).png().toBuffer())
   .composite([{ input: Buffer.from(chestRoundel()) }]).png().toBuffer(),
   'chest-navy');
+// and the tee print on WHITE, for the hung tee. One print cell cannot serve
+// two shirt colours once the print is ink rather than a card: on the white
+// tee the cream-backed cell reads as a cream rectangle with a cut corner,
+// which is the same sticker fault in a paler shade.
+await place(await sharp(await sharp(await knit(Math.round(CELL * 2.6),
+    Math.round(CELL * 2.6), WAY[1][1], 2)).resize(CELL, CELL).png().toBuffer())
+  .composite([{ input: Buffer.from(teeFront()) }]).png().toBuffer(),
+  'teefront-white');
 
 const out = path.join(OUT, 'apparel_atlas_v3.png');
 await sharp({

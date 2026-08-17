@@ -1748,6 +1748,85 @@ def conform_decal(name, top_at, centre, size, nx=9, ny=9, lift=0.0006,
     obj["explicit_uv"] = True
     return obj
 
+
+def surface_decal(name, at, u0, u1, v0, v1, nx=9, ny=9, out=0.0011,
+                  thick=0.0006, hint=None):
+    """A print that follows a PARAMETRIC panel, the way conform_decal follows
+    a folded stack's top face.
+
+    The hung garments are built from panel functions, not from a height field,
+    so conform_decal cannot reach them -- and a flat quad on a panel that
+    curves round the chest lifts at its corners and catches a hard rim of
+    shadow all the way round. On the white tee that rim is the whole of what
+    you see, because the ink is dark and small and the card is neither.
+
+    The outward direction comes from the panel's own derivatives, so it cannot
+    disagree with the surface it is sitting on.
+    """
+    verts, faces = [], []
+    grid, nrm = [], []
+    for j in range(ny):
+        fv = v0 + (v1 - v0) * (j / (ny - 1.0))
+        for i in range(nx):
+            fu = u0 + (u1 - u0) * (i / (nx - 1.0))
+            e = 1e-3
+            q = at(fu, fv)
+            du = at(min(1.0, fu + e), fv) - at(max(-1.0, fu - e), fv)
+            dv = at(fu, min(1.0, fv + e)) - at(fu, max(0.0, fv - e))
+            n = du.cross(dv)
+            if n.length < 1e-9:
+                n = Vector((0.0, -1.0, 0.0))
+            n.normalize()
+            # WHICH WAY IS OUT depends on how the panel happens to be
+            # parameterised, and du x dv on the tee's front panel points INTO
+            # the shirt -- so the print was pushed inside the cloth and
+            # measured 25% exposed. The caller knows which side is the front;
+            # the derivative does not.
+            if hint is not None and n.dot(Vector(hint)) < 0.0:
+                n = -n
+            grid.append(q)
+            nrm.append(n)
+    n_all = nx * ny
+    for q, n in zip(grid, nrm):
+        verts.append(q + n * out)
+    for q, n in zip(grid, nrm):
+        verts.append(q + n * (out - thick))
+    for j in range(ny - 1):
+        for i in range(nx - 1):
+            a = j * nx + i
+            faces.append((a, a + 1, a + nx + 1, a + nx))
+            b = n_all + a
+            faces.append((b + nx, b + nx + 1, b + 1, b))
+    edge = ([j * nx for j in range(ny - 1)]
+            + [(ny - 1) * nx + i for i in range(nx - 1)]
+            + [(j + 1) * nx - 1 for j in range(ny - 1, 0, -1)]
+            + [i for i in range(nx - 1, 0, -1)])
+    nxt = ([(j + 1) * nx for j in range(ny - 1)]
+           + [(ny - 1) * nx + i + 1 for i in range(nx - 1)]
+           + [j * nx - 1 for j in range(ny - 1, 0, -1)]
+           + [i - 1 for i in range(nx - 1, 0, -1)])
+    for a, b in zip(edge, nxt):
+        faces.append((a, b, n_all + b, n_all + a))
+    obj = HS.mesh_from(name, verts, faces, smooth=False)
+
+    # UVs OFF GRID INDEX, which is the one thing that cannot be reordered by
+    # a normal recalculation -- position works for a flat card and does not
+    # here, because the patch is curved and two corners can share an axis.
+    uv = obj.data.uv_layers.new(name="UVMap")
+    for poly in obj.data.polygons:
+        idx = [obj.data.loops[li].vertex_index for li in poly.loop_indices]
+        if any(k >= n_all for k in idx):
+            for li in poly.loop_indices:
+                uv.data[li].uv = (0.02, 0.02)
+            continue
+        for li in poly.loop_indices:
+            k = obj.data.loops[li].vertex_index
+            uu = (k % nx) / (nx - 1.0)
+            vv = 1.0 - (k // nx) / (ny - 1.0)
+            uv.data[li].uv = (0.02 + 0.96 * uu, 0.02 + 0.96 * vv)
+    obj["explicit_uv"] = True
+    return obj
+
 # ---------------------------------------------------------------------------
 # surface construction
 #

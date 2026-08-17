@@ -71,7 +71,7 @@ CONTRAST = {0: 12, 1: 13, 2: 14, 3: 15, 4: 16, 5: 17,
             6: 12, 7: 17, 8: 13, 9: 14, 10: 16, 11: 13}
 CHEST_CELL, TEEFRONT_CELL, BADGE_CELL = 18, 19, 20
 CAPMONO_CELL, RIB_CELL, TRIM_CELL = 21, 22, 23
-CHEST_NAVY_CELL = 32
+CHEST_NAVY_CELL, TEEFRONT_WHITE_CELL = 32, 33
 
 
 def cell_for(part, garment):
@@ -81,7 +81,7 @@ def cell_for(part, garment):
     n = part.lower()
     if "print" in n:
         if garment.startswith("tee"):
-            return TEEFRONT_CELL
+            return TEEFRONT_WHITE_CELL if base == 1 else TEEFRONT_CELL
         # the chest mark is ink on the shirt, so which cell depends on which
         # shirt: cell 0 is navy, everything else takes the fairway version
         return CHEST_NAVY_CELL if base == 0 else CHEST_CELL
@@ -496,10 +496,17 @@ def tee_hung(origin=(0, 0, 0), broken=""):
     # z picked by eye failed outright -- "the part being placed there is off
     # the garment, not on it" -- and the panel function already knows exactly
     # where its own surface is.
-    chest = panel(True, 0.0, 0.30) + Vector((ox, oy, SH))
-    p["print"] = CL.decal("TeeHung_Print",
-                          (chest.x, chest.y - 0.0016, chest.z),
-                          (0, -1, 0), (0.0980, 0.0820))
+    # AND CONFORMED TO IT. A flat card on a panel that curves round the chest
+    # touches in the middle and lifts at the corners, and the rim of shadow
+    # that leaves is the whole of what you see on a white tee: the ink is
+    # dark and small, the card is neither. Same fault the folded tee had, and
+    # it needed the parametric version of the same fix.
+    def chest_at(u, v):
+        return panel(True, u, v) + Vector((ox, oy, SH))
+    p["print"] = CL.surface_decal("TeeHung_Print", chest_at,
+                                  -0.235, 0.235, 0.185, 0.395,
+                                  nx=11, ny=9, out=0.0009,
+                                  hint=(0.0, -1.0, 0.0))
     return p
 
 
@@ -782,7 +789,7 @@ def hoodie_hung(origin=(0, 0, 0), broken=""):
         # "flat disc" and the tee's hollow sleeve
         end = root + dvec * 0.3060
         p[f"cuff{nm}"] = CL.ribbed_ring(f"HoodHung_Cuff{nm}", end, dvec,
-                                        0.0468, 0.0230, ribs=16, depth=0.0020)
+                                        0.0484, 0.0230, ribs=16, depth=0.0020)
 
     # THE HOOD: a rolled rim round a hole with a shell behind it, sat BEHIND
     # the neck so the hanger's hook does not show through it. Measured off the
@@ -803,18 +810,45 @@ def hoodie_hung(origin=(0, 0, 0), broken=""):
                        + Vector((0.0, math.sin(a_i) * 0.0140, 0.0)))
     p["hood_rim"] = CL._sweep("HoodHung_Rim", rim_pts, 0.0078, sides=9)
 
-    def hood_shell(u, v):
-        a_i = 2 * math.pi * u
-        depth = 0.1240 * v
-        k = math.sqrt(max(0.0, 1.0 - v * v * 0.58))
-        return rim_c + Vector((math.cos(a_i) * RIM_A * 1.02 * k,
-                               0.0080 + depth,
-                               math.sin(a_i) * RIM_B * 0.98 * k
-                               - 0.0100 * v * v))
-    shell = CL.grid_surface("HoodHung_Shell", hood_shell, nu=29, nv=11,
-                            smooth=True)
-    CL._weld_and_cap(shell)
-    p["hood"] = shell
+    # A HOOD IS A BAG WITH A HOLE IN IT, and this one was a disc.
+    #
+    # Two flat plates were doing all the damage. The shell stopped at 65% of
+    # the rim size and _weld_and_cap laid a 28-gon across the back of it, so
+    # the hood was flat-backed; and the rim opening got the same treatment at
+    # the front, which is why it read as an oval lens standing up behind the
+    # shoulders like a car headrest (HH1). There was nowhere for the light not
+    # to reach, which is the whole of what a hood looks like.
+    #
+    # So the surface runs from deep INSIDE the hood, out through the rim, over
+    # the crown and back to a point. The lining is the part that matters: it
+    # is what makes the opening a hole rather than a face.
+    def ring_at(k, depth, drop):
+        return [rim_c + Vector((math.cos(2 * math.pi * i / 28) * RIM_A * k,
+                                0.0080 + depth,
+                                math.sin(2 * math.pi * i / 28) * RIM_B * k
+                                - drop))
+                for i in range(29)]
+
+    hrings = []
+    LIN = 5
+    for i in range(LIN):                       # the lining, innermost first
+        s = i / (LIN - 1.0)                    # 0 deep inside, 1 at the rim
+        hrings.append(ring_at(0.26 + 0.74 * s, 0.0640 * (1.0 - s) * 0.55,
+                              0.0040 * (1.0 - s)))
+    OUT = 11
+    for j in range(1, OUT):                    # out over the crown to a point
+        # sampled by angle, so the last ring is SMALL but not zero: a ring
+        # collapsed to a point has no radius, loft cannot dome it, and it
+        # falls back to the flat n-gon this was meant to remove.
+        v = math.sin(math.pi * 0.5 * j / OUT)
+        hrings.append(ring_at(math.sqrt(max(0.0, 1.0 - v * v)) * 1.02,
+                              0.1240 * v,
+                              # AND IT SLUMPS. A hood with nobody in it falls
+                              # back and down off the shoulders; at 10 mm of
+                              # drop it stood bolt upright.
+                              0.0300 * v * v))
+    p["hood"] = CL.loft("HoodHung_Shell", hrings, smooth=True,
+                        cap=("dome", "dome"), cap_rise=0.30)
 
     # the cords, out of the rim and down the chest, ON the measured panel
     for ci, sgn in ((0, -1.0), (1, 1.0)):
@@ -844,7 +878,8 @@ def hoodie_hung(origin=(0, 0, 0), broken=""):
                                 base.y - 0.0100 + math.sin(b) * 0.0135 * bulge,
                                 base.z + math.cos(b) * 0.0380)))
         prings.append(ring)
-    p["pocket"] = CL.loft("HoodHung_Pocket", prings, smooth=True)
+    p["pocket"] = CL.loft("HoodHung_Pocket", prings, smooth=True,
+                          cap=("dome", "dome"), cap_rise=0.30)
     lip = []
     for s_i in range(13):
         t = s_i / 12.0
@@ -853,16 +888,30 @@ def hoodie_hung(origin=(0, 0, 0), broken=""):
         lip.append(Vector((q.x, q.y - 0.0052, q.z)))
     p["pocket_lip"] = CL.strip("HoodHung_PocketLip", lip, 0.0078, 0.0040)
 
+    # THE WAIST IS A RIB, and it was a horizontal flange. 27 mm wide and 7.6 mm
+    # thick lying flat, it read as the cut edge of a moulded shell with a lip
+    # on it -- the hoodie's hem looked like the bottom of a bin (HH2). A
+    # hoodie's hem is a ribbed band forty or fifty millimetres deep that
+    # GATHERS the body in; it is the second most identifying thing on the
+    # garment after the hood, and it was the one place the silhouette was
+    # dead straight.
     hem, hnrm = [], []
     NH = 41
+    cxy = Vector((ox, oy, 0.0))
     for k in range(NH):
         t = k / (NH - 1.0)
         frontish = t < 0.5
         uu = side_u((t * 2.0) if frontish else (2.0 - t * 2.0))
-        hem.append(panel(frontish, uu, 1.0) + Vector((ox, oy, SH)))
+        q = panel(frontish, uu, 1.0) + Vector((ox, oy, SH))
+        # drawn in towards the centre, because that is what a rib does, and
+        # lifted so the band hangs BELOW the path rather than straddling it
+        q = Vector((ox + (q.x - ox) * 0.955, oy + (q.y - oy) * 0.925,
+                    q.z + 0.0232
+                    + 0.0026 * math.sin(t * 12.6)))
+        hem.append(q)
         hnrm.append(Vector((0.0, 0.0, 1.0)))
-    p["hem"] = CL.framed_sweep("HoodHung_Hem", hem, hnrm, 0.0135, 0.0038,
-                               sides=6, closed=True)
+    p["waist"] = CL.framed_sweep("HoodHung_Waist", hem, hnrm, 0.0058, 0.0245,
+                                 sides=10, closed=True)
 
     p["hanger"], p["hook"] = CL.hanger(
         "HoodHung_Hanger", (ox, oy, SH + 0.0200), halfw=0.0900, drop=0.0560,
@@ -1241,23 +1290,51 @@ def check(name, parts):
     # exact fault in control_cloth_checks.py before it was trusted.
     CC.assert_no_flat_caps(list(mesh.values()), f"{name}: no lofted end flat")
 
-    host = mesh.get("cloth") or mesh.get("body")
-    if host is not None:
+    # THE HOST CANNOT BE SILENTLY ABSENT. Keyed on "cloth" or "body" alone,
+    # this whole block skipped every panel-built garment -- tee-hung has
+    # neither key, so it reported "flat-cap assertion passed" and nothing
+    # else, and read as a garment that had been checked. Three of the four
+    # checks were certifying air on it.
+    one = mesh.get("cloth") or mesh.get("body")
+    if one is not None:
+        hostk = [k for k in ("cloth", "body") if mesh.get(k) is one]
+    else:
+        # EVERY BIG PANEL IS A HOST, not just the biggest one. A hung tee is a
+        # front, a back and two sleeves; measuring a cuff against whichever
+        # panel happens to have the most area compares it to the wrong thing,
+        # and measuring the host against itself gives -0.00 mm, which is what
+        # the first cut of this printed.
+        cands = sorted(((sum(pl.area for pl in o.data.polygons), k)
+                        for k, o in mesh.items()
+                        if hasattr(o, "data") and o.data.polygons), reverse=True)
+        if not cands:
+            raise SystemExit(f"BUILD FAILED: {name} -- no part has any surface "
+                             f"for the cloth checks to measure against.")
+        big = cands[0][0]
+        hostk = [k for a, k in cands if a >= big * 0.25]
+        print(f"  (cloth hosts: {', '.join(sorted(hostk))})")
+    host = [mesh[k] for k in hostk]
+    if True:
         # PRINTS ARE EXEMPT FROM RELIEF, deliberately. A screen print has no
         # relief -- it is ink -- and demanding 2.2 mm from it would force back
         # exactly the raised card that made the tee read as a sticker. The
         # exemption is by name and it is narrow: everything else that sits on
         # the cloth still has to stand where light can find it.
         trims = [(o, host, k) for k, o in mesh.items()
-                 if k not in ("cloth", "body") and not k.startswith("leaf")
+                 if k not in hostk and not k.startswith("leaf")
                  and "print" not in k and hasattr(o, "data")]
         if trims:
             CC.assert_relief(trims, f"{name}: the trims stand off the cloth")
-        judged = [k for k in mesh if k not in ("cloth", "body")
+        judged = [k for k in mesh if k not in hostk
                   and not k.startswith("leaf")]
         if judged:
             CC.assert_not_buried(mesh, f"{name}: every part reachable by light",
                                  only=judged)
+        # Only the FOLDED garments get the outline check. On a panel-built
+        # hung garment the largest part is one thin panel and its y spread is
+        # its own thickness, so the measurement would be real arithmetic about
+        # nothing -- which is worse than not running it, because it prints a
+        # pass. Stated here rather than left as a quiet key lookup.
         if "cloth" in mesh:
             # min_gap=0: see assert_irregular. These are samples of one
             # curve, not a set of separate edges. min_range is 3% of the

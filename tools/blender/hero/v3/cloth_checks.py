@@ -28,16 +28,24 @@ from mathutils import Vector  # noqa: E402
 import hardsurface_lib as HS  # noqa: E402
 
 
-def proud_of(part, host):
-    """How far the FURTHEST vertex of `part` stands outside `host`, in metres.
+def proud_of(part, hosts):
+    """How far the furthest vertex of `part` stands outside EVERY host, in m.
 
     point_depth_inside is positive inside and negative outside, so the most
     exposed vertex is the most negative one.
+
+    `hosts` is a list because a panel-built garment has no single body: a
+    hung tee is a front, a back and two sleeves, and a cuff measured against
+    whichever one happens to be largest is measured against the wrong thing.
+    A vertex counts as proud only if it is outside all of them.
     """
+    if not isinstance(hosts, (list, tuple)):
+        hosts = [hosts]
     mw = part.matrix_world
     worst = -1e9
     for v in part.data.vertices:
-        d = -HS.point_depth_inside(host, mw @ v.co)
+        q = mw @ v.co
+        d = -max(HS.point_depth_inside(h, q) for h in hosts)
         if d > worst:
             worst = d
     return worst
