@@ -41,7 +41,66 @@ import bpy
 from mathutils import Vector
 
 
-def fold(ob, axis, cut, radius, side=+1, up=+1, resolve=None):
+def fold(ob, axis, cut, radius=0.0, side=+1, gap=0.0009, near=0.030):
+    """Fold the material on one side of a line over onto the other side.
+
+    THE HINGE AXIS IS SET BY WHERE THE FLAP HAS TO LAND, not by a radius chosen
+    in advance. That is the correction that made this work: with a fixed radius
+    and the axis pinned to the top of the stack, every fold swung the flap up in
+    an arc as tall as the stack already was, so five folds on a tee produced a
+    601 mm tower on a 662 mm footprint -- v4's fault reproduced by arithmetic.
+
+    Put the axis half way between the top of what the flap lands on and the top
+    of the flap itself:
+
+        A  = (z_land + z_flap) / 2
+        r  = A - z            per point: the outer ply turns on a shorter radius
+        th = min(s / r, pi)
+        s' = r sin th - max(0, s - pi r)
+        z' = A - r cos th
+
+    At s = 0 nothing moves. At th = pi the point is at 2A - z, so the flap's own
+    top lands exactly on the stack's top and the new top is the old one plus the
+    flap's thickness. The panels either side are rigid, so what is left is flat
+    faces meeting at a crisp line -- and the hinge's radius comes out as the
+    cloth's own thickness, which is why a real fold looks like that.
+
+    `radius` is a floor on the hinge radius, for cloth that will not fold to a
+    knife edge.
+    """
+    me = ob.data
+    ax = 0 if axis == 'x' else 1
+    land, flap = [], []
+    for v in me.vertices:
+        d = (v.co[ax] - cut) * side
+        if d <= 0.0:
+            if -d < near:
+                land.append(v.co.z)
+        else:
+            flap.append(v.co.z)
+    if not flap:
+        return ob
+    z_land = max(land) if land else 0.0
+    z_flap = max(flap)
+    A = (z_land + z_flap) * 0.5 + gap
+    eps = max(1e-5, radius)
+    for v in me.vertices:
+        p = v.co
+        s = (p[ax] - cut) * side
+        if s <= 0.0:
+            continue
+        r = max(eps, A - p.z)
+        th = min(s / r, math.pi)
+        sp = r * math.sin(th) - max(0.0, s - math.pi * r)
+        q = Vector(p)
+        q[ax] = cut + sp * side
+        q.z = A - r * math.cos(th)
+        v.co = q
+    me.update()
+    return ob
+
+
+def _fold_fixed(ob, axis, cut, radius, side=+1, up=+1, resolve=None):
     """Fold the material on one side of a line over onto the other side.
 
     `axis` is 'x' or 'y': the coordinate that the fold line is a constant of.
@@ -87,8 +146,8 @@ def _stack_top(me, axis, cut, side):
 def fold_seq(ob, steps):
     """Apply folds in order. Each one sees the geometry the last one left."""
     for st in steps:
-        fold(ob, st["axis"], st["cut"], st["radius"], st.get("side", 1),
-             st.get("up", 1), st.get("resolve"))
+        fold(ob, st["axis"], st["cut"], st.get("radius", 0.0),
+             st.get("side", 1), st.get("gap", 0.0009))
     return ob
 
 

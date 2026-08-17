@@ -94,7 +94,7 @@ def clamp_hanger(half_w=0.170, z=0.0, y=0.0, grip=0.140, hook_h=0.104,
     for sx in (-1, 1):
         parts.append(ST.box("%s_jaw%+d" % (name, sx),
                             (sx * grip, y, z - 0.0232),
-                            (0.0200, 0.0128, 0.0206), bevel=0.0020))
+                            (0.0160, 0.0102, 0.0166), bevel=0.0018))
     body = ST.join(name, parts)
     ST.smooth_by_angle(body, 26.0)
     body.data.materials.append(ST.wood(name + "Wood", tone, span_mm=360.0))

@@ -593,10 +593,17 @@ def grid(name, rows, wrap_u=False, skip=None, uv=True):
 
 
 def box(name, centre, half, bevel=0.0, segments=2):
+    """`half` is the HALF-extent, so a size-1 cube scales by twice it.
+
+    Written as `2 * h * 0.5` first time round, which is h -- so every box in v5
+    came out at half its intended size. The shelf under the folded tee was a
+    150 mm coaster and the trouser clamp's bar was 8 mm deep, and both read as
+    "the prop is too small" rather than as one arithmetic slip.
+    """
     bpy.ops.mesh.primitive_cube_add(size=1.0)
     ob = bpy.context.object
     ob.name = name
-    ob.scale = tuple(2 * h * 0.5 for h in half)
+    ob.scale = tuple(2.0 * h for h in half)
     ob.location = centre
     bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
     if bevel > 0.0:
