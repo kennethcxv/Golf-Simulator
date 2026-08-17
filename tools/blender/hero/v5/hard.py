@@ -555,11 +555,30 @@ def measure(objs, label=""):
 
 
 def sit_on_floor(objs):
+    """Put the lowest point at z = 0 -- MEASURED IN WORLD, SHIFTED IN LOCAL.
+
+    Those are not the same thing the moment an object carries a scale, and
+    ST.box scales a unit cube by twice its half-extent, so every box in a
+    fixture has one. Subtracting a world millimetre from a local coordinate
+    then moves the part by a millimetre TIMES its scale: the counter came out
+    2400 x 1030 x 1372 mm from a design that is 2400 x 760 x 1060, and the
+    numbers looked like a modelling mistake rather than a units one.
+    hero_lib.drop_to_floor carries the same warning for the same reason.
+
+        v_world' = M @ v_local + d   =>   v_local' = v_local + M^-1 @ d
+    """
     lo, _hi = measure(objs, "before floor")
+    d = Vector((0.0, 0.0, -lo.z))
     for ob in objs:
+        local = ob.matrix_world.inverted().to_3x3() @ d
         for v in ob.data.vertices:
-            v.co.z -= lo.z
+            v.co += local
         ob.data.update()
+    got = min((ob.matrix_world @ v.co).z for ob in objs
+              for v in ob.data.vertices)
+    if abs(got) > 1e-5:
+        raise SystemExit("BUILD FAILED: sit_on_floor asked for a base at 0 "
+                         "and got %+.3f mm" % (got * 1000))
     return objs
 
 
