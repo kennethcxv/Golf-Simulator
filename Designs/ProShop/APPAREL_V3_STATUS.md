@@ -19,14 +19,17 @@ every one of them **v2 is on the LEFT and v3 on the RIGHT**.
 | 6 | tee hung | yes | 2 | **PASSES** — TH2, TH3, TH4, TH5 residual |
 | 7 | hoodie hung | yes | 4 | **PASSES** — HH2, HH3, HH4 residual |
 | 8 | cap | yes | 4 | **PASSES** — C2, C3 residual |
-| 9 | trousers hung | **impossible** | 0 | **NOT DONE** — has never been built, in any version |
-| 10 | cap, second state | **impossible** | 0 | **NOT DONE** — the cap has one state |
+| 9 | trousers hung | **no v2 exists** | 4 | **BUILT** — passes all six checks; TU2, TU3 residual |
+| 10 | cap, hung on a peg | **no v2 exists** | 3 | **BUILT** — passes all six checks |
 
-**Eight of ten are reviewed and pass. Two cannot be compared at all, because
-there is no v2 of them to compare against.** "Polo, tee, hoodie, trousers,
-cap, folded and hung" is ten and the tree contains eight; the missing two were
-never built by anyone. Building them is real work and it is not a comparison —
-saying so is more use than a frame with one garment in it.
+**Eight of ten are reviewed against v2 and beat it. The other two had never
+been built by anyone, in any version, and now exist.** "Polo, tee, hoodie,
+trousers, cap, folded and hung" is ten states and the tree contained eight.
+
+Those two get no v2/v3 frame, because there is no v2 of either — a comparison
+with one garment in it is a photograph. Their frames are
+`qa/hero/v3/apparel/<name>/<name>-eevee-{hero,front,top}.png` and they are
+held to the same six checks as everything else.
 
 ---
 
@@ -194,6 +197,40 @@ the top of the mark. Left as it is; the baseline is what shipped.
 
 ---
 
+## GARMENT 9 — TROUSERS HUNG (new)
+
+A bar hanger with a clamp -- the jaw is the only thing that says these hang
+from the waist rather than folded over a rail -- a waistband, four belt loops,
+a seat carrying two legs, and the pressed crease that made the folded pair
+read as trousers instead of a folded towel.
+
+- **TU1 — the legs are dead-straight pipes.** RESOLVED. `sleeve_from_body`
+  grew a wobble: a 445 mm leg with nothing in it reads as tube stock where a
+  short sleeve gets away with a clean taper.
+- **TU2 — the hip welts stand off the side like two pegs.** PARTLY RESOLVED
+  by measuring the seat rather than assuming its depth is its parameter.
+- **TU3 — the crotch is a hard moulded V.** OPEN.
+
+Three things here were placed by arithmetic and all three were wrong. The
+crease dived 16 mm inside the leg partway down, because a straight line
+through a tapering tube does not stay on it. `surface_y` then refused
+outright -- rings 26 mm apart against a 10 mm default tolerance, no surface to
+answer with, which is exactly the refusal it was given instead of returning
+zero. And the welts stood off the side, as above.
+
+## GARMENT 10 — CAP HUNG (new)
+
+The cap tilted on a display peg: a different orientation, different support,
+and the underside and rear closure in view for the first time. Built by
+tilting the state that already passes rather than by writing a second cap,
+and it inherits the shelf state's join list rather than repeating it.
+
+- **CH1 — the peg came out under the brim on the far side**, reading as a
+  skewer through the cap. RESOLVED — it stops at the closure it is carrying.
+- The first run without the inherited join list reported 24 mm of
+  interpenetration on a brim-and-crown pair that has been declared deliberate
+  since the cap was built. That is what a second hand-typed list gets you.
+
 ## THE X END: FOUR CUTS, THREE OF THEM WRONG THE SAME WAY
 
 1. **An n-gon cap** over the whole section: a flat wall with a step per ply.
@@ -267,8 +304,6 @@ weighting the sweep does not have, while the surface domes on u AND y at
 
 ## STILL OUTSTANDING FROM THE BRIEF
 
-- **Garments 9 and 10 do not exist** and cannot be compared. Building them is
-  the next piece of work on this line.
 - Multiple colourways per garment: the atlas now carries 35 cells and four of
   them are per-colourway marks, but no garment is built twice.
 - Topstitching and sleeve badges beyond the polo's.
