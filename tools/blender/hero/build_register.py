@@ -176,7 +176,68 @@ def insert(broken=""):
     coin_divs = [wall_strip(f"Div_Coin_{i}", -hw + (hw * 2) * i / COIN_BAYS,
                             -hd - 0.0020, split_y, z0, z1, DIV_T, segs=5)
                  for i in range(1, COIN_BAYS)]
-    return insert_base, cross, note_divs, coin_divs, split_y
+    money = fill_drawer(hw, hd, top, split_y)
+    return insert_base, cross, note_divs, coin_divs, split_y, money
+
+
+def fill_drawer(hw, hd, top, split_y):
+    """Put money in the till.
+
+    The drawer is the hero pose -- it is rendered OPEN, and the whole reason the
+    body was widened to 540 mm was so six note bays could each hold a real
+    note's 72.5 mm. It has been empty in every frame: an open till with nothing
+    in it, at the one prop the player stands in front of for every transaction.
+
+    Notes are thin stacks with the real money artwork on top, in four of the six
+    bays and at different heights, because a till mid-shift is not uniformly
+    full. Coins are short stacks of discs in three of the four wells.
+    """
+    out = []
+    NOTE_W, NOTE_L = 0.07251, 0.17060
+    bay_w = (hw * 2) / NOTE_BAYS
+    # denomination cell in money_notes.png (3 x 2), and how deep the stack is
+    plan = ((0, 0.0062), (1, 0.0044), (3, 0.0090), (4, 0.0028))
+    for i, (cell, thick) in enumerate(plan):
+        bi = (0, 1, 3, 4)[i]
+        cx = -hw + bay_w * (bi + 0.5)
+        cy = (split_y + hd) * 0.5
+        stack = HS.apply_mods(HS.box(
+            f"NoteStack_{bi}", (cx, cy, top + thick * 0.5),
+            (NOTE_W * 0.97, NOTE_L * 0.94, thick), bevel=0.0008, segments=1))
+        # the top face carries the note art; every other face is paper edge
+        note_uv(stack, cell, 3, 2)
+        out.append(stack)
+
+    coin_w = (hw * 2) / COIN_BAYS
+    for i, (cell, n, r, t) in enumerate(((0, 5, 0.01327, 0.00191),
+                                         (1, 4, 0.01160, 0.00214),
+                                         (3, 6, 0.00953, 0.00152))):
+        cx = -hw + coin_w * (i + 0.5)
+        cy = (split_y + -hd) * 0.5
+        for k in range(n):
+            c = HS.cylinder(f"Coin_{i}_{k}", (cx, cy, top + t * (k + 0.5)),
+                            r, t, verts=16)
+            out.append(c)
+    return out
+
+
+def note_uv(ob, cell, cols, rows):
+    """Map the stack's TOP face into one cell of the note sheet."""
+    me = ob.data
+    layer = me.uv_layers.new(name="UVMap") if not me.uv_layers         else me.uv_layers.active
+    xs = [v.co.x for v in me.vertices]
+    ys = [v.co.y for v in me.vertices]
+    x0, x1, y0, y1 = min(xs), max(xs), min(ys), max(ys)
+    cx, cy = cell % cols, cell // cols
+    for poly in me.polygons:
+        up = poly.normal.z > 0.5
+        for li in poly.loop_indices:
+            co = me.vertices[me.loops[li].vertex_index].co
+            u = (co.x - x0) / max(1e-9, x1 - x0) if up else 0.02
+            v = (co.y - y0) / max(1e-9, y1 - y0) if up else 0.02
+            layer.data[li].uv = ((cx + u) / cols,
+                                 ((rows - 1 - cy) + v) / rows)
+    return ob
 
 
 def bay_sizes(divs, lo, hi, axis):
@@ -304,8 +365,11 @@ def build(broken=""):
 
     # ---- drawer, insert, face, pull
     p["drawer"] = tray()
-    ins, cross, note_divs, coin_divs, split_y = insert(broken=broken)
-    moving = [p["drawer"], ins, cross] + coin_divs + note_divs
+    ins, cross, note_divs, coin_divs, split_y, money = insert(broken=broken)
+    # the money rides WITH the drawer -- it is in the drawer
+    moving = ([p["drawer"], ins, cross] + coin_divs + note_divs
+              + money)
+    p["money"] = money
     for o in moving:
         o.location += Vector((0, -OPEN, DRAWER_Z))
     bpy.context.view_layer.update()
@@ -419,7 +483,18 @@ def build(broken=""):
     for o in [p["drawer"], p["insert"], p["cross"]] + coin_divs + note_divs:
         o.data.materials.append(inner)
     p["screen"].data.materials.append(glow)
-    p["materials"] = [shellmat, trim, inner, glow, brass]
+    # THE MONEY IN THE TILL. The notes carry the same money_notes.png the money
+    # asset uses, so a note in the drawer and a note in the hand are the same
+    # printing; the coins carry money_coins.png.
+    notes_mat = HS.pbr_textured("TillNotes",
+                                os.path.join(TEX, "money_notes.png"),
+                                roughness=0.72)
+    coins_mat = HS.pbr("TillCoins", (0.4020, 0.2760, 0.0920),
+                       roughness=0.30, metallic=0.82)
+    for o in p["money"]:
+        o.data.materials.append(
+            notes_mat if o.name.startswith("NoteStack") else coins_mat)
+    p["materials"] = [shellmat, trim, inner, glow, brass, notes_mat, coins_mat]
     return p
 
 
