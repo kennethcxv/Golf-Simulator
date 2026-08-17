@@ -55,6 +55,12 @@ worth checking for, but it did not explain this one.
 
 ## THE LEDGER
 
+### The first-press warms (tab-overview et al.) — 1 appearance
+
+| # | What was claimed | What the check measured | Why it passed | Shape |
+|---|---|---|---|---|
+| 1 | Tab-overview's 1,490 ms first press warmed to ZERO (and first presses generally covered) | The census's own presses, at clock pinned 14:00, sim speed 0, teleported staging, on the exact state its warms had already drawn | The player is never in that state. Real play is 6:00 AM dawn with the sim live: its program variants (the field-48 2→1 `physical` family at the front door, the field-36 4→1 family plus a packed-bit `basic` on Tab) were never built by any warm, and each arrival lands as a seconds-long driver stall on this machine. The front door was never in the hand-written 15-row list at all — walked into, ~10 s in the owner's hands, 16.4 s reproduced. | **7**, and the list itself is Shape 1 — play has hundreds of verb×state surfaces, the census had fifteen |
+
 ### The ledger book — 3 appearances
 
 | # | What was claimed | What the check measured | Why it passed | Shape |
