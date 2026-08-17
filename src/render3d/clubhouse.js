@@ -11258,6 +11258,28 @@ export function makeClubhouse(ctx) {
   // A body and a bit. Past this the walker is not "as close as allowed", it is
   // somewhere else, and calling that arrival would teleport the beat.
   const ARRIVAL_SLACK_CAP = 0.75;
+  // How long a walker waits for the player to move out of a doorway before it
+  // gives up on politeness and lets the recovery ladder run. Long enough to
+  // read as courtesy, short enough that a player who wanders off mid-step does
+  // not leave somebody standing there all morning.
+  const PLAYER_YIELD_SECONDS = 6;
+  // Is the player standing in this walker's next step? Distance from the player
+  // to the segment the walker is about to travel, against the clamp that will
+  // stop it (0.72) plus its own half-width.
+  function playerInTheWayOf(c, wp) {
+    if (!walk.active || !playerBlocksCustomers() || !wp) return false;
+    const ax = c.mesh.position.x;
+    const az = c.mesh.position.z;
+    const bx = wp.x;
+    const bz = wp.z;
+    const vx = bx - ax;
+    const vz = bz - az;
+    const len2 = vx * vx + vz * vz;
+    let t = len2 > 1e-6 ? ((walk.x - ax) * vx + (walk.z - az) * vz) / len2 : 0;
+    t = Math.max(0, Math.min(1, t));
+    const d = Math.hypot(walk.x - (ax + vx * t), walk.z - (az + vz * t));
+    return d < PLAYER_BODY_CLEARANCE + BODY_RADIUS;
+  }
   // How long a walker must have stopped closing on a BLOCKED stop before where
   // it stands counts as arrival. Half a second is long enough that a walker
   // still threading a gap is not credited, short enough that the recovery
@@ -12485,6 +12507,9 @@ export function makeClubhouse(ctx) {
         if (!Number.isFinite(c.bestGoalDist) || goalDist < c.bestGoalDist - NAV_PROGRESS_EPSILON_YD) {
           c.bestGoalDist = goalDist;
           c.noProgressT = 0;
+          // Moving again: the courtesy budget for waiting on the player refills,
+          // or the second doorway of the day would get none of it.
+          c.yieldT = 0;
         } else {
           c.noProgressT = (c.noProgressT || 0) + dt;
         }
@@ -12538,7 +12563,33 @@ export function makeClubhouse(ctx) {
             c.repathJitter = ((h >>> 0) / 4294967296) * 0.4;
           }
           ladderGate += c.repathJitter;
-          if (c.stuckT > ladderGate) {
+          // YIELDING TO THE PLAYER IS NOT BEING STUCK (B1, 2026-08-17).
+          //
+          // "The player standing in a doorway. They must path around me, not
+          // through me and not into a wall trying." A body cannot path around
+          // the player in a doorway — there is no around — and the honest
+          // behaviour, the one every shop simulator ships, is to WAIT. Measured
+          // before this: the player parked in his own front door and three
+          // arrivals ground outside it emitting nudge/retarget for as long as
+          // the door was blocked, which is both the wrong read and the log
+          // spam.
+          //
+          // So a walker whose next step is into the player holds still instead
+          // of climbing the ladder — bounded, because a player who parks there
+          // for ever must not freeze the shop: after PLAYER_YIELD_SECONDS the
+          // ladder resumes and the ordinary patience fuse can still take them
+          // home.
+          // Only the LADDER timer is held. The no-progress clock keeps running,
+          // because hasArrived() reads it: a walker stalled against a stop the
+          // player is standing on arrives where it stands after half a second,
+          // and zeroing that clock here disabled the rescue. Measured with the
+          // reset in place: escalations fell to 0 and stalls rose 5 -> 46 with
+          // nobody reaching the counter at all — the two fixes fighting.
+          if (playerInTheWayOf(c, wp) && (c.yieldT || 0) < PLAYER_YIELD_SECONDS) {
+            c.yieldT = (c.yieldT || 0) + dt;
+            c.stuckT = 0;
+            if (char) char.setMode(c.hasBasket ? 'BasketIdle' : 'Idle');
+          } else if (c.stuckT > ladderGate) {
             navRepathsThisFrame += 1;
             c.stuckEscalation = (c.stuckEscalation || 0) + 1;
             // G10: "Not a nudge, not a repath along the same line: a genuinely

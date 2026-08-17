@@ -561,3 +561,36 @@ cap — the cap is inert. Rule: the refresh rate comes from
 `screen.getDisplayMatching(win.getBounds()).displayFrequency`, and a probe that
 reports a "panel" figure which is not one of the OS's advertised modes (181.8
 Hz, 90.1 Hz) is reporting the app.
+
+## Block B (NPC night, 2026-08-17)
+
+**`speedIdx = 2` PAUSES the game.** `BALANCE.speeds` is `[0, 1]` — there is no
+fast-forward rung. Several drivers set `window.__fw.speedIdx = 2` to "run the
+clock fast so a queue forms" (electron-npc-crowd.js says so in a comment);
+`BALANCE.speeds[2]` is undefined, main.js's `if (speed > 0)` gate goes false, and
+the day stops. The shop then never opens, nobody arrives, and the driver reports
+a healthy empty room. The first B0 run waited 181 s that way. Rule: leave
+speedIdx alone, and if a driver needs shop time, budget real seconds —
+`gameMinutesPerRealSecond` is 4/30, so a game hour is 7.5 real minutes.
+
+**A fresh profile cannot answer a customer question.** The starter shop's sign
+defaults to CLOSED, so `shopAcceptsWalkIns` is false and no walk-in ever spawns.
+Customer work must resume a seeded save whose `shop.signOpen` is true (his is,
+opened at minute 365) and whose `customerSimulation.scheduled` has arrivals.
+
+**Sim health is an environment control, like the pacing quiet leg.** One
+five-minute watch came back with a third of its samples showing the clock barely
+advancing and a "166-second stuck customer" that was really a stalled day.
+Expected advance is 4/30 game-minutes per real second; assert the ratio and call
+the leg void under 0.8 rather than reporting the shop.
+
+**Stale coordinates read as "wrong population".** The B0 probe snapshotted body
+positions, then painted, then waited, then screenshotted — about a second, during
+which the bodies WALKED. 1,955 magenta pixels were in the frame and not one
+projected point landed on them, which reads exactly like "these are not the
+bodies on screen". Read positions and project them in the SAME tick as the
+shutter, and widen the sample window to cover the residual slack.
+
+**Aim at bodies that are drawn.** The first calibrated aim locked onto the
+nearest customer, which was an invisible one 0.9 yd away, and photographed
+nothing. Filter on `mesh.visible !== false` and prefer a portrait distance.
