@@ -46,6 +46,8 @@ SPEC = dict(
     hem_z=HEM_Z, chest_z=CHEST_Z,
     # jersey hangs CLOSE: 62 mm of half-depth against the polo's 72 and the
     # hoodie's 79. Thin cloth has nothing to hold it out.
+    # 650 mm across a 510 mm chest is the polo's fault again -- sleeves
+    # standing off the body. A tee on a hanger measures about 590.
     profile=[(-0.712, 0.255, 0.0530),
              (-0.620, 0.256, 0.0560),
              (-0.480, 0.256, 0.0595),
@@ -281,8 +283,8 @@ def main():
     parts = []
     for sign in (+1, -1):
         parts.append(sh.sleeve(
-            sign, "sleeve%d" % sign, drop=0.196, axis_x=0.282,
-            outer=0.0540, depth=0.0455,
+            sign, "sleeve%d" % sign, drop=0.198, axis_x=0.251,
+            outer=0.0472, depth=0.0398,
             section=[(0.00, 1.00, 1.00), (0.45, 0.95, 0.94),
                      (0.82, 0.89, 0.90), (1.00, 0.86, 0.87)],
             rows=18, cuff_t=0.86, cuff_pinch=0.045,
