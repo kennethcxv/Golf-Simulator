@@ -71,6 +71,7 @@ CONTRAST = {0: 12, 1: 13, 2: 14, 3: 15, 4: 16, 5: 17,
             6: 12, 7: 17, 8: 13, 9: 14, 10: 16, 11: 13}
 CHEST_CELL, TEEFRONT_CELL, BADGE_CELL = 18, 19, 20
 CAPMONO_CELL, RIB_CELL, TRIM_CELL = 21, 22, 23
+CHEST_NAVY_CELL = 32
 
 
 def cell_for(part, garment):
@@ -79,7 +80,11 @@ def cell_for(part, garment):
     base = CELL[garment]
     n = part.lower()
     if "print" in n:
-        return TEEFRONT_CELL if garment.startswith("tee") else CHEST_CELL
+        if garment.startswith("tee"):
+            return TEEFRONT_CELL
+        # the chest mark is ink on the shirt, so which cell depends on which
+        # shirt: cell 0 is navy, everything else takes the fairway version
+        return CHEST_NAVY_CELL if base == 0 else CHEST_CELL
     if "badge" in n:
         return BADGE_CELL
     if "mono" in n:
@@ -204,28 +209,46 @@ def polo_hung(origin=(0, 0, 0), broken=""):
     ox, oy, oz = origin
     p = {}
     SH = oz + 0.3200
-    p["hanger"], p["hook"] = CL.hanger("PoloHung_Hanger", (ox, oy, SH), halfw=0.0880,
+    # A HANGER IS NARROWER THAN THE SHOULDERS IT CARRIES. At 88 mm its tips
+    # reached past the armhole and drove 7 mm through the sleeve seam; a shop
+    # hanger sits inside the shirt and the shoulders overhang it.
+    p["hanger"], p["hook"] = CL.hanger("PoloHung_Hanger", (ox, oy, SH), halfw=0.0700,
                                           drop=0.0540, rod=0.0058)
+    # nu=33: at 25 points round the section the shirttail's own curve is cut
+    # into 24 straight segments and the hem reads as a faceted hexagon from
+    # the front. The hem is the lowest, largest and most-looked-at edge on a
+    # hung garment and it cannot be the coarsest.
     p["body"] = CL.draped("PoloHung_Body", SH - 0.0130, 0.2050, 0.2320,
                           0.3050, 0.0760, centre=(ox, oy), neck=0.0300,
-                          shoulder_drop=0.0140)
+                          shoulder_drop=0.0140, nu=33, nv=23)
     for side in (-1, 1):
         nm = "L" if side < 0 else "R"
-        d = Vector((side * 0.58, 0, -0.815))
-        p[f"sleeve{nm}"] = CL.sleeve_from_body(
+        # THE SLEEVES HANG. At 0.58/-0.815 they stand out at 35 degrees from
+        # the body like arms held out, which is what a shirt does on a
+        # MANNEQUIN, not on a hanger. Empty sleeves fall almost straight down
+        # and a little forward, and they are what makes the difference between
+        # a garment hanging and a garment being worn by nobody.
+        # ...BUT NOT INSIDE THE SHIRT. At 0.335 the cuff landed at x = 116 mm
+        # against a body half-width of 108, so the whole sleeve end was inside
+        # the garment: assert_not_buried measured the cuff at 0% exposed. The
+        # assembly check cannot see it, because sleeve-and-body are allow-
+        # listed to overlap -- "allowed to overlap" and "allowed to vanish"
+        # are not the same permission, which is the note that check was
+        # written on. 0.46 clears the body by 22 mm and still hangs.
+        d = Vector((side * 0.460, 0.075, -0.885))
+        # NO ARMHOLE SEAM RING. It was two dark tubes lying across the
+        # shoulders -- the "roll bar" on the fault list -- and it could never
+        # have been anything else: the armhole is inside the body's own
+        # silhouette, so a ring there measures 17-20% exposed wherever it is
+        # put. An armhole seam is a line of stitching, not a moulding, and a
+        # sleeve that GROWS OUT OF the body -- this one's root ring starts
+        # inside the shirt -- does not need one to read as attached. Two
+        # parts and two faults leave together.
+        (p[f"sleeve{nm}"], p[f"cuff{nm}"]) = CL.sleeve_from_body(
             f"PoloHung_Sleeve{nm}",
-            (ox + side * 0.0790, oy, SH - 0.0250), d, 0.1180, 0.0362, 0.0288,
-            droop=0.10, cuff=0.10)
-        # the armhole seam: what actually reads as "attached"
-        p[f"seam{nm}"] = CL.ribbed_ring(
-            f"PoloHung_Seam{nm}",
-            (ox + side * 0.0790, oy, SH - 0.0250), d, 0.0364, 0.0060,
-            ribs=1, depth=0.0004, sides=20)
-        p[f"cuff{nm}"] = CL.ribbed_ring(
-            f"PoloHung_Cuff{nm}",
-            Vector((ox + side * 0.0790, oy, SH - 0.0250))
-            + Vector(d).normalized() * 0.1105, d, 0.0296, 0.0130,
-            ribs=16, depth=0.0013)
+            (ox + side * 0.0790, oy, SH - 0.0250), d, 0.1180, 0.0362,
+            0.0288, droop=0.10, cuff=0.10,
+            bands=((f"PoloHung_Cuff{nm}", 0.845, 0.960, 0.0017),))
     # The collar wraps the NECK OPENING, which is well below the shoulder peaks:
     # placed level with the shoulders it stood 20 mm above the shirt and out the
     # back of it, and assert_assembly called it loose. Both numbers come from
@@ -242,27 +265,36 @@ def polo_hung(origin=(0, 0, 0), broken=""):
     for s in range(9):
         t = s / 8.0
         z = neck_z - 0.0060 - 0.0880 * t
-        pl.append(Vector((ox, CL.surface_y(p["body"], ox, z) + R * 0.42, z)))
+        # THE SIGN WAS INTO THE SHIRT. Front is -y, so "+ R * 0.42" pushed the
+        # placket 2.4 mm BACK from the surface it had just measured, leaving
+        # 1.33 mm of it showing -- and once the drape got its real folds the
+        # cloth closed over it entirely. A placket is a doubled band with the
+        # buttons on it; it stands off the chest, it does not sink into it.
+        pl.append(Vector((ox, CL.surface_y(p["body"], ox, z) - R * 0.30, z)))
     p["placket"] = CL.strip("PoloHung_Placket", pl, 0.0105, 0.0030)
     # a CHEST LOGO and a SLEEVE BADGE. "Prints and logos on the texture: that
     # is what makes fabric read as merchandise rather than cloth."
     lz = neck_z - 0.0480
     p["print"] = CL.decal("PoloHung_Chest",
                           (ox + 0.0480, CL.surface_y(p["body"], ox + 0.0480, lz)
-                           + 0.0006, lz),
-                          (0, -1, 0), (0.0400, 0.0400))
-    bz = SH - 0.0800
+                           - 0.0022, lz),
+                          (0, -1, 0), (0.0330, 0.0330))
+    # THE SLEEVE BADGE, ON THE SLEEVE'S MEASURED SURFACE. At a hard-coded
+    # y it was 4% exposed the moment the sleeves were re-hung -- a badge
+    # inside the sleeve it is meant to be sewn to. Nothing that sits on cloth
+    # should be placed by arithmetic; ask the surface where it is.
+    bx, bz = ox - 0.1080, SH - 0.0800
     p["badge"] = CL.decal(
         "PoloHung_Badge",
-        (ox - 0.1080, oy - 0.0230, bz), (-0.55, -0.83, 0), (0.0250, 0.0175))
+        (bx, CL.surface_y(p["sleeveL"], bx, bz) - 0.0016, bz),
+        (-0.55, -0.83, 0), (0.0250, 0.0175))
 
     for i, t in enumerate((0.18, 0.55)):
         z = neck_z - 0.0060 - 0.0880 * t
-        p[f"button{i}"] = HS.cylinder(
+        p[f"button{i}"] = CL.button(
             f"PoloHung_Button{i}",
-            (ox, CL.surface_y(p["body"], ox, z) - R * 0.30, z),
-            0.0056, 0.0026, verts=12,
-            rotation=Quaternion((1, 0, 0), math.pi / 2))
+            (ox, CL.surface_y(p["body"], ox, z) - R * 0.30 - 0.0034, z),
+            (0, -1, 0), 0.0056, 0.0026, sides=12)
     return p
 
 

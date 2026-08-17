@@ -129,7 +129,6 @@ function flagMark(cx, cy, sc, col) {
 
 function chestRoundel() {
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${CELL}" height="${CELL}">
-    <rect width="${CELL}" height="${CELL}" fill="#24402f"/>
     <circle cx="128" cy="112" r="62" fill="none" stroke="#e6e0cc" stroke-width="5"/>
     <circle cx="128" cy="112" r="53" fill="none" stroke="#e6e0cc" stroke-width="2"/>
     ${flagMark(128, 108, 1.05, '#e6e0cc')}
@@ -291,7 +290,14 @@ for (let i = 0; i < 12; i++) {
 for (let i = 0; i < 6; i++) {
   await place(await knit(CELL, CELL, WAY[i][2], 40 + i), `${WAY[i][0]}-dark`);
 }
-await place(await sharp(Buffer.from(chestRoundel())).png().toBuffer(), 'chest');
+// TWO CHEST CELLS, ONE PER SHIRT COLOUR. The roundel used to carry its own
+// dark-green field, which on the fairway polo is a tonal patch and on the navy
+// one is a green square stuck to a blue shirt. It is ink now, over the shirt's
+// own knit -- the same fix as the tee print, and it needs one cell per
+// colourway because a cell cannot know which garment will wear it.
+await place(await sharp(await sharp(await knit(Math.round(CELL * 2.2),
+    Math.round(CELL * 2.2), WAY[2][1], 3)).resize(CELL, CELL).png().toBuffer())
+  .composite([{ input: Buffer.from(chestRoundel()) }]).png().toBuffer(), 'chest');
 // cell 11 is cream, placed above with seed (11 + 1); same base, same seed.
 // AND AT THE SHIRT'S OWN TEXEL SCALE. The cloth maps one cell across the whole
 // garment; the print patch maps one cell across a third of it, so a knit tile
@@ -324,6 +330,10 @@ await place(await knit(CELL, CELL, [140, 76, 48], 62), 'rust');
 // carries at least one of them.
 await place(await sharp(Buffer.from(sizeBand())).png().toBuffer(), 'sizeband');
 await place(await sharp(Buffer.from(hangTag())).png().toBuffer(), 'hangtag');
+await place(await sharp(await sharp(await knit(Math.round(CELL * 2.2),
+    Math.round(CELL * 2.2), WAY[0][1], 1)).resize(CELL, CELL).png().toBuffer())
+  .composite([{ input: Buffer.from(chestRoundel()) }]).png().toBuffer(),
+  'chest-navy');
 
 const out = path.join(OUT, 'apparel_atlas_v3.png');
 await sharp({

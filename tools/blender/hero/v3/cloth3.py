@@ -594,7 +594,8 @@ def hung_body(spec):
 
 
 def draped(name, shoulder_z, width, hem_width, length, depth, centre=(0, 0),
-           neck=0.052, shoulder_drop=0.010, nu=25, nv=19, wobble=0.0022):
+           neck=0.052, shoulder_drop=0.010, nu=25, nv=19, wobble=0.0045,
+           hem_curve=0.0125, hem_wave=0.0036):
     """A shirt hanging from a hanger.
 
     A closed lens-section surface: peaks at the two shoulder points, dips at the
@@ -613,13 +614,29 @@ def draped(name, shoulder_z, width, hem_width, length, depth, centre=(0, 0),
         peak = shoulder_z - shoulder_drop * (1.0 - abs(sx) ** 1.6)
         hollow = neck * max(0.0, 1.0 - (abs(sx) / 0.42) ** 2) if abs(sx) < 0.42 else 0.0
         top = peak - hollow
-        z = top - length * v
+        # THE HEM IS NOT A LEVEL CUT. Held at one z for every u it renders as a
+        # hard zigzag -- the lens section crossing itself in projection, with
+        # two sharp points at the sides and a notch in the middle. It was the
+        # first thing on the hung polo's fault list and it is on every hung
+        # garment, because they all come through here.
+        #
+        # A shirt hem is longer at centre front and back and rises at the side
+        # seams, and it waves, because cloth hanging free is never straight.
+        # cos(2a) is +1 at the sides (a = 0, pi) and -1 at the centres.
+        tail = hem_curve * (0.5 + 0.5 * math.cos(2 * ang))
+        wave = hem_wave * math.sin(ang * 5.0 + 1.3)
+        z = top - length * v + (tail + wave) * (v ** 1.9)
         # lens section, fuller at the hem
         thick = depth * (0.72 + 0.36 * v) * 0.5
         y = math.sin(ang) * thick * (0.55 + 0.45 * math.sin(math.pi * min(1.0, v * 1.4 + 0.2)))
         x = sx * halfw
-        # vertical folds
-        f = wobble * math.sin(ang * 3.0 + v * 5.5) * min(1.0, v * 2.2)
+        # VERTICAL FOLDS, at two scales. One sine at 2.2 mm is a gentle
+        # corrugation and reads as a moulded shell; what makes cloth hang is a
+        # few broad folds with finer breaks over them, and the folds get
+        # deeper the further they are from the shoulder that is holding it.
+        f = (wobble * math.sin(ang * 3.0 + v * 5.5)
+             + wobble * 0.46 * math.sin(ang * 7.0 - v * 3.1 + 2.2)
+             + wobble * 0.22 * math.sin(ang * 13.0 + v * 8.4)) * min(1.0, v * 2.2)
         return Vector((cx + x + f * 0.4, cy + y + f, z))
 
     # THE HEM IS ROLLED, not capped flat. holes_fill closes the bottom with one
@@ -631,28 +648,44 @@ def draped(name, shoulder_z, width, hem_width, length, depth, centre=(0, 0),
             return surf(u, min(v, 1.0))
         return surf(u, 1.0)
 
+    # THE SHOULDER ROLLS CLOSED TOO. Only the hem was tucked; the top was left
+    # to _weld_and_cap, which lays one flat n-gon across the whole shoulder
+    # line -- 24 sides, named by assert_no_flat_caps the first time it was
+    # pointed at a hung garment. A shirt on a hanger IS closed at the
+    # shoulder, but by the cloth folding over, not by a lid.
+    #
+    # Both ends now finish on a pole, so there is no n-gon anywhere on the
+    # body and nothing for _weld_and_cap to close.
+    TOP = (0.20, 0.46, 0.76)
+    HEM = (0.76, 0.46, 0.20)
+    plan = ([(0.0, sh, +1) for sh in TOP] + [(j / (nv - 1.0), 1.0, 0)
+                                             for j in range(nv)]
+            + [(1.0, sh, -1) for sh in HEM])
+
     verts, faces = [], []
-    NV = nv + 3
-    for j in range(NV):
-        if j < nv:
-            vv = j / (nv - 1)
-            shrink = 1.0
-        else:
-            vv = 1.0
-            # never 0.0: a ring collapsed to a point makes degenerate faces
-            # and the mesh stops being closed, which assert_assembly then
-            # refuses to measure at all.
-            shrink = (0.76, 0.46, 0.20)[j - nv]
+    for vv, shrink, end in plan:
         for i in range(nu):
             pnt = surf(i / (nu - 1), vv)
             if shrink < 1.0:
-                axis = Vector((cx, cy, pnt.z - 0.004 * (1.0 - shrink)))
+                axis = Vector((cx, cy, pnt.z + end * 0.004 * (1.0 - shrink)))
                 pnt = axis + (pnt - Vector((cx, cy, pnt.z))) * shrink
             verts.append(pnt)
+    NV = len(plan)
     for j in range(NV - 1):
         for i in range(nu - 1):
             a = j * nu + i
             faces.append((a, a + 1, a + nu + 1, a + nu))
+    for ring0, flip in ((0, True), ((NV - 1) * nu, False)):
+        ring = verts[ring0:ring0 + nu - 1]
+        mid = sum(ring, Vector((0.0, 0.0, 0.0))) / float(nu - 1)
+        rad = sum(((q - mid).length for q in ring)) / float(nu - 1)
+        c = len(verts)
+        verts.append(mid + Vector((0.0, 0.0, (1.0 if flip else -1.0)
+                                   * rad * 0.62)))
+        for i in range(nu - 1):
+            j2 = (i + 1) % (nu - 1)
+            faces.append((c, ring0 + j2, ring0 + i) if flip
+                         else (c, ring0 + i, ring0 + j2))
     obj = HS.mesh_from(name, verts, faces, smooth=True)
     _weld_and_cap(obj)
     return obj
@@ -1273,7 +1306,13 @@ def hanger(name, centre, halfw=0.086, drop=0.052, hook_r=0.020, rod=0.0055,
     mod = body.modifiers.new("Thick", "SOLIDIFY")
     mod.thickness = thick
     mod.offset = 0.0
-    body = HS.apply_mods(body)
+    # A HANGER IS A FLAT MOULDING, so the big faces on its front and back are
+    # genuinely planar -- they are not a lofted end left flat, they are the
+    # shape of the object. assert_no_flat_caps cannot tell the two apart and
+    # should not try; the rule is worth having because it has no taste in it.
+    # Triangulating coplanar faces changes nothing visible and is what the
+    # exporter does anyway. Same call as the hood's boolean rim.
+    body = tri_ngons(HS.apply_mods(body))
 
     # the hook: a swept tube on a circular arc, starting inside the stem
     hcz = top + hook_r * 0.72
@@ -1444,7 +1483,7 @@ def cell_offset(obj, cell, cols=4, rows=3):
 
 def sleeve_from_body(name, root, direction, length, r0, r1, droop=0.10,
                      sides=14, steps=9, seam_in=0.0035, cuff=0.0, flat=0.52,
-                     close=True):
+                     close=True, bands=()):
     """A sleeve that GROWS OUT OF a shoulder instead of being pushed into one.
 
     The old sleeve was a tapered tube whose end cap sat wherever it landed, and
@@ -1498,7 +1537,36 @@ def sleeve_from_body(name, root, direction, length, r0, r1, droop=0.10,
                             + side * (math.cos(a) * r * rs)
                             + up * (math.sin(a) * r * flat * fs))
             rings.append(ring)
-    return loft(name, rings, smooth=True)
+    sleeve = loft(name, rings, smooth=True, cap="dome", cap_rise=0.55)
+    if not bands:
+        return sleeve
+
+    # BANDS COME OFF THE SLEEVE'S OWN SECTION. The cuff and the armhole seam
+    # were rings of a single RADIUS laid on a sleeve whose section is a LENS,
+    # wider than it is deep -- so they were flush on the wide axis and stood
+    # 15 mm out in mid-air on the narrow one, and assert_not_buried measured
+    # both cuffs at 0% exposed: geometry that is never drawn.
+    #
+    # A hem band is the same cloth turned under. Built from the identical
+    # expression the sleeve was, scaled out by `out`, it hugs the sleeve
+    # everywhere by construction and there is no radius to guess.
+    def at(t, out):
+        c = root + d * (length * t - seam_in)
+        c.z -= droop * length * t * t
+        r = r0 * (1 - t) + r1 * t
+        if cuff and t > 0.86:
+            r *= 1.0 + cuff * (t - 0.86) / 0.14
+        return [c + side * (math.cos(2 * math.pi * i / sides) * (r + out))
+                + up * (math.sin(2 * math.pi * i / sides) * (r * flat + out))
+                for i in range(sides)]
+
+    made = [sleeve]
+    for bname, t0, t1, out in bands:
+        br = [at(t0, out * 0.25), at(t0 + (t1 - t0) * 0.22, out),
+              at(t1 - (t1 - t0) * 0.22, out), at(t1, out * 0.25)]
+        made.append(loft(bname, br, smooth=True, cap=("dome", "dome"),
+                         cap_rise=0.35))
+    return tuple(made)
 
 
 def ribbed_ring(name, centre, axis, radius, width, ribs=22, depth=0.0016,
@@ -1531,7 +1599,8 @@ def ribbed_ring(name, centre, axis, radius, width, ribs=22, depth=0.0016,
             ring.append(centre_t + side * (math.cos(a) * r)
                         + up * (math.sin(a) * r * 0.74))
         rings.append(ring)
-    return loft(name, rings, smooth=False)
+    return loft(name, rings, smooth=False, cap="dome",
+                cap_rise=0.40)
 
 
 def decal(name, centre, normal, size, lift=0.0016):
