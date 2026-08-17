@@ -680,3 +680,28 @@ violation and pushed. The velocity solver measured NO BETTER than the heuristic
 it replaced (2.38 vs 2.20 shoves/s) and every one of those shoves was the
 threshold, not the solver. Two constants naming the same physical distance in
 two modules must be tied together by a test, not by a comment.
+
+## 2026-08-17, nav rebuild stages 3-4
+
+**A stall meter that counts RECOVERY ACTIONS cannot measure a build with no
+recovery.** Every count of stuckness in clubhouse.js was a count of ladder
+escalations, so switching the ladder off would have reported an empty, frozen
+shop as perfectly healthy — zero escalations, because there was nothing left to
+escalate. The replacement reads `noProgressT`, which the walking branch maintains
+whether or not any rung exists, and it is what caught the 246-second stall.
+Whenever a fix DELETES a mechanism, check first whether the mechanism is also the
+instrument.
+
+**Do not commit while `npm run gate` is running.** goal24's interaction
+orchestrator hashes the repository and aborts any measurement whose tree changed
+underneath it: `serialized-stop-01-cold-door-01: repository changed before this
+measurement process.` A one-line commit landed mid-suite and failed a test that
+had passed standalone four times that hour. The check is correct and the run is
+void; the tree has to be quiet from `npm run gate` to GATE_EXIT.
+
+**`separate()` is both the mechanism and the acceptance meter, and only one of
+them was meant to go.** Deleting it outright would have driven `corrections` to
+zero by construction and made every before/after comparison in this rebuild
+meaningless. `separateMode = 'measure'` computes the correction and throws it
+away, so the number keeps meaning "how much would a positional pass have had to
+do" across the whole rebuild.
