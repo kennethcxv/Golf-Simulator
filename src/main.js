@@ -2036,14 +2036,24 @@ async function warmLaptopViewThroughLiveLoop(sceneRef, generationAtStart, genera
     // laptopUi.open() is the DOM half only — it does not set app.laptopOpen,
     // take the camera, or stamp the tutorial flag, so nothing here is a mode
     // the player can be left in if the scene dies mid-warm.
+    // The hold here is TIME-bounded, not frame-counted, because the thumbnails
+    // do not all land in the open() call: an eight-frame hold drew them on one
+    // run and missed them on the next, and the played-session row flipped
+    // between five arrivals and zero with the warm reporting 'drawn' both times
+    // (qa/goal34/lap3.json vs sess2/sess3). The tell that separates the two is
+    // dTextures at the real open — fifteen new textures is fifteen thumbnails
+    // being painted in the player's hands.
     try {
       laptopUi?.open?.(null);
-      for (let step = 0; step < 8; step += 1) {
+      const thumbsUntil = performance.now() + 900;
+      let thumbFrames = 0;
+      while (thumbFrames < 90 && (performance.now() < thumbsUntil || thumbFrames < 30)) {
         if (app.scene3d !== sceneRef || generationNow() !== generationAtStart) return;
         await frame();
+        thumbFrames += 1;
         laptopWarmFrames += 1;
       }
-      window.__fwWarm.laptopThumbs = 'drawn';
+      window.__fwWarm.laptopThumbs = `drawn:${thumbFrames}`;
     } finally {
       laptopUi?.close?.();
     }
@@ -2582,6 +2592,15 @@ const handlers = {
       performance.mark('ov-dirt-diag');
       ch?.setDirtReveal?.(1, true);
       performance.mark('ov-dirt-reveal');
+      // GOAL 34 — settle the gates in the SAME TURN as the camera, the way
+      // entering and leaving the editor already do. exitWalk() re-poses the rig
+      // instantly, but the clubhouse's interior draw-distance and per-lamp
+      // budget settle later inside the loop, so the first overview frames drew
+      // a light census that exists nowhere in the played day and compiled
+      // programs for it. Measured on a played session from inside the shop:
+      // three arrivals on the first Tab, the largest one step from its twin on
+      // the point-light field, 4 -> 1 (qa/goal34/sess1.json row 04).
+      app.scene3d?.settleClubhouseCameraVisibility?.();
       toast(piles
         ? `Overview camera - ${piles} dirty spot${piles === 1 ? '' : 's'} marked. Tab returns you to your feet.`
         : 'Overview camera - Tab returns you to your feet.');
@@ -2742,6 +2761,27 @@ function showQualityApplying(ms = 1800) {
 // src/core/frameCap.js.
 const frameCap = createFrameCap();
 app.frameCapDiagnostics = () => frameCap.diagnostics();
+
+// GOAL 34 — ASK THE OS FOR THE REFRESH RATE, ONCE THE WINDOW EXISTS.
+//
+// frameCap used to infer the panel from rAF gaps, which on a GPU-bound frame is
+// the game's own rate: it reported 58-63 Hz for a display Electron calls 240,
+// so everyNVsyncs came out 1 and the cap never skipped a tick at any setting.
+// The screen API knows. Re-asked on every display change, because dragging the
+// window between a 60 Hz laptop panel and a 240 Hz desktop one is exactly the
+// case no constant survives.
+function refreshPanelHzFromOs() {
+  const native = globalThis.fairwayNative;
+  if (!native?.displayInfo) return Promise.resolve(null);
+  return native.displayInfo().then((info) => {
+    const hz = Number(info?.refreshHz) || 0;
+    frameCap.setPanelHz(hz);
+    return hz;
+  }).catch(() => null);
+}
+app.refreshPanelHzFromOs = refreshPanelHzFromOs;
+refreshPanelHzFromOs();
+globalThis.addEventListener?.('resize', () => { refreshPanelHzFromOs(); });
 
 // GOAL 27 PHASE 6 — THE PIXEL RATIO FOLLOWS THE MONITOR, so this formula is
 // shared by applySettings AND the window resize path. The renderer caches the
@@ -5378,6 +5418,14 @@ boot();
 // prove the shelf comes back. A recovery test that used a different save path would
 // be testing the wrong thing.
 app.autosave = autosave;
+// GOAL 34: the frame cap can only be proved by CHANGING it and measuring what
+// the player was shown. The settings panel is the player's door to this; a
+// driver that clicked through it would be testing the select element.
+app.setFpsCapForQa = (fps) => {
+  preferences.set('display.fpsCap', Number(fps) || 0);
+  applySettings();
+  return frameCap.diagnostics();
+};
 window.__fw = app;
 
 // The GPU process's driver version, primed for the compile screen's gate. It

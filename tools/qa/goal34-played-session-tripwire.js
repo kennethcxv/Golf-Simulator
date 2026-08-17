@@ -80,6 +80,18 @@ async (page) => {
     const i = window.__fw.scene3d.renderer.info;
     return { geometries: i.memory.geometries, textures: i.memory.textures };
   });
+  // DEPARTURES TOO, not only arrivals. The laptop warm proved out at zero
+  // arrivals when the laptop is the first surface pressed and back at five when
+  // real play happens in between, which can only mean something between the two
+  // RELEASES those programs. A driver that counts arrivals alone can watch that
+  // happen forever and never see it.
+  const nameDepartures = (before, after) => page.evaluate(({ A, B }) => {
+    const setB = new Set(B);
+    return A.filter((x) => !setB.has(x)).map((key) => {
+      const f = key.split(',');
+      return { family: f[0]?.slice(0, 18), fields: f.length, tail: f.slice(-6).join(',') };
+    });
+  }, { A: before, B: after });
   const nameArrivals = (before, after) => page.evaluate(({ A, B }) => {
     const setA = new Set(A);
     return B.filter((x) => !setA.has(x)).map((key) => {
@@ -124,10 +136,13 @@ async (page) => {
       return { worstGapMs: g.length ? +Math.max(...g).toFixed(0) : 0, longtasks: l };
     }, { a: t0, b: t1 });
     const arrivals = await nameArrivals(before, after);
+    const departures = await nameDepartures(before, after);
     const row = {
       label,
       note,
       quietMs,
+      departures: departures.length,
+      departed: departures,
       quietDirty: quietMs > 300,
       worstGapMs: timing.worstGapMs,
       longtasks: timing.longtasks,
@@ -139,7 +154,7 @@ async (page) => {
     };
     if (row.quietDirty) fail(`${label}: quiet control carried ${quietMs} ms — this row's timing is void`);
     out.surfaces.push(row);
-    console.log(`[${label}] arrivals=${row.arrivals} worst=${row.worstGapMs}ms geom=${row.dGeometries} tex=${row.dTextures} quiet=${quietMs}`);
+    console.log(`[${label}] arrivals=${row.arrivals} departures=${row.departures} worst=${row.worstGapMs}ms geom=${row.dGeometries} tex=${row.dTextures} quiet=${quietMs}`);
     return row;
   };
 
@@ -327,6 +342,7 @@ async (page) => {
     table: out.surfaces.map((s) => ({
       surface: s.label,
       arrivals: s.arrivals,
+      departures: s.departures,
       worstMs: s.worstGapMs,
       dGeom: s.dGeometries,
       dTex: s.dTextures,

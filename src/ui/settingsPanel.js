@@ -274,7 +274,8 @@ export function makeSettingsPanel({
       'aria-label': t('settings.display.fpsCap'),
       onchange: (event) => set('display.fpsCap', Number(event.currentTarget.value)),
     }, ...[
-      [60, t('settings.display.fpsCap.default60')], [120, '120'], [144, '144'], [0, t('settings.display.fpsCap.uncapped')],
+      [60, t('settings.display.fpsCap.default60')], [120, '120'], [144, '144'], [240, '240'],
+      [0, t('settings.display.fpsCap.uncapped')],
     ].map(([value, text]) => el('option', {
       value: String(value), text, selected: preferences.values.display.fpsCap === value ? true : null,
     })));

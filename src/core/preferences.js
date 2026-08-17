@@ -163,7 +163,7 @@ export function normalizePreferences(raw = {}) {
       postProcessing: bool(display.postProcessing, DEFAULT_PREFERENCES.display.postProcessing),
       resolution: oneOf(display.resolution, ['native', '1080p', '1440p', '4k'], DEFAULT_PREFERENCES.display.resolution),
       uiScale: clamp(display.uiScale, 0.9, 1.3, DEFAULT_PREFERENCES.display.uiScale),
-      fpsCap: oneOf(display.fpsCap, [0, 60, 120, 144], DEFAULT_PREFERENCES.display.fpsCap),
+      fpsCap: oneOf(display.fpsCap, [0, 60, 120, 144, 240], DEFAULT_PREFERENCES.display.fpsCap),
     },
     accessibility: {
       reducedMotion: bool(accessibility.reducedMotion, DEFAULT_PREFERENCES.accessibility.reducedMotion),

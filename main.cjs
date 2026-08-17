@@ -378,6 +378,11 @@ ipcMain.handle('fw:display-info', (event) => {
     // delivered it.
     qaFakeDisplay: usingFakeDisplay,
     mode: win.isFullScreen() ? 'fullscreen' : 'windowed',
+    // GOAL 34 — the panel's real refresh rate. src/core/frameCap.js used to
+    // infer this from rAF gaps, which on a GPU-bound frame is the GAME's rate:
+    // it reported 58-63 Hz for the display this line reports as 240, so the
+    // frame cap could never work out how many vsyncs to skip.
+    refreshHz: Number(display.displayFrequency) || null,
     width: currentPhysical.width,
     height: currentPhysical.height,
     scaleFactor: scale,
