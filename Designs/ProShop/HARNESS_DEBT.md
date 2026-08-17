@@ -654,3 +654,29 @@ session. `tests/frame-cap-cadence.test.js` asserts the panel estimate re-solves
 on a display change and passed throughout, because it builds a fresh instance
 per case. A test that never lets the buffer saturate cannot see a
 saturation bug.
+
+## 2026-08-17, nav rebuild stage 2
+
+**An organic leg is at the mercy of what the shop happens to do.** The five
+minute before run shoved in BURSTS — 436 correction frames in the first fifteen
+seconds, then ninety seconds of nothing, then 250 a sample for a minute. The
+first A/B ran two minutes per solver and the legacy leg landed in a quiet
+stretch: 0.27 shoves/s against the 11.69 the same build had produced an hour
+earlier. Reported as it stood it would have been a 43x understatement of the
+thing being fixed. Any leg shorter than the burst period must STAGE its stress,
+not wait for it; `nav-solver-ab.js` pinches the crowd onto a ring at a fixed
+0.80 yd and asserts afterwards that the tightest staged gap actually bit.
+
+**"Two customers on screen" is not "the crowd is legible."** The framing gate
+counts customers whose projected position is inside the frame, and it passed at
+100% on footage where a single body filled the screen from a yard away — no
+verdict about whether anybody touched can be read off that. The gate now has a
+companion: the player backs off until the nearest customer is 3.4 yd away and
+re-aims. A distance test and an on-screen test are different questions.
+
+**A solver guarantee is worth nothing if the pass behind it disagrees about the
+number.** ORCA held pairs at 0.72 yd; `separate()` called anything under 0.78 a
+violation and pushed. The velocity solver measured NO BETTER than the heuristic
+it replaced (2.38 vs 2.20 shoves/s) and every one of those shoves was the
+threshold, not the solver. Two constants naming the same physical distance in
+two modules must be tied together by a test, not by a comment.

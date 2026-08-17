@@ -305,6 +305,75 @@ the last measurement was wrong.
 
 ---
 
+## 7. STAGE 2 — WHAT THE ORCA CORE ACTUALLY DID
+
+`src/render3d/clubhouse/orca.js`, behind `setCrowdSolver('orca'|'legacy')`, with
+`separate()` and the ladder still present and instrumented. Three things had to
+be found before the numbers meant anything, and each one is a check that now
+ships.
+
+**(a) Pure ORCA is contact-free and completely stuck.** Five walkers crossing a
+circle to their antipodes: closest approach 0.723 yd (never inside 0.62 — the
+theorem holds) and the worst of them 4.12 yd short of a 7 yd crossing after
+fourteen seconds. Perfect symmetry, every least-bad velocity pointing into the
+same jam. The theorem says nothing about progress. RVO2's own Circle demo admits
+this and perturbs randomly; a fixed 0.02 rad lean applied only while somebody is
+being avoided is deterministic, reads as keeping to one side, and takes every
+walker to within 1e-7 yd of its goal. `tests/orca-solver.test.js` keeps the
+unbiased deadlock as the control, so removing the lean fails loudly.
+
+**(b) The first ORCA build was NO BETTER than the heuristic, for a reason that
+had nothing to do with velocities.** Its comfort was 0.10, so it guaranteed
+0.72 yd — while `separate()` treats anything under **0.78** as a violation. Every
+pair ORCA held perfectly legally in that six-centimetre band was shoved by the
+pass behind it. Staged pinch, one minute each: legacy 2.20 shoves/s, ORCA 2.38.
+Comfort is 0.18 now (holds 0.80 > 0.78) and a test fails if the two ever cross.
+
+**(c) An organic leg is at the mercy of what the shop happens to do.** The
+before run shoved in BURSTS — 436 frames in the first fifteen seconds, then
+ninety seconds of nothing, then 250 a sample for a minute. A two-minute leg that
+lands in a quiet stretch reads clean and proves nothing. So the stress is staged:
+`pinch` puts the visible customers on a ring around their own centroid sized so
+the closest pair starts at **0.80 yd** — tighter than the shop produces on its
+own and still legal, so neither solver starts owing a correction and every shove
+after it is a steering failure.
+
+**THE RESULT.** Same boot, same shop, same save, same six pinches, one minute
+each, both legs framed 100%:
+
+| | legacy | ORCA |
+|---|---|---|
+| shoves/second | **8.36** | **0.68** |
+| walker displacements | 1,195 | 47 |
+| stander displacements | 36 | 41 |
+| closest approach | **0.264 yd** | 0.708 yd |
+| frames interpenetrating | 5 | **0** |
+| touching episodes | 6 | 1 |
+
+Watched, `qa/nav/pinch3`: **frame-0305 (152.0 s)**, legacy — two customers
+shoulder to shoulder, the pink figure's arm crossing in front of the grey
+figure's torso. **frame-0462 (231.0 s)**, ORCA, three seconds after an identical
+0.80 yd pinch — a clean gap.
+
+**What stage 2 did NOT fix, and why the target is 0.68 and not zero.** ORCA's
+0.68 is almost entirely one burst in the first ten seconds (39 shoves), after
+which the meter moves 4 frames in 54 seconds. The burst is 39 walker
+displacements and 39 STANDER displacements — and a stander never enters the
+walker loop, so no velocity solver can ever see it. Two causes remain, both
+stage 3:
+
+1. **Stop points closer together than a body.** A walker arrives at a stop
+   within 0.78 yd of somebody standing, `separate()` pushes them both, the
+   walker walks back, and it grinds. The fix is in the stop geometry.
+2. **The position clamps ORCA cannot see.** `resolveCustomer` clamps against
+   colliders and the player AFTER the velocity is chosen, and that clamp can
+   push a body straight into another one — which is why the closest approach is
+   0.708 rather than the 0.80 the solver guarantees. This is the "dodge a person
+   into a shelf" case §5 named, and the answer is obstacles as constraints in
+   the same LP.
+
+---
+
 ## Sources
 
 - [Optimal Reciprocal Collision Avoidance (ORCA), UNC GAMMA](https://gamma.cs.unc.edu/ORCA/)

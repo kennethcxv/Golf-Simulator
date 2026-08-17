@@ -112,6 +112,7 @@ import {
 } from '../sim/customerSimulation.js';
 import { steerAround, STEER_DEFAULTS } from './clubhouse/steerAhead.js';
 import { BODY_RADIUS, avoidanceHeading, separate } from './clubhouse/crowd.js';
+import { orcaVelocity } from './clubhouse/orca.js';
 import {
   allocateCustomerIdentity, customerIdentityById, paymentChoiceDialogue,
 } from '../sim/customerIdentity.js';
@@ -11371,6 +11372,13 @@ export function makeClubhouse(ctx) {
       record.vz = other.vz || 0;
       record.pinned = customerIsPinned(other);
       record.radius = record.pinned ? BODY_RADIUS + QUEUE_BERTH : BODY_RADIUS;
+      // WHO WILL TAKE THEIR HALF. ORCA's reciprocal split assumes the other
+      // party is running the same solve this frame and will contribute the other
+      // half of the correction. Somebody holding a place in the line is not: the
+      // arrived branch never calls the solver at all, and standing their ground
+      // is the whole point of being pinned. Assuming half from them is how a
+      // walker ends up passing at half the distance it planned for.
+      record.reciprocal = !record.pinned;
       _crowdNear.push(record);
     }
     // THE PLAYER IS A NEIGHBOUR TOO. Before this, walkers reasoned about every
@@ -11393,6 +11401,10 @@ export function makeClubhouse(ctx) {
       record.vz = walk.vz || 0;
       record.pinned = true;
       record.radius = PLAYER_RADIUS;
+      // The player is emphatically not running the solver. RVO2's own handling
+      // of an agent that does not reciprocate: their share of the correction is
+      // zero, so the walker takes all of it.
+      record.reciprocal = false;
       _crowdNear.push(record);
     }
     return _crowdNear;
@@ -11415,6 +11427,27 @@ export function makeClubhouse(ctx) {
   const crowdStats = { passes: 0, pairsOverlapping: 0, worstOverlap: 0 };
   const _crowdBodies = [];
   const _crowdBodyPool = [];
+
+  // WHICH SOLVER DECIDES WHERE A WALKER GOES. 'orca' is the velocity-space
+  // rebuild (src/render3d/clubhouse/orca.js); 'legacy' is the heading-bend
+  // heuristic that shipped, kept ONLY so a driver can A/B the two inside one
+  // boot against the same shop, the same save and the same arrivals. Two
+  // separate runs are two different afternoons and the crowd is not the same
+  // crowd in them. It is not a setting and it is not persisted.
+  let crowdSolver = 'orca';
+  // Ticks once per updateCustomers. A body stamps it on the frames it actually
+  // walked, so the settle pass afterwards can tell a shoved walker from a shoved
+  // stander without guessing from velocity.
+  let customerSimFrame = 0;
+  const orcaStats = {
+    solves: 0, infeasible: 0, yieldFrames: 0, yieldSum: 0, worstPenetration: 0,
+  };
+  function setCrowdSolver(which) {
+    crowdSolver = which === 'legacy' ? 'legacy' : 'orca';
+    orcaStats.solves = 0; orcaStats.infeasible = 0; orcaStats.yieldFrames = 0;
+    orcaStats.yieldSum = 0; orcaStats.worstPenetration = 0;
+    return crowdSolver;
+  }
 
   // ---------------------------------------------------------------------------
   // THE CONTACT WATCH (nav rebuild, part 2). The old detector reported ZERO
@@ -11452,7 +11485,18 @@ export function makeClubhouse(ctx) {
     people: 0,
     pre: { hardFrames: 0, visibleFrames: 0, hardPairFrames: 0, visiblePairFrames: 0, closest: Infinity },
     post: { hardFrames: 0, visibleFrames: 0, hardPairFrames: 0, visiblePairFrames: 0, closest: Infinity },
-    corrections: { frames: 0, bodyFrames: 0, worst: 0, sum: 0 },
+    // WHO IS BEING SHOVED, split by whether they were WALKING on the frame it
+    // happened. This is the split that decides whether a velocity solver can
+    // help at all: a walker's shove is a steering failure and ORCA owns it, but
+    // a body that is standing still — lingering at a shelf, holding a place in
+    // the line — never enters the walker loop, so no velocity solver ever sees
+    // it. If the shoving is mostly standers, the fault is that two STOP POINTS
+    // are closer together than a body's width and the fix is in the stop
+    // geometry, not the solver. Measured before this existed the two were one
+    // number, and one number cannot tell those apart.
+    corrections: {
+      frames: 0, bodyFrames: 0, walkerBodyFrames: 0, standerBodyFrames: 0, worst: 0, sum: 0,
+    },
     episodes: [],
     _inEpisode: null,
   };
@@ -11553,6 +11597,7 @@ export function makeClubhouse(ctx) {
       body.z = c.mesh.position.z;
       body.radius = BODY_RADIUS;
       body.pinned = customerIsPinned(c);
+      body.walking = c.crowdWalkFrame === customerSimFrame;
       body.c = c;
       _crowdBodies.push(body);
     }
@@ -11593,6 +11638,8 @@ export function makeClubhouse(ctx) {
     // rubbing.
     const postScan = contactScan(contactWatch.post, _crowdBodies, _crowdBodies.length);
     let correctedBodies = 0;
+    let correctedWalkers = 0;
+    let correctedStanders = 0;
     let worstCorrection = 0;
     let worst = 0;
     for (let i = 0; i < _crowdBodies.length; i += 1) {
@@ -11604,6 +11651,7 @@ export function makeClubhouse(ctx) {
       const shove = Math.hypot(body.x - body.preX, body.z - body.preZ);
       if (shove > 1e-5) {
         correctedBodies += 1;
+        if (body.walking) correctedWalkers += 1; else correctedStanders += 1;
         contactWatch.corrections.sum += shove;
         if (shove > worstCorrection) worstCorrection = shove;
       }
@@ -11616,6 +11664,8 @@ export function makeClubhouse(ctx) {
     if (correctedBodies) {
       contactWatch.corrections.frames += 1;
       contactWatch.corrections.bodyFrames += correctedBodies;
+      contactWatch.corrections.walkerBodyFrames += correctedWalkers;
+      contactWatch.corrections.standerBodyFrames += correctedStanders;
       if (worstCorrection > contactWatch.corrections.worst) {
         contactWatch.corrections.worst = worstCorrection;
       }
@@ -11669,11 +11719,27 @@ export function makeClubhouse(ctx) {
       beforeSolver: fmt(w.pre),
       // what the PLAYER saw
       afterSolver: fmt(w.post),
+      // WHICH SOLVER PRODUCED THE NUMBERS ABOVE, and what it had to do. `yielded`
+      // is how much intention the walkers gave up in total: the price of never
+      // touching, and the thing that should be visible in the clip as people
+      // stepping around each other rather than through.
+      solver: {
+        kind: crowdSolver,
+        solves: orcaStats.solves,
+        infeasible: orcaStats.infeasible,
+        pctInfeasible: +(100 * orcaStats.infeasible / Math.max(1, orcaStats.solves)).toFixed(2),
+        yieldSolves: orcaStats.yieldFrames,
+        yieldMeanYdPerSec: +(orcaStats.yieldSum / Math.max(1, orcaStats.solves)).toFixed(4),
+        worstPenetrationYd: +orcaStats.worstPenetration.toFixed(4),
+      },
       // the shoving itself: the measurement that never existed
       corrections: {
         frames: w.corrections.frames,
         pctOfFrames: +(100 * w.corrections.frames / Math.max(1, w.frames)).toFixed(2),
         bodyFrames: w.corrections.bodyFrames,
+        // the split that says whether a velocity solver can help at all
+        walkerBodyFrames: w.corrections.walkerBodyFrames,
+        standerBodyFrames: w.corrections.standerBodyFrames,
         perSecond: +(w.corrections.frames / secs).toFixed(2),
         worstYd: +w.corrections.worst.toFixed(4),
         totalYd: +w.corrections.sum.toFixed(3),
@@ -11696,6 +11762,7 @@ export function makeClubhouse(ctx) {
       side.hardPairFrames = 0; side.visiblePairFrames = 0; side.closest = Infinity;
     }
     w.corrections.frames = 0; w.corrections.bodyFrames = 0;
+    w.corrections.walkerBodyFrames = 0; w.corrections.standerBodyFrames = 0;
     w.corrections.worst = 0; w.corrections.sum = 0;
     return true;
   }
@@ -11998,6 +12065,7 @@ export function makeClubhouse(ctx) {
     // in it. The two are deliberately different numbers above 4x.
     const decisionDt = dt * simSpeed;
     const moveDt = dt * locomotionSpeed;
+    customerSimFrame += 1;
     // Reservation arrivals share the same physical customer loop as retail
     // shoppers. Keep the persisted tee sheet authoritative, then materialize
     // every due party before advancing the floor routes below.
@@ -12605,24 +12673,72 @@ export function makeClubhouse(ctx) {
         // same frame and each takes half the correction -- which is what makes
         // them step past one another instead of both dodging the same way.
         const crowdNear = customerNeighbours(c);
-        let crowdSlow = 1;
+        // The step this walker is about to take, as a DISPLACEMENT. Both solvers
+        // write it; only one of them decides it in velocity space.
+        let stepX = heading.x * step;
+        let stepZ = heading.z * step;
         if (crowdNear.length) {
-          const avoid = avoidanceHeading(
-            { x: c.mesh.position.x, z: c.mesh.position.z, vx: c.vx || 0, vz: c.vz || 0 },
-            crowdNear, heading.x, heading.z, Math.max(0.2, step / Math.max(dt, 1e-4)),
-          );
-          if (avoid.avoided) {
-            heading = { ...heading, x: avoid.x, z: avoid.z, steered: true };
-            // YIELD, do not just swerve. A sidestep at full stride through a
-            // tight gap still reads as barging; people slow down when a
-            // collision is imminent. Urgency > 2 is the overlapping band in
-            // avoidanceHeading; above ~1.2 the closest approach is inside half
-            // a second. Scaling the step is what makes two crossing walkers
-            // resolve as one yielding to the other rather than both wedging
-            // into the same gap at speed.
-            const urgency = avoid.threat?.urgency ?? 0;
-            if (urgency >= 2) crowdSlow = 0.35;
-            else if (urgency > 1.2) crowdSlow = 0.6;
+          if (crowdSolver === 'orca') {
+            // ORCA (nav rebuild, stage 2). Direction and speed stop being two
+            // rules that never see each other: there is one decision, "the
+            // velocity nearest the one I wanted that no neighbour's half-plane
+            // forbids", and yielding falls out of it instead of being a
+            // scripted band. Wall-time units throughout — customers move at
+            // c.speed*locomotionSpeed in wall seconds, the player moves in real
+            // time and is a neighbour, and mixing the two frames would have the
+            // solver reason about a player travelling at a quarter speed.
+            const wantSpeed = dt > 1e-6 ? step / dt : 0;
+            const v = orcaVelocity(
+              {
+                x: c.mesh.position.x,
+                z: c.mesh.position.z,
+                vx: c.vx || 0,
+                vz: c.vz || 0,
+                radius: BODY_RADIUS,
+                maxSpeed: Math.max(wantSpeed, c.speed * locomotionSpeed),
+              },
+              crowdNear,
+              heading.x * wantSpeed,
+              heading.z * wantSpeed,
+              { timeStep: dt },
+            );
+            stepX = v.vx * dt;
+            stepZ = v.vz * dt;
+            // Never travel further than the waypoint is away: the cap `step`
+            // already carries that, and a solver free to pick any velocity up
+            // to maxSpeed can otherwise sail past a close waypoint sideways.
+            const mag = Math.hypot(stepX, stepZ);
+            if (mag > step && mag > 1e-9) {
+              stepX *= step / mag;
+              stepZ *= step / mag;
+            }
+            orcaStats.solves += 1;
+            if (v.infeasible) orcaStats.infeasible += 1;
+            if (v.penetration > orcaStats.worstPenetration) orcaStats.worstPenetration = v.penetration;
+            orcaStats.yieldSum += v.yielded;
+            if (v.yielded > 0.05) orcaStats.yieldFrames += 1;
+            if (mag > 1e-6) heading = { ...heading, x: stepX / mag, z: stepZ / mag, steered: true };
+          } else {
+            const avoid = avoidanceHeading(
+              { x: c.mesh.position.x, z: c.mesh.position.z, vx: c.vx || 0, vz: c.vz || 0 },
+              crowdNear, heading.x, heading.z, Math.max(0.2, step / Math.max(dt, 1e-4)),
+            );
+            if (avoid.avoided) {
+              heading = { ...heading, x: avoid.x, z: avoid.z, steered: true };
+              // YIELD, do not just swerve. A sidestep at full stride through a
+              // tight gap still reads as barging; people slow down when a
+              // collision is imminent. Urgency > 2 is the overlapping band in
+              // avoidanceHeading; above ~1.2 the closest approach is inside half
+              // a second. Scaling the step is what makes two crossing walkers
+              // resolve as one yielding to the other rather than both wedging
+              // into the same gap at speed.
+              const urgency = avoid.threat?.urgency ?? 0;
+              let crowdSlow = 1;
+              if (urgency >= 2) crowdSlow = 0.35;
+              else if (urgency > 1.2) crowdSlow = 0.6;
+              stepX = heading.x * step * crowdSlow;
+              stepZ = heading.z * step * crowdSlow;
+            }
           }
         }
         steerStats.calls += 1;
@@ -12633,8 +12749,8 @@ export function makeClubhouse(ctx) {
         if (wdist > steerStats.travelMax) steerStats.travelMax = wdist;
         const res = resolveCustomer(
           c,
-          c.mesh.position.x + heading.x * step * crowdSlow,
-          c.mesh.position.z + heading.z * step * crowdSlow,
+          c.mesh.position.x + stepX,
+          c.mesh.position.z + stepZ,
         );
         const moved = Math.hypot(res.nx - c.mesh.position.x, res.nz - c.mesh.position.z);
         // Velocity, so the people around this one can see where it is GOING
@@ -12644,14 +12760,22 @@ export function makeClubhouse(ctx) {
           c.vx = (res.nx - c.mesh.position.x) / dt;
           c.vz = (res.nz - c.mesh.position.z) / dt;
         }
+        c.crowdWalkFrame = customerSimFrame;
+        const wentX = res.nx - c.mesh.position.x;
+        const wentZ = res.nz - c.mesh.position.z;
         c.mesh.position.x = res.nx;
         c.mesh.position.z = res.nz;
-        c.mesh.rotation.y = characterYawToward(
-          c.mesh.position.x,
-          c.mesh.position.z,
-          wp.x,
-          wp.z,
-        );
+        // FACE WHERE YOU ARE GOING, NOT WHERE YOU ARE HEADED. A body that
+        // sidesteps while still pointing at its waypoint slides — it reads as
+        // being pushed, which is the exact impression this rebuild exists to
+        // remove. Giving way has to be visible in the body, so the yaw follows
+        // the step that was actually taken. Below a third of the intended step
+        // the direction is mostly clamp noise and the waypoint is the steadier
+        // answer.
+        const went = Math.hypot(wentX, wentZ);
+        c.mesh.rotation.y = (went > Math.max(1e-4, step * 0.33))
+          ? characterYawToward(res.nx - wentX, res.nz - wentZ, res.nx, res.nz)
+          : characterYawToward(c.mesh.position.x, c.mesh.position.z, wp.x, wp.z);
         // stuck detection: 1.2s pinned → one repath against the fresh world;
         // every further 3s pinned climbs an escalation ladder, and every rung is
         // logged with positions and the surrounding colliders. Rungs 1-2 keep
@@ -14027,6 +14151,10 @@ export function makeClubhouse(ctx) {
     // sim every frame, counts both sides of the solve, and counts the shoving.
     contactWatchDiagnostics,
     resetContactWatch,
+    // A/B the two crowd solvers inside ONE boot, against the same shop, the same
+    // save and the same arrivals. QA only; nothing in the game calls it.
+    setCrowdSolver,
+    crowdSolver: () => crowdSolver,
     // Every stuck escalation across the session, with positions, targets and the
     // colliders that boxed the walker in. The live-parity day run reads THIS —
     // the same evidence the live game logs — instead of inventing its own.
