@@ -455,11 +455,17 @@ def main():
         st.data.materials.append(cloth)
     subject = [body, *loops, *stitches, btn, *hanger]
     print(f"trousers-hung v4: TRIS {D.tri_count(subject)}")
+    # ob.bound_box is CACHED and the fold fields transform vertices
+    # directly, so nothing refreshes it in background mode -- every
+    # camera then frames where the garment used to be.
+    bpy.context.view_layer.update()
     lo, hi = H.bounds(subject)
     print(f"  {(hi.x - lo.x) * 1000:.0f} x {(hi.y - lo.y) * 1000:.0f} x "
           f"{(hi.z - lo.z) * 1000:.0f} mm")
 
     H.set_engine("CYCLES" if "cycles" in args else "EEVEE", samples=96)
+
+    ST.exposure(-0.52)
     centre = (lo + hi) * 0.5
     _c, radius = H.subject_sphere(subject)
     dist = H.fit_view(subject, centre, Vector((0, 1, 0)), 80.0,
@@ -484,7 +490,7 @@ def main():
         bpy.data.objects.remove(bd, do_unlink=True)
     ST.world_value(0.055)
     tight = H.fit_view(subject, centre, Vector((0, 1, 0)), 80.0,
-                       res=(720, 1200), margin=1.03)
+                       res=(720, 1200), margin=1.09)
     cam = H.camera("compare", H.orbit_position(centre, tight, -90, 1), centre,
                    lens=80.0)
     H.render(cam, os.path.join(OUT, "trousers-hung-v4-compare.png"),
@@ -525,10 +531,14 @@ def chino_material():
 
 
 def retail(subject, centre):
-    for n in ("Backdrop", "key", "fill", "rim", "under"):
+    for n in ("Backdrop", "key", "fill", "rim", "top", "under"):
         ob = bpy.data.objects.get(n)
         if ob is not None:
             bpy.data.objects.remove(ob, do_unlink=True)
+    # ob.bound_box is CACHED and the fold fields transform vertices
+    # directly, so nothing refreshes it in background mode -- every
+    # camera then frames where the garment used to be.
+    bpy.context.view_layer.update()
     lo, hi = H.bounds(subject)
     made = list(ST.rail(hi.z - 0.010, x0=-1.30, x1=1.30))
     made.append(ST.shop_floor(lo.z - 0.16))

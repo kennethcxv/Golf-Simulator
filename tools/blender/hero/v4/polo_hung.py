@@ -52,10 +52,13 @@ SPEC = dict(
     # 658 mm across against a 540 mm chest plus sleeves is BOXY. A polo on a
     # hanger measures about 600; the extra came from sleeves standing too far
     # off the body and a chest carried at its full flat width all the way down.
-    profile=[(-0.720, 0.246, 0.0560),
-             (-0.640, 0.251, 0.0598),
-             (-0.520, 0.256, 0.0645),
-             (-0.380, 0.261, 0.0685),
+    # A POLO IS CUT WITH SHAPE. Straight-sided from chest to hem reads as a
+    # sack; the real one narrows a little through the waist and opens again
+    # over the hip.
+    profile=[(-0.720, 0.253, 0.0578),
+             (-0.640, 0.255, 0.0600),
+             (-0.520, 0.247, 0.0622),
+             (-0.380, 0.252, 0.0672),
              (-0.225, 0.263, 0.0705)],
     hem_lift=dict(front=0.0, side=0.046, back=0.010),
     ctrl_a=(0.276, 0.0845),
@@ -304,10 +307,14 @@ def pique_material():
 
 
 def retail(subject, centre):
-    for n in ("Backdrop", "key", "fill", "rim", "under"):
+    for n in ("Backdrop", "key", "fill", "rim", "top", "under"):
         ob = bpy.data.objects.get(n)
         if ob is not None:
             bpy.data.objects.remove(ob, do_unlink=True)
+    # ob.bound_box is CACHED and the fold fields transform vertices
+    # directly, so nothing refreshes it in background mode -- every
+    # camera then frames where the garment used to be.
+    bpy.context.view_layer.update()
     lo, hi = H.bounds(subject)
     made = list(ST.rail(hi.z - 0.010, x0=-1.30, x1=1.30))
     made.append(ST.shop_floor(lo.z - 0.55))
@@ -350,14 +357,21 @@ def main():
             section=[(0.00, 1.00, 1.00), (0.45, 0.95, 0.94),
                      (0.82, 0.88, 0.89), (1.00, 0.83, 0.85)],
             rows=18, cuff_t=0.82, cuff_pinch=0.095,
-            fold=(0.058, 0.030), bow=0.040))
+            fold=(0.058, 0.030), bow=0.040,
+            # pique is 2.0 mm; 7.2 mm of clearance opened a slot of background
+            # at each armhole, the same fault the tee had
+            clear=0.0042, hem_curl=0.014))
     sh.join(parts)
     SH.audit(body, "assembled")
 
+    # 0.40 of side bias let an 11 mm crease run dead down the CENTRE FRONT for
+    # 340 mm. Straight, central and full depth, it reads as a seam splitting
+    # the shirt, not as drape. The front and back panels of a hanging polo are
+    # broad and calm; the folds gather at the sides.
     D.drape_folds(body, amp=1.0, z_top=-0.180, z_bot=HEM_Z,
-                  harmonics=[(9, 0.0112, 0.8), (5, 0.0072, -0.5),
+                  harmonics=[(9, 0.0086, 0.8), (5, 0.0084, -0.5),
                              (17, 0.0032, 1.5)],
-                  seed=2.4, side_bias=0.40,
+                  seed=2.4, side_bias=0.66,
                   pred=lambda co: co.z < -0.180,
                   gate=lambda co: 1.0 - D._smooth(abs(co.x), 0.170, 0.230))
 
@@ -385,12 +399,18 @@ def main():
 
     subject = [body, col, pl] + list(vt) + list(studs) + [hg]
     print("polo-hung v4: TRIS %d" % D.tri_count(subject))
+    # ob.bound_box is CACHED and the fold fields transform vertices
+    # directly, so nothing refreshes it in background mode -- every
+    # camera then frames where the garment used to be.
+    bpy.context.view_layer.update()
     lo, hi = H.bounds(subject)
     print("  %.0f x %.0f x %.0f mm" % ((hi.x - lo.x) * 1000,
                                        (hi.y - lo.y) * 1000,
                                        (hi.z - lo.z) * 1000))
 
     H.set_engine("CYCLES" if "cycles" in args else "EEVEE", samples=96)
+
+    ST.exposure(-0.22)
     centre = (lo + hi) * 0.5
     _c, radius = H.subject_sphere(subject)
     ST.garment_lights(centre=centre, scale=radius)
@@ -415,7 +435,7 @@ def main():
         bpy.data.objects.remove(bd, do_unlink=True)
     ST.world_value(0.055)
     tight = H.fit_view(subject, centre, Vector((0, 1, 0)), 80.0,
-                       res=(860, 1040), margin=1.03)
+                       res=(860, 1040), margin=1.09)
     cam = H.camera("compare", H.orbit_position(centre, tight, -90, 1), centre,
                    lens=80.0)
     H.render(cam, os.path.join(OUT, "polo-hung-v4-compare.png"),

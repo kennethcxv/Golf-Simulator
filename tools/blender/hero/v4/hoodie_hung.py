@@ -64,19 +64,31 @@ OUT = os.path.join(REPO, "qa", "hero", "v4", "hoodie-hung")
 
 NU = 72                      # columns around the body (~16 mm at the chest)
 Z_CHEST = -0.235             # armpit / bottom of the yoke
-Z_WAIST_TOP = -0.638         # top of the ribbed waistband
-Z_HEM = -0.700
+# The board's waistband is a SLIM band, about 45 mm, not the 62 mm slab that
+# made the bottom of the garment read as corrugated card.
+Z_WAIST_TOP = -0.690         # top of the ribbed waistband
+Z_HEM = -0.735
 
+# HALF-WIDTHS CUT BY 33 mm AND THE BODY LENGTHENED BY 35.
+# Measured off the board's FRONT VIEW panel the hoodie is 0.61 as wide as it
+# is tall. This table plus the old yoke gave 0.78 -- near enough square, which
+# is the whole of the "reads as a rounded block" complaint. A garment cannot
+# be fixed by folds while its outline is the wrong rectangle.
+# ... AND HALF AS DEEP. This is the whole of the "inflated / pillow" read. A
+# 150 mm front-to-back body on a 508 mm chest is a bolster; the board's SIDE
+# VIEW panel shows a hoodie on a hanger is very nearly FLAT -- two panels with
+# air between them, about 85 mm at the chest and less at the hem. Every fold,
+# seam and pocket sits on top of that decision and none of them can rescue it.
 BODY_PROFILE = [             # half-width / half-depth against height
-    (-0.700, 0.256, 0.052),
-    (-0.638, 0.263, 0.057),
-    (-0.560, 0.277, 0.069),
-    (-0.420, 0.283, 0.076),
-    (-0.235, 0.285, 0.079),
+    (-0.735, 0.232, 0.0300),
+    (-0.690, 0.238, 0.0330),
+    (-0.590, 0.248, 0.0392),
+    (-0.430, 0.252, 0.0425),
+    (-0.235, 0.254, 0.0440),
 ]
 BODY_N = 3.4                 # superellipse exponent: flattened, not oval
 
-NECK_HW, NECK_HD, NECK_CY = 0.094, 0.076, 0.012
+NECK_HW, NECK_HD, NECK_CY = 0.094, 0.0545, 0.010
 NECK_Z = dict(front=-0.030, side=0.005, back=0.012)
 # The yoke's control ring is what puts the SHOULDER in the shoulder. A
 # quadratic does NOT pass through its control point -- it reaches only a
@@ -89,11 +101,13 @@ NECK_Z = dict(front=-0.030, side=0.005, back=0.012)
 # the shoulder point, and there the silhouette breaks and the armhole edge
 # drops away much more steeply. Smoothed into one curve the top of the garment
 # comes out as a rounded arch, which is the poncho tell.
-SHLD_HW, SHLD_HD = 0.240, 0.0865
+SHLD_HW, SHLD_HD = 0.2105, 0.0505
 SHLD_Z = dict(front=-0.125, side=-0.045, back=-0.108)
-CTRLA_HW, CTRLA_HD = 0.274, 0.0855          # chest -> shoulder point
+CTRLA_HW, CTRLA_HD = 0.240, 0.0490          # chest -> shoulder point
 CTRLA_Z = dict(front=-0.182, side=-0.150, back=-0.174)
-CTRLB_HW, CTRLB_HD = 0.172, 0.0870          # shoulder point -> neck
+# ... and the corner is SOFT. At 240/172 the silhouette broke too
+# sharply and the top corners read square.
+CTRLB_HW, CTRLB_HD = 0.166, 0.0512          # shoulder point -> neck
 CTRLB_Z = dict(front=-0.077, side=-0.014, back=-0.058)
 YOKE_A, YOKE_B = 8, 7
 YOKE_ROWS = YOKE_A + YOKE_B
@@ -107,15 +121,15 @@ PIN_ROWS = (9, 14)           # yoke rows the hanger bar carries
 PIN_COLS = 10
 
 SLEEVE_ROWS = 30
-SLEEVE_DROP = 0.545          # armhole centroid to cuff
+SLEEVE_DROP = 0.572          # armhole centroid to cuff
 # The reference measures 0.754 as wide as it is tall; at 830 mm tall that is a
 # 626 mm garment, half-width 313 mm. The torso is 285. So the sleeve protrudes
 # TWENTY-EIGHT MILLIMETRES past the body -- it is not a tube hanging beside the
 # torso, it is a flattened tube lying ON its side seam, and the section has to
 # be sized for that or the garment comes out 200 mm too wide.
-SLEEVE_AXIS_X = 0.268
-SLEEVE_OUTER = 0.049         # half-extent outboard: 0.268 + 0.045 = 0.313
-SLEEVE_DEPTH = 0.062         # ... and front-to-back
+SLEEVE_AXIS_X = 0.230
+SLEEVE_OUTER = 0.043         # half-extent outboard: 0.230 + 0.043 = 0.273
+SLEEVE_DEPTH = 0.036         # ... and front-to-back
 SLEEVE_SECTION = [(0.00, 1.00, 1.00), (0.34, 0.95, 0.93),
                   (0.70, 0.73, 0.78), (0.90, 0.55, 0.63),
                   (1.00, 0.49, 0.57)]
@@ -127,11 +141,21 @@ CUFF_T = 0.90                # where the ribbed cuff starts along the sleeve
 # loft arcs up and back through a spine control and comes back down to it, and
 # what rises is the roll of cloth in between. That is the shape in the
 # photograph: not a lid, a slumped mass with an opening on top of it.
-HOOD_HALF = 0.122            # where the roll meets the neckline, each side
-HOOD_BACK = 0.152            # how far back it arches
-HOOD_RISE = 0.113            # ... and how far up
-HOOD_R0, HOOD_R1 = 0.036, 0.071   # section radius at the ends / added at top
-HOOD_ROLLS = 3.3
+#
+# ... and it is WIDER THAN IT IS TALL. At half 122 / rise 113 with a 135-part
+# ripple the roll came out as two lumps with a valley between them -- the
+# reference hood is one smooth low mass spanning the shoulders, and the ripple
+# has to stay well under the section radius or it becomes the silhouette.
+HOOD_HALF = 0.124            # where the roll meets the neckline, each side
+HOOD_BACK = 0.118            # how far back it arches
+HOOD_RISE = 0.096            # ... and how far up
+HOOD_R0, HOOD_R1 = 0.030, 0.048   # section radius at the ends / added at top
+HOOD_ROLLS = 2.6
+# The face opening. Every reference frame reads the hood by its BINDING: a
+# rolled hem round the opening whose two ends cross in a V at the centre
+# front. Without it the roll is a bolster lying on the shoulders.
+HOOD_FACE_A = 0.36 * math.pi   # where round the section the opening sits
+HOOD_BIND_R = 0.0116
 
 CLOTH_T = 0.0034             # fleece: 3.4 mm through the ply
 
@@ -230,34 +254,21 @@ def bar_z(x):
 
 
 def hanger():
-    """A moulded retail hanger, sitting just inside the shoulders.
+    """The shop's black moulded hanger, sitting just inside the shoulders.
 
     It is NOT a collider. Its first cut was, and its bar crossed the pinned
     shoulder strip by two millimetres -- a collider pushing on vertices that
     cannot move is the one thing the solver cannot integrate. The cloth is
     pinned along this same line instead, which is what the bar would have done.
+
+    A 10 mm WHITE WIRE was the wrong prop. Every reference board -- hoodie,
+    polo, tee, and the retail racks behind all three -- hangs its stock on the
+    same black moulded hanger with a chrome hook, and it is the first thing the
+    eye uses to decide whether it is looking at shop stock or at a render.
     """
-    pts = [Vector((-0.215 + 0.430 * (i / 26.0), 0.0,
-                   bar_z(-0.215 + 0.430 * (i / 26.0)))) for i in range(27)]
-    bar = _sweep("hanger_bar", pts, 0.0098, 0.0050)
-    hook = [Vector((0.0250 * math.sin(a) * 0.84, 0.0,
-                    0.104 + 0.0250 * (1 - math.cos(a))))
-            for a in (math.pi * 1.08 * (i / 29.0) - math.pi * 0.05
-                      for i in range(30))]
-    # The hook rises IN FRONT of the hood. Run up the centre and it comes out
-    # through the middle of the hood roll.
-    hook = [h + Vector((0, -0.030, 0)) for h in hook]
-    wire = _sweep("hanger_hook",
-                  [Vector((0, -0.006, -0.008)), Vector((0, -0.022, 0.045)),
-                   Vector((0, -0.030, 0.104))] + hook[1:], 0.0031, 0.0031)
-    bpy.ops.object.select_all(action='DESELECT')
-    bar.select_set(True)
-    wire.select_set(True)
-    bpy.context.view_layer.objects.active = bar
-    bpy.ops.object.join()
-    bar.name = "hanger"
-    D.shade_smooth(bar, 40.0)
-    return bar
+    body, hook = ST.top_hanger(half_w=0.1855, z=-0.004, drop=0.047,
+                               y=-0.006, hook_h=0.104)
+    return body, hook
 
 
 def _sweep(name, pts, halfw, halfh, sides=10):
@@ -388,11 +399,16 @@ def hood_from_neck(ob, idxs):
 
     def arch(u):                                  # u in [-1, 1]
         k = max(0.0, 1.0 - u * u)
-        # the ends run DOWN INTO the shoulder, so the swept tube's end caps
-        # finish inside the body instead of showing as a cut disc
+        # THE ENDS RUN DOWN INTO THE SHOULDER, so the swept tube's end caps
+        # finish inside the body instead of showing as a cut disc. Flattening
+        # the body from 150 mm deep to 88 moved the front surface 30 mm back
+        # and left these ends standing outside it: they rendered as two curved
+        # flaps with dark undersides springing off the neck, which read as a
+        # shirt collar on a hoodie.
         return Vector((HOOD_HALF * u,
-                       nc.y - 0.046 + HOOD_BACK * k ** 0.75,
-                       nc.z - 0.056 + HOOD_RISE * k ** 0.62))
+                       nc.y + 0.006 - 0.052 * k ** 0.9 + HOOD_BACK * k ** 0.75,
+                       nc.z - 0.094 + 0.038 * k ** 0.9
+                       + HOOD_RISE * k ** 0.62))
 
     NS, NR = 30, 26
     rows = []
@@ -414,12 +430,12 @@ def hood_from_neck(ob, idxs):
         for j in range(NR):
             a = 2 * math.pi * j / NR
             # the folds: a ripple ALONG the roll, plus a shallower one around it
-            f = (1.0 + 0.135 * math.sin(HOOD_ROLLS * math.pi * u + 1.1)
+            f = (1.0 + 0.068 * math.sin(HOOD_ROLLS * math.pi * u + 1.1)
                  * math.sin(a * 1.0 + 0.4)
-                 + 0.082 * math.sin(HOOD_ROLLS * 1.9 * math.pi * u - 0.6)
+                 + 0.040 * math.sin(HOOD_ROLLS * 1.9 * math.pi * u - 0.6)
                  * math.sin(a * 2.0 - 0.3)
-                 + 0.048 * math.sin(a * 3.0 - u * 2.2)
-                 + 0.030 * math.sin(a * 5.0 + u * 4.1))
+                 + 0.028 * math.sin(a * 3.0 - u * 2.2)
+                 + 0.017 * math.sin(a * 5.0 + u * 4.1))
             # kidney section: flatter where it lies against the shoulders
             # Pull the roll's front underside AWAY from the neckline so a
             # cavity opens between them. Without it the roll sits flush on the
@@ -451,8 +467,51 @@ def hood_from_neck(ob, idxs):
         lin.append(row)
     lining = D.grid_mesh("hood_lining", lin, wrap_u=True)
 
+    # THE TWO FACINGS, and the V they cross in at the neck.
+    #
+    # A swept tube round the opening was the first try and it was the wrong
+    # object: its ends had to die somewhere, and wherever they died they punched
+    # a notch through the shoulder. The reference reads the hood off a different
+    # thing anyway -- the two FACINGS, flat bands of doubled cloth running from
+    # the crown down each side of the opening, which OVERLAP at the centre front
+    # and make the V. They are panels, they end at the neckline, and being
+    # panels they can simply lie on the roll.
+    rows = []
+    NB = 34
+    for j in range(NB + 1):
+        u = -0.94 + 1.88 * (j / NB)
+        c = arch(u)
+        tg = (arch(min(1.0, u + 0.02)) - arch(max(-1.0, u - 0.02)))
+        tg = tg.normalized() if tg.length > 1e-7 else Vector((1, 0, 0))
+        e1 = tg.cross(Vector((0, 0, 1)))
+        e1 = e1.normalized() if e1.length > 1e-6 else Vector((0, 1, 0))
+        e2 = tg.cross(e1).normalized()
+        k = max(0.0, 1.0 - u * u)
+        r = ((HOOD_R0 + HOOD_R1 * k ** 0.55)
+             * (1.0 + 0.115 * math.sin(u * 1.35 - 0.55)))
+        # THE ENDS WRAP UNDER. Wherever the band simply stopped it punched a
+        # notch through the shoulder; carrying it round the section as it
+        # approaches the neck slides it under the roll, which is where a
+        # facing goes anyway.
+        under = 0.92 * math.pi * (abs(u) ** 3.4)
+        row = []
+        for i in range(7):
+            w = i / 6.0                     # across the 42 mm facing
+            a = HOOD_FACE_A - 0.30 + 0.60 * w + under
+            p = (c + e1 * (r * 1.014 * math.cos(a) * 1.06)
+                 + e2 * (r * 1.014 * math.sin(a) * 0.88))
+            row.append(tuple(p))
+        rows.append(row)
+    fac = D.grid_mesh("hood_facing", rows)
+    D.solidify(fac, 0.0044, offset=0.0)
+    fac = D.apply_all(fac)
+    D.shade_smooth(fac, 44.0)
+    facings = [fac]
+
     bpy.ops.object.select_all(action='DESELECT')
     lining.select_set(True)
+    for f in facings:
+        f.select_set(True)
     roll.select_set(True)
     bpy.context.view_layer.objects.active = roll
     bpy.ops.object.join()
@@ -468,6 +527,122 @@ def _cap_ends(ob, nr, ns):
     bmesh.ops.holes_fill(bm, edges=[e for e in bm.edges if e.is_boundary])
     bm.to_mesh(ob.data)
     bm.free()
+
+
+def ribbed_band(body):
+    """The ribbed waistband, as its own high-column ring.
+
+    THE SHADER RIBS WERE SMEARING. They came off the ANGLE about the garment's
+    axis, which is even on a round tube and wildly uneven on a superellipse
+    flattened to n = 3.4: dx/dtheta runs away at centre front, so the same 150
+    ribs per turn arrived as twenty-odd broad corrugations across the front
+    panel and a fine blur at the side seams. The render read as corrugated
+    card, and no bump strength fixes a frequency wrong by a factor of six in
+    the middle of the frame.
+
+    Ribs sit 6.4 mm apart ALONG THE CLOTH, so they have to be driven by arc
+    length, which the shader cannot reach without UVs. The band is 45 mm tall;
+    at 208 columns it is under 3,000 triangles and can simply be modelled --
+    the same answer the cuffs already use, for the same reason.
+
+    AND IT IS BUILT FROM THE BODY, NOT FROM THE PROFILE TABLE. The body is
+    simulated and then fold-displaced; by the time the band is made, its hem is
+    nowhere near the analytic superellipse. The first cut lofted the table and
+    the band landed skewed across a hem that had moved, which read as a
+    separate object jammed under the garment.
+    """
+    NA, NV = 208, 7
+    PITCH = 0.0064
+    DEPTH = 0.0013
+    ROW_H = 0.0158                     # body_rows' spacing
+
+    co = [Vector(v.co) for v in body.data.vertices]
+    r0z = [co[k].z for k in range(NU)]
+    r1z = [co[NU + k].z for k in range(NU)]
+    print("  band probe: %d verts, %d rows-worth, row0 z %.4f..%.4f, "
+          "row1 z %.4f..%.4f" % (len(co), len(co) // NU, min(r0z), max(r0z),
+                                 min(r1z), max(r1z)))
+
+    def body_ring(z):
+        """The body's own section at height z, resampled to NA columns."""
+        f = max(0.0, (z - Z_HEM) / ROW_H)
+        r0 = min(int(f), (len(co) // NU) - 2)
+        w = min(1.0, f - r0)
+        out = []
+        for i in range(NA):
+            g = i * NU / NA
+            k0 = int(g) % NU
+            k1 = (k0 + 1) % NU
+            u = g - int(g)
+            a = co[r0 * NU + k0].lerp(co[r0 * NU + k1], u)
+            b = co[(r0 + 1) * NU + k0].lerp(co[(r0 + 1) * NU + k1], u)
+            out.append(a.lerp(b, w))
+        return out
+
+    def smooth_ring(ring, k=9, w=0.72):
+        """A ribbed band is STIFFER than the body it gathers.
+
+        Sampled straight off the deformed hem the band inherits every one of
+        the 15 mm drape folds and comes out corrugated and dipping, which read
+        as a crumpled rag under the garment. Real 2x2 rib is a dense stiff
+        knit: it takes the average shape and ignores the folds.
+        """
+        out = []
+        for i in range(len(ring)):
+            acc = Vector((0, 0, 0))
+            for d in range(-k, k + 1):
+                acc = acc + ring[(i + d) % len(ring)]
+            out.append(ring[i].lerp(acc / (2 * k + 1), w))
+        return out
+
+    base = smooth_ring(body_ring(Z_HEM + 0.001))
+    # THE HEM IS NOT LEVEL. The solve leaves row 0 spanning 31 mm of height,
+    # so a band that merely sat 9 mm under the AVERAGE hem let the low half of
+    # the body's own raw hem hang out below it, wavy and unfinished -- which is
+    # the crumpled rag that kept appearing under the garment. The band's
+    # bottom edge is a level line under the lowest point of the cloth.
+    z_floor = min(p.z for p in body_ring(Z_HEM + 0.001)) - 0.005
+    cx = sum((p.x for p in base), 0.0) / NA
+    cy = sum((p.y for p in base), 0.0) / NA
+    # arc length round the body's OWN hem, so the rib pitch is 6.4 mm of cloth
+    arc, s = [0.0], 0.0
+    for i in range(1, NA + 1):
+        a, b = base[(i - 1) % NA], base[i % NA]
+        s += math.hypot(b.x - a.x, b.y - a.y)
+        arc.append(s)
+
+    rows = []
+    for j in range(NV + 1):
+        t = j / NV
+        # the band hangs 9 mm BELOW the body's hem so no fold can poke out
+        z = Z_HEM + (Z_WAIST_TOP + 0.006 - Z_HEM) * t
+        ring = smooth_ring(body_ring(z))
+        level = (1.0 - t) ** 1.5          # level at the bottom, follows at top
+        # the band is DRAWN IN -- narrower than the body it gathers, which is
+        # the single cue that says elasticated rather than cut
+        pull = 0.0062 + 0.0040 * math.sin(math.pi * t)
+        # ... and it rolls closed top and bottom instead of ending in a cliff
+        roll = 0.055 * (math.exp(-(t / 0.13) ** 2)
+                        + math.exp(-((1.0 - t) / 0.13) ** 2))
+        row = []
+        for i in range(NA):
+            p = ring[i]
+            d = Vector((p.x - cx, p.y - cy, 0.0))
+            n = d.normalized() if d.length > 1e-6 else Vector((0, 1, 0))
+            rib = DEPTH * math.cos(2 * math.pi * arc[i] / PITCH)
+            q = p - n * (pull - rib) - d * roll
+            # THE BODY'S OWN HEIGHT THERE, not the nominal sample height. The
+            # solve moves the hem by up to 20 mm; taking xy from the deformed
+            # body and z from the table twisted the band across the garment
+            # and it read as a separate crumpled object jammed underneath.
+            row.append((q.x, q.y, p.z * (1.0 - level)
+                        + z_floor * level))
+        rows.append(row)
+    ob = D.grid_mesh("waistband", rows, wrap_u=True)
+    D.shade_smooth(ob, 34.0)
+    print("  waistband: %d ribs at %.1f mm over %.0f mm"
+          % (round(s / PITCH), PITCH * 1000, s * 1000))
+    return ob
 
 
 def ribbed_cuff(sleeve, name):
@@ -537,7 +712,7 @@ def pocket(ob):
     from mathutils.bvhtree import BVHTree
     bvh = BVHTree.FromPolygons([v.co.copy() for v in ob.data.vertices],
                                [tuple(p.vertices) for p in ob.data.polygons])
-    Z_TOP, Z_KNEE, Z_BOT = -0.430, -0.540, -0.628
+    Z_TOP, Z_KNEE, Z_BOT = -0.452, -0.572, -0.676
     W_TOP, W_KNEE, W_BOT = 0.101, 0.183, 0.186
     NX, NY = 44, 28
 
@@ -587,7 +762,7 @@ def pocket(ob):
             loc, nrm, _i, _d = bvh.ray_cast(Vector((x, -0.60, z)),
                                             Vector((0.0, 1.0, 0.0)), 1.2)
             if loc is None or nrm is None:
-                loc, nrm = Vector((x, -0.070, z)), Vector((0, -1, 0))
+                loc, nrm = Vector((x, -0.044, z)), Vector((0, -1, 0))
             # `find_nearest` returns the FACE normal, which steps from facet to
             # facet -- lift the panel along that and it comes out creased like
             # a paper bag. Weight it heavily toward straight out of the chest.
@@ -734,8 +909,8 @@ def fleece_material():
 
     up = band(Z_HEM - 0.004, Z_HEM + 0.010)          # rises into the band
     dn = band(Z_WAIST_TOP + 0.004, Z_WAIST_TOP - 0.010)
-    cu = band(-0.664, -0.652)
-    cd = band(-0.600, -0.612)
+    cu = band(-0.716, -0.704)
+    cd = band(-0.652, -0.664)
     m1 = nt.nodes.new("ShaderNodeMath")
     m1.operation = 'MULTIPLY'
     nt.links.new(up.outputs["Result"], m1.inputs[0])
@@ -754,8 +929,8 @@ def fleece_material():
     nt.links.new(mask.outputs[0], ribbed.inputs[1])
 
     bump = nt.nodes.new("ShaderNodeBump")
-    bump.inputs["Strength"].default_value = 0.055
-    bump.inputs["Distance"].default_value = 0.0016
+    bump.inputs["Strength"].default_value = 0.030
+    bump.inputs["Distance"].default_value = 0.0011
     nt.links.new(mix.outputs[0], bump.inputs["Height"])
     ribbump = nt.nodes.new("ShaderNodeBump")
     ribbump.inputs["Strength"].default_value = 0.60
@@ -849,14 +1024,21 @@ def build():
         g.add([i], 0.042 * t * t * (3 - 2 * t), 'REPLACE')
     print(f"  {len(hard)} verts hard on the hanger, the rest lightly held")
 
-    hg = hanger()
+    hgb, hgh = hanger()
     if "nosim" not in args:
         before = [Vector(v.co) for v in body.data.vertices]
+        # MASS IS PER VERTEX AND THE GARMENT JUST LOST 40% OF ITS AREA.
+        # Flattening the body from 150 mm deep to 88 shortened every ring
+        # without changing the vertex count, so the same 0.090 per vertex is
+        # now that much denser against springs whose rest lengths shrank with
+        # it: travel went 44 mm -> 188, the hem stretched into a pouch, and
+        # the waistband had a sagging bag of cloth hanging out below it. The
+        # third time this arithmetic has looked like a modelling failure.
         D.add_cloth(body, preset="fleece", pin="pin", quality=12,
-                    self_dist=0.0030, coll_dist=0.0030, damping=2.2,
-                    friction=0.8)
+                    self_dist=0.0030, coll_dist=0.0030, damping=3.4,
+                    friction=0.8, mass=0.062)
         print(f"  simulating {len(body.data.vertices)} verts ...")
-        D.bake(frames=90)
+        D.bake(frames=150)
         D.freeze(body)
         moved = D.travelled(body, before)
         print(f"  DRAPE max travel {moved * 1000:.0f} mm")
@@ -892,24 +1074,25 @@ def build():
     # ... and the folds stop before the sleeves cover the cloth, so a 9 mm
     # ridge cannot push through a sleeve sitting 7 mm off the surface.
     big = D.drape_folds(body, amp=1.0, z_top=-0.150, z_bot=Z_HEM,
-                  harmonics=[(9, 0.0155, 0.9), (5, 0.0098, -0.5),
-                             (16, 0.0046, 1.6)],
+                  harmonics=[(9, 0.0196, 0.9), (5, 0.0128, -0.5),
+                             (16, 0.0058, 1.6)],
                   seed=1.7, side_bias=0.38,
                   pred=lambda co: co.z < -0.150,
-                  gate=lambda co: 1.0 - D._smooth(abs(co.x), 0.180, 0.240))
+                  gate=lambda co: 1.0 - D._smooth(abs(co.x), 0.160, 0.215))
     print(f"  drape folds displace up to {big * 1000:.1f} mm")
     # The cloth GATHERS where it meets the ribbed band. At 72 columns the mesh
     # cannot resolve real 6 mm ribbing -- that belongs in the texture -- but it
     # resolves the 18 gathers above the band, and the gathers are what actually
     # say "this hem is elasticated" at arm's length.
-    D.drape_folds(body, amp=1.0, z_top=-0.545, z_bot=Z_WAIST_TOP,
-                  harmonics=[(18, 0.0040, 0.0), (9, 0.0018, 0.4)],
+    D.drape_folds(body, amp=1.0, z_top=-0.600, z_bot=Z_WAIST_TOP,
+                  harmonics=[(18, 0.0022, 0.0), (9, 0.0011, 0.4)],
                   seed=0.6, side_bias=0.25,
-                  pred=lambda co: -0.648 < co.z < -0.545,
-                  gate=lambda co: 1.0 - D._smooth(abs(co.x), 0.180, 0.240))
-    D.band_pull(body, Z_WAIST_TOP, Z_HEM, amount=0.015)
+                  pred=lambda co: -0.700 < co.z < -0.600,
+                  gate=lambda co: 1.0 - D._smooth(abs(co.x), 0.160, 0.215))
+    D.band_pull(body, Z_WAIST_TOP, Z_HEM, amount=0.016)
     D.seam_groove(body, Z_WAIST_TOP, depth=0.0026, width=0.0060)
 
+    parts.append(ribbed_band(body))
     if "nohood" not in args:
         parts.append(hood_from_neck(body, neck_idx))
 
@@ -922,12 +1105,12 @@ def build():
         D.weld(body, 2e-5)
         D.cleanup(body)
     audit(body, "assembled")
-    return body, hg
+    return body, [hgb, hgh]
 
 
 def main():
     args = H.argv_after_dashes()
-    body, hg = build()
+    body, hg = build()   # hg = [hanger body, chrome hook]
     os.makedirs(OUT, exist_ok=True)
 
     pk = pocket(body)
@@ -940,25 +1123,33 @@ def main():
     cd = cords(body)
 
     cloth = fleece_material()
-    trim = HS.pbr("HangerTrim", (0.86, 0.86, 0.87), roughness=0.36)
     for o in (body, pk, *cd):
         o.data.materials.append(cloth)
     print(f"  cloth material: {cloth.name} base "
           f"{tuple(round(c, 3) for c in cloth.node_tree.nodes['Principled BSDF'].inputs['Base Color'].default_value[:3])}")
-    hg.data.materials.append(trim)
 
-    subject = [body, pk, hg, *cd]
+    subject = [body, pk, *hg, *cd]
     for o in subject:
         a, b = H.bounds([o])
         print(f"    part {o.name}: {(b.x-a.x)*1000:.0f} x "
               f"{(b.y-a.y)*1000:.0f} x {(b.z-a.z)*1000:.0f} mm")
     print(f"hoodie-hung v4: TRIS {D.tri_count(subject)}")
+    # ob.bound_box is CACHED and the fold fields transform vertices
+    # directly, so nothing refreshes it in background mode -- every
+    # camera then frames where the garment used to be.
+    bpy.context.view_layer.update()
     lo, hi = H.bounds(subject)
     print(f"  {(hi.x - lo.x) * 1000:.0f} x {(hi.y - lo.y) * 1000:.0f} x "
           f"{(hi.z - lo.z) * 1000:.0f} mm")
 
     H.set_engine("CYCLES" if "cycles" in args else "EEVEE", samples=96)
+
+    ST.exposure(0.25)
     centre, radius = H.subject_sphere(subject)
+    # ob.bound_box is CACHED and the fold fields transform vertices
+    # directly, so nothing refreshes it in background mode -- every
+    # camera then frames where the garment used to be.
+    bpy.context.view_layer.update()
     lo, hi = H.bounds(subject)
     centre = (lo + hi) * 0.5
     # fit the SILHOUETTE, not the bounding sphere -- a garment is far taller
@@ -986,7 +1177,7 @@ def main():
         bpy.data.objects.remove(bd, do_unlink=True)
     H.world_grey(0.055)
     tight = H.fit_view(subject, centre, Vector((0, 1, 0)), 80.0,
-                       res=(820, 1120), margin=1.03)
+                       res=(820, 1120), margin=1.09)
     cam = H.camera("compare", H.orbit_position(centre, tight, -90, 1), centre,
                    lens=80.0)
     H.render(cam, os.path.join(OUT, "hoodie-hung-v4-compare.png"),
@@ -1026,10 +1217,14 @@ def main():
 
 def retail(subject, centre, radius):
     """The deciding image: on a rail, beside its neighbours, in shop light."""
-    for n in ("Backdrop", "key", "fill", "rim", "under"):
+    for n in ("Backdrop", "key", "fill", "rim", "top", "under"):
         ob = bpy.data.objects.get(n)
         if ob is not None:
             bpy.data.objects.remove(ob, do_unlink=True)
+    # ob.bound_box is CACHED and the fold fields transform vertices
+    # directly, so nothing refreshes it in background mode -- every
+    # camera then frames where the garment used to be.
+    bpy.context.view_layer.update()
     lo, hi = H.bounds(subject)
     hook = hi.z
     RAIL_Z = hook - 0.012

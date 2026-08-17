@@ -71,9 +71,13 @@ PANELS = 6
 SEAM_DIP = 0.0011            # the crease at a seam
 PANEL_BULGE = 0.0016         # ... and the swell between two of them
 
-VISOR_SPAN = 1.290           # radians either side of centre front
-VISOR_REACH = 0.0715
-VISOR_DROP = 0.0395
+# 74 degrees either side put the bill's back corners level with the wearer's
+# ears, and from the side the near edge swept away behind the crown as a long
+# straight fin. A cap bill covers about 60 degrees each way.
+VISOR_SPAN = 1.050           # radians either side of centre front
+VISOR_REACH = 0.0730
+VISOR_DROP = 0.0448
+VISOR_CURL = 0.0165          # centre-to-corner curve ACROSS the bill
 VISOR_T = 0.0042
 
 BAND_H = 0.030               # the sweatband inside the base
@@ -131,6 +135,41 @@ def crown_rows():
             for j in range(NV + 1)]
 
 
+def visor_at(a, v):
+    """One point on the bill's mid-surface. a in [-1, 1] across, v out.
+
+    ONE definition, because there were two. `visor_stitch` carried its own copy
+    of this arithmetic and the two drifted apart the moment the profile
+    changed, which is how the hoodie's pocket outline ended up 60 mm short of
+    the shape it was supposed to trace.
+    """
+    th = a * VISOR_SPAN
+    bx, by = se(HW, HD, th)
+    e = abs(a)
+    # THE CORNERS DIE ON THE HEADBAND. Carrying 15 mm of reach out to the ends
+    # left the bill a wedge that swept back into the crown at a corner; on a
+    # real cap the outer edge is one arc that returns to the band. The drop
+    # follows the reach so the corners cannot dive below the band while
+    # extending nowhere.
+    reach = VISOR_REACH * (1.0 - e ** 1.75)
+    drop = VISOR_DROP * (0.16 + 0.84 * (reach / VISOR_REACH))
+    out = Vector((0.46 * math.sin(th), -math.cos(th), 0.0)).normalized()
+    # NO GAP AT THE HEADBAND. cap-peg-ref2 (a shop's cap wall) shows the visor
+    # sewn INTO the headband seam -- there is no dark slot between crown and
+    # bill. Starting it below the crown's base left one all the way across.
+    p = Vector((bx, by, 0.0035 - 0.004 * (1.0 - e ** 2))) + out * (reach * v)
+    # A BILL IS AN ARC, NOT A RAMP. At v^1.15 the drop is very nearly linear
+    # in v, which builds a flat plate hinged down at the band -- the side
+    # render read as a shovel. This leaves the seam close to level and turns
+    # down hardest over the last third.
+    p.z -= drop * (v ** 2.05)
+    # ... and it curls ACROSS as well: the outer edge of a real bill hangs
+    # well below its centre line. 3.75 mm of dish was invisible. Zero at
+    # v = 0, so this cannot re-open the headband seam.
+    p.z -= VISOR_CURL * (e ** 1.6) * (v ** 1.5)
+    return p, reach
+
+
 def visor_rows():
     """The bill: swept forward off the crown's front arc, dropping as it goes
     and curling harder at the corners.
@@ -140,31 +179,8 @@ def visor_rows():
     THREAD, and its silhouette from the side is a shallow arc, not a shovel.
     """
     NU_V, NV_V = 40, 12
-    rows = []
-    for j in range(NV_V + 1):
-        v = j / NV_V
-        row = []
-        for i in range(NU_V + 1):
-            a = -1.0 + 2.0 * i / NU_V
-            th = a * VISOR_SPAN
-            bx, by = se(HW, HD, th)
-            e = abs(a)
-            # THE CORNERS DIE ON THE HEADBAND. Carrying 15 mm of reach out to
-            # the ends left the bill a wedge that swept back into the crown at
-            # a corner; on a real cap the outer edge is one arc that returns to
-            # the band. The drop follows the reach so the corners cannot dive
-            # below the band while extending nowhere.
-            reach = VISOR_REACH * (1.0 - e ** 1.75)
-            drop = VISOR_DROP * (0.16 + 0.84 * (reach / VISOR_REACH))
-            out = Vector((0.46 * math.sin(th), -math.cos(th), 0.0)).normalized()
-            p = Vector((bx, by, -0.0022 - 0.004 * (1.0 - e ** 2))) \
-                + out * (reach * v)
-            p.z -= drop * (v ** 1.15)
-            # the bill is dished ACROSS as well as along
-            p.z += 0.0075 * (1.0 - e ** 2) * math.sin(math.pi * v) * 0.5
-            row.append(tuple(p))
-        rows.append(row)
-    return rows
+    return [[tuple(visor_at(-1.0 + 2.0 * i / NU_V, j / NV_V)[0])
+             for i in range(NU_V + 1)] for j in range(NV_V + 1)]
 
 
 def sweatband_rows():
@@ -215,29 +231,35 @@ def visor_stitch(visor):
     UNDERSIDE, where they rendered as a fan of ribs under the bill. The
     parametric surface is the mid-surface; lifting off it by half the bill's
     thickness puts the thread where thread goes.
+
+    Lift along the SURFACE NORMAL, not along +z. While the bill was a nearly
+    flat plate those were the same direction to within a degree; once its outer
+    edge curled 16 mm the +z lift walked the outer rows around onto the
+    underside and they rendered as ribs under the bill -- the same fault the
+    paragraph above is about, arriving by a different route.
     """
     out = []
     for r in range(3):
         v = 0.935 - 0.075 * r
         pts = []
         for i in range(41):
-            a = -1.0 + 2.0 * i / 40.0
-            th = a * VISOR_SPAN * 0.985
-            bx, by = se(HW, HD, th)
-            e = abs(a)
-            reach = VISOR_REACH * (1.0 - e ** 1.75)
-            drop = VISOR_DROP * (0.16 + 0.84 * (reach / VISOR_REACH))
-            out_d = Vector((0.46 * math.sin(th), -math.cos(th),
-                            0.0)).normalized()
-            p = (Vector((bx, by, -0.0022 - 0.004 * (1.0 - e ** 2)))
-                 + out_d * (reach * v))
-            p.z -= drop * (v ** 1.15)
-            p.z += 0.0075 * (1.0 - e ** 2) * math.sin(math.pi * v) * 0.5
-            p.z += VISOR_T * 0.5 + 0.0009
+            a = (-1.0 + 2.0 * i / 40.0) * 0.985
+            p, reach = visor_at(a, v)
+            da = (visor_at(min(0.985, a + 0.01), v)[0]
+                  - visor_at(max(-0.985, a - 0.01), v)[0])
+            dv = visor_at(a, min(1.0, v + 0.01))[0] - visor_at(a, v - 0.01)[0]
+            n = da.cross(dv)
+            n = n.normalized() if n.length > 1e-9 else Vector((0, 0, 1))
+            if n.z < 0:
+                n = -n
+            # 0.9 mm proud of the top face is thread standing off the bill like
+            # wire: three concentric rings reading as the stepped ridges of C4
+            # all over again. Sewn topstitch stands about a third of that.
+            p = p + n * (VISOR_T * 0.5 + 0.0003)
             if reach > 0.004:
                 pts.append(p)
         if len(pts) > 4:
-            ob = D.topstitch("vstitch%d" % r, pts, radius=0.00048)
+            ob = D.topstitch("vstitch%d" % r, pts, radius=0.00040)
             D.shade_smooth(ob, 40.0)
             out.append(ob)
     return out
@@ -365,10 +387,14 @@ def build():
 def retail(subject, centre):
     """Caps on a shop shelf, which is the other way they are merchandised --
     the peg wall is the cap-peg asset's context, this is this one's."""
-    for n in ("Backdrop", "key", "fill", "rim", "under"):
+    for n in ("Backdrop", "key", "fill", "rim", "top", "under"):
         ob = bpy.data.objects.get(n)
         if ob is not None:
             bpy.data.objects.remove(ob, do_unlink=True)
+    # ob.bound_box is CACHED and the fold fields transform vertices
+    # directly, so nothing refreshes it in background mode -- every
+    # camera then frames where the garment used to be.
+    bpy.context.view_layer.update()
     lo, hi = H.bounds(subject)
     made = [ST.shop_floor(lo.z - 0.001, value=0.30),
             ST.shop_wall(0.62, lo.z - 0.001)]
@@ -428,11 +454,17 @@ def main():
 
     subject = [crown, band, visor, btn, *sm, *vst, *emb, *eyes]
     print(f"cap v4: TRIS {D.tri_count(subject)}")
+    # ob.bound_box is CACHED and the fold fields transform vertices
+    # directly, so nothing refreshes it in background mode -- every
+    # camera then frames where the garment used to be.
+    bpy.context.view_layer.update()
     lo, hi = H.bounds(subject)
     print(f"  {(hi.x - lo.x) * 1000:.0f} x {(hi.y - lo.y) * 1000:.0f} x "
           f"{(hi.z - lo.z) * 1000:.0f} mm")
 
     H.set_engine("CYCLES" if "cycles" in args else "EEVEE", samples=110)
+
+    ST.exposure(-0.62)
     centre = (lo + hi) * 0.5
     _c, radius = H.subject_sphere(subject)
     ST.garment_lights(centre=centre, scale=radius * 1.5)
@@ -457,7 +489,7 @@ def main():
     # the reference is a dead side view, so the comparison has to be one too
     d = H.fit_view(subject, centre,
                    Vector(H.orbit_position(centre, 1.0, -168, 7)) - centre,
-                   78.0, res=(1060, 760), margin=1.05)
+                   78.0, res=(1060, 760), margin=1.09)
     cam = H.camera("compare", H.orbit_position(centre, d, -168, 7), centre,
                    lens=78.0)
     H.render(cam, os.path.join(OUT, "cap-v4-compare.png"), res=(1060, 760))

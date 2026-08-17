@@ -97,7 +97,38 @@ def print_panel(body):
         rg = D.topstitch("print_ring", ring, radius=0.0017, sides=8)
         D.shade_smooth(rg, 46.0)
         out.append(rg)
-    return out
+
+    # A PLAIN DISC IS A STAIN, NOT A PRINT -- and it was the same fault on the
+    # HUNG tee. The club's device is a flag on a pole and two crossed clubs,
+    # in the same proportions here, so a shopper reads one garment in two
+    # states rather than two garments.
+    marks = []
+
+    def at(ux, uy, lift=0.0019):
+        hit, _n = F.top_at(body, CX + ux * R, CZ + uy * R * 0.94)
+        return None if hit is None else Vector(hit) + Vector((0, 0, lift))
+
+    def run(name, pts, r=0.00125):
+        got = [p for p in (at(*q) for q in pts) if p is not None]
+        if len(got) > 2:
+            o = D.topstitch(name, got, radius=r, sides=7)
+            D.shade_smooth(o, 46.0)
+            marks.append(o)
+
+    run("mk_pole", [(-0.10, -0.62 + 1.28 * (i / 8.0)) for i in range(9)])
+    run("mk_flag_a", [(-0.10 + 0.46 * (i / 6.0),
+                       0.62 - 0.10 * math.sin(math.pi * i / 6.0))
+                      for i in range(7)], r=0.00112)
+    run("mk_flag_b", [(-0.10 + 0.46 * (i / 6.0),
+                       0.30 + 0.08 * math.sin(math.pi * i / 6.0))
+                      for i in range(7)], r=0.00112)
+    run("mk_flag_c", [(0.36, 0.30 + 0.32 * (i / 4.0)) for i in range(5)],
+        r=0.00108)
+    run("mk_club_a", [(-0.44 + 0.80 * (i / 6.0), -0.20 - 0.34 * (i / 6.0))
+                      for i in range(7)], r=0.00118)
+    run("mk_club_b", [(0.36 - 0.80 * (i / 6.0), -0.20 - 0.34 * (i / 6.0))
+                      for i in range(7)], r=0.00118)
+    return out, marks
 
 
 def sleeve_fold(body):
@@ -170,10 +201,14 @@ def jersey_material(colour=(0.5400, 0.5250, 0.4900)):
 
 
 def retail(subject, centre):
-    for n in ("Backdrop", "key", "fill", "rim", "under"):
+    for n in ("Backdrop", "key", "fill", "rim", "top", "under"):
         ob = bpy.data.objects.get(n)
         if ob is not None:
             bpy.data.objects.remove(ob, do_unlink=True)
+    # ob.bound_box is CACHED and the fold fields transform vertices
+    # directly, so nothing refreshes it in background mode -- every
+    # camera then frames where the garment used to be.
+    bpy.context.view_layer.update()
     lo, hi = H.bounds(subject)
     made = [ST.shop_floor(lo.z - 0.001, value=0.30),
             ST.shop_wall(1.20, lo.z - 0.001)]
@@ -210,7 +245,7 @@ def main():
     F.side_crease(body, -HALF_W * 0.24, depth=0.0022, width=0.010)
 
     nr = neck_rib(body)
-    pr = print_panel(body)
+    pr, marks = print_panel(body)
     sf = sleeve_fold(body)
     tg = size_tag(body)
 
@@ -222,15 +257,24 @@ def main():
         o.data.materials.append(rib)
     for o in pr:
         o.data.materials.append(ink)
+    for o in marks:
+        o.data.materials.append(rib)
 
-    subject = [body] + list(nr) + list(pr) + list(sf) + list(tg)
+    subject = ([body] + list(nr) + list(pr) + list(marks) + list(sf)
+               + list(tg))
     print("tee-folded v4: TRIS %d" % D.tri_count(subject))
+    # ob.bound_box is CACHED and the fold fields transform vertices
+    # directly, so nothing refreshes it in background mode -- every
+    # camera then frames where the garment used to be.
+    bpy.context.view_layer.update()
     lo, hi = H.bounds(subject)
     print("  %.0f x %.0f x %.0f mm" % ((hi.x - lo.x) * 1000,
                                        (hi.y - lo.y) * 1000,
                                        (hi.z - lo.z) * 1000))
 
     H.set_engine("CYCLES" if "cycles" in args else "EEVEE", samples=96)
+
+    ST.exposure(-0.86)
     centre = (lo + hi) * 0.5
     _c, radius = H.subject_sphere(subject)
     ST.garment_lights(centre=centre, scale=radius * 1.9)
@@ -254,7 +298,7 @@ def main():
     ST.world_value(0.055)
     d = H.fit_view(subject, centre,
                    Vector(H.orbit_position(centre, 1.0, -118, 28)) - centre,
-                   76.0, res=(1040, 800), margin=1.05)
+                   76.0, res=(1040, 800), margin=1.09)
     cam = H.camera("compare", H.orbit_position(centre, d, -118, 28), centre,
                    lens=76.0)
     H.render(cam, os.path.join(OUT, "tee-folded-v4-compare.png"),

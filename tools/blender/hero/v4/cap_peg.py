@@ -35,8 +35,12 @@ REPO = os.getcwd()
 OUT = os.path.join(REPO, "qa", "hero", "v4", "cap-peg")
 
 PEG_Y = 0.0                  # the wall plane
-TILT = math.radians(68.0)    # hooked over the rod, crown out, visor down
-LEAN = math.radians(6.5)
+# 68 degrees stood the cap almost vertical and it hung from its back edge like
+# a slipper on a hook. cap-peg-ref1 (a shop's cap wall) shows the crown facing
+# the aisle and the bill dropping about forty degrees: the cap RESTS on the
+# rod, it does not dangle off it.
+TILT = math.radians(78.0)    # hooked over the rod, crown out, visor down
+LEAN = math.radians(5.0)
 
 
 def peg():
@@ -62,14 +66,14 @@ def peg():
     pts = []
     for i in range(19):
         t = i / 18.0
-        pts.append(Vector((0.0, PEG_Y - 0.088 * t,
-                           0.0 + 0.020 * t * t)))
+        pts.append(Vector((0.0, PEG_Y - 0.062 * t,
+                           0.0 + 0.016 * t * t)))
     rod = _sweep("peg_rod", pts, 0.0058, 0.0058, sides=14)
     D.shade_smooth(rod, 36.0)
     parts.append(rod)
 
     bpy.ops.mesh.primitive_uv_sphere_add(radius=0.0086, segments=18, ring_count=10,
-                                         location=(0.0, PEG_Y - 0.090, 0.0206))
+                                         location=(0.0, PEG_Y - 0.064, 0.0166))
     ball = bpy.context.object
     ball.name = "peg_ball"
     D.shade_smooth(ball, 40.0)
@@ -168,9 +172,12 @@ def pose(objs, rod_end):
     back = rot @ Vector((0.0, C.HD, 0.0))
 
     # where on the rod it hangs, and how high the rod's top is there
-    hang_y = PEG_Y - 0.055
-    t = min(1.0, abs(hang_y - PEG_Y) / 0.088)
-    rod_z = 0.020 * t * t + 0.0058
+    # A 90 mm rod on a cap tilted three quarters upright put the chrome ball
+    # ON THE CREST OF THE CROWN, so the cap read as nailed to the wall rather
+    # than hung on a peg. The rod has to die inside the sweatband.
+    hang_y = PEG_Y - 0.044
+    t = min(1.0, abs(hang_y - PEG_Y) / 0.062)
+    rod_z = 0.016 * t * t + 0.0058
 
     shift = Matrix.Translation(Vector((0.0, hang_y - back.y,
                                        rod_z - back.z)))
@@ -198,17 +205,23 @@ def main():
 
     capobjs = build_cap()
     pg = peg()
-    rod_end = Vector((0.0, PEG_Y - 0.090, 0.0206))
+    rod_end = Vector((0.0, PEG_Y - 0.064, 0.0166))
     pose(capobjs, rod_end)
 
     subject = list(capobjs) + list(pg)
     print("cap-peg v4: TRIS %d" % D.tri_count(subject))
+    # ob.bound_box is CACHED and the fold fields transform vertices
+    # directly, so nothing refreshes it in background mode -- every
+    # camera then frames where the garment used to be.
+    bpy.context.view_layer.update()
     lo, hi = H.bounds(subject)
     print("  %.0f x %.0f x %.0f mm" % ((hi.x - lo.x) * 1000,
                                        (hi.y - lo.y) * 1000,
                                        (hi.z - lo.z) * 1000))
 
     H.set_engine("CYCLES" if "cycles" in args else "EEVEE", samples=110)
+
+    ST.exposure(-0.62)
     centre = (lo + hi) * 0.5
     # Frame from the BOUNDS. `subject_sphere` and `fit_view` both landed the
     # cap at a third of the frame here, and a cell that small in the contact
@@ -219,16 +232,20 @@ def main():
     # wall and the visor hangs 140 mm below it, so the box centre is up behind
     # the crown and every framing computed from it looked over the cap's
     # shoulder.
-    aim = Vector((0.0, (lo.y + hi.y) * 0.5, lo.z + (hi.z - lo.z) * 0.56))
+    aim = Vector((0.0, (lo.y + hi.y) * 0.5, lo.z + (hi.z - lo.z) * 0.50))
     print("  span %.3f m, aim y %.3f z %.3f" % (span, aim.y, aim.z))
     ST.garment_lights(centre=centre, scale=radius * 1.6)
     ST.world_value(0.032)
     wall = ST.shop_wall(PEG_Y + 0.006, centre.z - 3.0, value=0.13)
-    for label, az, el, res in (("hero", -118, 12, (960, 820)),
-                               ("front", -90, 4, (900, 800)),
-                               ("side", -168, 6, (1000, 780)),
-                               ("low", -96, -14, (900, 800))):
-        d = span * 2.90
+    # THE PEG HAS TO BE IN THE SHOT. Looking from -y is looking straight down
+    # the rod, so the cap hides all 90 mm of it and the asset is just a cap in
+    # front of a wall -- which is v3's complaint restated. Every angle here is
+    # off the wall normal far enough to see the rod leave the plate.
+    for label, az, el, res in (("hero", -112, 3, (1000, 820)),
+                               ("front", -100, 3, (900, 800)),
+                               ("side", -172, 6, (1040, 780)),
+                               ("low", -130, -13, (900, 800))):
+        d = span * 4.15
         cam = H.camera(label, H.orbit_position(aim, d, az, el), aim,
                        lens=76.0)
         H.render(cam, os.path.join(OUT, "cap-peg-v4-%s.png" % label), res=res)
@@ -236,7 +253,7 @@ def main():
     bpy.data.objects.remove(wall, do_unlink=True)
     ST.world_value(0.055)
     d = span * 3.30
-    cam = H.camera("compare", H.orbit_position(aim, d, -118, 10), aim,
+    cam = H.camera("compare", H.orbit_position(aim, d, -112, 3), aim,
                    lens=76.0)
     H.render(cam, os.path.join(OUT, "cap-peg-v4-compare.png"), res=(1000, 820))
 

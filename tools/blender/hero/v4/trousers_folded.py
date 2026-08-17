@@ -199,10 +199,14 @@ def chino_material(colour=(0.196, 0.176, 0.138)):
 
 
 def retail(subject, centre):
-    for n in ("Backdrop", "key", "fill", "rim", "under"):
+    for n in ("Backdrop", "key", "fill", "rim", "top", "under"):
         ob = bpy.data.objects.get(n)
         if ob is not None:
             bpy.data.objects.remove(ob, do_unlink=True)
+    # ob.bound_box is CACHED and the fold fields transform vertices
+    # directly, so nothing refreshes it in background mode -- every
+    # camera then frames where the garment used to be.
+    bpy.context.view_layer.update()
     lo, hi = H.bounds(subject)
     made = [ST.shop_floor(lo.z - 0.001, value=0.30),
             ST.shop_wall(1.20, lo.z - 0.001)]
@@ -249,12 +253,18 @@ def main():
 
     subject = [body] + list(wb) + list(wp) + list(fb) + list(tg)
     print("trousers-folded v4: TRIS %d" % D.tri_count(subject))
+    # ob.bound_box is CACHED and the fold fields transform vertices
+    # directly, so nothing refreshes it in background mode -- every
+    # camera then frames where the garment used to be.
+    bpy.context.view_layer.update()
     lo, hi = H.bounds(subject)
     print("  %.0f x %.0f x %.0f mm" % ((hi.x - lo.x) * 1000,
                                        (hi.y - lo.y) * 1000,
                                        (hi.z - lo.z) * 1000))
 
     H.set_engine("CYCLES" if "cycles" in args else "EEVEE", samples=96)
+
+    ST.exposure(-0.52)
     centre = (lo + hi) * 0.5
     _c, radius = H.subject_sphere(subject)
     ST.garment_lights(centre=centre, scale=radius * 1.9)
@@ -278,7 +288,7 @@ def main():
     ST.world_value(0.055)
     d = H.fit_view(subject, centre,
                    Vector(H.orbit_position(centre, 1.0, -122, 26)) - centre,
-                   76.0, res=(1040, 800), margin=1.05)
+                   76.0, res=(1040, 800), margin=1.09)
     cam = H.camera("compare", H.orbit_position(centre, d, -122, 26), centre,
                    lens=76.0)
     H.render(cam, os.path.join(OUT, "trousers-folded-v4-compare.png"),

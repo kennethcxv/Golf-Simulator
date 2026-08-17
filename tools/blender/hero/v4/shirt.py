@@ -224,7 +224,7 @@ class Shirt:
 
     def sleeve(self, sign, name, drop, axis_x, outer, depth, section,
                rows=30, cuff_t=0.90, cuff_pinch=0.10, fold=(0.088, 0.046),
-               bow=0.052):
+               bow=0.052, clear=0.0072, hem_curl=0.0):
         """A sleeve hanging from the armhole the SOLVE settled into.
 
         The section is parallel-transported along the path, so "up at the
@@ -232,6 +232,16 @@ class Shirt:
         extents in world x and y and rebuilding the oval in world x and y --
         which is the obvious thing to write -- gives a sleeve with the right
         two dimensions applied to the wrong two axes.
+
+        `clear` is how far off the body the sleeve is pushed. It has to be
+        AT LEAST the two cloth thicknesses that meet there or the solidified
+        shells interpenetrate, and not much more or a slot of background opens
+        between sleeve and body -- the tee read as a flap bolted to a slab at
+        7.2 mm, which is four and a half thicknesses of jersey.
+
+        `hem_curl` lifts the trailing edge of the cuff ring towards the body.
+        A sleeve hem cut square to its own axis ends in a sharp point at the
+        outer corner; a real one turns under and reads as a lobe.
         """
         from mathutils import Quaternion
         pts = [Vector(self.body.data.vertices[i].co) for i in self.arm_idx[sign]]
@@ -276,6 +286,9 @@ class Shirt:
             tgt1 = (R1 + (depth - R1) * D._smooth(t, 0.0, 0.42)) * sw
             tgt2 = (R2 + (outer - R2) * D._smooth(t, 0.0, 0.42)) * sh
             w = min(1.0, t / 0.30) ** 1.25
+            # the cuff turns under: the outboard half of the last rows walks
+            # back along the sleeve axis, so the hem is a lobe not a chamfer
+            curl = hem_curl * D._smooth(t, cuff_t - 0.10, 1.0)
             row = []
             for i in range(len(pts)):
                 a = ang[i]
@@ -285,13 +298,20 @@ class Shirt:
                 o = (e1 * (tgt1 * (1.0 + f) * math.cos(a))
                      + e2 * (tgt2 * (1.0 + f) * math.sin(a)))
                 keep = e1 * r1[i] + e2 * r2[i]
-                row.append(tuple(c + keep.lerp(o, w)))
+                p = c + keep.lerp(o, w)
+                if curl > 0.0:
+                    # measured DOWNWARD in world z, not by section angle: the
+                    # frame has been parallel-transported, so which way `a`
+                    # points is whatever the armhole happened to start at
+                    below = max(0.0, (c.z - p.z) / max(1e-6, tgt2))
+                    p = p - nT * (curl * min(1.0, below))
+                row.append(tuple(p))
             out_rows.append(row)
         sl = D.grid_mesh(name, out_rows, wrap_u=True)
         nu = len(pts)
         keep = {i: Vector(sl.data.vertices[i].co)
                 for i in range(min(6 * nu, len(sl.data.vertices)))}
-        D.push_out_radial(sl, self.body, offset=0.0072)
+        D.push_out_radial(sl, self.body, offset=clear)
         for i, co in keep.items():
             w = D._smooth(i // nu, 1.0, 6.0)
             sl.data.vertices[i].co = co.lerp(sl.data.vertices[i].co, w)

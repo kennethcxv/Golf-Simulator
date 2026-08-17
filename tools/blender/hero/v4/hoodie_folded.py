@@ -121,6 +121,85 @@ def hood(body):
     return ob
 
 
+def drawcords(body, hd, obstacles=()):
+    """The two cords out of the hood, lying forward over the top ply.
+
+    NOTHING ELSE IN THE STACK SAYS HOODIE. Folded, a hoodie is a rectangle of
+    fleece with a lip: the hood is a ply, the pocket is a faint outline, the
+    cuffs are under it. Every folded garment in the reference photograph is
+    told apart by ONE detail sitting on top of it -- a collar on the polo, a
+    waistband on the trousers, a print on the tee -- and for a hoodie that
+    detail is the cords. They come out of the hood's front roll, cross the
+    plies below it, and each ends in a metal aglet.
+    """
+    hz = max(v.co.z for v in hd.data.vertices)
+    R = 0.0021
+
+    # ONE tree over EVERYTHING the cord lies on. The first cut ray-cast at the
+    # body only, so where the cord crossed the pocket panel -- which stands
+    # proud of the body -- it passed straight through it, and the cords
+    # rendered as four disconnected white dashes. `folded.top_at` caches its
+    # BVH per object, so casting at several objects through it thrashes.
+    from mathutils.bvhtree import BVHTree
+    verts, faces = [], []
+    for ob in (body, hd, *obstacles):
+        n = len(verts)
+        verts += [v.co.copy() for v in ob.data.vertices]
+        faces += [tuple(n + i for i in p.vertices) for p in ob.data.polygons]
+    bvh = BVHTree.FromPolygons(verts, faces)
+
+    def surface(x, y):
+        """The HIGHEST sample within a cord radius.
+
+        A single ray down is not enough either: the top ply undulates by
+        3.2 mm and its plan wanders by 6.2, so a cord laid on one sample sinks
+        into the cloth bulging between samples. Same trap as the hoodie pocket
+        and the tee print, third time.
+        """
+        best = None
+        for dx, dy in ((0, 0), (R, 0), (-R, 0), (0, R), (0, -R),
+                       (R * 0.7, R * 0.7), (-R * 0.7, -R * 0.7)):
+            hit, _n, _i, _d = bvh.ray_cast(Vector((x + dx, y + dy, 0.40)),
+                                           Vector((0.0, 0.0, -1.0)), 2.0)
+            if hit is not None and (best is None or hit.z > best):
+                best = hit.z
+        return best
+
+    out = []
+    for sx in (-1, 1):
+        pts = []
+        for i in range(21):
+            t = i / 20.0
+            # out of the roll, down onto the stack, then away across it
+            y = -0.010 - 0.098 * t
+            x = sx * (0.020 + 0.052 * t ** 1.35
+                      + 0.007 * math.sin(t * 4.1 + sx * 0.6))
+            top = surface(x, y)
+            base = hz - 0.0008 if top is None else top + R + 0.0013
+            # it leaves the hood at the hood's height and settles in 25 mm
+            z = base + (hz + 0.0026 - base) * math.exp(-(t / 0.16) ** 2)
+            pts.append(Vector((x, y, z)))
+        cord = D.topstitch("cord%+d" % sx, pts, radius=R, sides=8)
+        D.shade_smooth(cord, 44.0)
+        out.append(cord)
+
+        tip = pts[-1]
+        prev = pts[-3]
+        d = (tip - prev)
+        d = d.normalized() if d.length > 1e-6 else Vector((0, -1, 0))
+        bpy.ops.mesh.primitive_cylinder_add(radius=0.0029, depth=0.0138,
+                                            vertices=14)
+        ag = bpy.context.object
+        ag.name = "aglet%+d" % sx
+        ag.rotation_euler = d.to_track_quat('Z', 'Y').to_euler()
+        ag.location = tip + d * 0.0058
+        bpy.ops.object.transform_apply(location=True, rotation=True,
+                                       scale=True)
+        D.shade_smooth(ag, 40.0)
+        out.append(ag)
+    return out
+
+
 def pocket(body):
     """The kangaroo pocket, on the top ply, following its undulation."""
     NX, NY = 26, 14
@@ -243,10 +322,14 @@ def fleece_material(colour=(0.0295, 0.0345, 0.0620)):
 
 def retail(subject, centre):
     """Folded goods go on a TABLE, beside other folded goods."""
-    for n in ("Backdrop", "key", "fill", "rim", "under"):
+    for n in ("Backdrop", "key", "fill", "rim", "top", "under"):
         ob = bpy.data.objects.get(n)
         if ob is not None:
             bpy.data.objects.remove(ob, do_unlink=True)
+    # ob.bound_box is CACHED and the fold fields transform vertices
+    # directly, so nothing refreshes it in background mode -- every
+    # camera then frames where the garment used to be.
+    bpy.context.view_layer.update()
     lo, hi = H.bounds(subject)
     made = [ST.shop_floor(lo.z - 0.001, value=0.30)]
     made.append(ST.shop_wall(1.20, lo.z - 0.001))
@@ -278,7 +361,7 @@ def main():
 
     body = F.concertina("hoodie_folded", HALF_W, HALF_D, plies=PLIES,
                         ply_t=PLY_T, ply_gap=PLY_GAP, roll_r=0.0058,
-                        nu=44, wander=0.0042, seed=3.3, squash=0.22,
+                        nu=52, wander=0.0062, seed=3.3, squash=0.22,
                         bulk=bulk, stagger=STAGGER)
     F.undulate(body, amp=0.0032, seed=2.1, only_top=0.58)
     F.side_crease(body, -HALF_W * 0.30, depth=0.0042, width=0.013)
@@ -286,23 +369,36 @@ def main():
     hd = hood(body)
     pk = pocket(body)
     cf = cuffs(body)
+    dc = drawcords(body, hd, obstacles=list(pk) + list(cf))
 
     cloth = fleece_material()
     rib = fleece_material((0.0225, 0.0265, 0.0480))
+    # the cord is a flat braid, much lighter than the shell it hangs on
+    cordmat = fleece_material((0.2050, 0.2120, 0.2350))
     for o in [body, hd] + list(pk):
         o.data.materials.append(cloth)
     for o in cf:
         o.data.materials.append(rib)
+    for o in dc:
+        o.data.materials.append(
+            ST.metal("Aglet", (0.70, 0.71, 0.74), 0.26)
+            if o.name.startswith("aglet") else cordmat)
 
     tag = size_tag(body)
-    subject = [body, hd] + list(pk) + list(cf) + [tag]
+    subject = [body, hd] + list(pk) + list(cf) + list(dc) + [tag]
     print("hoodie-folded v4: TRIS %d" % D.tri_count(subject))
+    # ob.bound_box is CACHED and the fold fields transform vertices
+    # directly, so nothing refreshes it in background mode -- every
+    # camera then frames where the garment used to be.
+    bpy.context.view_layer.update()
     lo, hi = H.bounds(subject)
     print("  %.0f x %.0f x %.0f mm" % ((hi.x - lo.x) * 1000,
                                        (hi.y - lo.y) * 1000,
                                        (hi.z - lo.z) * 1000))
 
     H.set_engine("CYCLES" if "cycles" in args else "EEVEE", samples=96)
+
+    ST.exposure(0.25)
     centre = (lo + hi) * 0.5
     _c, radius = H.subject_sphere(subject)
     ST.garment_lights(centre=centre, scale=radius * 1.9)
@@ -326,7 +422,7 @@ def main():
     ST.world_value(0.055)
     d = H.fit_view(subject, centre,
                    Vector(H.orbit_position(centre, 1.0, -122, 26)) - centre,
-                   76.0, res=(1040, 800), margin=1.05)
+                   76.0, res=(1040, 800), margin=1.09)
     cam = H.camera("compare", H.orbit_position(centre, d, -122, 26), centre,
                    lens=76.0)
     H.render(cam, os.path.join(OUT, "hoodie-folded-v4-compare.png"),

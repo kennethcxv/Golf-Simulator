@@ -42,9 +42,11 @@ REPO = os.getcwd()
 OUT = os.path.join(REPO, "qa", "hero", "v4", "polo-folded")
 
 HALF_W, HALF_D = 0.1520, 0.1190
-PLIES = 4
-PLY_T = 0.0088
-PLY_GAP = 0.0032
+# THE PHOTOGRAPH'S STACK SHOWS FIVE OR SIX LIPS, not three.
+PLIES = 6
+PLY_T = 0.0062
+PLY_GAP = 0.0026
+STAGGER = 0.0062
 
 
 def bulk(t, ply):
@@ -217,10 +219,14 @@ def pique_material(colour=(0.0225, 0.0640, 0.1180)):
 
 
 def retail(subject, centre):
-    for n in ("Backdrop", "key", "fill", "rim", "under"):
+    for n in ("Backdrop", "key", "fill", "rim", "top", "under"):
         ob = bpy.data.objects.get(n)
         if ob is not None:
             bpy.data.objects.remove(ob, do_unlink=True)
+    # ob.bound_box is CACHED and the fold fields transform vertices
+    # directly, so nothing refreshes it in background mode -- every
+    # camera then frames where the garment used to be.
+    bpy.context.view_layer.update()
     lo, hi = H.bounds(subject)
     made = [ST.shop_floor(lo.z - 0.001, value=0.30),
             ST.shop_wall(1.20, lo.z - 0.001)]
@@ -250,9 +256,9 @@ def main():
     os.makedirs(OUT, exist_ok=True)
 
     body = F.concertina("polo_folded", HALF_W, HALF_D, plies=PLIES,
-                        ply_t=PLY_T, ply_gap=PLY_GAP, roll_r=0.0068,
-                        nu=44, wander=0.0030, seed=8.1, squash=0.40,
-                        bulk=bulk)
+                        ply_t=PLY_T, ply_gap=PLY_GAP, roll_r=0.0046,
+                        nu=48, wander=0.0030, seed=8.1, squash=0.30,
+                        bulk=bulk, stagger=STAGGER)
     F.undulate(body, amp=0.0021, seed=4.4, only_top=0.58)
     F.side_crease(body, -HALF_W * 0.26, depth=0.0028, width=0.011)
 
@@ -267,12 +273,18 @@ def main():
 
     subject = [body] + list(col) + list(lab) + list(sf) + list(tg)
     print("polo-folded v4: TRIS %d" % D.tri_count(subject))
+    # ob.bound_box is CACHED and the fold fields transform vertices
+    # directly, so nothing refreshes it in background mode -- every
+    # camera then frames where the garment used to be.
+    bpy.context.view_layer.update()
     lo, hi = H.bounds(subject)
     print("  %.0f x %.0f x %.0f mm" % ((hi.x - lo.x) * 1000,
                                        (hi.y - lo.y) * 1000,
                                        (hi.z - lo.z) * 1000))
 
     H.set_engine("CYCLES" if "cycles" in args else "EEVEE", samples=96)
+
+    ST.exposure(-0.22)
     centre = (lo + hi) * 0.5
     _c, radius = H.subject_sphere(subject)
     ST.garment_lights(centre=centre, scale=radius * 1.9)
@@ -296,7 +308,7 @@ def main():
     ST.world_value(0.055)
     d = H.fit_view(subject, centre,
                    Vector(H.orbit_position(centre, 1.0, -118, 28)) - centre,
-                   76.0, res=(1040, 800), margin=1.05)
+                   76.0, res=(1040, 800), margin=1.09)
     cam = H.camera("compare", H.orbit_position(centre, d, -118, 28), centre,
                    lens=76.0)
     H.render(cam, os.path.join(OUT, "polo-folded-v4-compare.png"),

@@ -72,8 +72,18 @@ SPEC = dict(
 CLOTH_T = 0.0016             # jersey, and it shows at the hem
 
 
+BAR_DROP = 0.034             # the bar sits INSIDE the neck, not above it
+
+
 def bar_z(x):
-    return -0.004 - 0.045 * (min(abs(x), 0.202) / 0.202) ** 1.35
+    # Shapes the hanger only. The garment's shoulder comes from the yoke in
+    # SPEC and the pin group, NOT from this -- there is no hanger collider.
+    #
+    # The crew neckline is at z = -0.040 at centre front and the bar was at
+    # -0.004, so the hanger crossed the neck opening 36 mm ABOVE it and hid
+    # the collar behind a chrome tube from every front camera. A hanger goes
+    # inside the shirt.
+    return -0.004 - BAR_DROP - 0.045 * (min(abs(x), 0.202) / 0.202) ** 1.35
 
 
 def _sweep(name, pts, halfw, halfh, sides=10):
@@ -103,13 +113,15 @@ def hanger():
     pts = [Vector((-0.202 + 0.404 * (i / 26.0), 0.0,
                    bar_z(-0.202 + 0.404 * (i / 26.0)))) for i in range(27)]
     bar = _sweep("hanger_bar", pts, 0.0090, 0.0046)
+    hz = 0.082 - BAR_DROP
     hook = [Vector((0.0235 * math.sin(a) * 0.84, -0.026,
-                    0.082 + 0.0235 * (1 - math.cos(a))))
+                    hz + 0.0235 * (1 - math.cos(a))))
             for a in (math.pi * 1.08 * (i / 29.0) - math.pi * 0.05
                       for i in range(30))]
     wire = _sweep("hanger_hook",
-                  [Vector((0, -0.004, -0.006)), Vector((0, -0.018, 0.038)),
-                   Vector((0, -0.026, 0.082))] + hook[1:], 0.0029, 0.0029)
+                  [Vector((0, -0.004, -0.006 - BAR_DROP)),
+                   Vector((0, -0.018, 0.038 - BAR_DROP)),
+                   Vector((0, -0.026, hz))] + hook[1:], 0.0029, 0.0029)
     bpy.ops.object.select_all(action='DESELECT')
     bar.select_set(True)
     wire.select_set(True)
@@ -200,7 +212,42 @@ def chest_print(body):
         ring.append(hit + nrm * (CLOTH_T * 0.5 + 0.0017))
     rg = D.topstitch("print_ring", ring, radius=0.0021, sides=8)
     D.shade_smooth(rg, 46.0)
-    return ob, rg
+
+    # A PLAIN DISC IS A STAIN, NOT A PRINT. The reference tees all carry a
+    # graphic inside the field; a flat coloured circle reads as a mark on the
+    # cloth. A flag on a pole and two crossed clubs is the club's device and
+    # it is four runs of ink.
+    def at(ux, uz):
+        hit, nrm, _i, _d = bvh.ray_cast(
+            Vector((CX + ux * R, -0.50, CZ + uz * R * 0.94)),
+            Vector((0.0, 1.0, 0.0)), 1.2)
+        if hit is None:
+            return None
+        nrm = (Vector(nrm) * 0.45 + Vector((0, -1, 0)) * 0.55).normalized()
+        return hit + nrm * (CLOTH_T * 0.5 + 0.0023)
+
+    marks = []
+    def run(name, pts, r=0.00135):
+        got = [p for p in (at(*q) for q in pts) if p is not None]
+        if len(got) > 2:
+            o = D.topstitch(name, got, radius=r, sides=7)
+            D.shade_smooth(o, 46.0)
+            marks.append(o)
+
+    run("mk_pole", [(-0.10, -0.62 + 1.28 * (i / 8.0)) for i in range(9)])
+    run("mk_flag_a", [(-0.10 + 0.46 * (i / 6.0),
+                       0.62 - 0.10 * math.sin(math.pi * i / 6.0))
+                      for i in range(7)], r=0.00120)
+    run("mk_flag_b", [(-0.10 + 0.46 * (i / 6.0),
+                       0.30 + 0.08 * math.sin(math.pi * i / 6.0))
+                      for i in range(7)], r=0.00120)
+    run("mk_flag_c", [(0.36, 0.30 + 0.32 * (i / 4.0)) for i in range(5)],
+        r=0.00115)
+    run("mk_club_a", [(-0.44 + 0.80 * (i / 6.0), -0.20 - 0.34 * (i / 6.0))
+                      for i in range(7)], r=0.00125)
+    run("mk_club_b", [(0.36 - 0.80 * (i / 6.0), -0.20 - 0.34 * (i / 6.0))
+                      for i in range(7)], r=0.00125)
+    return ob, rg, marks
 
 
 def hem_stitch(body):
@@ -242,10 +289,14 @@ def jersey_material(colour=(0.5400, 0.5250, 0.4900)):
 
 
 def retail(subject, centre):
-    for n in ("Backdrop", "key", "fill", "rim", "under"):
+    for n in ("Backdrop", "key", "fill", "rim", "top", "under"):
         ob = bpy.data.objects.get(n)
         if ob is not None:
             bpy.data.objects.remove(ob, do_unlink=True)
+    # ob.bound_box is CACHED and the fold fields transform vertices
+    # directly, so nothing refreshes it in background mode -- every
+    # camera then frames where the garment used to be.
+    bpy.context.view_layer.update()
     lo, hi = H.bounds(subject)
     made = list(ST.rail(hi.z - 0.010, x0=-1.30, x1=1.30))
     made.append(ST.shop_floor(lo.z - 0.55))
@@ -287,12 +338,19 @@ def main():
             # makes a cap sleeve standing off the shoulder; in the reference
             # the sleeve's outer edge carries on down the line of the body and
             # tapers hard to its hem.
-            sign, "sleeve%d" % sign, drop=0.213, axis_x=0.243,
-            outer=0.0462, depth=0.0388,
-            section=[(0.00, 1.00, 1.00), (0.45, 0.88, 0.90),
-                     (0.82, 0.74, 0.80), (1.00, 0.68, 0.76)],
-            rows=18, cuff_t=0.86, cuff_pinch=0.045,
-            fold=(0.062, 0.034), bow=0.018))
+            # A tee sleeve does not taper to a tube. The armhole is about
+            # 460 mm round and the cuff about 340: three quarters, not half.
+            sign, "sleeve%d" % sign, drop=0.206, axis_x=0.259,
+            outer=0.0570, depth=0.0455,
+            section=[(0.00, 1.00, 1.00), (0.45, 0.90, 0.92),
+                     (0.82, 0.79, 0.84), (1.00, 0.74, 0.81)],
+            rows=18, cuff_t=0.84, cuff_pinch=0.045,
+            fold=(0.062, 0.034), bow=0.026,
+            # 3.4 mm is two thicknesses of jersey and a hair. At 7.2 the
+            # sleeve stood off the body far enough that a slot of BACKGROUND
+            # showed through at the armhole, and the sleeve read as a flap
+            # bolted to a slab rather than as part of the shirt.
+            clear=0.0034, hem_curl=0.017))
     sh.join(parts)
     SH.audit(body, "assembled")
 
@@ -300,14 +358,14 @@ def main():
     # cloth would read as upholstery; thin cotton buckles at a much shorter
     # wavelength and the creases are sharper.
     D.drape_folds(body, amp=1.0, z_top=-0.175, z_bot=HEM_Z,
-                  harmonics=[(13, 0.0068, 1.2), (7, 0.0048, -0.7),
-                             (22, 0.0026, 1.9)],
+                  harmonics=[(13, 0.0094, 1.2), (7, 0.0067, -0.7),
+                             (22, 0.0034, 1.9)],
                   seed=4.9, side_bias=0.34,
                   pred=lambda co: co.z < -0.175,
                   gate=lambda co: 1.0 - D._smooth(abs(co.x), 0.165, 0.225))
 
     nb = neckband(body, sh.neck_idx)
-    pr, prr = chest_print(body)
+    pr, prr, marks = chest_print(body)
     hs = hem_stitch(body)
 
     D.solidify(body, CLOTH_T, offset=0.0)
@@ -325,18 +383,26 @@ def main():
     nb.data.materials.append(rib)
     pr.data.materials.append(ink)
     prr.data.materials.append(ink)
+    for m in marks:
+        m.data.materials.append(rib)
     for o in hs:
         o.data.materials.append(rib)
     hg.data.materials.append(trim)
 
-    subject = [body, nb, pr, prr] + list(hs) + [hg]
+    subject = [body, nb, pr, prr] + list(marks) + list(hs) + [hg]
     print("tee-hung v4: TRIS %d" % D.tri_count(subject))
+    # ob.bound_box is CACHED and the fold fields transform vertices
+    # directly, so nothing refreshes it in background mode -- every
+    # camera then frames where the garment used to be.
+    bpy.context.view_layer.update()
     lo, hi = H.bounds(subject)
     print("  %.0f x %.0f x %.0f mm" % ((hi.x - lo.x) * 1000,
                                        (hi.y - lo.y) * 1000,
                                        (hi.z - lo.z) * 1000))
 
     H.set_engine("CYCLES" if "cycles" in args else "EEVEE", samples=96)
+
+    ST.exposure(-0.86)
     centre = (lo + hi) * 0.5
     _c, radius = H.subject_sphere(subject)
     ST.garment_lights(centre=centre, scale=radius)
@@ -356,7 +422,7 @@ def main():
         bpy.data.objects.remove(bd, do_unlink=True)
     ST.world_value(0.055)
     tight = H.fit_view(subject, centre, Vector((0, 1, 0)), 80.0,
-                       res=(860, 1040), margin=1.03)
+                       res=(860, 1040), margin=1.09)
     cam = H.camera("compare", H.orbit_position(centre, tight, -90, 1), centre,
                    lens=80.0)
     H.render(cam, os.path.join(OUT, "tee-hung-v4-compare.png"),

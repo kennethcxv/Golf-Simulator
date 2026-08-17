@@ -110,12 +110,16 @@ CLOTH_PRESETS = {
 
 
 def add_cloth(ob, preset="fleece", pin=None, quality=10, self_dist=0.0035,
-              coll_dist=0.0035, damping=1.2, shrink=0.0, friction=1.0):
+              coll_dist=0.0035, damping=1.2, shrink=0.0, friction=1.0,
+              mass=None):
+    # `mass` overrides the preset. It is PER VERTEX, so it is a property of
+    # this mesh at this resolution, not of the cloth: resize the garment or
+    # change the row count and the right value moves with it.
     p = CLOTH_PRESETS[preset]
     m = ob.modifiers.new("Cloth", 'CLOTH')
     s = m.settings
     s.quality = quality
-    s.mass = p["mass"]
+    s.mass = p["mass"] if mass is None else mass
     s.tension_stiffness = p["tension"]
     s.compression_stiffness = p["compression"]
     s.shear_stiffness = p["shear"]
