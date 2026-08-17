@@ -1727,7 +1727,13 @@ def conform_decal(name, top_at, centre, size, nx=9, ny=9, lift=0.0006,
            + [i - 1 for i in range(nx - 1, 0, -1)])
     for a, b in zip(edge, nxt):
         faces.append((a, b, n + b, n + a))
-    obj = HS.mesh_from(name, verts, faces, smooth=False)
+    # SHADED LIKE THE SURFACE IT SITS ON. Flat shading turns a patch
+    # that follows a curved panel into a grid of facets, each with its
+    # own normal, and it reads as a darker rectangle -- which is the
+    # card all over again, in shading rather than in colour. Smooth,
+    # then split at the rim so the 0.6 mm edge stays crisp.
+    obj = smooth_by_angle(HS.mesh_from(name, verts, faces, smooth=True),
+                          40.0)
 
     # UVs off POSITION, for the reason `decal` records: mesh_from recalculates
     # normals and reorders loops, so anything keyed to loop order lands on the
@@ -1807,7 +1813,13 @@ def surface_decal(name, at, u0, u1, v0, v1, nx=9, ny=9, out=0.0011,
            + [i - 1 for i in range(nx - 1, 0, -1)])
     for a, b in zip(edge, nxt):
         faces.append((a, b, n_all + b, n_all + a))
-    obj = HS.mesh_from(name, verts, faces, smooth=False)
+    # SHADED LIKE THE SURFACE IT SITS ON. Flat shading turns a patch
+    # that follows a curved panel into a grid of facets, each with its
+    # own normal, and it reads as a darker rectangle -- which is the
+    # card all over again, in shading rather than in colour. Smooth,
+    # then split at the rim so the 0.6 mm edge stays crisp.
+    obj = smooth_by_angle(HS.mesh_from(name, verts, faces, smooth=True),
+                          40.0)
 
     # UVs OFF GRID INDEX, which is the one thing that cannot be reordered by
     # a normal recalculation -- position works for a flat card and does not

@@ -165,7 +165,6 @@ function teeFront() {
 
 function sleeveBadge() {
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${CELL}" height="${CELL}">
-    <rect width="${CELL}" height="${CELL}" fill="#1b2c46"/>
     <rect x="26" y="52" width="204" height="152" rx="16" fill="none"
           stroke="#d9c88a" stroke-width="5"/>
     ${flagMark(128, 116, 1.25, '#d9c88a')}
@@ -342,6 +341,12 @@ await place(await sharp(await sharp(await knit(Math.round(CELL * 2.6),
     Math.round(CELL * 2.6), WAY[1][1], 2)).resize(CELL, CELL).png().toBuffer())
   .composite([{ input: Buffer.from(teeFront()) }]).png().toBuffer(),
   'teefront-white');
+// and the cap monogram on the cap's own burgundy, for the same reason: it
+// carried a navy field of its own and sat on a burgundy crown as a navy card.
+await place(await sharp(await sharp(await knit(Math.round(CELL * 2.4),
+    Math.round(CELL * 2.4), WAY[5][1], 6)).resize(CELL, CELL).png().toBuffer())
+  .composite([{ input: Buffer.from(capMonogram()) }]).png().toBuffer(),
+  'capmono-burgundy');
 
 const out = path.join(OUT, 'apparel_atlas_v3.png');
 await sharp({

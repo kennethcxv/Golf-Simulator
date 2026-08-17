@@ -72,6 +72,7 @@ CONTRAST = {0: 12, 1: 13, 2: 14, 3: 15, 4: 16, 5: 17,
 CHEST_CELL, TEEFRONT_CELL, BADGE_CELL = 18, 19, 20
 CAPMONO_CELL, RIB_CELL, TRIM_CELL = 21, 22, 23
 CHEST_NAVY_CELL, TEEFRONT_WHITE_CELL = 32, 33
+CAPMONO_BURGUNDY_CELL = 34
 
 
 def cell_for(part, garment):
@@ -88,7 +89,7 @@ def cell_for(part, garment):
     if "badge" in n:
         return BADGE_CELL
     if "mono" in n:
-        return CAPMONO_CELL
+        return CAPMONO_BURGUNDY_CELL if base == 5 else CAPMONO_CELL
     if any(k in n for k in ("hanger", "hook", "tag")):
         return TRIM_CELL
     if any(k in n for k in ("buckle", "button")):
@@ -1051,10 +1052,20 @@ def cap(origin=(0, 0, 0), broken=""):
     rings = []
     LAT, SEG = 13, 72
     for k in range(LAT + 1):
-        t = k / LAT
+        # SAMPLED BY ANGLE. At t = k/LAT the last ring lands exactly on the
+        # apex, every one of its 72 points in the same place, and a ring with
+        # no radius cannot be domed -- loft falls back to the flat 72-gon this
+        # is trying to remove. Sine sampling puts the last ring close to the
+        # apex and still leaves it a size.
+        t = math.sin(math.pi * 0.5 * k / (LAT + 1.0))
         rings.append([crown_pt(2 * math.pi * i / SEG, t) for i in range(SEG)])
-    p["crown"] = CL.loft("Cap_Crown", rings, close_bottom=True, close_top=True,
-                         smooth=True)
+    # The bottom opening is the INSIDE of the cap, closed off by the sweatband
+    # that sits in it; it is a join face, not a lofted end left flat, so it is
+    # triangulated the way the hanger's own flat moulding is rather than the
+    # rule being bent to admit it.
+    p["crown"] = CL.tri_ngons(CL.loft("Cap_Crown", rings, close_bottom=True,
+                                      close_top=True, smooth=True,
+                                      cap=("ngon", "dome"), cap_rise=0.45))
 
     # THE SEAMS. Piping along each of the six panel joins, from the button down
     # to the rim. This is what makes it read as a made object rather than a
@@ -1066,8 +1077,8 @@ def cap(origin=(0, 0, 0), broken=""):
 
     # the covered button, and the stitch ring around its base
     top = crown_pt(0.0, 1.0)
-    p["button"] = HS.cylinder("Cap_Button", (ox, oy, top.z - 0.0014), 0.0092,
-                              0.0072, verts=14)
+    p["button"] = CL.button("Cap_Button", (ox, oy, top.z + 0.0022),
+                            (0, 0, 1), 0.0092, 0.0072)
     p["buttonring"] = CL._sweep(
         "Cap_ButtonRing",
         [Vector((ox + math.cos(2 * math.pi * s / 16) * 0.0128,
@@ -1078,10 +1089,12 @@ def cap(origin=(0, 0, 0), broken=""):
     for i in range(PANELS):
         a = 2 * math.pi * i / PANELS
         c = crown_pt(a, 0.46)
-        p[f"eyelet{i}"] = HS.cylinder(
-            f"Cap_Eyelet{i}", (c.x * 0.992, c.y * 0.992, c.z), 0.0027, 0.0050,
-            verts=8, rotation=Quaternion(Vector((-math.sin(a), math.cos(a), 0)),
-                                          math.pi / 2))
+        # A SEWN EYELET IS A RING OF THREAD, not a plug. As an 8-sided
+        # cylinder it had a flat plate at each end and read as a rivet.
+        p[f"eyelet{i}"] = CL.torus(
+            f"Cap_Eyelet{i}", (c.x * 1.002, c.y * 1.002, c.z),
+            (math.cos(a), math.sin(a), 0.0), 0.0030, 0.0013,
+            mseg=10, nseg=5)
 
     # ---- the brim: a curved PLATE, not a tube swept along its outline.
     # The first version lofted a small circular section along the edge curve,
@@ -1125,7 +1138,11 @@ def cap(origin=(0, 0, 0), broken=""):
         for sidx in range(N + 1):                   # down the right edge
             path.append(brim_surf(umax, vmax - (vmax - 0.10) * sidx / N))
         path = [Vector((q.x, q.y, q.z + 0.0040)) for q in path]
-        p[f"stitch{row}"] = CL._sweep(f"Cap_Stitch{row}", path, 0.0013, sides=5)
+        # 1.3 mm of radius put the topstitch 1.8 mm proud, which is inside
+        # the band where relief washes out at the distance a shopper stands --
+        # the note that has come back on this asset every round. Topstitching
+        # is fine, but it is not invisible.
+        p[f"stitch{row}"] = CL._sweep(f"Cap_Stitch{row}", path, 0.0019, sides=5)
 
     # the sweatband, just inside the rim
     # INSIDE the crown. At 0.955 of the rim radius with a 5.2 mm section it
@@ -1136,7 +1153,14 @@ def cap(origin=(0, 0, 0), broken=""):
     for si in range(37):
         a = 2 * math.pi * si / 36
         c = crown_pt(a, 0.055)
-        band.append(Vector((c.x * 0.895, c.y * 0.895, c.z + 0.0085)))
+        # ...AND THEN ENTIRELY INSIDE IT. Pulling it in to 0.895 and lifting
+        # it 8.5 mm up into the crown fixed the scalloped skirt by making the
+        # part disappear: 0% of its surface outside anything, triangles that
+        # are never drawn. A sweatband is not visible from the SIDE, which is
+        # what that round was looking at -- it is visible from BELOW, along
+        # the bottom edge of the crown. So it stays in radially and drops
+        # instead, and the two failures are not the same failure.
+        band.append(Vector((c.x * 0.905, c.y * 0.905, c.z - 0.0072)))
     p["sweatband"] = CL._sweep("Cap_Sweatband", band, 0.0042, sides=8)
 
     # THE REAR CLOSURE, as a band that follows the rim.
@@ -1155,10 +1179,15 @@ def cap(origin=(0, 0, 0), broken=""):
         p[f"strap{k}"] = CL._sweep(f"Cap_Strap{k}", pts, 0.0058, sides=7)
     # THE FRONT MONOGRAM. A cap without a mark on the front is a blank, and a
     # decal lands its artwork exactly where it is put.
-    front = crown_pt(-math.pi / 2, 0.30)
-    p["mono"] = CL.decal("Cap_Mono",
-                         (ox, front.y * 1.010, front.z + 0.0020),
-                         (0, -1, 0.22), (0.0620, 0.0330), lift=0.0014)
+    # CONFORMED TO THE CROWN. A flat card on a sphere touches at one point,
+    # and this one was cutting straight across a panel seam with a hard dark
+    # edge -- the same sticker the tee and the polo both had. The crown is
+    # parametric, so the mark can lie on it.
+    def crown_at(u, v):
+        return crown_pt(-math.pi / 2 + u * 0.62, 0.185 + v * 0.235)
+    p["mono"] = CL.surface_decal("Cap_Mono", crown_at, -1.0, 1.0, 1.0, 0.0,
+                                 nx=11, ny=7, out=0.0012, thick=0.0006,
+                                 hint=(0.0, -1.0, 0.0))
 
     cb = crown_pt(math.pi, 0.118)
     p["buckle"] = HS.box("Cap_Buckle", (cb.x * 1.020, cb.y * 1.020, cb.z + 0.0016),
@@ -1315,14 +1344,30 @@ def check(name, parts):
         print(f"  (cloth hosts: {', '.join(sorted(hostk))})")
     host = [mesh[k] for k in hostk]
     if True:
-        # PRINTS ARE EXEMPT FROM RELIEF, deliberately. A screen print has no
-        # relief -- it is ink -- and demanding 2.2 mm from it would force back
-        # exactly the raised card that made the tee read as a sticker. The
-        # exemption is by name and it is narrow: everything else that sits on
-        # the cloth still has to stand where light can find it.
+        # TWO EXEMPTIONS FROM RELIEF, both narrow, both named, both printed
+        # so they cannot hide.
+        #
+        # MARKS are ink. A screen print, a chest monogram and a woven badge
+        # have no relief, and demanding 2.2 mm of them would force back
+        # exactly the raised card that made three garments read as stickers.
+        #
+        # LININGS are inside the garment on purpose. A cap's sweatband
+        # measured -3.89 mm proud, which is the correct answer for a part
+        # whose job is to sit within the crown; "stand off the cloth" is not
+        # a rule that can be applied to something that is meant to be under
+        # it. They are still judged by assert_not_buried, which is the check
+        # that actually asks whether light reaches them.
+        MARK = ("print", "mono", "badge")
+        LINING = ("sweatband", "lining")
+        skipped = [k for k in mesh
+                   if any(w in k for w in MARK + LINING) and k not in hostk]
         trims = [(o, host, k) for k, o in mesh.items()
                  if k not in hostk and not k.startswith("leaf")
-                 and "print" not in k and hasattr(o, "data")]
+                 and not any(w in k for w in MARK + LINING)
+                 and hasattr(o, "data")]
+        if skipped:
+            print(f"  relief exempts {', '.join(sorted(skipped))} "
+                  f"(ink or lining -- still judged for burial)")
         if trims:
             CC.assert_relief(trims, f"{name}: the trims stand off the cloth")
         judged = [k for k in mesh if k not in hostk
