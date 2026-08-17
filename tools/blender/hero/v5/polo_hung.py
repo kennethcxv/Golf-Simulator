@@ -84,10 +84,8 @@ def build():
     SIM.settle(ob, "pique", "pin", frames=44, mass=0.030, label="polo shell")
 
     # the placket, ray cast onto the settled chest so it follows the bow
-    cols = [PL_HALF * (-1.0 + 2.0 * i / 10) for i in range(11)]
-    rows = [PL_TOP + (PL_BOT - PL_TOP) * (j / 16) for j in range(17)]
-    plack = PT.patch("polo_placket", ob, cols, rows, out=0.0027, rim=0.10,
-                     label="placket")
+    plack = PT.patch("polo_placket", ob, PL_HALF, PL_TOP, PL_BOT, nu=11, nv=17,
+                     out=0.0027, rim=0.10, label="placket")
     # the fly line down its centre, and the three buttons on it
     buttons = []
     for j, t in enumerate((0.13, 0.42, 0.71)):

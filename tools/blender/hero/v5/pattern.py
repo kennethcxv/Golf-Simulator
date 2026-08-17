@@ -247,8 +247,12 @@ class Draft(object):
                     p = Vector((a, yy, b))
                 elif plane == "xy":
                     p = Vector((a, b, yy))
+                elif plane == "yz":
+                    # the profile plane: hood side panels and trouser side views
+                    # are drafted here, and the free axis is x
+                    p = Vector((yy, a, b))
                 else:
-                    raise SystemExit("plane must be xz or xy")
+                    raise SystemExit("plane must be xz, xy or yz")
                 if warp is not None:
                     p = warp(p, u, v)
                 self.co.append(p)
@@ -324,7 +328,12 @@ class Draft(object):
             if t.length < 1e-9:
                 t = Vector((1.0, 0.0, 0.0))
             t.normalize()
-            n = Vector((t.z, 0.0, -t.x)) if ax == 1 else Vector((t.y, -t.x, 0.0))
+            if ax == 1:
+                n = Vector((t.z, 0.0, -t.x))
+            elif ax == 0:
+                n = Vector((0.0, t.z, -t.y))
+            else:
+                n = Vector((t.y, -t.x, 0.0))
             r = pts[i] - cen
             r[ax] = 0.0
             if n.dot(r) < 0.0:
@@ -698,8 +707,13 @@ def rib_band(name, ob, group, width=0.019, proud=0.0026, ribs=0,
                 # into the fabric at the inner edge
                 lift = proud * (1.0 if t < 0.62 else (1.0 - t) / 0.38)
                 if ribs:
+                    # the ribs die out at the band's inner edge, where the trim
+                    # is stitched flat to the panel -- carried all the way in,
+                    # they left a sawtooth along the top of every hem band
                     ph = per[k] / circ * ribs
-                    lift -= rib_depth * (0.5 - 0.5 * math.cos(2 * math.pi * ph))
+                    fade = 1.0 - smoothstep(t, 0.55, 1.0)
+                    lift -= (rib_depth * fade
+                             * (0.5 - 0.5 * math.cos(2 * math.pi * ph)))
                 row.append(tuple(p + dirs[k] * along + norms[k] * lift))
             rowsets.append(row)
         parts.append(ST.grid("%s_%d" % (name, li), rowsets, wrap_u=True))
@@ -805,18 +819,25 @@ def surface_at(ob, x, z, out=0.0, y_from=-1.0):
     return hit + Vector(nrm) * out, Vector(nrm)
 
 
-def patch(name, ob, cols, rows, out=0.0016, rim=0.22, label=""):
+def patch(name, ob, half, z0, z1, nu=20, nv=14, out=0.0016, rim=0.22,
+          label=""):
     """A proud patch lying on the garment: a placket, a pocket, a label.
 
-    `cols` and `rows` are lists of x and z. Every grid point is ray cast onto the
-    garment's front so the patch follows whatever the panel is doing, and the
-    outermost ring is left flush so the patch has a crisp step at its edge and no
-    floating rim. v4 put these on as separate slabs and they read as stickers.
+    `half(t)` is the half-width at height fraction t (0 at z0, 1 at z1), so a
+    kangaroo pocket -- narrow at the top where the hand openings start, wide at
+    the bottom -- is one function rather than a rectangle. Every grid point is ray
+    cast onto the garment's front so the patch follows whatever the panel is
+    doing, and the outermost ring is left flush, which gives a crisp step at the
+    edge and no floating rim. v4 put these on as separate slabs and they read as
+    stickers.
     """
     grid = []
     miss = 0
-    nu, nv = len(cols), len(rows)
+    rows = [z0 + (z1 - z0) * (j / (nv - 1)) for j in range(nv)]
     for iv, z in enumerate(rows):
+        t = iv / (nv - 1)
+        hw = half(t) if callable(half) else half
+        cols = [hw * (-1.0 + 2.0 * i / (nu - 1)) for i in range(nu)]
         line = []
         for iu, x in enumerate(cols):
             e = min(iu, nu - 1 - iu) / max(1.0, (nu - 1) * rim)
@@ -832,6 +853,7 @@ def patch(name, ob, cols, rows, out=0.0016, rim=0.22, label=""):
     if miss:
         raise SystemExit("PATCH FAILED: %d of %d %s points missed the garment"
                          % (miss, nu * nv, name))
+    del rows
     p = ST.grid(name, grid, wrap_u=False)
     print("  patch %-8s %dx%d, %.1f mm proud" % (label or name, nu, nv,
                                                  out * 1000))
