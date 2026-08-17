@@ -11569,6 +11569,15 @@ export function makeClubhouse(ctx) {
   // pass have had to do", and that number has to stay comparable across the
   // whole rebuild or the before/after stops meaning anything. In 'measure' mode
   // it computes the correction and throws it away.
+  //
+  // THE RISK, TAKEN DELIBERATELY: nothing pulls two bodies apart any more. A
+  // walker inside somebody is handled by ORCA's own overlapping branch, in
+  // velocity, within a frame — but two STANDING customers written on top of each
+  // other by something else would stay there. Five minutes of his save measured
+  // zero frames interpenetrating, so it does not happen today, and a net under a
+  // guarantee is a way of never finding out the guarantee is false. If a clip
+  // ever shows two people merged, this is the first switch to try
+  // (`setSeparateMode('apply')`) and the last thing to leave on.
   let separateMode = 'measure';
   function setSeparateMode(mode) {
     separateMode = mode === 'apply' ? 'apply' : 'measure';
