@@ -8824,7 +8824,16 @@ export function makeCourseScene(canvas, state) {
     } else {
       stepIdleS = 0;
     }
-    if (walkMoving && mb <= 0.001 && stepBobDelta < 0 && stepDelta >= 0 && stepDistAccum > 0.22) {
+    // TWO FOOTFALLS PER BOB CYCLE, not one. The bob oscillates once per STRIDE
+    // PAIR — left foot down at one extreme, right foot down at the other — and
+    // this fired only at the trough, so the player walked at about one step a
+    // second. Measured in the audio audit: four footsteps logged across a four
+    // second walk, against a real walking cadence of nearer two a second. The
+    // surface voices and the distance gate were always right; the gait was
+    // missing every other step.
+    const stepTrough = stepBobDelta < 0 && stepDelta >= 0;
+    const stepPeak = stepBobDelta > 0 && stepDelta <= 0;
+    if (walkMoving && mb <= 0.001 && (stepTrough || stepPeak) && stepDistAccum > 0.22) {
       if (walkHooks.footstep) {
         walkHooks.footstep(
           floorY !== null && floorY !== undefined ? 'boards' : 'turf',

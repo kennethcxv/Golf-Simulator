@@ -79,13 +79,15 @@ async (page) => {
   if (out.mixer.muted) fail('the game is MUTED in this profile — every measurement below would read silent for the wrong reason');
 
   // ---- the analyser tap ----------------------------------------------------
-  const started = await page.evaluate(async () => {
+  // startCapture() is the VIDEO recorder's audio path — it wants the game canvas
+  // and refuses under Electron ("This browser cannot capture the game canvas").
+  // The analyser tap is independent of it, so its absence is a note, not a stop.
+  out.captureStarted = await page.evaluate(async () => {
     const a = window.__fw.audio;
     if (!a.startCapture) return { ok: false, why: 'no startCapture in the audio API' };
-    try { await a.startCapture(); return { ok: true }; } catch (e) { return { ok: false, why: String(e && e.message || e) }; }
+    try { await a.startCapture(); return { ok: true }; } catch (e) { return { ok: false, why: String((e && e.message) || e) }; }
   });
-  out.captureStarted = started;
-  if (!started.ok) { fail(`could not tap the master bus: ${started.why}`); return out; }
+  if (!out.captureStarted.ok) out.notes.push(`startCapture unavailable (${out.captureStarted.why}); measuring through qaMasterTap only`);
 
   // ONE analyser for the whole run. qaMasterTap() BUILDS an analyser and returns
   // a reader — calling it per frame would connect a new node to the master bus
@@ -127,24 +129,30 @@ async (page) => {
   };
 
   // ---- the floor, first ----------------------------------------------------
+  // NOT silence: ambience and music are running, so the floor is the MIX. A cue
+  // that does not clear it is inaudible in play whatever the code did, which is
+  // the honest test — and the second pass below separates "buried" from "never
+  // fired" by dropping the bed and asking again.
   const floor = await listen('00-silence-floor', null, 2200);
 
   // ---- real interactions ---------------------------------------------------
   await listen('01-footsteps-walking', async () => {
     await page.keyboard.down('w');
-    await page.waitForTimeout(1100);
+    await page.waitForTimeout(4000);
     await page.keyboard.up('w');
-  }, 1500);
+  }, 4400);
+  out.footstepsAfterWalk = await page.evaluate(() => (window.__fwFootsteps || []).length);
 
   await listen('02-tool-equip-F', async () => {
     await page.keyboard.press('f');
   }, 1500);
+  out.toolAfterF = await page.evaluate(() => window.__fw.scene3d.walk.getTool?.() ?? null);
 
   await listen('03-tool-use-mouse-held', async () => {
     await page.mouse.down();
-    await page.waitForTimeout(1200);
+    await page.waitForTimeout(1600);
     await page.mouse.up();
-  }, 1600);
+  }, 2000);
 
   await listen('04-ledger-open-K', async () => {
     await page.keyboard.press('k');
@@ -190,6 +198,34 @@ async (page) => {
   await page.keyboard.press('Escape').catch(() => {});
   await page.waitForTimeout(800);
 
+  // ---- SECOND PASS: same cues with the bed pulled down --------------------
+  // "Buried in the mix" and "never fired" are different defects and the first
+  // pass cannot tell them apart. Ambience and music go to zero (restored after),
+  // which drops the floor without touching the sfx bus, and the cues that
+  // stayed quiet are asked again.
+  out.beforeAudioPrefs = await page.evaluate(() => JSON.parse(JSON.stringify(window.__fw.preferences.values.audio)));
+  await page.evaluate(() => {
+    window.__fw.preferences.set('audio.ambience', 0);
+    try { window.__fw.audio.musicStop?.(); } catch { /* ignore */ }
+  });
+  await page.waitForTimeout(1200);
+  const quietFloor = await listen('10-floor-no-bed', null, 2000);
+  await listen('11-footsteps-no-bed', async () => {
+    await page.keyboard.down('w');
+    await page.waitForTimeout(3000);
+    await page.keyboard.up('w');
+  }, 3400);
+  await listen('12-tool-equip-no-bed', async () => { await page.keyboard.press('f'); }, 1500);
+  await listen('13-tool-use-no-bed', async () => {
+    await page.mouse.down();
+    await page.waitForTimeout(1600);
+    await page.mouse.up();
+  }, 2000);
+  out.quietFloorRms = quietFloor.rms;
+  await page.evaluate((prev) => {
+    window.__fw.preferences.set('audio.ambience', prev.ambience);
+  }, out.beforeAudioPrefs);
+
   // ---- the game's own record of senders asking for cues that do not exist ---
   out.unknownCues = await page.evaluate(() => window.__fwUnknownCues || []);
   out.footstepLog = await page.evaluate(() => (window.__fwFootsteps || []).length);
@@ -209,22 +245,30 @@ async (page) => {
 
   // ---- verdict: which interactions were SILENT -----------------------------
   const m = out.measurements || {};
-  const floorRms = floor.rms;
-  const silent = [];
-  const audible = [];
-  for (const [k, v] of Object.entries(m)) {
-    if (k.startsWith('00-')) continue;
-    // A cue has to clear the floor by a real margin, not by rounding.
-    if (v.rms <= Math.max(floorRms * 1.5, floorRms + 0.0008)) silent.push({ k, ...v });
-    else audible.push({ k, ...v });
-  }
+  const classify = (floorRms, keys) => {
+    const audible = [];
+    const silent = [];
+    for (const k of keys) {
+      const v = m[k];
+      if (!v) continue;
+      // A cue has to clear the floor by a real margin, not by rounding.
+      if (v.rms <= Math.max(floorRms * 1.5, floorRms + 0.0008)) silent.push(`${k} rms=${v.rms} peak=${v.peak}`);
+      else audible.push(`${k} rms=${v.rms} peak=${v.peak}`);
+    }
+    return { audible, silent };
+  };
+  const inMix = classify(floor.rms, Object.keys(m).filter((k) => /^0[1-9]/.test(k)));
+  const bedDown = classify(out.quietFloorRms ?? floor.rms, Object.keys(m).filter((k) => /^1[1-9]/.test(k)));
   out.result = {
-    silenceFloorRms: floorRms,
-    audible: audible.map((a) => `${a.k} rms=${a.rms} peak=${a.peak}`),
-    silent: silent.map((a) => `${a.k} rms=${a.rms} peak=${a.peak}`),
+    mixFloorRms: floor.rms,
+    noBedFloorRms: out.quietFloorRms ?? null,
+    inTheMix: inMix,
+    withTheBedDown: bedDown,
     unknownCues: out.unknownCues,
-    footstepsLogged: out.footstepLog,
+    footstepsLoggedAfter4sWalk: out.footstepsAfterWalk ?? null,
+    footstepsLoggedTotal: out.footstepLog,
     footstepSurfaces: out.footstepSurfaces,
+    toolEquippedByF: out.toolAfterF ?? null,
   };
   if (out.unknownCues.length) fail(`senders asked for ${out.unknownCues.length} cue(s) that do not exist: ${out.unknownCues.join(', ')}`);
   fs.writeFileSync(path.join(OUT, 'c1-audio-audit.json'), JSON.stringify(out, null, 2));

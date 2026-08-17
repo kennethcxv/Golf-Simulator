@@ -136,10 +136,25 @@ async (page) => {
 
   // Walk in through the door with real input, so the watch happens where the
   // shopping does. The player is an obstacle too and must be in the room.
-  await page.keyboard.down('w');
-  await page.waitForTimeout(6500);
-  await page.keyboard.up('w');
-  await page.waitForTimeout(800);
+  //
+  // AND KEEP WALKING UNTIL ACTUALLY INSIDE. One fixed 6.5 s leg landed the
+  // player at z 5.28, 7.41 and 10.14 on three runs of the same save, and that
+  // one variable swung the result from 1 ladder escalation to 61: a player
+  // stopped on the porch plugs the shop's only entrance. An unstated variable
+  // that large makes two runs incomparable, which is how a fix gets credited or
+  // blamed for the walk-in.
+  for (let leg = 0; leg < 4; leg += 1) {
+    await page.keyboard.down('w');
+    await page.waitForTimeout(leg === 0 ? 6000 : 1800);
+    await page.keyboard.up('w');
+    await page.waitForTimeout(600);
+    const p = await page.evaluate(() => {
+      const w = window.__fw.scene3d.walk.state;
+      const ch = window.__fw.scene3d.clubhouse();
+      return { z: w.z, inside: ch.isInside ? ch.isInside(w.x, w.z) : null };
+    });
+    if (p.inside) break;
+  }
   out.playerAfterWalkIn = await page.evaluate(() => {
     const w = window.__fw.scene3d.walk.state;
     const ch = window.__fw.scene3d.clubhouse();
@@ -206,6 +221,59 @@ async (page) => {
   out.shots = shots;
   out.watchMs = Date.now() - t0;
   out.sampleCount = samples.length;
+
+  // ---- B2's acceptance photograph: AIM AT THE LINE ------------------------
+  // The periodic shots above point wherever the player happens to face, and a
+  // queue nobody photographed is exactly the kind of "measured clean" this goal
+  // exists to stop. Aim with real mouse input at the queue head and shoot.
+  const queued = await page.evaluate(() => {
+    const ch = window.__fw.scene3d.clubhouse();
+    const q = ch.customers().filter((c) => c.mesh && c.queued);
+    if (q.length < 2) return null;
+    const s = ch.queueSlotForIndex(1);
+    return { n: q.length, x: s.x, z: s.z };
+  });
+  out.queueShot = { queuedWhenAimed: queued?.n ?? 0 };
+  if (queued) {
+    const cal = { yawPerPx: -0.001927, pitchPerPx: -0.0019 };
+    for (let i = 0; i < 8; i += 1) {
+      const t = await page.evaluate((pt) => {
+        const w = window.__fw.scene3d.walk.state;
+        const cam = window.__fw.scene3d.camera;
+        const d = Math.hypot(pt.x - w.x, pt.z - w.z);
+        let dy = Math.atan2(-(pt.x - w.x), -(pt.z - w.z)) - w.yaw;
+        while (dy > Math.PI) dy -= Math.PI * 2;
+        while (dy < -Math.PI) dy += Math.PI * 2;
+        return { dy, dp: Math.atan2(1.0 - cam.position.y, d) - w.pitch, d };
+      }, queued);
+      if (Math.abs(t.dy) < 0.08 && Math.abs(t.dp) < 0.12) break;
+      const cx = Math.round(vp.w / 2);
+      const cy = Math.round(vp.h / 2);
+      await page.mouse.move(cx, cy);
+      await page.mouse.move(
+        cx + Math.round(Math.max(-1200, Math.min(1200, t.dy / cal.yawPerPx))),
+        cy + Math.round(Math.max(-400, Math.min(400, t.dp / cal.pitchPerPx))),
+        { steps: 12 },
+      );
+      await page.waitForTimeout(140);
+    }
+    await page.waitForTimeout(700);
+    const qShot = path.join(OUT, `b1-queue-aimed-${out.tag}.png`);
+    await page.screenshot({ path: qShot });
+    out.queueShot.file = qShot;
+    out.queueShot.geometry = await page.evaluate(() => {
+      const ch = window.__fw.scene3d.clubhouse();
+      const q = ch.customers().filter((c) => c.mesh && c.queued)
+        .map((c) => ({
+          slot: Number.isFinite(c.queueSlotHeld) ? c.queueSlotHeld : null,
+          x: +c.mesh.position.x.toFixed(2),
+          z: +c.mesh.position.z.toFixed(2),
+        }))
+        .sort((a, b) => (a.slot ?? 99) - (b.slot ?? 99));
+      return q;
+    });
+    console.log('QUEUE SHOT', JSON.stringify(out.queueShot));
+  }
 
   // ---------- analysis over the real samples ----------
   const cols = out.colliders;
