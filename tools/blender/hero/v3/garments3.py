@@ -118,9 +118,12 @@ def polo_folded(origin=(0, 0, 0), broken=""):
     ox, oy, oz = origin
     p = {}
     w, d, h = FOLD_POLO
+    # F2/F3: six plies gives three fold rolls against v2's four lips, each one
+    # thicker, and the notch between them is shallow. Eight thinner plies with
+    # more air between them gives four rolls and a deeper slot.
     p.update(CL.folded_ribbon("PoloFold", (ox, oy, oz), FOLD_POLO,
-                              plies=6, sag=0.0030, crease=0.0034, seed=0.4,
-                              wander=1.7))
+                              plies=8, gap=0.0021, sag=0.0030, crease=0.0034,
+                              seed=0.4, wander=1.7))
     body = p["cloth"]
     top_at = p.pop("top_at")
 

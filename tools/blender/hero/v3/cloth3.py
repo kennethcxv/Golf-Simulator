@@ -943,11 +943,13 @@ def folded_ribbon(prefix, centre, size, plies=4, squareness=7.5,
     # the cloth actually does.
     cy2d = sum(q.y for q in ring2d) / NS
     cz2d = sum(q.z for q in ring2d) / NS
-    TUCK = ((0.90, 0.9), (0.66, 1.7), (0.30, 2.3))
-    stations = ([(-1.0 - 0.030 * push, sc) for sc, push in reversed(TUCK)]
+    # F1: three short stations still read as a stepped wall. The tuck has to
+    # travel far enough in x to be a turn rather than a chamfer.
+    TUCK = ((0.94, 1.2), (0.80, 2.6), (0.58, 3.8), (0.30, 4.7), (0.12, 5.2))
+    stations = ([(-1.0 - 0.026 * push, sc) for sc, push in reversed(TUCK)]
                 + [(-1.0 + 2.0 * xi / (xsteps - 1.0), 1.0)
                    for xi in range(xsteps)]
-                + [(1.0 + 0.030 * push, sc) for sc, push in TUCK])
+                + [(1.0 + 0.026 * push, sc) for sc, push in TUCK])
 
     verts, faces = [], []
     poles = []
