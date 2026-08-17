@@ -52,17 +52,17 @@ SPEC = dict(
     # in one step, with the fold gate opened at the same time, gave 232 mm of
     # sag and a crumpled rag: jersey has very little to hold it out and the
     # solve gave up on the silhouette rather than draping it.
-    profile=[(-0.712, 0.252, 0.0442),
-             (-0.620, 0.253, 0.0468),
-             (-0.480, 0.253, 0.0496),
-             (-0.350, 0.253, 0.0513),
-             (-0.222, 0.252, 0.0518)],
+    profile=[(-0.712, 0.2205, 0.0442),
+             (-0.620, 0.2215, 0.0468),
+             (-0.480, 0.2215, 0.0496),
+             (-0.350, 0.2215, 0.0513),
+             (-0.222, 0.2205, 0.0518)],
     hem_lift=dict(front=0.0, side=0.012, back=0.004),
-    ctrl_a=(0.259, 0.0610),
+    ctrl_a=(0.2265, 0.0610),
     ctrl_a_z=dict(front=-0.172, side=-0.142, back=-0.164),
-    shoulder=(0.220, 0.0576),
+    shoulder=(0.1925, 0.0576),
     shoulder_z=dict(front=-0.114, side=-0.040, back=-0.098),
-    ctrl_b=(0.165, 0.0589),
+    ctrl_b=(0.1445, 0.0589),
     ctrl_b_z=dict(front=-0.068, side=-0.011, back=-0.050),
     neck=(0.0905, 0.0630), neck_cy=0.008,
     neck_z=dict(front=-0.040, side=0.003, back=0.010),
@@ -78,7 +78,7 @@ CLOTH_T = 0.0016             # jersey, and it shows at the hem
 
 BAR_DROP = 0.034             # the bar sits INSIDE the neck, not above it
 # just inside the shoulder point (0.222) so the tips cannot poke through
-HANGER_HALF = 0.1935
+HANGER_HALF = 0.1685
 HANGER_Z = -0.004 - BAR_DROP
 
 
@@ -357,7 +357,7 @@ def main():
     print("  %d verts hard on the hanger" % sh.pin())
     hg = list(hanger())
     if "nosim" not in args:
-        moved, spikes = sh.solve("jersey", frames=90)
+        moved, spikes = sh.solve("jersey", frames=150, damping=3.5)
         print("  DRAPE max travel %.0f mm, despiked %d" % (moved * 1000, spikes))
 
     parts = []
@@ -369,17 +369,17 @@ def main():
             # tapers hard to its hem.
             # A tee sleeve does not taper to a tube. The armhole is about
             # 460 mm round and the cuff about 340: three quarters, not half.
-            sign, "sleeve%d" % sign, drop=0.206, axis_x=0.259,
-            outer=0.0570, depth=0.0455,
+            sign, "sleeve%d" % sign, drop=0.198, axis_x=0.228,
+            outer=0.0508, depth=0.0392,
             section=[(0.00, 1.00, 1.00), (0.45, 0.90, 0.92),
                      (0.82, 0.79, 0.84), (1.00, 0.74, 0.81)],
             rows=18, cuff_t=0.84, cuff_pinch=0.045,
-            fold=(0.062, 0.034), bow=0.026,
+            fold=(0.062, 0.034), bow=0.038,
             # 3.4 mm is two thicknesses of jersey and a hair. At 7.2 the
             # sleeve stood off the body far enough that a slot of BACKGROUND
             # showed through at the armhole, and the sleeve read as a flap
             # bolted to a slab rather than as part of the shirt.
-            clear=0.0034, hem_curl=0.017))
+            clear=0.0026, hem_curl=0.017))
     sh.join(parts)
     SH.audit(body, "assembled")
 
@@ -391,7 +391,7 @@ def main():
                              (22, 0.0034, 1.9)],
                   seed=4.9, side_bias=0.44,
                   pred=lambda co: co.z < -0.175,
-                  gate=lambda co: 1.0 - D._smooth(abs(co.x), 0.165, 0.225))
+                  gate=lambda co: 1.0 - D._smooth(abs(co.x), 0.148, 0.208))
 
     nb = neckband(body, sh.neck_idx)
     pr, prr, marks = chest_print(body)
