@@ -155,9 +155,13 @@ def collar(body, neck_idx):
             # the points: the last 18% at each end lies flatter and reaches out
             e = min(a, 1.0 - a) / 0.18
             pt = 1.0 - min(1.0, e) ** 1.3
-            stand_h = 0.0300 * (1.0 - 0.72 * pt)
-            fall_h = 0.0345 + 0.0130 * pt
-            fall_out = 0.0270 + 0.0155 * pt
+            # A BIGGER COLLAR. Beside the board the wings read as thin tabs
+            # near the neck: the board's collar is a broad band whose fold
+            # throws a shadow the whole way round and whose points come down
+            # ONTO the chest to frame the placket.
+            stand_h = 0.0345 * (1.0 - 0.70 * pt)
+            fall_h = 0.0455 + 0.0210 * pt
+            fall_out = 0.0330 + 0.0215 * pt
             fold = b + Vector((0, 0, stand_h)) + n * 0.0055
             tip = (b + Vector((0, 0, stand_h - fall_h))
                    + n * (0.0055 + fall_out))
@@ -348,15 +352,18 @@ def main():
     parts = []
     for sign in (+1, -1):
         parts.append(sh.sleeve(
-            sign, "sleeve%d" % sign, drop=0.206, axis_x=0.259,
-            outer=0.0485, depth=0.0455,
-            section=[(0.00, 1.00, 1.00), (0.45, 0.95, 0.94),
-                     (0.82, 0.88, 0.89), (1.00, 0.83, 0.85)],
+            # A POLO SLEEVE STOPS AT MID-BICEP. At 206 mm of drop it hung
+            # nearly to the elbow, and at 0.83 of the armhole it stayed nearly
+            # as wide the whole way -- the board's tapers hard and ends high.
+            sign, "sleeve%d" % sign, drop=0.186, axis_x=0.256,
+            outer=0.0455, depth=0.0420,
+            section=[(0.00, 1.00, 1.00), (0.45, 0.91, 0.92),
+                     (0.82, 0.79, 0.82), (1.00, 0.73, 0.77)],
             rows=18, cuff_t=0.82, cuff_pinch=0.095,
-            fold=(0.058, 0.030), bow=0.040,
+            fold=(0.058, 0.030), bow=0.030,
             # pique is 2.0 mm; 7.2 mm of clearance opened a slot of background
             # at each armhole, the same fault the tee had
-            clear=0.0042, hem_curl=0.014))
+            clear=0.0029, hem_curl=0.019))
     sh.join(parts)
     SH.audit(body, "assembled")
 
