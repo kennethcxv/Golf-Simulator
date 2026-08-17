@@ -317,12 +317,22 @@ def matte(name, colour, rough=0.86):
     return m
 
 
-def metal(name, colour=(0.72, 0.73, 0.76), rough=0.24):
+def metal(name, colour=(0.72, 0.73, 0.76), rough=0.36):
+    """Trim metal that reads as metal in a DARK studio.
+
+    A fully metallic surface has no diffuse term: all it can show is what it
+    reflects, and these garments are lit by three small area lamps against a
+    world at 0.03. So every eyelet, hook, buckle, aglet and clamp spring in the
+    set rendered as dark charcoal -- the one thing that consistently looked
+    like plastic. Backing metallic off to 0.86 leaves a little diffuse to
+    catch the key, and a broader roughness lobe finds it from more angles.
+    Brushed shop hardware is not a mirror anyway.
+    """
     m = bpy.data.materials.new(name)
     m.use_nodes = True
     b = m.node_tree.nodes["Principled BSDF"]
     b.inputs["Base Color"].default_value = (*colour, 1.0)
-    b.inputs["Metallic"].default_value = 1.0
+    b.inputs["Metallic"].default_value = 0.86
     b.inputs["Roughness"].default_value = rough
     return m
 

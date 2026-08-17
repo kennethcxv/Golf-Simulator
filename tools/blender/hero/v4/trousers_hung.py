@@ -543,6 +543,26 @@ def chino_material(colour=(0.196, 0.176, 0.138)):
     bump.inputs["Distance"].default_value = 0.0012
     nt.links.new(tw.outputs["Fac"], bump.inputs["Height"])
     nt.links.new(bump.outputs["Normal"], b.inputs["Normal"])
+    # RESTRAINED COLOUR MICROVARIATION, at the scale of the yarn.
+    # Flat albedo is most of why cloth reads as moulded plastic: the bump only
+    # moves the normal, so a surface facing the key at one angle is one flat
+    # value across the whole panel. Coarse noise on colour reads as dirt --
+    # scale 88 on the hoodie came out as camouflage -- so this sits an order
+    # of magnitude finer and a fraction as strong.
+    _v = nt.nodes.new("ShaderNodeTexNoise")
+    _v.inputs["Scale"].default_value = 470.0
+    _v.inputs["Detail"].default_value = 6.0
+    _v.inputs["Roughness"].default_value = 0.52
+    _c = b.inputs["Base Color"].default_value
+    _t = nt.nodes.new("ShaderNodeMix")
+    _t.data_type = "RGBA"
+    _t.inputs["A"].default_value = (_c[0] * 0.850, _c[1] * 0.850,
+                                    _c[2] * 0.850, 1.0)
+    _t.inputs["B"].default_value = (_c[0] * 1.150, _c[1] * 1.150,
+                                    _c[2] * 1.150, 1.0)
+    nt.links.new(_v.outputs["Fac"], _t.inputs["Factor"])
+    nt.links.new(_t.outputs[2], b.inputs["Base Color"])
+
     return mat
 
 

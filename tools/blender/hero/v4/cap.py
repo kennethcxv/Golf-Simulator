@@ -252,6 +252,27 @@ def strap_back():
         D.shade_smooth(st, 40.0)
         cloth.append(st)
 
+    # THE KEYHOLE IS BOUND. Skipping quads out of a 96-column crown leaves the
+    # opening a staircase of 3.75-degree steps with a razor edge on it, and the
+    # brief bans both. A real cap binds that edge with a strip of the sweatband
+    # -- so the binding both is correct construction and is what hides the
+    # quantisation, which is the only reason it is worth the 600 triangles.
+    # ... and it follows `keyhole_skip`'s own boundary: the same half-angle
+    # formula, over the same six crown rows, so the two cannot drift apart.
+    def kh_edge(sign, j, n=13):
+        t = (j / n) * (6.0 / NV)
+        v = t * NV / 6.0
+        half = 0.132 * (1.0 - 0.62 * v ** 1.4)
+        p = crown_at(math.pi + sign * half, t)
+        r = Vector((p.x, p.y, 0.0))
+        return p - (r.normalized() * 0.0009 if r.length > 1e-6 else r)
+
+    edge = [kh_edge(-1, j) for j in range(14)]
+    edge += [kh_edge(+1, j) for j in range(13, -1, -1)]
+    bindr = D.topstitch("keyhole_bind", edge, radius=0.0016, sides=8)
+    D.shade_smooth(bindr, 40.0)
+    cloth.append(bindr)
+
     # THE BUCKLE: a flat slide on the wearer's left, standing off the strap.
     c = band_at(math.pi - 0.042, 0.70, out=0.0050)
     n = Vector((c.x, c.y, 0.0)).normalized()
@@ -399,22 +420,26 @@ def embroidery(crown):
         loc, nrm, _i, _d = bvh.find_nearest(p, 0.03)
         if loc is None or nrm is None:
             return p
-        return loc + nrm * 0.0011
+        # 1.1 mm proud of a 2.2 mm shell is a WIRE standing on the panel.
+        # Satin stitch is about 0.4 mm of thread; the brief's own rule is that
+        # if it looks like a cable it is wrong, and at this lift and this
+        # brightness the device read as bent silver wire glued to the twill.
+        return loc + nrm * 0.00042
 
     out = []
     # a flag on a pole -- three runs of satin stitch, all following the crown
     pole = [at(0.34, 0.06 + 0.86 * (i / 10.0)) for i in range(11)]
-    out.append(D.topstitch("emb_pole", pole, radius=0.00115, sides=7))
+    out.append(D.topstitch("emb_pole", pole, radius=0.00062, sides=7))
     flag = []
     for i in range(11):
         t = i / 10.0
         flag.append(at(0.34 + 0.30 * t, 0.92 - 0.16 * math.sin(t * math.pi)))
-    out.append(D.topstitch("emb_flag_top", flag, radius=0.00100, sides=7))
+    out.append(D.topstitch("emb_flag_top", flag, radius=0.00056, sides=7))
     flag2 = []
     for i in range(11):
         t = i / 10.0
         flag2.append(at(0.34 + 0.30 * t, 0.62 + 0.10 * math.sin(t * math.pi)))
-    out.append(D.topstitch("emb_flag_bot", flag2, radius=0.00100, sides=7))
+    out.append(D.topstitch("emb_flag_bot", flag2, radius=0.00056, sides=7))
     edge = [at(0.64, 0.62 + 0.30 * (i / 6.0)) for i in range(7)]
     out.append(D.topstitch("emb_flag_edge", edge, radius=0.00095, sides=7))
     for o in out:
@@ -441,6 +466,26 @@ def twill_material(name, colour, rough=0.80):
     bump.inputs["Distance"].default_value = 0.0007
     nt.links.new(n.outputs["Fac"], bump.inputs["Height"])
     nt.links.new(bump.outputs["Normal"], b.inputs["Normal"])
+    # RESTRAINED COLOUR MICROVARIATION, at the scale of the yarn.
+    # Flat albedo is most of why cloth reads as moulded plastic: the bump only
+    # moves the normal, so a surface facing the key at one angle is one flat
+    # value across the whole panel. Coarse noise on colour reads as dirt --
+    # scale 88 on the hoodie came out as camouflage -- so this sits an order
+    # of magnitude finer and a fraction as strong.
+    _v = nt.nodes.new("ShaderNodeTexNoise")
+    _v.inputs["Scale"].default_value = 520.0
+    _v.inputs["Detail"].default_value = 6.0
+    _v.inputs["Roughness"].default_value = 0.52
+    _c = b.inputs["Base Color"].default_value
+    _t = nt.nodes.new("ShaderNodeMix")
+    _t.data_type = "RGBA"
+    _t.inputs["A"].default_value = (_c[0] * 0.870, _c[1] * 0.870,
+                                    _c[2] * 0.870, 1.0)
+    _t.inputs["B"].default_value = (_c[0] * 1.130, _c[1] * 1.130,
+                                    _c[2] * 1.130, 1.0)
+    nt.links.new(_v.outputs["Fac"], _t.inputs["Factor"])
+    nt.links.new(_t.outputs[2], b.inputs["Base Color"])
+
     return mat
 
 
@@ -529,7 +574,7 @@ def main():
 
     shell = twill_material("CapTwill", (0.2280, 0.0430, 0.0700), 0.80)
     thread = twill_material("CapThread", (0.1600, 0.0290, 0.0480), 0.74)
-    ivory = twill_material("CapEmb", (0.7300, 0.6900, 0.6100), 0.66)
+    ivory = twill_material("CapEmb", (0.4350, 0.4080, 0.3560), 0.70)
     lining = twill_material("CapBand", (0.0900, 0.0900, 0.0950), 0.88)
     brass = ST.metal("Eyelet", (0.68, 0.62, 0.48), 0.30)
     steel = ST.metal("CapBuckle", (0.78, 0.79, 0.82), 0.16)
