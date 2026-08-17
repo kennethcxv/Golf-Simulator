@@ -72,12 +72,12 @@ and `-retail.png` / `-retail-q34.png`.
 
 | # | asset | tris | mm | what was rebuilt |
 |---|---|---|---|---|
-| 1 | hoodie-hung | 33,872 | 640×293×842 | body simulated; shoulder corner; hood as an arching roll; kangaroo pocket tucked under the skin; ribbed waistband with 18 gathers; cords ray-cast onto the chest |
-| 2 | trousers-hung | 36,988 | 454×173×1227 | seat tucking under two legs, lambda crotch; clamp hanger that grips; fly, pockets and hems as thread |
+| 1 | hoodie-hung | 38,352 | 640×293×842 | body simulated; shoulder corner; hood as an arching roll; kangaroo pocket tucked under the skin; ribbed waistband with 18 gathers; cords ray-cast onto the chest |
+| 2 | trousers-hung | 37,036 | 454×173×1227 | seat tucking under two legs, lambda crotch; clamp hanger that grips; fly, pockets and hems as thread |
 | 3 | cap | 16,604 | 166×269×158 | superellipse crown over an oval base, apex behind centre; six panels as creases; visor corners dying on the headband; stitching on top of the bill |
-| 4 | polo-hung | 24,644 | 658×246×851 | collar with a stand, a fall and points; three-button placket with a box; shirt-tail hem; side vents |
+| 4 | polo-hung | 24,644 | 610×231×853 | collar with a stand, a fall and points; three-button placket with a box; shirt-tail hem; side vents |
 | 5 | tee-hung | 23,948 | 650×226×836 | jersey drape (13 folds, not 9); neck rib as a sewn strip; roundel print clear of the folds |
-| 6 | hoodie-folded | 19,248 | 335×273×112 | five thin plies with shadow between them; hood as a flat flap with an opening slot; pocket seam; size sticker |
+| 6 | hoodie-folded | 28,992 | 332×264×104 | five thin plies with shadow between them; hood as a flat flap with an opening slot; pocket seam; size sticker |
 | 7 | trousers-folded | 13,296 | 351×240×79 | one end a fat roll of doubled leg, the other the waistband with four belt loops and a button |
 | 8 | polo-folded | 13,636 | 315×262×53 | collar splayed flat with points; neck label; sleeve-fold diagonal |
 | 9 | tee-folded | 14,172 | 303×245×40 | the thinnest in the set — four crisp lips, neck rib, conformed print |
@@ -131,6 +131,32 @@ something else.
 - **`fit_distance` frames the bounding SPHERE.** A garment is far taller than it
   is deep. `fit_view` was already in hero_lib for this, put there when the cap
   hit it.
+
+---
+
+## The residual pass
+
+The first time through, four assets were shipped with faults I had NAMED and
+not fixed. The brief forbids exactly that — "do not call it PASS until it
+looks commercially shippable" — so they were reopened:
+
+| asset | named fault | closed by |
+|---|---|---|
+| hoodie-folded | "still faintly bedding-like square-on" | 8 staggered thin plies instead of 5 flush ones, so each lip stands clear of its neighbour; and the hood rebuilt a THIRD time as another PLY rather than a bolster |
+| hoodie-hung | "cuff ribbing reads as a seam, not ribs" | real ribbed cuffs as geometry, plus angle-driven rib normals on the waistband |
+| hoodie-hung | "hood tighter than the reference's" | fatter roll, and asymmetric — a dropped hood never lands even |
+| polo-hung | "slightly boxy" | 658 mm across a 540 mm chest was wrong; sleeves brought in and the body tapered, now 610 |
+| trousers-hung | "legs a touch stiff" | each leg sways a few millimetres, and the two sway differently |
+
+Two things that came out of it and are worth keeping:
+
+- **Every lip needs its own depth.** With all plies ending at the same y, a
+  five-ply stack showed TWO lips, each a 45 mm bolster of two plies bonded by
+  a U-turn. Staggering them by 7 mm is the whole difference between a stack of
+  cloth and a mattress.
+- **Ribbing splits by axis.** The angle about the garment's axis gives correct
+  wrapped ribs on a waistband and *three ribs across a whole cuff*, because a
+  cuff sits 250 mm off that axis. Waistband in the shader, cuff in geometry.
 
 ---
 

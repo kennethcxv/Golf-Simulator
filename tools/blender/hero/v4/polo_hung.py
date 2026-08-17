@@ -49,11 +49,14 @@ CHEST_Z = -0.225
 SPEC = dict(
     nu=NU, row_h=0.0162, body_n=3.3,
     hem_z=HEM_Z, chest_z=CHEST_Z,
-    profile=[(-0.720, 0.259, 0.0585),
-             (-0.640, 0.263, 0.0625),
-             (-0.520, 0.267, 0.0672),
-             (-0.380, 0.270, 0.0705),
-             (-0.225, 0.270, 0.0720)],
+    # 658 mm across against a 540 mm chest plus sleeves is BOXY. A polo on a
+    # hanger measures about 600; the extra came from sleeves standing too far
+    # off the body and a chest carried at its full flat width all the way down.
+    profile=[(-0.720, 0.246, 0.0560),
+             (-0.640, 0.251, 0.0598),
+             (-0.520, 0.256, 0.0645),
+             (-0.380, 0.261, 0.0685),
+             (-0.225, 0.263, 0.0705)],
     hem_lift=dict(front=0.0, side=0.046, back=0.010),
     ctrl_a=(0.276, 0.0845),
     ctrl_a_z=dict(front=-0.176, side=-0.145, back=-0.168),
@@ -342,8 +345,8 @@ def main():
     parts = []
     for sign in (+1, -1):
         parts.append(sh.sleeve(
-            sign, "sleeve%d" % sign, drop=0.203, axis_x=0.286,
-            outer=0.0545, depth=0.0475,
+            sign, "sleeve%d" % sign, drop=0.206, axis_x=0.259,
+            outer=0.0485, depth=0.0455,
             section=[(0.00, 1.00, 1.00), (0.45, 0.95, 0.94),
                      (0.82, 0.88, 0.89), (1.00, 0.83, 0.85)],
             rows=18, cuff_t=0.82, cuff_pinch=0.095,
@@ -352,8 +355,8 @@ def main():
     SH.audit(body, "assembled")
 
     D.drape_folds(body, amp=1.0, z_top=-0.180, z_bot=HEM_Z,
-                  harmonics=[(9, 0.0092, 0.8), (5, 0.0058, -0.5),
-                             (17, 0.0026, 1.5)],
+                  harmonics=[(9, 0.0112, 0.8), (5, 0.0072, -0.5),
+                             (17, 0.0032, 1.5)],
                   seed=2.4, side_bias=0.40,
                   pred=lambda co: co.z < -0.180,
                   gate=lambda co: 1.0 - D._smooth(abs(co.x), 0.170, 0.230))

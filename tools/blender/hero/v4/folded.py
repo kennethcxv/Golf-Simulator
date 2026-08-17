@@ -58,7 +58,8 @@ def stadium(hw, ht, n):
     return out
 
 
-def zigzag(half_d, plies, ply_t, roll_r, ply_gap):
+def zigzag(half_d, plies, ply_t, roll_r, ply_gap, stagger=0.0,
+           seed=0.0):
     """The ribbon's centreline in (y, z), and a per-point ply index.
 
     Returns [(y, z, ply, t_along_ply)] sampled evenly enough that the rolls
@@ -67,8 +68,17 @@ def zigzag(half_d, plies, ply_t, roll_r, ply_gap):
     pts = []
     z = 0.0
     for p in range(plies):
-        y0 = -half_d if p % 2 == 0 else half_d
-        y1 = -y0
+        # EVERY LIP AT ITS OWN DEPTH. With all plies ending at the same y the
+        # front edge is one flush wall broken only by the U-turns, so a
+        # five-ply stack showed TWO lips -- each a 45 mm bolster of two plies
+        # bonded by a roll. Staggered, each cut edge and each fold stands
+        # clear of its neighbour and the front reads as a stack again.
+        sg = stagger * (math.sin(p * 2.39 + seed) * 0.6
+                        + math.sin(p * 5.11 - seed * 1.7) * 0.4)
+        d0 = half_d + sg
+        d1 = half_d - sg * 0.45
+        y0 = -d0 if p % 2 == 0 else d1
+        y1 = d1 if p % 2 == 0 else -d0
         n = 26
         for i in range(n + 1):
             t = i / n
@@ -89,14 +99,15 @@ def zigzag(half_d, plies, ply_t, roll_r, ply_gap):
 
 def concertina(name, half_w, half_d, plies=4, ply_t=0.0085, ply_gap=0.0022,
                roll_r=0.0060, nu=40, wander=0.0035, seed=1.0,
-               squash=0.30, bulk=None):
+               squash=0.30, bulk=None, stagger=0.0):
     """One ribbon of cloth, folded `plies` times.
 
     `bulk(x_frac, ply)` adds thickness where the garment's own mass is -- the
     sleeves folded underneath, the collar band, the waistband. Without it
     every ply is the same slab and the fold reads as a mattress.
     """
-    path = zigzag(half_d, plies, ply_t, roll_r, ply_gap)
+    path = zigzag(half_d, plies, ply_t, roll_r, ply_gap,
+                  stagger=stagger, seed=seed)
     top_z = max(p[1] for p in path)
     rows = []
     for i, (y, z, ply, t) in enumerate(path):

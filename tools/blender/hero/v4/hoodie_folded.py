@@ -47,9 +47,10 @@ OUT = os.path.join(REPO, "qa", "hero", "v4", "hoodie-folded")
 # plies of 13 mm with a 5 mm gap gives the front edge the stack of lips that
 # is the whole read in the reference.
 HALF_W, HALF_D = 0.1585, 0.1180
-PLIES = 5
-PLY_T = 0.0130
-PLY_GAP = 0.0050
+PLIES = 8
+PLY_T = 0.0079
+PLY_GAP = 0.0034
+STAGGER = 0.0075
 
 
 def bulk(t, ply):
@@ -65,49 +66,49 @@ def bulk(t, ply):
 
 
 def hood(body):
-    """The hood, folded flat across the back of the stack.
+    """The hood folded down as ANOTHER PLY, not as a pillow on the lid.
 
-    v3 put an oval pillow here and the first v4 cut put a bolster, which is
-    the same mistake with rounder ends -- both read as bedding. A hood folded
-    down is a WIDE FLAT FLAP about 35 mm thick with its opening showing as a
-    slot along one edge, and it is nearly as wide as the garment.
+    Three cuts of this. v3 used an oval pillow; the first v4 cut a bolster;
+    the second a flat flap that was still a smooth roll across the full width.
+    All three read as bedding, and the reason is the same each time: a rounded
+    section lying on a flat stack is a cushion whatever its outline.
+
+    A hood folded down is just more cloth in the pile. It is FLAT, the same
+    order of thickness as the plies under it, it covers the back half only,
+    and its front edge is a folded roll with the face opening showing as a
+    slot along it. Once it has a lip like the plies below, it stops being a
+    separate object lying on top and becomes part of the fold.
     """
     zs = [v.co.z for v in body.data.vertices]
     top = max(zs)
-    NX, NY = 30, 18
-    HW, Y0, Y1 = HALF_W * 0.90, HALF_D * 0.06, HALF_D * 0.99
-    rows = []
+    NX, NY = 34, 20
+    HW = HALF_W * 0.955
+    Y0, Y1 = -HALF_D * 0.10, HALF_D * 1.005
+    T = 0.0098                        # a ply, not a bolster
+    rows_top, rows_bot = [], []
     for j in range(NY + 1):
         v = j / NY
-        row = []
+        y = Y0 + (Y1 - Y0) * v
+        rt, rb = [], []
         for i in range(NX + 1):
             u = -1.0 + 2.0 * i / NX
             e = abs(u)
-            # plan: a rounded rectangle whose far edge is the folded top
-            w = HW * (1.0 - 0.10 * D._smooth(v, 0.72, 1.0))
-            x = u * w
-            y = Y0 + (Y1 - Y0) * v
-            # section: thick in the middle, rolling closed at all four edges
-            fx = (1.0 - e ** 5.0) ** 0.34
-            fy = (math.sin(math.pi * min(1.0, v * 1.02 + 0.02)) ** 0.42)
-            t = 0.0182 * fx * fy
-            # the opening: a slot along the FRONT edge of the flap
-            slot = 0.0115 * math.exp(-((v - 0.070) / 0.062) ** 2) * (1 - e ** 4)
-            fold = 0.0028 * math.sin(2.6 * math.pi * u + 0.7) * fy
-            z = top + 0.0022 + t + fold - slot
-            row.append((x, y, z))
-        rows.append(row)
-    # ... and the same again for the underside, so it is a closed flap
-    under = []
-    for j in range(NY + 1):
-        v = j / NY
-        row = []
-        for i in range(NX + 1):
-            u = -1.0 + 2.0 * i / NX
-            x, y, _z = rows[j][i]
-            row.append((x, y, top + 0.0018))
-        under.append(row)
-    ob = D.grid_mesh("hood", rows + list(reversed(under)))
+            w = HW * (1.0 - 0.035 * D._smooth(v, 0.80, 1.0))
+            x = u * w + 0.0026 * math.sin(v * 5.1 + 1.2)
+            # flat through the middle, rolling closed at every edge -- the
+            # roll at v = 0 is the folded front edge and carries the opening
+            fx = (1.0 - e ** 7.0) ** 0.30
+            fy = min(1.0, (math.sin(math.pi * min(1.0, v * 0.97 + 0.03))
+                           ** 0.30) * 1.06)
+            half = 0.5 * T * fx * fy
+            mid = top + 0.0016 + half
+            fold = 0.0016 * math.sin(3.3 * math.pi * u + 0.7) * fy
+            slot = 0.0042 * math.exp(-((v - 0.045) / 0.042) ** 2) * (1 - e ** 4)
+            rt.append((x, y, mid + half + fold - slot))
+            rb.append((x, y, mid - half + fold * 0.35))
+        rows_top.append(rt)
+        rows_bot.append(rb)
+    ob = D.grid_mesh("hood", rows_top + list(reversed(rows_bot)))
     import bmesh
     bm = bmesh.new()
     bm.from_mesh(ob.data)
@@ -153,7 +154,7 @@ def pocket(body):
                      + [(1.0 - i / 24.0, 0.98) for i in range(25)]
                      + [(0.02, 1.0 - i / 12.0) for i in range(13)]):
         x = -0.106 + 0.212 * uu
-        y = -HALF_D * 0.80 + HALF_D * 0.74 * vv
+        y = -HALF_D * 0.86 + HALF_D * 0.68 * vv
         hit, nrm = F.top_at(body, x, y)
         if hit is None:
             continue
@@ -276,9 +277,9 @@ def main():
     os.makedirs(OUT, exist_ok=True)
 
     body = F.concertina("hoodie_folded", HALF_W, HALF_D, plies=PLIES,
-                        ply_t=PLY_T, ply_gap=PLY_GAP, roll_r=0.0105,
-                        nu=44, wander=0.0042, seed=3.3, squash=0.42,
-                        bulk=bulk)
+                        ply_t=PLY_T, ply_gap=PLY_GAP, roll_r=0.0058,
+                        nu=44, wander=0.0042, seed=3.3, squash=0.22,
+                        bulk=bulk, stagger=STAGGER)
     F.undulate(body, amp=0.0032, seed=2.1, only_top=0.58)
     F.side_crease(body, -HALF_W * 0.30, depth=0.0042, width=0.013)
     F.side_crease(body, HALF_W * 0.36, depth=0.0030, width=0.011)

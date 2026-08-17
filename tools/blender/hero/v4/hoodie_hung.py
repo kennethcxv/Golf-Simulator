@@ -130,7 +130,7 @@ CUFF_T = 0.90                # where the ribbed cuff starts along the sleeve
 HOOD_HALF = 0.122            # where the roll meets the neckline, each side
 HOOD_BACK = 0.152            # how far back it arches
 HOOD_RISE = 0.113            # ... and how far up
-HOOD_R0, HOOD_R1 = 0.034, 0.062   # section radius at the ends / added at top
+HOOD_R0, HOOD_R1 = 0.036, 0.071   # section radius at the ends / added at top
 HOOD_ROLLS = 3.3
 
 CLOTH_T = 0.0034             # fleece: 3.4 mm through the ply
@@ -405,7 +405,11 @@ def hood_from_neck(ob, idxs):
         e1 = e1.normalized() if e1.length > 1e-6 else Vector((0, 1, 0))
         e2 = t.cross(e1).normalized()
         k = max(0.0, 1.0 - u * u)
-        r = HOOD_R0 + HOOD_R1 * k ** 0.55
+        # A DROPPED HOOD SLUMPS TO ONE SIDE. Perfectly symmetric it reads as a
+        # moulded headrest; nothing that has been pushed back off a head lands
+        # even. The fat point sits a little left of the crown.
+        r = ((HOOD_R0 + HOOD_R1 * k ** 0.55)
+             * (1.0 + 0.115 * math.sin(u * 1.35 - 0.55)))
         row = []
         for j in range(NR):
             a = 2 * math.pi * j / NR
@@ -464,6 +468,57 @@ def _cap_ends(ob, nr, ns):
     bmesh.ops.holes_fill(bm, edges=[e for e in bm.edges if e.is_boundary])
     bm.to_mesh(ob.data)
     bm.free()
+
+
+def ribbed_cuff(sleeve, name):
+    """A real ribbed cuff, as its own tube.
+
+    The shader ribs work on the body because they run off the angle about the
+    garment's axis and the body wraps that axis completely. A cuff does not:
+    it sits 250 mm off-axis, so the same angular sweep crosses about three
+    ribs across the whole cuff. Twenty-two ribs at 8 mm need geometry, and at
+    this size geometry is cheap.
+    """
+    nu = sleeve["nu"]
+    nv = sleeve["nv"]
+    co = [Vector(v.co) for v in sleeve.data.vertices]
+    j0 = int(round(CUFF_T * (nv - 1)))
+    ring0 = co[j0 * nu:(j0 + 1) * nu]
+    ring1 = co[(nv - 1) * nu:nv * nu]
+    c0 = sum(ring0, Vector()) / nu
+    c1 = sum(ring1, Vector()) / nu
+    axis = (c1 - c0)
+    axis = axis.normalized() if axis.length > 1e-6 else Vector((0, 0, -1))
+    e1 = axis.cross(Vector((0, 1, 0)))
+    e1 = e1.normalized() if e1.length > 1e-6 else Vector((1, 0, 0))
+    e2 = axis.cross(e1).normalized()
+
+    def extent(ring, c):
+        return (max(abs((p - c).dot(e1)) for p in ring),
+                max(abs((p - c).dot(e2)) for p in ring))
+    r0 = extent(ring0, c0)
+    r1 = extent(ring1, c1)
+
+    NA, NV = 56, 9
+    RIBS = 22
+    rows = []
+    for j in range(NV + 1):
+        t = j / NV
+        c = c0.lerp(c1, t)
+        a1 = (r0[0] + (r1[0] - r0[0]) * t) + 0.0009
+        a2 = (r0[1] + (r1[1] - r0[1]) * t) + 0.0009
+        # the seam pinch where the rib is joined on, then a fuller band
+        pinch = 1.0 - 0.085 * math.exp(-((t - 0.10) / 0.16) ** 2)
+        row = []
+        for i in range(NA):
+            th = 2 * math.pi * i / NA
+            rib = 1.0 + 0.0165 * math.cos(RIBS * th) * D._smooth(t, 0.16, 0.30)
+            row.append(tuple(c + e1 * (a1 * pinch * rib * math.cos(th))
+                             + e2 * (a2 * pinch * rib * math.sin(th))))
+        rows.append(row)
+    ob = D.grid_mesh(name, rows, wrap_u=True)
+    D.shade_smooth(ob, 30.0)
+    return ob
 
 
 def pocket(ob):
@@ -648,11 +703,66 @@ def fleece_material():
     mix.inputs["Factor"].default_value = 0.34
     nt.links.new(nap.outputs["Fac"], mix.inputs[2])
     nt.links.new(weave.outputs["Fac"], mix.inputs[3])
+    # RIBBING THE MESH CANNOT CARRY. A waistband rib is 6 mm and the body has
+    # 16 mm between columns, so geometry can only ever give scallops. The
+    # brief's own rule applies: geometry when it changes the silhouette,
+    # normals when it does not. Ribs come from the ANGLE about the garment's
+    # axis so they wrap correctly instead of being stripes in x, and a z mask
+    # confines them to the waistband and the cuffs.
+    tc = nt.nodes.new("ShaderNodeTexCoord")
+    sep = nt.nodes.new("ShaderNodeSeparateXYZ")
+    nt.links.new(tc.outputs["Object"], sep.inputs["Vector"])
+    ang = nt.nodes.new("ShaderNodeMath")
+    ang.operation = 'ARCTAN2'
+    nt.links.new(sep.outputs["Y"], ang.inputs[0])
+    nt.links.new(sep.outputs["X"], ang.inputs[1])
+    freq = nt.nodes.new("ShaderNodeMath")
+    freq.operation = 'MULTIPLY'
+    freq.inputs[1].default_value = 150.0
+    nt.links.new(ang.outputs[0], freq.inputs[0])
+    rib = nt.nodes.new("ShaderNodeMath")
+    rib.operation = 'SINE'
+    nt.links.new(freq.outputs[0], rib.inputs[0])
+
+    def band(lo, hi):
+        r = nt.nodes.new("ShaderNodeMapRange")
+        r.inputs["From Min"].default_value = lo
+        r.inputs["From Max"].default_value = hi
+        r.clamp = True
+        nt.links.new(sep.outputs["Z"], r.inputs["Value"])
+        return r
+
+    up = band(Z_HEM - 0.004, Z_HEM + 0.010)          # rises into the band
+    dn = band(Z_WAIST_TOP + 0.004, Z_WAIST_TOP - 0.010)
+    cu = band(-0.664, -0.652)
+    cd = band(-0.600, -0.612)
+    m1 = nt.nodes.new("ShaderNodeMath")
+    m1.operation = 'MULTIPLY'
+    nt.links.new(up.outputs["Result"], m1.inputs[0])
+    nt.links.new(dn.outputs["Result"], m1.inputs[1])
+    m2 = nt.nodes.new("ShaderNodeMath")
+    m2.operation = 'MULTIPLY'
+    nt.links.new(cu.outputs["Result"], m2.inputs[0])
+    nt.links.new(cd.outputs["Result"], m2.inputs[1])
+    mask = nt.nodes.new("ShaderNodeMath")
+    mask.operation = 'MAXIMUM'
+    nt.links.new(m1.outputs[0], mask.inputs[0])
+    nt.links.new(m2.outputs[0], mask.inputs[1])
+    ribbed = nt.nodes.new("ShaderNodeMath")
+    ribbed.operation = 'MULTIPLY'
+    nt.links.new(rib.outputs[0], ribbed.inputs[0])
+    nt.links.new(mask.outputs[0], ribbed.inputs[1])
+
     bump = nt.nodes.new("ShaderNodeBump")
     bump.inputs["Strength"].default_value = 0.055
     bump.inputs["Distance"].default_value = 0.0016
     nt.links.new(mix.outputs[0], bump.inputs["Height"])
-    nt.links.new(bump.outputs["Normal"], b.inputs["Normal"])
+    ribbump = nt.nodes.new("ShaderNodeBump")
+    ribbump.inputs["Strength"].default_value = 0.60
+    ribbump.inputs["Distance"].default_value = 0.0016
+    nt.links.new(ribbed.outputs[0], ribbump.inputs["Height"])
+    nt.links.new(bump.outputs["Normal"], ribbump.inputs["Normal"])
+    nt.links.new(ribbump.outputs["Normal"], b.inputs["Normal"])
     return mat
 
 
@@ -777,6 +887,7 @@ def build():
                 w = D._smooth(i // nu, 1.0, 6.0)
                 sl.data.vertices[i].co = co.lerp(sl.data.vertices[i].co, w)
             parts.append(sl)
+            parts.append(ribbed_cuff(sl, "cuff%d" % sign))
 
     # ... and the folds stop before the sleeves cover the cloth, so a 9 mm
     # ridge cannot push through a sleeve sitting 7 mm off the surface.

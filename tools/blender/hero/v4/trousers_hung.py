@@ -166,8 +166,16 @@ def leg_rows(sign):
             th = 2 * math.pi * k / NU
             x, y = se(hw, hd, th, LEG_N)
             # the legs hang together and swing very slightly forward
-            cx = sign * LEG_X - sign * 0.012 * D._smooth(-z, 0.30, 1.05)
-            cy = -0.006 * D._smooth(-z, 0.25, 1.05)
+            # A HANGING LEG IS NOT A PLUMB LINE. Chino is stiff but it still
+            # sways, and two dead-straight parallel columns is the tell that
+            # made v3's read as pipe. Each leg wanders a few millimetres, and
+            # the two wander differently.
+            g = D._smooth(-z, 0.30, 1.05)
+            sway = (0.0075 * math.sin((-z) * 5.4 + (1.9 if sign > 0 else 0.3))
+                    + 0.0034 * math.sin((-z) * 11.1 - sign * 2.2)) * g
+            cx = sign * LEG_X - sign * 0.012 * g + sway
+            cy = (-0.006 * D._smooth(-z, 0.25, 1.05)
+                  + 0.0050 * math.sin((-z) * 4.1 + sign * 1.1) * g)
             row.append((cx + x, cy + y, z))
         rows.append(row)
     return rows
@@ -411,7 +419,8 @@ def build():
 
     # chino is a woven: it holds its shape and folds in a few broad places
     D.drape_folds(body, amp=1.0, z_top=-0.230, z_bot=Z_HEM,
-                  harmonics=[(7, 0.0052, 0.7), (13, 0.0021, -1.1)],
+                  harmonics=[(7, 0.0082, 0.7), (13, 0.0036, -1.1),
+                             (4, 0.0054, 0.35)],
                   seed=3.1, side_bias=0.42,
                   pred=lambda co: co.z < -0.230)
     D.drape_folds(body, amp=1.0, z_top=-0.060, z_bot=-0.300,
