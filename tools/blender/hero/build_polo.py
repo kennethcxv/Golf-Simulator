@@ -48,7 +48,7 @@ OUT_RENDER = os.path.join(REPO, "qa", "hero", "apparel_v2", "polo")
 GLB_DIR = os.path.join(REPO, "Assets", "models", "hero")
 ATLAS = os.path.join(REPO, "Assets", "models", "hero", "textures",
                      "apparel_atlas.png")
-ATLAS_COLS, ATLAS_ROWS = 6, 5
+ATLAS_COLS, ATLAS_ROWS = 6, 6
 
 # ---------------------------------------------------------------------------
 # the hung polo, in metres, off a men's medium
@@ -495,7 +495,30 @@ def build_folded(p, way):
         tan.normalize()
         nrms.append(Vector((0.0, -tan.z, tan.y)).normalized())
     p["size_band"] = CL.framed_sweep("PoloFold_Band", band, nrms,
-                                     0.0132, 0.0007, sides=6, square=0.88)
+                                     0.0104, 0.0006, sides=6, square=0.88)
+
+    # A CHEST BADGE. "A rail of eight unmarked navy garments is not a shop" --
+    # the hung polo has carried one all along and the folded one never did, so
+    # the folded stock on the shelf was the blankest thing in the room.
+    bq = top_at(-w * 0.215, d * 0.115)
+    p["badge"] = CL.decal("PoloFold_Badge", (-w * 0.215, d * 0.115, bq + 0.0009),
+                          (0, 0, 1), (0.0430, 0.0430))
+
+    # AND A HANG TAG, on a thread over the front fold. Every garment in
+    # polo-rail-shop.jpg has one and it is the single strongest cue that the
+    # thing is stock rather than laundry.
+    tx = w * 0.150
+    ty = -d * 0.5 - 0.0075
+    tz = top_at(tx, -d * 0.42)
+    # CLEAR OF THE CLOTH. The first one hung inside the front fold and read as
+    # a white flap stuck to the garment; a tag on a thread swings free.
+    thread = [Vector((tx, -d * 0.44, tz + 0.0018)),
+              Vector((tx, -d * 0.52, tz - 0.0060)),
+              Vector((tx, ty - 0.0060, tz - 0.0270))]
+    p["tag_thread"] = CL._sweep("PoloFold_TagThread", thread, 0.0011, sides=5)
+    p["hangtag"] = CL.decal("PoloFold_HangTag",
+                            (tx, ty - 0.0068, tz - 0.0398),
+                            (0, -1, 0), (0.0300, 0.0330))
     return p
 
 
@@ -510,6 +533,7 @@ WAYS = {
     "coral": (7, 17),
 }
 CHEST_CELL, BADGE_CELL, RIB_CELL, TRIM_CELL = 18, 20, 22, 23
+SIZEBAND_CELL, HANGTAG_CELL = 30, 31
 
 
 def cell_for(part, way):
@@ -517,7 +541,12 @@ def cell_for(part, way):
     n = part.lower()
     if n == "badge":
         return CHEST_CELL
-    if n in ("hanger", "hook", "size_band"):
+    if n == "size_band":
+        # a PRINTED band, not a blank white strap
+        return SIZEBAND_CELL
+    if n == "hangtag":
+        return HANGTAG_CELL
+    if n in ("hanger", "hook"):
         return TRIM_CELL
     if n.startswith("button"):
         return TRIM_CELL
@@ -572,7 +601,9 @@ DEEP = {
                ("size_band", "sleeve_fold1"), ("size_band", "sleeve_fold0")]
     + [("cloth", o)
        for o in ("collar", "placket", "size_band", "button0", "button1",
-                 "sleeve_fold0", "sleeve_fold1")],
+                 "sleeve_fold0", "sleeve_fold1", "badge", "tag_thread",
+                 "hangtag")]
+    + [("tag_thread", "hangtag"), ("size_band", "badge")],
 }
 
 STATES = {"hung": build_hung, "folded": build_folded}

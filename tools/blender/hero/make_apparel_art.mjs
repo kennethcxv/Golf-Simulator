@@ -38,7 +38,11 @@ const COLS = 6;
 // floor(n / COLS), and cell_offset derives v as (ROWS - 1 - row) / ROWS, so
 // every existing cell keeps exactly the pixels it had. ATLAS_ROWS in
 // build_apparel.py and build_cap.py must match this number.
-const ROWS = 5;
+// SIX ROWS. Growing the sheet downward is safe -- cell n always sits at image
+// row floor(n / COLS) and cell_offset derives v as (ROWS - 1 - row) / ROWS, so
+// every existing cell keeps exactly the pixels it had. ATLAS_ROWS in the three
+// builders moves with it.
+const ROWS = 6;
 
 const WAY = [
   ['navy', [38, 52, 84], [22, 30, 52]],
@@ -62,6 +66,16 @@ function knit(w, h, base, seed) {
   const G = 16;
   const grid = Array.from({ length: (G + 1) * (G + 1) }, () => rnd() - 0.5);
   const at = (i, j) => grid[Math.min(G, j) * (G + 1) + Math.min(G, i)];
+  // a second, much finer octave -- the nap, as opposed to the mottle
+  const G2 = 96;
+  const grid2 = Array.from({ length: (G2 + 1) * (G2 + 1) }, () => rnd() - 0.5);
+  const g2 = (i, j) => grid2[((j % G2) + G2) % G2 * (G2 + 1) + ((i % G2) + G2) % G2];
+  const at2 = (fx2, fy2) => {
+    const i = Math.floor(fx2), j = Math.floor(fy2);
+    const a = fx2 - i, b = fy2 - j;
+    return (g2(i, j) * (1 - a) + g2(i + 1, j) * a) * (1 - b)
+      + (g2(i, j + 1) * (1 - a) + g2(i + 1, j + 1) * a) * b;
+  };
   for (let y = 0; y < h; y++) {
     for (let x = 0; x < w; x++) {
       const gx = (x / w) * G, gy = (y / h) * G;
@@ -74,10 +88,22 @@ function knit(w, h, base, seed) {
       // texture was announcing its own scale. Doubling the frequency and
       // easing the amplitude puts the weave below the size the eye resolves as
       // a pattern and leaves only the light-breakup it is there for.
-      const k = Math.sin(x * 1.62) * Math.sin(y * 1.62) * 0.5
-        + Math.sin((x + y) * 0.88) * 0.22;
+      // A PERFECT LATTICE IS WHY IT READS AS MOULDED. sin(x)*sin(y) is a
+      // ruler-straight diamond grid, and a grid at any amplitude announces
+      // itself as a manufactured pattern rather than as cloth. The macro
+      // reference (hoodie-flat.jpg) shows the opposite: a fine IRREGULAR nap
+      // with broad soft gradients over it, and wales that wander.
+      //
+      // So the knit keeps its wales and courses -- they are real -- but their
+      // PHASE is jittered by the noise field, so no two runs line up, and the
+      // fine grain carries more of the weight than the periodic part does.
+      const fine = (at2(x * 0.42, y * 0.42) - 0.0) * 2.0;
+      const wale = Math.sin(x * 1.74 + fine * 2.6) * 0.42;
+      const course = Math.sin(y * 2.35 + fine * 1.7) * 0.20;
+      const k = wale + course;
       const grain = (rnd() - 0.5) * 0.6;
-      const f = 1 + (k * 0.038) + (mottle * 0.075) + (grain * 0.024);
+      const f = 1 + (k * 0.030) + (mottle * 0.075) + (grain * 0.052)
+        + (fine * 0.026);
       const o = (y * w + x) * 3;
       for (let c = 0; c < 3; c++) {
         px[o + c] = Math.max(0, Math.min(255, Math.round(base[c] * f)));
@@ -137,6 +163,37 @@ function sleeveBadge() {
     ${flagMark(128, 116, 1.25, '#d9c88a')}
     <text x="128" y="188" text-anchor="middle" font-family="Georgia,serif"
           font-size="24" letter-spacing="5" fill="#d9c88a">P H</text>
+  </svg>`;
+}
+
+function sizeBand() {
+  // A printed paper band. Warm off-white rather than pure white: paper next to
+  // cloth is never brighter than the cloth around it, and the pure white one
+  // was reading as a plastic strap laid over the garment.
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${CELL}" height="${CELL}">
+    <rect width="${CELL}" height="${CELL}" fill="#e8e4da"/>
+    <rect x="0" y="18" width="${CELL}" height="5" fill="#c2bcae"/>
+    <rect x="0" y="233" width="${CELL}" height="5" fill="#c2bcae"/>
+    <text x="128" y="104" text-anchor="middle" font-family="Helvetica,Arial"
+          font-size="66" font-weight="bold" fill="#2f3540">M</text>
+    <text x="128" y="150" text-anchor="middle" font-family="Helvetica,Arial"
+          font-size="21" letter-spacing="5" fill="#4a525e">PINE HILLS</text>
+    <text x="128" y="184" text-anchor="middle" font-family="Helvetica,Arial"
+          font-size="15" letter-spacing="3" fill="#7d8590">CLASSIC FIT</text>
+  </svg>`;
+}
+
+function hangTag() {
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${CELL}" height="${CELL}">
+    <rect width="${CELL}" height="${CELL}" fill="#f0ece1"/>
+    <rect x="10" y="10" width="236" height="236" fill="none"
+          stroke="#b9b1a0" stroke-width="4"/>
+    ${flagMark(128, 86, 1.05, '#1f4a34')}
+    <text x="128" y="152" text-anchor="middle" font-family="Georgia,serif"
+          font-size="27" letter-spacing="4" fill="#1f4a34">PINE HILLS</text>
+    <text x="128" y="190" text-anchor="middle" font-family="Helvetica,Arial"
+          font-size="34" font-weight="bold" fill="#2f3540">48</text>
+    <circle cx="128" cy="32" r="11" fill="none" stroke="#b9b1a0" stroke-width="5"/>
   </svg>`;
 }
 
@@ -239,6 +296,13 @@ await place(await twill(CELL, CELL, [214, 206, 186], 8, 3, 0.055), 'sweatband');
 await place(await twill(CELL, CELL, [42, 44, 48], 9, 9, 0.030), 'plastic');
 await place(await knit(CELL, CELL, [40, 84, 88], 61), 'teal');
 await place(await knit(CELL, CELL, [140, 76, 48], 62), 'rust');
+
+// row 5 -- v3. SHOP GOODS, not blanks. "A rail of eight unmarked navy garments
+// is not a shop": the printed size band and the hang tag are the two cues that
+// say stock rather than laundry, and nearly every garment in the reference
+// carries at least one of them.
+await place(await sharp(Buffer.from(sizeBand())).png().toBuffer(), 'sizeband');
+await place(await sharp(Buffer.from(hangTag())).png().toBuffer(), 'hangtag');
 
 const out = path.join(OUT, 'apparel_atlas.png');
 await sharp({
