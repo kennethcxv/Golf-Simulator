@@ -48,19 +48,23 @@ SPEC = dict(
     # hoodie's 79. Thin cloth has nothing to hold it out.
     # 650 mm across a 510 mm chest is the polo's fault again -- sleeves
     # standing off the body. A tee on a hanger measures about 590.
-    profile=[(-0.712, 0.255, 0.0530),
-             (-0.620, 0.256, 0.0560),
-             (-0.480, 0.256, 0.0595),
-             (-0.350, 0.256, 0.0615),
-             (-0.222, 0.255, 0.0620)],
+    # ... and FLATTER, but only by a fifth. Going from 124 mm of depth to 81
+    # in one step, with the fold gate opened at the same time, gave 232 mm of
+    # sag and a crumpled rag: jersey has very little to hold it out and the
+    # solve gave up on the silhouette rather than draping it.
+    profile=[(-0.712, 0.252, 0.0442),
+             (-0.620, 0.253, 0.0468),
+             (-0.480, 0.253, 0.0496),
+             (-0.350, 0.253, 0.0513),
+             (-0.222, 0.252, 0.0518)],
     hem_lift=dict(front=0.0, side=0.012, back=0.004),
-    ctrl_a=(0.262, 0.0730),
+    ctrl_a=(0.259, 0.0610),
     ctrl_a_z=dict(front=-0.172, side=-0.142, back=-0.164),
-    shoulder=(0.222, 0.0690),
+    shoulder=(0.220, 0.0576),
     shoulder_z=dict(front=-0.114, side=-0.040, back=-0.098),
-    ctrl_b=(0.166, 0.0705),
+    ctrl_b=(0.165, 0.0589),
     ctrl_b_z=dict(front=-0.068, side=-0.011, back=-0.050),
-    neck=(0.0925, 0.0755), neck_cy=0.008,
+    neck=(0.0905, 0.0630), neck_cy=0.008,
     neck_z=dict(front=-0.040, side=0.003, back=0.010),
     yoke_a=8, yoke_b=7,
     arm_u=6, arm_v=(1, 8),
@@ -385,7 +389,7 @@ def main():
     D.drape_folds(body, amp=1.0, z_top=-0.175, z_bot=HEM_Z,
                   harmonics=[(13, 0.0094, 1.2), (7, 0.0067, -0.7),
                              (22, 0.0034, 1.9)],
-                  seed=4.9, side_bias=0.34,
+                  seed=4.9, side_bias=0.44,
                   pred=lambda co: co.z < -0.175,
                   gate=lambda co: 1.0 - D._smooth(abs(co.x), 0.165, 0.225))
 

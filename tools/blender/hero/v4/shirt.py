@@ -204,11 +204,16 @@ class Shirt:
         self.n_hard = len(hard)
         return len(hard)
 
-    def solve(self, preset, frames=90, quality=12, friction=0.8):
+    def solve(self, preset, frames=90, quality=12, friction=0.8,
+              damping=2.2, mass=None):
+        # `mass` is PER VERTEX. Shrink a garment without changing its vertex
+        # count and the same value is denser against springs whose rest
+        # lengths shrank with it -- see the hoodie, where flattening the body
+        # took travel from 44 mm to 188 and stretched the hem into a pouch.
         before = [Vector(v.co) for v in self.body.data.vertices]
         D.add_cloth(self.body, preset=preset, pin="pin", quality=quality,
-                    self_dist=0.0030, coll_dist=0.0030, damping=2.2,
-                    friction=friction)
+                    self_dist=0.0030, coll_dist=0.0030, damping=damping,
+                    friction=friction, mass=mass)
         D.bake(frames=frames)
         D.freeze(self.body)
         moved = D.travelled(self.body, before)
