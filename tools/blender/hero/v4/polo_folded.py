@@ -78,18 +78,20 @@ def collar(body):
                 # forward to the point
                 bx = sx * (0.014 + 0.104 * u)
                 by = HALF_D * (0.965 - 0.30 * u ** 1.5)
-                px = sx * (0.020 + 0.052 * u)
-                py = HALF_D * (0.470 - 0.10 * u)
+                px = sx * (0.020 + 0.062 * u ** 1.25)
+                py = HALF_D * (0.470 - 0.19 * u ** 1.6)
                 x = bx + (px - bx) * v
                 y = by + (py - by) * v
                 hit, nrm = F.top_at(body, x, y)
                 if hit is None:
                     continue
                 n = (Vector(nrm) * 0.25 + Vector((0, 0, 1)) * 0.75).normalized()
-                # thick along the fold, thinning to the point and the edges
+                # THE POINT HAS TO BE A POINT. Thinning as u squared leaves a
+                # rounded wing; the reference's collar ends in a crisp corner
+                # because the two plies of the collar come together there.
                 t = (0.0060 * math.sin(math.pi * min(1.0, v * 0.92 + 0.08))
-                     * (1.0 - 0.55 * u ** 2.0))
-                edge = min(D._smooth(u, 0.0, 0.07), D._smooth(1 - u, 0.0, 0.13))
+                     * (1.0 - 0.86 * u ** 3.4))
+                edge = min(D._smooth(u, 0.0, 0.05), D._smooth(1 - u, 0.0, 0.045))
                 row.append(tuple(hit + n * (-0.0012 + (t + 0.0022) * edge)))
             if len(row) == NX + 1:
                 rows.append(row)

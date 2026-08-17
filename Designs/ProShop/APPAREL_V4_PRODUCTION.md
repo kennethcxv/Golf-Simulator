@@ -67,8 +67,23 @@ own references, its own frame-numbered fault list and its own review.
 ## The ten
 
 Every asset: `qa/hero/v4/<name>/` holds studio views, detail close-ups, a
-`-compare.png` (no floor, tight), a `-REF-v3-v4.png` where a reference exists,
+`-compare.png` (no floor, tight), **a `-REF-v3-v4.png` — all ten have one** —
 and `-retail.png` / `-retail-q34.png`.
+
+**Verdict against the real reference, per asset**, after the residual pass:
+
+| asset | reference | held up | still short of the photo |
+|---|---|---|---|
+| hoodie-hung | Holzweiler navy hoodie on a hanger | shoulder corner, hood mass, ribbed bands, pocket, cords | shoulders a touch square |
+| trousers-hung | stone chinos, flat | waistband, belt loops, fly, pockets, crease, taper, leg drape | — closest match in the set |
+| cap | black cap, dead side on | crown profile, six panels, eyelets, visor curl and stitching | crown-to-visor gap reads slightly dark |
+| polo-hung | blue polo, worn | collar stand/fall/points, placket, shirt-tail hem | body still a little straight-sided |
+| tee-hung | red tees on a market rail | sleeves now DROP instead of capping; 552 mm silhouette | print is a plain roundel, not a graphic |
+| hoodie-folded | JCPenney folded polos | eight staggered lips, hood as a ply, sticker | plan corners crisper than the photo's |
+| trousers-folded | JCPenney folded polos | one end a roll, the other the waistband | — |
+| polo-folded | JCPenney folded polos | collar splayed with CRISP points, label, sleeve fold | fewer lips than the photo's stack |
+| tee-folded | JCPenney folded polos | thinnest in the set at 40 mm, four lips | — |
+| cap-peg | the cap itself | hangs by its headband, crown out, visor down | **no photograph of a peg display** — the staging is reasoned, not referenced |
 
 | # | asset | tris | mm | what was rebuilt |
 |---|---|---|---|---|

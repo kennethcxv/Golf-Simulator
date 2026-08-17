@@ -283,12 +283,16 @@ def main():
     parts = []
     for sign in (+1, -1):
         parts.append(sh.sleeve(
-            sign, "sleeve%d" % sign, drop=0.198, axis_x=0.251,
-            outer=0.0472, depth=0.0398,
-            section=[(0.00, 1.00, 1.00), (0.45, 0.95, 0.94),
-                     (0.82, 0.89, 0.90), (1.00, 0.86, 0.87)],
+            # A TEE SLEEVE DROPS. Bowing the path out 42 mm before it falls
+            # makes a cap sleeve standing off the shoulder; in the reference
+            # the sleeve's outer edge carries on down the line of the body and
+            # tapers hard to its hem.
+            sign, "sleeve%d" % sign, drop=0.213, axis_x=0.243,
+            outer=0.0462, depth=0.0388,
+            section=[(0.00, 1.00, 1.00), (0.45, 0.88, 0.90),
+                     (0.82, 0.74, 0.80), (1.00, 0.68, 0.76)],
             rows=18, cuff_t=0.86, cuff_pinch=0.045,
-            fold=(0.062, 0.034), bow=0.042))
+            fold=(0.062, 0.034), bow=0.018))
     sh.join(parts)
     SH.audit(body, "assembled")
 
