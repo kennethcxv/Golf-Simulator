@@ -45,6 +45,7 @@ import hero_lib as H  # noqa: E402
 import hardsurface_lib as HS  # noqa: E402
 
 REPO = os.getcwd()
+TEX = os.path.join(REPO, "Assets", "models", "hero", "textures")
 OUT_RENDER = os.path.join(REPO, "qa", "hero", "register")
 OUT_GLB = os.path.join(REPO, "Assets", "models", "hero", "cash_register.glb")
 
@@ -200,6 +201,30 @@ def extent(obj, axis):
 
 # ---------------------------------------------------------------- the shell --
 
+def screen_uv(ob, cell, cols, rows):
+    """Plane-map the screen quad's front face into one cell of the sheet.
+
+    The panel is a thin box, so only the faces pointing at the viewer get the
+    artwork; everything else collapses to the cell's corner, which is black.
+    """
+    me = ob.data
+    layer = me.uv_layers.new(name="UVMap") if not me.uv_layers         else me.uv_layers.active
+    xs = [v.co.x for v in me.vertices]
+    zs = [v.co.z for v in me.vertices]
+    x0, x1 = min(xs), max(xs)
+    z0, z1 = min(zs), max(zs)
+    cx, cy = cell % cols, cell // cols
+    for poly in me.polygons:
+        front = poly.normal.y < -0.5
+        for li in poly.loop_indices:
+            co = me.vertices[me.loops[li].vertex_index].co
+            u = (co.x - x0) / max(1e-9, x1 - x0) if front else 0.0
+            v = (co.z - z0) / max(1e-9, z1 - z0) if front else 0.0
+            layer.data[li].uv = ((cx + u) / cols,
+                                 ((rows - 1 - cy) + v) / rows)
+    return ob
+
+
 def head_part(name, size, local, bevel=0.0030):
     """A box in the monitor head's own frame, then tilted and placed with it."""
     ob = HS.apply_mods(HS.box(name, (0, 0, 0), size, bevel=bevel, segments=2))
@@ -335,6 +360,7 @@ def build(broken=""):
                            (0, -0.0100, 0), bevel=0.0)
     p["screen"] = head_part("MonScreen", (0.3400, 0.0012, 0.2125),
                             (0, -0.0125, 0), bevel=0.0)
+    screen_uv(p["screen"], cell=0, cols=1, rows=2)
     dot = HS.cylinder("MonHomeDot", (0, 0, 0), 0.0035, 0.0024, verts=12)
     dot.rotation_euler = (math.radians(90) + TILT, 0, 0)
     dot.location = HEAD + (Matrix.Rotation(TILT, 3, "X")
@@ -355,11 +381,22 @@ def build(broken=""):
     inner = HS.pbr("TillDrawer", (0.168, 0.148, 0.118), roughness=0.74)
     brass = HS.pbr("TillBrass", (0.402, 0.276, 0.092), roughness=0.28,
                    metallic=0.88)
-    glow = HS.pbr("TillScreen", (0.030, 0.120, 0.075), roughness=0.22)
-    em = glow.node_tree.nodes["Principled BSDF"]
-    if "Emission Color" in em.inputs:
-        em.inputs["Emission Color"].default_value = (0.075, 0.520, 0.330, 1.0)
-        em.inputs["Emission Strength"].default_value = 2.4
+    # THE ARTWORK ALREADY EXISTED. make_register_art.mjs has been generating
+    # register_screens.png -- a real till layout with line items, right-aligned
+    # prices and a total -- and this build was not using it: the screen was a
+    # flat emissive colour. I replaced that with a procedural node chain, which
+    # looked right in Blender and exported as a PURE WHITE GLOWING PANEL,
+    # because a node chain on Base Color carries nothing into a GLB. A baked
+    # image does, and this one is better than the chain anyway.
+    glow = HS.pbr_textured("TillScreen",
+                           os.path.join(TEX, "register_screens.png"),
+                           roughness=0.20)
+    _g = glow.node_tree
+    _tex = next(n for n in _g.nodes if n.type == "TEX_IMAGE")
+    _b = _g.nodes["Principled BSDF"]
+    if "Emission Color" in _b.inputs:
+        _g.links.new(_tex.outputs["Color"], _b.inputs["Emission Color"])
+        _b.inputs["Emission Strength"].default_value = 2.2
 
     # the monitor head stays CHARCOAL, like the kit's does in game -- a bezel
     # painted the same green as the machine reads as a screen glued to a box
@@ -488,6 +525,14 @@ def main():
     print("")
 
     subject = [o for o in flat(p)]
+
+    # UVs and the grain BEFORE the renders, as everywhere else. The screen's
+
+    # own chain runs off TexCoord Object and carries no TexNoise, so this
+
+    # cannot touch it.
+
+    HS.unwrap_and_grain(subject)
     print(f"TRIS {H.triangles(subject)} ({len(subject)} objects, "
           f"{len(p['materials'])} materials) — the hand is 5,179")
 
@@ -523,6 +568,9 @@ def main():
     H.render(app, os.path.join(OUT_RENDER, f"register{suffix}-apparent.png"), res=(1600, 900))
 
     if not broken:
+        # the screen's Base Color is CONTENT, not microvariation -- see the
+        # keep argument's note in hardsurface_lib
+        HS.flatten_for_export(subject, keep={"TillScreen"})
         H.bake_gltf_axis(subject)
         H.export_glb(subject, OUT_GLB)
         print(f"FINAL TRIS {H.triangles(subject)}")

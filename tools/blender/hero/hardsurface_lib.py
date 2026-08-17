@@ -769,7 +769,7 @@ def unwrap_and_grain(objects, uv_scale=900.0, angle=66.0, margin=0.006):
     return n
 
 
-def flatten_for_export(objects):
+def flatten_for_export(objects, keep=()):
     """Put a real baseColorFactor back on every material before export.
 
     THIS IS THE FAULT THAT ONLY THE IN-GAME TEST FOUND, and it made every
@@ -798,6 +798,13 @@ def flatten_for_export(objects):
             if mat is None or mat.name in seen or not mat.use_nodes:
                 continue
             seen.add(mat.name)
+            if mat.name in keep:
+                # SOME LINKED BASE COLOURS ARE THE POINT. The till screen's
+                # content is a node chain into Base Color; averaging its two
+                # tints and unlinking would export a flat panel and undo the
+                # whole reason it exists. Only the microvariation wants
+                # flattening.
+                continue
             nt = mat.node_tree
             bsdf = next((n for n in nt.nodes
                          if n.type == "BSDF_PRINCIPLED"), None)
