@@ -308,6 +308,55 @@ def world_value(v=0.028):
         bg.inputs[1].default_value = 1.0
 
 
+def grain_follows_cloth(objects, uv_scale=1500.0):
+    """Point every fabric noise at the UV map instead of at Generated space.
+
+    A `ShaderNodeTexNoise` with no Vector input samples GENERATED coordinates --
+    a 3-D volume normalised to the object's bounding box. Slicing that with a
+    garment does not give you a weave: it gives you a cross-section of a cloud.
+    On a sleeve, which is a thin diagonal part of a 600 mm box, the pattern
+    stretches along the sleeve's axis, so the fabric smears in exactly the place
+    the player looks closest. Same object, same material, and the grain runs the
+    wrong way.
+
+    In UV space the grain follows the surface, which is what a woven or knitted
+    cloth does. Scale changes meaning with the space -- it becomes cycles across
+    the UV square rather than across the bounding box -- so it is rescaled here
+    rather than left at a number tuned for the other space.
+
+    Only TexNoise is touched. The waistband's rib chain runs off TexCoord Object
+    through an ARCTAN2 and must keep doing so: ribs go round the garment's axis,
+    not along its UVs.
+    """
+    seen = set()
+    n = 0
+    for ob in objects:
+        if ob.type != "MESH" or not ob.data.uv_layers:
+            continue
+        for slot in ob.data.materials:
+            if slot is None or slot.name in seen or not slot.use_nodes:
+                continue
+            seen.add(slot.name)
+            nt = slot.node_tree
+            uvn = None
+            for node in list(nt.nodes):
+                if node.type != "TEX_NOISE":
+                    continue
+                if node.inputs["Vector"].is_linked:
+                    continue
+                if uvn is None:
+                    uvn = nt.nodes.new("ShaderNodeUVMap")
+                nt.links.new(uvn.outputs["UV"], node.inputs["Vector"])
+                # the old number was cycles across the bounding box; keep the
+                # relative coarseness between the two noises in a material
+                old = node.inputs["Scale"].default_value
+                node.inputs["Scale"].default_value = uv_scale * (old / 600.0)
+                n += 1
+    print("  grain: %d noise nodes moved to UV space across %d materials"
+          % (n, len(seen)))
+    return n
+
+
 def matte(name, colour, rough=0.86):
     m = bpy.data.materials.new(name)
     m.use_nodes = True

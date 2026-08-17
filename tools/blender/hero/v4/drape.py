@@ -723,3 +723,62 @@ def band_pull(ob, z_top, z_bot, amount=0.018, centre=(0.0, 0.0)):
         if d.length < 1e-6:
             continue
         v.co = v.co - d.normalized() * (amount * t)
+
+
+def unwrap(ob, angle=68.0, margin=0.006, label=""):
+    """Give a garment real UVs, and say what texel density they buy.
+
+    Two reasons, and the second is the one that matters for the art.
+
+    The technical one: most apparel primitives shipped with no TEXCOORD_0 at
+    all, so every requirement about texel density, logo stretching or an atlas
+    was vacuous rather than met, and nothing in the set could ever carry a
+    printed label or a baked weave.
+
+    The visual one: a `ShaderNodeTexNoise` with no Vector input samples
+    GENERATED space -- a 3-D volume normalised to the bounding box. Slice that
+    with a garment and the "weave" does not follow the cloth: on a sleeve, which
+    is a thin diagonal part of a 600 mm box, the noise stretches along the
+    sleeve's axis and the fabric reads as smeared plastic exactly where the
+    player looks closest. Sampling in UV space instead makes the grain follow
+    the surface, which is what a woven or knitted cloth does.
+
+    Returns texels per metre at a 1024 map, which is the number to compare
+    against the 768/yd hero ceiling.
+    """
+    import bmesh
+    if ob.type != "MESH" or not ob.data.polygons:
+        return 0.0
+    bpy.ops.object.select_all(action='DESELECT')
+    ob.select_set(True)
+    bpy.context.view_layer.objects.active = ob
+    if not ob.data.uv_layers:
+        ob.data.uv_layers.new(name="UVMap")
+    bpy.ops.object.mode_set(mode='EDIT')
+    bpy.ops.mesh.select_all(action='SELECT')
+    bpy.ops.uv.smart_project(angle_limit=math.radians(angle),
+                             island_margin=margin)
+    bpy.ops.object.mode_set(mode='OBJECT')
+
+    bm = bmesh.new()
+    bm.from_mesh(ob.data)
+    uvl = bm.loops.layers.uv.active
+    area3d = sum(f.calc_area() for f in bm.faces)
+    area_uv = 0.0
+    for f in bm.faces:
+        ls = f.loops
+        acc = 0.0
+        for i in range(len(ls)):
+            a = ls[i][uvl].uv
+            b = ls[(i + 1) % len(ls)][uvl].uv
+            acc += a.x * b.y - b.x * a.y
+        area_uv += abs(acc) * 0.5
+    bm.free()
+    if area3d <= 0.0 or area_uv <= 0.0:
+        return 0.0
+    # texels per metre at 1024: sqrt(uv area) * 1024 / sqrt(surface area)
+    density = math.sqrt(area_uv) * 1024.0 / math.sqrt(area3d)
+    if label:
+        print("  UV %s: %.0f texels/m at 1024 (%.3f m2 into %.1f%% of the map)"
+              % (label, density, area3d, area_uv * 100.0))
+    return density

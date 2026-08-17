@@ -229,6 +229,12 @@ def main():
     H.set_engine("CYCLES" if "cycles" in args else "EEVEE", samples=110)
 
     ST.exposure(-0.62)
+    # UVs and the grain BEFORE the first render, not just before the
+    # export: the studio frames are the evidence, so they have to be of
+    # the asset that ships.
+    for _ob in subject:
+        D.unwrap(_ob)
+    ST.grain_follows_cloth(subject)
     centre = (lo + hi) * 0.5
     # Frame from the BOUNDS. `subject_sphere` and `fit_view` both landed the
     # cap at a third of the frame here, and a cell that small in the contact
@@ -290,6 +296,12 @@ def main():
     if "noexport" not in args:
         GLB = os.path.join(REPO, "Assets", "models", "hero", "v4")
         os.makedirs(GLB, exist_ok=True)
+        # UVS BEFORE THE AXIS BAKE. Most of these primitives shipped with no
+        # TEXCOORD_0 at all, which makes every texel-density and
+        # logo-stretching requirement vacuous rather than met, and means
+        # nothing here could ever carry a printed label or a baked weave.
+        for _ob in subject:
+            D.unwrap(_ob, label=_ob.name)
         H.bake_gltf_axis(subject)
         H.export_glb(subject, os.path.join(GLB, "apparel_cap_peg.glb"))
     print("renders in", OUT)
