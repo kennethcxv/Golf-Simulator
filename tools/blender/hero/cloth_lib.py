@@ -92,7 +92,8 @@ def grid_surface(name, fn, nu=21, nv=17, smooth=True):
 
 def folded_stack(prefix, centre, size, leaves=3, sag=0.0026, crease=0.0018,
                  squareness=7.5, steps=40, seed=0.0, gap=0.0009,
-                 rollw=None, stagger=0.0026, wander=1.0):
+                 rollw=None, stagger=0.0026, wander=1.0, lean=0.0042,
+                 twist=1.15, taper=0.62):
     """A folded garment: a stack of SEPARATE leaves, one closed shell each.
 
     The version this replaces was a single loft whose rings stepped out and
@@ -121,6 +122,11 @@ def folded_stack(prefix, centre, size, leaves=3, sag=0.0026, crease=0.0018,
     In the reference no two plies line up: the front edges wander in and out by
     the better part of a centimetre over a 300 mm garment. `wander` scales that
     and it is most of what stops the stack reading as machined.
+
+    `lean` and `twist` accumulate up the pile and `taper` thins each ply from
+    its fold to its cut end. Those three are v3: v2 had independent jitter
+    around a fixed centre and a constant thickness, which is a column of
+    boards however much noise is on it.
 
     `gap` is deliberately under `assert_assembly`'s 1.5 mm contact tolerance:
     plies resting on each other are a stack, plies floating apart are the loose
@@ -184,13 +190,24 @@ def folded_stack(prefix, centre, size, leaves=3, sag=0.0026, crease=0.0018,
     for k in range(leaves):
         ph = seed + k * 2.3999632          # golden angle: no two leaves agree
         z0 = cz + k * (th + gap) + half
-        # each leaf is its own cut of cloth, its own size, sat a little further
-        # back and turned a degree or so off the one below it
+        # THE STACK LEANS. Every folded pile in the reference does --
+        # trousers-stack.jpg is the clearest: the top pair sits visibly forward
+        # and left of the one under it, and the lean ACCUMULATES up the pile.
+        # v2 gave each leaf independent jitter around a fixed centre, which
+        # averages out to a column and reads as machined however much noise is
+        # in it. Jitter is not the same thing as lean.
+        #
+        # So the offset and the twist are CUMULATIVE in k, with the direction
+        # taken from the seed so no two garments lean the same way, and noise
+        # on top of that rather than instead of it.
+        lean_a = seed * 1.7
+        lx = math.cos(lean_a) * lean
+        ly = math.sin(lean_a) * lean
         sx = 1.0 - 0.013 * k + 0.011 * math.sin(ph * 1.7)
         sy = 1.0 - 0.009 * k + 0.013 * math.sin(ph * 2.3 + 1.1)
-        ox = 0.0021 * math.sin(ph * 3.1)
-        oy = stagger * k + 0.0024 * math.sin(ph * 1.3 + 2.0)
-        rot = math.radians(1.7 * math.sin(ph * 0.9 + 0.4))
+        ox = lx * k + 0.0021 * math.sin(ph * 3.1)
+        oy = (stagger + ly) * k + 0.0024 * math.sin(ph * 1.3 + 2.0)
+        rot = math.radians(twist * k + 1.7 * math.sin(ph * 0.9 + 0.4))
         cr, sr = math.cos(rot), math.sin(rot)
         top_leaf = (k == leaves - 1)
         prof = profile(top_leaf)
@@ -211,12 +228,36 @@ def folded_stack(prefix, centre, size, leaves=3, sag=0.0026, crease=0.0018,
             return rollw * (1.0 + 0.34 * math.sin(a * 2.0 + _ph * 1.9)
                             + 0.19 * math.sin(a * 3.0 - _ph))
 
+        def thickat(a, _ph=ph):
+            """A PLY IS NOT THE SAME THICKNESS ALL THE WAY ROUND.
+
+            It is fattest at the fold, where several layers of cloth turn over
+            together, and thinnest at the cut ends where the fabric just stops.
+            trousers-stack.jpg is unambiguous: every pair in it is a fat rounded
+            roll at the left and tapers away to nothing at the right.
+
+            v2 made each ply a constant-thickness slab, and a stack of
+            constant-thickness slabs is a stack of boards.
+
+            The fraction returned is a scale on `half`, and it must never
+            exceed 1: leaf k's top sits at z0k + half*t(a) and leaf k+1's
+            bottom at z0k + th + gap - half*t(a), so the two stay clear by
+            gap + 2*half*(1 - t(a)). Where the ply is thin the slot between
+            plies opens up, which is exactly where the reference is darkest.
+            """
+            back = 0.5 + 0.5 * math.sin(a)          # 1 at +y, 0 at -y
+            wob = 0.06 * math.sin(a * 3.0 + _ph * 1.3)
+            return max(0.35, min(1.0, taper + (1.0 - taper) * back + wob))
+
         verts, faces = [], []
         rings = []
         for entry in prof:
             if entry[0] == "pole":
                 rings.append(("pole", len(verts), entry[1]))
-                verts.append(Vector((cx + ox, cy + oy, z0 + half * entry[1])))
+                # the pole takes the AVERAGE taper, so the flat rings around it
+                # are not pulled away from their own centre
+                verts.append(Vector((cx + ox, cy + oy,
+                                     z0 + half * entry[1] * (taper + 1.0) * 0.5)))
                 continue
             start = len(verts)
             for i in range(steps):
@@ -224,10 +265,11 @@ def folded_stack(prefix, centre, size, leaves=3, sag=0.0026, crease=0.0018,
                 bx, by = boundary(a)
                 m = math.hypot(bx, by) or 1e-9
                 rw = rollat(a)
+                tk = thickat(a)
                 if entry[0] == "flat":
                     # a fraction of the outline pulled in by one roll width
                     s = max(0.0, 1.0 - rw / m) * entry[1]
-                    zf = entry[2]
+                    zf = entry[2] * tk
                 else:
                     # the roll: inset runs out as the surface turns over, so
                     # the crest is the true outline and the width of the turn
@@ -235,7 +277,7 @@ def folded_stack(prefix, centre, size, leaves=3, sag=0.0026, crease=0.0018,
                     # radius the way a fractional inset would
                     theta = entry[1]
                     s = max(0.0, 1.0 - (rw * (1.0 - math.sin(theta))) / m)
-                    zf = entry[2] * math.cos(theta)
+                    zf = entry[2] * math.cos(theta) * tk
                 x, y = bx * s, by * s
                 xr, yr = x * cr - y * sr, x * sr + y * cr
                 px, py = cx + ox + xr, cy + oy + yr
@@ -750,6 +792,180 @@ def collar_flat(name, centre, halfw=0.052, back=0.030, forward=0.030,
     mod.offset = -0.4
     mod.use_rim = True
     return HS.apply_mods(obj)
+
+
+def folded_ribbon(prefix, centre, size, plies=4, squareness=7.5,
+                  xsteps=22, seed=0.0, gap=0.0011, sag=0.0030,
+                  crease=0.0032, lean=0.0040, wander=1.0, cut_frac=0.34):
+    """A folded garment as ONE PIECE OF CLOTH THAT HAS BEEN FOLDED.
+
+    v1 was a lofted block. v2 made it a stack of separate closed pillows, which
+    is why the plies finally read -- but a pillow has two free edges and a real
+    ply has ONE. Fold a shirt and the layers are JOINED, alternately at the
+    front and at the back, in a concertina. That is the difference between
+    cloth that has been folded and a shape that resembles it, and it is what
+    the owner meant by "approximated from the outside".
+
+    You can see it in the reference the moment you look for it. In
+    trousers-stack.jpg every pair is a fat rounded U-TURN at the left and a
+    tapering cut end at the right, and the pair above it turns the other way.
+    A stack of separate slabs cannot do that: it has the same edge at both
+    ends, so it reads as boards however much wander is on it.
+
+    CONSTRUCTION. The cross-section in (y, z) is a single closed curve: a
+    centreline that runs the depth of the garment, turns through a half circle
+    at one end, runs back at the next level down, turns at the other end, and
+    so on -- offset either side by half the cloth thickness and capped at the
+    two cut ends. That section is then swept across x, scaled by the garment's
+    own rounded-rectangle outline so the corners round off.
+
+    One closed shell, so `assert_all_one_piece` is satisfied by construction and
+    there is no leaf-to-leaf clearance to police: the plies cannot lace through
+    each other because they are the same surface.
+
+    `cut_frac` is how far the cut ends fall short of the fold ends, because a
+    garment folded in three does not land its raw edge flush with its fold.
+    """
+    cx, cy, cz = centre
+    w, d, h = size
+    exp = 2.0 / squareness
+    t = (h - gap * (plies - 1)) / float(plies)   # one ply's cloth thickness
+    step = t + gap                                # centreline pitch
+
+    # ---- the centreline of the folded ribbon, in (y, z)
+    # y runs -d/2 (front) to +d/2 (back); the ribbon starts at the BOTTOM and
+    # works up, so the top ply is the one the collar and the print sit on.
+    half_d = d * 0.5
+    cut_in = half_d * cut_frac
+    path = []
+    for i in range(plies):
+        zc = -h * 0.5 + t * 0.5 + i * step
+        # THE FOLD FACES THE SHOPPER. Alternating from the back put only one
+        # U-turn at the front of a four-ply garment and left the raw cut ends
+        # facing out. Every stack in the reference is the other way round: the
+        # fat rounded folds are what you see from the aisle and the cut edges
+        # are tucked to the back.
+        turn_at_back = (i % 2 == 1)
+        # a ply runs from its cut end (or its incoming turn) to the far end
+        if i == 0:
+            y_from = -half_d + cut_in            # the first raw edge
+        else:
+            y_from = half_d if not turn_at_back else -half_d
+        y_to = half_d if turn_at_back else -half_d
+        if i == plies - 1:
+            y_to = (half_d - cut_in) if turn_at_back else (-half_d + cut_in)
+        path.append((y_from, y_to, zc))
+
+    def centreline():
+        """Dense samples of the centreline, front-cut end to back-cut end."""
+        pts = []
+        for i, (y0, y1, zc) in enumerate(path):
+            n = max(4, int(abs(y1 - y0) / (d * 0.115)))
+            for k in range(n + 1):
+                f = k / n
+                pts.append(Vector((0.0, y0 + (y1 - y0) * f, zc)))
+            if i < plies - 1:
+                # the U-turn: a half circle of radius step/2 at the far end
+                nxt = path[i + 1]
+                r = step * 0.5
+                yc = y1
+                sgn = 1.0 if y1 > 0 else -1.0
+                for k in range(1, 7):
+                    a = math.pi * (k / 7.0)
+                    pts.append(Vector((0.0,
+                                       yc + sgn * math.sin(a) * r,
+                                       zc + r - math.cos(a) * r)))
+        return pts
+
+    line = centreline()
+
+    # ---- offset it either side by half the cloth, and cap the two cut ends
+    sect = []
+    n_line = len(line)
+    for i, q in enumerate(line):
+        a = line[max(0, i - 1)]
+        b = line[min(n_line - 1, i + 1)]
+        tan = (b - a)
+        if tan.length < 1e-9:
+            tan = Vector((0.0, 1.0, 0.0))
+        tan.normalize()
+        nrm = Vector((0.0, -tan.z, tan.y))       # in-plane perpendicular
+        sect.append((q, nrm))
+
+    upper = [q + n * (t * 0.5) for q, n in sect]
+    lower = [q - n * (t * 0.5) for q, n in sect]
+
+    def cap(q, n, out_dir):
+        """A raw edge is a rounded hem, not a square cut."""
+        return [q + n * (t * 0.5 * math.cos(a)) + out_dir * (t * 0.5 * math.sin(a))
+                for a in (math.pi * 0.25, math.pi * 0.5, math.pi * 0.75)]
+
+    q0, n0 = sect[0]
+    d0 = (line[0] - line[1]).normalized()
+    q1, n1 = sect[-1]
+    d1 = (line[-1] - line[-2]).normalized()
+    ring2d = (list(upper) + cap(q1, n1, d1) + list(reversed(lower))
+              + cap(q0, -n0, d0))
+
+    # ---- sweep the section across x, scaled by the garment's own outline
+    NS = len(ring2d)
+    verts, faces = [], []
+    for xi in range(xsteps):
+        u = -1.0 + 2.0 * xi / (xsteps - 1.0)
+        # rounded-rectangle footprint: full width across the middle, tucking in
+        # at the two ends
+        # THE FOOTPRINT IS A ROUNDED RECTANGLE, and it has to be computed as
+        # one. The first cut raised u to the superellipse exponent and THEN to
+        # the eighth, double-counting the taper: the depth was already down to
+        # 90% by u = 0.5 and the whole garment came out a lens. A superellipse
+        # |X|^n + |Y|^n = 1 gives the half-depth directly, and at n = 7.5 it
+        # holds full depth to u = 0.9 and only rounds off in the last tenth.
+        k = max(0.0, 1.0 - abs(u) ** squareness) ** (1.0 / squareness)
+        x = u * w * 0.5
+        wob = 1.0 + wander * (0.020 * math.sin(u * 3.1 + seed)
+                              + 0.012 * math.sin(u * 6.7 - seed * 1.7))
+        # the pile leans, and it leans MORE the higher up you are
+        for p2, _n in ((p, 0) for p in ring2d):
+            zt = (p2.z + h * 0.5) / max(1e-6, h)        # 0 bottom, 1 top
+            droop = (1.0 - min(1.0, (u * u) * 0.80)) * sag * (0.25 + 0.75 * zt)
+            rumple = crease * 0.30 * math.sin(2.1 * u + 3.3 * p2.y / d + seed)
+            verts.append(Vector((
+                cx + x + lean * zt * math.cos(seed * 1.7),
+                cy + p2.y * k * wob + lean * zt * math.sin(seed * 1.7),
+                cz + h * 0.5 + p2.z - droop + rumple)))
+    for xi in range(xsteps - 1):
+        for si in range(NS):
+            a = xi * NS + si
+            b = xi * NS + (si + 1) % NS
+            faces.append((a, b, b + NS, a + NS))
+    # cap the two x ends
+    first = list(range(NS))
+    last = [(xsteps - 1) * NS + i for i in range(NS)]
+    faces.append(tuple(reversed(first)))
+    faces.append(tuple(last))
+    obj = HS.mesh_from(f"{prefix}_Cloth", verts, faces, smooth=True)
+    smooth_by_angle(obj, 46.0)
+
+    # THE BUILDER HANDS OUT ITS OWN TOP SURFACE. top_z() answers with the
+    # NEAREST VERTEX above a height cut, and with six plies stacked inside one
+    # shell the nearest vertex to a point can easily be on the ply BELOW the
+    # top one -- 7 mm low, which is enough to bury a collar completely. That is
+    # exactly what happened: the collar, placket and buttons all disappeared
+    # the moment the ply count went from four to six, and nothing failed,
+    # because they are allow-listed to interpenetrate the cloth.
+    #
+    # This is computed from the same expressions that built the surface, so it
+    # cannot drift from it.
+    z_top = path[-1][2] + t * 0.5
+
+    def top_at(x, y):
+        u = max(-1.0, min(1.0, (x - cx) / (w * 0.5)))
+        zt = (z_top + h * 0.5) / max(1e-6, h)
+        droop = (1.0 - min(1.0, (u * u) * 0.80)) * sag * (0.25 + 0.75 * zt)
+        rumple = crease * 0.30 * math.sin(2.1 * u + 3.3 * (y - cy) / d + seed)
+        return cz + h * 0.5 + z_top - droop + rumple
+
+    return {"cloth": obj, "top_at": top_at}
 
 
 def top_leaf(parts):

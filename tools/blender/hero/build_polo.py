@@ -378,27 +378,32 @@ def build_hung(p, way):
 FOLD = (0.3080, 0.2360, 0.0450)
 
 
-LEAVES = 4
+# SIX PLIES, NOT FOUR. Four in 45 mm makes each U-turn a 22 mm sausage and the
+# front edge reads as two fat rolls; every folded polo in polo-rail-shop.jpg
+# shows four to six THIN layers.
+LEAVES = 6
 
 
 def build_folded(p, way):
     w, d, h = FOLD
-    p.update(CL.folded_stack("PoloFold", (0, 0, 0), FOLD, leaves=LEAVES,
-                             sag=0.0032, crease=0.0038, seed=0.7, wander=1.7))
-    # Everything that sits ON the garment measures off the TOP leaf. The stack
-    # is separate objects now, so there is no single "body" to ask.
-    body = p[f"leaf{LEAVES - 1}"]
+    # v3: ONE piece of cloth, folded, not a stack of separate pillows.
+    p.update(CL.folded_ribbon("PoloFold", (0, 0, 0), FOLD, plies=LEAVES,
+                              sag=0.0032, crease=0.0038, seed=0.7, wander=1.7))
+    body = p["cloth"]
+    # the ribbon hands out its own top surface; top_z's nearest-vertex answer
+    # can land on the ply below and bury whatever is being placed
+    top_at = p.pop("top_at")
 
     # the two sleeve folds, as ridges under the top leaf
     for k, sx in ((0, -1.0), (1, 1.0)):
         x = sx * w * 0.298
-        z = CL.top_z(body, x, 0.0)
+        z = top_at(x, 0.0)
         p[f"sleeve_fold{k}"] = CL.fold_line(
             f"PoloFold_Sleeve{k}", (x, -d * 0.40, z - 0.0008),
             (x + sx * 0.0060, d * 0.40, z - 0.0014), 0.0062, sides=9)
 
     # THE COLLAR, splayed flat with its points on the body
-    cz = CL.top_z(body, 0.0, d * 0.30)
+    cz = top_at(0.0, d * 0.30)
     # lift was 16.5 mm, which stood the whole band up off the shirt and was
     # most of why it read as a handle. A collar pressed under three more
     # garments is a few millimetres proud, no more, and 6.4 mm of thickness on
@@ -412,7 +417,7 @@ def build_folded(p, way):
     # start 52 mm forward of the notch, so it read as a luggage tag lying on
     # the shirt rather than the opening the collar sits on either side of. It
     # starts under the collar now and its top end is hidden by it.
-    top = CL.top_z(body, 0.0, d * 0.16)
+    top = top_at(0.0, d * 0.16)
     path = [Vector((0.0, 0.0800 - 0.0214 * k, top + 0.0012 - 0.0002 * k))
             for k in range(8)]
     p["placket"] = CL.strip("PoloFold_Placket", path, 0.0158, 0.0016, sides=8)
@@ -442,7 +447,7 @@ def build_folded(p, way):
     bx = w * 0.320
     NTOP = 16
     ys = [-d * 0.42 + (d * 0.84) * (i / (NTOP - 1.0)) for i in range(NTOP)]
-    zs = [CL.top_z(body, bx, y) + 0.0006 for y in ys]
+    zs = [top_at(bx, y) + 0.0006 for y in ys]
     # top_z answers with the NEAREST VERTEX, so walking a straight line across
     # a polar grid the answer can jump a ring and bite a step out of the band's
     # edge. One pass takes the step out; more than that flattens the very
@@ -453,7 +458,7 @@ def build_folded(p, way):
     # The turn down each face has to clear the WIDEST leaf at this x, not a
     # nominal d/2 -- each leaf wanders by the better part of a centimetre and
     # the band was cutting through two of them.
-    leaves = [p[f"leaf{i}"] for i in range(LEAVES)]
+    leaves = [p["cloth"]]
     y_front = CL.edge_y(leaves, bx, -1.0) - 0.0018
     y_back = CL.edge_y(leaves, bx, +1.0) + 0.0018
 
@@ -565,7 +570,7 @@ DEEP = {
                ("placket", "button1"), ("collar", "sleeve_fold0"),
                ("collar", "sleeve_fold1"),
                ("size_band", "sleeve_fold1"), ("size_band", "sleeve_fold0")]
-    + [(f"leaf{i}", o) for i in range(LEAVES)
+    + [("cloth", o)
        for o in ("collar", "placket", "size_band", "button0", "button1",
                  "sleeve_fold0", "sleeve_fold1")],
 }
@@ -578,10 +583,8 @@ def check(name, parts):
             if hasattr(v, "data") and getattr(v.data, "vertices", None)}
     HS.assert_all_one_piece(mesh, f"polo-{name}: every part is one piece")
     HS.assert_assembly(mesh, f"polo-{name}: the assembly", allow=DEEP[name])
-    if name == "folded":
-        # the general ceiling is 6 mm and these plies are 9.9 mm thick, so it
-        # cannot see a leaf laced halfway through its neighbour
-        CL.assert_leaves_clear(mesh, f"polo-{name}: the leaves stand clear")
+    # v3: the plies are one surface now, so they cannot lace through each
+    # other -- there is nothing left for assert_leaves_clear to police.
 
 
 def main():
