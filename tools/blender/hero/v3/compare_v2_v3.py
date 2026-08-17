@@ -36,11 +36,28 @@ SPREAD = {"polo-folded": 0.34, "tee-folded": 0.40, "hoodie-folded": 0.44,
 
 
 def build_side(mod, garment, origin):
-    """Build one garment from one module, material it, return its parts."""
+    """Build one garment from one module AT ITS OWN ORIGIN, then move it.
+
+    Passing an offset origin into the builder looked equivalent and is not: v2
+    contains at least two places that add the origin to a value that already
+    has it in, and they are invisible at origin 0 -- which is every render
+    either version has ever had. `edge_x` threw the polo's size tag 400 mm
+    clear that way, and `top_z` refuses outright on the hoodie, 268 mm from
+    the surface it is looking for, so the baseline could not be built at all.
+
+    Building at zero and translating afterwards renders v2 exactly as it
+    ships. Fixing those bugs in v2 to make the comparison work would mean
+    comparing against a version the owner has never seen.
+    """
     fn = getattr(mod, "GARMENTS", {}).get(garment)
     if fn is None:
         raise SystemExit(f"CONTROL FAILED: {mod.__name__} has no {garment}")
-    parts = fn(origin=origin)
+    parts = fn(origin=(0.0, 0.0, 0.0))
+    for ob in parts.values():
+        if hasattr(ob, "location"):
+            ob.location.x += origin[0]
+            ob.location.y += origin[1]
+            ob.location.z += origin[2]
     cloth, trim = mod.materials()
     for key, ob in parts.items():
         if not hasattr(ob, "data") or getattr(ob.data, "vertices", None) is None:

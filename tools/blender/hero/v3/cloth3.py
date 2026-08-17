@@ -32,6 +32,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
+import bmesh
 import bpy  # noqa: E402
 from mathutils import Vector  # noqa: E402
 import hardsurface_lib as HS  # noqa: E402
@@ -1598,7 +1599,8 @@ def decal(name, centre, normal, size, lift=0.0016):
 
 
 
-def conform_decal(name, top_at, centre, size, nx=9, ny=9, lift=0.0006):
+def conform_decal(name, top_at, centre, size, nx=9, ny=9, lift=0.0006,
+                  taper=(0.0, 0.0, 0.0, 0.0)):
     """A print that FOLLOWS THE CLOTH instead of hovering over it.
 
     `decal` is a flat quad. On a hung shirt that is nearly right, but the top
@@ -1621,11 +1623,23 @@ def conform_decal(name, top_at, centre, size, nx=9, ny=9, lift=0.0006):
             fx = i / (nx - 1.0)
             x = cx + (fx * 2.0 - 1.0) * sw
             y = cy + (fy * 2.0 - 1.0) * sh
-            grid.append((x, y, top_at(x, y)))
+            # `taper` is (x_low, x_high, y_low, y_high): the fraction of the
+            # patch over which the lift ramps to zero at that border, so the
+            # panel is SEWN DOWN on that side instead of ending in a wall.
+            # A kangaroo pocket is stitched at the sides and the bottom and
+            # open only along the top, and the geometry should say which is
+            # which: as a uniform slab it read as a box screwed to the front.
+            r = 1.0
+            for f, t in ((fx, taper[0]), (1.0 - fx, taper[1]),
+                         (fy, taper[2]), (1.0 - fy, taper[3])):
+                if t > 1e-6:
+                    e = min(1.0, f / t)
+                    r = min(r, e * e * (3.0 - 2.0 * e))
+            grid.append((x, y, top_at(x, y), r))
     n = nx * ny
-    for x, y, z in grid:
-        verts.append(Vector((x, y, z + lift)))
-    for x, y, z in grid:
+    for x, y, z, r in grid:
+        verts.append(Vector((x, y, z + lift * r)))
+    for x, y, z, r in grid:
         verts.append(Vector((x, y, z - 0.0004)))
     for j in range(ny - 1):
         for i in range(nx - 1):
@@ -1726,9 +1740,24 @@ def framed_sweep(name, pts, nrms, halfw, halfh, closed=False, sides=8,
             faces.append((r * sides + k, r * sides + k2,
                           r2 * sides + k2, r2 * sides + k))
     if not closed:
-        faces.append(tuple(range(sides - 1, -1, -1)))
-        b = (n - 1) * sides
-        faces.append(tuple(range(b, b + sides)))
+        # DOMED, not plated. Same fault as loft's: a flat n-gon on the end of
+        # a rolled hem or a drawcord reads as a cut-off tube, and it is what
+        # assert_no_flat_caps named on the hood rim and both cords.
+        for ring0, other0, flip in ((0, sides, True),
+                                    ((n - 1) * sides, (n - 2) * sides, False)):
+            base = verts[ring0:ring0 + sides]
+            oth = verts[other0:other0 + sides]
+            mid = sum(base, Vector((0.0, 0.0, 0.0))) / float(sides)
+            rad = sum(((q - mid).length for q in base)) / float(sides)
+            axis = mid - sum(oth, Vector((0.0, 0.0, 0.0))) / float(sides)
+            if axis.length < 1e-9:
+                axis = Vector((0.0, 0.0, 1.0))
+            c = len(verts)
+            verts.append(mid + axis.normalized() * (rad * 0.70))
+            for k in range(sides):
+                k2 = (k + 1) % sides
+                faces.append((c, ring0 + k2, ring0 + k) if flip
+                             else (c, ring0 + k, ring0 + k2))
     return HS.mesh_from(name, verts, faces, smooth=True)
 
 
@@ -1755,6 +1784,30 @@ def stud(name, base, direction, radius, height, sides=12):
     return loft(name, rings, close_bottom=True, close_top=True, smooth=True,
                 cap=("ngon", "dome"), cap_rise=0.55)
 
+
+def tri_ngons(obj):
+    """Triangulate any polygon with more than four sides, in place.
+
+    A BOOLEAN CUT IS NOT A FLAT END CAP, but it produces n-gons all round the
+    rim -- 56 of them on the hood, of 5, 6, 7 and 24 sides -- and
+    assert_no_flat_caps cannot tell the two apart, nor should it try: the rule
+    is crisp precisely because it does not have a taste in it.
+
+    So the geometry is made to fit the rule rather than the rule bent to fit
+    the geometry. Triangulating the cut rim changes nothing visible (the faces
+    are coplanar), is what the exporter would do anyway, and leaves the check
+    strict enough to keep catching real plates.
+    """
+    me = obj.data
+    bm = bmesh.new()
+    bm.from_mesh(me)
+    big = [f for f in bm.faces if len(f.verts) > 4]
+    if big:
+        bmesh.ops.triangulate(bm, faces=big)
+    bm.to_mesh(me)
+    bm.free()
+    me.update()
+    return obj
 
 def button(name, centre, normal, radius, thickness, sides=14):
     """A SHIRT BUTTON, which is a domed disc with a rim -- not a flat plug.

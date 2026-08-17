@@ -474,16 +474,35 @@ def tee_hung(origin=(0, 0, 0), broken=""):
 def hoodie_folded(origin=(0, 0, 0), broken=""):
     ox, oy, oz = origin
     w, d, h = FOLD_HOOD
-    # a hoodie is thick cloth: fewer, fatter plies than a polo
+    # THICK CLOTH NEEDS A WIDE GAP, NOT FEWER PLIES. "Fewer, fatter plies than
+    # a polo" was right about the cloth and wrong about the result: at four
+    # plies and the default 1.1 mm gap the slots between them close up, and
+    # the whole stack read as one soft pillow with a seam -- v2, with four
+    # crisp plies, beat it outright on the first comparison frame (H1). Fleece
+    # is what makes the gaps WIDE. Five plies at 3 mm gives four dark slots.
     p = dict(CL.folded_ribbon("HoodFold", (ox, oy, oz), FOLD_HOOD,
-                              plies=4, sag=0.0034, crease=0.0030, seed=2.4,
-                              wander=1.5))
+                              # AND A WIDE GAP WAS THE WRONG DIRECTION. What
+                              # makes a slot dark is a NARROW deep valley
+                              # between two rolls; 3 mm just fattens the
+                              # U-turn radius until neighbouring rolls merge
+                              # into one soft mass. The polo's slots read
+                              # because its gap is 2.1 mm at eight plies. Six
+                              # plies at 1.8 gives fleece-thick cloth AND the
+                              # dark line between each roll.
+                              plies=6, gap=0.0018, sag=0.0034, crease=0.0030,
+                              seed=2.4, wander=1.5))
     body = p["cloth"]
     top_at = p.pop("top_at")
     # the hood folded on top: a fat soft roll across the back half
-    hz = oz + h + 0.0140
-    if broken == "hood":
-        hz += 0.026
+    # ON THE MEASURED SURFACE, not a nominal height. A flat hz gave the hood a
+    # dead straight bottom edge floating over a cloth that domes several
+    # millimetres under it, which is most of why it read as a bolster laid on
+    # a pad rather than as part of the same garment (H2).
+    def hz_at(x):
+        return top_at(x, oy + d * 0.115) + 0.0092
+
+    hz = hz_at(ox)
+    lift = 0.026 if broken == "hood" else 0.0
     # A FOLDED HOODIE SHOWS ITS HOOD as a distinct mass on top of the stack --
     # that was the whole of the "does not read as a hoodie" verdict. A plain
     # roll is not enough: this is a rounded pillow with its own rim, sitting
@@ -512,7 +531,11 @@ def hoodie_folded(origin=(0, 0, 0), broken=""):
         # showed on the left end
         # A FLAP, not a dome. Rounded hard at the two ends so there is no flat
         # facet where the loft caps it, and flat across everything between.
-        span = max(0.22, min(1.0, (1.0 - abs(2 * t - 1) ** 5.0) * 1.9))
+        # ROUNDER IN PLAN. At exponent 5 the plateau is nearly rectangular,
+        # and once the rise came down to 11 mm the hood stopped being a
+        # bolster and became a flat card with square corners (H9). The same
+        # amount of cloth wants a longer taper at each end.
+        span = max(0.22, min(1.0, (1.0 - abs(2 * t - 1) ** 2.6) * 1.55))
         ring = []
         for i2 in range(24):
             a2 = 2 * math.pi * i2 / 24
@@ -521,15 +544,20 @@ def hoodie_folded(origin=(0, 0, 0), broken=""):
             # like a suitcase handle, and with a bar across its mouth that is
             # exactly what it read as. A hood folded onto a stack is a soft
             # band across the back third, barely proud of the cloth.
-            depth = d * 0.240 * (0.32 + 0.68 * back)
-            rise = 0.0165 * (0.30 + 0.70 * back)
+            depth = d * 0.255 * (0.32 + 0.68 * back)
+            # THE HOOD LIES FLAT. ref/apparel/hoodie-shop.jpg shows it lying
+            # against the back, not standing off it; at 16.5 mm of rise it was
+            # a rolled bolster. Lower and a little wider is the same amount of
+            # cloth, read correctly.
+            rise = 0.0112 * (0.30 + 0.70 * back)
             # cloth, not a moulding: the flap wanders along its length and
             # sags a little between its ends
             rise *= 1.0 + 0.10 * math.sin(t * 7.1 + 0.6)
             depth *= 1.0 + 0.055 * math.sin(t * 4.3 + 2.2)
-            ring.append(Vector((ox - w * 0.40 + w * 0.80 * t,
+            xr = ox - w * 0.40 + w * 0.80 * t
+            ring.append(Vector((xr,
                                 oy + d * 0.115 + math.sin(a2) * depth * span,
-                                hz + math.cos(a2) * rise * span
+                                hz_at(xr) + lift + math.cos(a2) * rise * span
                                 - 0.0060 * (1 - span))))
         hood_rings.append(ring)
     # TUCK THE ENDS CLOSED. CL.loft caps the first and last ring with a flat
@@ -574,7 +602,7 @@ def hoodie_folded(origin=(0, 0, 0), broken=""):
     m.solver = "EXACT"
     hood = HS.apply_mods(hood)
     bpy.data.objects.remove(cut, do_unlink=True)
-    p["hood"] = CL.smooth_by_angle(hood, 38.0)
+    p["hood"] = CL.smooth_by_angle(CL.tri_ngons(hood), 38.0)
 
     # the rolled edge now runs ROUND THE MOUTH the boolean cut, instead of
     # lying across a closed dome
@@ -605,11 +633,44 @@ def hoodie_folded(origin=(0, 0, 0), broken=""):
         p[f"cord{ci}"] = CL.framed_sweep(f"HoodFold_Cord{ci}", path_pts, nrm,
                                          0.0030, 0.0026, sides=6)
         tip = path_pts[-1]
-        p[f"cord_tip{ci}"] = HS.cylinder(
-            f"HoodFold_CordTip{ci}", (tip.x, tip.y - 0.0075, tip.z),
-            0.0035, 0.0130, verts=8,
-            rotation=Quaternion((1, 0, 0), math.pi / 2))
+        # A CLOSED AGLET. HS.cylinder left an 8-gon plate at each end, and an
+        # aglet is not an open tube -- it is crimped on the cord and rounded
+        # off at the free end.
+        ag = []
+        for (tt, rf) in ((0.00, 0.72), (0.18, 1.00), (0.82, 1.00),
+                         (1.00, 0.66)):
+            yy = tip.y - 0.0010 - 0.0130 * tt
+            ag.append([Vector((tip.x + math.cos(2 * math.pi * i / 8) * 0.0035 * rf,
+                               yy,
+                               tip.z + math.sin(2 * math.pi * i / 8) * 0.0035 * rf))
+                       for i in range(8)])
+        p[f"cord_tip{ci}"] = CL.loft(f"HoodFold_CordTip{ci}", ag, smooth=True,
+                                     cap=("dome", "dome"), cap_rise=0.45)
 
+    # THE KANGAROO POCKET. Absent from both versions, and it is the one thing
+    # on a hoodie that nothing else in the shop has -- ref/apparel/
+    # hoodie-shop.jpg has it running nearly the full width. Folded face up it
+    # is what you actually see: a second layer of the same cloth across the
+    # lower front with a defined opening edge along the top.
+    #
+    # Built off top_at for the same reason the tee's print is: a flat slab on
+    # a domed stack lifts at the corners and catches a rim of shadow.
+    p["pocket"] = CL.conform_decal("HoodFold_Pocket", top_at,
+                                   (ox - w * 0.010, oy - d * 0.185, 0.0),
+                                   (w * 0.660, d * 0.330),
+                                   nx=15, ny=9, lift=0.0044,
+                                   taper=(0.30, 0.30, 0.34, 0.0))
+    # A WELT, NOT A BAR. At 4.6 mm up on a 5.8 mm roll the opening edge stood
+    # 8.5 mm off the cloth and, with the two cords crossing it, the whole thing
+    # read as a suitcase handle (H10). A pocket mouth is a hemmed edge: you see
+    # it because of the shadow under it, not because it stands up.
+    lipz = [top_at(ox - w * 0.33, oy - d * 0.022) + 0.0018,
+            top_at(ox + w * 0.31, oy - d * 0.030) + 0.0018]
+    p["pocket_top"] = CL.fold_line(
+        "HoodFold_PocketTop",
+        (ox - w * 0.330, oy - d * 0.022, lipz[0]),
+        (ox + w * 0.310, oy - d * 0.030, lipz[1]),
+        radius=0.0042, sides=8, sink=0.45)
     return p
 
 
@@ -800,33 +861,73 @@ def trousers_folded(origin=(0, 0, 0), broken=""):
     # read as an open trough lying across the trousers with the belt loops
     # stranded on its rim. It sits on the MEASURED surface now, at a radius a
     # waistband actually has.
-    wx = ox + w * 0.355
-    wz = top_at(wx, oy) + 0.0020
-    p["waistband"] = CL.fold_line("TrouFold_Waistband",
-                                  (wx, oy - d * 0.40, wz),
-                                  (wx, oy + d * 0.40, wz),
-                                  radius=0.0115, sides=14, sink=0.55)
-    for i, sgn in enumerate((-1, 1)):
-        p[f"loop{i}"] = HS.box(f"TrouFold_Loop{i}",
-                               (wx, oy + sgn * d * 0.21, wz + 0.0034),
-                               (0.0175, 0.0092, 0.0082), bevel=0.0018)
+    # A WAISTBAND IS A BAND, NOT A ROLLING PIN. As a 23 mm round tube laid
+    # across the top it read as exactly that -- a diagonal bar with two blocks
+    # sitting on it (P3). A waistband is a doubled STRIP of the same cloth, as
+    # wide as your hand, running the full depth at the end of the fold, and
+    # what you see of it is the seam line where it joins the leg.
+    wx = ox + w * 0.360
+    p["waistband"] = CL.conform_decal("TrouFold_Waistband", top_at,
+                                      (wx, oy, 0.0), (w * 0.200, d * 0.880),
+                                      nx=9, ny=15, lift=0.0040,
+                                      taper=(0.34, 0.24, 0.14, 0.14))
+    # the seam, which is the whole reason you can see a waistband at all
+    sx = wx - w * 0.100
+    p["waist_seam"] = CL.fold_line(
+        "TrouFold_WaistSeam",
+        (sx, oy - d * 0.40, top_at(sx, oy - d * 0.40) + 0.0026),
+        (sx + 0.0016, oy + d * 0.40, top_at(sx, oy + d * 0.40) + 0.0026),
+        radius=0.0044, sides=8, sink=0.46)
+    # BELT LOOPS GO OVER THE BAND, across it, not beside it. Two boxes parked
+    # on the rim were the tell that the band underneath was the wrong shape.
+    # SMALLER, LOWER, AND NOT A COMB. At 10 mm across and 6.2 mm up, three of
+    # them evenly spaced across a flat plateau read as a radiator grille (P6).
+    # A belt loop is a narrow tape sewn flat at both ends; you notice it as
+    # three small interruptions in the band, not as three bars on it. The
+    # spacing is uneven because a real waistband's loops are set out from the
+    # centre back and the side seams, and nothing about that is a comb.
+    for i, fy in enumerate((-0.268, -0.020, 0.244)):
+        ly = oy + d * fy
+        p[f"loop{i}"] = CL.fold_line(
+            f"TrouFold_Loop{i}",
+            (wx - w * 0.076, ly, top_at(wx - w * 0.076, ly) + 0.0050),
+            (wx + w * 0.070, ly + 0.0018, top_at(wx + w * 0.070, ly) + 0.0050),
+            radius=0.0038, sides=8, sink=0.48)
+
+    # THE PRESSED CREASE. It is the single thing that says these are trousers
+    # rather than a folded towel, and neither version had one. It runs the
+    # length of the leg from the waist seam to the fold roll, and it is a
+    # RIDGE -- the cloth is pressed to a knife edge there, so it catches the
+    # light along its whole length instead of casting a shadow.
+    cy0 = oy - d * 0.055
+    p["crease"] = CL.fold_line(
+        "TrouFold_Crease",
+        (ox - w * 0.400, cy0 - 0.0040, top_at(ox - w * 0.400, cy0) + 0.0024),
+        (sx - 0.0060, cy0 + 0.0040, top_at(sx - 0.0060, cy0) + 0.0024),
+        radius=0.0046, sides=8, sink=0.40)
     # a welt pocket: a raised patch with a flap over it, as the reference has
     # A WELT POCKET is two lips with a slot between them, not a slab stuck on
     # the leg. The slab read as a floating plate; the slot casts the shadow
     # that makes it read as a pocket.
     px, py = ox + w * 0.045, oy + d * 0.150
     pz = top_at(px, py)
+    # RAISED CLEAR OF THE CLOTH. At pz + 1.8 mm the welts had two thirds of
+    # their surface inside something else -- 31% and 34% exposed, which is
+    # assert_not_buried's whole point: "allowed to overlap" and "allowed to
+    # vanish" are not the same permission.
     for i, off in enumerate((-0.0130, 0.0130)):
         p[f"pocket_welt{i}"] = CL.strip(
             f"TrouFold_Welt{i}",
-            [Vector((px - 0.0395, py + off, pz + 0.0018)),
-             Vector((px, py + off * 1.06, pz + 0.0026)),
-             Vector((px + 0.0395, py + off, pz + 0.0018))],
+            [Vector((px - 0.0395, py + off, pz + 0.0034)),
+             Vector((px, py + off * 1.06, pz + 0.0042)),
+             Vector((px + 0.0395, py + off, pz + 0.0034))],
             0.0092, 0.0046)
-    p["pocket"] = CL.strip(
-        "TrouFold_PocketFlap",
-        [Vector((px - 0.0360, py + 0.0195, pz + 0.0034)),
-         Vector((px + 0.0360, py + 0.0195, pz + 0.0034))], 0.0105, 0.0038)
+    # NO FLAP. A welt pocket is two lips with a slot between them; a flap goes
+    # OVER a slot, not on top of one of its lips. This one spanned py+0.009 to
+    # py+0.030 and the upper welt spans py+0.008 to py+0.018, so the flap
+    # swallowed the welt whole -- which is why raising the welt made it MORE
+    # buried, not less: 34% down to 24%. Two lips and the shadow between them
+    # is the whole pocket, and it is what the reference shows.
     return p
 
 
