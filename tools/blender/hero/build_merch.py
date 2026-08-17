@@ -107,6 +107,54 @@ def dimpled_ball(name, flat=False, alias=False):
                            broken=flat)
 
 
+def front_wall_shift():
+    """How far `crush_carton` pushes the front wall out at mid height."""
+    return 0.0014
+
+
+def crush_carton(ob, centre, seed=0):
+    """A CARTON, not a cuboid.
+
+    Three bevelled boxes with hard 90-degree corners is the "constructed from
+    primitives" reading the brief bans, and it is what the ball boxes were.
+    A printed carton has a lid that bows down between its flaps, walls that
+    bow OUT under the weight of what is inside, a corner or two knocked in from
+    handling, and none of it symmetric.
+
+    Cheap: the box is already bevelled, so this only moves the vertices it has.
+    """
+    import math as _m
+    cx, cy, cz = centre
+    hx, hy, hz = (v * 0.5 for v in BOX)
+    ph = seed * 2.39
+    for v in ob.data.vertices:
+        p = v.co
+        # normalised position in the box
+        u = (p.x - cx) / hx
+        w = (p.y - cy) / hy
+        t = (p.z - cz) / hz
+        # the lid bows DOWN between the flaps, the base sits flat
+        if t > 0.4:
+            p.z -= 0.0016 * (1.0 - u * u) * (1.0 - w * w)
+        # the walls bow OUT, most at mid height
+        bulge = 0.0014 * (1.0 - t * t)
+        p.x += bulge * u
+        p.y += bulge * w
+        # ... and one corner is knocked in, differently on each box
+        kx = _m.copysign(1.0, _m.sin(ph + 1.1))
+        ky = _m.copysign(1.0, _m.cos(ph + 0.4))
+        # HANDLING, NOT DAMAGE. 4.2 mm of knock-in on a 118 mm carton is a
+        # crushed box; retail stock is scuffed, not broken.
+        d = max(0.0, (u * kx + w * ky - 1.35)) / 0.65
+        if d > 0.0:
+            p.x -= 0.0016 * d * kx
+            p.y -= 0.0016 * d * ky
+        # a flap seam across the lid: a shallow crease, not a drawn line
+        if t > 0.9:
+            p.z -= 0.0011 * _m.exp(-((w / 0.14) ** 2))
+    ob.data.update()
+
+
 def label_quad(name, centre, w, h, cell, cols, rows, y):
     """The artwork on its OWN quad, standing proud of the pack.
 
@@ -231,11 +279,29 @@ def build(broken=""):
     p["boxes"], p["box_labels"] = [], []
     for k in range(3):
         c = (-0.010 + k * 0.118, -0.060, BOX[2] * 0.5)
-        p["boxes"].append(HS.apply_mods(HS.box(f"BallBox_{k}", c, BOX,
-                                               bevel=0.0020, segments=1)))
-        p["box_labels"].append(label_quad(
+        box = HS.apply_mods(HS.box(f"BallBox_{k}", c, BOX,
+                                   bevel=0.0020, segments=1))
+        art = label_quad(
             f"BallBoxArt_{k}", c, BOX[0] * 0.94, BOX[2] * 0.90, k, 3, 1,
-            -0.060 - BOX[1] * 0.5 - 0.0008))
+            -0.060 - BOX[1] * 0.5 - 0.0008)
+        # THE CRUSH IS REVERTED, DELIBERATELY. `crush_carton` below gives the
+        # carton the bowed walls and dipped lid a printed box actually has, and
+        # two of the three boxes read better for it -- but the labels are their
+        # own quads sitting a fraction of a millimetre off the front face, and
+        # on the third box the label came away and stood off at an angle from
+        # every camera. Displacing the label with the box bent a flat printed
+        # panel; translating it rigidly by the wall's mid-height shift did not
+        # fix the third one either, and I could not localise why inside a
+        # reasonable time.
+        #
+        # A detached label is a worse defect than a cuboid, and the standing
+        # rule is to revert the one asset rather than ship a half-fix. The
+        # function stays, with this note, because the fault is in how the label
+        # is attached and not in the crush: the real repair is to make the
+        # artwork part of the box's own mesh instead of a separate quad, which
+        # is a bigger change than this pass should carry.
+        p["boxes"].append(box)
+        p["box_labels"].append(art)
 
     # ---- DRINKS AND SNACKS. One mesh per shape, a label cell per SKU.
     p["bottles"] = []

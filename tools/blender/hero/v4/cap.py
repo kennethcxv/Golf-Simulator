@@ -578,8 +578,24 @@ def main():
     lining = twill_material("CapBand", (0.0900, 0.0900, 0.0950), 0.88)
     brass = ST.metal("Eyelet", (0.68, 0.62, 0.48), 0.30)
     steel = ST.metal("CapBuckle", (0.78, 0.79, 0.82), 0.16)
-    for o in (crown, visor, btn):
+    for o in (crown, btn):
         o.data.materials.append(shell)
+    # THE UNDERVISOR IS DARK. The board's DETAIL/MATERIAL strip shows it
+    # plainly: the bill's underside and the sweatband are a much darker grey
+    # than the shell, which is how every cap is made -- and mine was the same
+    # maroon top and bottom, so from any angle below the brim the bill read as
+    # a flat plate of one colour. Split by face normal after the solidify.
+    visor.data.materials.append(shell)
+    visor.data.materials.append(lining)
+    n_under = 0
+    for poly in visor.data.polygons:
+        if poly.normal.z < -0.30:
+            poly.material_index = 1
+            n_under += 1
+    print(f"  undervisor: {n_under} of {len(visor.data.polygons)} bill faces")
+    if n_under < 60:
+        raise SystemExit("BUILD FAILED: the undervisor got no faces -- the "
+                         "normal test found nothing pointing down")
     band.data.materials.append(lining)
     for o in sm + vst:
         o.data.materials.append(thread)
