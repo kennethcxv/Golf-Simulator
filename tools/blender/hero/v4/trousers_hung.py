@@ -78,10 +78,14 @@ SEAT_PROFILE = [
 SEAT_N = 3.2
 
 LEG_X = 0.1075               # each leg's axis
+# THE BOARD'S LEGS TAPER. 103.5 at the thigh down to 81.5 at the hem is very
+# nearly a straight tube and it read as loose slacks; a golf trouser closes to
+# about two thirds of its thigh width, and the taper is most of what says
+# "tailored" before any seam is visible.
 LEG_PROFILE = [              # half-width / half-depth against height
-    (-1.050, 0.0815, 0.0620),
-    (-0.690, 0.0885, 0.0685),
-    (-0.445, 0.0960, 0.0755),
+    (-1.050, 0.0672, 0.0520),
+    (-0.690, 0.0790, 0.0625),
+    (-0.445, 0.0925, 0.0730),
     (-0.230, 0.1035, 0.0830),
 ]
 LEG_N = 2.9
@@ -293,25 +297,25 @@ def fly_and_pockets(body):
         p = v.co
         depth = 0.0
         # waistband seam, all the way round
-        depth = max(depth, 0.0021 * math.exp(-((p.z - Z_WAIST_BOT) / 0.0042) ** 2))
+        depth = max(depth, 0.0034 * math.exp(-((p.z - Z_WAIST_BOT) / 0.0042) ** 2))
         # THE BAND IS STIFFENED, so it stands a couple of millimetres proud of
         # the cloth below it -- without that it is just a seam and the eye
         # reads one continuous panel from clamp to crotch.
         if p.z > Z_WAIST_BOT:
-            depth -= 0.0022 * D._smooth(p.z, Z_WAIST_BOT, Z_WAIST_BOT + 0.008)
+            depth -= 0.0034 * D._smooth(p.z, Z_WAIST_BOT, Z_WAIST_BOT + 0.008)
         if p.y < 0.0:                                    # FRONT only
             # the fly: a vertical seam right of centre, from the band down
             fy = math.exp(-((p.x - 0.017) / 0.0060) ** 2)
             fz = D._smooth(p.z, -0.185, -0.160) * (1.0 - D._smooth(p.z, -0.050, -0.042))
-            depth = max(depth, 0.0026 * fy * fz)
+            depth = max(depth, 0.0042 * fy * fz)
             # ... and its topstitch, 12 mm out
             ty = math.exp(-((p.x - 0.029) / 0.0030) ** 2)
-            depth = max(depth, 0.0011 * ty * fz)
+            depth = max(depth, 0.0019 * ty * fz)
             # slash pockets: a curve from the waistband seam out to the hip
             for sx in (-1, 1):
                 t = max(0.0, min(1.0, (p.z + 0.048) / -0.150))
                 px = sx * (0.088 + 0.108 * t ** 0.72)
-                depth = max(depth, 0.0024
+                depth = max(depth, 0.0040
                             * math.exp(-((p.x - px) / 0.0075) ** 2)
                             * D._smooth(t, 0.02, 0.10)
                             * (1.0 - D._smooth(t, 0.86, 1.0)))
@@ -321,8 +325,11 @@ def fly_and_pockets(body):
                 # a RIDGE, and wide enough that a 16 mm column grid can
                 # actually resolve it -- at sigma 7.5 mm only one column
                 # moved and the crease was invisible
-                cr = math.exp(-((p.x - sx * LEG_X) / 0.0165) ** 2)
-                depth -= 0.0024 * cr
+                cr = math.exp(-((p.x - sx * LEG_X) / 0.0155) ** 2)
+                # A PRESSED CREASE IS A HARD EDGE. At 2.4 mm on a 105 mm leg
+                # it is a shading nuance; the board reads the trousers by this
+                # line before it reads the pockets or the fly.
+                depth -= 0.0052 * cr
         d = Vector((p.x, p.y, 0.0))
         if d.length > 1e-6:
             v.co = p - d.normalized() * depth
@@ -337,7 +344,7 @@ def seam_lines(body):
     """
     out = []
 
-    def run(name, pts, side=-1.0, r=0.00075):
+    def run(name, pts, side=-1.0, r=0.00110):
         got = []
         for (x, z) in pts:
             p = D.on_surface(body, x, z, out=0.0013, axis_y=side)
@@ -353,13 +360,13 @@ def seam_lines(body):
     for side in (-1.0, 1.0):
         run(f"seam_band{side:+.0f}",
             [(-0.204 + 0.408 * i / 40.0, Z_WAIST_BOT) for i in range(41)],
-            side=side, r=0.00085)
+            side=side, r=0.00125)
     # the fly, and its topstitch curving in at the bottom
     fly = [(0.017, -0.045 - 0.128 * (i / 18.0)) for i in range(19)]
     fly += [(0.017 - 0.017 * math.sin(math.pi * 0.5 * (i / 6.0)),
              -0.173 - 0.010 * (i / 6.0)) for i in range(1, 7)]
-    run("seam_fly", fly, r=0.00075)
-    run("seam_fly_top", [(x + 0.0125, z) for (x, z) in fly[:19]], r=0.00062)
+    run("seam_fly", fly, r=0.00115)
+    run("seam_fly_top", [(x + 0.0125, z) for (x, z) in fly[:19]], r=0.00092)
     # the two slash pockets
     for sx in (-1, 1):
         pk = []
@@ -437,7 +444,12 @@ def main():
 
     stitches = seam_lines(body)
     loops = belt_loops(body)
-    hanger = clamp_hanger()
+    # The board's hanger is the shop's black moulded clamp hanger, the same
+    # family as the hoodie/polo/tee hangers. The wire-and-wood one read as
+    # something out of a dry cleaner's.
+    hb, hs = ST.clamp_hanger(half_w=0.196, z=0.022, y=0.0, grip=0.158,
+                             hook_h=0.112)
+    hanger = [hb, hs]
     hw0, hd0 = lerp2(SEAT_PROFILE, -0.030)
     btn = button((0.017, -hd0 - 0.0016, -0.030), (0.0, -1.0, 0.0))
 
@@ -451,8 +463,12 @@ def main():
         lp.data.materials.append(cloth)
     btn.data.materials.append(ST.matte("FlyButton", (0.30, 0.24, 0.15), 0.42))
 
+    # thread is not the same colour as the cloth it is sewn with -- at the
+    # identical albedo every seam in the garment was a silhouette-free groove
+    # and the render read as one smooth grey tube from clamp to hem
+    thread = chino_material((0.1180, 0.1090, 0.0885))
     for st in stitches:
-        st.data.materials.append(cloth)
+        st.data.materials.append(thread)
     subject = [body, *loops, *stitches, btn, *hanger]
     print(f"trousers-hung v4: TRIS {D.tri_count(subject)}")
     # ob.bound_box is CACHED and the fold fields transform vertices
@@ -465,7 +481,7 @@ def main():
 
     H.set_engine("CYCLES" if "cycles" in args else "EEVEE", samples=96)
 
-    ST.exposure(-0.52)
+    ST.exposure(-0.20)
     centre = (lo + hi) * 0.5
     _c, radius = H.subject_sphere(subject)
     dist = H.fit_view(subject, centre, Vector((0, 1, 0)), 80.0,
@@ -507,13 +523,13 @@ def main():
     print("renders in", OUT)
 
 
-def chino_material():
+def chino_material(colour=(0.196, 0.176, 0.138)):
     """Woven cotton twill: crisper than fleece, a touch of sheen off the twill."""
     mat = bpy.data.materials.new("ChinoTwill")
     mat.use_nodes = True
     nt = mat.node_tree
     b = nt.nodes["Principled BSDF"]
-    b.inputs["Base Color"].default_value = (0.196, 0.176, 0.138, 1.0)
+    b.inputs["Base Color"].default_value = (*colour, 1.0)
     b.inputs["Roughness"].default_value = 0.86
     if "Sheen Weight" in b.inputs:
         b.inputs["Sheen Weight"].default_value = 0.055

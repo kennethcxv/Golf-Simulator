@@ -202,6 +202,79 @@ def sweatband_rows():
     return rows
 
 
+def strap_back():
+    """The adjustable strap, its buckle, and the keyhole it closes over.
+
+    THE CAP HAD NO BACK. Every panel of the reference board that shows the
+    rear -- the BACK view, and the retail wall behind it -- is dominated by
+    the closure: a keyhole gap in the centre-back seam, a webbing strap
+    crossing it, and a small metal slide buckle on the wearer's left. It is
+    the single most identifiable thing about the back of a cap and there was
+    nothing there at all.
+
+    Returns (cloth parts, metal parts).
+    """
+    cloth, metal = [], []
+
+    def band_at(th, t, out=0.0):
+        """A point on the headband, `out` millimetres proud of it."""
+        bx, by = se(HW, HD, th)
+        p = Vector((bx, by, 0.0028 + 0.0250 * t))
+        r = Vector((p.x, p.y, 0.0))
+        if r.length > 1e-6:
+            p = p + r.normalized() * out
+        return p
+
+    # THE KEYHOLE: the crown's two back panels stop short of each other, so
+    # the gap is a rounded notch rising off the headband at centre back.
+    # The keyhole itself is a HOLE -- `keyhole_skip` drops those quads out of
+    # the crown, and what shows through is the dark sweatband behind it. A
+    # patch here would just fill the gap in again.
+
+    # THE STRAP: 16 mm webbing crossing the keyhole, sewn to the right panel
+    # and running through the buckle on the left.
+    for name, a0, a1, zt in (("strap_r", 0.235, -0.024, 0.020),
+                             ("strap_l", -0.235, 0.040, 0.020)):
+        rows = []
+        for j in range(11):
+            v = j / 10.0
+            th = math.pi + a0 + (a1 - a0) * v
+            row = []
+            for i in range(4):
+                w = i / 3.0
+                p = band_at(th, 0.42 + 0.52 * w + 0.08 * v,
+                            out=0.0026 + 0.0011 * v)
+                row.append(tuple(p))
+            rows.append(row)
+        st = D.grid_mesh(name, rows)
+        D.solidify(st, 0.0019, offset=0.0)
+        st = D.apply_all(st)
+        D.shade_smooth(st, 40.0)
+        cloth.append(st)
+
+    # THE BUCKLE: a flat slide on the wearer's left, standing off the strap.
+    c = band_at(math.pi - 0.042, 0.70, out=0.0050)
+    n = Vector((c.x, c.y, 0.0)).normalized()
+    bpy.ops.mesh.primitive_cube_add(size=1.0)
+    bk = bpy.context.object
+    bk.name = "buckle"
+    bk.scale = (0.0122, 0.0035, 0.0104)
+    bk.location = c
+    bk.rotation_euler = Vector((-n.y, n.x, 0.0)).to_track_quat(
+        'X', 'Z').to_euler()
+    bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
+    import bmesh
+    bm = bmesh.new()
+    bm.from_mesh(bk.data)
+    bmesh.ops.bevel(bm, geom=list(bm.edges) + list(bm.verts), offset=0.0011,
+                    segments=2, affect='EDGES')
+    bm.to_mesh(bk.data)
+    bm.free()
+    D.shade_smooth(bk, 36.0)
+    metal.append(bk)
+    return cloth, metal
+
+
 # --------------------------------------------------------------------------
 
 
@@ -374,9 +447,25 @@ def twill_material(name, colour, rough=0.80):
 # --------------------------------------------------------------------------
 
 
+def keyhole_skip(u, v):
+    """The gap in the crown's centre back that the strap closes over.
+
+    A strap laid across an unbroken dome is a belt on a helmet. The closure
+    only reads once there is a HOLE behind it: the two back panels stop short
+    of each other and you can see the sweatband through the gap. The notch
+    narrows as it rises, which is the keyhole.
+    """
+    if v > 5:
+        return False
+    th = 2 * math.pi * u / NU
+    d = abs(((th - math.pi) + math.pi) % (2 * math.pi) - math.pi)
+    return d < 0.132 * (1.0 - 0.62 * (v / 5.0) ** 1.4)
+
+
 def build():
     H.reset_scene()
-    crown = D.grid_mesh("crown", crown_rows(), wrap_u=True)
+    crown = D.grid_mesh("crown", crown_rows(), wrap_u=True,
+                        skip=keyhole_skip)
     D.weld(crown, 3e-4)
     band = D.grid_mesh("sweatband", sweatband_rows(), wrap_u=True)
     visor = D.grid_mesh("visor", visor_rows())
@@ -426,6 +515,7 @@ def main():
     btn = button()
     emb = embroidery(crown)
     vst = visor_stitch(visor)
+    strap_cloth, strap_metal = strap_back()
 
     D.solidify(crown, CLOTH_T, offset=-1.0)
     D.solidify(band, 0.0016, offset=-1.0)
@@ -442,6 +532,7 @@ def main():
     ivory = twill_material("CapEmb", (0.7300, 0.6900, 0.6100), 0.66)
     lining = twill_material("CapBand", (0.0900, 0.0900, 0.0950), 0.88)
     brass = ST.metal("Eyelet", (0.68, 0.62, 0.48), 0.30)
+    steel = ST.metal("CapBuckle", (0.78, 0.79, 0.82), 0.16)
     for o in (crown, visor, btn):
         o.data.materials.append(shell)
     band.data.materials.append(lining)
@@ -451,8 +542,15 @@ def main():
         o.data.materials.append(ivory)
     for e in eyes:
         e.data.materials.append(brass)
+    # the strap is webbing, a shade off the twill; the keyhole shows LINING
+    webbing = twill_material("CapWebbing", (0.1930, 0.0360, 0.0590), 0.86)
+    for o in strap_cloth:
+        o.data.materials.append(webbing)
+    for o in strap_metal:
+        o.data.materials.append(steel)
 
-    subject = [crown, band, visor, btn, *sm, *vst, *emb, *eyes]
+    subject = ([crown, band, visor, btn, *sm, *vst, *emb, *eyes]
+               + strap_cloth + strap_metal)
     print(f"cap v4: TRIS {D.tri_count(subject)}")
     # ob.bound_box is CACHED and the fold fields transform vertices
     # directly, so nothing refreshes it in background mode -- every

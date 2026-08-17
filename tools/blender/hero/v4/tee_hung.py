@@ -73,6 +73,9 @@ CLOTH_T = 0.0016             # jersey, and it shows at the hem
 
 
 BAR_DROP = 0.034             # the bar sits INSIDE the neck, not above it
+# just inside the shoulder point (0.222) so the tips cannot poke through
+HANGER_HALF = 0.1935
+HANGER_Z = -0.004 - BAR_DROP
 
 
 def bar_z(x):
@@ -110,52 +113,71 @@ def _sweep(name, pts, halfw, halfh, sides=10):
 
 
 def hanger():
-    pts = [Vector((-0.202 + 0.404 * (i / 26.0), 0.0,
-                   bar_z(-0.202 + 0.404 * (i / 26.0)))) for i in range(27)]
-    bar = _sweep("hanger_bar", pts, 0.0090, 0.0046)
-    hz = 0.082 - BAR_DROP
-    hook = [Vector((0.0235 * math.sin(a) * 0.84, -0.026,
-                    hz + 0.0235 * (1 - math.cos(a))))
-            for a in (math.pi * 1.08 * (i / 29.0) - math.pi * 0.05
-                      for i in range(30))]
-    wire = _sweep("hanger_hook",
-                  [Vector((0, -0.004, -0.006 - BAR_DROP)),
-                   Vector((0, -0.018, 0.038 - BAR_DROP)),
-                   Vector((0, -0.026, hz))] + hook[1:], 0.0029, 0.0029)
-    bpy.ops.object.select_all(action='DESELECT')
-    bar.select_set(True)
-    wire.select_set(True)
-    bpy.context.view_layer.objects.active = bar
-    bpy.ops.object.join()
-    bar.name = "hanger"
-    D.shade_smooth(bar, 40.0)
-    return bar
+    """The shop's black moulded hanger.
+
+    Every reference board -- hoodie, polo, tee, and the retail racks behind
+    all three -- hangs its stock on the same black moulded hanger with a
+    chrome hook. A white wire tube was the one part of each hung render that
+    was visibly not shop stock.
+    """
+    return ST.top_hanger(half_w=HANGER_HALF, z=HANGER_Z, drop=0.048,
+                         y=-0.004, hook_h=0.092)
 
 
 def neckband(body, neck_idx):
-    """A ribbed crew band: a flat strip about 18 mm wide sewn round the
-    neckline, sitting a millimetre proud of it with a seam under its lower
-    edge. v3 used a TORUS, which is why it read as a ring laid on the
-    shoulders rather than as part of the shirt."""
+    """The ribbed crew collar, as a ROLLED EDGE round the neck opening.
+
+    v3 used a torus floating on the shoulders and the note said "not a torus",
+    so this was rebuilt as a flat 18 mm strip lying on the yoke -- and a flat
+    strip lying on a near-horizontal yoke is edge-on from every camera in
+    front of the garment. It rendered as nothing at all, which is worse: the
+    board's DETAIL crop is 40% ribbed collar and it is the first thing that
+    says jersey tee rather than sheet of cloth.
+
+    The right object is neither. A crew neck is a strip of 1x1 rib folded
+    double and sewn round the opening, so its section is a ROLL: it turns up
+    out of the neckline, over, and back down onto the yoke, standing about
+    4 mm proud with the fold as its silhouette. Twenty-eight ribs across it,
+    in geometry, because at 72 columns the body cannot carry them.
+    """
     ring = [Vector(body.data.vertices[i].co) for i in neck_idx]
-    c = sum(ring, Vector()) / len(ring)
+    n_ring = len(ring)
+    c = sum(ring, Vector()) / n_ring
+    NA = 4 * n_ring                      # 288 columns: the ribs need them
+    NV = 10
+    ROLL_R = 0.0042                      # half the folded band's thickness
+    WIDTH = 0.0190                       # 19 mm of rib showing
+    RIBS = 96
+
+    def at(a):
+        """the neckline, resampled to NA columns"""
+        g = a * n_ring / NA
+        k0 = int(g) % n_ring
+        k1 = (k0 + 1) % n_ring
+        return ring[k0].lerp(ring[k1], g - int(g))
+
     rows = []
-    for j in range(5):
-        v = j / 4.0
+    for j in range(NV + 1):
+        v = j / NV
         row = []
-        for k in range(len(ring) + 1):
-            b = Vector(ring[k % len(ring)])
-            n = Vector((b.x - c.x, b.y - c.y, 0.0))
-            n = n.normalized() if n.length > 1e-6 else Vector((0, 1, 0))
-            # the band runs from the neck edge OUTWARD over the yoke, tucking
-            # its far edge under the shirt so no cliff shows
-            p = b + n * (0.0182 * v) + Vector((0, 0, -0.0060 * v * v))
-            # proud enough to be a band, tucked at its outer edge
-            lift = (CLOTH_T * 0.5 + 0.0011) * math.sin(math.pi * min(1.0, v * 1.05))
-            row.append(tuple(p + n * lift))
+        for i in range(NA):
+            b = at(i)
+            nrm = Vector((b.x - c.x, b.y - c.y, 0.0))
+            nrm = nrm.normalized() if nrm.length > 1e-6 else Vector((0, 1, 0))
+            # a half-turn of the roll: in and up, over the fold, out and down
+            th = math.pi * v
+            out = -math.cos(th) * ROLL_R
+            up = math.sin(th) * ROLL_R
+            # ... and the whole roll walks outward over the yoke as it goes
+            walk = WIDTH * v
+            rib = 0.00055 * math.cos(RIBS * 2 * math.pi * i / NA) \
+                * math.sin(math.pi * v) ** 0.5
+            p = (b + nrm * (out + walk + rib)
+                 + Vector((0, 0, up - 0.0088 * v * v)))
+            row.append(tuple(p))
         rows.append(row)
-    ob = D.grid_mesh("neckband", rows, wrap_u=False)
-    D.shade_smooth(ob, 46.0)
+    ob = D.grid_mesh("neckband", rows, wrap_u=True)
+    D.shade_smooth(ob, 26.0)
     return ob
 
 
@@ -173,7 +195,7 @@ def chest_print(body):
     bvh = BVHTree.FromPolygons(
         [v.co.copy() for v in body.data.vertices],
         [tuple(p.vertices) for p in body.data.polygons])
-    CX, CZ, R = 0.0, -0.348, 0.0655
+    CX, CZ, R = 0.0, -0.352, 0.0245
     NA, NR = 48, 14
     rows = []
     for j in range(NR + 1):
@@ -198,7 +220,10 @@ def chest_print(body):
         rows.append(row)
     ob = D.grid_mesh("print", rows, wrap_u=True)
     D.shade_smooth(ob, 50.0)
-    # a ring round it, so the roundel has an edge and not just a boundary
+    # NO RING. The board's hung tee carries no roundel at all and its folded
+    # sibling carries a small line-art flag; an outlined filled disc is a
+    # badge, and a badge is what E3 was about.
+    # (kept, empty, so the caller's signature does not change)
     ring = []
     for i in range(49):
         a = 2 * math.pi * i / 48.0
@@ -326,7 +351,7 @@ def main():
     SH.audit(body, "shell", allow_nonmanifold=0)
     sh.openings()
     print("  %d verts hard on the hanger" % sh.pin())
-    hg = hanger()
+    hg = list(hanger())
     if "nosim" not in args:
         moved, spikes = sh.solve("jersey", frames=90)
         print("  DRAPE max travel %.0f mm, despiked %d" % (moved * 1000, spikes))
@@ -366,6 +391,13 @@ def main():
 
     nb = neckband(body, sh.neck_idx)
     pr, prr, marks = chest_print(body)
+    # THE BOARD'S HUNG TEE CARRIES NO ROUNDEL. Its folded sibling has a small
+    # line-art flag and that is the whole of the branding on this garment; a
+    # filled disc with an outline round it is a badge, which is fault E3 in a
+    # different colour. The disc and its ring go; the flag stays.
+    for dead in (pr, prr):
+        bpy.data.objects.remove(dead, do_unlink=True)
+    pr = prr = None
     hs = hem_stitch(body)
 
     D.solidify(body, CLOTH_T, offset=0.0)
@@ -378,18 +410,15 @@ def main():
     cloth = jersey_material()
     rib = jersey_material((0.4600, 0.4460, 0.4150))
     ink = jersey_material((0.0640, 0.1450, 0.1050))
-    trim = ST.matte("HangerTrim", (0.86, 0.86, 0.87), 0.36)
     body.data.materials.append(cloth)
     nb.data.materials.append(rib)
-    pr.data.materials.append(ink)
-    prr.data.materials.append(ink)
+
     for m in marks:
-        m.data.materials.append(rib)
+        m.data.materials.append(ink)
     for o in hs:
         o.data.materials.append(rib)
-    hg.data.materials.append(trim)
 
-    subject = [body, nb, pr, prr] + list(marks) + list(hs) + [hg]
+    subject = [body, nb] + list(marks) + list(hs) + hg
     print("tee-hung v4: TRIS %d" % D.tri_count(subject))
     # ob.bound_box is CACHED and the fold fields transform vertices
     # directly, so nothing refreshes it in background mode -- every

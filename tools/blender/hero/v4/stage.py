@@ -179,10 +179,13 @@ def clamp_hanger(half_w=0.178, z=0.0, y=0.0, grip=0.150, hook_h=0.090,
 
     springs = []
     for sx in (-1, 1):
+        # a small spring pin, not a chrome bar. At 30 mm long and 5 mm across
+        # these rendered as two white blocks either side of the waistband and
+        # were the brightest thing in the frame.
         bpy.ops.mesh.primitive_cylinder_add(
-            radius=0.0052, depth=0.0300, vertices=14,
+            radius=0.0030, depth=0.0126, vertices=12,
             rotation=(0.0, math.pi / 2, 0.0),
-            location=(sx * grip, y - 0.0072, z - 0.0128))
+            location=(sx * grip, y - 0.0104, z - 0.0155))
         s = bpy.context.object
         s.name = "%s_spring%+d" % (name, sx)
         D.shade_smooth(s, 40.0)

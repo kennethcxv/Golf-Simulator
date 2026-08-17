@@ -85,6 +85,11 @@ PLACKET_LEN = 0.152
 PLACKET_HW = 0.0165
 
 
+# just inside the shoulder point (0.225) so the tips cannot poke through
+HANGER_HALF = 0.1965
+HANGER_Z = -0.004
+
+
 def bar_z(x):
     return -0.004 - 0.046 * (min(abs(x), 0.205) / 0.205) ** 1.35
 
@@ -113,24 +118,15 @@ def _sweep(name, pts, halfw, halfh, sides=10):
 
 
 def hanger():
-    pts = [Vector((-0.205 + 0.410 * (i / 26.0), 0.0,
-                   bar_z(-0.205 + 0.410 * (i / 26.0)))) for i in range(27)]
-    bar = _sweep("hanger_bar", pts, 0.0092, 0.0048)
-    hook = [Vector((0.0240 * math.sin(a) * 0.84, -0.028,
-                    0.086 + 0.0240 * (1 - math.cos(a))))
-            for a in (math.pi * 1.08 * (i / 29.0) - math.pi * 0.05
-                      for i in range(30))]
-    wire = _sweep("hanger_hook",
-                  [Vector((0, -0.004, -0.006)), Vector((0, -0.020, 0.040)),
-                   Vector((0, -0.028, 0.086))] + hook[1:], 0.0030, 0.0030)
-    bpy.ops.object.select_all(action='DESELECT')
-    bar.select_set(True)
-    wire.select_set(True)
-    bpy.context.view_layer.objects.active = bar
-    bpy.ops.object.join()
-    bar.name = "hanger"
-    D.shade_smooth(bar, 40.0)
-    return bar
+    """The shop's black moulded hanger.
+
+    Every reference board -- hoodie, polo, tee, and the retail racks behind
+    all three -- hangs its stock on the same black moulded hanger with a
+    chrome hook. A white wire tube was the one part of each hung render that
+    was visibly not shop stock.
+    """
+    return ST.top_hanger(half_w=HANGER_HALF, z=HANGER_Z, drop=0.048,
+                         y=-0.004, hook_h=0.092)
 
 
 def collar(body, neck_idx):
@@ -344,7 +340,7 @@ def main():
     SH.audit(body, "shell", allow_nonmanifold=0)
     sh.openings()
     print("  %d verts hard on the hanger" % sh.pin())
-    hg = hanger()
+    hg = list(hanger())
     if "nosim" not in args:
         moved, spikes = sh.solve("pique", frames=90)
         print("  DRAPE max travel %.0f mm, despiked %d" % (moved * 1000, spikes))
@@ -389,15 +385,13 @@ def main():
         D.shade_smooth(o, 48.0)
 
     cloth = pique_material()
-    trim = ST.matte("HangerTrim", (0.86, 0.86, 0.87), 0.36)
     pearl = ST.matte("PoloButton", (0.80, 0.79, 0.74), 0.30)
     for o in [body, col, pl] + list(vt):
         o.data.materials.append(cloth)
     for b in studs:
         b.data.materials.append(pearl)
-    hg.data.materials.append(trim)
 
-    subject = [body, col, pl] + list(vt) + list(studs) + [hg]
+    subject = [body, col, pl] + list(vt) + list(studs) + hg
     print("polo-hung v4: TRIS %d" % D.tri_count(subject))
     # ob.bound_box is CACHED and the fold fields transform vertices
     # directly, so nothing refreshes it in background mode -- every

@@ -147,8 +147,8 @@ CUFF_T = 0.90                # where the ribbed cuff starts along the sleeve
 # reference hood is one smooth low mass spanning the shoulders, and the ripple
 # has to stay well under the section radius or it becomes the silhouette.
 HOOD_HALF = 0.124            # where the roll meets the neckline, each side
-HOOD_BACK = 0.118            # how far back it arches
-HOOD_RISE = 0.096            # ... and how far up
+HOOD_BACK = 0.094            # how far back it arches
+HOOD_RISE = 0.126            # ... and how far up
 HOOD_R0, HOOD_R1 = 0.030, 0.048   # section radius at the ends / added at top
 HOOD_ROLLS = 2.6
 # The face opening. Every reference frame reads the hood by its BINDING: a
@@ -266,8 +266,11 @@ def hanger():
     same black moulded hanger with a chrome hook, and it is the first thing the
     eye uses to decide whether it is looking at shop stock or at a render.
     """
-    body, hook = ST.top_hanger(half_w=0.1855, z=-0.004, drop=0.047,
-                               y=-0.006, hook_h=0.104)
+    # BACK AND DOWN, under the hood. Raising the hood 30 mm and bringing it
+    # forward left the hanger's shoulder sticking out of the neck as a black
+    # beak. A hanger inside a hoodie is inside the HOOD, not in front of it.
+    body, hook = ST.top_hanger(half_w=0.1855, z=-0.021, drop=0.047,
+                               y=0.012, hook_h=0.121)
     return body, hook
 
 
@@ -462,7 +465,7 @@ def hood_from_neck(ob, idxs):
             # A BOWL, NOT A DOME. Rising to a point above the neckline the
             # lining filled the hole and the neck read as solid shoulder; the
             # dark hollow you can see into is most of what says "hood".
-            target = Vector((n.x * 0.34, nc.y + 0.014, nc.z - 0.062))
+            target = Vector((n.x * 0.30, nc.y + 0.026, nc.z - 0.108))
             row.append(tuple(n.lerp(target, tt * tt * (3 - 2 * tt))))
         lin.append(row)
     lining = D.grid_mesh("hood_lining", lin, wrap_u=True)
@@ -1070,6 +1073,17 @@ def build():
                 sl.data.vertices[i].co = co.lerp(sl.data.vertices[i].co, w)
             parts.append(sl)
             parts.append(ribbed_cuff(sl, "cuff%d" % sign))
+            # THE ARMHOLE SEAM. Every reference frame has one and it is what
+            # separates a sleeve from a bulge on the side of the torso: the
+            # line, not the silhouette. Two rows in from the head so it sits
+            # on the sleeve where a set-in seam is topstitched.
+            ring = [Vector(sl.data.vertices[2 * nu + k].co) for k in range(nu)]
+            c = sum(ring, Vector()) / nu
+            ring = [p + (p - c).normalized() * 0.0011 for p in ring]
+            seam = D.topstitch("armseam%d" % sign, ring + [ring[0]],
+                               radius=0.00085, sides=7)
+            D.shade_smooth(seam, 40.0)
+            parts.append(seam)
 
     # ... and the folds stop before the sleeves cover the cloth, so a 9 mm
     # ridge cannot push through a sleeve sitting 7 mm off the surface.
