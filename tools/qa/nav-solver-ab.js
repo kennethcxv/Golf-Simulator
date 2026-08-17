@@ -104,10 +104,18 @@ async (page) => {
     cx /= live.length;
     cz /= live.length;
     const radius = gap / (2 * Math.sin(Math.PI / live.length));
+    // PLACE THEM WHERE A BODY MAY LEGALLY STAND. The first version of this wrote
+    // ring positions blind, dropped somebody inside the counter, and
+    // resolveCustomer ejected them 0.76 yd into another customer on the next
+    // frame — reported as a 0.04 yd interpenetration the game had not caused.
+    // Nothing may be read off a stress the instrument itself created.
+    let ejected = 0;
     live.forEach((c, i) => {
       const a = (i / live.length) * Math.PI * 2;
-      c.mesh.position.x = cx + Math.cos(a) * radius;
-      c.mesh.position.z = cz + Math.sin(a) * radius;
+      const legal = ch.debugStandPoint(cx + Math.cos(a) * radius, cz + Math.sin(a) * radius);
+      if (legal.moved > 1e-4) ejected += 1;
+      c.mesh.position.x = legal.x;
+      c.mesh.position.z = legal.z;
     });
     let minGap = Infinity;
     for (let i = 0; i < live.length; i += 1) {
@@ -121,6 +129,11 @@ async (page) => {
     return {
       ok: true,
       n: live.length,
+      ejectedFromGeometry: ejected,
+      // Ejecting two bodies off the same box face can close the gap below the
+      // 0.78 the separation pass treats as a violation — which would hand the
+      // solver a contact it did not create. Flagged, not silently averaged in.
+      tooTight: minGap < 0.78,
       minGap: +minGap.toFixed(3),
       at: { x: +cx.toFixed(2), z: +cz.toFixed(2) },
     };
@@ -155,14 +168,24 @@ async (page) => {
     return null;
   };
 
-  const runLeg = async (label, which, { minutes, pinchEverySeconds = 0 } = {}) => {
-    const kind = await page.evaluate((k) => {
+  // A LEG IS A WHOLE MODE, not just a solver. Stage 3 turns off the recovery
+  // ladder and stops the separation pass from APPLYING its correction (it still
+  // computes it, because `corrections` is the acceptance meter and has to stay
+  // comparable across the rebuild). Comparing solvers while leaving the ladder
+  // teleporting bodies in both legs would measure neither.
+  const runLeg = async (label, mode, { minutes, pinchEverySeconds = 0 } = {}) => {
+    const set = await page.evaluate((m) => {
       const ch = window.__fw.scene3d.clubhouse();
-      const set = ch.setCrowdSolver(k);
+      ch.setCrowdSolver(m.solver);
+      ch.setNavLadder(m.ladder);
+      ch.setSeparateMode(m.separate);
       ch.resetContactWatch();
-      return set;
-    }, which);
-    if (kind !== which) fail(`asked for the ${which} solver and got ${kind}`);
+      return ch.navMode();
+    }, mode);
+    if (set.crowdSolver !== mode.solver || set.navLadder !== mode.ladder
+      || set.separateMode !== mode.separate) {
+      fail(`asked for ${JSON.stringify(mode)} and got ${JSON.stringify(set)}`);
+    }
     const samples = [];
     const pinches = [];
     const sampleEvery = pinchEverySeconds || 15;
@@ -202,6 +225,9 @@ async (page) => {
           standers: w.corrections.standerBodyFrames,
           episodes: w.episodes.count,
           infeasible: w.solver.infeasible,
+          wallClamps: w.solver.wallClampFrames,
+          stalled: w.stuck.episodes,
+          worstNoProgress: w.stuck.worstNoProgressSeconds,
           onScreen: window.__navAim.onScreen(),
         };
       });
@@ -214,7 +240,8 @@ async (page) => {
       console.log(`[${label} ${String(s.t).padStart(3)}s] people=${s.people} onScreen=${s.onScreen} `
         + `preTouch=${s.preTouch} preHard=${s.preHard} closest=${s.closest} `
         + `shoves=${s.shoves} (${s.perSecond}/s walk=${s.walkers} stand=${s.standers}) `
-        + `episodes=${s.episodes} infeasible=${s.infeasible}`);
+        + `contacts=${s.episodes} stalls=${s.stalled} worstNoProg=${s.worstNoProgress}s `
+        + `wallClamps=${s.wallClamps} infeasible=${s.infeasible}`);
       if (tick % 4 === 0 || pinchEverySeconds) {
         // eslint-disable-next-line no-await-in-loop
         await page.screenshot({ path: path.join(OUT, `${tag}-${label}-t${s.t}.png`) });
@@ -232,7 +259,7 @@ async (page) => {
     const framed = samples.filter((s) => (s.onScreen || 0) >= 2).length;
     const leg = {
       label,
-      solver: which,
+      mode,
       samples,
       pinches,
       framing: {
@@ -252,10 +279,15 @@ async (page) => {
   // the organic ones cost four minutes and are at the mercy of what the shop
   // happens to do anyway.
   const pinchOnly = process.env.QA_NAV_PINCH_ONLY === '1';
-  const legacy = pinchOnly ? null : await runLeg('legacy', 'legacy', { minutes: legMinutes });
-  const legacyPinch = await runLeg('legacy-pinch', 'legacy', { minutes: 1, pinchEverySeconds: 10 });
-  const orca = pinchOnly ? null : await runLeg('orca', 'orca', { minutes: legMinutes });
-  const orcaPinch = await runLeg('orca-pinch', 'orca', { minutes: 1, pinchEverySeconds: 10 });
+  // THE SHIPPED SYSTEM, exactly as he has been playing it.
+  const SHIPPED = { solver: 'legacy', ladder: true, separate: 'apply' };
+  // THE TARGET STATE: velocity solver in charge, no recovery ladder, and the
+  // separation pass measuring rather than shoving.
+  const TARGET = { solver: 'orca', ladder: false, separate: 'measure' };
+  const legacy = pinchOnly ? null : await runLeg('legacy', SHIPPED, { minutes: legMinutes });
+  const legacyPinch = await runLeg('legacy-pinch', SHIPPED, { minutes: 1, pinchEverySeconds: 10 });
+  const orca = pinchOnly ? null : await runLeg('orca', TARGET, { minutes: legMinutes });
+  const orcaPinch = await runLeg('orca-pinch', TARGET, { minutes: 1, pinchEverySeconds: 10 });
 
   // THE ACCEPTANCE, read off the meter he named.
   const headline = orca || orcaPinch;
@@ -268,6 +300,9 @@ async (page) => {
     metShoveTarget: shovesPerSecond < 0.5,
     hardContactFrames: hardFrames,
     metContactTarget: hardFrames === 0,
+    // NEVER STUCK, measured without reference to the ladder that was deleted.
+    stuck: headline.watch.stuck,
+    legacyStuck: (legacy || legacyPinch).watch.stuck,
     legacyShovesPerSecond: (legacy || legacyPinch).watch.corrections.perSecond,
     // The staged stress is the honest comparison: same pinch, same gap, same
     // room, ten seconds apart.
@@ -292,6 +327,11 @@ async (page) => {
     if (Number.isFinite(worst) && worst > 0.9) {
       fail(`${label}: the tightest staged gap was ${worst} yd — the pinch did not squeeze anybody`);
     }
+    const tooTight = staged.filter((p) => p.tooTight).length;
+    if (tooTight) {
+      fail(`${label}: ${tooTight} of ${staged.length} pinches were staged INSIDE the violation `
+        + 'threshold, so the solver was handed a contact the instrument created');
+    }
   }
   for (const [label, leg] of Object.entries(out.legs)) {
     if (leg.framing.pct < 60) {
@@ -311,6 +351,8 @@ async (page) => {
     beforeSolver: leg.watch.beforeSolver,
     afterSolver: leg.watch.afterSolver,
     corrections: leg.watch.corrections,
+    solver: leg.watch.solver,
+    stuck: leg.watch.stuck,
     episodes: {
       count: leg.watch.episodes.count,
       perMinute: leg.watch.episodes.perMinute,

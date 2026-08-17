@@ -78,6 +78,11 @@ export const ORCA_DEFAULTS = Object.freeze({
   // threshold and not the solver. tests/orca-solver.test.js fails if the two
   // ever cross again.
   comfort: 0.18,
+  // Seconds of guaranteed clearance from STATIC geometry. Shorter than the agent
+  // horizon on purpose: a wall does not move, so hugging one is fine and
+  // planning two seconds of clearance from every shelf would make the aisles
+  // unusable. RVO2 splits these for the same reason.
+  timeHorizonObstacle: 0.7,
   // KEEP TO ONE SIDE. Radians the preferred velocity is leaned by while anyone
   // is being avoided — and only then, so an empty room is untouched.
   //
@@ -116,7 +121,9 @@ function lineAt(pool, i) {
   return line;
 }
 const _result = { x: 0, z: 0 };
-const _out = { vx: 0, vz: 0, lines: 0, infeasible: false, penetration: 0, yielded: 0 };
+const _out = {
+  vx: 0, vz: 0, lines: 0, obstacleLines: 0, infeasible: false, penetration: 0, yielded: 0,
+};
 
 /**
  * Optimise a velocity against ONE half-plane, subject to the max-speed circle
@@ -264,15 +271,23 @@ function linearProgram3(lines, count, numObstLines, beginLine, radius, result) {
  *                    for anybody not running this solver (the player).
  * @param prefVx,prefVz  the velocity the body would travel at with the room to
  *                    itself: heading * desired speed.
- * @returns pooled {vx, vz, lines, infeasible, penetration, yielded}. `yielded`
- *          is |v - vpref|: how much of its intention the body gave up, which is
- *          what "visibly giving way" looks like as a number.
+ * @param options.obstacles [{nx, nz, clearance}] — static geometry, each already
+ *                    reduced to a unit normal pointing from the surface toward
+ *                    this body and the gap between the body's edge and the
+ *                    surface. Inviolable: they lead the program.
+ * @returns pooled {vx, vz, lines, obstacleLines, infeasible, penetration,
+ *          yielded}. `yielded` is |v - vpref|: how much of its intention the
+ *          body gave up, which is what "visibly giving way" looks like as a
+ *          number.
  */
 export function orcaVelocity(self, neighbours, prefVx, prefVz, options = {}) {
+  const obstacles = options.obstacles;
   const horizon = Number.isFinite(options.timeHorizon) ? options.timeHorizon : ORCA_DEFAULTS.timeHorizon;
   const step = Number.isFinite(options.timeStep) ? options.timeStep : ORCA_DEFAULTS.timeStep;
   const comfort = Number.isFinite(options.comfort) ? options.comfort : ORCA_DEFAULTS.comfort;
   const bias = Number.isFinite(options.bias) ? options.bias : ORCA_DEFAULTS.bias;
+  const obstacleHorizon = Number.isFinite(options.timeHorizonObstacle)
+    ? options.timeHorizonObstacle : ORCA_DEFAULTS.timeHorizonObstacle;
   const dt = Math.max(1e-3, Math.min(step, 0.25));
   const invTimeHorizon = 1 / Math.max(0.05, horizon);
   const invTimeStep = 1 / dt;
@@ -285,8 +300,47 @@ export function orcaVelocity(self, neighbours, prefVx, prefVz, options = {}) {
     Number.isFinite(self.maxSpeed) && self.maxSpeed > 0 ? self.maxSpeed : prefLen,
   );
 
+  // STATIC GEOMETRY GOES IN FIRST, AND IS NEVER VIOLATED.
+  //
+  // Stage 2 chose a safe velocity and then let `resolveCustomer` clamp the
+  // resulting POSITION out of any collider it landed in — and that clamp can
+  // push a body straight into another body, which is how the closest approach
+  // came out at 0.708 yd when the solver had guaranteed 0.80. A wall the solver
+  // cannot see is a wall that undoes it.
+  //
+  // Each obstacle arrives already reduced to the thing that matters: the unit
+  // normal pointing from the surface TOWARD this body, and the clearance
+  // between the body's edge and the surface. The constraint is then one line of
+  // algebra — for the clearance to stay non-negative for the whole horizon,
+  // `v · n >= -clearance / horizon` — and the half-plane through
+  // `n * (-clearance/horizon)` perpendicular to n says exactly that. There is no
+  // reciprocity: a shelf takes none of the correction.
+  //
+  // These are the LEADING lines, so the infeasible fallback treats them as
+  // inviolable and gives ground on the people instead. That is the right
+  // priority: two people brushing past each other is a bad frame, a body inside
+  // the counter is a broken shop.
   let count = 0;
   let penetration = 0;
+  const walls = obstacles || [];
+  for (let k = 0; k < walls.length; k += 1) {
+    const o = walls[k];
+    if (!o) continue;
+    const nx = o.nx;
+    const nz = o.nz;
+    if (!Number.isFinite(nx) || !Number.isFinite(nz)) continue;
+    // Already inside it: the constraint asks for outward motion, but bounded, or
+    // one deeply-embedded body makes the whole program infeasible for ever.
+    const clearance = Math.max(Number.isFinite(o.clearance) ? o.clearance : 0, -0.35);
+    const line = lineAt(_lines, count);
+    const offset = -clearance / Math.max(0.05, obstacleHorizon);
+    line.px = nx * offset;
+    line.pz = nz * offset;
+    line.dx = nz;
+    line.dz = -nx;
+    count += 1;
+  }
+  const obstacleLines = count;
   const list = neighbours || [];
   for (let k = 0; k < list.length; k += 1) {
     const other = list[k];
@@ -395,11 +449,12 @@ export function orcaVelocity(self, neighbours, prefVx, prefVz, options = {}) {
   let infeasible = false;
   if (failed < count) {
     infeasible = true;
-    linearProgram3(_lines, count, 0, failed, maxSpeed, _result);
+    linearProgram3(_lines, count, obstacleLines, failed, maxSpeed, _result);
   }
   _out.vx = _result.x;
   _out.vz = _result.z;
   _out.lines = count;
+  _out.obstacleLines = obstacleLines;
   _out.infeasible = infeasible;
   _out.penetration = penetration;
   _out.yielded = Math.hypot(_result.x - prefVx, _result.z - prefVz);

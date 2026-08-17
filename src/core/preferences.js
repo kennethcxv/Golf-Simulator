@@ -74,7 +74,30 @@ export const DEFAULT_PREFERENCES = Object.freeze({
     // affordable. Vsync still bounds the rate, so "uncapped" is the panel, not
     // a thermal event. Players who want less can still pick a rung, and since
     // Goal 23 every rung paces exactly (src/core/frameCap.js).
-    fpsCap: 0,
+    //
+    // 144, NOT UNCAPPED (2026-08-17). That measurement was taken while the cap
+    // was inert — it inferred the panel from rAF gaps, which on a GPU-bound
+    // frame is the game's own rate, so it read 58-63 Hz for a 240 Hz display and
+    // no rung ever skipped anything. With the panel taken from the OS
+    // (main.cjs's display.displayFrequency) the rungs are real, and re-measured
+    // on the owner's 240 Hz panel, his save, walking with a paced sweep
+    // (qa/goal34/cap1.json):
+    //
+    //   cap        fps    median   p95     stdev   on cadence
+    //   60        56.8    16.7 ms  20.9    1.96    79%
+    //   120      117.1     8.3 ms  12.5    1.40    91%
+    //   144      115.2     8.3 ms  12.5    1.22    92%
+    //   240      134.2     8.3 ms  12.5    2.33    65%
+    //   uncapped 153.4     4.2 ms  12.5    3.18    56%
+    //
+    // Uncapped has the highest average and the WORST evenness — it presents on
+    // whatever vsync it happens to finish before, which is what a 3.18 ms stdev
+    // and 56% on-cadence describe. 120 and 144 are the same setting on a 240 Hz
+    // panel (every second vsync) and they are the smoothest thing the machine
+    // does. 144 is the rung because it is also every second vsync on a 288 Hz
+    // panel and the native rate on a 144 Hz one; on a 60 Hz display the cadence
+    // solver falls back to 1 and nothing is skipped.
+    fpsCap: 144,
   }),
   accessibility: Object.freeze({
     reducedMotion: false,

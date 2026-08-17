@@ -112,7 +112,7 @@ import {
 } from '../sim/customerSimulation.js';
 import { steerAround, STEER_DEFAULTS } from './clubhouse/steerAhead.js';
 import { BODY_RADIUS, avoidanceHeading, separate } from './clubhouse/crowd.js';
-import { orcaVelocity } from './clubhouse/orca.js';
+import { orcaVelocity, ORCA_DEFAULTS } from './clubhouse/orca.js';
 import {
   allocateCustomerIdentity, customerIdentityById, paymentChoiceDialogue,
 } from '../sim/customerIdentity.js';
@@ -11336,6 +11336,33 @@ export function makeClubhouse(ctx) {
   // stopped closing, where it is standing IS as close as it gets.
   function hasArrived(c, stop, tx, tz, dist) {
     if (dist < ARRIVE_YD) return true;
+    // STAGE 3 — ARRIVAL IS THE SOLVER'S TO DECIDE, and it takes one rule instead
+    // of three copies of everyone else's constants.
+    //
+    // `arrivalSlack` below re-derives every exclusion by hand: the player's
+    // clearance, the collider inflation and the push direction it would choose,
+    // a body's width for each neighbour. Three constants that must match three
+    // other places, and B1 measured what happens when one is a centimetre out —
+    // 354 escalations in five minutes at a browse point that was unreachable by
+    // 0.01 yd.
+    //
+    // With the velocity solver in charge that whole computation has one
+    // authority. A walker held off its stop is held off it BY THE SOLVER, which
+    // is the only thing that knows what it refused and why. So: I have arrived
+    // if I am within a body's width of my stop and the solver has stopped me
+    // closing on it. No slack table, nothing to keep in sync, and — this is the
+    // part that makes it not a ladder rung — no body is moved and no target is
+    // moved. It is a definition, not a recovery.
+    //
+    // MEASURED without it, staged pinch, ladder off: 19 stall episodes in 67 s
+    // and one walker held 9.72 s from a stop somebody was standing on. It was
+    // not grinding or shoving — ORCA parked it politely at 0.80 yd — but the
+    // errand never ended.
+    if (!navLadder) {
+      const reach = ARRIVE_YD + BODY_RADIUS * 2 + ORCA_DEFAULTS.comfort;
+      if (dist > reach) return false;
+      return (c.noProgressT || 0) > NAV_BLOCKED_ARRIVAL_SECONDS;
+    }
     if (dist > ARRIVE_YD + ARRIVAL_SLACK_CAP) return false;
     const slack = arrivalSlack(c, stop, tx, tz);
     if (slack <= 0) return false;
@@ -11410,6 +11437,63 @@ export function makeClubhouse(ctx) {
     return _crowdNear;
   }
 
+  // THE WALLS, AS THE SOLVER NEEDS TO SEE THEM (nav rebuild, stage 3).
+  //
+  // Stage 2 chose a contact-free velocity and then let resolveCustomer clamp the
+  // resulting POSITION out of whatever collider it landed in — and that clamp
+  // can shove a body straight into another body, which is why the closest
+  // approach measured 0.708 yd when the solver had guaranteed 0.80. A wall the
+  // solver cannot see is a wall that undoes it.
+  //
+  // Each nearby box is reduced to the only two things a velocity constraint
+  // needs: the unit normal from the surface toward this body, and the clearance
+  // between the body's edge and the surface. Doorways are excluded — they are a
+  // way through, not a wall, and the look-ahead has always treated them so.
+  const OBSTACLE_RANGE = 1.8;
+  const _obstacles = [];
+  const _obstaclePool = [];
+  function customerObstacles(x, z, radius) {
+    _obstacles.length = 0;
+    for (const col of custCols) {
+      if (col.door) continue;
+      if (x + OBSTACLE_RANGE < col.minX || x - OBSTACLE_RANGE > col.maxX
+        || z + OBSTACLE_RANGE < col.minZ || z - OBSTACLE_RANGE > col.maxZ) continue;
+      // Nearest point on the box. Inside it, every clamp is negative and the
+      // shallowest face is the way out — the same choice crowdClamp makes, so
+      // the two cannot disagree about which way "out" is.
+      const cx = Math.min(Math.max(x, col.minX), col.maxX);
+      const cz = Math.min(Math.max(z, col.minZ), col.maxZ);
+      let nx;
+      let nz;
+      let clearance;
+      if (cx !== x || cz !== z) {
+        const dx = x - cx;
+        const dz = z - cz;
+        const d = Math.hypot(dx, dz) || 1e-6;
+        nx = dx / d;
+        nz = dz / d;
+        clearance = d - radius;
+      } else {
+        const left = x - col.minX;
+        const right = col.maxX - x;
+        const up = z - col.minZ;
+        const down = col.maxZ - z;
+        const min = Math.min(left, right, up, down);
+        if (min === left) { nx = -1; nz = 0; } else if (min === right) { nx = 1; nz = 0; } else if (min === up) { nx = 0; nz = -1; } else { nx = 0; nz = 1; }
+        clearance = -min - radius;
+      }
+      if (clearance > OBSTACLE_RANGE) continue;
+      const slot = _obstacles.length;
+      let record = _obstaclePool[slot];
+      if (!record) { record = { nx: 0, nz: 0, clearance: 0 }; _obstaclePool[slot] = record; }
+      record.nx = nx;
+      record.nz = nz;
+      record.clearance = clearance;
+      _obstacles.push(record);
+    }
+    return _obstacles;
+  }
+
   // THE SIMULTANEOUS PASS, run once after every customer has taken its step. The
   // clamp keeps a body that was pushed out of a neighbour from being pushed into
   // a wall: without it, untangling a clump beside the counter puts somebody
@@ -11440,13 +11524,39 @@ export function makeClubhouse(ctx) {
   // stander without guessing from velocity.
   let customerSimFrame = 0;
   const orcaStats = {
-    solves: 0, infeasible: 0, yieldFrames: 0, yieldSum: 0, worstPenetration: 0,
+    solves: 0, infeasible: 0, yieldFrames: 0, yieldSum: 0, worstPenetration: 0, obstacleLines: 0,
+    clampFrames: 0, clampSum: 0, clampWorst: 0,
   };
   function setCrowdSolver(which) {
     crowdSolver = which === 'legacy' ? 'legacy' : 'orca';
     orcaStats.solves = 0; orcaStats.infeasible = 0; orcaStats.yieldFrames = 0;
-    orcaStats.yieldSum = 0; orcaStats.worstPenetration = 0;
+    orcaStats.yieldSum = 0; orcaStats.worstPenetration = 0; orcaStats.obstacleLines = 0;
+    orcaStats.clampFrames = 0; orcaStats.clampSum = 0; orcaStats.clampWorst = 0;
     return crowdSolver;
+  }
+  // THE RECOVERY LADDER, ON A SWITCH (nav rebuild, stage 3).
+  //
+  // Five rungs of sidestep/sidestep/nudge/retarget/skip, plus arrival slack, plus
+  // a doorway yield timer. Every rung was added because a walker got somewhere it
+  // should never have been able to get, and the first three MOVE THE BODY
+  // DIRECTLY — a teleport with no yaw and no gait behind it, which is the same
+  // artefact as the separation shove and just as visible.
+  //
+  // "If the solver is right nothing gets stuck and they have no job. If you
+  // cannot delete them, the solver is not right yet." So they are off by default
+  // under ORCA and the stuck meter above — which reads noProgressT and knows
+  // nothing about rungs — says whether that was earned.
+  let navLadder = false;
+  function setNavLadder(on) { navLadder = on === true; return navLadder; }
+  // Likewise the positional relaxation. NOT deleted outright, because it is also
+  // the acceptance instrument: `corrections` is "how much would a positional
+  // pass have had to do", and that number has to stay comparable across the
+  // whole rebuild or the before/after stops meaning anything. In 'measure' mode
+  // it computes the correction and throws it away.
+  let separateMode = 'measure';
+  function setSeparateMode(mode) {
+    separateMode = mode === 'apply' ? 'apply' : 'measure';
+    return separateMode;
   }
 
   // ---------------------------------------------------------------------------
@@ -11497,9 +11607,23 @@ export function makeClubhouse(ctx) {
     corrections: {
       frames: 0, bodyFrames: 0, walkerBodyFrames: 0, standerBodyFrames: 0, worst: 0, sum: 0,
     },
+    // THE OTHER ABSOLUTE. "Never stuck" has never had a meter that survives the
+    // thing being measured: every count of stuckness in this file is a count of
+    // RECOVERY LADDER ESCALATIONS, so switching the ladder off would report zero
+    // stuck customers in a shop where nobody could move. This reads
+    // `c.noProgressT` — how long a walker has gone without closing on its goal —
+    // which the walking branch maintains whether or not any rung exists.
+    stuck: {
+      walkerFrames: 0, stalledFrames: 0, worstSeconds: 0, episodes: 0, _stalled: new Set(),
+    },
     episodes: [],
     _inEpisode: null,
   };
+  // A walker that has not closed on its goal for this long is stuck by anyone's
+  // reckoning: the ladder's own first rung fires at 0.35 s and its patient one
+  // at 3 s, so two seconds is inside the band it was built to catch and well
+  // past a pause to let somebody by.
+  const STUCK_SECONDS = 2.0;
   function contactScan(side, bodies, count) {
     let hard = 0;
     let visible = 0;
@@ -11604,6 +11728,21 @@ export function makeClubhouse(ctx) {
     contactWatch.frames += 1;
     contactWatch.seconds += Math.max(0, Math.min(frameDt, 0.25));
     contactWatch.people = _crowdBodies.length;
+    // Who is trying to walk and getting nowhere. Counted here rather than in the
+    // walking branch so it lands once per frame alongside everything else.
+    const st = contactWatch.stuck;
+    for (const body of _crowdBodies) {
+      if (!body.walking) { st._stalled.delete(body.c); continue; }
+      st.walkerFrames += 1;
+      const held = body.c.noProgressT || 0;
+      if (held > st.worstSeconds) st.worstSeconds = held;
+      if (held > STUCK_SECONDS) {
+        st.stalledFrames += 1;
+        if (!st._stalled.has(body.c)) { st._stalled.add(body.c); st.episodes += 1; }
+      } else {
+        st._stalled.delete(body.c);
+      }
+    }
     if (_crowdBodies.length < 2) { crowdStats.pairsOverlapping = 0; contactWatch._inEpisode = null; return; }
     // BEFORE the solve: what the steering actually allowed. This is the verdict
     // on the avoidance, and it is the number the old detector could never see
@@ -11636,7 +11775,6 @@ export function makeClubhouse(ctx) {
     // Every yard in `corrections` is displacement the character did not choose,
     // with no yaw and no gait behind it, which is the shoving that reads as
     // rubbing.
-    const postScan = contactScan(contactWatch.post, _crowdBodies, _crowdBodies.length);
     let correctedBodies = 0;
     let correctedWalkers = 0;
     let correctedStanders = 0;
@@ -11644,16 +11782,29 @@ export function makeClubhouse(ctx) {
     let worst = 0;
     for (let i = 0; i < _crowdBodies.length; i += 1) {
       const body = _crowdBodies[i];
-      for (let j = i + 1; j < _crowdBodies.length; j += 1) {
-        const d = Math.hypot(body.x - _crowdBodies[j].x, body.z - _crowdBodies[j].z);
-        if (d < BODY_RADIUS * 2) worst = Math.max(worst, BODY_RADIUS * 2 - d);
-      }
       const shove = Math.hypot(body.x - body.preX, body.z - body.preZ);
       if (shove > 1e-5) {
         correctedBodies += 1;
         if (body.walking) correctedWalkers += 1; else correctedStanders += 1;
         contactWatch.corrections.sum += shove;
         if (shove > worstCorrection) worstCorrection = shove;
+      }
+    }
+    // MEASURE MODE: the correction was computed and is thrown away. The solver's
+    // velocities are supposed to have made it unnecessary, and leaving a net
+    // under a guarantee is a way of never finding out the guarantee is false.
+    if (separateMode !== 'apply') {
+      for (let i = 0; i < _crowdBodies.length; i += 1) {
+        _crowdBodies[i].x = _crowdBodies[i].preX;
+        _crowdBodies[i].z = _crowdBodies[i].preZ;
+      }
+    }
+    const postScan = contactScan(contactWatch.post, _crowdBodies, _crowdBodies.length);
+    for (let i = 0; i < _crowdBodies.length; i += 1) {
+      const body = _crowdBodies[i];
+      for (let j = i + 1; j < _crowdBodies.length; j += 1) {
+        const d = Math.hypot(body.x - _crowdBodies[j].x, body.z - _crowdBodies[j].z);
+        if (d < BODY_RADIUS * 2) worst = Math.max(worst, BODY_RADIUS * 2 - d);
       }
       const mesh = body.c.mesh;
       if (mesh.position.x === body.x && mesh.position.z === body.z) continue;
@@ -11725,9 +11876,15 @@ export function makeClubhouse(ctx) {
       // stepping around each other rather than through.
       solver: {
         kind: crowdSolver,
+        ladder: navLadder,
+        separate: separateMode,
+        obstacleLinesPerSolve: +(orcaStats.obstacleLines / Math.max(1, orcaStats.solves)).toFixed(2),
         solves: orcaStats.solves,
         infeasible: orcaStats.infeasible,
         pctInfeasible: +(100 * orcaStats.infeasible / Math.max(1, orcaStats.solves)).toFixed(2),
+        wallClampFrames: orcaStats.clampFrames,
+        wallClampTotalYd: +orcaStats.clampSum.toFixed(3),
+        wallClampWorstYd: +orcaStats.clampWorst.toFixed(4),
         yieldSolves: orcaStats.yieldFrames,
         yieldMeanYdPerSec: +(orcaStats.yieldSum / Math.max(1, orcaStats.solves)).toFixed(4),
         worstPenetrationYd: +orcaStats.worstPenetration.toFixed(4),
@@ -11743,6 +11900,16 @@ export function makeClubhouse(ctx) {
         perSecond: +(w.corrections.frames / secs).toFixed(2),
         worstYd: +w.corrections.worst.toFixed(4),
         totalYd: +w.corrections.sum.toFixed(3),
+      },
+      // NEVER STUCK, measured without reference to the recovery ladder.
+      stuck: {
+        walkerFrames: w.stuck.walkerFrames,
+        stalledFrames: w.stuck.stalledFrames,
+        pctOfWalkerFrames: +(100 * w.stuck.stalledFrames / Math.max(1, w.stuck.walkerFrames)).toFixed(2),
+        episodes: w.stuck.episodes,
+        perMinute: +(60 * w.stuck.episodes / secs).toFixed(2),
+        worstNoProgressSeconds: +w.stuck.worstSeconds.toFixed(2),
+        thresholdSeconds: STUCK_SECONDS,
       },
       episodes: {
         count: w.episodes.length,
@@ -11764,6 +11931,8 @@ export function makeClubhouse(ctx) {
     w.corrections.frames = 0; w.corrections.bodyFrames = 0;
     w.corrections.walkerBodyFrames = 0; w.corrections.standerBodyFrames = 0;
     w.corrections.worst = 0; w.corrections.sum = 0;
+    w.stuck.walkerFrames = 0; w.stuck.stalledFrames = 0; w.stuck.worstSeconds = 0;
+    w.stuck.episodes = 0; w.stuck._stalled.clear();
     return true;
   }
 
@@ -12677,7 +12846,14 @@ export function makeClubhouse(ctx) {
         // write it; only one of them decides it in velocity space.
         let stepX = heading.x * step;
         let stepZ = heading.z * step;
-        if (crowdNear.length) {
+        // Stage 3: the walls enter the same program. So the solver runs even in
+        // an empty room now — there is always geometry, and a body walking into
+        // a shelf on its own was never the crowd's fault but it was still the
+        // clamp's shove.
+        const wallsNear = crowdSolver === 'orca'
+          ? customerObstacles(c.mesh.position.x, c.mesh.position.z, CUSTOMER_COLLIDER_RADIUS)
+          : null;
+        if (crowdNear.length || (wallsNear && wallsNear.length)) {
           if (crowdSolver === 'orca') {
             // ORCA (nav rebuild, stage 2). Direction and speed stop being two
             // rules that never see each other: there is one decision, "the
@@ -12700,7 +12876,7 @@ export function makeClubhouse(ctx) {
               crowdNear,
               heading.x * wantSpeed,
               heading.z * wantSpeed,
-              { timeStep: dt },
+              { timeStep: dt, obstacles: wallsNear },
             );
             stepX = v.vx * dt;
             stepZ = v.vz * dt;
@@ -12713,6 +12889,7 @@ export function makeClubhouse(ctx) {
               stepZ *= step / mag;
             }
             orcaStats.solves += 1;
+            orcaStats.obstacleLines += v.obstacleLines;
             if (v.infeasible) orcaStats.infeasible += 1;
             if (v.penetration > orcaStats.worstPenetration) orcaStats.worstPenetration = v.penetration;
             orcaStats.yieldSum += v.yielded;
@@ -12747,11 +12924,21 @@ export function makeClubhouse(ctx) {
         if (heading.trapped) steerStats.trapped += 1;
         steerStats.travelSum += wdist;
         if (wdist > steerStats.travelMax) steerStats.travelMax = wdist;
-        const res = resolveCustomer(
-          c,
-          c.mesh.position.x + stepX,
-          c.mesh.position.z + stepZ,
-        );
+        const askX = c.mesh.position.x + stepX;
+        const askZ = c.mesh.position.z + stepZ;
+        const res = resolveCustomer(c, askX, askZ);
+        // THE WALL SHOVE, counted. resolveCustomer is a POSITION clamp: it can
+        // only push a body back out of something it is already inside, and that
+        // push can put it inside somebody else — which is how stage 2 ended up
+        // with a closest approach of 0.708 yd against a guarantee of 0.80. With
+        // the walls inside the program the clamp should have nothing left to do,
+        // and this is the number that says whether that is true.
+        const clamped = Math.hypot(res.nx - askX, res.nz - askZ);
+        if (clamped > 1e-5) {
+          orcaStats.clampFrames += 1;
+          orcaStats.clampSum += clamped;
+          if (clamped > orcaStats.clampWorst) orcaStats.clampWorst = clamped;
+        }
         const moved = Math.hypot(res.nx - c.mesh.position.x, res.nz - c.mesh.position.z);
         // Velocity, so the people around this one can see where it is GOING
         // rather than only where it is standing. Without it two walkers each
@@ -12880,7 +13067,23 @@ export function makeClubhouse(ctx) {
           // and zeroing that clock here disabled the rescue. Measured with the
           // reset in place: escalations fell to 0 and stalls rose 5 -> 46 with
           // nobody reaching the counter at all — the two fixes fighting.
-          if (playerInTheWayOf(c, wp) && (c.yieldT || 0) < PLAYER_YIELD_SECONDS) {
+          if (!navLadder) {
+            // THE LADDER IS OFF. The plain repath below stays — asking for a
+            // fresh route when the world has changed under you is ordinary
+            // navigation and moves nobody. What goes is everything that PUTS A
+            // BODY SOMEWHERE: two random sidesteps, a nudge onto the nearest
+            // open cell, a target relocation, and abandoning the stop. Those are
+            // teleports with no yaw and no gait behind them, which is the same
+            // artefact as the separation shove and just as visible. The doorway
+            // yield timer goes too: yielding is what the solver does now, as a
+            // velocity, and a scripted six-second wait on top of it is a second
+            // opinion nobody asked for.
+            if (c.stuckT > 1.2 && !c.repathed) {
+              c.pathGoal = null;
+              navVersion = -1;
+              c.repathed = true;
+            }
+          } else if (playerInTheWayOf(c, wp) && (c.yieldT || 0) < PLAYER_YIELD_SECONDS) {
             c.yieldT = (c.yieldT || 0) + dt;
             c.stuckT = 0;
             if (char) char.setMode(c.hasBasket ? 'BasketIdle' : 'Idle');
@@ -14155,6 +14358,34 @@ export function makeClubhouse(ctx) {
     // save and the same arrivals. QA only; nothing in the game calls it.
     setCrowdSolver,
     crowdSolver: () => crowdSolver,
+    setNavLadder,
+    setSeparateMode,
+    navMode: () => ({ crowdSolver, navLadder, separateMode }),
+    // QA-ONLY. The nearest position a body of this radius may legally stand,
+    // colliders only — no player, no other bodies. A driver that stages a crowd
+    // by writing mesh positions has no idea where the counter is, and the first
+    // one that did dropped somebody inside it: resolveCustomer then ejected them
+    // 0.76 yd on the next frame, into another customer, and the run reported a
+    // 0.04 yd interpenetration that the game had not caused.
+    debugStandPoint: (x, z, radius = BODY_RADIUS) => {
+      let nx = x;
+      let nz = z;
+      for (const col of custCols) {
+        if (nx + radius > col.minX && nx - radius < col.maxX
+          && nz + radius > col.minZ && nz - radius < col.maxZ) {
+          const pushLeft = nx + radius - col.minX;
+          const pushRight = col.maxX - (nx - radius);
+          const pushUp = nz + radius - col.minZ;
+          const pushDown = col.maxZ - (nz - radius);
+          const min = Math.min(pushLeft, pushRight, pushUp, pushDown);
+          if (min === pushLeft) nx = col.minX - radius;
+          else if (min === pushRight) nx = col.maxX + radius;
+          else if (min === pushUp) nz = col.minZ - radius;
+          else nz = col.maxZ + radius;
+        }
+      }
+      return { x: nx, z: nz, moved: Math.hypot(nx - x, nz - z) };
+    },
     // Every stuck escalation across the session, with positions, targets and the
     // colliders that boxed the walker in. The live-parity day run reads THIS —
     // the same evidence the live game logs — instead of inventing its own.

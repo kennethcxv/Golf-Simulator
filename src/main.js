@@ -1967,6 +1967,36 @@ async function warmBeltThroughLiveLoop(sceneRef, generationAtStart, generationNo
   window.__fwWarm.hands = walk.getTool?.() == null ? 'done' : 'left-a-tool-behind';
 }
 
+// THE POINT-LIGHT CENSUS — TRIED, MEASURED, REMOVED. READ THIS BEFORE RETRYING.
+//
+// Goal 34 left three surfaces arriving programs on their first press — the
+// editor (7), Tab (3), the editor's tool bar (2) — and the nearest-twin diff
+// says they are the same axis: the field 19-20 from the end of the cache key,
+// which is the light COUNT the material was compiled against. The editor goes
+// 4 -> 0, Tab 4 -> 1, editor tools 4 -> 3. The twin always exists at the same
+// field width, so the material itself is drawn in ordinary play; only the count
+// is new.
+//
+// So a warm was written that hid the scene's point lights one at a time and drew
+// a real production frame at every count, under the veil. It ran
+// (`pointLightCensus: "drawn:6,5,4,3,2,1,0"`, qa/goal34/census1.json) and it
+// changed NOTHING: editor 7 -> 7, Tab 3, editor tools 2, with five of the
+// editor's seven still naming 4 -> 0.
+//
+// WHY, AND THIS IS THE USEFUL PART. Drawing the census from the WALK camera only
+// creates programs for the materials the walk camera submits. The ones that need
+// a 0-light program are the same class the laptop warm had to open the laptop to
+// reach: props batched with layers.mask = 0 in normal play, which no shop-floor
+// camera draws at all. Reaching them means putting the camera in the editor or
+// the overview — and goal 27 measured an under-veil editor round trip making the
+// player's NEXT real entry take nine and a half seconds. That door is still shut.
+//
+// Removed rather than left in: seven extra frames on every boot for zero
+// arrivals removed is a cost with no return. The next attempt has to be
+// camera-side (warm the overview at each count and measure whether Tab's own
+// entry pays for it), not light-side, and it needs the goal-27 aftermath
+// measured before it ships.
+
 // GOAL 32 — THE LAPTOP FOCUS VIEW, WARMED THE WAY THE REGISTER IS.
 //
 // A resumed save's first real laptop open carried a 2.1 s longtask that

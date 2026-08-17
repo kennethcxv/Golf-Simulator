@@ -289,6 +289,52 @@ test('the answer does not depend on the order neighbours arrive in', () => {
     `reordering the neighbours changed the answer: (${first.vx}, ${first.vz}) vs (${b.vx}, ${b.vz})`);
 });
 
+// --- static geometry in the same program (stage 3) --------------------------
+
+test('a walker heading straight at a wall is not allowed to travel into it', () => {
+  // Stage 2 chose a contact-free velocity and then let the POSITION be clamped
+  // out of whatever it hit, which is how a body ended up 0.708 yd from somebody
+  // when the solver had guaranteed 0.80: the clamp shoved it there.
+  let x = 0;
+  let vx = 0;
+  const wallAt = 2.0;
+  let closest = Infinity;
+  for (let s = 0; s < 60 * 6; s += 1) {
+    const clearance = (wallAt - x) - BODY_RADIUS;
+    const r = orcaVelocity(
+      { x, z: 0, vx, vz: 0, radius: BODY_RADIUS, maxSpeed: 1.2 },
+      [], 1.2, 0,
+      { timeStep: DT, obstacles: [{ nx: -1, nz: 0, clearance }] },
+    );
+    vx = r.vx;
+    x += vx * DT;
+    closest = Math.min(closest, (wallAt - x) - BODY_RADIUS);
+  }
+  assert.ok(closest > -1e-3,
+    `the body's edge crossed the wall by ${(-closest).toFixed(4)} yd — the solver must not `
+    + 'choose a velocity that a position clamp then has to undo');
+  assert.ok(x > 1.0, `and it must still make progress toward the wall; it reached x=${x.toFixed(2)}`);
+});
+
+test('a wall outranks a person when there is no velocity that satisfies both', () => {
+  // Pressed toward a wall by somebody who will not give way. Something has to
+  // give, and it must not be the wall: two people brushing is a bad frame, a
+  // body inside the counter is a broken shop.
+  const r = orcaVelocity(
+    { x: 0, z: 0, vx: 0, vz: 0, radius: BODY_RADIUS, maxSpeed: 1.2 },
+    [{ x: -0.5, z: 0, vx: 2.0, vz: 0, reciprocal: false }],
+    0, 0,
+    { timeStep: DT, obstacles: [{ nx: -1, nz: 0, clearance: 0.02 }] },
+  );
+  assert.ok(Number.isFinite(r.vx) && Number.isFinite(r.vz));
+  assert.equal(r.obstacleLines, 1);
+  // The wall constraint says v·n >= -clearance/horizon with n = (-1, 0), i.e.
+  // the body may not move further in +x than the clearance allows.
+  const allowed = 0.02 / ORCA_DEFAULTS.timeHorizonObstacle;
+  assert.ok(r.vx <= allowed + 1e-6,
+    `pushed through the wall at ${r.vx.toFixed(3)} yd/s when only ${allowed.toFixed(3)} was legal`);
+});
+
 test('overlapping bodies are separated by the VELOCITY, within a frame', () => {
   // The guarantee is supposed to make this unreachable in play; it is here
   // because a solver with no answer for its own failure case cannot be trusted,

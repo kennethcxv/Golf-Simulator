@@ -13,6 +13,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createFrameCap } from '../src/core/frameCap.js';
+import { DEFAULT_PREFERENCES } from '../src/core/preferences.js';
 
 function vsyncStream(hz, seconds, from = 0) {
   const step = 1000 / hz;
@@ -142,4 +143,42 @@ test('setPanelHz(0) hands the panel back to the rAF median', () => {
   for (const ts of vsyncStream(240, 2, 50000)) fc.shouldRender(ts);
   assert.equal(fc.diagnostics().panelSource, 'rAF-median');
   assert.equal(fc.diagnostics().everyNVsyncs, 4, 'and on a stream that IS the panel, it agrees');
+});
+
+// THE SHIPPED DEFAULT IS A CLAIM ABOUT SMOOTHNESS, SO TEST THE SMOOTHNESS.
+//
+// Asserting `DEFAULT_PREFERENCES.display.fpsCap === 144` would only restate the
+// constant. The reason 144 is the default is that it lands on every second
+// vsync of the owner's 240 Hz panel, which measured 92% on cadence and a
+// 1.22 ms stdev against uncapped's 56% and 3.18 ms. That is what this checks —
+// and it checks the 60 Hz case too, because a default that skipped three frames
+// in four on an ordinary display would be a regression for everybody else.
+test('the shipped fpsCap default is every second vsync at 240 Hz and every one at 60', () => {
+  const shipped = DEFAULT_PREFERENCES.display.fpsCap;
+  assert.ok([60, 120, 144, 240].includes(shipped), `default ${shipped} is not one of the rungs`);
+
+  // Driven, not read off a fresh instance: the cadence starts unproven and only
+  // engages once presented-frame headroom is measured, which is the guard that
+  // stops a cap making a struggling machine slower.
+  const high = createFrameCap();
+  high.setPanelHz(240);
+  high.setCap(shipped);
+  let drawn = 0;
+  for (const ts of vsyncStream(240, 3)) if (high.shouldRender(ts)) drawn += 1;
+  const hd = high.diagnostics();
+  assert.equal(hd.everyNVsyncs, 2,
+    `on a 240 Hz panel the default must present on every second vsync, got ${hd.everyNVsyncs}`);
+  assert.ok(hd.skippedTicks > 0, 'and it must actually decline the ones in between');
+  assert.ok(drawn / 3 > 100 && drawn / 3 < 130,
+    `which is about 120 fps on a 240 Hz panel, got ${(drawn / 3).toFixed(1)}`);
+
+  const ordinary = createFrameCap();
+  ordinary.setPanelHz(60);
+  ordinary.setCap(shipped);
+  let ordinaryDrawn = 0;
+  for (const ts of vsyncStream(60, 3)) if (ordinary.shouldRender(ts)) ordinaryDrawn += 1;
+  assert.equal(ordinary.diagnostics().everyNVsyncs, 1,
+    'on a 60 Hz panel the default must not skip anything');
+  assert.equal(ordinary.diagnostics().skippedTicks, 0);
+  assert.ok(ordinaryDrawn / 3 > 55, `and must keep all 60, got ${(ordinaryDrawn / 3).toFixed(1)}`);
 });
