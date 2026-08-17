@@ -730,18 +730,22 @@ def pocket(ob):
     from mathutils.bvhtree import BVHTree
     bvh = BVHTree.FromPolygons([v.co.copy() for v in ob.data.vertices],
                                [tuple(p.vertices) for p in ob.data.polygons])
-    Z_TOP, Z_KNEE, Z_BOT = -0.452, -0.572, -0.676
-    W_TOP, W_KNEE, W_BOT = 0.101, 0.183, 0.186
+    Z_TOP, Z_KNEE, Z_BOT = -0.452, -0.538, -0.676
+    # WIDER, AND THE HAND OPENINGS STEEPER. On the board the pocket runs very
+    # nearly to the side seams and its two diagonals are short and steep -- the
+    # slashes are the read, and a shallow diagonal over half the panel's height
+    # makes them a taper rather than an opening.
+    W_TOP, W_KNEE, W_BOT = 0.099, 0.198, 0.202
     NX, NY = 44, 28
 
     def outline(v):
         """half-width and height down the panel"""
-        if v <= 0.46:
-            k = v / 0.46
+        if v <= 0.34:
+            k = v / 0.34
             k = k * k * (3 - 2 * k) * 0.86 + k * 0.14
             return (W_TOP + (W_KNEE - W_TOP) * k,
-                    Z_TOP + (Z_KNEE - Z_TOP) * v / 0.46)
-        k = (v - 0.46) / 0.54
+                    Z_TOP + (Z_KNEE - Z_TOP) * v / 0.34)
+        k = (v - 0.34) / 0.66
         return (W_KNEE + (W_BOT - W_KNEE) * k,
                 Z_KNEE + (Z_BOT - Z_KNEE) * k)
 

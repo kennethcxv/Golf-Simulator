@@ -290,7 +290,13 @@ class Shirt:
                 sh *= pinch * (1.0 - 0.07 * g)
             tgt1 = (R1 + (depth - R1) * D._smooth(t, 0.0, 0.42)) * sw
             tgt2 = (R2 + (outer - R2) * D._smooth(t, 0.0, 0.42)) * sh
-            w = min(1.0, t / 0.30) ** 1.25
+            # A SLOWER RAMP OFF THE ARMHOLE. At t/0.30 the sleeve is already
+            # a quarter of the way to its own section 10% along, while the
+            # target has itself moved 40% of the way to `outer`/`depth` -- so
+            # the first two rows sit proud of the loop they grew from and the
+            # tee showed a soft rounded cap on each shoulder. Held near the
+            # loop for the first 44% the join is continuous.
+            w = min(1.0, t / 0.44) ** 1.55
             # the cuff turns under: the outboard half of the last rows walks
             # back along the sleeve axis, so the hem is a lobe not a chamfer
             curl = hem_curl * D._smooth(t, cuff_t - 0.10, 1.0)

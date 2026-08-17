@@ -123,19 +123,40 @@ def build(broken=""):
         u = i / (COLS - 1)
         x = (u - 0.5) * HEAD[0] * 0.985
         # the blade sweeps back and down from the bar's rear face
-        for (dy, dz) in ((0.0, 0.004), (0.030, -0.004), (0.030, -0.011), (0.0, -0.007)):
+        # WIDER, AND WITH A DOWNTURNED LIP. At 30 mm of reach and no lip the
+        # levelling blade -- the part a bunker rake actually smooths sand with
+        # -- was a thin flange the same colour as the bar, invisible from every
+        # hero angle. 46 mm with the trailing edge turned down gives it a
+        # silhouette and an edge to catch the key.
+        for (dy, dz) in ((0.0, 0.005), (0.030, -0.003), (0.046, -0.010),
+                         (0.046, -0.017), (0.030, -0.013), (0.0, -0.008)):
             blade_verts.append(Vector((x, HEAD[1] * 0.5 - 0.006 + dy, dz)))
+    SEC = 6
     for i in range(COLS - 1):
-        a = i * 4
-        b = a + 4
-        for k in range(4):
-            k2 = (k + 1) % 4
+        a = i * SEC
+        b = a + SEC
+        for k in range(SEC):
+            k2 = (k + 1) % SEC
             blade_faces.append((a + k, a + k2, b + k2, b + k))
-    blade_faces.append((0, 1, 2, 3))
-    last = (COLS - 1) * 4
-    blade_faces.append((last + 3, last + 2, last + 1, last))
+    blade_faces.append(tuple(range(SEC)))
+    last = (COLS - 1) * SEC
+    blade_faces.append(tuple(range(last + SEC - 1, last - 1, -1)))
     blade = HS.mesh_from("RakeBlade", blade_verts, blade_faces)
-    head = HS.join([bar, blade], "RakeHead")
+    # A MOULDED BRAND PANEL. An injection-moulded tool does not carry a printed
+    # label, it carries a recessed panel with raised lettering; three ribs at
+    # this size is all the eye reads and it is the only event on an otherwise
+    # blank 460 mm bar.
+    plate = HS.box("RakePlate", (0.0, -0.004, HEAD[2] * 0.5 + 0.0035),
+                   (0.108, 0.026, 0.0026), bevel=0.0008, segments=2)
+    plate = HS.apply_mods(plate)
+    ribs = [plate]
+    for k in range(3):
+        ribs.append(HS.box(f"RakeRib_{k}",
+                           (-0.030 + k * 0.030, -0.004,
+                            HEAD[2] * 0.5 + 0.0052),
+                           (0.020, 0.0044, 0.0014), bevel=0.0005, segments=1))
+    ribs = [HS.apply_mods(r) if r is not plate else r for r in ribs]
+    head = HS.join([bar, blade] + ribs, "RakeHead")
     parts["head"] = head
 
     # ---- tines, rooted in the underside of the bar
