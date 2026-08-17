@@ -197,6 +197,14 @@ def main():
                         "the other hand steadies the hose behind the coupling")
 
     subject = [p[k] for k in ORDER]
+
+    # UVs and the grain BEFORE the renders. Generated-space noise on a
+
+    # diagonal shaft in a big bounding box runs the wood grain ACROSS the
+
+    # timber, which is the one thing that says painted dowel.
+
+    HS.unwrap_and_grain(subject)
     print(f"TRIS {H.triangles(subject)} ({len(subject)} objects, "
           f"{len(p['materials'])} shared materials) — the hand is 5,179; "
           f"the in-game hose is 20,313 in one mesh")

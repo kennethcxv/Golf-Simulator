@@ -718,6 +718,57 @@ def wrap_uvs(obj, rings, name="UVMap"):
     return layer
 
 
+def unwrap_and_grain(objects, uv_scale=900.0, angle=66.0, margin=0.006):
+    """Give props UVs and point their `surface()` noise at them.
+
+    Same fault as the apparel, and it shows worst on the rake's shaft. A
+    `ShaderNodeTexNoise` with no Vector input samples GENERATED space -- a 3-D
+    volume normalised to the object's bounding box -- so on a shaft that runs
+    diagonally across a 1.5 m box the "wood grain" is a cross-section of a
+    cloud, and it runs ACROSS the timber instead of along it. Wood grain that
+    crosses the shaft is the one thing that says painted dowel.
+
+    In UV space a swept tube unwraps to a long strip, so the grain runs the
+    length of the shaft on its own.
+    """
+    import math as _m
+    for ob in objects:
+        if ob.type != "MESH" or not ob.data.polygons:
+            continue
+        bpy.ops.object.select_all(action='DESELECT')
+        ob.select_set(True)
+        bpy.context.view_layer.objects.active = ob
+        if not ob.data.uv_layers:
+            ob.data.uv_layers.new(name="UVMap")
+            bpy.ops.object.mode_set(mode='EDIT')
+            bpy.ops.mesh.select_all(action='SELECT')
+            bpy.ops.uv.smart_project(angle_limit=_m.radians(angle),
+                                     island_margin=margin)
+            bpy.ops.object.mode_set(mode='OBJECT')
+    seen, n = set(), 0
+    for ob in objects:
+        if ob.type != "MESH" or not ob.data.uv_layers:
+            continue
+        for mat in ob.data.materials:
+            if mat is None or mat.name in seen or not mat.use_nodes:
+                continue
+            seen.add(mat.name)
+            nt = mat.node_tree
+            uvn = None
+            for node in list(nt.nodes):
+                if node.type != "TEX_NOISE" or node.inputs["Vector"].is_linked:
+                    continue
+                if uvn is None:
+                    uvn = nt.nodes.new("ShaderNodeUVMap")
+                nt.links.new(uvn.outputs["UV"], node.inputs["Vector"])
+                old = node.inputs["Scale"].default_value
+                node.inputs["Scale"].default_value = uv_scale * (old / 220.0)
+                n += 1
+    print(f"  grain: {n} noise nodes moved to UV space across {len(seen)} "
+          f"materials")
+    return n
+
+
 def surface(name, colour, rough=0.8, scale=200.0, strength=0.25, dist=0.0004,
             spread=0.15, detail=6.0, metallic=0.0):
     """A `pbr` with a real SURFACE: noise on the bump for texture, and a narrow

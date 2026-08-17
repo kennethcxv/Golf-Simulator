@@ -226,6 +226,10 @@ def main():
                        max_depth=0.0095)
 
     subject = flat(p)
+    # UVs and the grain BEFORE the renders -- Generated-space noise on a
+    # part that is a thin slice of a big bounding box runs its grain the
+    # wrong way across the surface.
+    HS.unwrap_and_grain(subject)
     print(f"TRIS {H.triangles(subject)} ({len(subject)} objects, "
           f"5 shared materials from outdoor_lib, 0 new) — the hand is 5,179")
     lo, hi = H.bounds(subject)

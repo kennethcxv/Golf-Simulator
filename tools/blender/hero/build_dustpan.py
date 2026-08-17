@@ -261,6 +261,14 @@ def main():
                        max_gap=0.0015)
 
     subject = [pan, handle]
+
+    # UVs and the grain BEFORE the renders. Generated-space noise on a
+
+    # diagonal shaft in a big bounding box runs the wood grain ACROSS the
+
+    # timber, which is the one thing that says painted dowel.
+
+    HS.unwrap_and_grain(subject)
     print(f"TRIS {H.triangles(subject)} ({len(subject)} objects, 3 materials) "
           f"— the hand is 5,179")
     lo, hi = H.bounds(subject)
