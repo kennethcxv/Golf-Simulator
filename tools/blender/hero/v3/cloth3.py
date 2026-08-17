@@ -1194,12 +1194,23 @@ def edge_x(obj, z, y, tol=0.006):
     corrected by arithmetic again, 0 mm from it -- `assert_assembly` failed it
     both times. The loft's width at a height is a function of the leaf steps,
     the roll profile and the jitter; measure it instead of predicting it.
+
+    SIGNED, and a WORLD coordinate. This used to return max(abs(x)), which is
+    the half-width ONLY when the garment sits at x = 0 -- true of every render
+    it has ever had, and false the moment two are placed side by side. Callers
+    add nothing to it. It also refuses to answer rather than returning 0.0 when
+    it finds no surface, which is how a tag ends up at the origin.
     """
-    best = 0.0
+    best = None
     for v in obj.data.vertices:
         w = obj.matrix_world @ v.co
         if abs(w.z - z) < tol and abs(w.y - y) < tol * 4:
-            best = max(best, abs(w.x))
+            if best is None or w.x > best:
+                best = w.x
+    if best is None:
+        raise SystemExit(
+            f"BUILD FAILED: edge_x found no surface on {obj.name} at "
+            f"z={z:+.4f} y={y:+.4f}")
     return best
 
 
