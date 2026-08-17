@@ -10,10 +10,12 @@ Started from `Designs/ProShop/Overnight_Assets.md`.
 | cap (apparel v2) | **PASS** | 7 | 11,874 | 0 (shares ApparelCloth/Trim) | no |
 | polo folded (apparel v2) | **PASS** | 8 | 6,100 | 0 | no (GLB written for the FIRST time tonight) |
 | tee folded | **PASS** | 2 | 4,812 | 0 | no |
-| hoodie folded | ITERATE | 1 | 4,608 | 0 | no |
-| trousers folded | ITERATE | 2 | 4,548 | 0 | no |
+| cap v1 (build_apparel) | **PASS** | — | 7,064 | 0 | no |
+| hoodie folded | **PASS** | 5 | 5,452 | 0 | no |
+| trousers folded | **PASS** | 2 | 4,548 | 0 | no |
 | polo hung (apparel v2) | **PASS** | 10 | 10,780 | 0 | no (GLB written for the FIRST time tonight) |
-| tee / hoodie hung | **PARKED, not started** | 0 | — | 0 | no |
+| tee hung | **PASS** | 7 | 7,520 | 0 | no |
+| hoodie hung | **PASS** | 4 | 9,626 | 0 | no |
 | register (lane head) | **PASS** | 4 | 5,816 | 0 (5 slots, existing family) | no |
 | money (notes + coins) | **PASS** | 3 | 1,384 | 0 | no |
 | golf balls + packaging | **PASS** | 3 | 7,848 | 0 | no |
