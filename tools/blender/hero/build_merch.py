@@ -58,33 +58,53 @@ def uv_cell(obj, cell, cols, rows):
             d.uv = ((cx + u) / cols, ((rows - 1 - cy) + v) / rows)
 
 
-def dimpled_ball(name, flat=False):
-    """A sphere whose surface is pushed IN on a regular lattice.
+def dimpled_ball(name, flat=False, alias=False):
+    """The BALLS asset's sphere, not a second implementation of it.
 
-    Not a texture. There is no normal-map channel in this palette, and a smooth
-    sphere with a dimple map painted on it reads as a smooth sphere the moment
-    the light moves -- which for a ball a player turns over in their hand is
-    every frame.
+    This module had its own, and it produced plain smooth spheres: the dimple
+    term was `cos(lat * SEG_V * 0.94) * cos(lon * SEG_U * 0.5)` on a 26 x 15
+    grid, so the displacement was sampled at very nearly the mesh's own
+    frequency and aliased to a uniform change of radius. Thirty-two draws of
+    "golf ball" in the shop were featureless white spheres in a golf game --
+    while `build_balls.dimpled_ball`, twenty lines away, had a correct
+    Fibonacci-sphere implementation the whole time.
+
+    Rings and segments are lower than the hero ball's: these are shelf stock at
+    a metre, not a ball in the hand.
+
+    `alias` rebuilds the OLD implementation exactly, as the negative control for
+    the local-depth assertion below: it has 0.8 mm of max-minus-min relief and
+    no dimples, and the check that only measured max-minus-min passed it.
     """
-    verts, faces = [], []
-    for j in range(SEG_V + 1):
-        v = j / SEG_V
-        lat = (v - 0.5) * math.pi
-        for i in range(SEG_U):
-            u = i / SEG_U
-            lon = u * 2 * math.pi
-            d = 0.0 if flat else DIMPLE * (
-                0.5 + 0.5 * math.cos(lat * (SEG_V * 0.94)) * math.cos(lon * SEG_U * 0.5))
-            r = BALL_R * (1.0 - d * 0.30)
-            verts.append(Vector((math.cos(lat) * math.cos(lon) * r,
-                                 math.cos(lat) * math.sin(lon) * r,
-                                 math.sin(lat) * r)))
-    for j in range(SEG_V):
-        for i in range(SEG_U):
-            a = j * SEG_U + i
-            b = j * SEG_U + (i + 1) % SEG_U
-            faces.append((a, b, b + SEG_U, a + SEG_U))
-    return HS.mesh_from(name, verts, faces, smooth=True)
+    if alias:
+        verts, faces = [], []
+        for j in range(SEG_V + 1):
+            v = j / SEG_V
+            lat = (v - 0.5) * math.pi
+            for i in range(SEG_U):
+                u = i / SEG_U
+                lon = u * 2 * math.pi
+                d = DIMPLE * (0.5 + 0.5 * math.cos(lat * (SEG_V * 0.94))
+                              * math.cos(lon * SEG_U * 0.5))
+                r = BALL_R * (1.0 - d * 0.30)
+                verts.append(Vector((math.cos(lat) * math.cos(lon) * r,
+                                     math.cos(lat) * math.sin(lon) * r,
+                                     math.sin(lat) * r)))
+        for j in range(SEG_V):
+            for i in range(SEG_U):
+                a = j * SEG_U + i
+                b = j * SEG_U + (i + 1) % SEG_U
+                faces.append((a, b, b + SEG_U, a + SEG_U))
+        return HS.mesh_from(name, verts, faces, smooth=True)
+    import build_balls as BB
+    # RESOLUTION HAS TO MATCH THE DIMPLE COUNT. At 34 segments with 176
+    # dimples a floor spans 1.7 vertices -- barely more than the zigzag the
+    # width check exists to catch, and that is why they read weakly even close
+    # up. 44 segments with 110 dimples puts about 5.5 vertices across a dimple
+    # period, so a floor is nearly 3 and the shading has something to average.
+    return BB.dimpled_ball(name, (0.0, 0.0, 0.0), radius=BALL_R,
+                           rings=28, seg=44, dimples=110, depth=0.064,
+                           broken=flat)
 
 
 def label_quad(name, centre, w, h, cell, cols, rows, y):
@@ -192,7 +212,8 @@ def build(broken=""):
     # ---- GOLF BALLS. Three loose, a sleeve, three dozen boxes.
     p["balls"] = []
     for k in range(3):
-        b = dimpled_ball(f"GolfBall_{k}", flat=(broken == "dimples"))
+        b = dimpled_ball(f"GolfBall_{k}", flat=(broken == "dimples"),
+                         alias=(broken == "alias"))
         b.location = Vector((-0.300 + k * 0.058, -0.170, BALL_R))
         p["balls"].append(b)
 
@@ -234,9 +255,24 @@ def build(broken=""):
         p["cans"].append(uv_tube(f"Can_{k}", (-0.190 + k * 0.082, 0.090, CAN_H * 0.5),
                                  CAN_R, CAN_H, cell, 4, 2,
                                  wrap_from=0.14, wrap_to=0.86))
-    p["can_lids"] = [HS.cylinder(f"CanLid_{k}", (-0.190 + k * 0.082, 0.090,
-                                                 CAN_H - 0.0040), CAN_R * 0.88,
-                                 0.0080, verts=20) for k in range(2)]
+    # A ROLLED RIM AND A TAB. An inset disc on its own reads as a can with the
+    # lid taken off -- the rim standing proud of the wall and the little tab
+    # sitting on the deck are what the eye uses, and both were missing.
+    p["can_lids"] = []
+    for k in range(2):
+        cx = -0.190 + k * 0.082
+        p["can_lids"].append(HS.cylinder(
+            f"CanLid_{k}", (cx, 0.090, CAN_H - 0.0052), CAN_R * 0.86,
+            0.0062, verts=20))
+        p["can_lids"].append(HS.torus(
+            f"CanRim_{k}", (cx, 0.090, CAN_H - 0.0016), CAN_R * 0.885,
+            0.0017, major=20, minor=7)
+            if hasattr(HS, "torus") else HS.cylinder(
+            f"CanRim_{k}", (cx, 0.090, CAN_H - 0.0018), CAN_R * 0.905,
+            0.0034, verts=20))
+        p["can_lids"].append(HS.apply_mods(HS.box(
+            f"CanTab_{k}", (cx + CAN_R * 0.30, 0.090, CAN_H - 0.0002),
+            (0.0132, 0.0062, 0.0010), bevel=0.0004, segments=1)))
 
     p["bars"] = [HS.apply_mods(HS.box("Bar_0", (0.010, 0.075, BAR[2] * 0.5),
                                       BAR, bevel=0.0020, segments=1))]
@@ -305,8 +341,47 @@ def main():
             f"it is a smooth sphere. Dimples have to be geometry here: there is "
             f"no normal-map channel in this palette, so a dimple texture reads "
             f"as a smooth ball the moment the light moves")
-    print(f"  dimple assertion passed: {relief * 1000:.3f} mm of surface relief "
-          f"on a {BALL_R * 2000:.2f} mm ball")
+
+    # ... AND A DIMPLE HAS TO BE WIDER THAN ONE VERTEX.
+    #
+    # This check used to be max-minus-min alone and it PASSED on a ball with no
+    # visible dimples. The old displacement was
+    # `cos(lat * SEG_V * 0.94) * cos(lon * SEG_U * 0.5)` on a 26 x 15 grid --
+    # `cos(lon * 13)` over 26 samples flips sign at EVERY vertex, so the
+    # pattern sits exactly at the Nyquist limit of its own mesh. It is real
+    # relief, it is even real LOCAL relief against its neighbours (the second
+    # thing I tried to measure, which also passed it), and smooth shading
+    # averages it to nothing. The eye sees a smooth ball.
+    #
+    # What separates a dimple from a zigzag is WIDTH: a dimple floor spans
+    # several vertices along a ring, a Nyquist zigzag spans one. Measure the
+    # mean run of consecutive below-average vertices per ring.
+    me = p["balls"][0].data
+    ring = {}
+    for v in me.vertices:
+        key = round(v.co.z / (BALL_R * 0.06))
+        ring.setdefault(key, []).append(v.co.length)
+    runs = []
+    for key, rs in ring.items():
+        if len(rs) < 8:
+            continue
+        avg = sum(rs) / len(rs)
+        run = 0
+        for r in rs + rs[:1]:
+            if r < avg:
+                run += 1
+            elif run:
+                runs.append(run)
+                run = 0
+    width = (sum(runs) / len(runs)) if runs else 0.0
+    if width < 2.0:
+        raise SystemExit(
+            f"BUILD FAILED: the below-average runs are {width:.2f} vertices "
+            f"wide. That is a Nyquist zigzag, not dimples -- it has relief, it "
+            f"has local relief, and smooth shading averages it to a featureless "
+            f"sphere. A dimple floor has to span several vertices")
+    print(f"  dimple assertion passed: {relief * 1000:.3f} mm of relief on a "
+          f"{BALL_R * 2000:.2f} mm ball, in floors {width:.2f} vertices wide")
 
     for b in p["sleeve_balls"]:
         HS.assert_boxes_overlap(b, p["sleeve"], "a sleeve ball must be in its sleeve")
