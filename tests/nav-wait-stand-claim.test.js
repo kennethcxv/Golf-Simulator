@@ -71,8 +71,19 @@ test('a customer that cannot have the stand WAITS instead of pressing in', () =>
   // and reaching that hold point must NOT be mistaken for reaching the stop
   assert.match(source, /if \(waitingForStand\) \{[\s\S]*?char\.setMode\(c\.hasBasket \? 'BasketIdle' : 'Idle'\)/,
     'a waiting customer stands still rather than running the browse beat');
+  // The end of the waiting branch is the `} else if (<arrival test>) {` that
+  // follows it. The arrival test itself is not a fixed string: B1 (2026-08-17)
+  // replaced the bare `dist < 0.18` with hasArrived(), which tolerates the slack
+  // a blocked stop imposes. Anchoring on the arrival EXPRESSION made this test
+  // fail on a rename while the invariant it protects was untouched — and worse,
+  // indexOf returning -1 silently widened the slice to the whole file rather
+  // than erroring, so the failure named the wrong thing.
+  const waitStart = source.indexOf('if (waitingForStand) {');
+  const waitEnd = source.indexOf('} else if (', waitStart);
+  assert.ok(waitStart >= 0 && waitEnd > waitStart,
+    'the waiting branch and the arrival branch that follows it must both be findable');
   assert.doesNotMatch(
-    source.slice(source.indexOf('if (waitingForStand) {'), source.indexOf('} else if (dist < 0.18) {')),
+    source.slice(waitStart, waitEnd),
     /customerPick/,
     'a waiter must never pick stock from a stand it has not reached',
   );

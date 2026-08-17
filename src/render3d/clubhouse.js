@@ -11233,6 +11233,92 @@ export function makeClubhouse(ctx) {
   // brushing anyone, and the player cannot be relied on to dodge.
   const QUEUE_BERTH = 0.12;
   const PLAYER_RADIUS = 0.4;
+  // --- UNREACHABLE STOPS (B1, 2026-08-17) -----------------------------------
+  //
+  // Arrival is `dist < ARRIVE_YD`. But a body cannot stand wherever it likes:
+  // resolveCustomer holds it PLAYER_BODY_CLEARANCE off the player and
+  // CUSTOMER_COLLIDER_RADIUS out of every collider, and settleCustomerCrowd
+  // holds it a body's width off other people. When a stop point sits inside one
+  // of those exclusions there is NO legal position that satisfies arrival, so
+  // the walker grinds against the clamp until the recovery ladder abandons the
+  // stop — and the ladder is working correctly, it is being asked to reach
+  // somewhere nobody may stand.
+  //
+  // Measured in his shop, five minutes, his save:
+  //   visitor:3  nudge->retarget->skip  target 0.22 yd away, player in the doorway
+  //   visitor:16 nudge->retarget->skip  shelf_balls browse point 0.34 yd away
+  // 354 escalations and 100 stall episodes in three hundred seconds, almost all
+  // of them this.
+  //
+  // So arrival tolerates exactly the slack the exclusions impose and not a
+  // millimetre more: the walker still has to get as close as it is ALLOWED to.
+  const ARRIVE_YD = 0.18;
+  const PLAYER_BODY_CLEARANCE = 0.72; // must match resolveCustomer's clamp
+  const CUSTOMER_COLLIDER_RADIUS = 0.3; // must match resolveCustomer's r
+  // A body and a bit. Past this the walker is not "as close as allowed", it is
+  // somewhere else, and calling that arrival would teleport the beat.
+  const ARRIVAL_SLACK_CAP = 0.75;
+  // How long a walker must have stopped closing on a BLOCKED stop before where
+  // it stands counts as arrival. Half a second is long enough that a walker
+  // still threading a gap is not credited, short enough that the recovery
+  // ladder's first rung (0.35 s + jitter) does not get there first.
+  const NAV_BLOCKED_ARRIVAL_SECONDS = 0.5;
+  function arrivalSlack(c, stop, tx, tz) {
+    let slack = 0;
+    // The counter is excluded from BODY slack deliberately: the queue owns its
+    // own spacing through queueAdvanceSlot/queueSlotIsClear, and letting a
+    // queuer call it arrival a body-width short would open the gaps the line is
+    // supposed to close. Collider slack still applies — a slot inside a fixture
+    // is unreachable for everyone equally.
+    const bodiesCount = stop?.kind !== 'counter';
+    if (bodiesCount && walk.active) {
+      const d = Math.hypot(tx - walk.x, tz - walk.z);
+      if (d < PLAYER_BODY_CLEARANCE) slack = Math.max(slack, PLAYER_BODY_CLEARANCE - d);
+    }
+    if (bodiesCount) {
+      const reach = BODY_RADIUS * 2;
+      for (const other of customers) {
+        if (other === c || !other.mesh || other.mesh.visible === false) continue;
+        const d = Math.hypot(tx - other.mesh.position.x, tz - other.mesh.position.z);
+        if (d < reach) slack = Math.max(slack, reach - d);
+      }
+    }
+    const r = CUSTOMER_COLLIDER_RADIUS;
+    for (const col of custCols) {
+      if (col.door) continue;
+      if (tx + r > col.minX && tx - r < col.maxX && tz + r > col.minZ && tz - r < col.maxZ) {
+        // How far resolveCustomer would shove a body standing here, along the
+        // axis it would choose — which is exactly how far short the walker ends.
+        const push = Math.min(
+          tx + r - col.minX, col.maxX - (tx - r),
+          tz + r - col.minZ, col.maxZ - (tz - r),
+        );
+        slack = Math.max(slack, Math.min(push, r));
+      }
+    }
+    return Math.min(slack, ARRIVAL_SLACK_CAP);
+  }
+  // Has this walker arrived? Two ways, and the second one is why the first is
+  // not enough.
+  //
+  // GEOMETRIC: the exclusion around the stop is computed and tolerated exactly.
+  //
+  // STALLED-AT-A-BLOCKED-STOP: the geometric bound assumes the walker can find
+  // the legal pocket nearest the target. It often cannot — measured at
+  // shelf_balls, whose browse point (-361.33, 2.43) sits inside the shelf's own
+  // inflated box: the closest a body may legally stand is 0.190 yd and arrival
+  // asks for 0.18, so the errand is impossible by ONE CENTIMETRE, and the walker
+  // settles against the box face 0.58 yd out and escalates for ever. When the
+  // stop is genuinely blocked and the no-progress clock says the walker has
+  // stopped closing, where it is standing IS as close as it gets.
+  function hasArrived(c, stop, tx, tz, dist) {
+    if (dist < ARRIVE_YD) return true;
+    if (dist > ARRIVE_YD + ARRIVAL_SLACK_CAP) return false;
+    const slack = arrivalSlack(c, stop, tx, tz);
+    if (slack <= 0) return false;
+    if (dist < ARRIVE_YD + slack) return true;
+    return (c.noProgressT || 0) > NAV_BLOCKED_ARRIVAL_SECONDS;
+  }
   // POOLED. The first version allocated a fresh record per neighbour per
   // customer per frame -- O(n^2) short-lived objects at 60 Hz, which is GC
   // pressure for no reason and the sort of thing that turns into stutter on a
@@ -12035,11 +12121,15 @@ export function makeClubhouse(ctx) {
       const dx = tx - c.mesh.position.x;
       const dz = tz - c.mesh.position.z;
       const dist = Math.hypot(dx, dz);
+      // How close this walker is ALLOWED to get to that point (B1): a stop
+      // inside the player's clearance, another body, or a collider cannot be
+      // reached at 0.18, and asking for it is what fed the recovery ladder.
+      const arrived = hasArrived(c, stop, tx, tz, dist);
       // Reaching a HOLD POINT is not reaching the stop. Stand still, face the
       // display, and let the claim check above hand the stand over the moment
       // it frees — without ever running the browse/pick beat out here.
       if (waitingForStand) {
-        if (dist < 0.18) {
+        if (arrived) {
           c.path = [];
           c.pathGoal = null;
           c.stuckT = 0;
@@ -12056,7 +12146,7 @@ export function makeClubhouse(ctx) {
           }
           continue;
         }
-      } else if (dist < 0.18) {
+      } else if (arrived) {
         if (stop.kind === 'enter' && !c.rangBell) {
           c.rangBell = true;
           c.entered = true; // they got through the door, so they have an opinion
@@ -13738,6 +13828,13 @@ export function makeClubhouse(ctx) {
     // asserted - the path the customers' own grid returns, a floor obstacle
     // dropped where the driver wants one, and the ladder's running tally.
     navBlockReport: () => navBlockLog.slice(),
+    // QA-only: the collider list resolveCustomer pushes bodies out of and
+    // navFresh() bakes the walkable grid from. "Zero wall penetrations" is only
+    // a measurable claim against the SAME boxes the game itself uses; a driver
+    // that rebuilds its own idea of where the walls are is measuring its guess.
+    customerColliders: () => custCols.map((c) => ({
+      minX: c.minX, maxX: c.maxX, minZ: c.minZ, maxZ: c.maxZ, door: !!c.door,
+    })),
     // Path between two points the GRID chose, not two a driver guessed. A
     // request that starts or ends inside a collider returns an empty path,
     // which reads to a naive driver as a perfectly straight line - so the
