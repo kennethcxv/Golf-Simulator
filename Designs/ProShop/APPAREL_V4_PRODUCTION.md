@@ -139,18 +139,26 @@ something else.
 - **glTF: 10 files, 0 failed, 0 warnings**
 - **Export round-trip: 0.000 mm worst part**, every asset
 - **Topology: 0 non-manifold, 0 zero-area, 0 zero-length** on every assembled mesh
-- **Suite: 3662 pass / 11 fail** — the recorded baseline; the change set is
-  additive (new files under `tools/blender/hero/v4/` and
-  `Assets/models/hero/v4/` only)
+- **Suite: 3662 pass / 11 fail** — the recorded baseline by NAME, not just by
+  count: 30, 42, 66, 72, 400, 1937, 2202, 2219, 2220, 2971, 3483. No new
+  failures. The change set is additive (new files under
+  `tools/blender/hero/v4/` and `Assets/models/hero/v4/` only)
 - **Lint ratchet: 323, green.** **Vendor-models: 127 up to date, 0 problems**
 
 ---
 
 ## NOT DONE
 
-- **In-game verification.** No v4 asset is wired into the game yet, so the
-  brief's tenth PASS condition is unmet for all ten. They are built, exported
-  and validated; nothing has been placed on a shelf or a rail in Electron.
-- **The v3 assets are still the ones the game loads.** Wiring is a separate
-  step and reversible per asset.
+- **In-game verification — the brief's tenth PASS condition is unmet for all
+  ten**, and it is worth being exact about why. Grepping the renderer for
+  `hero/v3`, `hero/v4` and every `apparel_*` GLB name returns NOTHING: **the
+  v3 hero apparel was never wired either.** The shop's apparel today comes
+  from `vendor/models/checkout/apparel_*` and `vendor/models/clubhouse/
+  apparel_wall.glb` plus procedural product proxies.
+
+  So this is not a swap of v3 for v4 — it is a NEW integration, and it needs a
+  decision that is not mine to make: where in the pro shop these ten states
+  go, which fixtures carry them, and how they enter the vendor-models
+  manifest. Attempting it unattended risks the golden gate for no art gain.
+  The assets are built, exported and validated and are ready for it.
 - Residual visual gaps, per asset, are named in the commit messages.

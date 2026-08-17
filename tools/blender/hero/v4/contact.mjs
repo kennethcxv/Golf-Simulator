@@ -25,10 +25,14 @@ const ASSETS = [
   "hoodie-folded", "trousers-folded", "polo-folded", "tee-folded", "cap-peg",
 ];
 
+// v3 called the peg state "cap-hung"; v4 calls it what it is.
+const V3_NAME = { "cap-peg": "cap-hung" };
+
 function pick(name) {
   if (V3) {
-    const dir = `qa/hero/v3/apparel/${name}`;
-    for (const f of [`${name}-eevee-hero.png`, `${name}-eevee-front.png`]) {
+    const dir = `qa/hero/v3/apparel/${V3_NAME[name] || name}`;
+    const stem = V3_NAME[name] || name;
+    for (const f of [`${stem}-eevee-hero.png`, `${stem}-eevee-front.png`]) {
       if (fs.existsSync(`${dir}/${f}`)) return `${dir}/${f}`;
     }
     return null;
