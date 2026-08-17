@@ -11543,10 +11543,26 @@ export function makeClubhouse(ctx) {
   // artefact as the separation shove and just as visible.
   //
   // "If the solver is right nothing gets stuck and they have no job. If you
-  // cannot delete them, the solver is not right yet." So they are off by default
-  // under ORCA and the stuck meter above — which reads noProgressT and knows
-  // nothing about rungs — says whether that was earned.
-  let navLadder = false;
+  // cannot delete them, the solver is not right yet." So they were switched off
+  // and the shop was watched for five minutes with the stuck meter — which reads
+  // noProgressT and knows nothing about rungs — deciding whether that was
+  // earned.
+  //
+  // IT WAS NOT, AND HERE IS THE NUMBER. qa/nav/after, five minutes, ORCA in
+  // charge, ladder off: ZERO shoves, ZERO contacts, closest approach 0.787 yd —
+  // the crowd absolute is met outright. And 50 stall episodes with one customer
+  // held **246 seconds**, its linear program infeasible on essentially every
+  // frame from t=63 s to the end of the run. The solver never let anybody touch
+  // and it also never let that walker finish its errand, because with the ladder
+  // gone nothing retargets a stop that no body may stand on. A shop where the
+  // crowd is perfect and somebody is welded to the floor for four minutes is
+  // worse than what he has now.
+  //
+  // So the ladder stays ON, and the honest statement is that the solver is not
+  // right yet — not because it lets people touch, but because "reachable stop"
+  // is not yet its problem. See NAV_RESEARCH.md §8: the fix is stop geometry
+  // (a stop nobody may stand on should never be issued), NOT another rung.
+  let navLadder = true;
   function setNavLadder(on) { navLadder = on === true; return navLadder; }
   // Likewise the positional relaxation. NOT deleted outright, because it is also
   // the acceptance instrument: `corrections` is "how much would a positional

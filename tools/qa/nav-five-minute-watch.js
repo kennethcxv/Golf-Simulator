@@ -181,7 +181,12 @@ async (page) => {
         postTouch: w.afterSolver.framesTouching,
         closest: w.beforeSolver.closestApproachYd,
         corrFrames: w.corrections.frames,
+        perSecond: w.corrections.perSecond,
         episodes: w.episodes.count,
+        stalls: w.stuck.episodes,
+        worstNoProgress: w.stuck.worstNoProgressSeconds,
+        wallClamps: w.solver.wallClampFrames,
+        infeasible: w.solver.infeasible,
       };
     });
     // THE FRAMING GATE. Recorded every sample, so the clip's worth is a number
@@ -190,13 +195,22 @@ async (page) => {
     if (s.onScreen < 2) { out.reaims = (out.reaims || 0) + 1; await aimAtPeople(4); }
     samples.push(s);
     console.log(`[${String(s.t).padStart(3)}s] people=${s.people} onScreen=${s.onScreen} preTouch=${s.preTouch} preHard=${s.preHard} `
-      + `postTouch=${s.postTouch} closest=${s.closest} shoveFrames=${s.corrFrames} episodes=${s.episodes}`);
+      + `postTouch=${s.postTouch} closest=${s.closest} shoves=${s.corrFrames} (${s.perSecond}/s) `
+      + `contacts=${s.episodes} stalls=${s.stalls} worstNoProg=${s.worstNoProgress}s `
+      + `wallClamps=${s.wallClamps} infeasible=${s.infeasible}`);
     if (patrol && tick % 4 === 0) {
       await page.keyboard.down('w');
       await page.waitForTimeout(900);
       await page.keyboard.up('w');
       await page.mouse.move(Math.round(vp.w / 2), Math.round(vp.h / 2));
       await page.mouse.move(Math.round(vp.w / 2) + 300, Math.round(vp.h / 2), { steps: 16 });
+      // ...and then LOOK BACK AT THE PEOPLE. Walking the player is the only way
+      // to exercise the doorway case, and the first run that did it framed the
+      // crowd in 52.6% of samples — the gate refused the footage, correctly. A
+      // patrol that wanders off is a patrol that records the wall.
+      await page.waitForTimeout(400);
+      out.patrolReaims = (out.patrolReaims || 0) + 1;
+      await aimAtPeople(4);
     }
     if (tick % 4 === 0) {
       await page.screenshot({ path: path.join(OUT, `${tag}-t${s.t}.png`) });
@@ -205,6 +219,10 @@ async (page) => {
 
   out.samples = samples;
   out.watch = await page.evaluate(() => window.__fw.scene3d.clubhouse().contactWatchDiagnostics());
+  out.navMode = await page.evaluate(() => {
+    const ch = window.__fw.scene3d.clubhouse();
+    return typeof ch.navMode === 'function' ? ch.navMode() : null;
+  });
   out.oldDetector = await page.evaluate(() => window.__fw.scene3d.clubhouse().crowdDiagnostics());
   out.nav = await page.evaluate(() => {
     const ch = window.__fw.scene3d.clubhouse();
@@ -238,6 +256,9 @@ async (page) => {
     beforeSolver: out.watch.beforeSolver,
     afterSolver: out.watch.afterSolver,
     corrections: out.watch.corrections,
+    solver: out.watch.solver,
+    stuck: out.watch.stuck,
+    navMode: out.navMode,
     episodes: {
       count: out.watch.episodes.count,
       perMinute: out.watch.episodes.perMinute,

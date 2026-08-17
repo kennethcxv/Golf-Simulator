@@ -387,3 +387,75 @@ stage 3:
 - [Game Design Deep Dive: believable crowds in Planet Coaster](https://www.gamedeveloper.com/audio/game-design-deep-dive-creating-believable-crowds-in-i-planet-coaster-i-)
 - [Reynolds steering behaviours](https://slsdo.github.io/steering-behaviors/)
 - [Supermarket Simulator — players reporting customers on top of each other](https://steamcommunity.com/app/2670630/discussions/0/4289187252715893601/)
+
+---
+
+## 8. STAGES 3 AND 4 — WHAT LANDED, AND THE ONE THING THAT DID NOT
+
+**Stage 3 put three things in and took three things out.**
+
+*In:* static geometry as constraints in the same linear program. Each nearby
+collider box is reduced to a unit normal and a clearance, and the constraint is
+`v · n >= -clearance / horizon` — inviolable, leading the program, so the
+infeasible fallback gives ground on people rather than on walls. The number that
+says it works is the WALL CLAMP counter: how often `resolveCustomer` still had to
+push a body out of something after the velocity was chosen. Two minutes organic:
+**zero**.
+
+*Out:* `separate()` no longer applies its correction (it still computes it —
+`corrections` is the acceptance meter and has to stay comparable across the whole
+rebuild); the recovery ladder's five rungs and the doorway yield timer; and
+`arrivalSlack`, which re-derived three other modules' constants by hand and cost
+B1 354 escalations from being 0.01 yd out. Arrival became one rule: within a
+body's width of the stop and no longer closing.
+
+**Stage 4, five minutes, his save, ladder OFF — and this is the finding:**
+
+| | |
+|---|---|
+| shoves | **0** |
+| frames touching / interpenetrating | **0 / 0** |
+| closest approach | 0.787 yd |
+| stall episodes | **50** |
+| longest a walker was held | **246 seconds** |
+
+The crowd absolute is met outright and the other one fails hard. One customer's
+linear program was infeasible on essentially every frame from t=63 s to the end
+of the run — the solver never let anybody touch it, and never let it finish its
+errand either, because with the ladder gone nothing retargets a stop that no body
+may stand on. A shop where the crowd is perfect and somebody is welded to the
+floor for four minutes is worse than what he has.
+
+**So the ladder stays, and the honest statement is that the solver is not right
+yet** — not because it lets people touch, but because "is this stop reachable"
+is not yet its problem. The fix is stop geometry: a stop point nobody may stand
+on should never be issued, which is a change to stop ASSIGNMENT, not another
+rung. That is the next stage.
+
+**The shipped state, five minutes, patrolling player** (`qa/nav/after3`):
+
+| | before (2026-08-17) | after |
+|---|---|---|
+| shoves/second | **11.69** | **0.01** |
+| correction frames | 3,595 (7.56%) | 2 |
+| unchosen displacement | 36.5 yd | ~0 |
+| frames touching | 10 | **0** |
+| frames interpenetrating | 2 | **0** |
+| closest approach | 0.385 yd | **0.775 yd** |
+| contact episodes | 9 (1 hard) | **0** |
+| longest stall | — | 7.25 s |
+
+Watched, `qa/nav/after3`, sheets 14, 16 and 27: three customers at the counter
+with clear floor between them, holding still for ten seconds at a time. Against
+`qa/nav/before2` sheet 15, where three customers clustered and shifted against
+each other frame after frame without walking anywhere, arms passing through
+torsos. Caveat on the footage: the camera aims at the crowd's centroid and the
+player is often close to it, so much of the clip is shot from a yard or two away.
+It shows contact or its absence clearly; it is not a wide shot of the room.
+
+**Against the five acceptance criteria:** zero contacts — MET. Zero stuck — NOT
+met without the ladder; bounded to 7.25 s with it. Visible giving way — the
+solver yields on 83% of the frames it engages, and the body now faces the step it
+actually takes rather than its waypoint. Single-file queue with gaps — seen, sheet
+27. Nobody grinding on the player in a doorway — the patrol leg produced no
+contact, but the doorway reservation of §5 was NOT built and remains open.
