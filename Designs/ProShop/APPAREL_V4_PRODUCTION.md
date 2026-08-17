@@ -76,7 +76,7 @@ and `-retail.png` / `-retail-q34.png`.
 | 2 | trousers-hung | 37,036 | 454×173×1227 | seat tucking under two legs, lambda crotch; clamp hanger that grips; fly, pockets and hems as thread |
 | 3 | cap | 16,604 | 166×269×158 | superellipse crown over an oval base, apex behind centre; six panels as creases; visor corners dying on the headband; stitching on top of the bill |
 | 4 | polo-hung | 24,644 | 610×231×853 | collar with a stand, a fall and points; three-button placket with a box; shirt-tail hem; side vents |
-| 5 | tee-hung | 23,948 | 650×226×836 | jersey drape (13 folds, not 9); neck rib as a sewn strip; roundel print clear of the folds |
+| 5 | tee-hung | 23,948 | 588×226×836 | jersey drape (13 folds, not 9); neck rib as a sewn strip; roundel print clear of the folds |
 | 6 | hoodie-folded | 28,992 | 332×264×104 | five thin plies with shadow between them; hood as a flat flap with an opening slot; pocket seam; size sticker |
 | 7 | trousers-folded | 13,296 | 351×240×79 | one end a fat roll of doubled leg, the other the waistband with four belt loops and a button |
 | 8 | polo-folded | 13,636 | 315×262×53 | collar splayed flat with points; neck label; sleeve-fold diagonal |
@@ -147,6 +147,7 @@ looks commercially shippable" — so they were reopened:
 | hoodie-hung | "hood tighter than the reference's" | fatter roll, and asymmetric — a dropped hood never lands even |
 | polo-hung | "slightly boxy" | 658 mm across a 540 mm chest was wrong; sleeves brought in and the body tapered, now 610 |
 | trousers-hung | "legs a touch stiff" | each leg sways a few millimetres, and the two sway differently |
+| tee-hung | *found on the sheet, not named before* | the polo's fault again — 650 mm across a 510 mm chest, now 588 |
 
 Two things that came out of it and are worth keeping:
 
