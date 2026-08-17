@@ -166,7 +166,7 @@ def aim_cyc(centre, scale, direction):
     back.rotation_euler = (-d).to_track_quat('Z', 'Y').to_euler()
 
 
-def shots(subject, look, radius, out, plan, res=(900, 1150), margin=1.16):
+def shots(subject, look, radius, out, plan, res=(900, 1150), margin=1.07):
     """Render the named views. `plan` is (tag, azimuth, elevation, lens)."""
     import hero_lib as H
     paths = []

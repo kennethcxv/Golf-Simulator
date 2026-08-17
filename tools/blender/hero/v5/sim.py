@@ -135,7 +135,7 @@ def group_verts(ob, name, thresh=0.5):
     return out
 
 
-def pin_from_groups(ob, name, weights, soft=None):
+def pin_from_groups(ob, name, weights, soft=None, taper=None):
     """Pin by PATTERN, not by height.
 
     The first cut pinned "everything above z = -66 mm", which caught the shoulder
@@ -156,7 +156,17 @@ def pin_from_groups(ob, name, weights, soft=None):
             raise SystemExit(
                 "PIN FAILED: vertex group %r is empty. The draft did not mark "
                 "it, or `freeze` dropped the groups." % gname)
-        g.add(idxs, min(1.0, w), 'REPLACE')
+        if taper is None:
+            g.add(idxs, min(1.0, w), 'REPLACE')
+        else:
+            # LET THE SKIRT GO. Pinning the whole seam at one weight holds the
+            # silhouette but leaves the garment with no creases at all, and a
+            # pressed shirt on a hanger does have two or three soft ones below
+            # the chest. The seam is stiff where the garment is supported and
+            # freer where it hangs, so the pin tapers down the body.
+            for i in idxs:
+                g.add([i], min(1.0, w * taper(ob.data.vertices[i].co)),
+                      'REPLACE')
         total += len(idxs)
     if soft is not None:
         for i, v in enumerate(ob.data.vertices):

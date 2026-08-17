@@ -710,6 +710,162 @@ def rib_band(name, ob, group, width=0.019, proud=0.0026, ribs=0,
     return band
 
 
+def collar(name, ob, group, stand=0.021, fall=0.041, gap=0.046, rows=9,
+           thick=0.0019, spread=0.52, front=-1.0, label=""):
+    """A collar: a flat strip sewn to the neckline, standing up and folding over.
+
+    Which is what a collar is. r1c2 of the reference shows it plainly -- two flat
+    panels rising off the neck and folding back onto the shoulders with the dark
+    inside of the garment visible in the V between them. v4's polo collar was a
+    lofted flap grown out of the body and it read as a soft fin.
+
+    Built off the settled neckline so it cannot drift off it: at each point of the
+    opening, rise `stand` out of the hole, then travel `fall` back down and
+    outward. `gap` leaves the front open for the placket, which is the notch the
+    reference's collar has and the reason a polo reads as a polo.
+    """
+    loops = opening_loops(ob, group)
+    loop = max(loops, key=len)
+    dirs, norms = _surface_dir(ob, loop)
+    me = ob.data
+    pts = [Vector(me.vertices[i].co) for i in loop]
+    # cut the loop open at the centre front
+    keep = [k for k in range(len(pts))
+            if not (abs(pts[k].x) < gap * 0.5
+                    and pts[k].y * front > 0.0)]
+    if len(keep) < 8:
+        raise SystemExit("COLLAR FAILED: gap %.0f mm removed the whole loop"
+                         % (gap * 1000))
+    # rotate so the kept indices are contiguous
+    n = len(pts)
+    dropped = set(range(n)) - set(keep)
+    start = 0
+    for k in range(n):
+        if k in dropped and (k + 1) % n not in dropped:
+            start = (k + 1) % n
+            break
+    order = [(start + j) % n for j in range(n) if (start + j) % n in keep]
+    rowsets = []
+    S = 0.34
+    for r in range(rows + 1):
+        v = r / rows
+        row = []
+        for k in order:
+            p, d, nn = pts[k], dirs[k], norms[k]
+            up = (-d).normalized()
+            if v <= S:
+                # the STAND: straight up out of the neckline
+                t = v / S
+                q = p + up * (stand * t) + nn * (0.0018 * t)
+            else:
+                # THE FALL, and this is the part the first cut got wrong. It
+                # travelled along a fixed direction mixed from "down" and "the
+                # surface normal", so at the sides of the neck -- where the normal
+                # points sideways -- the collar flew out into the air and read as
+                # two stiff wings. A collar falls back ALONG THE GARMENT: its
+                # outer edge lands a fixed distance from the neckline measured
+                # over the fabric, standing a couple of millimetres off it.
+                t = (v - S) / (1.0 - S)
+                top = p + up * stand + nn * 0.0018
+                end = p + d * fall + nn * (0.0018 + 0.0024 * spread)
+                q = top.lerp(end, t) + nn * (0.0034 * spread * 4.0 * t
+                                             * (1.0 - t))
+            row.append(tuple(q))
+        rowsets.append(row)
+    ob2 = ST.grid(name, rowsets, wrap_u=False)
+    m = ob2.modifiers.new("Solidify", 'SOLIDIFY')
+    m.thickness = thick
+    m.offset = 0.0
+    m.use_even_offset = False
+    m.thickness_clamp = 1.4
+    print("  collar %-6s %d points, stand %.0f fall %.0f gap %.0f mm"
+          % (label or group, len(order), stand * 1000, fall * 1000, gap * 1000))
+    return ob2
+
+
+def surface_at(ob, x, z, out=0.0, y_from=-1.0):
+    """Where (x, z) lands on the FRONT of the garment, offset `out` off it.
+
+    Ray cast, never nearest-point: nearest-point on a two-panel shell picks
+    whichever of the front and back is closer, which flips halfway up a bowed
+    chest and puts half a printed placket on the inside.
+    """
+    from mathutils.bvhtree import BVHTree
+    key = getattr(surface_at, "_key", None)
+    if key is not (ob, len(ob.data.vertices)):
+        surface_at._key = (ob, len(ob.data.vertices))
+        surface_at._bvh = BVHTree.FromPolygons(
+            [v.co.copy() for v in ob.data.vertices],
+            [tuple(p.vertices) for p in ob.data.polygons])
+    bvh = surface_at._bvh
+    hit, nrm, _i, _d = bvh.ray_cast(Vector((x, y_from, z)),
+                                    Vector((0.0, 1.0, 0.0)), 2.0)
+    if hit is None:
+        return None, None
+    return hit + Vector(nrm) * out, Vector(nrm)
+
+
+def patch(name, ob, cols, rows, out=0.0016, rim=0.22, label=""):
+    """A proud patch lying on the garment: a placket, a pocket, a label.
+
+    `cols` and `rows` are lists of x and z. Every grid point is ray cast onto the
+    garment's front so the patch follows whatever the panel is doing, and the
+    outermost ring is left flush so the patch has a crisp step at its edge and no
+    floating rim. v4 put these on as separate slabs and they read as stickers.
+    """
+    grid = []
+    miss = 0
+    nu, nv = len(cols), len(rows)
+    for iv, z in enumerate(rows):
+        line = []
+        for iu, x in enumerate(cols):
+            e = min(iu, nu - 1 - iu) / max(1.0, (nu - 1) * rim)
+            f = min(iv, nv - 1 - iv) / max(1.0, (nv - 1) * rim)
+            w = min(1.0, min(e, f))
+            w = w * w * (3.0 - 2.0 * w)
+            p, _n = surface_at(ob, x, z, out * w)
+            if p is None:
+                miss += 1
+                p = Vector((x, -0.02, z))
+            line.append(tuple(p))
+        grid.append(line)
+    if miss:
+        raise SystemExit("PATCH FAILED: %d of %d %s points missed the garment"
+                         % (miss, nu * nv, name))
+    p = ST.grid(name, grid, wrap_u=False)
+    print("  patch %-8s %dx%d, %.1f mm proud" % (label or name, nu, nv,
+                                                 out * 1000))
+    return p
+
+
+def button(name, centre, normal, r=0.0046, h=0.0017, holes=True):
+    """A shirt button: a shallow disc with a rim and a dished centre."""
+    import bmesh
+    N = 16
+    rows = []
+    prof = [(0.0, 0.32), (0.62, 0.62), (0.88, 1.0), (1.0, 0.86), (1.0, 0.0)]
+    nrm = Vector(normal).normalized()
+    e1 = nrm.cross(Vector((0, 0, 1)))
+    if e1.length < 1e-6:
+        e1 = nrm.cross(Vector((1, 0, 0)))
+    e1.normalize()
+    e2 = nrm.cross(e1).normalized()
+    c = Vector(centre)
+    for (rr, hh) in prof:
+        rows.append([tuple(c + e1 * (r * rr * math.cos(2 * math.pi * k / N))
+                           + e2 * (r * rr * math.sin(2 * math.pi * k / N))
+                           + nrm * (h * hh))
+                     for k in range(N)])
+    ob = ST.grid(name, rows, wrap_u=True)
+    bm = bmesh.new()
+    bm.from_mesh(ob.data)
+    bmesh.ops.holes_fill(bm, edges=[e for e in bm.edges if e.is_boundary])
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces[:])
+    bm.to_mesh(ob.data)
+    bm.free()
+    return ob
+
+
 def turn_hem(ob, group, depth=0.024, inset=0.0028, up=True, label=""):
     """A TURNED HEM: the cloth folds back on itself at the opening.
 

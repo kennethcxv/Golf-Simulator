@@ -77,11 +77,20 @@ def build():
     # panel: it is two allowances turned and stitched, several times stiffer, and
     # on a pressed garment it does not move. The PANELS are what gravity gets,
     # and they are entirely free.
+    # The seam is stiff where the hanger supports it and freer down the skirt, so
+    # the garment can take two or three soft creases below the chest instead of
+    # standing like a board. Guarded by `settle`, which fails the build if the
+    # width moves more than 6 per cent.
+    def seam(p):
+        t = min(1.0, max(0.0, (blk.z_armpit - p.z)
+                         / (blk.z_armpit - blk.z_hem)))
+        return 1.0 - 0.62 * (t * t * (3.0 - 2.0 * t))
+
     SIM.pin_from_groups(ob, "pin", {
         "shoulder": 1.0, "neck": 1.0,
         "underleft": 0.55, "underright": 0.55,
         "overleft": 0.55, "overright": 0.55,
-    })
+    }, taper=lambda p: 1.0 if p.z > blk.z_armpit else seam(p))
     # mass is PER VERTEX: 14,000 verts against springs sized for a tablecloth is
     # how v4 got a 339 mm sag out of a 700 mm garment. A pressed tee on a hanger
     # does not stretch, so the target is a sag in the low tens of mm.
