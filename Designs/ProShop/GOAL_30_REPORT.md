@@ -275,3 +275,75 @@ Gate at close: lint ratchet 323 exactly, vendor-models 127 up to date,
 suite **3703 / 3703 / 0 fail** hands-off after all commits, goldens 13/13
 twice tonight (after Lever C, after Lever B), one-pixel control caught both
 times. Commits pushed: 151e403, 5d22c68, 02504ff, ac49d45, plus this report.
+
+---
+
+# EVENING ADDENDUM — THE PROFILE QUESTION, RE-BASELINED (2026-08-16, ~17:00)
+
+## Part 1 — the clean-profile baseline: the split did NOT reproduce, and here is the unsoftened statement
+
+`gfqa-warmprof` is retired aside as evidence
+(`Temp\gfqa-warmprof-RETIRED-2026-08-16`). A fresh profile was stamped
+through the kit's own protocol and measured: three cold, three warm.
+
+| tier | runs | median |
+|---|---|---|
+| cold (fresh profile each) | 49.8 / 77.5 / 91.3 s | **77.5 s** |
+| warm (clean stamped profile) | 59.1 / 73.8 / 81.5 s | **73.8 s** |
+
+**What this game's warm load is on healthy hardware: THIS MACHINE STILL
+CANNOT SAY.** One hour before these runs, the same clean-profile protocol
+on the same silicon read 12.7 s warm with compile-hidden at 0.77 s. One
+hour later it reads 59–81 s. The intermittent stall fired on four of six
+clean-profile boots (12–18 s single gaps), so it is NOT a disease of the
+retired profile — it lives on this machine and strikes fresh profiles too.
+And a second signature appeared this hour that the morning's boots did not
+show: 17–45 s of veil-hold AFTER prewarm completes, made of sub-2-second
+frames (clean-warm2 paid 38.7 s of it with zero stalls and compile-hidden
+at 0.8 s — the machine ran every frame slow rather than stalling once).
+The stamp is present in every profile (checked at the leveldb level), so
+this tail is not the compile screen re-running.
+
+The 12.7 s reading from the kit hour was real and its controls were green
+— it stands as proof of what this silicon can do in a quiet window, and
+as the strongest evidence yet that the GAME is not the 60-second problem.
+But three-nights-of-degradation-were-just-the-profile is NOT confirmed:
+the machine got worse within the hour on every profile including the
+retired one's replacement. The cross-machine kit run is now the only
+instrument that can answer the question, which is why it exists.
+
+## Part 2 — skipped, per its own gate
+
+The order said "only if Part 1 confirms the split." It did not confirm.
+The retired profile sits untouched for the day the comparison is worth
+making on hardware that holds still.
+
+## Part 3 — what could be re-priced honestly, and what could not
+
+- **Standing draws: CONFIRMED unaffected.** 2,325 calls at pass
+  multiplier 2 on the clean profile — the exact goal-29/30 number — with
+  the planted (+25 objects = +50 calls, exact return) and suppressed-cube
+  controls both green. The draws verdict stands.
+- **Program count: CONFIRMED consistent** on the same instrument (202 at
+  the driver's settle, matching its old-profile readings). The programs
+  verdict stands.
+- **The stall bailout: it still fires on clean profiles** (4 of 6 boots
+  this hour). It is not protecting against something that existed only in
+  the retired profile; it stays.
+- **First-press census and ambient frame time: BLOCKED.** Both are timing
+  measurements and this hour's machine cannot hold a number still. They
+  are first in line on a clean window or the second computer.
+
+## The target table, re-stated with tonight's knowledge
+
+| target | old (through the retired profile) | clean-profile tonight | verdict |
+|---|---|---|---|
+| LOAD warm <10 s / first boot <15 s | 36–69 s "degraded machine" | 12.7 s witnessed in one quiet window; 59–81 s an hour later | **UNKNOWABLE ON THIS MACHINE — cross-machine kit run pending; the 12.7 s reading says the game itself may already be near target** |
+| FRAMES no >16.7 ms | not measurable | not measurable this hour | BLOCKED (machine) |
+| DRAWS <400 standing | 2,325 measured, floor ~1,950, UNREACHABLE by merging | **2,325 confirmed on clean profile** | verdict stands, profile-independent |
+| PROGRAMS <120 | 170 settled, UNREACHABLE mechanically | same instrument reads consistent | verdict stands, profile-independent |
+| updateMatrix <4,000/frame | 3,987 ×3 (Lever B) | counts are profile-independent | stands |
+| TEXTURES | 544.5 → 352.5 MiB (Lever C) | byte census, profile-independent | stands |
+
+Evidence: `qa/electron/load-breakdown/clean-{cold1..3,warm1..3}-result.json`,
+`qa/electron/goal29-draws/clean-draws1.json`, stamp checks in this addendum.
