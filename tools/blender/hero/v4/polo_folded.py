@@ -43,10 +43,10 @@ OUT = os.path.join(REPO, "qa", "hero", "v4", "polo-folded")
 
 HALF_W, HALF_D = 0.1520, 0.1190
 # THE PHOTOGRAPH'S STACK SHOWS FIVE OR SIX LIPS, not three.
-PLIES = 6
-PLY_T = 0.0062
-PLY_GAP = 0.0026
-STAGGER = 0.0062
+PLIES = 4
+PLY_T = 0.0105
+PLY_GAP = 0.0040
+STAGGER = 0.0092
 
 
 def bulk(t, ply):
@@ -94,16 +94,24 @@ def collar(body):
                 t = (0.0060 * math.sin(math.pi * min(1.0, v * 0.92 + 0.08))
                      * (1.0 - 0.86 * u ** 3.4))
                 edge = min(D._smooth(u, 0.0, 0.05), D._smooth(1 - u, 0.0, 0.045))
-                row.append(tuple(hit + n * (-0.0012 + (t + 0.0022) * edge)))
+                # A COLLAR HAS A STAND. Laid dead flat on the ply it read as a
+                # shape cut out of the surface -- the board's folded collar
+                # rises 9 mm along its fold at the centre back and its points
+                # lift clear of the cloth, and that lift is the only reason the
+                # collar throws a shadow and reads as a separate piece.
+                stand = (0.0092 * (1.0 - v) ** 1.5 * (1.0 - 0.55 * u ** 1.8)
+                         + 0.0034 * D._smooth(v, 0.72, 1.0) * u ** 1.4)
+                row.append(tuple(hit + n * (-0.0012 + (t + 0.0022) * edge
+                                            + stand)))
             if len(row) == NX + 1:
                 rows.append(row)
         ob = D.grid_mesh("collar%+d" % sx, rows)
         D.shade_smooth(ob, 46.0)
         out.append(ob)
 
-    # the two buttons, on the placket below the collar
-    for k in range(2):
-        y = HALF_D * (0.42 - 0.20 * k)
+    # the THREE buttons, on the placket below the collar
+    for k in range(3):
+        y = HALF_D * (0.46 - 0.165 * k)
         hit, nrm = F.top_at(body, 0.006, y)
         if hit is None:
             continue

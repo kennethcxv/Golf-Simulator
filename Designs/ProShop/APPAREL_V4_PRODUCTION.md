@@ -204,3 +204,108 @@ Two things that came out of it and are worth keeping:
   manifest. Attempting it unattended risks the golden gate for no art gain.
   The assets are built, exported and validated and are ready for it.
 - Residual visual gaps, per asset, are named in the commit messages.
+
+---
+
+# ROUND 2 — the reference boards (2026-08-17)
+
+Ten reference boards arrived under `Designs/ProShop/Apparel`, one per asset,
+each with front / back / side / detail / retail-context panels. They are now
+the shape truth and they **supersede the Wikimedia photographs** for every
+judgement about proportion, construction and trim. Copies live at
+`qa/hero/v4/ref/board/<asset>.png` and every REFERENCE | CURRENT | NEW sheet
+now uses the board rather than a single photograph.
+
+## What the boards changed that no photograph had shown
+
+Three of these applied to every hung garment at once and were wrong on all four.
+
+**1. The hanger.** Every board — hoodie, polo, tee, and the retail racks behind
+all three — hangs its stock on the same **black moulded shop hanger with a
+chrome hook**, and the trousers hang from a **black clamp hanger** that GRIPS
+the waistband. All four garments were on white wire. It was the single most
+visible non-retail tell in the set. `stage.top_hanger` and
+`stage.clamp_hanger` now serve all five.
+
+**2. Depth.** The boards' SIDE VIEW panels show a hung garment is very nearly
+FLAT. The hoodie was 150 mm front-to-back on a 508 mm chest — a bolster. That
+one number is the whole of the "inflated / rounded block / pillow" reading, and
+no amount of fold work reaches past it. Now 88 mm.
+
+**3. Trim scale.** Ribbing, seams, creases and topstitch were all built at
+"correct" millimetre sizes and were invisible at the size the asset is actually
+looked at. The trouser crease was 2.4 mm on a 105 mm leg; the board reads the
+trousers by that line before it reads the pockets. Now 5.2.
+
+## Per-asset, against its board
+
+| # | Asset | What the board forced | State |
+|---|---|---|---|
+| 1 | hoodie-hung | −33 mm half-width, +35 mm length, HALF the depth, modelled 208-column waistband, hood ends buried, face facing, armhole seams, pocket down onto the band | **rebuilt** |
+| 2 | trousers-hung | black clamp hanger, legs taper to 2/3, crease 2.4 → 5.2 mm, thread stops being the same material as the cloth | **rebuilt** |
+| 3 | cap | back closure added from nothing: keyhole cut as a real GAP, webbing strap, slide buckle | **rebuilt** |
+| 4 | polo-hung | black hanger, calm front panel, sleeves attached at 4.2 mm clearance with a hem lobe | improved |
+| 5 | tee-hung | black hanger inside the neck, crew collar rebuilt as a ROLL (96 ribs, 288 columns), roundel deleted | **rebuilt** |
+| 6 | hoodie-folded | hood rebuilt a FIFTH time — as the arched hollow roll the board shows, with a binding round its mouth; 8 thin plies → 5 fat; tonal cords | **rebuilt** |
+| 7 | trousers-folded | 4 plies, crease, waistband | improved |
+| 8 | polo-folded | 6 thin plies → 4 fat, collar given a 9 mm STAND so it throws a shadow, third button | improved |
+| 9 | tee-folded | 3 → 4 plies, roundel deleted for a 42 mm off-centre flag, neck rib 2.7 → 6.2 mm roll, slate blue, scratch-lines killed | **rebuilt** |
+| 10 | cap-peg | SLATWALL, flat bracket plate, rod long again so the chrome ball clears the crown, tilt 78° → 62° | **rebuilt** |
+
+## Traps this round added to the list
+
+- **Cloth mass is per vertex — and the right value scales with AREA, not with
+  the cloth.** Flattening the hoodie cost 40% of its surface without changing
+  the vertex count, so the same 0.090 was that much denser against springs
+  whose rest lengths shrank with it. Travel went 44 mm → 188, the hem stretched
+  into a pouch hanging out below the waistband, and the hem's own height spread
+  over 31 mm. Third time this arithmetic has arrived looking like a modelling
+  failure. `drape.add_cloth` now takes a `mass` override.
+- **Angular ribbing smears on a flattened section.** Ribs driven off the angle
+  about the garment's axis are even on a tube and wildly uneven on a
+  superellipse at n = 3.4: dx/dθ runs away at centre front, so 150 ribs per
+  turn arrived as twenty broad corrugations across the front panel and a blur
+  at the side seams. Rib pitch has to be ARC LENGTH, which the shader cannot
+  reach without UVs — so the waistband is modelled at 208 columns.
+- **Trim built from the profile table lands on a body that has moved.** The
+  waistband was lofted from `BODY_PROFILE` while the body is simulated and then
+  fold-displaced; it came out skewed across a hem 31 mm from where the table
+  said. Build trim from the BODY's own rings, and level its bottom edge under
+  the lowest point of the cloth.
+- **Thread the same colour as the cloth is not a seam.** Every groove and
+  topstitch on the trousers was correct and invisible because the stitch
+  objects carried the garment material.
+- **A flat strip on a horizontal yoke is edge-on from every front camera.** The
+  tee's crew collar was rebuilt as a flat band specifically to avoid v3's
+  "torus laid on the shoulders", and rendered as nothing at all. The right
+  object is a ROLL.
+- **A detail that reads as a scratch is worse than no detail.** Piped
+  "sleeve fold" seams laid on the folded tee and polo read as scratches across
+  the ply; the board shows a soft crease in the cloth and no line at all.
+- **A geometry change moves the props that were tuned around it.** Flattening
+  the hoodie put the hanger's tips through the shoulders and left the hood
+  roll's end caps outside the front surface as two curved flaps that read as a
+  shirt collar; raising the hood 30 mm then pushed the hanger's shoulder out of
+  the neck as a black beak. Re-look at every attached part after any change to
+  the body's envelope.
+
+## Technical gates, this round
+
+- glTF: `node tools/validate-gltf.mjs Assets/models/hero/v4` → **10 files,
+  0 failed, 0 warnings.**
+- Export round-trip: 0.000 mm on nine, 0.199 mm on the cap (the buckle's
+  baked rotation).
+- Lint ratchet: **323, green** against the frozen baseline.
+- vendor-models: **127 up to date, 0 problems.**
+
+## STILL NOT DONE
+
+- **In-game verification.** Nothing is wired: grepping the renderer for
+  `hero/v4` and for every `apparel_*` GLB name returns nothing, and v3 was
+  never wired either. The shop's apparel comes from
+  `vendor/models/checkout/apparel_*` and
+  `vendor/models/clubhouse/apparel_wall.glb` plus procedural proxies. Wiring v4
+  is a NEW integration and needs an owner decision about where in the pro shop
+  these ten states go — it is not a swap.
+- The hoodie's hood has a cavity but no lining texture inside it.
+- The cap's keyhole edge is a quad-skip staircase at 96 columns.

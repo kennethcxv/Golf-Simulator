@@ -39,7 +39,7 @@ PEG_Y = 0.0                  # the wall plane
 # a slipper on a hook. cap-peg-ref1 (a shop's cap wall) shows the crown facing
 # the aisle and the bill dropping about forty degrees: the cap RESTS on the
 # rod, it does not dangle off it.
-TILT = math.radians(78.0)    # hooked over the rod, crown out, visor down
+TILT = math.radians(62.0)    # hooked over the rod, crown out, visor down
 LEAN = math.radians(5.0)
 
 
@@ -47,16 +47,18 @@ def peg():
     """A wall peg: a plate, a rod that rises, and a ball that stops the stock
     sliding off. v3's was a bare rod floating beside the cap."""
     parts = []
-    bpy.ops.mesh.primitive_cylinder_add(radius=0.0225, depth=0.0060,
-                                        vertices=24,
-                                        rotation=(math.pi / 2, 0, 0),
-                                        location=(0.0, PEG_Y + 0.003, 0.0))
+    # a FLAT PLATE, not a disc: the board's slatwall bracket is a rounded
+    # rectangle about 34 x 46 mm standing 6 mm off the panel
+    bpy.ops.mesh.primitive_cube_add(size=1.0)
     plate = bpy.context.object
     plate.name = "peg_plate"
+    plate.scale = (0.0170, 0.0034, 0.0232)
+    plate.location = (0.0, PEG_Y + 0.0038, 0.0)
+    bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
     import bmesh
     bm = bmesh.new()
     bm.from_mesh(plate.data)
-    bmesh.ops.bevel(bm, geom=list(bm.edges) + list(bm.verts), offset=0.0011,
+    bmesh.ops.bevel(bm, geom=list(bm.edges) + list(bm.verts), offset=0.0026,
                     segments=3, affect='EDGES')
     bm.to_mesh(plate.data)
     bm.free()
@@ -66,14 +68,14 @@ def peg():
     pts = []
     for i in range(19):
         t = i / 18.0
-        pts.append(Vector((0.0, PEG_Y - 0.062 * t,
-                           0.0 + 0.016 * t * t)))
+        pts.append(Vector((0.0, PEG_Y - 0.086 * t,
+                           0.0 + 0.030 * t * t)))
     rod = _sweep("peg_rod", pts, 0.0058, 0.0058, sides=14)
     D.shade_smooth(rod, 36.0)
     parts.append(rod)
 
     bpy.ops.mesh.primitive_uv_sphere_add(radius=0.0086, segments=18, ring_count=10,
-                                         location=(0.0, PEG_Y - 0.064, 0.0166))
+                                         location=(0.0, PEG_Y - 0.089, 0.0312))
     ball = bpy.context.object
     ball.name = "peg_ball"
     D.shade_smooth(ball, 40.0)
@@ -175,9 +177,14 @@ def pose(objs, rod_end):
     # A 90 mm rod on a cap tilted three quarters upright put the chrome ball
     # ON THE CREST OF THE CROWN, so the cap read as nailed to the wall rather
     # than hung on a peg. The rod has to die inside the sweatband.
-    hang_y = PEG_Y - 0.044
-    t = min(1.0, abs(hang_y - PEG_Y) / 0.062)
-    rod_z = 0.016 * t * t + 0.0058
+    # THE BALL HAS TO SHOW. The board's main frame and its PEG CONTACT DETAIL
+    # both read the display off the chrome ball standing clear above the cap's
+    # back edge; hung 52 mm out the rod's whole 86 mm was buried inside the
+    # crown and the frame was a cap stuck to a wall. Hang near the bracket and
+    # the last 65 mm of rod comes out past the rim.
+    hang_y = PEG_Y - 0.021
+    t = min(1.0, abs(hang_y - PEG_Y) / 0.086)
+    rod_z = 0.030 * t * t + 0.0058
 
     shift = Matrix.Translation(Vector((0.0, hang_y - back.y,
                                        rod_z - back.z)))
@@ -205,7 +212,7 @@ def main():
 
     capobjs = build_cap()
     pg = peg()
-    rod_end = Vector((0.0, PEG_Y - 0.064, 0.0166))
+    rod_end = Vector((0.0, PEG_Y - 0.089, 0.0312))
     pose(capobjs, rod_end)
 
     subject = list(capobjs) + list(pg)
@@ -236,7 +243,8 @@ def main():
     print("  span %.3f m, aim y %.3f z %.3f" % (span, aim.y, aim.z))
     ST.garment_lights(centre=centre, scale=radius * 1.6)
     ST.world_value(0.032)
-    wall = ST.shop_wall(PEG_Y + 0.006, centre.z - 3.0, value=0.13)
+    wall = ST.slatwall(PEG_Y + 0.006, centre.z, value=0.34,
+                       rows=7, pitch=0.082)
     # THE PEG HAS TO BE IN THE SHOT. Looking from -y is looking straight down
     # the rod, so the cap hides all 90 mm of it and the asset is just a cap in
     # front of a wall -- which is v3's complaint restated. Every angle here is
@@ -250,7 +258,8 @@ def main():
                        lens=76.0)
         H.render(cam, os.path.join(OUT, "cap-peg-v4-%s.png" % label), res=res)
 
-    bpy.data.objects.remove(wall, do_unlink=True)
+    for w in wall:
+        bpy.data.objects.remove(w, do_unlink=True)
     ST.world_value(0.055)
     d = span * 3.30
     cam = H.camera("compare", H.orbit_position(aim, d, -112, 3), aim,
@@ -258,7 +267,8 @@ def main():
     H.render(cam, os.path.join(OUT, "cap-peg-v4-compare.png"), res=(1000, 820))
 
     # retail: a wall of pegs, which is how caps are actually merchandised
-    ST.shop_wall(PEG_Y + 0.006, centre.z - 3.0, value=0.13)
+    ST.slatwall(PEG_Y + 0.006, centre.z - 0.11, value=0.34,
+                rows=9, pitch=0.082)
     made = ST.duplicate_along(subject,
                               [(-0.46, 0, 0.010), (-0.23, 0, -0.004),
                                (0.23, 0, 0.006), (0.46, 0, -0.008),

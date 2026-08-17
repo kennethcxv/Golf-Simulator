@@ -41,16 +41,17 @@ import folded as F  # noqa: E402
 REPO = os.getcwd()
 OUT = os.path.join(REPO, "qa", "hero", "v4", "hoodie-folded")
 
-# A FOLDED GARMENT HAS MANY THIN LAYERS, NOT THREE FAT ONES. At 23 mm a ply
-# is deeper than the shadow gap between plies, so the stack merges into one
-# mass and the front edge shows a single lip -- which is a mattress. Five
-# plies of 13 mm with a 5 mm gap gives the front edge the stack of lips that
-# is the whole read in the reference.
+# A FOLDED GARMENT HAS MANY THIN LAYERS, NOT THREE FAT ONES -- but not eight
+# either. At 23 mm a ply is deeper than the shadow gap between plies and the
+# stack merges into a mattress; at 8 mm there are so many lips that the pile
+# reads as several garments rather than one folded hoodie. The board's side
+# profile shows FIVE edges: two fat plies making the front rolls and three
+# more showing at the folded end.
 HALF_W, HALF_D = 0.1585, 0.1180
-PLIES = 8
-PLY_T = 0.0079
-PLY_GAP = 0.0034
-STAGGER = 0.0075
+PLIES = 5
+PLY_T = 0.0132
+PLY_GAP = 0.0042
+STAGGER = 0.0098
 
 
 def bulk(t, ply):
@@ -66,58 +67,98 @@ def bulk(t, ply):
 
 
 def hood(body):
-    """The hood folded down as ANOTHER PLY, not as a pillow on the lid.
+    """The hood, as the ARCHED HOLLOW ROLL the board shows it to be.
 
-    Three cuts of this. v3 used an oval pillow; the first v4 cut a bolster;
-    the second a flat flap that was still a smooth roll across the full width.
-    All three read as bedding, and the reason is the same each time: a rounded
-    section lying on a flat stack is a cushion whatever its outline.
+    Four cuts came before this. v3 used an oval pillow; the first v4 cut a
+    bolster; the second a flat flap; the third made it another PLY -- flat,
+    ply-thick, with its own lip -- on the reasoning that a rounded section
+    lying on a flat stack is a cushion whatever its outline.
 
-    A hood folded down is just more cloth in the pile. It is FLAT, the same
-    order of thickness as the plies under it, it covers the back half only,
-    and its front edge is a folded roll with the face opening showing as a
-    slot along it. Once it has a lip like the plies below, it stops being a
-    separate object lying on top and becomes part of the fold.
+    That reasoning was right about cushions and wrong about this garment. The
+    reference board is unambiguous: on a folded hoodie the hood is the biggest
+    single form in the frame. It lies across the BACK of the stack as a soft
+    arched tube standing 50 mm proud, its face opening turned up and forward
+    so you look into the cavity, and its front edge is a thick rolled binding.
+    Made flat it disappears and the stack could be any garment; the drawcords
+    were carrying the entire identity on their own.
+
+    So: a tube swept along the back edge, its section a C opened towards the
+    viewer, with a binding round the opening.
     """
     zs = [v.co.z for v in body.data.vertices]
     top = max(zs)
-    NX, NY = 34, 20
-    HW = HALF_W * 0.955
-    Y0, Y1 = -HALF_D * 0.10, HALF_D * 1.005
-    T = 0.0098                        # a ply, not a bolster
-    rows_top, rows_bot = [], []
-    for j in range(NY + 1):
-        v = j / NY
-        y = Y0 + (Y1 - Y0) * v
-        rt, rb = [], []
-        for i in range(NX + 1):
-            u = -1.0 + 2.0 * i / NX
-            e = abs(u)
-            w = HW * (1.0 - 0.035 * D._smooth(v, 0.80, 1.0))
-            x = u * w + 0.0026 * math.sin(v * 5.1 + 1.2)
-            # flat through the middle, rolling closed at every edge -- the
-            # roll at v = 0 is the folded front edge and carries the opening
-            fx = (1.0 - e ** 7.0) ** 0.30
-            fy = min(1.0, (math.sin(math.pi * min(1.0, v * 0.97 + 0.03))
-                           ** 0.30) * 1.06)
-            half = 0.5 * T * fx * fy
-            mid = top + 0.0016 + half
-            fold = 0.0016 * math.sin(3.3 * math.pi * u + 0.7) * fy
-            slot = 0.0042 * math.exp(-((v - 0.045) / 0.042) ** 2) * (1 - e ** 4)
-            rt.append((x, y, mid + half + fold - slot))
-            rb.append((x, y, mid - half + fold * 0.35))
-        rows_top.append(rt)
-        rows_bot.append(rb)
-    ob = D.grid_mesh("hood", rows_top + list(reversed(rows_bot)))
+    NX, NA = 40, 26
+    HW = HALF_W * 0.90
+    Y_MID = HALF_D * 0.46
+    R0, R1 = 0.0176, 0.0362           # section radius at the ends / at centre
+
+    def spine(u):
+        k = max(0.0, 1.0 - u * u)
+        return Vector((u * HW,
+                       Y_MID - 0.012 * k ** 0.8,
+                       top + 0.0034 + 0.0182 * k ** 0.55))
+
+    def radius(u):
+        k = max(0.0, 1.0 - u * u)
+        # not even: a folded hood slumps a little to one side
+        return (R0 + (R1 - R0) * k ** 0.62) * (1.0 + 0.10 * math.sin(u * 1.4))
+
+    rows = []
+    for i in range(NX + 1):
+        u = -1.0 + 2.0 * i / NX
+        c = spine(u)
+        r = radius(u)
+        row = []
+        for j in range(NA):
+            a = 2 * math.pi * j / NA
+            # THE CAVITY. The front-upper quadrant is drawn IN towards the
+            # spine so the roll is a C and not a sausage -- that hollow, and
+            # the shadow in it, is what says hood.
+            #
+            # Stated as a Gaussian on the section angle, because the first cut
+            # wrote it as a product of two clamped trig terms and put the
+            # hollow at the BACK: a = 0 is +y here, which is away from the
+            # camera, so "front-up" is near 1.3 pi and not near 1.7.
+            d = (a - 1.30 * math.pi + math.pi) % (2 * math.pi) - math.pi
+            squash = 1.0 - 0.60 * math.exp(-(d / 0.62) ** 2)
+            # ... and it is flattened where it lies on the stack
+            floor = 1.0 - 0.30 * max(0.0, math.sin(a)) ** 1.6
+            f = (1.0 + 0.085 * math.sin(3.1 * math.pi * u + 1.0)
+                 * math.sin(a + 0.4)
+                 + 0.045 * math.sin(a * 3.0 - u * 2.0))
+            p = c + Vector((0.0,
+                            r * f * squash * math.cos(a) * 1.24,
+                            r * f * squash * floor * -math.sin(a)))
+            row.append(tuple(p))
+        rows.append(row)
+    ob = D.grid_mesh("hood", rows, wrap_u=True)
     import bmesh
     bm = bmesh.new()
     bm.from_mesh(ob.data)
-    bmesh.ops.remove_doubles(bm, verts=bm.verts[:], dist=2e-4)
     bmesh.ops.holes_fill(bm, edges=[e for e in bm.edges if e.is_boundary])
     bmesh.ops.recalc_face_normals(bm, faces=bm.faces[:])
     bm.to_mesh(ob.data)
     bm.free()
-    D.shade_smooth(ob, 44.0)
+    D.shade_smooth(ob, 42.0)
+
+    # the binding round the face opening -- a 9 mm rolled hem, and the one
+    # line in the frame that tells the eye where the hood's mouth is
+    bind = []
+    for i in range(NX + 1):
+        u = -0.985 + 1.97 * (i / NX)
+        c = spine(u)
+        r = radius(u)
+        a = 1.08 * math.pi
+        bind.append(c + Vector((0.0, r * math.cos(a) * 1.30,
+                                r * -math.sin(a) * 0.90)))
+    bd = D.topstitch("hood_binding", bind, radius=0.0046, sides=10)
+    D.shade_smooth(bd, 44.0)
+    bpy.ops.object.select_all(action='DESELECT')
+    bd.select_set(True)
+    ob.select_set(True)
+    bpy.context.view_layer.objects.active = ob
+    bpy.ops.object.join()
+    ob.name = "hood"
     return ob
 
 
@@ -373,15 +414,18 @@ def main():
 
     cloth = fleece_material()
     rib = fleece_material((0.0225, 0.0265, 0.0480))
-    # the cord is a flat braid, much lighter than the shell it hangs on
-    cordmat = fleece_material((0.2050, 0.2120, 0.2350))
+    # THE CORDS ARE THE GARMENT'S COLOUR. Pale grey braid on navy fleece is
+    # what a cheap hoodie does; the board's cords are navy with dark gunmetal
+    # tips, and they read by their round highlight and their shadow, not by
+    # contrast. At 0.205 they were the brightest thing in the frame.
+    cordmat = fleece_material((0.0455, 0.0520, 0.0880))
     for o in [body, hd] + list(pk):
         o.data.materials.append(cloth)
     for o in cf:
         o.data.materials.append(rib)
     for o in dc:
         o.data.materials.append(
-            ST.metal("Aglet", (0.70, 0.71, 0.74), 0.26)
+            ST.metal("Aglet", (0.31, 0.32, 0.34), 0.30)
             if o.name.startswith("aglet") else cordmat)
 
     tag = size_tag(body)

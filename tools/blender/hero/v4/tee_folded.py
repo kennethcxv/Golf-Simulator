@@ -40,8 +40,8 @@ OUT = os.path.join(REPO, "qa", "hero", "v4", "tee-folded")
 
 HALF_W, HALF_D = 0.1455, 0.1130
 PLIES = 4
-PLY_T = 0.0068
-PLY_GAP = 0.0026
+PLY_T = 0.0088
+PLY_GAP = 0.0032
 
 
 def bulk(t, ply):
@@ -54,21 +54,29 @@ def neck_rib(body):
     pts = []
     for i in range(25):
         u = -1.0 + 2.0 * (i / 24.0)
-        x = 0.062 * math.sin(u * 1.62)
+        x = 0.082 * math.sin(u * 1.62)
         y = HALF_D * (0.930 - 0.085 * (1.0 - u * u))
         hit, nrm = F.top_at(body, x, y)
         if hit is not None:
             pts.append(hit + Vector((0, 0, 0.0014)))
     if len(pts) < 6:
         return []
-    ob = D.topstitch("neck_rib", pts, radius=0.0027, sides=9)
-    D.shade_smooth(ob, 44.0)
+    # A ROLLED BAND, not a thread. The board's top-folded view is read by its
+    # collar: a 20 mm ring of rib standing off the top ply with the size label
+    # inside it. At 2.7 mm this was a wire lying on the fold.
+    ob = D.topstitch("neck_rib", pts, radius=0.0062, sides=12)
+    D.shade_smooth(ob, 40.0)
     return [ob]
 
 
 def print_panel(body):
-    """Ink on the top ply, conformed. No border, no card."""
-    CX, CZ, R = 0.0, HALF_D * 0.06, 0.0505
+    """Ink on the top ply, conformed. No border, no card.
+
+    SMALL, AND OFF CENTRE. The board puts a 35 mm line-art flag on the
+    right of the chest; a 101 mm filled roundel in the middle of the ply
+    is a beer mat. The disc itself goes -- what is left is the flag.
+    """
+    CX, CZ, R = HALF_W * 0.40, HALF_D * 0.10, 0.0210
     NA, NR = 40, 11
     rows = []
     for j in range(NR + 1):
@@ -83,20 +91,10 @@ def print_panel(body):
                 hit = Vector((x, y, 0.05))
             row.append(tuple(Vector(hit) + Vector((0, 0, 0.00085))))
         rows.append(row)
-    ob = D.grid_mesh("print", rows, wrap_u=True)
-    D.shade_smooth(ob, 50.0)
-    ring = []
-    for i in range(41):
-        a = 2 * math.pi * i / 40.0
-        hit, nrm = F.top_at(body, CX + R * 1.11 * math.sin(a),
-                            CZ + R * 1.11 * math.cos(a) * 0.94)
-        if hit is not None:
-            ring.append(Vector(hit) + Vector((0, 0, 0.00085)))
-    out = [ob]
-    if len(ring) > 8:
-        rg = D.topstitch("print_ring", ring, radius=0.0017, sides=8)
-        D.shade_smooth(rg, 46.0)
-        out.append(rg)
+    # ... and there is no disc and no ring. The board's graphic is line art on
+    # bare cloth; a filled ellipse with an outline round it is the "flat card
+    # with a border" of EF2 wearing a different shape.
+    out = []
 
     # A PLAIN DISC IS A STAIN, NOT A PRINT -- and it was the same fault on the
     # HUNG tee. The club's device is a flag on a pole and two crossed clubs,
@@ -137,14 +135,14 @@ def sleeve_fold(body):
         pts = []
         for i in range(17):
             t = i / 16.0
-            x = sx * HALF_W * (0.90 - 0.14 * t)
+            x = sx * HALF_W * (0.86 - 0.12 * t)
             y = HALF_D * (0.80 - 1.60 * t)
             hit, nrm = F.top_at(body, x, y)
             if hit is not None:
                 pts.append(hit + Vector((0, 0, 0.0009)))
         if len(pts) > 6:
-            ob = D.topstitch("sleeve_fold%+d" % sx, pts, radius=0.0014,
-                             sides=8)
+            ob = D.topstitch("sleeve_fold%+d" % sx, pts,
+                             radius=0.00055, sides=6)
             D.shade_smooth(ob, 42.0)
             out.append(ob)
     return out
@@ -178,7 +176,7 @@ def size_tag(body):
     return [ob]
 
 
-def jersey_material(colour=(0.5400, 0.5250, 0.4900)):
+def jersey_material(colour=(0.1560, 0.2010, 0.2720)):
     mat = bpy.data.materials.new("FoldedJersey")
     mat.use_nodes = True
     nt = mat.node_tree
@@ -250,8 +248,8 @@ def main():
     tg = size_tag(body)
 
     cloth = jersey_material()
-    rib = jersey_material((0.4600, 0.4460, 0.4150))
-    ink = jersey_material((0.0640, 0.1450, 0.1050))
+    rib = jersey_material((0.1300, 0.1690, 0.2300))
+    ink = jersey_material((0.0300, 0.0430, 0.0720))
     body.data.materials.append(cloth)
     for o in nr + sf:
         o.data.materials.append(rib)
@@ -274,7 +272,7 @@ def main():
 
     H.set_engine("CYCLES" if "cycles" in args else "EEVEE", samples=96)
 
-    ST.exposure(-0.86)
+    ST.exposure(-0.10)
     centre = (lo + hi) * 0.5
     _c, radius = H.subject_sphere(subject)
     ST.garment_lights(centre=centre, scale=radius * 1.9)
