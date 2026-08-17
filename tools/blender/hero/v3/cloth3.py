@@ -931,9 +931,27 @@ def folded_ribbon(prefix, centre, size, plies=4, squareness=7.5,
 
     # ---- sweep the section across x, scaled by the garment's own outline
     NS = len(ring2d)
+
+    # THE X ENDS ARE TUCKED, NOT CAPPED. The sweep used to close each end with
+    # a single n-gon over the whole section -- 164 sides -- and at the low
+    # angle the brief asks for that cap is a flat vertical wall with a step
+    # per ply. It read as a staircase, which is F1 on the first comparison
+    # frame, and assert_no_flat_caps names it in one line.
+    #
+    # Instead the section shrinks toward its own centroid over three stations
+    # and finishes on a pole, so the garment turns over at its ends the way
+    # the cloth actually does.
+    cy2d = sum(q.y for q in ring2d) / NS
+    cz2d = sum(q.z for q in ring2d) / NS
+    TUCK = ((0.90, 0.9), (0.66, 1.7), (0.30, 2.3))
+    stations = ([(-1.0 - 0.030 * push, sc) for sc, push in reversed(TUCK)]
+                + [(-1.0 + 2.0 * xi / (xsteps - 1.0), 1.0)
+                   for xi in range(xsteps)]
+                + [(1.0 + 0.030 * push, sc) for sc, push in TUCK])
+
     verts, faces = [], []
-    for xi in range(xsteps):
-        u = -1.0 + 2.0 * xi / (xsteps - 1.0)
+    poles = []
+    for u, shrink in stations:
         # rounded-rectangle footprint: full width across the middle, tucking in
         # at the two ends
         # THE FOOTPRINT IS A ROUNDED RECTANGLE, and it has to be computed as
@@ -942,13 +960,21 @@ def folded_ribbon(prefix, centre, size, plies=4, squareness=7.5,
         # 90% by u = 0.5 and the whole garment came out a lens. A superellipse
         # |X|^n + |Y|^n = 1 gives the half-depth directly, and at n = 7.5 it
         # holds full depth to u = 0.9 and only rounds off in the last tenth.
-        k = max(0.0, 1.0 - abs(u) ** squareness) ** (1.0 / squareness)
+        # CLAMPED. The tuck stations sit just past u = +/-1, where
+        # 1 - |u|^7.5 goes negative and clamps to zero -- which collapses the
+        # section flat in y and turns the tuck back into the wall it was meant
+        # to replace. The footprint is only defined on the garment.
+        uc = max(-1.0, min(1.0, u))
+        k = max(0.0, 1.0 - abs(uc) ** squareness) ** (1.0 / squareness)
         x = u * w * 0.5
         wob = 1.0 + wander * (0.020 * math.sin(u * 3.1 + seed)
                               + 0.012 * math.sin(u * 6.7 - seed * 1.7))
         # the pile leans, and it leans MORE the higher up you are
-        for si2, p2 in enumerate(ring2d):
-            ew = edge_w[si2]
+        for si2, p2raw in enumerate(ring2d):
+            ew = edge_w[si2] * shrink
+            p2 = Vector((0.0,
+                         cy2d + (p2raw.y - cy2d) * shrink,
+                         cz2d + (p2raw.z - cz2d) * shrink))
             zt = (p2.z + h * 0.5) / max(1e-6, h)        # 0 bottom, 1 top
             # THE PILE SAGS AT ITS PERIMETER, not just across x. Sagging only
             # in x left the top ply a flat plate with a bevelled edge sitting
@@ -972,16 +998,22 @@ def folded_ribbon(prefix, centre, size, plies=4, squareness=7.5,
                 + lean * zt * math.sin(seed * 1.7),
                 cz + h * 0.5 + p2.z - droop + rumple
                 - ew * 0.0016 * (1.0 + math.sin(u * 4.1 + seed)))))
-    for xi in range(xsteps - 1):
+    nst = len(stations)
+    for xi in range(nst - 1):
         for si in range(NS):
             a = xi * NS + si
             b = xi * NS + (si + 1) % NS
             faces.append((a, b, b + NS, a + NS))
-    # cap the two x ends
-    first = list(range(NS))
-    last = [(xsteps - 1) * NS + i for i in range(NS)]
-    faces.append(tuple(reversed(first)))
-    faces.append(tuple(last))
+    # a pole at each end, so the closure is triangles and there is no n-gon
+    x0 = stations[0][0] * w * 0.5 - 0.0060
+    x1 = stations[-1][0] * w * 0.5 + 0.0060
+    for xend, ring0, flip in ((x0, 0, False), (x1, (nst - 1) * NS, True)):
+        c = len(verts)
+        verts.append(Vector((cx + xend, cy + cy2d, cz + h * 0.5 + cz2d)))
+        for si in range(NS):
+            sj = (si + 1) % NS
+            faces.append((c, ring0 + sj, ring0 + si) if not flip
+                         else (c, ring0 + si, ring0 + sj))
     obj = HS.mesh_from(f"{prefix}_Cloth", verts, faces, smooth=True)
     smooth_by_angle(obj, 46.0)
 
