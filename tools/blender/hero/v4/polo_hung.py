@@ -409,7 +409,12 @@ def main():
     col = D.apply_all(col)
     pl = D.apply_all(pl)
     for o in (body, col, pl):
-        D.shade_smooth(o, 48.0)
+        # 48 degrees left a hard shading break wherever a drape fold's flank
+        # steepened past it -- a straight vertical step down the lower centre
+        # front that read as a seam splitting the shirt. Cloth has no facets;
+        # the only edges that should ever go flat here are the collar's fold
+        # and the placket's, and both are well past 70.
+        D.shade_smooth(o, 70.0)
 
     cloth = pique_material()
     pearl = ST.matte("PoloButton", (0.80, 0.79, 0.74), 0.30)

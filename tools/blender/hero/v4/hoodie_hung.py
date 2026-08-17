@@ -147,7 +147,10 @@ CUFF_T = 0.90                # where the ribbed cuff starts along the sleeve
 # reference hood is one smooth low mass spanning the shoulders, and the ripple
 # has to stay well under the section radius or it becomes the silhouette.
 HOOD_HALF = 0.124            # where the roll meets the neckline, each side
-HOOD_BACK = 0.094            # how far back it arches
+# BACK OFF THE NECKLINE. Brought forward to 94 mm the roll overhung the neck
+# opening and closed it to a puckered hole: on the board the hood sits BEHIND
+# the shoulders and the neckline in front of it is a broad open scoop.
+HOOD_BACK = 0.116            # how far back it arches
 HOOD_RISE = 0.126            # ... and how far up
 HOOD_R0, HOOD_R1 = 0.030, 0.048   # section radius at the ends / added at top
 HOOD_ROLLS = 2.6
@@ -433,12 +436,19 @@ def hood_from_neck(ob, idxs):
         for j in range(NR):
             a = 2 * math.pi * j / NR
             # the folds: a ripple ALONG the roll, plus a shallower one around it
-            f = (1.0 + 0.068 * math.sin(HOOD_ROLLS * math.pi * u + 1.1)
+            # AT 8% OF A 91 mm RADIUS THE RIPPLE IS 7 mm ACROSS A 180 mm
+            # FORM -- invisible, and the hood came out a moulded dome. A hood
+            # pushed back off the head is three or four soft rolls of cloth
+            # lying on each other, and the depth of those rolls IS the read.
+            f = (1.0 + 0.168 * math.sin(HOOD_ROLLS * math.pi * u + 1.1)
                  * math.sin(a * 1.0 + 0.4)
-                 + 0.040 * math.sin(HOOD_ROLLS * 1.9 * math.pi * u - 0.6)
+                 + 0.104 * math.sin(HOOD_ROLLS * 1.9 * math.pi * u - 0.6)
                  * math.sin(a * 2.0 - 0.3)
-                 + 0.028 * math.sin(a * 3.0 - u * 2.2)
-                 + 0.017 * math.sin(a * 5.0 + u * 4.1))
+                 + 0.058 * math.sin(a * 3.0 - u * 2.2)
+                 + 0.034 * math.sin(a * 5.0 + u * 4.1)
+                 # ... and it is not symmetric. Nothing that has been shrugged
+                 # off a head lands even.
+                 + 0.062 * math.sin(u * 2.1 + a * 1.0 - 0.9))
             # kidney section: flatter where it lies against the shoulders
             # Pull the roll's front underside AWAY from the neckline so a
             # cavity opens between them. Without it the roll sits flush on the
@@ -511,15 +521,20 @@ def hood_from_neck(ob, idxs):
     D.shade_smooth(fac, 44.0)
     facings = [fac]
 
+    # THE LINING STAYS SEPARATE, so it can carry its own material. The brief
+    # asks the hanging hoodie for a "dark interior/cavity", and joining the
+    # bowl into the shell gave it the shell's albedo: the neck opening came out
+    # the same value as the chest and read as a filled hole rather than a
+    # cavity you can see into. A hoodie's inside is the brushed back of the
+    # same fleece -- lighter, and much flatter.
     bpy.ops.object.select_all(action='DESELECT')
-    lining.select_set(True)
     for f in facings:
         f.select_set(True)
     roll.select_set(True)
     bpy.context.view_layer.objects.active = roll
     bpy.ops.object.join()
     roll.name = "hood"
-    return roll
+    return roll, lining
 
 
 def _cap_ends(ob, nr, ns):
@@ -844,6 +859,17 @@ def cords(ob):
 # --------------------------------------------------------------------------
 
 
+def fleece_material_plain(colour, rough=0.96):
+    mat = bpy.data.materials.new("HoodieLining")
+    mat.use_nodes = True
+    b = mat.node_tree.nodes["Principled BSDF"]
+    b.inputs["Base Color"].default_value = (*colour, 1.0)
+    b.inputs["Roughness"].default_value = rough
+    if "Sheen Weight" in b.inputs:
+        b.inputs["Sheen Weight"].default_value = 0.06
+    return mat
+
+
 def fleece_material():
     """Brushed-back sweatshirt fleece.
 
@@ -1129,7 +1155,8 @@ def build():
 
     parts.append(ribbed_band(body))
     if "nohood" not in args:
-        parts.append(hood_from_neck(body, neck_idx))
+        _roll, hood_lining = hood_from_neck(body, neck_idx)
+        parts.append(_roll)
 
     if len(parts) > 1:
         bpy.ops.object.select_all(action='DESELECT')
@@ -1140,12 +1167,12 @@ def build():
         D.weld(body, 2e-5)
         D.cleanup(body)
     audit(body, "assembled")
-    return body, [hgb, hgh]
+    return body, [hgb, hgh], hood_lining
 
 
 def main():
     args = H.argv_after_dashes()
-    body, hg = build()   # hg = [hanger body, chrome hook]
+    body, hg, lining = build()   # hg = [hanger body, chrome hook]
     os.makedirs(OUT, exist_ok=True)
 
     pk = pocket(body)
@@ -1153,17 +1180,22 @@ def main():
     D.solidify(body, CLOTH_T, offset=0.0)
     body = D.apply_all(body)
     pk = D.apply_all(pk)
-    D.shade_smooth(body, 50.0)
+    D.shade_smooth(body, 70.0)
     D.shade_smooth(pk, 50.0)
     cd = cords(body)
 
     cloth = fleece_material()
     for o in (body, pk, *cd):
         o.data.materials.append(cloth)
+    # brushed back: lighter than the face, and flat -- it is in shadow and the
+    # only thing that has to happen is that the eye can tell it is a surface
+    lining.data.materials.append(
+        fleece_material_plain((0.0620, 0.0690, 0.1020), rough=0.985))
+    D.shade_smooth(lining, 44.0)
     print(f"  cloth material: {cloth.name} base "
           f"{tuple(round(c, 3) for c in cloth.node_tree.nodes['Principled BSDF'].inputs['Base Color'].default_value[:3])}")
 
-    subject = [body, pk, *hg, *cd]
+    subject = [body, pk, lining, *hg, *cd]
     for o in subject:
         a, b = H.bounds([o])
         print(f"    part {o.name}: {(b.x-a.x)*1000:.0f} x "

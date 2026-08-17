@@ -429,7 +429,7 @@ def main():
     body = D.apply_all(body)
     nb = D.apply_all(nb)
     for o in (body, nb):
-        D.shade_smooth(o, 50.0)
+        D.shade_smooth(o, 70.0)
 
     cloth = jersey_material()
     rib = jersey_material((0.4600, 0.4460, 0.4150))

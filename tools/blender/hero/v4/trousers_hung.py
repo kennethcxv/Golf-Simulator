@@ -455,7 +455,7 @@ def main():
 
     D.solidify(body, CLOTH_T, offset=0.0)
     body = D.apply_all(body)
-    D.shade_smooth(body, 44.0)
+    D.shade_smooth(body, 70.0)
 
     cloth = chino_material()
     body.data.materials.append(cloth)

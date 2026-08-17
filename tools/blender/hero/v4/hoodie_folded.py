@@ -335,7 +335,7 @@ def size_tag(body):
                 for j in range(7)]
     ob = D.grid_mesh("size_tag", rows)
     ob.data.materials.append(ST.matte("SizeTag", (0.80, 0.79, 0.75), 0.55))
-    D.shade_smooth(ob, 50.0)
+    D.shade_smooth(ob, 70.0)
     return ob
 
 

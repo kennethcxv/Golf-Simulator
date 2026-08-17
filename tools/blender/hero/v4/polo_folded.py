@@ -155,7 +155,7 @@ def neck_label(body):
         return []
     ob = D.grid_mesh("neck_label", rows)
     ob.data.materials.append(ST.matte("NeckLabel", (0.78, 0.77, 0.73), 0.60))
-    D.shade_smooth(ob, 50.0)
+    D.shade_smooth(ob, 70.0)
     return [ob]
 
 
@@ -200,7 +200,7 @@ def size_tag(body):
         return []
     ob = D.grid_mesh("size_tag", rows)
     ob.data.materials.append(ST.matte("SizeTag", (0.80, 0.79, 0.75), 0.55))
-    D.shade_smooth(ob, 50.0)
+    D.shade_smooth(ob, 70.0)
     return [ob]
 
 
