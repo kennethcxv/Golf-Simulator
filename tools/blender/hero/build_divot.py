@@ -322,12 +322,14 @@ def main():
         # under a name gripsFor() cannot resolve. Export the fork, retire its
         # socket's name, then claim it for the bucket.
         f["sock"].name = "SOCKET_GripPrimary"
+        HS.flatten_for_export(fork + [f["sock"]])
         H.bake_gltf_axis(fork + [f["sock"]])
         H.export_glb(fork + [f["sock"]], GLB_FORK)
         H.verify_sockets(GLB_FORK, ["SOCKET_GripPrimary"])
         f["sock"].name = "SOCKET_Fork_Exported"
         b["sock"].name = "SOCKET_GripPrimary"
         socks = [b["sock"], b["sock_support"]]
+        HS.flatten_for_export(pail + socks)
         H.bake_gltf_axis(pail + socks)
         H.export_glb(pail + socks, GLB_BUCKET)
         H.verify_sockets(GLB_BUCKET, ["SOCKET_GripPrimary", "SOCKET_GripSupport"])

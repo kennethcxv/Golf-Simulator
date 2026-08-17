@@ -341,6 +341,7 @@ def main():
         # (The location bake that used to be here is inside bake_gltf_axis
         # now, so it happens for every builder and cannot be forgotten.)
         H.drop_to_floor(exportable + socks)
+        HS.flatten_for_export(exportable + socks)
         H.bake_gltf_axis(exportable + socks)
         H.export_glb(exportable + socks, OUT_GLB)
         print(f"FINAL TRIS {H.triangles(exportable)}")

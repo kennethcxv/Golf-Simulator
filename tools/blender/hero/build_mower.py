@@ -262,6 +262,7 @@ def main():
         # (The location bake that used to be here is inside bake_gltf_axis
         # now, so it happens for every builder and cannot be forgotten.)
         H.drop_to_floor(subject)
+        HS.flatten_for_export(subject)
         H.bake_gltf_axis(subject)
         root = H.named_root(ROOT_NAME, subject)
         H.export_glb(subject + [root], OUT_GLB)

@@ -447,6 +447,7 @@ def main():
     H.contact_sheet(tt, os.path.join(OUT_RENDER, f"merch{suffix}-turntable.png"), cols=4)
 
     if not broken:
+        HS.flatten_for_export(subject)
         H.bake_gltf_axis(subject)
         for name, group in (("merch_golf_balls", balls), ("merch_drinks", drinks)):
             root = H.named_root(f"Merch_{name.split('_', 1)[1]}", group)

@@ -232,6 +232,7 @@ def main():
 
     if not broken:
         socks = [p["sock_primary"], p["sock_support"]]
+        HS.flatten_for_export(subject + socks)
         H.bake_gltf_axis(subject + socks)
         H.export_glb(subject + socks, OUT_GLB)
         print(f"FINAL TRIS {H.triangles(subject)}")

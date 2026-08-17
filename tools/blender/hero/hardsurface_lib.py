@@ -769,6 +769,59 @@ def unwrap_and_grain(objects, uv_scale=900.0, angle=66.0, margin=0.006):
     return n
 
 
+def flatten_for_export(objects):
+    """Put a real baseColorFactor back on every material before export.
+
+    THIS IS THE FAULT THAT ONLY THE IN-GAME TEST FOUND, and it made every
+    garment WHITE in the running game while every Blender render was correct.
+
+    The glTF exporter writes `baseColorFactor` only when Base Color is an
+    unlinked constant. The colour microvariation added for the fabric links a
+    Mix node into Base Color -- which improved every studio render and silently
+    dropped the factor from all ten GLBs, so the shipped hoodie was a white
+    hoodie. The note in my own memory says ShaderNodeMix is the only pattern
+    that exports a factor; evidently that holds for a Mix fed by a TEXTURE, not
+    for one fed by two constants and a noise.
+
+    The procedural variation is a render-time nicety and the export needs a
+    number. So: after the renders, average the Mix's two colour inputs, write
+    that into Base Color, and unlink. The bump chain is untouched -- normals
+    export from geometry here, and nothing depends on it.
+
+    Call this AFTER the last render and BEFORE bake_gltf_axis.
+    """
+    seen, fixed = set(), 0
+    for ob in objects:
+        if ob.type != "MESH":
+            continue
+        for mat in ob.data.materials:
+            if mat is None or mat.name in seen or not mat.use_nodes:
+                continue
+            seen.add(mat.name)
+            nt = mat.node_tree
+            bsdf = next((n for n in nt.nodes
+                         if n.type == "BSDF_PRINCIPLED"), None)
+            if bsdf is None:
+                continue
+            sock = bsdf.inputs["Base Color"]
+            if not sock.is_linked:
+                continue
+            src = sock.links[0].from_node
+            cols = [i.default_value for i in src.inputs
+                    if i.type == "RGBA" and not i.is_linked]
+            if not cols:
+                continue
+            n = len(cols)
+            avg = [sum(c[k] for c in cols) / n for k in range(3)]
+            for link in list(sock.links):
+                nt.links.remove(link)
+            sock.default_value = (avg[0], avg[1], avg[2], 1.0)
+            fixed += 1
+    print("  export colour: %d of %d materials had a linked Base Color and "
+          "would have shipped WHITE" % (fixed, len(seen)))
+    return fixed
+
+
 def surface(name, colour, rough=0.8, scale=200.0, strength=0.25, dist=0.0004,
             spread=0.15, detail=6.0, metallic=0.0):
     """A `pbr` with a real SURFACE: noise on the bump for texture, and a narrow

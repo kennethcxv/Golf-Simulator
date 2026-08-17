@@ -380,6 +380,7 @@ def main():
 
     if not broken:
         sockets = [p["grip_socket"], p["lance_socket"]]
+        HS.flatten_for_export(subject + sockets)
         H.bake_gltf_axis(subject + sockets)
         H.export_glb(subject + sockets, OUT_GLB)
         print(f"FINAL TRIS {H.triangles(subject)}")

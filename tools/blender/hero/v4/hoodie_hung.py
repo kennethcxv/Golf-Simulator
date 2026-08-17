@@ -1293,6 +1293,7 @@ def main():
         # nothing here could ever carry a printed label or a baked weave.
         for _ob in subject:
             D.unwrap(_ob, label=_ob.name)
+        ST.flatten_for_export(subject)
         H.bake_gltf_axis(subject)
         H.export_glb(subject, os.path.join(GLB, "apparel_hoodie_hung.glb"))
     print("renders in", OUT)

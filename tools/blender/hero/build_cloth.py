@@ -341,6 +341,7 @@ def main():
     H.render(app, os.path.join(OUT_RENDER, f"cloth{suffix}-apparent.png"), res=(1600, 900))
 
     if not broken:
+        HS.flatten_for_export(subject)
         H.bake_gltf_axis(subject)
         H.export_glb(subject, OUT_GLB)
         print(f"FINAL TRIS {H.triangles(subject)}")
