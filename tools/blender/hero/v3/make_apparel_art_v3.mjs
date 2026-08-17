@@ -140,9 +140,18 @@ function chestRoundel() {
   </svg>`;
 }
 
+// THE PRINT IS INK ON THE SHIRT, so this cell has NO BACKGROUND OF ITS OWN.
+// It used to open with a flat #e8e8e4 rectangle, and that near-white field on
+// a #e6decc cream shirt is precisely why the print read as a card stuck to the
+// front -- T1 on the tee comparison, and the item the brief lists as "the tee
+// print UV'd onto the cloth instead of a decal card".
+//
+// The cell is composited over a knit tile built from the SAME base colour and
+// the SAME seed as the shirt's own cell, so the field is not merely a close
+// match, it is the identical texture. There is no rim to find because there is
+// no edge between two materials -- only ink, and cloth.
 function teeFront() {
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${CELL}" height="${CELL}">
-    <rect width="${CELL}" height="${CELL}" fill="#e8e8e4"/>
     <g stroke="#1d3326" stroke-width="7" stroke-linecap="round" fill="none">
       <path d="M70,182 L150,74"/><path d="M186,182 L106,74"/>
       <path d="M64,186 q10,12 22,4" /><path d="M192,186 q-10,12 -22,4"/>
@@ -283,7 +292,19 @@ for (let i = 0; i < 6; i++) {
   await place(await knit(CELL, CELL, WAY[i][2], 40 + i), `${WAY[i][0]}-dark`);
 }
 await place(await sharp(Buffer.from(chestRoundel())).png().toBuffer(), 'chest');
-await place(await sharp(Buffer.from(teeFront())).png().toBuffer(), 'teefront');
+// cell 11 is cream, placed above with seed (11 + 1); same base, same seed.
+// AND AT THE SHIRT'S OWN TEXEL SCALE. The cloth maps one cell across the whole
+// garment; the print patch maps one cell across a third of it, so a knit tile
+// built at cell resolution comes out about 2.6x coarser inside the print than
+// outside it -- which showed as a faint pale rectangle exactly where the card
+// used to be. Building the tile 2.6x larger and resampling down puts the nap
+// at the same size in world terms on both sides of the boundary.
+const teeNap = await sharp(await knit(Math.round(CELL * 2.6),
+                                      Math.round(CELL * 2.6), WAY[11][1], 12))
+  .resize(CELL, CELL).png().toBuffer();
+await place(await sharp(teeNap)
+  .composite([{ input: Buffer.from(teeFront()) }]).png().toBuffer(),
+  'teefront');
 await place(await sharp(Buffer.from(sleeveBadge())).png().toBuffer(), 'badge');
 await place(await sharp(Buffer.from(capMonogram())).png().toBuffer(), 'capmono');
 await place(await sharp(Buffer.from(ribbing())).png().toBuffer(), 'ribbing');

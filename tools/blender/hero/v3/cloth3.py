@@ -56,7 +56,22 @@ def superellipse(cx, cy, z, hw, hd, n=4.0, steps=48, rot=0.0):
     return pts
 
 
-def loft(name, rings, close_bottom=True, close_top=True, smooth=True):
+def loft(name, rings, close_bottom=True, close_top=True, smooth=True,
+         cap="ngon", cap_rise=0.72):
+    """Sweep a stack of rings into a shell.
+
+    `cap` is how the two ends close. "ngon" lays a single flat polygon over the
+    end ring, which is what this has always done and is the fault that has now
+    shipped six times over -- the sleeve, the cuff, the hood end, the flap ends
+    and, the moment assert_no_flat_caps was finally pointed at a real garment,
+    the neck rib, the placket, the sleeve ridge and both buttons. A flat plate
+    on the end of a roll reads as a cut-off tube.
+
+    "dome" closes on a pole set out along the ring's own axis by a fraction of
+    its radius, so the end rounds over. There is nothing to tune: the axis is
+    the ring-to-ring direction and the rise is proportional to the size of the
+    thing being closed.
+    """
     n = len(rings[0])
     verts, faces = [], []
     for r in rings:
@@ -65,11 +80,33 @@ def loft(name, rings, close_bottom=True, close_top=True, smooth=True):
         for i in range(n):
             j = (i + 1) % n
             faces.append((r * n + i, r * n + j, (r + 1) * n + j, (r + 1) * n + i))
+
+    caps = (cap, cap) if isinstance(cap, str) else tuple(cap)
+
+    def close(ring0, other0, flip):
+        base = rings[0] if ring0 == 0 else rings[-1]
+        want = caps[0] if ring0 == 0 else caps[1]
+        mid = sum(base, Vector((0.0, 0.0, 0.0))) / float(n)
+        rad = sum(((q - mid).length for q in base)) / float(n)
+        if want != "dome" or rad < 1e-6:
+            idx = list(range(ring0, ring0 + n))
+            faces.append(tuple(reversed(idx)) if flip else tuple(idx))
+            return
+        oth = rings[1] if ring0 == 0 else rings[-2]
+        axis = mid - sum(oth, Vector((0.0, 0.0, 0.0))) / float(n)
+        if axis.length < 1e-9:
+            axis = Vector((0.0, 0.0, 1.0))
+        c = len(verts)
+        verts.append(mid + axis.normalized() * (rad * cap_rise))
+        for i in range(n):
+            j = (i + 1) % n
+            faces.append((c, ring0 + j, ring0 + i) if flip
+                         else (c, ring0 + i, ring0 + j))
+
     if close_bottom:
-        faces.append(tuple(range(n - 1, -1, -1)))
+        close(0, n, True)
     if close_top:
-        b = (len(rings) - 1) * n
-        faces.append(tuple(range(b, b + n)))
+        close((len(rings) - 1) * n, (len(rings) - 2) * n, False)
     return HS.mesh_from(name, verts, faces, smooth=smooth)
 
 
@@ -465,7 +502,7 @@ def fold_line(name, start, end, radius, sides=10, sink=0.45):
             ring.append(c + side * (math.cos(ang) * r)
                         + up * (math.sin(ang) * r - r * sink))
         rings.append(ring)
-    return loft(name, rings, smooth=True)
+    return loft(name, rings, smooth=True, cap="dome")
 
 
 # ---------------------------------------------------------------------------
@@ -907,6 +944,12 @@ def folded_ribbon(prefix, centre, size, plies=4, squareness=7.5,
     ring2d = (list(upper) + cap(q1, n1, d1) + list(reversed(lower))
               + cap(q0, -n0, d0))
 
+    # EVERY RING POINT REMEMBERS THE CENTRELINE IT CAME FROM. The x ends close
+    # by collapsing the cloth's THICKNESS onto that centreline, so each point
+    # needs its own base, not a shared centroid to shrink toward.
+    ring_base = (list(line) + [q1] * 3 + list(reversed(line)) + [q0] * 3)
+    ring_off = [pt - bs for pt, bs in zip(ring2d, ring_base)]
+
     # WHICH POINTS ARE A RAW EDGE. A fold is a machine-straight line -- cloth
     # turns over on itself and stays put -- but a CUT edge never is: it is the
     # loose end of the garment and it wanders. The top ply's cut came out as a
@@ -943,13 +986,36 @@ def folded_ribbon(prefix, centre, size, plies=4, squareness=7.5,
     # the cloth actually does.
     cy2d = sum(q.y for q in ring2d) / NS
     cz2d = sum(q.z for q in ring2d) / NS
-    # F1: three short stations still read as a stepped wall. The tuck has to
-    # travel far enough in x to be a turn rather than a chamfer.
-    TUCK = ((0.94, 1.2), (0.80, 2.6), (0.58, 3.8), (0.30, 4.7), (0.12, 5.2))
-    stations = ([(-1.0 - 0.026 * push, sc) for sc, push in reversed(TUCK)]
-                + [(-1.0 + 2.0 * xi / (xsteps - 1.0), 1.0)
-                   for xi in range(xsteps)]
-                + [(1.0 + 0.026 * push, sc) for sc, push in TUCK])
+
+    # THE X END IS A HEM. THREE CUTS OF THIS WERE WRONG THE SAME WAY.
+    #
+    # An n-gon cap read as a stepped wall (F1). Tuck stations past u = 1 fell
+    # where the superellipse is undefined, so clamping collapsed them flat and
+    # flooring them gave a faceted block with a spike (T4, twice). Then a nose
+    # that scaled the whole SECTION to a pole put a 17 mm cone on each end,
+    # because the section spans the garment's depth and its radius is nothing
+    # like a fold radius.
+    #
+    # All three come from one wrong idea: that the garment converges to a point
+    # at its ends. It does not. Fold a tee and look at the left edge -- the
+    # plies are still there, stacked, full depth. What closes is the CLOTH'S
+    # OWN THICKNESS: the top and bottom faces of each ply meet round a hem
+    # whose radius is half a ply, four millimetres, not a tenth of the shirt.
+    #
+    # So the sweep runs at full section out to U0, and over the last hem's
+    # width the offset from the centreline shrinks on a circular arc to zero.
+    # The ribbon closes onto its own centreline, which is what a hem is.
+    HEM_R = t * 0.62                             # the hem's radius, in metres
+    hem_u = min(0.16, HEM_R / max(1e-6, w * 0.5))
+    U0 = 1.0 - hem_u
+    K0 = (1.0 - U0 ** squareness) ** (1.0 / squareness)
+    HEM = 5
+    hem = [(U0 + hem_u * math.sin(math.pi * 0.5 * (j + 1) / HEM),
+            math.cos(math.pi * 0.5 * (j + 1) / HEM))
+           for j in range(HEM - 1)]
+    body = [(-U0 + 2.0 * U0 * xi / (xsteps - 1.0), 1.0) for xi in range(xsteps)]
+    stations = ([(-u, pr) for u, pr in reversed(hem)] + body
+                + [(u, pr) for u, pr in hem])
 
     verts, faces = [], []
     poles = []
@@ -966,17 +1032,33 @@ def folded_ribbon(prefix, centre, size, plies=4, squareness=7.5,
         # 1 - |u|^7.5 goes negative and clamps to zero -- which collapses the
         # section flat in y and turns the tuck back into the wall it was meant
         # to replace. The footprint is only defined on the garment.
-        uc = max(-1.0, min(1.0, u))
-        k = max(0.0, 1.0 - abs(uc) ** squareness) ** (1.0 / squareness)
+        # FROZEN AT THE NOSE. The superellipse runs to zero half-depth at
+        # |u| = 1; past U0 it is the section scale, not the footprint, that
+        # takes the garment to a point, so the footprint holds at its U0 value
+        # and the two never double-count.
+        # THE HEM RADIUS ROUNDS THE CORNER IN PLAN TOO. Freezing the footprint
+        # through the hem left the end a wall at 81% depth with only the cloth
+        # thickness rounded off, and from three-quarters that reads as a
+        # chamfer -- the tee came out an octagon (T3). A fold has ONE radius
+        # and it applies in both directions at the corner, so the same HEM_R
+        # that closes the thickness takes the depth in as well.
+        uc = max(-U0, min(U0, u))
+        kbase = (1.0 - abs(uc) ** squareness) ** (1.0 / squareness)
+        k = max(0.02, kbase - HEM_R * (1.0 - shrink) / (d * 0.5))
         x = u * w * 0.5
+        # THREE HARMONICS, NOT TWO. With two slow sines the outline has long
+        # stretches where adjacent stations agree to a tenth of a millimetre --
+        # locally a dead straight edge, which is the machined-block read, and
+        # assert_irregular caught three of nine stations inside 0.6 mm on the
+        # polo. The third term is small enough not to buckle the outline and
+        # fast enough that no two places along it are the same.
         wob = 1.0 + wander * (0.020 * math.sin(u * 3.1 + seed)
-                              + 0.012 * math.sin(u * 6.7 - seed * 1.7))
+                              + 0.012 * math.sin(u * 6.7 - seed * 1.7)
+                              + 0.007 * math.sin(u * 13.9 + seed * 0.7))
         # the pile leans, and it leans MORE the higher up you are
         for si2, p2raw in enumerate(ring2d):
             ew = edge_w[si2] * shrink
-            p2 = Vector((0.0,
-                         cy2d + (p2raw.y - cy2d) * shrink,
-                         cz2d + (p2raw.z - cz2d) * shrink))
+            p2 = ring_base[si2] + ring_off[si2] * shrink
             zt = (p2.z + h * 0.5) / max(1e-6, h)        # 0 bottom, 1 top
             # THE PILE SAGS AT ITS PERIMETER, not just across x. Sagging only
             # in x left the top ply a flat plate with a bevelled edge sitting
@@ -1006,12 +1088,15 @@ def folded_ribbon(prefix, centre, size, plies=4, squareness=7.5,
             a = xi * NS + si
             b = xi * NS + (si + 1) % NS
             faces.append((a, b, b + NS, a + NS))
-    # a pole at each end, so the closure is triangles and there is no n-gon
-    x0 = stations[0][0] * w * 0.5 - 0.0060
-    x1 = stations[-1][0] * w * 0.5 + 0.0060
-    for xend, ring0, flip in ((x0, 0, False), (x1, (nst - 1) * NS, True)):
+    # The last hem ring is a sliver lying along the centreline -- the cloth has
+    # already closed by the time we get here -- so the closure is a fan on that
+    # ring's own centre with NO push at all. Pushing it out is what put a cone
+    # on each end last time; there is nothing left to push.
+    for ring0, flip in ((0, False), ((nst - 1) * NS, True)):
+        ring = verts[ring0:ring0 + NS]
+        mid = sum(ring, Vector((0.0, 0.0, 0.0))) / float(NS)
         c = len(verts)
-        verts.append(Vector((cx + xend, cy + cy2d, cz + h * 0.5 + cz2d)))
+        verts.append(mid)
         for si in range(NS):
             sj = (si + 1) % NS
             faces.append((c, ring0 + sj, ring0 + si) if not flip
@@ -1032,10 +1117,23 @@ def folded_ribbon(prefix, centre, size, plies=4, squareness=7.5,
     z_top = path[-1][2] + t * 0.5
 
     def top_at(x, y):
+        # THE SAME FIELD THE SWEEP USED, term for term. The first cut said it
+        # "cannot drift from the surface" and had already drifted: it domed on
+        # u alone at 0.80 with a height weighting the sweep does not have,
+        # while the surface domes on u AND y at 0.62/0.72 flat. Everything that
+        # sits on the cloth -- collar, placket, band, print -- was placed off
+        # that wrong number, which is why trims kept needing a hand nudge.
         u = max(-1.0, min(1.0, (x - cx) / (w * 0.5)))
-        zt = (z_top + h * 0.5) / max(1e-6, h)
-        droop = (1.0 - min(1.0, (u * u) * 0.80)) * sag * (0.25 + 0.75 * zt)
-        rumple = crease * 0.30 * math.sin(2.1 * u + 3.3 * (y - cy) / d + seed)
+        uc = max(-U0, min(U0, u))
+        k = max(K0, (1.0 - abs(uc) ** squareness) ** (1.0 / squareness))
+        wob = 1.0 + wander * (0.020 * math.sin(u * 3.1 + seed)
+                              + 0.012 * math.sin(u * 6.7 - seed * 1.7))
+        # invert the sweep's y mapping: world y = cy + p2.y * k * wob
+        p2y = (y - cy) / max(1e-6, k * wob)
+        ry = p2y / (d * 0.5)
+        dome = 1.0 - min(1.0, (u * u * 0.62 + ry * ry * 0.72))
+        droop = dome * sag * 1.9
+        rumple = crease * 0.30 * math.sin(2.1 * u + 3.3 * p2y / d + seed)
         return cz + h * 0.5 + z_top - droop + rumple
 
     return {"cloth": obj, "top_at": top_at}
@@ -1125,7 +1223,8 @@ def strip(name, path, halfw, halfh, sides=12):
             ring.append(p + side * (math.copysign(abs(ca) ** 0.55, ca) * halfw)
                         + up * (math.copysign(abs(sa) ** 0.55, sa) * halfh))
         rings.append(ring)
-    return loft(name, rings, smooth=True)
+    return loft(name, rings, smooth=True, cap="dome",
+                cap_rise=0.55)
 
 
 def hanger(name, centre, halfw=0.086, drop=0.052, hook_r=0.020, rod=0.0055,
@@ -1218,7 +1317,7 @@ def _sweep(name, path, radius, sides=8):
             a = 2 * math.pi * k / sides
             ring.append(p + side * (math.cos(a) * radius) + up * (math.sin(a) * radius))
         rings.append(ring)
-    return loft(name, rings, smooth=True)
+    return loft(name, rings, smooth=True, cap="dome")
 
 
 def edge_x(obj, z, y, tol=0.006):
@@ -1498,6 +1597,74 @@ def decal(name, centre, normal, size, lift=0.0016):
     return obj
 
 
+
+def conform_decal(name, top_at, centre, size, nx=9, ny=9, lift=0.0006):
+    """A print that FOLLOWS THE CLOTH instead of hovering over it.
+
+    `decal` is a flat quad. On a hung shirt that is nearly right, but the top
+    of a folded garment domes and rumples several millimetres across the span
+    a chest print covers, so a flat card touches in the middle and lifts at the
+    corners -- and the gap catches a hard rim of shadow all the way round. It
+    is the other half of why the tee print read as a sticker; recolouring the
+    cell alone would have left the rim.
+
+    Sampling the builder's own `top_at` means the patch cannot drift from the
+    surface it sits on, the same reason the collar and placket use it.
+    """
+    cx, cy, cz = centre
+    sw, sh = size[0] * 0.5, size[1] * 0.5
+    verts, faces = [], []
+    grid = []
+    for j in range(ny):
+        fy = j / (ny - 1.0)
+        for i in range(nx):
+            fx = i / (nx - 1.0)
+            x = cx + (fx * 2.0 - 1.0) * sw
+            y = cy + (fy * 2.0 - 1.0) * sh
+            grid.append((x, y, top_at(x, y)))
+    n = nx * ny
+    for x, y, z in grid:
+        verts.append(Vector((x, y, z + lift)))
+    for x, y, z in grid:
+        verts.append(Vector((x, y, z - 0.0004)))
+    for j in range(ny - 1):
+        for i in range(nx - 1):
+            a = j * nx + i
+            faces.append((a, a + 1, a + nx + 1, a + nx))
+            b = n + a
+            faces.append((b + nx, b + nx + 1, b + 1, b))
+    # the rim, so the patch is a solid shell rather than two loose sheets
+    edge = ([j * nx for j in range(ny - 1)]
+            + [(ny - 1) * nx + i for i in range(nx - 1)]
+            + [(j + 1) * nx - 1 for j in range(ny - 1, 0, -1)]
+            + [i for i in range(nx - 1, 0, -1)])
+    nxt = ([(j + 1) * nx for j in range(ny - 1)]
+           + [(ny - 1) * nx + i + 1 for i in range(nx - 1)]
+           + [j * nx - 1 for j in range(ny - 1, 0, -1)]
+           + [i - 1 for i in range(nx - 1, 0, -1)])
+    for a, b in zip(edge, nxt):
+        faces.append((a, b, n + b, n + a))
+    obj = HS.mesh_from(name, verts, faces, smooth=False)
+
+    # UVs off POSITION, for the reason `decal` records: mesh_from recalculates
+    # normals and reorders loops, so anything keyed to loop order lands on the
+    # wrong corner. u runs +x and v runs +y, matching `decal`'s frame for a
+    # flat-lying print, so the wordmark reads the right way up from the front.
+    uv = obj.data.uv_layers.new(name="UVMap")
+    for poly in obj.data.polygons:
+        flat = poly.normal.z > 0.5
+        for li in poly.loop_indices:
+            co = obj.data.vertices[obj.data.loops[li].vertex_index].co
+            if not flat:
+                uv.data[li].uv = (0.02, 0.02)
+                continue
+            u = 0.5 + (co.x - cx) / (2 * sw)
+            v = 0.5 + (co.y - cy) / (2 * sh)
+            uv.data[li].uv = (0.02 + 0.96 * min(1.0, max(0.0, u)),
+                              0.02 + 0.96 * min(1.0, max(0.0, v)))
+    obj["explicit_uv"] = True
+    return obj
+
 # ---------------------------------------------------------------------------
 # surface construction
 #
@@ -1585,7 +1752,31 @@ def stud(name, base, direction, radius, height, sides=12):
         rings.append([c + u * (math.cos(2 * math.pi * i / sides) * radius * rf)
                       + v * (math.sin(2 * math.pi * i / sides) * radius * rf)
                       for i in range(sides)])
-    return loft(name, rings, close_bottom=True, close_top=True, smooth=True)
+    return loft(name, rings, close_bottom=True, close_top=True, smooth=True,
+                cap=("ngon", "dome"), cap_rise=0.55)
+
+
+def button(name, centre, normal, radius, thickness, sides=14):
+    """A SHIRT BUTTON, which is a domed disc with a rim -- not a flat plug.
+
+    HS.cylinder gave a 14-gon plate at each end, and assert_no_flat_caps named
+    both the moment it was pointed at a real garment. It is also just wrong:
+    hold a polo button up and it is dished at the rim and crowned in the
+    middle. At this size that is two rings and a shallow cap, and it is the
+    difference between a button and a drawing-pin.
+    """
+    c = Vector(centre)
+    d = Vector(normal).normalized()
+    up = Vector((0, 0, 1)) if abs(d.z) < 0.9 else Vector((1, 0, 0))
+    u = d.cross(up).normalized()
+    v = d.cross(u).normalized()
+    rings = []
+    for (t, rf) in ((0.00, 0.86), (0.30, 1.00), (0.62, 0.98), (1.00, 0.80)):
+        cc = c + d * (thickness * (t - 0.5))
+        rings.append([cc + u * (math.cos(2 * math.pi * i / sides) * radius * rf)
+                      + v * (math.sin(2 * math.pi * i / sides) * radius * rf)
+                      for i in range(sides)])
+    return loft(name, rings, smooth=True, cap=("dome", "dome"), cap_rise=0.22)
 
 
 def torus(name, centre, normal, major, minor, mseg=8, nseg=4):

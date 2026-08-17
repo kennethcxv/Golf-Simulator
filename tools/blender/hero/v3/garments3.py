@@ -162,11 +162,11 @@ def polo_folded(origin=(0, 0, 0), broken=""):
                           oz + h + 0.0008 - 0.0010 * t)))
     p["placket"] = CL.strip("PoloFold_Placket", pl, 0.0092, 0.0030)
     for i, t in enumerate((0.26, 0.62)):
-        p[f"button{i}"] = HS.cylinder(
+        p[f"button{i}"] = CL.button(
             f"PoloFold_Button{i}",
             (ox + w * 0.02, oy + d * 0.16 - d * 0.44 * t,
              oz + h + 0.0034 - 0.0010 * t),
-            0.0062, 0.0028, verts=14)
+            (0, 0, 1), 0.0062, 0.0028)
 
     # the chest logo, on the top face of the fold where a shopper sees it
     p["print"] = CL.decal(
@@ -185,9 +185,17 @@ def polo_folded(origin=(0, 0, 0), broken=""):
     # the garment the moment two of them are placed side by side, which is how
     # the v2/v3 comparison found it. Fixed in both lines: at origin 0 the
     # result is identical, so the baseline still looks exactly as it did.
-    ex = CL.edge_x(body, oz + h * 0.50, oy - d * 0.10)
+    # AT A HEIGHT WHERE THERE IS ACTUALLY CLOTH. Measuring at mid-height put
+    # the tag 4.2 mm inside the body by the numbers and visibly detached in the
+    # render, because mid-height on an eight-ply stack falls in the GAP between
+    # two plies, and out at the edge the hem has closed to a knife edge -- so
+    # the overlap was with a sliver of nothing. A real size tab is sewn into a
+    # seam and comes out from between the folds, so this one hangs just under
+    # the top ply and the edge is measured at that same height.
+    ztag = top_at(ox + w * 0.40, oy - d * 0.10) - 0.0062
+    ex = CL.edge_x(body, ztag, oy - d * 0.10)
     p["tag"] = HS.box("PoloFold_Tag",
-                      (ex + tag_hw - 0.0030, oy - d * 0.10, oz + h * 0.50),
+                      (ex + tag_hw - 0.0105, oy - d * 0.10, ztag),
                       (tag_hw * 2, 0.0170, 0.0014))
     return p
 
@@ -266,8 +274,15 @@ def tee_folded(origin=(0, 0, 0), broken=""):
     ox, oy, oz = origin
     w, d, h = FOLD_TEE
     p = dict(CL.folded_ribbon("TeeFold", (ox, oy, oz), FOLD_TEE,
-                              plies=6, sag=0.0026, crease=0.0026, seed=1.7,
-                              wander=1.7))
+                              # A TEE IS FOLDED NEATLY AND A POLO IS NOT.
+                              # wander=1.7 came over from the polo's eighth
+                              # round without being looked at, and on a tee it
+                              # buckles the outline into waves and cuts a
+                              # corner off (T6). Shop-folded jersey is crisp;
+                              # what it has instead of wander is a thinner
+                              # cloth and more of it.
+                              plies=7, sag=0.0022, crease=0.0024, seed=1.7,
+                              wander=1.06))
     body = p["cloth"]
     top_at = p.pop("top_at")
     surf = top_at(ox, oy + d * 0.20)
@@ -290,22 +305,28 @@ def tee_folded(origin=(0, 0, 0), broken=""):
     p["neck_rib"] = CL._sweep("TeeFold_NeckRib", arc, 0.0034, sides=8)
 
     # THE SLEEVE EDGES: a folded tee shows the sleeve fold at each side
+    # THEY HAVE TO STAND WHERE LIGHT CAN FIND THEM. Sunk half their radius and
+    # then dropped another 4 mm, the sleeve folds stood 0.8 mm proud, which
+    # washes out completely at the distance a shopper stands -- the note that
+    # has come back every round and the reason assert_relief exists. The review
+    # asked for the sleeve edges to SHOW at the sides of the fold; at 0.8 mm
+    # they were geometry that cost tris and read as nothing.
     for i, sgn in enumerate((-1, 1)):
         p[f"sleeve_edge{i}"] = CL.fold_line(
             f"TeeFold_SleeveEdge{i}",
-            (ox + sgn * w * 0.34, oy - d * 0.30, surf - 0.0040),
-            (ox + sgn * w * 0.30, oy + d * 0.26, surf - 0.0048),
-            radius=0.0115, sides=10, sink=0.50)
+            (ox + sgn * w * 0.34, oy - d * 0.30, surf - 0.0006),
+            (ox + sgn * w * 0.30, oy + d * 0.26, surf - 0.0011),
+            radius=0.0115, sides=10, sink=0.26)
     p["sleeve_ridge"] = CL.fold_line(
         "TeeFold_SleeveRidge",
-        (ox - w * 0.26, oy - d * 0.02, surf - 0.0032),
-        (ox + w * 0.22, oy - d * 0.16, surf - 0.0038),
-        radius=0.0092, sides=8, sink=0.58)
+        (ox - w * 0.26, oy - d * 0.02, surf - 0.0010),
+        (ox + w * 0.22, oy - d * 0.16, surf - 0.0016),
+        radius=0.0092, sides=8, sink=0.40)
 
     # THE PRINT, as a decal that lands exactly where it is put
-    p["print"] = CL.decal("TeeFold_Print",
-                          (ox - w * 0.02, oy - d * 0.06, surf + 0.0012),
-                          (0, 0, 1), (w * 0.44, d * 0.34))
+    p["print"] = CL.conform_decal("TeeFold_Print", top_at,
+                                  (ox - w * 0.02, oy - d * 0.06, surf),
+                                  (w * 0.44, d * 0.34))
     return p
 
 
@@ -1079,6 +1100,41 @@ def check(name, parts):
     HS.assert_assembly(mesh, f"{name}: the assembly", allow=allow)
     if leaves:
         CL.assert_leaves_clear(mesh, f"{name}: the leaves stand clear")
+
+    # THE FOUR THAT ASK WHETHER IT READS AS CLOTH. Everything above tests
+    # CONSTRUCTION -- one piece, parts touching, plies clear -- and all of it
+    # passes on a moulded lid. These are the ones that fail on the faults the
+    # reviews actually kept returning, and each was watched failing on that
+    # exact fault in control_cloth_checks.py before it was trusted.
+    CC.assert_no_flat_caps(list(mesh.values()), f"{name}: no lofted end flat")
+
+    host = mesh.get("cloth") or mesh.get("body")
+    if host is not None:
+        # PRINTS ARE EXEMPT FROM RELIEF, deliberately. A screen print has no
+        # relief -- it is ink -- and demanding 2.2 mm from it would force back
+        # exactly the raised card that made the tee read as a sticker. The
+        # exemption is by name and it is narrow: everything else that sits on
+        # the cloth still has to stand where light can find it.
+        trims = [(o, host, k) for k, o in mesh.items()
+                 if k not in ("cloth", "body") and not k.startswith("leaf")
+                 and "print" not in k and hasattr(o, "data")]
+        if trims:
+            CC.assert_relief(trims, f"{name}: the trims stand off the cloth")
+        judged = [k for k in mesh if k not in ("cloth", "body")
+                  and not k.startswith("leaf")]
+        if judged:
+            CC.assert_not_buried(mesh, f"{name}: every part reachable by light",
+                                 only=judged)
+        if "cloth" in mesh:
+            # min_gap=0: see assert_irregular. These are samples of one
+            # curve, not a set of separate edges. min_range is 3% of the
+            # garment's own depth, so it scales with the garment instead of
+            # being a number tuned on the polo and inherited by everything.
+            sil = CC.silhouette(host)
+            lo, hi = H.bounds([host])
+            CC.assert_irregular(sil, f"{name}: the outline is not a machined "
+                                f"block", min_gap=0.0,
+                                min_range=(hi.y - lo.y) * 0.030)
 
 
 def main():

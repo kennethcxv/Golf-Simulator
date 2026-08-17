@@ -69,7 +69,8 @@ def assert_relief(pairs, label, min_proud=0.0022):
     return got
 
 
-def assert_irregular(values, label, min_spread=0.0012, min_gap=0.0006):
+def assert_irregular(values, label, min_spread=0.0012, min_gap=0.0006,
+                     min_range=0.0):
     """DEAD-LEVEL AND EVENLY-SPACED ARE THE TWO THINGS THAT READ AS MADE.
 
     `values` is a list of measured positions -- ply edges along a stack, hem
@@ -90,6 +91,22 @@ def assert_irregular(values, label, min_spread=0.0012, min_gap=0.0006):
     vs = sorted(values)
     gaps = [b - a for a, b in zip(vs[:-1], vs[1:])]
     tight = [(a, b) for a, b in zip(vs[:-1], vs[1:]) if (b - a) < min_gap]
+    # THE PAIRWISE TEST DOES NOT APPLY TO SAMPLES OF A SMOOTH CURVE, and
+    # callers that pass min_gap=0 are saying so deliberately. Ply edges in a
+    # stack are separate things and two at the same height read as one; nine
+    # samples along an outline are not separate things, and near any crest the
+    # neighbours agree because the curve has a turning point there. Demanding
+    # they differ forces high-frequency noise into the silhouette -- the
+    # buckled, wavy outline that was itself a fault two rounds ago.
+    #
+    # What a flat outline actually is, is one that barely changes across the
+    # whole garment. That is min_range, and it is measured end to end.
+    if min_range > 0.0 and (vs[-1] - vs[0]) < min_range:
+        raise SystemExit(
+            f"BUILD FAILED: {label} -- the outline is straight: it varies by "
+            f"{(vs[-1] - vs[0]) * 1000:.2f} mm across the whole garment "
+            f"(needs {min_range * 1000:.1f}). A folded garment's edge breathes; "
+            f"an edge that does not is a moulded block.")
     spread = max(gaps) - min(gaps)
     if tight:
         raise SystemExit(
@@ -105,6 +122,42 @@ def assert_irregular(values, label, min_spread=0.0012, min_gap=0.0006):
     print(f"  irregularity assertion passed: {len(vs)} edges, gaps "
           f"{min(gaps) * 1000:.1f}-{max(gaps) * 1000:.1f} mm ({label})")
     return spread
+
+
+def silhouette(obj, samples=9, span=0.72):
+    """The garment's half-depth at N stations across its width, off the MESH.
+
+    assert_irregular needs numbers a human would line up by eye, and on a
+    folded garment that is the outline: if every station has the same depth the
+    thing is a machined block whatever the surface does. Measured rather than
+    predicted, for the reason edge_x is: the outline is the product of the
+    footprint, the wander and the lean together, and the builder's own
+    parameters do not tell you what came out.
+    """
+    mw = obj.matrix_world
+    pts = [mw @ v.co for v in obj.data.vertices]
+    xs = [q.x for q in pts]
+    x0, x1 = min(xs), max(xs)
+    cx, cy = (x0 + x1) * 0.5, sum(q.y for q in pts) / len(pts)
+    half = (x1 - x0) * 0.5 * span
+    out = []
+    # BANDS THAT DO NOT OVERLAP. At (x1 - x0) / (samples * 2) each band was
+    # wider than the gap between stations, so two neighbouring stations could
+    # return the SAME extreme vertex and report it as two measurements that
+    # agree exactly -- 142.5 / 142.5 on the polo, which is the instrument
+    # talking to itself, not a straight edge on the garment. Half the station
+    # pitch makes the bands abut without sharing.
+    pitch = (2 * half) / (samples - 1.0)
+    band = pitch * 0.5
+    for i in range(samples):
+        xa = cx - half + pitch * i
+        near = [abs(q.y - cy) for q in pts if abs(q.x - xa) < band]
+        if not near:
+            raise SystemExit(
+                f"BUILD FAILED: silhouette found no surface on {obj.name} at "
+                f"x={xa:+.4f} -- it will not answer with a default")
+        out.append(max(near))
+    return out
 
 
 def assert_no_flat_caps(objs, label, max_sides=4):
@@ -136,7 +189,7 @@ def assert_no_flat_caps(objs, label, max_sides=4):
           f"{max_sides} sides ({label})")
 
 
-def assert_not_buried(parts, label, min_out=0.35):
+def assert_not_buried(parts, label, min_out=0.35, only=None):
     """EVERY PART REACHABLE BY LIGHT.
 
     The collar disappeared for two rounds because `top_z` answers with the
@@ -155,8 +208,12 @@ def assert_not_buried(parts, label, min_out=0.35):
     # The control caught exactly that as a false positive. What matters is how
     # much SURFACE the light can reach.
     names = sorted(parts)
+    # `only` names the parts to JUDGE; every part is still an occluder. The
+    # cloth is the thing that does the burying and has ten thousand polygons,
+    # so judging it costs minutes and answers a question nobody asked.
+    subjects = names if only is None else [n for n in names if n in only]
     faults, scores = [], []
-    for na in names:
+    for na in subjects:
         a = parts[na]
         mw = a.matrix_world
         if not a.data.polygons:
@@ -178,6 +235,10 @@ def assert_not_buried(parts, label, min_out=0.35):
                           f"the other parts -- it is buried")
     if faults:
         raise SystemExit(f"BUILD FAILED: {label} -- " + "; ".join(faults))
+    if not scores:
+        raise SystemExit(f"BUILD FAILED: {label} -- assert_not_buried judged "
+                         f"NOTHING. It refuses rather than printing a pass on "
+                         f"an empty set, which is how a check certifies air.")
     lo = min(scores, key=lambda r: r[1])
     print(f"  buried assertion passed: {len(scores)} parts, least exposed is "
           f"{lo[0]} at {lo[1] * 100:.0f}% ({label})")
