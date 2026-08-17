@@ -450,6 +450,49 @@ def _smooth(x, a, b):
     return t * t * (3 - 2 * t)
 
 
+def topstitch(name, pts, radius=0.00072, sides=6):
+    """A thread lying on the cloth.
+
+    A seam a millimetre wide cannot be a displacement: at 15 mm between
+    columns the mesh has nothing to bend, and the groove came out invisible.
+    Real topstitching stands PROUD -- it is thread lying on top of the cloth,
+    and it reads because it catches a highlight along its length. Geometry is
+    the right answer here and it costs almost nothing.
+    """
+    rows = []
+    n = len(pts)
+    for i, p in enumerate(pts):
+        p = Vector(p)
+        tan = Vector(pts[min(n - 1, i + 1)]) - Vector(pts[max(0, i - 1)])
+        tan = tan.normalized() if tan.length > 1e-9 else Vector((0, 0, 1))
+        e1 = tan.cross(Vector((0, 1, 0)))
+        if e1.length < 1e-6:
+            e1 = tan.cross(Vector((1, 0, 0)))
+        e1.normalize()
+        e2 = tan.cross(e1).normalized()
+        rows.append([tuple(p + e1 * (radius * math.cos(2 * math.pi * k / sides))
+                           + e2 * (radius * math.sin(2 * math.pi * k / sides)))
+                     for k in range(sides)])
+    return grid_mesh(name, rows, wrap_u=True)
+
+
+def on_surface(target, x, z, out=0.0011, axis_y=-1.0):
+    """Where a point (x, z) lands on the front or back of a garment, held off
+    it by `out`. Ray cast, never nearest-point."""
+    from mathutils.bvhtree import BVHTree
+    if not hasattr(on_surface, "_cache") or on_surface._cache[0] is not target:
+        bvh = BVHTree.FromPolygons(
+            [v.co.copy() for v in target.data.vertices],
+            [tuple(p.vertices) for p in target.data.polygons])
+        on_surface._cache = (target, bvh)
+    bvh = on_surface._cache[1]
+    org = Vector((x, 0.9 * axis_y, z))
+    hit, nrm, _i, _d = bvh.ray_cast(org, Vector((0.0, -axis_y, 0.0)), 2.0)
+    if hit is None:
+        return None
+    return hit + Vector((0.0, axis_y * out, 0.0))
+
+
 def solidify(ob, thickness, offset=0.0, rim=True):
     """EVEN OFFSET IS A TRAP ON CLOTH.
 
