@@ -70,6 +70,9 @@ def _area(name, loc, look_at, energy, size, colour=(1, 1, 1), shape='SQUARE',
 
 LIGHTS = ("key", "fill", "top", "bounce", "cyc_wash")
 SET = ("Cyc", "CycFloor") + LIGHTS
+# the rig's offsets from the subject, filled in by retail_light so aim_lights can
+# turn the whole set with the camera
+_RIG = {}
 
 
 def retail_light(centre=(0, 0, 0), scale=1.0):
@@ -85,6 +88,12 @@ def retail_light(centre=(0, 0, 0), scale=1.0):
     c = Vector(centre)
     s = max(0.25, scale)
     p = s * s
+    _RIG.clear()
+    for nm, off in (("key", (-1.15, -1.75, 1.60)), ("fill", (1.80, -1.30, 0.35)),
+                    ("top", (-0.15, -0.20, 2.40)),
+                    ("bounce", (0.10, -0.95, -1.55)),
+                    ("cyc_wash", (0.0, -0.30, 0.10))):
+        _RIG[nm] = tuple(v * s for v in off)
     _area("key", c + Vector((-1.15, -1.75, 1.60)) * s, c,
           energy=124.0 * p, size=2.2 * s, colour=(1.0, 0.992, 0.978))
     _area("fill", c + Vector((1.80, -1.30, 0.35)) * s, c,
@@ -98,6 +107,35 @@ def retail_light(centre=(0, 0, 0), scale=1.0):
     _area("cyc_wash", c + Vector((0.0, -0.30, 0.10)) * s,
           c + Vector((0.0, 3.0, 0.0)) * s,
           energy=54.0 * p, size=3.4 * s, colour=(1.0, 1.0, 1.0))
+
+
+def aim_lights(centre, azimuth_deg):
+    """Turn the whole rig with the camera.
+
+    Every lamp sits on the -y side, which is right for a front view and turns the
+    BACK view into a silhouette -- the polo's back render came out as a dark
+    shape with a rim on it, and the same would be true of all ten. A product
+    photographer moves the lights round with the camera rather than shooting one
+    side of a fixed set, and the reference's cells are evenly lit from wherever
+    they are seen. The offsets are the ones `retail_light` built with; only their
+    bearing changes.
+    """
+    a = math.radians(azimuth_deg + 90.0)
+    c, s = math.cos(a), math.sin(a)
+    cen = Vector(centre)
+    for name, off in _RIG.items():
+        ob = bpy.data.objects.get(name)
+        if ob is None:
+            continue
+        o = Vector(off)
+        p = cen + Vector((o.x * c - o.y * s, o.x * s + o.y * c, o.z))
+        ob.location = p
+        aim = cen
+        if name == "cyc_wash":
+            d = (cen - p)
+            d.z = 0.0
+            aim = cen - d * 3.0
+        ob.rotation_euler = (aim - p).to_track_quat('-Z', 'Y').to_euler()
 
 
 def world_value(v=0.34):
@@ -175,6 +213,7 @@ def shots(subject, look, radius, out, plan, res=(900, 1150), margin=1.07):
         d = Vector((math.cos(e) * math.cos(a), math.cos(e) * math.sin(a),
                     math.sin(e)))
         aim_cyc(look, radius, -d)
+        aim_lights(look, az)
         dist = H.fit_view(subject, look, -d, lens, res=res, margin=margin)
         cam = H.camera("cam_" + tag, Vector(look) + d * dist, look, lens=lens)
         paths.append(H.render(cam, os.path.join(out, "%s.png" % tag), res=res))
