@@ -58,7 +58,7 @@ ATLAS = os.path.join(REPO, "Assets", "models", "hero", "textures",
 # The 24-cell atlas: 0-11 colourways, 12-17 their contrast partners, 18 chest
 # roundel, 19 tee front, 20 sleeve badge, 21 cap monogram, 22 ribbing, 23 trim.
 # ONE material for all of it -- a colourway must never cost a program.
-ATLAS_COLS, ATLAS_ROWS = 6, 6
+ATLAS_COLS, ATLAS_ROWS = 6, 5
 # Eight garments, eight different colourways: "a rail of eight identical navy
 # garments is not a shop".
 CELL = {"polo-folded": 2, "polo-hung": 0, "tee-folded": 11, "tee-hung": 1,
@@ -115,11 +115,10 @@ def polo_folded(origin=(0, 0, 0), broken=""):
     ox, oy, oz = origin
     p = {}
     w, d, h = FOLD_POLO
-    p.update(CL.folded_ribbon("PoloFold", (ox, oy, oz), FOLD_POLO,
-                              plies=6, sag=0.0030, crease=0.0034, seed=0.4,
-                              wander=1.7))
-    body = p["cloth"]
-    top_at = p.pop("top_at")
+    p.update(CL.folded_stack("PoloFold", (ox, oy, oz), FOLD_POLO,
+                             leaves=4, sag=0.0030, crease=0.0034, seed=0.4,
+                             wander=1.7))
+    body = CL.top_leaf(p)
 
     # the sleeve folded underneath shows as a soft ridge across the body
     p["sleeve_ridge"] = CL.fold_line(
@@ -131,7 +130,7 @@ def polo_folded(origin=(0, 0, 0), broken=""):
     # the collar, splayed open at the back edge of the fold. Its base comes
     # from the MEASURED top face: the nominal fold height is above the sagged
     # surface, and a collar placed there sinks into the shirt.
-    cz = top_at(ox + w * 0.03, oy + d * 0.20) + 0.0018
+    cz = CL.top_z(body, ox + w * 0.03, oy + d * 0.20) + 0.0018
     if broken == "collar":
         # THE BROKEN VARIANT: the collar lifted clear of the shirt. It still
         # looks like a collar from directly above, which is how a detached one
@@ -166,7 +165,7 @@ def polo_folded(origin=(0, 0, 0), broken=""):
     p["print"] = CL.decal(
         "PoloFold_Chest",
         (ox - w * 0.26, oy - d * 0.20,
-         top_at(ox - w * 0.26, oy - d * 0.20) - 0.0006),
+         CL.top_z(body, ox - w * 0.26, oy - d * 0.20) - 0.0006),
         (0, 0, 1), (0.0400, 0.0400))
 
     # the size tag, protruding from the right edge. MEASURED against the body,
@@ -253,12 +252,11 @@ def tee_folded(origin=(0, 0, 0), broken=""):
     all three called out in the review as missing."""
     ox, oy, oz = origin
     w, d, h = FOLD_TEE
-    p = dict(CL.folded_ribbon("TeeFold", (ox, oy, oz), FOLD_TEE,
-                              plies=6, sag=0.0026, crease=0.0026, seed=1.7,
-                              wander=1.7))
-    body = p["cloth"]
-    top_at = p.pop("top_at")
-    surf = top_at(ox, oy + d * 0.20)
+    p = dict(CL.folded_stack("TeeFold", (ox, oy, oz), FOLD_TEE,
+                             leaves=4, sag=0.0026, crease=0.0026, seed=1.7,
+                             wander=1.7))
+    body = CL.top_leaf(p)
+    surf = CL.top_z(body, ox, oy + d * 0.20)
 
     # THE NECK RIB, as real ribbed geometry rather than a smooth arc
     # A 10% SCALLOP AT 22 CYCLES IS NOT RIBBING, it is a tear. Sampled at 15
@@ -441,12 +439,10 @@ def tee_hung(origin=(0, 0, 0), broken=""):
 def hoodie_folded(origin=(0, 0, 0), broken=""):
     ox, oy, oz = origin
     w, d, h = FOLD_HOOD
-    # a hoodie is thick cloth: fewer, fatter plies than a polo
-    p = dict(CL.folded_ribbon("HoodFold", (ox, oy, oz), FOLD_HOOD,
-                              plies=4, sag=0.0034, crease=0.0030, seed=2.4,
-                              wander=1.5))
-    body = p["cloth"]
-    top_at = p.pop("top_at")
+    p = dict(CL.folded_stack("HoodFold", (ox, oy, oz), FOLD_HOOD,
+                             leaves=4, sag=0.0034, crease=0.0030, seed=2.4,
+                             wander=1.5))
+    body = CL.top_leaf(p)
     # the hood folded on top: a fat soft roll across the back half
     hz = oz + h + 0.0140
     if broken == "hood":
@@ -566,7 +562,7 @@ def hoodie_folded(origin=(0, 0, 0), broken=""):
             y = oy - d * 0.075 - d * 0.300 * t
             wob = 0.0065 * math.sin(t * 3.1 + ci * 2.0) * t
             z = (hz + 0.0060) * (1.0 - t) + (
-                top_at(cx + wob, y) + 0.0028) * t
+                CL.top_z(body, cx + wob, y) + 0.0028) * t
             path_pts.append(Vector((cx + wob, y, z)))
             nrm.append(Vector((0.0, 0.0, 1.0)))
         p[f"cord{ci}"] = CL.framed_sweep(f"HoodFold_Cord{ci}", path_pts, nrm,
@@ -747,11 +743,10 @@ def hoodie_hung(origin=(0, 0, 0), broken=""):
 def trousers_folded(origin=(0, 0, 0), broken=""):
     ox, oy, oz = origin
     w, d, h = FOLD_TROU
-    p = dict(CL.folded_ribbon("TrouFold", (ox, oy, oz), FOLD_TROU,
-                              plies=5, sag=0.0028, crease=0.0026, seed=3.1,
-                              wander=1.4))
-    body = p["cloth"]
-    top_at = p.pop("top_at")
+    p = dict(CL.folded_stack("TrouFold", (ox, oy, oz), FOLD_TROU,
+                             leaves=4, sag=0.0028, crease=0.0026, seed=3.1,
+                             wander=1.4))
+    body = CL.top_leaf(p)
     # THE FOLD END IS A FAT ROLL -- it is the whole read on the reference stack
     p["fold_roll"] = CL.fold_line("TrouFold_Roll",
                                   (ox - w * 0.46, oy - d * 0.40, oz + h * 0.52),
@@ -768,7 +763,7 @@ def trousers_folded(origin=(0, 0, 0), broken=""):
     # stranded on its rim. It sits on the MEASURED surface now, at a radius a
     # waistband actually has.
     wx = ox + w * 0.355
-    wz = top_at(wx, oy) + 0.0020
+    wz = CL.top_z(body, wx, oy) + 0.0020
     p["waistband"] = CL.fold_line("TrouFold_Waistband",
                                   (wx, oy - d * 0.40, wz),
                                   (wx, oy + d * 0.40, wz),
@@ -782,7 +777,7 @@ def trousers_folded(origin=(0, 0, 0), broken=""):
     # the leg. The slab read as a floating plate; the slot casts the shadow
     # that makes it read as a pocket.
     px, py = ox + w * 0.045, oy + d * 0.150
-    pz = top_at(px, py)
+    pz = CL.top_z(body, px, py)
     for i, off in enumerate((-0.0130, 0.0130)):
         p[f"pocket_welt{i}"] = CL.strip(
             f"TrouFold_Welt{i}",
@@ -1047,12 +1042,6 @@ def check(name, parts):
     mesh = {k: v for k, v in parts.items()
             if hasattr(v, "data") and getattr(v.data, "vertices", None) is not None}
     allow = list(DEEP.get(name, ()))
-    # v3: the folded garments are ONE ribbon of cloth, so "body" in the pair
-    # table means the single "cloth" shell rather than a set of leaves.
-    if "cloth" in mesh:
-        allow = ([pr for pr in allow if "body" not in pr]
-                 + [("cloth", o) for pr in allow if "body" in pr
-                    for o in pr if o != "body"])
     leaves = sorted(k for k in mesh if k.startswith("leaf"))
     if leaves:
         # The folded body is a STACK now. Every pair that named "body" was

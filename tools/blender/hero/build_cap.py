@@ -60,7 +60,7 @@ OUT_RENDER = os.path.join(REPO, "qa", "hero", "apparel_v2", "cap")
 GLB_DIR = os.path.join(REPO, "Assets", "models", "hero")
 ATLAS = os.path.join(REPO, "Assets", "models", "hero", "textures",
                      "apparel_atlas.png")
-ATLAS_COLS, ATLAS_ROWS = 6, 6
+ATLAS_COLS, ATLAS_ROWS = 6, 5
 
 # ---------------------------------------------------------------------------
 # the measurements, in metres, off a 56 cm head

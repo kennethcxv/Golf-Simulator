@@ -48,7 +48,7 @@ OUT_RENDER = os.path.join(REPO, "qa", "hero", "apparel_v2", "polo")
 GLB_DIR = os.path.join(REPO, "Assets", "models", "hero")
 ATLAS = os.path.join(REPO, "Assets", "models", "hero", "textures",
                      "apparel_atlas.png")
-ATLAS_COLS, ATLAS_ROWS = 6, 6
+ATLAS_COLS, ATLAS_ROWS = 6, 5
 
 # ---------------------------------------------------------------------------
 # the hung polo, in metres, off a men's medium
@@ -378,32 +378,27 @@ def build_hung(p, way):
 FOLD = (0.3080, 0.2360, 0.0450)
 
 
-# SIX PLIES, NOT FOUR. Four in 45 mm makes each U-turn a 22 mm sausage and the
-# front edge reads as two fat rolls; every folded polo in polo-rail-shop.jpg
-# shows four to six THIN layers.
-LEAVES = 6
+LEAVES = 4
 
 
 def build_folded(p, way):
     w, d, h = FOLD
-    # v3: ONE piece of cloth, folded, not a stack of separate pillows.
-    p.update(CL.folded_ribbon("PoloFold", (0, 0, 0), FOLD, plies=LEAVES,
-                              sag=0.0032, crease=0.0038, seed=0.7, wander=1.7))
-    body = p["cloth"]
-    # the ribbon hands out its own top surface; top_z's nearest-vertex answer
-    # can land on the ply below and bury whatever is being placed
-    top_at = p.pop("top_at")
+    p.update(CL.folded_stack("PoloFold", (0, 0, 0), FOLD, leaves=LEAVES,
+                             sag=0.0032, crease=0.0038, seed=0.7, wander=1.7))
+    # Everything that sits ON the garment measures off the TOP leaf. The stack
+    # is separate objects now, so there is no single "body" to ask.
+    body = p[f"leaf{LEAVES - 1}"]
 
     # the two sleeve folds, as ridges under the top leaf
     for k, sx in ((0, -1.0), (1, 1.0)):
         x = sx * w * 0.298
-        z = top_at(x, 0.0)
+        z = CL.top_z(body, x, 0.0)
         p[f"sleeve_fold{k}"] = CL.fold_line(
             f"PoloFold_Sleeve{k}", (x, -d * 0.40, z - 0.0008),
             (x + sx * 0.0060, d * 0.40, z - 0.0014), 0.0062, sides=9)
 
     # THE COLLAR, splayed flat with its points on the body
-    cz = top_at(0.0, d * 0.30)
+    cz = CL.top_z(body, 0.0, d * 0.30)
     # lift was 16.5 mm, which stood the whole band up off the shirt and was
     # most of why it read as a handle. A collar pressed under three more
     # garments is a few millimetres proud, no more, and 6.4 mm of thickness on
@@ -417,7 +412,7 @@ def build_folded(p, way):
     # start 52 mm forward of the notch, so it read as a luggage tag lying on
     # the shirt rather than the opening the collar sits on either side of. It
     # starts under the collar now and its top end is hidden by it.
-    top = top_at(0.0, d * 0.16)
+    top = CL.top_z(body, 0.0, d * 0.16)
     path = [Vector((0.0, 0.0800 - 0.0214 * k, top + 0.0012 - 0.0002 * k))
             for k in range(8)]
     p["placket"] = CL.strip("PoloFold_Placket", path, 0.0158, 0.0016, sides=8)
@@ -447,7 +442,7 @@ def build_folded(p, way):
     bx = w * 0.320
     NTOP = 16
     ys = [-d * 0.42 + (d * 0.84) * (i / (NTOP - 1.0)) for i in range(NTOP)]
-    zs = [top_at(bx, y) + 0.0006 for y in ys]
+    zs = [CL.top_z(body, bx, y) + 0.0006 for y in ys]
     # top_z answers with the NEAREST VERTEX, so walking a straight line across
     # a polar grid the answer can jump a ring and bite a step out of the band's
     # edge. One pass takes the step out; more than that flattens the very
@@ -458,7 +453,7 @@ def build_folded(p, way):
     # The turn down each face has to clear the WIDEST leaf at this x, not a
     # nominal d/2 -- each leaf wanders by the better part of a centimetre and
     # the band was cutting through two of them.
-    leaves = [p["cloth"]]
+    leaves = [p[f"leaf{i}"] for i in range(LEAVES)]
     y_front = CL.edge_y(leaves, bx, -1.0) - 0.0018
     y_back = CL.edge_y(leaves, bx, +1.0) + 0.0018
 
@@ -495,30 +490,7 @@ def build_folded(p, way):
         tan.normalize()
         nrms.append(Vector((0.0, -tan.z, tan.y)).normalized())
     p["size_band"] = CL.framed_sweep("PoloFold_Band", band, nrms,
-                                     0.0104, 0.0006, sides=6, square=0.88)
-
-    # A CHEST BADGE. "A rail of eight unmarked navy garments is not a shop" --
-    # the hung polo has carried one all along and the folded one never did, so
-    # the folded stock on the shelf was the blankest thing in the room.
-    bq = top_at(-w * 0.215, d * 0.115)
-    p["badge"] = CL.decal("PoloFold_Badge", (-w * 0.215, d * 0.115, bq + 0.0009),
-                          (0, 0, 1), (0.0430, 0.0430))
-
-    # AND A HANG TAG, on a thread over the front fold. Every garment in
-    # polo-rail-shop.jpg has one and it is the single strongest cue that the
-    # thing is stock rather than laundry.
-    tx = w * 0.150
-    ty = -d * 0.5 - 0.0075
-    tz = top_at(tx, -d * 0.42)
-    # CLEAR OF THE CLOTH. The first one hung inside the front fold and read as
-    # a white flap stuck to the garment; a tag on a thread swings free.
-    thread = [Vector((tx, -d * 0.44, tz + 0.0018)),
-              Vector((tx, -d * 0.52, tz - 0.0060)),
-              Vector((tx, ty - 0.0060, tz - 0.0270))]
-    p["tag_thread"] = CL._sweep("PoloFold_TagThread", thread, 0.0011, sides=5)
-    p["hangtag"] = CL.decal("PoloFold_HangTag",
-                            (tx, ty - 0.0068, tz - 0.0398),
-                            (0, -1, 0), (0.0300, 0.0330))
+                                     0.0132, 0.0007, sides=6, square=0.88)
     return p
 
 
@@ -533,7 +505,6 @@ WAYS = {
     "coral": (7, 17),
 }
 CHEST_CELL, BADGE_CELL, RIB_CELL, TRIM_CELL = 18, 20, 22, 23
-SIZEBAND_CELL, HANGTAG_CELL = 30, 31
 
 
 def cell_for(part, way):
@@ -541,12 +512,7 @@ def cell_for(part, way):
     n = part.lower()
     if n == "badge":
         return CHEST_CELL
-    if n == "size_band":
-        # a PRINTED band, not a blank white strap
-        return SIZEBAND_CELL
-    if n == "hangtag":
-        return HANGTAG_CELL
-    if n in ("hanger", "hook"):
+    if n in ("hanger", "hook", "size_band"):
         return TRIM_CELL
     if n.startswith("button"):
         return TRIM_CELL
@@ -599,11 +565,9 @@ DEEP = {
                ("placket", "button1"), ("collar", "sleeve_fold0"),
                ("collar", "sleeve_fold1"),
                ("size_band", "sleeve_fold1"), ("size_band", "sleeve_fold0")]
-    + [("cloth", o)
+    + [(f"leaf{i}", o) for i in range(LEAVES)
        for o in ("collar", "placket", "size_band", "button0", "button1",
-                 "sleeve_fold0", "sleeve_fold1", "badge", "tag_thread",
-                 "hangtag")]
-    + [("tag_thread", "hangtag"), ("size_band", "badge")],
+                 "sleeve_fold0", "sleeve_fold1")],
 }
 
 STATES = {"hung": build_hung, "folded": build_folded}
@@ -614,8 +578,10 @@ def check(name, parts):
             if hasattr(v, "data") and getattr(v.data, "vertices", None)}
     HS.assert_all_one_piece(mesh, f"polo-{name}: every part is one piece")
     HS.assert_assembly(mesh, f"polo-{name}: the assembly", allow=DEEP[name])
-    # v3: the plies are one surface now, so they cannot lace through each
-    # other -- there is nothing left for assert_leaves_clear to police.
+    if name == "folded":
+        # the general ceiling is 6 mm and these plies are 9.9 mm thick, so it
+        # cannot see a leaf laced halfway through its neighbour
+        CL.assert_leaves_clear(mesh, f"polo-{name}: the leaves stand clear")
 
 
 def main():
