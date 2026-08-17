@@ -654,7 +654,7 @@ def main():
     # the reference is a dead side view, so the comparison has to be one too
     d = H.fit_view(subject, centre,
                    Vector(H.orbit_position(centre, 1.0, -168, 7)) - centre,
-                   78.0, res=(1060, 760), margin=1.09)
+                   78.0, res=(1060, 760), margin=1.30)
     cam = H.camera("compare", H.orbit_position(centre, d, -168, 7), centre,
                    lens=78.0)
     H.render(cam, os.path.join(OUT, "cap-v4-compare.png"), res=(1060, 760))

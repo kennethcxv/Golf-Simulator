@@ -467,7 +467,7 @@ def main():
         bpy.data.objects.remove(bd, do_unlink=True)
     ST.world_value(0.055)
     tight = H.fit_view(subject, centre, Vector((0, 1, 0)), 80.0,
-                       res=(860, 1040), margin=1.09)
+                       res=(860, 1040), margin=1.30)
     cam = H.camera("compare", H.orbit_position(centre, tight, -90, 1), centre,
                    lens=80.0)
     H.render(cam, os.path.join(OUT, "polo-hung-v4-compare.png"),

@@ -322,7 +322,7 @@ def main():
     ST.world_value(0.055)
     d = H.fit_view(subject, centre,
                    Vector(H.orbit_position(centre, 1.0, -118, 28)) - centre,
-                   76.0, res=(1040, 800), margin=1.09)
+                   76.0, res=(1040, 800), margin=1.30)
     cam = H.camera("compare", H.orbit_position(centre, d, -118, 28), centre,
                    lens=76.0)
     H.render(cam, os.path.join(OUT, "tee-folded-v4-compare.png"),

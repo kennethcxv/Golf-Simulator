@@ -735,7 +735,14 @@ def pocket(ob):
     # nearly to the side seams and its two diagonals are short and steep -- the
     # slashes are the read, and a shallow diagonal over half the panel's height
     # makes them a taper rather than an opening.
-    W_TOP, W_KNEE, W_BOT = 0.099, 0.198, 0.202
+    # A SHORTER TOP SEAM. At 99 mm of half-width the sewn top edge spans
+    # 198 mm across the chest, and because the panel's relief ramps from the
+    # nearest sewn edge that edge reads as a crisp horizontal boundary right
+    # across the body -- a printed patch, not a sewn pocket. On the board the
+    # two openings reach much closer to the centre and the top seam between
+    # them is short; the openings are what the eye reads, and they should be
+    # most of the pocket's top edge.
+    W_TOP, W_KNEE, W_BOT = 0.062, 0.198, 0.202
     NX, NY = 44, 28
 
     def outline(v):
@@ -1254,7 +1261,7 @@ def main():
         bpy.data.objects.remove(bd, do_unlink=True)
     H.world_grey(0.055)
     tight = H.fit_view(subject, centre, Vector((0, 1, 0)), 80.0,
-                       res=(820, 1120), margin=1.09)
+                       res=(820, 1120), margin=1.30)
     cam = H.camera("compare", H.orbit_position(centre, tight, -90, 1), centre,
                    lens=80.0)
     H.render(cam, os.path.join(OUT, "hoodie-hung-v4-compare.png"),
