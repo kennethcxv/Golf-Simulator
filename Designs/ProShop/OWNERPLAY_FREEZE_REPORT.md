@@ -84,3 +84,91 @@ the state the game actually enters play with (6:00 AM, sim live), and add
 the always-on arrivals tripwire (log every post-veil program arrival with
 its twin-diff) so the next uncensused surface names itself in QA instead of
 in your hands.
+
+---
+
+# THE FIX, BUILT AND MEASURED (2026-08-16, the following session)
+
+## What was built
+
+1. **The shadow-type flip now settles BEFORE the first mass compile.** The
+   flip used to land inside the warm-composer bake — AFTER compile-hidden
+   had compiled the whole world — so every world material carried a stale
+   pre-flip program and recompiled at first sight in play (the door's five
+   arrivals, the till's two, the editor's family). The settle now runs as
+   the prewarm's first GPU act, through an override-material render so the
+   settle frame itself compiles one basic variant instead of a pre-flip
+   world. Stage label: `shadow-settled-before-compiles-1`, one iteration.
+2. **The overview warm performs the REAL Tab transition** — real walkExit
+   (the held-rig light leaves the visible set, which is part of the state),
+   the real spinning player pin, whole-course framing, dirt pillars, two
+   frames — then restores. Its own state is now self-reported in the
+   timings: visible point-lights, flora instances, programs minted.
+3. **The tripwire.** From frame 900 of active walk, any program arriving
+   logs itself (console.warn + `scene3d.programArrivalTripwire()`) with its
+   nearest-twin field diff. A missed surface names itself in QA now.
+4. **The bailout is now honest.** `__FW_PREWARM_NO_BAILOUT` holds it open
+   for QA; a bailed boot records `prewarm-bailout-skipped-draws` so it can
+   never again read as a warmed boot.
+
+## What the fix measures, on the repro driver (real walking, real E, real Tab)
+
+With the warms RUNNING (bailout held open):
+
+| gesture | arrivals before | arrivals after |
+|---|---|---|
+| front door + walk-through | 5 | **0** |
+| Tab overview | 10 | **1** (the dirt-sense marker's basic, two packed bits — named, small, tripwire-tracked) |
+
+Worst frames on this machine tonight: door 1,035 ms, tab 1,017 ms — but the
+door showed those with ZERO arrivals: that is the machine's ambient stall
+hitting arrival-free frames identically. **The under-200 ms number cannot be
+certified on this hardware tonight; the compile CAUSE is gone.** On a
+machine that does not stall, ~40-70 ms per residual compile is the going
+rate, and there is one residual.
+
+## THE DISCOVERY THAT EXPLAINS YOUR SESSION: the bailout guts the warms on this machine
+
+`timedWarmDraw` becomes a NO-OP after the first >5 s stall — and on this
+machine the stall fires EVERY boot. Every camera warm, the spin, the
+ledger, the register and the overview warm silently skipped on every boot
+you played. The bailout's premise — "first looks pay their old small
+costs" — is false on the very driver that triggers it: the same stall that
+hits the warm hits the first look, in your hands, at every new surface.
+Your unplayable session was this trade executing as designed. It stands
+tonight (un-bailing means 60-90 s loads on the stalling machine), but it
+is now measured, labelled, and holdable-open.
+
+## THE STATES SWEEP — you were right, and here is the different fix
+
+One live session, warms held open, four states, tripwire read per state:
+
+| state | program arrivals | worst frame |
+|---|---|---|
+| evening 19:30 | 1 (the known marker) | 33 ms |
+| **night 23:00** | **31 — every one `physical`, light-count field 4→2** | 575 ms |
+| heavy rain | **0** (rain is shader-driven) | 18 ms |
+| **shop open mid-morning 10:00** | **28 — light-count field 4→3** | **7,946 ms** |
+
+Warming one state MOVED the problem, exactly as you suspected. The axis is
+now named by value: the packed key field is the VISIBLE POINT-LIGHT COUNT,
+and a normal day walks it through at least four values (dawn walk 4,
+overview 1, night 2, trading morning 3). Every transition revariants every
+lit material on first sight. That is a different fix, and it has a name:
+**collapse the axis — pad the visible point-light set to a constant count
+with zero-intensity lights so the count never changes and one variant
+serves the whole day** (alternatively: warm all four counts behind the
+veil at 4x warm cost). Padding is the principled one; it also covers every
+state nobody has enumerated yet. Not built tonight — it touches the
+lighting core and deserves its own gated pass with goldens across all four
+states.
+
+## Collateral confirmations
+
+- **The register till's Goal-29 residual is fixed by the same settle:**
+  first press now +0 programs / +0 geometries / +0 textures (was +2
+  programs one field-48 step from their twins), second press 0/0/0,
+  planted-upload control exact. The "field 48" mystery is closed: it was
+  the shadow-type flip landing after the world had compiled.
+- Gates: lint ratchet 323 exactly, full suite exit 0, goldens 13/13 with
+  the one-pixel control caught, on the fixed tree.

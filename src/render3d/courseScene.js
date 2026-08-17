@@ -10735,6 +10735,50 @@ export function makeCourseScene(canvas, state) {
   let stabilityFreezeFrames = 0;
   let stabilityFreezeSnapshotMap = null;
   let stabilityFreezeOutcome = null;
+  // OWNER-PLAY FREEZE TRIPWIRE — any program arriving after play begins is a
+  // surface some warm missed, and it logs itself with its nearest-twin diff
+  // the moment it lands instead of waiting to be found in the owner's hands.
+  // Cost: one length compare per frame; the diff work runs only on arrival
+  // frames, which have already paid for a driver compile.
+  const programTripwire = {
+    lastLen: -1, known: null, rows: [],
+  };
+  const programTripwireScan = () => {
+    const programs = renderer.info?.programs;
+    if (!programs) return;
+    if (programTripwire.lastLen === -1) {
+      // baseline at first post-veil frame: everything the warm built is legit
+      programTripwire.lastLen = programs.length;
+      programTripwire.known = programs.map((p) => String(p.cacheKey));
+      return;
+    }
+    if (programs.length <= programTripwire.lastLen) return;
+    const knownSet = new Set(programTripwire.known);
+    for (const p of programs) {
+      const key = String(p.cacheKey);
+      if (knownSet.has(key)) continue;
+      programTripwire.known.push(key);
+      const f = key.split(',');
+      let best = null;
+      for (const oldKey of knownSet) {
+        const o = oldKey.split(',');
+        if (o.length !== f.length) continue;
+        const diffs = [];
+        for (let i = 0; i < f.length && diffs.length <= 5; i += 1) {
+          if (o[i] !== f[i]) diffs.push({ i, was: o[i], is: f[i] });
+        }
+        if (diffs.length && (!best || diffs.length < best.length)) best = diffs;
+      }
+      const row = {
+        t: +performance.now().toFixed(0),
+        family: f[0]?.slice(0, 16),
+        nearestTwinDiffs: best || 'no-same-width-twin',
+      };
+      if (programTripwire.rows.length < 200) programTripwire.rows.push(row);
+      console.warn('[program-tripwire] late arrival', JSON.stringify(row));
+    }
+    programTripwire.lastLen = programs.length;
+  };
 
   // SHADOW FITTING. On foot, only the ±120 yards around the player can ever be read — so
   // that is all the shadow map covers: a 2048 map over 240yd is 2.5× the texel density the
@@ -10989,8 +11033,15 @@ export function makeCourseScene(canvas, state) {
     // that five-second window (minus contract movers and the named feel
     // surfaces below); every frame after, the watchdog re-verifies a slice
     // and thaws anything a verb wrote to — at worst ~7 frames late, once.
-    if (!globalThis.__FW_DISABLE_STABILITY_FREEZE && walk.active) {
+    // armed at the stability freeze's own settle point (frame 900 of active
+    // walk) so the deferred belt warm's post-veil compiles — which are load
+    // work by design — never read as late arrivals. The frame counter runs
+    // regardless of the freeze kill switch; only the freeze actions honour it.
+    if (walk.active) {
       stabilityFreezeFrames += 1;
+      if (stabilityFreezeFrames >= 900) programTripwireScan();
+    }
+    if (!globalThis.__FW_DISABLE_STABILITY_FREEZE && walk.active) {
       if (stabilityFreezeFrames === 600) {
         stabilityFreezeSnapshotMap = matrixFreezeSnapshot(scene);
       } else if (stabilityFreezeFrames === 900 && stabilityFreezeSnapshotMap) {
@@ -12109,13 +12160,26 @@ export function makeCourseScene(canvas, state) {
     // draw over 5 s marks the prewarm pathological, every remaining
     // OPTIONAL stage skips, and the veil lifts — the player gets the game
     // and first looks pay their old small costs.
+    // OWNER-PLAY FREEZE, the last layer of it: on a machine where the stall
+    // fires EVERY boot, this bailout guts the back half of the prewarm every
+    // boot — the camera warms, the spin, the ledger, the register and the
+    // overview state-warm all silently skip, and every first look pays a
+    // pathological driver stall IN PLAY instead ("their old small costs" is
+    // the premise, and on the stalling driver it is false — the same driver
+    // that stalls the warm stalls the first look). The trade stands for now
+    // because un-bailing means 60-90 s loads on that machine, but it is now
+    // MEASURABLE: __FW_PREWARM_NO_BAILOUT holds it open so QA can prove the
+    // warms' state-parity under their own conditions, and the bailout writes
+    // which stages it skipped so a bailed boot can never again read as a
+    // warmed one.
     let prewarmStallBailed = false;
+    let prewarmSkippedDraws = 0;
     const timedWarmDraw = (fn) => {
-      if (prewarmStallBailed) return;
+      if (prewarmStallBailed) { prewarmSkippedDraws += 1; return; }
       const t0 = performance.now();
       fn();
       const ms = performance.now() - t0;
-      if (ms > 5000) {
+      if (ms > 5000 && !globalThis.__FW_PREWARM_NO_BAILOUT) {
         prewarmStallBailed = true;
         const bailoutLabel = 'prewarm-stall-bailout-at-ms'; // bound first: the strings ratchet
         prewarmTimings.push({ label: bailoutLabel, ms: +ms.toFixed(0) });
@@ -12294,6 +12358,40 @@ export function makeCourseScene(canvas, state) {
     // extension is either absent on this path or the HLSL compile still lands
     // at first draw regardless. Recorded so nobody spends the afternoon on it
     // twice.
+    // OWNER-PLAY FREEZE FIX — SETTLE THE SHADOW-TYPE FLIP BEFORE THE FIRST
+    // MASS COMPILE, not after it. The flip (see the shadowMap.type tombstone
+    // at renderer construction) lands at the first real shadow bake, and
+    // until tonight that bake happened AFTER compile-hidden and the
+    // warm-composer draw — so the ENTIRE WORLD compiled pre-flip programs,
+    // and the player's first sight of any surface recompiled it mid-walk:
+    // measured 2026-08-16 in owner-play conditions as +5 program arrivals at
+    // the front door, each one key-step from its twin on the packed
+    // shadow-type field, under 10-16 s main-thread blocks on a stalling
+    // driver. The late settle (before the gesture warms) stays: it reads
+    // already-settled and reports the outcome either way.
+    // The settle frame itself must not mass-compile pre-flip programs — that
+    // would be the defect re-armed. An override-material direct render fires
+    // the shadow bake (which is all the flip needs: WebGLRenderer runs the
+    // shadow pass before the colour pass) while the colour pass compiles one
+    // basic variant instead of the whole world.
+    let earlyShadowSettleFrames = 0;
+    const earlySettleOverride = new THREE.MeshBasicMaterial();
+    const prevOverrideMaterial = scene.overrideMaterial;
+    while (earlyShadowSettleFrames < 6 && renderer.shadowMap.type === THREE.PCFSoftShadowMap) {
+      fitSunShadow();
+      renderer.shadowMap.needsUpdate = true;
+      guardCourseWaterReflection.beginFrame();
+      scene.overrideMaterial = earlySettleOverride;
+      timedWarmDraw(() => withWarmViewport(() => {
+        try { renderer.render(scene, camera); } catch { /* the late settle still stands */ }
+      }));
+      scene.overrideMaterial = prevOverrideMaterial;
+      earlyShadowSettleFrames += 1;
+    }
+    scene.overrideMaterial = prevOverrideMaterial;
+    earlySettleOverride.dispose();
+    const earlySettleLabel = `shadow-settled-before-compiles-${renderer.shadowMap.type}`; // bound first: the strings ratchet
+    prewarmTimings.push({ label: earlySettleLabel, ms: earlyShadowSettleFrames });
     renderer.compile(scene, camera);
     phaseAt = markPrewarm('renderer.compile', phaseAt);
     // A3 (Goal 17): compile() walks only VISIBLE objects, and the ledger's page
@@ -12762,18 +12860,63 @@ export function makeCourseScene(canvas, state) {
     // framing WITH the dirt-sense pillars revealed (Tab's own toast raises
     // them). Draw exactly that state once, under the clock's own lighting
     // (overview does not pin 'day' the way the editor does), then conceal.
+    // OWNER-PLAY FREEZE FIX, second axis — the warm above drew the overview
+    // FRAMING but not the overview STATE: play's Tab runs exitWalk() first
+    // (held rig and its light gone — a light-set change that revariants
+    // every physical material on the map) and raises the spinning player
+    // pin (a lazily-built mesh with its own program). Measured in owner-play
+    // conditions: +10 program arrivals on the first Tab, nine physical one
+    // key-step from their twins on a packed light-state field (4 -> 1) plus
+    // the pin's basic. So the warm now performs the REAL transition — real
+    // walkExit, real pin, the whole-course shadow regime — and restores.
+    const overviewWarmWasWalking = walk.active;
+    if (overviewWarmWasWalking) walkExit();
+    overviewPinWanted = true;
     frameCourse();
     camera.updateMatrixWorld(true);
     clubhouseApi?.syncCameraVisibility?.();
     floraLodUpdate?.(true);
     clubhouseApi?.setDirtReveal?.(1, true);
+    updatePlayerPin(); // render() owns this in play; the warm draw does not run it
     fitSunShadow();
     renderer.shadowMap.needsUpdate = true;
-    guardCourseWaterReflection.beginFrame();
-    timedWarmDraw(() => withWarmViewport(() => {
-      try { composer.render(); } catch { renderer.render(scene, camera); }
-    }));
+    // the axis the Tab arrivals ride is the VISIBLE POINT-LIGHT COUNT
+    // (walk 4 -> overview 1, measured); record what this warm draw actually
+    // sees so a mismatch with play is a number in the timings, not a hunt
+    let overviewWarmVisiblePl = 0;
+    scene.traverse((o) => {
+      if (!o.isLight || o.type !== 'PointLight') return;
+      let vis = true;
+      for (let p = o; p; p = p.parent) { if (!p.visible) { vis = false; break; } }
+      if (vis && o.layers.test(camera.layers)) overviewWarmVisiblePl += 1;
+    });
+    const overviewWarmPlLabel = 'gesture-overview-visible-pointlights'; // bound first: the strings ratchet
+    prewarmTimings.push({ label: overviewWarmPlLabel, ms: overviewWarmVisiblePl });
+    // and whether there is any flora TO draw yet — the Tab arrivals are the
+    // outdoor set, and a warm that runs before the scatter lands warms a
+    // bare hillside
+    let overviewWarmFloraInstances = 0;
+    scene.traverse((o) => {
+      if (o.isInstancedMesh && /FloraLOD/.test(o.name || '')) overviewWarmFloraInstances += o.count || 0;
+    });
+    const overviewWarmFloraLabel = 'gesture-overview-flora-instances'; // bound first: the strings ratchet
+    prewarmTimings.push({ label: overviewWarmFloraLabel, ms: overviewWarmFloraInstances });
+    const overviewWarmProgramsBefore = renderer.info.programs?.length ?? -1;
+    for (let overviewWarmFrame = 0; overviewWarmFrame < 2; overviewWarmFrame += 1) {
+      guardCourseWaterReflection.beginFrame();
+      timedWarmDraw(() => withWarmViewport(() => {
+        try { composer.render(); } catch { renderer.render(scene, camera); }
+      }));
+    }
+    const overviewWarmProgramDeltaLabel = 'gesture-overview-programs-minted'; // bound first: the strings ratchet
+    prewarmTimings.push({
+      label: overviewWarmProgramDeltaLabel,
+      ms: (renderer.info.programs?.length ?? -1) - overviewWarmProgramsBefore,
+    });
     clubhouseApi?.setDirtReveal?.(0, false);
+    overviewPinWanted = false;
+    updatePlayerPin();
+    if (overviewWarmWasWalking) walkEnter('resume');
     phaseAt = markPrewarm('gesture-overview', phaseAt);
     walk.active = savedView.walkActive;
     heldRoot.visible = savedView.heldVisible;
@@ -12982,6 +13125,10 @@ export function makeCourseScene(canvas, state) {
       try { composer.render(); } catch { renderer.render(scene, camera); }
     }
 
+    if (prewarmSkippedDraws > 0) {
+      const skippedDrawsLabel = 'prewarm-bailout-skipped-draws'; // bound first: the strings ratchet
+      prewarmTimings.push({ label: skippedDrawsLabel, ms: prewarmSkippedDraws });
+    }
     prewarmTimings.push({ label: 'TOTAL', ms: +(performance.now() - prewarmStartedAt).toFixed(1) });
     // Checkout cash representatives share the exact kit geometry/materials and
     // existed only so the forced warm-up draw above could realize them behind
@@ -13128,6 +13275,9 @@ export function makeCourseScene(canvas, state) {
       promise: whenAssetsIdle(timeoutMs),
     }),
     clubhouse: () => clubhouseApi,
+    // OWNER-PLAY FREEZE TRIPWIRE — every post-veil program arrival with its
+    // nearest-twin diff; QA suites assert this is EMPTY after a played pass
+    programArrivalTripwire: () => programTripwire.rows.slice(),
     // GOAL 30 LEVER B — the stability freeze's live counters, for the churn
     // instrument and the watchdog's own acceptance driver
     matrixFreezeDiagnostics: () => ({

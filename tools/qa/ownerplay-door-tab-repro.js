@@ -23,6 +23,14 @@ async (page) => {
   const bootPath = `${process.cwd()}/tools/qa/lib/qa-boot.mjs`.replace(/\\/g, '/');
   const boot = await import(`file:///${bootPath}`);
 
+  // QA_OWNERPLAY_NO_BAILOUT=1 holds the prewarm stall bailout open so the
+  // state-parity warms provably RUN — on the stalling machine the bailout
+  // otherwise guts them every boot and this driver measures their absence
+  if (process.env.QA_OWNERPLAY_NO_BAILOUT === '1') {
+    await page.evaluate(() => { globalThis.__FW_PREWARM_NO_BAILOUT = true; });
+    out.noBailout = true;
+  }
+
   // samplers BEFORE any click
   await page.evaluate(() => {
     const S = { gaps: [], longtasks: [], last: performance.now() };
@@ -30,7 +38,7 @@ async (page) => {
     const tick = () => {
       const now = performance.now();
       const gap = now - S.last;
-      if (gap > 100) S.gaps.push({ t: +now.toFixed(0), ms: +gap.toFixed(1) });
+      if (gap > 50) S.gaps.push({ t: +now.toFixed(0), ms: +gap.toFixed(1) });
       S.last = now;
       requestAnimationFrame(tick);
     };
@@ -60,6 +68,12 @@ async (page) => {
     return !v || getComputedStyle(v).opacity === '0';
   }, null, { timeout: 300000 });
   await page.waitForTimeout(2500); // he waits no longer than this
+  // let the deferred warms retire and the tripwire arm (frame 900 of walk),
+  // so every arrival after this point is a genuine missed surface
+  await page.waitForFunction(
+    () => (window.__fw.scene3d.matrixFreezeDiagnostics?.()?.framesSinceWalk || 0) > 950,
+    null, { timeout: 240000 },
+  ).catch(() => { /* older builds: proceed; arrivals still measured by snaps */ });
 
   const snap = (label) => page.evaluate((lab) => {
     const s3 = window.__fw.scene3d;
@@ -127,6 +141,7 @@ async (page) => {
   // the door: proximity opens it; if a prompt names it, E as well — his verb
   const label = await page.evaluate(() => window.__fw.scene3d?.walk?.getFocusLabel?.() || null);
   out.doorPromptLabel = label && String(label).slice(0, 70);
+  out.doorPressT = await page.evaluate(() => +performance.now().toFixed(0));
   if (label && /door|open/i.test(String(label))) await page.keyboard.press('e');
   await page.waitForTimeout(3500); // the freeze he felt lives here if it lives anywhere
   out.afterDoor = await snap('afterDoor');
@@ -140,12 +155,14 @@ async (page) => {
 
   // TAB — the overview
   out.beforeTab = await snap('beforeTab');
+  out.tabPressT = await page.evaluate(() => +performance.now().toFixed(0));
   await page.keyboard.press('Tab');
   await page.waitForTimeout(4000);
   out.afterTab = await snap('afterTab');
   await page.screenshot({ path: path.join(OUT, 'after-tab.png') });
+  out.tabBackPressT = await page.evaluate(() => +performance.now().toFixed(0));
   await page.keyboard.press('Tab');
-  await page.waitForTimeout(1500);
+  await page.waitForTimeout(2500);
 
   // collect the logs and name the arrivals
   const logs = await page.evaluate(() => ({
@@ -182,6 +199,16 @@ async (page) => {
       acrossTab: arrivalsWithTwins('beforeTab', 'afterTab'),
     };
   });
+
+  // per-gesture worst frame: the acceptance number ("under 200 ms or say why")
+  const worstIn = (t0, t1) => Math.max(0, ...logs.gaps.filter((g) => g.t >= t0 && g.t <= t1).map((g) => g.ms));
+  out.acceptance = {
+    doorWorstFrameMs: +worstIn(out.doorPressT - 200, out.doorPressT + 3500).toFixed(0),
+    tabWorstFrameMs: +worstIn(out.tabPressT, out.tabPressT + 4000).toFixed(0),
+    tabBackWorstFrameMs: +worstIn(out.tabBackPressT, out.tabBackPressT + 2500).toFixed(0),
+    walkWorstFrameMs: +worstIn(0, out.doorPressT - 200).toFixed(0),
+  };
+  out.tripwire = await page.evaluate(() => window.__fw.scene3d.programArrivalTripwire?.() || 'no tripwire on this build');
 
   const d = (a, b, f) => (out[b][f] ?? 0) - (out[a][f] ?? 0);
   out.attribution = {
