@@ -167,7 +167,8 @@ def dish(name, rim, centre, bulge, nu, nv, normal):
     return ob
 
 
-def coons_fill(name, rim, bulge, normal, nu=26, nv=20, power=0.55):
+def coons_fill(name, rim, bulge, normal, nu=26, nv=20, power=0.55, vs=None,
+               relief=None, corners=None):
     """Fill a closed rim with a QUAD GRID, not a fan.
 
     `dish` collapses rings toward a centre, and even with a uniformly sampled
@@ -183,11 +184,67 @@ def coons_fill(name, rim, bulge, normal, nu=26, nv=20, power=0.55):
     """
     m4 = 4 * max(nu, nv)
     r = resample(rim, m4, closed=True)
-    m = m4 // 4
-    top = r[0:m + 1]
-    right = r[m:2 * m + 1]
-    bottom = list(reversed(r[2 * m:3 * m + 1]))
-    left = list(reversed(r[3 * m:] + [r[0]]))
+
+    # WHERE THE FOUR CORNERS ARE DECIDES WHICH WAY u AND v RUN, and splitting
+    # the rim at index 0 puts them wherever the outline happened to start. On
+    # the iron that was the heel at the sole, so v ran diagonally and twelve
+    # grooves came out as twelve wavy VERTICAL lines down the face. The driver
+    # hid it because its face is nearly symmetric and nothing on it is
+    # directional.
+    #
+    # corners="bbox" pins them to the rim points nearest the outline's bounding
+    # -box corners, which for any blade or face is exactly heel-top, toe-top,
+    # toe-sole, heel-sole -- so u runs heel to toe and v runs top to sole, and
+    # a groove is a row.
+    if corners == "bbox":
+        # WIND IT THE SAME WAY EVERY TIME. The corner walk below assumes the
+        # rim runs heel-top -> toe-top -> toe-sole -> heel-sole; fed the other
+        # way round it takes the long arc for two of the four sides and the
+        # patch folds through itself. Signed area in the xz plane says which
+        # way this outline happens to go.
+        area = 0.0
+        for i in range(len(r)):
+            a, b = r[i], r[(i + 1) % len(r)]
+            area += a.x * b.z - b.x * a.z
+        if area > 0.0:
+            r = list(reversed(r))
+        ax = [q for q in r]
+        xs = [q.x for q in ax]
+        zs = [q.z for q in ax]
+        want = [(min(xs), max(zs)), (max(xs), max(zs)),
+                (max(xs), min(zs)), (min(xs), min(zs))]
+        idx = []
+        for wx, wz in want:
+            best, bi = 1e18, 0
+            for i, q in enumerate(ax):
+                d = (q.x - wx) ** 2 + (q.z - wz) ** 2
+                if d < best:
+                    best, bi = d, i
+            idx.append(bi)
+        i0, i1, i2, i3 = idx
+        seq = r + r
+        def arc(a, b):
+            n = (b - a) % m4
+            return seq[a:a + n + 1]
+        # top runs corner0->corner1 and bottom corner3->corner2; left runs
+        # corner0->corner3 and right corner1->corner2. Two of those are walked
+        # BACKWARDS around the rim, and taking arc(i3, i2) instead of
+        # arc(i2, i3) walks the long way -- through the other two corners --
+        # which is what shredded the first grooved face.
+        top = arc(i0, i1)
+        right = arc(i1, i2)
+        bottom = list(reversed(arc(i2, i3)))
+        left = list(reversed(arc(i3, i0)))
+        if min(len(top), len(right), len(bottom), len(left)) < 2:
+            raise SystemExit(
+                "BUILD FAILED: coons_fill corners='bbox' found a degenerate "
+                "side -- the outline's extremes are not four distinct points")
+    else:
+        m = m4 // 4
+        top = r[0:m + 1]
+        right = r[m:2 * m + 1]
+        bottom = list(reversed(r[2 * m:3 * m + 1]))
+        left = list(reversed(r[3 * m:] + [r[0]]))
     top = resample(top, nu + 1)
     bottom = resample(bottom, nu + 1)
     left = resample(left, nv + 1)
@@ -195,21 +252,71 @@ def coons_fill(name, rim, bulge, normal, nu=26, nv=20, power=0.55):
     c00, c10 = left[0], right[0]
     c01, c11 = left[-1], right[-1]
     n = Vector(normal).normalized()
+    # EXPLICIT ROWS WHERE A GROOVE NEEDS THEM. Sampling a 0.9 mm channel out of
+    # uniform rows takes about 120 of them across a 50 mm face and still rounds
+    # the walls. Handing in the v values instead -- one pair at each groove
+    # edge -- gives vertical walls and a flat floor out of four rows per groove,
+    # which is what a cut groove IS.
+    vlist = [j / nv for j in range(nv + 1)] if vs is None else list(vs)
+    left = resample(left, len(vlist)) if vs is None else left
+    right = resample(right, len(vlist)) if vs is None else right
     rows = []
-    for j in range(nv + 1):
-        v = j / nv
+    for j, v in enumerate(vlist):
+        if vs is None:
+            lp, rp = left[j], right[j]
+        else:
+            lp, rp = _at(left, v), _at(right, v)
         row = []
         for i in range(nu + 1):
             u = i / nu
             p = (top[i] * (1 - v) + bottom[i] * v
-                 + left[j] * (1 - u) + right[j] * u
+                 + lp * (1 - u) + rp * u
                  - (c00 * (1 - u) * (1 - v) + c10 * u * (1 - v)
                     + c01 * (1 - u) * v + c11 * u * v))
             su = max(0.0, 1.0 - (2 * u - 1) ** 2) ** power
             sv = max(0.0, 1.0 - (2 * v - 1) ** 2) ** power
-            row.append(tuple(p + n * (bulge * su * sv)))
+            d = 0.0 if relief is None else relief(u, v)
+            row.append(tuple(p + n * (bulge * su * sv + d)))
         rows.append(row)
     return ST.grid(name, rows)
+
+
+def _at(chain, t):
+    """Point at parameter t along an evenly sampled chain."""
+    k = t * (len(chain) - 1)
+    i = min(len(chain) - 2, int(k))
+    return chain[i].lerp(chain[i + 1], k - i)
+
+
+def groove_rows(count, first, pitch, width, lo, hi, edge=0.00016):
+    """Row parameters and a relief function for a set of cut grooves.
+
+    Returns (vs, relief). `vs` carries four rows per groove -- land, floor,
+    floor, land -- plus filler rows through the lands so the face is not one
+    long quad between grooves. `relief(u, v)` is the depth at that row, and it
+    is FLAT inside a groove and zero outside: two walls and a floor, never a
+    profile that eases in.
+    """
+    span = hi - lo
+    cuts = []
+    for i in range(count):
+        c = first + i * pitch
+        cuts.append((c - width * 0.5, c + width * 0.5))
+    vs = set()
+    for a, b in cuts:
+        for z in (a - edge, a, b, b + edge):
+            vs.add(min(1.0, max(0.0, (z - lo) / span)))
+    for i in range(21):
+        vs.add(i / 20.0)
+    vs = sorted(vs)
+
+    def relief(u, v):
+        z = lo + v * span
+        for a, b in cuts:
+            if a <= z <= b:
+                return -1.0
+        return 0.0
+    return vs, relief
 
 
 def scorelines(pts_fn, count, first, pitch, width, depth, axis, extent):
@@ -475,3 +582,31 @@ def studio_hard(centre, scale, ev=-0.30, world=0.15):
     ST.retail_light(centre=centre, scale=scale)
     ST.cyc(centre=centre, scale=scale)
     ST.exposure(ev)
+
+
+def club_stick(prefix, heel, axis, hosel_len, hosel_r0, hosel_r1,
+               fer_len, shaft_len, grip_len, grip_r0, grip_r1,
+               shaft_r0=0.0043, shaft_r1=0.0048):
+    """Hosel, ferrule, shaft and grip on ONE axis -- shared by all three clubs.
+
+    Building this per club is how the existing set ended up with a driver whose
+    shaft is on the head's centre line and a putter whose shaft is a cylinder
+    stuck through the blade. The axis comes in, everything hangs off it, and a
+    club cannot be assembled crooked.
+    """
+    heel, axis = Vector(heel), Vector(axis).normalized()
+    p = {}
+    p["hosel"] = tube(prefix + "_hosel", heel, heel + axis * hosel_len,
+                      hosel_r0, hosel_r1, sides=20, rows=3)
+    f0 = heel + axis * (hosel_len - 0.002)
+    p["ferrule"] = tube(prefix + "_ferrule", f0, f0 + axis * fer_len,
+                        hosel_r1 * 1.24, shaft_r0 * 1.22, sides=22, rows=5)
+    s0 = heel + axis * (hosel_len + fer_len - 0.004)
+    s1 = heel + axis * (hosel_len + shaft_len)
+    p["shaft"] = tube(prefix + "_shaft", s0, s1, shaft_r0, shaft_r1,
+                      sides=18, rows=8)
+    gt = heel + axis * (hosel_len + shaft_len + 0.006)
+    gb = heel + axis * (hosel_len + shaft_len + 0.006 - grip_len)
+    p["grip"] = grip(prefix + "_grip", gt, gb, grip_r0, grip_r1,
+                     sides=24, rows=30)
+    return p
