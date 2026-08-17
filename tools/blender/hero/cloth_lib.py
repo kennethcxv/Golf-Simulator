@@ -907,6 +907,28 @@ def folded_ribbon(prefix, centre, size, plies=4, squareness=7.5,
     ring2d = (list(upper) + cap(q1, n1, d1) + list(reversed(lower))
               + cap(q0, -n0, d0))
 
+    # WHICH POINTS ARE A RAW EDGE. A fold is a machine-straight line -- cloth
+    # turns over on itself and stays put -- but a CUT edge never is: it is the
+    # loose end of the garment and it wanders. The top ply's cut came out as a
+    # dead straight line with a chamfer on it, which is most of why the folded
+    # trousers read as a lid sitting on rolls.
+    #
+    # So the two raw ends are tagged here, at construction, rather than guessed
+    # at from a point's position later: a mid-ply point passes through the same
+    # y as the cut and would be caught by any positional test.
+    L = len(upper)
+    edge_w = [0.0] * len(ring2d)
+    REACH = 5
+    for j in range(REACH):
+        f = (1.0 - j / float(REACH)) ** 1.4
+        edge_w[j] = max(edge_w[j], f)                       # start of upper
+        edge_w[L - 1 - j] = max(edge_w[L - 1 - j], f)       # end of upper
+        edge_w[L + 3 + j] = max(edge_w[L + 3 + j], f)       # end of lower
+        edge_w[2 * L + 2 - j] = max(edge_w[2 * L + 2 - j], f)
+    for j in range(3):                                      # the two caps
+        edge_w[L + j] = 1.0
+        edge_w[2 * L + 3 + j] = 1.0
+
     # ---- sweep the section across x, scaled by the garment's own outline
     NS = len(ring2d)
     verts, faces = [], []
@@ -925,14 +947,31 @@ def folded_ribbon(prefix, centre, size, plies=4, squareness=7.5,
         wob = 1.0 + wander * (0.020 * math.sin(u * 3.1 + seed)
                               + 0.012 * math.sin(u * 6.7 - seed * 1.7))
         # the pile leans, and it leans MORE the higher up you are
-        for p2, _n in ((p, 0) for p in ring2d):
+        for si2, p2 in enumerate(ring2d):
+            ew = edge_w[si2]
             zt = (p2.z + h * 0.5) / max(1e-6, h)        # 0 bottom, 1 top
-            droop = (1.0 - min(1.0, (u * u) * 0.80)) * sag * (0.25 + 0.75 * zt)
+            # THE PILE SAGS AT ITS PERIMETER, not just across x. Sagging only
+            # in x left the top ply a flat plate with a bevelled edge sitting
+            # on the rolls -- it reads as a lid, which is what the trousers
+            # looked like. Cloth falls away at every edge.
+            #
+            # It has to be the SAME field for every ply or the surface folds
+            # through itself: the plies are 1.1 mm apart and this is several
+            # times that. Applied to all of them the whole pile dishes and the
+            # spacing is untouched.
+            ry = (p2.y / (d * 0.5))
+            dome = 1.0 - min(1.0, (u * u * 0.62 + ry * ry * 0.72))
+            droop = dome * sag * 1.9
             rumple = crease * 0.30 * math.sin(2.1 * u + 3.3 * p2.y / d + seed)
+            # the raw edge wanders in y and dips a little as it goes
+            ewob = ew * (0.0062 * math.sin(u * 5.3 + seed * 2.1)
+                         + 0.0034 * math.sin(u * 11.7 - seed))
             verts.append(Vector((
                 cx + x + lean * zt * math.cos(seed * 1.7),
-                cy + p2.y * k * wob + lean * zt * math.sin(seed * 1.7),
-                cz + h * 0.5 + p2.z - droop + rumple)))
+                cy + p2.y * k * wob + ewob
+                + lean * zt * math.sin(seed * 1.7),
+                cz + h * 0.5 + p2.z - droop + rumple
+                - ew * 0.0016 * (1.0 + math.sin(u * 4.1 + seed)))))
     for xi in range(xsteps - 1):
         for si in range(NS):
             a = xi * NS + si
