@@ -128,6 +128,97 @@ def dimpled_ball(name, flat=False, alias=False):
                            broken=flat)
 
 
+def weld_label(box, centre, w, h, y, cell, cols, rows):
+    """Add the artwork to the box's OWN mesh as four verts and one face.
+
+    `label_quad`'s note explains why the artwork was ever a separate object:
+    per-face UV logic on a bevelled box is unreliable, because a planar map
+    collapses the image to a stretched line on the top face. That is still
+    true -- so this does not try to map the whole box. It adds ONE face, gives
+    that face the atlas cell, and leaves every other loop at (0, 0). The box
+    keeps its untextured material on slot 0 and the artwork sits on slot 1.
+    """
+    # LOCAL SPACE. `HS.box` calls primitive_cube_add(location=centre), so the
+    # centre lives on the OBJECT and the mesh data is centred at the origin.
+    # Building these verts in world coordinates added the offset a second time
+    # -- the first box was nearly right, the second visibly off and the third
+    # 230 mm away, which is exactly what the renders showed.
+    me = box.data
+    base = len(me.vertices)
+    corners = [(-1, -1), (1, -1), (1, 1), (-1, 1)]
+    ly = y - centre[1]
+    verts = [(sx * w * 0.5, ly, sz * h * 0.5) for (sx, sz) in corners]
+
+    import bmesh
+    bm = bmesh.new()
+    bm.from_mesh(me)
+    uvl = bm.loops.layers.uv.verify()
+    new = [bm.verts.new(v) for v in verts]
+    face = bm.faces.new(new)
+    face.material_index = 1
+    for loop in face.loops:
+        co = loop.vert.co
+        loop[uvl].uv = ((co.x + w * 0.5) / w, (co.z + h * 0.5) / h)
+    bm.normal_update()
+    bm.to_mesh(me)
+    bm.free()
+
+    # ... and only the new loops get the cell, so the box's own faces are not
+    # dragged into the atlas with it
+    layer = me.uv_layers.active
+    cxx, cyy = cell % cols, cell // cols
+    for poly in me.polygons:
+        if poly.material_index != 1:
+            continue
+        for li in poly.loop_indices:
+            u, v = layer.data[li].uv
+            layer.data[li].uv = ((cxx + u) / cols,
+                                 ((rows - 1 - cyy) + v) / rows)
+    return base
+
+
+def crush_carton(ob, centre, seed=0):
+    """A CARTON, not a cuboid.
+
+    Bevelled boxes with hard corners are the "constructed from primitives"
+    reading the brief bans. A printed carton has a lid that bows down between
+    its flaps, walls that bow out under what is inside, one corner knocked in
+    from handling, and none of it symmetric.
+
+    Safe to run over the whole mesh now that the label is welded in: the field
+    is continuous in the box's own normalised coordinates, so the artwork moves
+    with the wall it is printed on because it IS the wall.
+    """
+    # LOCAL SPACE, for the same reason as `weld_label`. Normalising against a
+    # world centre that is not in the mesh's space made u, w and t garbage for
+    # every box except the one nearest the origin -- which is why three earlier
+    # attempts at this failed three different ways and none of the diagnoses
+    # about label attachment were the real fault.
+    import math as _m
+    hx, hy, hz = (v * 0.5 for v in BOX)
+    ph = seed * 2.39
+    for v in ob.data.vertices:
+        pv = v.co
+        u = pv.x / hx
+        w = pv.y / hy
+        t = pv.z / hz
+        if t > 0.4:
+            pv.z -= 0.0016 * (1.0 - min(1.0, u * u)) * (1.0 - min(1.0, w * w))
+        bulge = 0.0016 * (1.0 - min(1.0, t * t))
+        pv.x += bulge * max(-1.0, min(1.0, u))
+        pv.y += bulge * max(-1.0, min(1.0, w))
+        kx = _m.copysign(1.0, _m.sin(ph + 1.1))
+        if w > 0.15:
+            d = max(0.0, (u * kx + w - 1.25)) / 0.75
+            if d > 0.0:
+                back = min(1.0, (w - 0.15) / 0.35)
+                pv.x -= 0.0026 * d * kx * back
+                pv.y -= 0.0026 * d * back
+        if t > 0.9:
+            pv.z -= 0.0011 * _m.exp(-((w / 0.14) ** 2))
+    ob.data.update()
+
+
 def label_quad(name, centre, w, h, cell, cols, rows, y):
     """The artwork on its OWN quad, standing proud of the pack.
 
@@ -254,11 +345,17 @@ def build(broken=""):
         c = (-0.010 + k * 0.118, -0.060, BOX[2] * 0.5)
         box = HS.apply_mods(HS.box(f"BallBox_{k}", c, BOX,
                                    bevel=0.0020, segments=1))
-        art = label_quad(
-            f"BallBoxArt_{k}", c, BOX[0] * 0.94, BOX[2] * 0.90, k, 3, 1,
-            -0.060 - BOX[1] * 0.5 - 0.0008)
+        # THE ARTWORK IS PART OF THE BOX NOW, not a quad floating in front of
+        # it. Three attempts at giving these cartons the bowed walls a printed
+        # box has all failed on the separate quad -- displaced with the box it
+        # bent, translated rigidly its corners hung off a wall that bows at mid
+        # height and not at its edges. One mesh under one continuous
+        # displacement field cannot come apart, which is the whole reason to
+        # weld it in.
+        weld_label(box, c, BOX[0] * 0.94, BOX[2] * 0.90,
+                   -0.060 - BOX[1] * 0.5 - 0.0009, k, 3, 1)
+        crush_carton(box, c, seed=k)
         p["boxes"].append(box)
-        p["box_labels"].append(art)
 
     # ---- DRINKS AND SNACKS. One mesh per shape, a label cell per SKU.
     p["bottles"] = []
@@ -316,8 +413,13 @@ def build(broken=""):
         b.data.materials.append(ball_mat)
     for o in [p["sleeve"]] + p["box_labels"]:
         o.data.materials.append(box_mat)
-    for o in p["boxes"] + p["bars"] + p["bags"]:
+    for o in p["bars"] + p["bags"]:
         o.data.materials.append(M["oak"])
+    # slot 0 the carton board, slot 1 the artwork -- weld_label put the printed
+    # face on index 1
+    for o in p["boxes"]:
+        o.data.materials.append(M["oak"])
+        o.data.materials.append(box_mat)
     for o in p["bottles"] + p["cans"] + p["pack_labels"]:
         o.data.materials.append(lab_mat)
     for o in p["bottle_caps"] + p["can_lids"]:
