@@ -172,3 +172,90 @@ states.
   the shadow-type flip landing after the world had compiled.
 - Gates: lint ratchet 323 exactly, full suite exit 0, goldens 13/13 with
   the one-pixel control caught, on the fixed tree.
+
+---
+
+# THE FOUR ITEMS (2026-08-17 early), measured with real input, no pins
+
+## 1. The point-light pad: BUILT, MEASURED, REVERTED — it did not pay
+
+The pad held the visible point-light count at a constant 5 and the
+four-state pixel A/B proved zero visual effect (pad-on-vs-off under each
+state's own noise floor; pad arithmetic exact: dawn 4 real -> 1 pad,
+overview 1 -> 4, night 2 -> 3, morning 3 -> 2). But the arrivals acceptance
+refused it: morning collapsed 28 -> 2, and evening went 1 -> 13, night
+31 -> 44 — new variant families surfaced on OTHER packed fields (34, 38):
+different shader families pack their light vectors at different indices,
+and the tool-rig scenes carry their own light rigs the scene pad cannot
+reach. Net arrivals across the four states: 60 before, 59 after. It moved
+the problem between states, which is the standing definition of does-not-
+pay. Reverted the same hour. The module (`src/render3d/pointLightPad.js`,
+unwired) and the A/B driver stay as the seed of the real fix, which must
+pad EVERY light-family axis in EVERY rendered scene — a lighting-core pass
+with its own gates, not a night landing.
+
+## 2. The editor: NOT structurally broken — and the freeze has a name
+
+Reproduced with real input twice, including J pressed MID-SPRAY with the
+button held: the transition exits the walk, no viewmodel mesh is chain-
+visible, right-drag rotates the rig (yaw 4.676 -> 2.492), the wheel zooms
+(dist 342 -> 303), tool buttons react. The first repro's "dead input" was
+this instrument's own error — it judged reaction on {courseMode, toasts,
+pointerlock}, none of which a working editor click changes (ledgered
+below with the numbers that corrected it).
+
+The real defect: **editor entry costs 0 arrivals / 0 uploads / no frame
+over 100 ms on a WARMED boot — and 17 program arrivals on a BAILED boot**
+(field 36 4 -> 0: the editor's day-pin drops every point light). On this
+machine every boot bails, so every entry pays 17 driver compiles, and on
+stall weather that is a frozen screen showing the last walk frame — the
+hand and the cleaner — with a live OS cursor. Exactly what was reported.
+The remedy is the bailout trade again, now with numbers on both sides:
+exempting the tiny state warms (editor/overview/register: ~10 draws)
+re-arms the load stall risk on this machine; staggering entry compiles one
+per frame keeps the editor painting while it pays. Owner's call; both are
+scoped in this file's history.
+
+## 3. The laptop: attributed — MAIN THREAD, one task, 3.6 s
+
+Bar completes at its scripted 1,350 ms; **18 ms later a single 3,583 ms
+longtask runs**; first click reacts 3,801 ms after the bar. Program
+arrivals across the window: 0. Geometry: 0. Textures: 0. DOM growth: 65
+nodes. This is pure synchronous JS inside `laptopUi.open()` -> `render()`
+of the home page (the state-wide search index is the prime suspect). Not
+GPU, not compiles, not uploads — a compute block that should be deferred
+or chunked, and the bar should not claim done before it runs.
+
+## 4. Tab and the page turns
+
+- Page turn: unmeasurable on a fresh save (single-spread ledger refuses
+  turnPage — its own long-standing note), open cost small tonight; the
+  55 ms canvas-sync floor from the ledger's own measurements stands.
+- Tab: NOT arrivals (one known basic remains), NOT purely ambient — there
+  is a reproducible INPUT-ROUTING flake at the transition: across three
+  runs, Tab toggles were half-eaten (one press netting zero mode change),
+  and W held through — or pressed fresh after — a swallowed toggle leaves
+  the player standing in overview, which reads exactly as "about 3 seconds
+  before I can move" (the human retry loop). Reproduction driver:
+  `tools/qa/ownerplay-tab-repress.js` (state snapshots per step). The
+  input-router fix is flagged as its own pass per the stop-clause.
+
+## 5. General smoothness, measured while WALKING (sim live, owner resolution)
+
+20 seconds of held-W walking with quarter turns, 1,839 frames:
+**median 10.2 ms (98 fps), p95 23.0 ms, p99 27.1 ms, worst 43.1 ms.**
+The median is high-FPS; the FEEL is the tail: roughly every tenth frame
+runs 2x the median, which matches the 10 Hz fitted-shadow bake cadence.
+That tail — not a hitch, not a compile — is the "doesn't feel like high
+FPS" texture, and its lever (shadow bake spreading/caching) is a perf
+pass, not a state-parity one.
+
+## Instrument corrections this session (kept honest)
+
+- The editor "dead input" verdict was the probe's blindness (wrong
+  reaction axes), caught by re-measuring on the rig camera and DOM.
+- The pad's pixel A/B and its arrivals acceptance disagreed — the
+  acceptance wins, the pad reverted.
+- `elementsFromPoint` centre-stack in a clean editor: just the canvas;
+  the earlier `ced-mini` hit came from this driver's own earlier clicks
+  opening panels — an instrument artifact, not the input eater.
