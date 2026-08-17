@@ -219,7 +219,7 @@ def main():
     # wall and the visor hangs 140 mm below it, so the box centre is up behind
     # the crown and every framing computed from it looked over the cap's
     # shoulder.
-    aim = Vector((0.0, (lo.y + hi.y) * 0.5, lo.z + (hi.z - lo.z) * 0.42))
+    aim = Vector((0.0, (lo.y + hi.y) * 0.5, lo.z + (hi.z - lo.z) * 0.56))
     print("  span %.3f m, aim y %.3f z %.3f" % (span, aim.y, aim.z))
     ST.garment_lights(centre=centre, scale=radius * 1.6)
     ST.world_value(0.032)
@@ -235,7 +235,7 @@ def main():
 
     bpy.data.objects.remove(wall, do_unlink=True)
     ST.world_value(0.055)
-    d = span * 2.80
+    d = span * 3.30
     cam = H.camera("compare", H.orbit_position(aim, d, -118, 10), aim,
                    lens=76.0)
     H.render(cam, os.path.join(OUT, "cap-peg-v4-compare.png"), res=(1000, 820))
