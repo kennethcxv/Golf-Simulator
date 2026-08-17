@@ -862,7 +862,21 @@ export function buildToolViewmodels() {
         // hangs off the viewmodel group, which the camera rig has posed for
         // this frame), and the nodes live in world space, so one call is all it
         // needs.
-        if (entry.strandRig && typeof entry.strandRig.update === 'function') {
+        // ...BUT ONLY FOR A TOOL THAT IS ON SCREEN (D5, 2026-08-17).
+        //
+        // This loop walks every LOADED viewmodel, and the boot prewarm loads and
+        // compiles all of them, so the mop's yarn solver was simulating for the
+        // whole session whether or not the mop was in anyone's hands. Profiled
+        // during a cold laptop open, where no tool was equipped at all, the two
+        // hottest entries in the whole trace were mopVerlet's update at 554 ms
+        // and 518 ms of self time — above (idle) and above (program).
+        //
+        // Safe to skip: the solver's own teleport guard re-seeds whenever the
+        // anchor has moved more than 2 units since its last tick, so the first
+        // frame after the mop is equipped again re-seeds rather than snapping
+        // strands in from wherever the group was left.
+        if (entry.group.visible
+          && entry.strandRig && typeof entry.strandRig.update === 'function') {
           entry.strandRig.root?.parent?.updateMatrixWorld(true);
           entry.strandRig.update(dt, floorWorldY);
         }
