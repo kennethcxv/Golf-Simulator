@@ -529,3 +529,35 @@ was this, not the game. Rule: before trusting any frame-gap measurement, check
 the sampler's own idle band for a ~1000 ms cadence; keep the display awake for
 the battery (`SetThreadExecutionState` keeper, process-scoped) rather than
 touching system power config.
+
+## Block A (pacing night, 2026-08-17)
+
+**rAF ticks are not presented frames.** Under a frame cap the declined ticks
+still fire `requestAnimationFrame`, and Chromium issues the next one almost
+immediately because a declined tick produces no damage and therefore never
+waits for a vsync. Measured at cap 60: 33.7% of all rAF gaps came back under
+0.5 ms, next to a 4,778 ms outlier — a distribution that reads as a 2,000 fps
+game with a catastrophic stall, and is really the skip. Any smoothness number
+must be reconstructed from frames that were DRAWN. `frameCapDiagnostics()` now
+exports `renderedFrames`/`skippedTicks` for exactly this; sample the counter
+per tick and difference it. Rule: never report a frame-interval statistic
+taken from raw rAF gaps while a cap is in force.
+
+**An unpaced synthetic mouse flood starves the renderer.** The first version of
+the pacing driver dispatched `page.mouse.move` in a loop with no await; every
+leg came back at ~1 fps with a 1,036 ms p99 — identical in shape to the
+display-off throttle above, and to a genuine catastrophic regression. Use
+`{ steps: n }` so the deltas batch into one dispatch, await between sweeps, and
+put a NO-INPUT quiet leg in the same boot as the environment control. Rule: a
+timing run without a quiet leg cannot tell a game regression from a harness
+one.
+
+**`frameCap`'s "panel" is the app's own frame rate.** It derives the panel
+interval from the median rAF gap, so on a GPU-bound frame it measures the game,
+not the display. Measured this night: Electron's `screen` API reports the
+display at 240 Hz; frameCap simultaneously reported panelHz 60.2 / 62.9 / 58.5
+in the same three legs, giving `everyNVsyncs: 1` and `skippedTicks: 0` at every
+cap — the cap is inert. Rule: the refresh rate comes from
+`screen.getDisplayMatching(win.getBounds()).displayFrequency`, and a probe that
+reports a "panel" figure which is not one of the OS's advertised modes (181.8
+Hz, 90.1 Hz) is reporting the app.

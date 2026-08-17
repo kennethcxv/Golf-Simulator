@@ -39,6 +39,15 @@ export function createFrameCap() {
   let ticksSinceRender = 0;
   let everyN = 1;
   let panelMs = 0;
+  // What the cap actually DID, not what it intended. Smoothness is the interval
+  // between PRESENTED frames, and a probe sampling requestAnimationFrame cannot
+  // see that: at a cap, the ticks the cap declines still fire, and Chromium
+  // issues the next one almost immediately because the declined tick produced
+  // no damage. Measured at cap 60 on this machine: a third of all rAF gaps came
+  // back under 0.5 ms, which reads as a 2,000 fps game and is really the skip.
+  // These two counters let a driver reconstruct the frames a player saw.
+  let renderedFrames = 0;
+  let skippedTicks = 0;
 
   // Median of the recent rAF gaps. Median rather than mean because one long
   // gap — a GC pause, a window drag — must not redefine the panel.
@@ -87,11 +96,11 @@ export function createFrameCap() {
         }
       }
       lastTick = ts;
-      if (cap <= 0) return true;
-      if (everyN <= 1) return true;
+      if (cap <= 0 || everyN <= 1) { renderedFrames += 1; return true; }
       ticksSinceRender += 1;
-      if (ticksSinceRender < everyN) return false;
+      if (ticksSinceRender < everyN) { skippedTicks += 1; return false; }
       ticksSinceRender = 0;
+      renderedFrames += 1;
       return true;
     },
 
@@ -103,6 +112,8 @@ export function createFrameCap() {
         everyNVsyncs: everyN,
         effectiveFps: panelMs && everyN ? +(1000 / (panelMs * everyN)).toFixed(1) : null,
         samples: gaps.length,
+        renderedFrames,
+        skippedTicks,
       };
     },
   };
