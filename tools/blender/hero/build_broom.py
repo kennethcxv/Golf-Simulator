@@ -38,7 +38,12 @@ ROOT_DEPTH = 0.012          # how far each tuft is seated INTO the block
 # the teeth and see daylight between every one. A commercial push broom has a
 # tuft roughly every 8 mm along a 300 mm block, in four staggered rows, and it
 # reads as one mass rather than as separate bristles.
-ROWS, COLS = 4, 54
+# MORE TUFTS, BECAUSE THEY GOT NARROWER. Rounding each tuft from a 9.2 mm
+# four-sided ribbon to a 7.2 mm hexagon fixed the picket-fence read and left the
+# mass sparse -- you could see daylight through the head. A push broom is dense;
+# the count has to carry what the width no longer does. 4 x 72 is 1,700 more
+# triangles on a 4,500-triangle tool, which is nothing next to the read.
+ROWS, COLS = 4, 72
 FERRULE_ANGLE = 38.0
 
 
@@ -106,7 +111,16 @@ def build(broken=False):
             tufts.append(HS.prism(f"Tuft_{r}_{c}", top, d, length,
                                   # Barely tapered. Spikes read as wire; a
                                   # bristle is near-parallel along its length.
-                                  0.0046, 0.0034, sides=4,
+                                  #
+                                  # SIX SIDES, NOT FOUR, AND NARROWER. A
+                                  # four-sided prism 9.2 mm across seen edge-on
+                                  # is a RIBBON, and forty of them in a row is a
+                                  # picket fence -- which is what the hero frame
+                                  # showed. HS.prism's note that the silhouette
+                                  # difference is invisible holds for a tuft a
+                                  # few pixels wide; this is a first-person tool
+                                  # at 40 cm and each tuft is tens of pixels.
+                                  0.0036, 0.0026, sides=6,
                                   twist=0.40 * wobble(r, c, 5.5)))
     parts["tufts"] = tufts
 
@@ -115,9 +129,19 @@ def build(broken=False):
     # lifts midtones, so a value that reads as "brown" numerically comes out as
     # peach cardboard in the frame -- which is exactly the kind of judgement that
     # has to be made from the render rather than from the number.
-    wood = HS.pbr("BroomWood", (0.038, 0.015, 0.005), roughness=0.74, coat=0.0)
-    metal = HS.pbr("BroomFerrule", (0.155, 0.158, 0.168), roughness=0.26, metallic=1.0)
-    fibre = HS.pbr("BroomBristle", (0.0075, 0.0055, 0.0038), roughness=0.86)
+    # ... and all three were flat colour on a tool the player holds at 40 cm.
+    # `scale` is in Generated space -- the bounding box, not metres -- and the
+    # head is about 300 mm across, so roughly one noise cell per millimetre is
+    # 330. The block gets wood grain, the bristles a coarser fibre variation.
+    wood = HS.surface("BroomWood", (0.038, 0.015, 0.005), rough=0.74,
+                      scale=420.0, strength=0.22, dist=0.00030, spread=0.24,
+                      detail=3.0)
+    metal = HS.surface("BroomFerrule", (0.162, 0.166, 0.176), rough=0.30,
+                       metallic=0.86, scale=380.0, strength=0.11,
+                       dist=0.00016, spread=0.06, detail=4.0)
+    fibre = HS.surface("BroomBristle", (0.0082, 0.0060, 0.0042), rough=0.86,
+                       scale=260.0, strength=0.26, dist=0.00030, spread=0.28,
+                       detail=5.0)
     block.data.materials.append(wood)
     ferrule.data.materials.append(metal)
     for t in tufts:
@@ -144,6 +168,8 @@ def main():
                        max_depth=0.0180)
 
     subject = [block, ferrule] + tufts
+    # UVs and the grain BEFORE the renders, as everywhere else in this batch
+    HS.unwrap_and_grain(subject)
     tris = H.triangles(subject)
     print(f"TRIS {tris} ({len(subject)} objects, 3 materials) "
           f"— the hand is 5,179")
@@ -184,6 +210,7 @@ def main():
     if not broken:
         merged = HS.join(tufts, "BroomBristles")
         exportable = [block, ferrule, merged]
+        HS.flatten_for_export(exportable)
         H.bake_gltf_axis(exportable)
         H.export_glb(exportable, OUT_GLB)
         print(f"FINAL TRIS {H.triangles(exportable)}")
