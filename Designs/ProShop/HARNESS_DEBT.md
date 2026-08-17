@@ -594,3 +594,18 @@ shutter, and widen the sample window to cover the residual slack.
 **Aim at bodies that are drawn.** The first calibrated aim locked onto the
 nearest customer, which was an invisible one 0.9 yd away, and photographed
 nothing. Filter on `mesh.visible !== false` and prefer a portrait distance.
+
+**A piped gate hides its own exit code — twice now.** `npm run gate | tail -30`
+reports the exit status of `tail`, which is always 0, so a gate whose suite step
+failed printed "[exited with code 0]" and read as green. It cost a false green in
+the goal-32 session and again on the NPC night, on the same flake. Rule: run the
+gate unpiped into a file and echo `$?`, then read the file. The same applies to
+`npm test`; if a summary line says `# fail N`, the exit code you saw through a
+pipe is meaningless.
+
+**Known load-sensitive flake:** `tests/goal24-negative-control-phase-alignment.test.js`
+— "the negative control drains stale rAF timestamps before accepting a post-stall
+boundary" (expected 2, actual 1). Passes 12/12 in isolation across repeated runs;
+fails only under full-suite contention. It reads real rAF timing through
+`tools/qa/lib/goal24-interaction-recorder.mjs`, so a loaded machine changes what
+it measures. Not attributable to any 2026-08-17 change.
