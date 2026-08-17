@@ -11415,6 +11415,64 @@ export function makeClubhouse(ctx) {
   const crowdStats = { passes: 0, pairsOverlapping: 0, worstOverlap: 0 };
   const _crowdBodies = [];
   const _crowdBodyPool = [];
+
+  // ---------------------------------------------------------------------------
+  // THE CONTACT WATCH (nav rebuild, part 2). The old detector reported ZERO
+  // overlaps across five minutes of a session in which the owner watched people
+  // rub against each other every few seconds. It was not lying about its own
+  // number; it was measuring the wrong quantity, in three ways at once, and all
+  // three are fixed here:
+  //
+  //   1. IT MEASURED THE SOLVER'S RESIDUAL, NOT ITS ACTIVITY. separate() is a
+  //      rigid positional relaxation whose whole job is to drive the residual
+  //      overlap to zero — so "zero overlaps" is what a WORKING separate()
+  //      produces whether it shoved people twice in five minutes or two
+  //      thousand times a second. The rubbing IS the shoving, and nothing has
+  //      ever counted a shove. `corrections` below is that number.
+  //   2. IT ONLY FIRED BELOW 2*BODY_RADIUS (0.62 yd) while the solver treats
+  //      anything under 0.78 yd as a violation and pushes it out. Every
+  //      correction therefore happened inside a 0.16 yd band the detector could
+  //      not report. Contact is now counted at a VISIBLE margin as well as at
+  //      hard interpenetration, and the raw closest approach is recorded so the
+  //      threshold is not load-bearing.
+  //   3. IT WAS POLLED AT ABOUT 10 Hz by the QA watch while the game separates
+  //      every frame. A contact lasting three frames was invisible. This runs
+  //      inside the sim, every frame, and accumulates.
+  //
+  // Both sides of the solve are measured. `pre` is what the steering allowed —
+  // the honest verdict on the avoidance — and `post` is what the player was
+  // actually shown. A system that is right has pre == post == 0. The current
+  // one is expected to show pre > 0 and post ~ 0, which is exactly the shape
+  // that fooled the last measurement.
+  const CONTACT_HARD_YD = BODY_RADIUS * 2;        // 0.62 — bodies interpenetrating
+  const CONTACT_VISIBLE_YD = BODY_RADIUS * 2 + 0.1; // 0.72 — close enough to read as touching
+  const contactWatch = {
+    frames: 0,
+    seconds: 0,
+    people: 0,
+    pre: { hardFrames: 0, visibleFrames: 0, hardPairFrames: 0, visiblePairFrames: 0, closest: Infinity },
+    post: { hardFrames: 0, visibleFrames: 0, hardPairFrames: 0, visiblePairFrames: 0, closest: Infinity },
+    corrections: { frames: 0, bodyFrames: 0, worst: 0, sum: 0 },
+    episodes: [],
+    _inEpisode: null,
+  };
+  function contactScan(side, bodies, count) {
+    let hard = 0;
+    let visible = 0;
+    let closest = Infinity;
+    for (let i = 0; i < count; i += 1) {
+      for (let j = i + 1; j < count; j += 1) {
+        const d = Math.hypot(bodies[i].x - bodies[j].x, bodies[i].z - bodies[j].z);
+        if (d < closest) closest = d;
+        if (d < CONTACT_VISIBLE_YD) visible += 1;
+        if (d < CONTACT_HARD_YD) hard += 1;
+      }
+    }
+    if (closest < side.closest) side.closest = closest;
+    if (visible) { side.visibleFrames += 1; side.visiblePairFrames += visible; }
+    if (hard) { side.hardFrames += 1; side.hardPairFrames += hard; }
+    return { hard, visible, closest };
+  }
   function crowdClamp(x, z, radius) {
     let nx = x;
     let nz = z;
@@ -11498,7 +11556,18 @@ export function makeClubhouse(ctx) {
       body.c = c;
       _crowdBodies.push(body);
     }
-    if (_crowdBodies.length < 2) { crowdStats.pairsOverlapping = 0; return; }
+    contactWatch.frames += 1;
+    contactWatch.seconds += Math.max(0, Math.min(frameDt, 0.25));
+    contactWatch.people = _crowdBodies.length;
+    if (_crowdBodies.length < 2) { crowdStats.pairsOverlapping = 0; contactWatch._inEpisode = null; return; }
+    // BEFORE the solve: what the steering actually allowed. This is the verdict
+    // on the avoidance, and it is the number the old detector could never see
+    // because it only ever read positions the solver had already tidied.
+    const preScan = contactScan(contactWatch.pre, _crowdBodies, _crowdBodies.length);
+    for (let i = 0; i < _crowdBodies.length; i += 1) {
+      _crowdBodies[i].preX = _crowdBodies[i].x;
+      _crowdBodies[i].preZ = _crowdBodies[i].z;
+    }
     // Skip the whole solve on the overwhelmingly common frame where nobody is
     // near anybody. A cheap bounding test first keeps the O(n^2) separation off
     // the hot path in an empty or spread-out room.
@@ -11510,9 +11579,21 @@ export function makeClubhouse(ctx) {
         if (Math.abs(a.x - b.x) < 0.8 && Math.abs(a.z - b.z) < 0.8) { anyClose = true; break; }
       }
     }
-    if (!anyClose) { crowdStats.pairsOverlapping = 0; return; }
+    if (!anyClose) {
+      crowdStats.pairsOverlapping = 0;
+      contactWatchEpisode(preScan, preScan);
+      return;
+    }
     crowdStats.pairsOverlapping = separate(_crowdBodies, undefined, crowdClamp);
     crowdStats.passes += 1;
+    // AFTER the solve: what the player was shown, and — the number that has
+    // never existed — how much the solver had to MOVE somebody to get there.
+    // Every yard in `corrections` is displacement the character did not choose,
+    // with no yaw and no gait behind it, which is the shoving that reads as
+    // rubbing.
+    const postScan = contactScan(contactWatch.post, _crowdBodies, _crowdBodies.length);
+    let correctedBodies = 0;
+    let worstCorrection = 0;
     let worst = 0;
     for (let i = 0; i < _crowdBodies.length; i += 1) {
       const body = _crowdBodies[i];
@@ -11520,13 +11601,103 @@ export function makeClubhouse(ctx) {
         const d = Math.hypot(body.x - _crowdBodies[j].x, body.z - _crowdBodies[j].z);
         if (d < BODY_RADIUS * 2) worst = Math.max(worst, BODY_RADIUS * 2 - d);
       }
+      const shove = Math.hypot(body.x - body.preX, body.z - body.preZ);
+      if (shove > 1e-5) {
+        correctedBodies += 1;
+        contactWatch.corrections.sum += shove;
+        if (shove > worstCorrection) worstCorrection = shove;
+      }
       const mesh = body.c.mesh;
       if (mesh.position.x === body.x && mesh.position.z === body.z) continue;
       mesh.position.x = body.x;
       mesh.position.z = body.z;
       mesh.position.y = groundYAt(body.x, body.z) ?? heightAt(body.x, body.z);
     }
+    if (correctedBodies) {
+      contactWatch.corrections.frames += 1;
+      contactWatch.corrections.bodyFrames += correctedBodies;
+      if (worstCorrection > contactWatch.corrections.worst) {
+        contactWatch.corrections.worst = worstCorrection;
+      }
+    }
+    contactWatchEpisode(preScan, postScan);
     crowdStats.worstOverlap = +worst.toFixed(4);
+  }
+
+  // Contacts grouped into EPISODES, because "he sees it every few seconds" is a
+  // statement about events, not about frames. One episode is a continuous run of
+  // frames carrying at least one visibly-touching pair; a run of 40 frames at
+  // 120 fps is one third-of-a-second contact, not 40 violations.
+  function contactWatchEpisode(preScan, postScan) {
+    const touching = Math.max(preScan.visible, postScan.visible) > 0;
+    const closest = Math.min(preScan.closest, postScan.closest);
+    if (touching) {
+      if (!contactWatch._inEpisode) {
+        contactWatch._inEpisode = {
+          at: +contactWatch.seconds.toFixed(2), frames: 0, closest, hard: false,
+        };
+        if (contactWatch.episodes.length < 400) contactWatch.episodes.push(contactWatch._inEpisode);
+      }
+      contactWatch._inEpisode.frames += 1;
+      if (closest < contactWatch._inEpisode.closest) contactWatch._inEpisode.closest = closest;
+      if (closest < CONTACT_HARD_YD) contactWatch._inEpisode.hard = true;
+    } else if (contactWatch._inEpisode) {
+      contactWatch._inEpisode.until = +contactWatch.seconds.toFixed(2);
+      contactWatch._inEpisode.closest = +contactWatch._inEpisode.closest.toFixed(4);
+      contactWatch._inEpisode = null;
+    }
+  }
+
+  function contactWatchDiagnostics() {
+    const w = contactWatch;
+    const secs = Math.max(1e-3, w.seconds);
+    const fmt = (side) => ({
+      framesTouching: side.visibleFrames,
+      framesInterpenetrating: side.hardFrames,
+      pairFramesTouching: side.visiblePairFrames,
+      pairFramesInterpenetrating: side.hardPairFrames,
+      closestApproachYd: Number.isFinite(side.closest) ? +side.closest.toFixed(4) : null,
+      pctOfFramesTouching: +(100 * side.visibleFrames / Math.max(1, w.frames)).toFixed(2),
+    });
+    const closed = w.episodes.filter((e) => e.until != null);
+    return {
+      seconds: +secs.toFixed(1),
+      frames: w.frames,
+      people: w.people,
+      contactYd: { hard: +CONTACT_HARD_YD.toFixed(3), visible: +CONTACT_VISIBLE_YD.toFixed(3) },
+      // what the STEERING allowed, before any correction tidied it away
+      beforeSolver: fmt(w.pre),
+      // what the PLAYER saw
+      afterSolver: fmt(w.post),
+      // the shoving itself: the measurement that never existed
+      corrections: {
+        frames: w.corrections.frames,
+        pctOfFrames: +(100 * w.corrections.frames / Math.max(1, w.frames)).toFixed(2),
+        bodyFrames: w.corrections.bodyFrames,
+        perSecond: +(w.corrections.frames / secs).toFixed(2),
+        worstYd: +w.corrections.worst.toFixed(4),
+        totalYd: +w.corrections.sum.toFixed(3),
+      },
+      episodes: {
+        count: w.episodes.length,
+        perMinute: +(60 * w.episodes.length / secs).toFixed(2),
+        hard: w.episodes.filter((e) => e.hard).length,
+        longestFrames: closed.reduce((a, e) => Math.max(a, e.frames), 0),
+        sample: w.episodes.slice(0, 25),
+      },
+    };
+  }
+
+  function resetContactWatch() {
+    const w = contactWatch;
+    w.frames = 0; w.seconds = 0; w.episodes.length = 0; w._inEpisode = null;
+    for (const side of [w.pre, w.post]) {
+      side.hardFrames = 0; side.visibleFrames = 0;
+      side.hardPairFrames = 0; side.visiblePairFrames = 0; side.closest = Infinity;
+    }
+    w.corrections.frames = 0; w.corrections.bodyFrames = 0;
+    w.corrections.worst = 0; w.corrections.sum = 0;
+    return true;
   }
 
   function crowdDiagnostics() {
@@ -13850,6 +14021,12 @@ export function makeClubhouse(ctx) {
     // not a test, it is a lottery.
     customers: () => customers,
     crowdDiagnostics,
+    // The nav rebuild's part-2 instrument. crowdDiagnostics above is the one
+    // that reported zero across five minutes he spent watching people rub: it
+    // is a POLLED snapshot of the solver's residual. This one runs inside the
+    // sim every frame, counts both sides of the solve, and counts the shoving.
+    contactWatchDiagnostics,
+    resetContactWatch,
     // Every stuck escalation across the session, with positions, targets and the
     // colliders that boxed the walker in. The live-parity day run reads THIS —
     // the same evidence the live game logs — instead of inventing its own.
