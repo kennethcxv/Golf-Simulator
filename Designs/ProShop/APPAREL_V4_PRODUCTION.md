@@ -309,3 +309,49 @@ trousers by that line before it reads the pockets. Now 5.2.
   these ten states go — it is not a swap.
 - The hoodie's hood has a cavity but no lining texture inside it.
 - The cap's keyhole edge is a quad-skip staircase at 96 columns.
+
+---
+
+# REQUIRED FINAL DELIVERY — round 2, against the boards
+
+Contact sheet for all ten: **`qa/hero/v4/CONTACT-v4.png`**, with the same ten in
+v3 beside it at `CONTACT-v3.png`.
+
+Every asset's REFERENCE | CURRENT | NEW sheet is
+`qa/hero/v4/<asset>/<asset>-REF-v3-v4.png`, and the REFERENCE column is that
+asset's board. Studio angles (front / three-quarter / side / back / top or low)
+and two retail-context frames are in the same directory as
+`<asset>-v4-<label>.png`.
+
+**In-game render: NOT AVAILABLE for any of the ten** — see the blocked note at
+the end. Every VISUAL VERDICT below is therefore against the board and the
+retail-context frame only, and PASS condition 10 of the brief is unmet for all
+ten by the same cause.
+
+| Asset | Board | Major old faults | What was rebuilt | Tris | Materials | Technical | Visual verdict |
+|---|---|---|---|---|---|---|---|
+| **hoodie-hung** | `board/hoodie-hung.png` | inflated pillow body, no waistband ribs the eye could read, hood a lump with no opening, white wire hanger, pocket a flat rectangle | body −33 mm half-width, +35 mm long and HALF as deep; waistband modelled at 208 columns on arc-length rib pitch and built from the body's own hem; hood ends buried, facing added, cavity opened; armhole seams; pocket dropped onto the band; heather marl | 49,968 | fleece, cord, hardware | glTF clean, round-trip 0.000 mm | **PRODUCTION READY** |
+| **trousers-hung** | `board/trousers-hung.png` | straight tube legs, invisible crease and seams, wire-and-wood hanger | legs taper to two thirds; crease 2.4 → 5.2 mm; every groove and topstitch raised and the thread given its own material; black moulded clamp hanger | 37,012 | chino, thread, button, hanger, steel | glTF clean, 0.000 mm | **PRODUCTION READY** |
+| **cap** | `board/cap.png` | no back at all; flat ramp bill; embroidery standing off the panel as wire; eyelets rendering as charcoal | keyhole cut as a real gap and BOUND; webbing strap and slide buckle; bill re-profiled as an arc with a cross-curl; device sunk to 0.4 mm in a tonal thread; trim metal fixed | 17,392 | twill, thread, webbing, band, emb, brass, steel | glTF clean, round-trip **0.199 mm** (buckle's baked rotation) | **PRODUCTION READY** |
+| **polo-hung** | `board/polo-hung.png` | collar two thin tabs near the neck; sleeve to the elbow; an 11 mm crease dead down the centre front; armhole slots | collar fall 34.5 → 45.5 mm with points that reach the placket; sleeve to mid-bicep with a hem lobe; front panel calmed (side bias 0.40 → 0.66); clearance to two thicknesses of pique | 24,816 | pique, thread, button, hanger | glTF clean, 0.000 mm | **PRODUCTION READY** |
+| **tee-hung** | `board/tee-hung.png` | 131 mm filled roundel dead centre; crew collar invisible; boxy at 0.75 w/h; wire hanger | roundel deleted for the board's small line-art flag; collar rebuilt as a ROLL, 96 ribs at 288 columns; 70 mm narrower to 0.69; a fifth flatter; black hanger inside the neck | 33,012 | jersey, rib, ink, hanger | glTF clean, 0.000 mm | **PRODUCTION READY** |
+| **hoodie-folded** | `board/hoodie-folded.png` | hood flat and invisible; eight thin plies reading as several garments; cords brighter than anything else in frame | hood rebuilt (fifth cut) as the arched hollow roll with a bound mouth; 8 → 5 fat staggered plies; cords tonal with gunmetal tips | 23,240 | fleece, rib, cord, aglet, tag | glTF clean, 0.000 mm | **PRODUCTION READY** |
+| **trousers-folded** | `board/trousers-folded.png` | flat slab; button too large and bright | 4 plies, waistband and loops standing proud, crease, smaller darker button | 13,296 | chino, thread, tag | glTF clean, 0.000 mm | **PRODUCTION READY** |
+| **polo-folded** | `board/polo-folded.png` | collar cut flat into the ply so it cast no shadow; six thin plies; two buttons | collar given a 9 mm stand along its fold; 6 → 4 fat plies; third button | 15,080 | pique, thread, button, tag | glTF clean, 0.000 mm | **PRODUCTION READY** |
+| **tee-folded** | `board/tee-folded.png` | 101 mm filled roundel in the middle of the ply; neck rib a 2.7 mm thread; two piped seams reading as scratches; off-white | roundel deleted for a 42 mm off-centre flag; rib a 6.2 mm rolled band; seams down to 0.55 mm; 4 plies; slate blue | 13,172 | jersey, rib, ink | glTF clean, 0.000 mm | **PRODUCTION READY** |
+| **cap-peg** | `board/cap-peg.png` | a cap in front of a flat grey plane, peg invisible | slatwall; flat bracket plate; rod long again and the cap hung near the bracket so the chrome ball clears the crown; tilt 78° → 62° | 17,500 | (cap's set) + peg steel | glTF clean, 0.000 mm | **PRODUCTION READY** |
+
+## Still visibly imperfect, and named
+
+- **hoodie-hung** — the hood's cavity is dark but has no lining texture inside
+  it; the board's shows a seam and a lighter twill lining.
+- **polo-hung** — a faint vertical shading step remains at the lower centre
+  front. It is a fold's edge meeting the auto-smooth angle, not a seam, and it
+  survives at reduced fold amplitude.
+- **cap** — the keyhole's binding hides the quad-skip staircase from the back
+  view; from a steep low angle the step is still findable.
+- All ten — no UV work has been done. Nothing is textured; the fabric character
+  is procedural noise on colour and bump only. That is within the brief's
+  "microvariation rather than a perfect repeating grid", but it means the
+  §UV/MATERIAL/EXPORT requirements about texel density and logo stretching are
+  vacuous rather than met.
