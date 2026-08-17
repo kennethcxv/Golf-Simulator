@@ -279,9 +279,16 @@ def build(broken=""):
 
     # Three materials on real part boundaries: the moulded shell, the plumbing,
     # the rubber you actually hold. The steel is the specular event.
-    shell = HS.pbr("WandShell", (0.021, 0.049, 0.088), roughness=0.42)
-    steel = HS.pbr("WandSteel", (0.158, 0.163, 0.172), roughness=0.27, metallic=0.9)
-    rubber = HS.pbr("WandRubber", (0.014, 0.015, 0.017), roughness=0.84)
+    # A moulded ABS shell, a drawn steel lance and a rubber overmould read as
+    # three different things only if their surfaces differ. All three were flat.
+    shell = HS.surface("WandShell", (0.023, 0.052, 0.092), rough=0.44,
+                       scale=240.0, strength=0.20, dist=0.00030, spread=0.13)
+    steel = HS.surface("WandSteel", (0.164, 0.169, 0.179), rough=0.31,
+                       metallic=0.88, scale=380.0, strength=0.11,
+                       dist=0.00016, spread=0.06, detail=4.0)
+    rubber = HS.surface("WandRubber", (0.016, 0.017, 0.019), rough=0.85,
+                        scale=180.0, strength=0.34, dist=0.00048, spread=0.16,
+                        detail=5.0)
     for key, mat in (("body", shell), ("guard", shell), ("socket", shell),
                      ("grip", rubber), ("trigger", rubber), ("seam", rubber),
                      ("safety", rubber), ("lance", steel), ("collar", steel),

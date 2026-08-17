@@ -40,13 +40,82 @@ SHAFT_ANGLE = 42.0               # off vertical, as the reference shows
 SHAFT_LEN = 1.150
 
 
+def tapered_tine(name, base, direction, length, r0, r1, sides=7):
+    """A tine: a taper that closes over a rounded tip, with a root fillet."""
+    d = Vector(direction).normalized()
+    up = Vector((0, 0, 1)) if abs(d.z) < 0.9 else Vector((1, 0, 0))
+    u = d.cross(up).normalized()
+    v = d.cross(u).normalized()
+    PROF = ((0.00, 1.34), (0.10, 1.00), (0.55, 0.72), (0.86, 0.46),
+            (0.95, 0.30), (1.00, 0.06))
+    verts, faces = [], []
+    for (t, k) in PROF:
+        r = (r0 + (r1 - r0) * t) * k
+        c = Vector(base) + d * (length * t)
+        for i in range(sides):
+            a = 2 * math.pi * i / sides
+            verts.append(c + u * (math.cos(a) * r) + v * (math.sin(a) * r))
+    for j in range(len(PROF) - 1):
+        for i in range(sides):
+            a = j * sides + i
+            b = j * sides + (i + 1) % sides
+            faces.append((a, b, b + sides, a + sides))
+    faces.append(tuple(range(sides - 1, -1, -1)))
+    faces.append(tuple(range((len(PROF) - 1) * sides, len(PROF) * sides)))
+    return HS.mesh_from(name, verts, faces, smooth=True)
+
+
+def moulded_bar():
+    """The head as a MOULDED bar, not a bevelled box.
+
+    A bevelled box is a bar, and beside the apparel it read as exactly that:
+    primitive-built. A course rake head is injection-moulded -- it bows a few
+    millimetres along its length so the tines meet sand evenly, its back is
+    rounded rather than square, and a raised spine runs down the middle where
+    the wall thickens for the handle boss. Those three lines are the whole
+    difference between a moulding and an extrusion.
+    """
+    NX, NA = 34, 14
+    hy, hz = HEAD[1] * 0.5, HEAD[2] * 0.5
+    rows = []
+    for i in range(NX + 1):
+        u = -1.0 + 2.0 * i / NX
+        x = u * HEAD[0] * 0.5
+        # the bow, and the ends drawing in
+        bow = 0.0075 * (1.0 - u * u)
+        taper = 1.0 - 0.16 * (abs(u) ** 3.2)
+        # ... and the spine: the section is deeper through the middle third
+        spine = 1.0 + 0.24 * math.exp(-((u / 0.30) ** 2))
+        row = []
+        for k in range(NA):
+            a = 2 * math.pi * k / NA
+            # a rounded-rectangle section: square-ish front face, round back
+            ca, sa = math.cos(a), math.sin(a)
+            e = 2.6 if sa > 0 else 1.7          # front crisper than the back
+            py = hy * taper * math.copysign(abs(ca) ** (2.0 / e), ca)
+            pz = hz * taper * spine * math.copysign(abs(sa) ** (2.0 / e), sa)
+            row.append(Vector((x, py - bow, pz)))
+        rows.append(row)
+    verts, faces = [], []
+    for row in rows:
+        verts.extend(row)
+    for i in range(NX):
+        for k in range(NA):
+            a = i * NA + k
+            b = i * NA + (k + 1) % NA
+            faces.append((a, b, b + NA, a + NA))
+    faces.append(tuple(range(NA - 1, -1, -1)))
+    faces.append(tuple(range(NX * NA, NX * NA + NA)))
+    ob = HS.mesh_from("RakeBar", verts, faces, smooth=True)
+    return ob
+
+
 def build(broken=""):
     parts = {}
 
     # ---- the head: a bar with a smoothing blade sweeping back off it. The blade
     # is what a bunker rake actually levels sand with; the tines only comb it.
-    bar = HS.box("RakeBar", (0, 0, 0), HEAD, bevel=0.0055, segments=2)
-    bar = HS.apply_mods(bar)
+    bar = moulded_bar()
 
     blade_verts, blade_faces = [], []
     COLS = 13
@@ -83,8 +152,14 @@ def build(broken=""):
             top = top - Vector((0, 0, 0.030))
         # Chunkier. Bunker rake tines are moulded teeth, not wire pins, and at
         # 5 mm tapering to 2.6 they read as a comb of needles.
-        tines.append(HS.prism(f"Tine_{i}", top, Vector((0, -0.16, -1)),
-                              TINE_LEN, 0.0082, 0.0044, sides=5))
+        # A ROUNDED TIP AND A ROOT FILLET. Five-sided prisms cut square at
+        # both ends are square nubs: at this size the tip is what the eye
+        # lands on, and a moulded tine is a cone with a 2 mm ball on it. The
+        # lengths also wander by a millimetre, because a moulding does.
+        wob = 0.0011 * math.sin(i * 2.7 + 0.6)
+        tines.append(tapered_tine(f"Tine_{i}", top - Vector((0, 0.0075 * (1.0 - (2 * u - 1) ** 2), 0)),
+                                  Vector((0, -0.16, -1)), TINE_LEN + wob,
+                                  0.0086, 0.0030))
     parts["tines"] = tines
 
     # ---- ferrule and shaft
@@ -128,9 +203,17 @@ def build(broken=""):
     # Much rougher. The blade is a broad flat face and at 0.44 it caught the key
     # as a chrome strip along the top of the head, so a black plastic rake read
     # as a steel bar with trim.
-    poly = HS.pbr("RakePlastic", (0.0105, 0.0110, 0.0125), roughness=0.72)
-    metal = HS.pbr("RakeFerrule", (0.018, 0.018, 0.020), roughness=0.52, metallic=0.5)
-    wood = HS.pbr("RakeShaft", (0.098, 0.030, 0.014), roughness=0.66)
+    # Moulded plastic has a fine matte grain and a shaft has wood grain; both
+    # were flat colour. Noise SCALE is in Generated space -- the bounding box,
+    # not metres -- so the number has to be set per object size: about one cell
+    # per millimetre is what reads as a surface rather than as paint.
+    poly = HS.surface("RakePlastic", (0.0125, 0.0132, 0.0148), rough=0.74,
+                      scale=190.0, strength=0.22, dist=0.00035, spread=0.16)
+    metal = HS.pbr("RakeFerrule", (0.030, 0.030, 0.033), roughness=0.44,
+                   metallic=0.62)
+    wood = HS.surface("RakeShaft", (0.104, 0.036, 0.018), rough=0.62,
+                      scale=520.0, strength=0.20, dist=0.00028, spread=0.22,
+                      detail=3.0)
     head.data.materials.append(poly)
     grip.data.materials.append(poly)
     for t in tines:

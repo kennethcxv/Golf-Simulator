@@ -216,8 +216,14 @@ def build(broken=False):
     # plastic". Nothing about the geometry was going to fix that. Moulded
     # polypropylene has a colour; the rubber lip is the dark part, and the
     # handle is the only thing on it that is actually metal.
-    body = HS.pbr("DustpanBody", (0.022, 0.049, 0.041), roughness=0.44)
-    rubber = HS.pbr("DustpanLip", (0.013, 0.012, 0.011), roughness=0.88)
+    # A dustpan is pressed sheet metal with a rubber lip; both were flat
+    # colour, which is why a held tool 40 cm from the camera read as painted
+    # card. `scale` is in Generated space -- roughly one noise cell per mm.
+    body = HS.surface("DustpanBody", (0.024, 0.052, 0.044), rough=0.46,
+                      scale=230.0, strength=0.15, dist=0.00028, spread=0.12)
+    rubber = HS.surface("DustpanLip", (0.015, 0.014, 0.013), rough=0.88,
+                        scale=170.0, strength=0.32, dist=0.00050, spread=0.16,
+                        detail=5.0)
     steel = HS.pbr("DustpanHandle", (0.108, 0.112, 0.120), roughness=0.34,
                    metallic=1.0)
     pan.data.materials.append(body)

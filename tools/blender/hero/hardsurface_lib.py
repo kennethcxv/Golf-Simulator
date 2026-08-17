@@ -718,6 +718,51 @@ def wrap_uvs(obj, rings, name="UVMap"):
     return layer
 
 
+def surface(name, colour, rough=0.8, scale=200.0, strength=0.25, dist=0.0004,
+            spread=0.15, detail=6.0, metallic=0.0):
+    """A `pbr` with a real SURFACE: noise on the bump for texture, and a narrow
+    tint either side on colour for microvariation.
+
+    Both halves matter and the apparel pass learned each the hard way. Bump
+    alone leaves a face pointed at the key sitting at one flat value across its
+    whole width, which is what makes a moulded prop read as painted plastic.
+    Colour variation coarser than the grain reads as staining.
+
+    `scale` IS IN GENERATED SPACE -- the object's bounding box, 0 to 1, not
+    metres. 900 on a 112 mm sponge is eight noise cells per millimetre:
+    sub-pixel at any camera that shows the whole object, so it averages to flat
+    and the material has no visible effect at all despite being wired
+    correctly. Roughly one cell per millimetre is what the eye reads as a
+    surface, so pass about `1.1 * (the object's longest span in mm)`.
+    """
+    mat = pbr(name, colour, roughness=rough, metallic=metallic)
+    nt = mat.node_tree
+    b = nt.nodes["Principled BSDF"]
+    n = nt.nodes.new("ShaderNodeTexNoise")
+    n.inputs["Scale"].default_value = scale
+    n.inputs["Detail"].default_value = detail
+    n.inputs["Roughness"].default_value = 0.55
+    bump = nt.nodes.new("ShaderNodeBump")
+    bump.inputs["Strength"].default_value = strength
+    bump.inputs["Distance"].default_value = dist
+    nt.links.new(n.outputs["Fac"], bump.inputs["Height"])
+    nt.links.new(bump.outputs["Normal"], b.inputs["Normal"])
+    if spread > 0.0:
+        v = nt.nodes.new("ShaderNodeTexNoise")
+        v.inputs["Scale"].default_value = scale * 0.42
+        v.inputs["Detail"].default_value = 4.0
+        t = nt.nodes.new("ShaderNodeMix")
+        t.data_type = "RGBA"
+        lo, hi = 1.0 - spread, 1.0 + spread
+        t.inputs["A"].default_value = (colour[0] * lo, colour[1] * lo,
+                                       colour[2] * lo, 1.0)
+        t.inputs["B"].default_value = (colour[0] * hi, colour[1] * hi,
+                                       colour[2] * hi, 1.0)
+        nt.links.new(v.outputs["Fac"], t.inputs["Factor"])
+        nt.links.new(t.outputs[2], b.inputs["Base Color"])
+    return mat
+
+
 def pbr(name, colour, roughness=0.5, metallic=0.0, transmission=0.0, ior=1.45,
         coat=0.0, emission=None, emission_strength=2.0, alpha=1.0,
         show_back=True):

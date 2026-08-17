@@ -26,25 +26,42 @@ import bpy  # noqa: E402
 from mathutils import Vector  # noqa: E402
 import hardsurface_lib as HS  # noqa: E402
 
-# name -> (colour, roughness, metallic)
+# EVERY ONE OF THESE WAS FLAT COLOUR, and that is most of why the outdoor
+# tools read as painted primitives beside the apparel: a face pointed at the
+# key sits at one value across its whole width, so the eye has nothing to tell
+# it whether it is looking at moulded plastic, at wood or at paint.
+#
+# name -> (colour, roughness, metallic, noise scale, bump strength, bump mm,
+#          colour spread, detail)
+# `scale` is in GENERATED space -- the bounding box, 0 to 1, not metres -- so
+# these are tuned for a tool a few hundred millimetres across. About one noise
+# cell per millimetre is what reads as a surface.
 PALETTE = {
-    "poly": ((0.0105, 0.0110, 0.0125), 0.72, 0.0),   # moulded black plastic
-    "rubber": ((0.0140, 0.0150, 0.0170), 0.86, 0.0),  # overmould, grips, hose
-    "steel": ((0.1550, 0.1600, 0.1700), 0.30, 0.90),  # shafts, tines, fittings
-    "brass": ((0.4020, 0.2760, 0.0920), 0.28, 0.88),  # couplings, ferrules
-    "wood": ((0.0980, 0.0300, 0.0140), 0.66, 0.0),    # rake and tool shafts
-    "green": ((0.0210, 0.0580, 0.0400), 0.44, 0.0),   # the shop's own green
-    "oak": ((0.2400, 0.1580, 0.0760), 0.62, 0.0),     # shelf boards, shop oak
+    # moulded black plastic: a fine even matte grain from the tool marks
+    "poly": ((0.0125, 0.0132, 0.0148), 0.74, 0.0, 190.0, 0.22, 0.00035, 0.16, 6.0),
+    # overmould and hose: softer, slightly coarser
+    "rubber": ((0.0155, 0.0166, 0.0186), 0.87, 0.0, 150.0, 0.30, 0.00050, 0.18, 5.0),
+    # brushed steel, along nothing in particular: fine and low contrast
+    "steel": ((0.1620, 0.1670, 0.1780), 0.34, 0.86, 320.0, 0.12, 0.00018, 0.07, 4.0),
+    "brass": ((0.4100, 0.2820, 0.0960), 0.30, 0.84, 320.0, 0.12, 0.00018, 0.07, 4.0),
+    # wood: the grain is long and the colour varies most of all of them
+    "wood": ((0.1040, 0.0360, 0.0180), 0.62, 0.0, 520.0, 0.20, 0.00028, 0.22, 3.0),
+    # the shop's green, on sheet metal and moulded pails alike
+    "green": ((0.0225, 0.0600, 0.0420), 0.46, 0.0, 210.0, 0.16, 0.00030, 0.13, 5.0),
+    "oak": ((0.2450, 0.1620, 0.0790), 0.60, 0.0, 460.0, 0.24, 0.00035, 0.20, 3.0),
 }
 
 
 def palette():
     """Every outdoor tool draws from this and nothing else."""
     out = {}
-    for name, (col, rough, metal) in PALETTE.items():
+    for name, spec in PALETTE.items():
+        col, rough, metal, scale, strength, dist, spread, detail = spec
         key = f"Outdoor_{name.capitalize()}"
         existing = bpy.data.materials.get(key)
-        out[name] = existing or HS.pbr(key, col, roughness=rough, metallic=metal)
+        out[name] = existing or HS.surface(
+            key, col, rough=rough, metallic=metal, scale=scale,
+            strength=strength, dist=dist, spread=spread, detail=detail)
     return out
 
 
