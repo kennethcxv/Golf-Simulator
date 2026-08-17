@@ -504,3 +504,28 @@ than fail. Neither error is visible in green controls that only check the
 staged OBJECTS. Rules: after posing the player, read the achieved camera
 position back and fail beyond 0.5 yd; and project every staged subject into
 NDC and require it in-frame before trusting any screenshot to show it.
+
+## Goal 32 (editor/laptop/tab night, 2026-08-16)
+
+**`clickThroughMenu` had never resumed a save.** The VERIFY2_L fix kept
+`/\bContinue\b/` on the button's FLATTENED text, but the label and detail spans
+concatenate with no whitespace — an ENABLED button reads
+`ContinuePine Hills…`, and `e|P` is not a word boundary, so the regex matched
+only DISABLED buttons (whose detail happens to contain the standalone word:
+"No Continue save yet"). Every prior "resume" driver silently fell to
+new-game — and a new-game boot on a seeded profile OVERWRITES the seeded
+autosave (rotation to `.bak`), so the evidence of the miss erases itself.
+Fixed in qa-boot by matching the `.menu-action-label` span (flattened text
+stays as fallback). Rules: when a detector keys on text, test it against the
+ENABLED state's real flattened text, not the disabled state's; and a driver
+that requires a seeded resume must assert `bootPath === 'continue'` and fail
+closed, because the fallback destroys the seed.
+
+**Display-off vsync throttle poisons timing runs.** Late-night runs recorded
+~1,000 ms rAF gaps in every band (Chromium's 1 Hz fake vsync once the display
+sleeps) — `FW_QA=1` disables backgroundThrottling but cannot conjure a vsync
+source. One earlier "GPU stall" (a lone 1002.5 ms gap in the laptop-cost run)
+was this, not the game. Rule: before trusting any frame-gap measurement, check
+the sampler's own idle band for a ~1000 ms cadence; keep the display awake for
+the battery (`SetThreadExecutionState` keeper, process-scoped) rather than
+touching system power config.

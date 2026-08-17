@@ -406,3 +406,34 @@ named an innocent subsystem.
 > to have dismissed it, stop there.
 
 Every one of these three was caught by looking at the screenshots.
+
+## SHAPE 17 — THE REGEX THAT ENUMERATED "RIG" AND FOUND DOORS (Goal 32)
+
+The editor repro reported *"no viewmodel visible"* while the owner's screenshot
+had his hand and tool across the bottom third of the editor. Three instrument
+faults stacked:
+
+1. **Name-regex enumeration**: `/held|rig|viewmodel|vm/i` matched the "rig"
+   inside `DoorRight` — ten door/van false positives filled the probe's own
+   10-entry cap before any real rig chain could be recorded.
+2. **Wrong containers**: it scanned `scene` descendants and `camera` children.
+   Rig tools draw in their OWN pass through their OWN lens after the composer
+   (`for (const rig of toolRigs) rig.render()`), in neither container.
+3. **Wrong moment**: it sampled before the re-armer fired. The defect was
+   `syncStationToolStow`'s restore branch ticking every frame in every mode —
+   laptop → Open Course Editor left a stowed tool, and one frame after entry
+   `walkSetTool(tool)` re-armed heldRoot AND the rig pass with no walk-active
+   check. The F→J path the driver tested never opens a station, so the driver
+   was honestly clean on a path the owner does not take.
+
+The replacement measures WHAT THE CAMERA RENDERS: every held-tool mesh painted
+emissive magenta (`toneMapped:false`, lighting-proof), a real screenshot through
+the full pipeline, sharp counts the pixels — with a walk-mode detection control
+(must light up) and a no-paint noise floor (must not). Red run: 71,432 magenta
+px over the editor and the mechanism state dumped mid-defect. Green after the
+three-layer fix: 0 px, controls alive, frames VIEWED both ways
+(`qa/goal32/04a-legB-editor-clean.png`, `tools/qa/goal32-editor-viewmodel-pixels.js`).
+
+> ENUMERATE BY STRUCTURE, NEVER BY NAME-REGEX; MEASURE THE FRAME, NOT A
+> CONTAINER; AND HOLD THE SAMPLE OPEN PAST THE NEXT FEW TICKS — the re-armer
+> you are hunting may run one frame after the transition you instrumented.

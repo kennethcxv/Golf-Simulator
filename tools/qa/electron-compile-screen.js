@@ -26,7 +26,7 @@ async (page) => {
   fs.mkdirSync(OUT, { recursive: true });
   const EXPECT = process.env.QA_EXPECT || 'first-run';
   const tag = process.env.QA_TAG || EXPECT;
-  const STAMP_KEY = 'golfEmpire.shaderCompileStamp.v1';
+  const STAMP_KEY = 'golfEmpire.shaderCompileStamp.v2';
   const TITLE = 'Compiling shaders';
   const LINES = {
     'first-run': 'First-time setup. This only happens once.',

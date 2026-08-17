@@ -175,9 +175,20 @@ export async function clickThroughMenu(page, {
   // randomness stays live. `forceNew`
   // keeps an instrument honest even on a profile that could resume: a
   // resumed save is an ARBITRARY world, not the canonical one.
+  // VERIFY2_L round 2 (GOAL 32): \b on the FLATTENED text still missed every
+  // ENABLED Continue — the label and detail spans concatenate with no
+  // whitespace, so a ready save reads "ContinuePine Hills…" and 'e|P' is not
+  // a word boundary. The regex only ever matched DISABLED buttons, whose
+  // detail text happens to contain the standalone word ("No Continue save
+  // yet") — which is why no driver had ever actually resumed a save. Match
+  // the label span itself; flattened text stays as the fallback for menus
+  // without the span.
   const canResume = forceNew ? false : await page.evaluate(() => {
     const button = [...document.querySelectorAll('button')]
-      .find((candidate) => /\bContinue\b/.test(candidate.textContent || ''));
+      .find((candidate) => /\bContinue\b/.test(
+        candidate.querySelector('.menu-action-label')?.textContent
+          || candidate.textContent || '',
+      ));
     if (!button || button.disabled) return false;
     button.dataset.qaResume = 'true';
     return true;

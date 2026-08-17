@@ -1187,6 +1187,16 @@ function exitEditor() {
     const hint = document.querySelector('.hint-bar');
     if (hint) hint.style.display = '';
   }
+  // GOAL 32 — the EXIT mirror of d359453's entry fix. The camera snaps back
+  // in this turn, but the clubhouse gates (interior draw-distance, lamp
+  // budget) settle inside the loop, so exit's stretched first frame drew a
+  // one-point-light census that exists nowhere in the played day — and the
+  // grass sway shader compiled a program for it, synchronously, mid-frame:
+  // the 4.8 s Exit hang (qa/goal32/editor-exit-profile.json, top self-time
+  // getProgramInfoLog; qa/goal32/exit-program-keys.json, one novel key one
+  // field off: numPointLights 1 vs 4). Settle the gates in the same turn and
+  // that frame never exists.
+  app.scene3d?.settleClubhouseCameraVisibility?.();
   syncPresentationMode(presentationMode());
   autosave();
 }
@@ -1837,6 +1847,11 @@ function startGameNow(
       // warmBeltThroughLiveLoop.
       await warmBeltThroughLiveLoop(sceneRef, generation, () => sceneStartGeneration);
       if (app.scene3d !== sceneRef || generation !== sceneStartGeneration) { compileScreen.finish(false); return; }
+      // GOAL 32: the laptop close-up is the one station view the warms above
+      // never draw — its five first-open programs (2.1 s in the player's
+      // hands on a resumed save) are paid here instead.
+      await warmLaptopViewThroughLiveLoop(sceneRef, generation, () => sceneStartGeneration);
+      if (app.scene3d !== sceneRef || generation !== sceneStartGeneration) { compileScreen.finish(false); return; }
       // The compile work under this veil is done (prewarm + belt warm), so the
       // stamp is earned: land the count on n / n and gate the screen off for
       // every later boot on this profile and driver.
@@ -1950,6 +1965,45 @@ async function warmBeltThroughLiveLoop(sceneRef, generationAtStart, generationNo
   }
   window.__fwWarm.belt = `${warmed}/${belt.length}`;
   window.__fwWarm.hands = walk.getTool?.() == null ? 'done' : 'left-a-tool-behind';
+}
+
+// GOAL 32 — THE LAPTOP FOCUS VIEW, WARMED THE WAY THE REGISTER IS.
+//
+// A resumed save's first real laptop open carried a 2.1 s longtask that
+// profiles as getProgramInfoLog — five programs compile because the close-up
+// submits office/cart materials no boot camera ever draws (batched props
+// render via layers.mask=0 in normal play; qa/goal32/laptop-program-keys.json
+// has the key diffs). Same shape ROUND 7 closed for the register: do the
+// thing, not a resemblance of it. This drives the GL half of enterLaptop —
+// lens, seat pose, lid, live screen — through real frames under the veil,
+// then restores every piece from what it actually read. The DOM half
+// (laptopUi) is a CSS matrix3d projection and contributes no GL programs, so
+// it stays untouched and the warm costs frames, not lid-theater seconds.
+async function warmLaptopViewThroughLiveLoop(sceneRef, generationAtStart, generationNow) {
+  const frame = () => new Promise((resolve) => requestAnimationFrame(resolve));
+  window.__fwWarm = { laptopView: 'skipped', ...(window.__fwWarm || {}) };
+  const ch = sceneRef?.clubhouse?.();
+  const walk = sceneRef?.walk;
+  if (!ch || typeof walk?.focusOn !== 'function' || typeof walk?.clearFocus !== 'function') return;
+  const pose = seatPose(ch);
+  if (!pose) return;
+  const screenBefore = ch.laptopScreenMode ? ch.laptopScreenMode() : null;
+  try {
+    setCameraLens(LAPTOP_FOV, LAPTOP_NEAR);
+    walk.focusOn(pose);
+    ch.laptopLid?.(true);
+    ch.laptopScreen?.('live');
+    for (let step = 0; step < 4; step += 1) {
+      if (app.scene3d !== sceneRef || generationNow() !== generationAtStart) return;
+      await frame();
+    }
+    window.__fwWarm.laptopView = 'done';
+  } finally {
+    ch.laptopScreen?.(screenBefore || 'off');
+    ch.laptopLid?.(false);
+    walk.clearFocus();
+    setCameraLens(walkFov(), WALK_NEAR);
+  }
 }
 
 // GOAL 27, THE 10-SECOND TARGET — THE DEFERRED SWEEP IS GONE, MEASURED OFF.
@@ -2109,7 +2163,7 @@ function ensureLoadVeil() {
   // expected), and set()'s phase labels stay out of the way.
   let compileOn = false;
   let shownTitle = '';
-  const STEPS = ['Compiling shaders', 'Uploading textures', 'Warming the view'];
+  const STEPS = ['Compiling shaders', 'Uploading textures', 'Warming the view', 'Warming the day'];
   let revision = 0;
   let hideTimer = null;
   // I (Goal 20): tips that TEACH. The four this replaces were true and thin —
@@ -3704,6 +3758,12 @@ window.addEventListener('keydown', (e) => {
   if (e.key === 'Tab') e.preventDefault();
   if (boundAction(e) === 'overview') {
     e.preventDefault();
+    // GOAL 31, the Tab flake: this toggle had no repeat guard, so holding the
+    // key a beat past Windows' ~400 ms repeat delay fired keydown again and
+    // toggled BACK — a firm press read as "nothing happened", and the owner's
+    // "~3 s before I can move" was him retrying around it. One toggle per
+    // physical press: auto-repeat is never a second press.
+    if (e.repeat) return;
     handlers.toggleCourseMode();
     return;
   }

@@ -7584,9 +7584,14 @@ export function makeCourseScene(canvas, state) {
     // would clobber what the new one just set.
     if (toolRigs[tool]) enableBroomLightLayer();
     for (const [rigId, rig] of Object.entries(toolRigs)) if (rigId !== tool) rig.setActive(false);
-    toolRigs[tool]?.setActive(true);
+    // GOAL 32: the rig pass and the held root are DRAW state, and drawing
+    // belongs to walk alone. A walkSetTool that lands outside walk (a stow
+    // restore, a queued belt switch) records the tool — walkTool — and
+    // walkEnter re-arms it on the way back in. Deactivations above still run
+    // everywhere: hiding is safe in any mode.
+    if (walk.active) toolRigs[tool]?.setActive(true);
     const pushed = tool === 'greensMower' || tool === 'spreader';
-    if (tool && !pushed) {
+    if (tool && !pushed && walk.active) {
       heldRoot.visible = true;
       heldAnim.show = true;
       heldAnim.t = 0; // rise into the hands
@@ -7638,6 +7643,14 @@ export function makeCourseScene(canvas, state) {
       return;
     }
     if (stationStowedTool === null) return;
+    // GOAL 32 — RESTORE ONLY INTO AN ACTIVE WALK. This branch ticks every
+    // frame in EVERY mode, and walkSetTool re-armed both draw passes, so
+    // closing a station straight into the editor re-equipped the tool over
+    // the editing camera (laptop -> Open Course Editor -> the washer wand
+    // across the fairway, qa/goal32/04a-legB-editor-clean.png). Held stows
+    // wait here; this same tick runs in walk and restores the tool the
+    // moment the player is back on their feet.
+    if (!walk.active) return;
     const tool = stationStowedTool;
     stationStowedTool = null;
     // Only restore into an empty hand: if the player picked something else up
@@ -11132,7 +11145,12 @@ export function makeCourseScene(canvas, state) {
     clubhouseApi?.renderDeliveryCarryOverlay?.();
     // Phase 6 → I1: the held rig's own pass, last — nearest to the face.
     // Every rig's render() no-ops unless it is the active one.
-    for (const rig of Object.values(toolRigs)) rig.render();
+    // GOAL 32: and never outside walk — this pass draws through its OWN
+    // camera, so no world-camera change (editor, overview) can crop it out;
+    // only the pass itself can decline. The prewarm is unaffected: its
+    // drawWarmFrame calls rig.render() directly, and the belt warm rides the
+    // live loop with walk active under the veil.
+    if (walk.active) for (const rig of Object.values(toolRigs)) rig.render();
   }
 
   function resize() {
@@ -12150,39 +12168,31 @@ export function makeCourseScene(canvas, state) {
     // opaque over the corner. The real full-size frames that run under the
     // veil after prewarm (the paint yield and the belt warm) rebuild the AO
     // history before the lift.
-    // GOAL 27 — BAIL OUT OF OPTIONAL WARMS ON A PATHOLOGICAL DRIVER.
-    //
-    // Measured on this machine in a degraded driver state: single warm draws
-    // blocking 11.4, 20.5 and 52.7 SECONDS (gap-histogram, the
-    // WaitForGetOffsetInRange stall family). The warm stages exist to
-    // pre-pay first-look hitches measured in tens of milliseconds; on a
-    // driver like that the warm itself becomes the load. Any single warm
-    // draw over 5 s marks the prewarm pathological, every remaining
-    // OPTIONAL stage skips, and the veil lifts — the player gets the game
-    // and first looks pay their old small costs.
-    // OWNER-PLAY FREEZE, the last layer of it: on a machine where the stall
-    // fires EVERY boot, this bailout guts the back half of the prewarm every
-    // boot — the camera warms, the spin, the ledger, the register and the
-    // overview state-warm all silently skip, and every first look pays a
-    // pathological driver stall IN PLAY instead ("their old small costs" is
-    // the premise, and on the stalling driver it is false — the same driver
-    // that stalls the warm stalls the first look). The trade stands for now
-    // because un-bailing means 60-90 s loads on that machine, but it is now
-    // MEASURABLE: __FW_PREWARM_NO_BAILOUT holds it open so QA can prove the
-    // warms' state-parity under their own conditions, and the bailout writes
-    // which stages it skipped so a bailed boot can never again read as a
-    // warmed one.
-    let prewarmStallBailed = false;
-    let prewarmSkippedDraws = 0;
+    // GOAL 31 — THE STALL BAILOUT IS DEAD. It skipped every remaining warm
+    // draw after the first >5 s one, on the premise that "first looks pay
+    // their old small costs". Measured false on the exact machine that
+    // triggers it: the same driver that stalls the warm stalls the first
+    // look, so on a machine where the stall fires EVERY boot the bailout
+    // silently gutted the back half of the prewarm every boot and every
+    // skipped draw came back as a 10-16 s freeze IN PLAY (door, Tab, the
+    // editor's 17 compiles — OWNERPLAY_FREEZE_REPORT.md). The owner's
+    // ruling: stop skipping the work, tell the player instead. The first
+    // boot per machine/driver pays full price behind the first-run compile
+    // screen (stamp v2, src/ui/compileScreen.js — "this only happens
+    // once"), and every later boot replays the same draws out of the
+    // driver's disk cache in a few seconds. A draw that still blocks >5 s
+    // is recorded below so a slow boot stays attributable, but nothing is
+    // gutted behind the player's back. (__FW_PREWARM_NO_BAILOUT, which QA
+    // set to hold the old bailout open, is inert now — the default IS the
+    // no-bailout behaviour it used to opt into.)
+    const SLOW_WARM_DRAW_MS = 5000;
+    const slowWarmDrawLabel = 'prewarm-slow-draw-ms'; // bound first: the strings ratchet
     const timedWarmDraw = (fn) => {
-      if (prewarmStallBailed) { prewarmSkippedDraws += 1; return; }
       const t0 = performance.now();
       fn();
       const ms = performance.now() - t0;
-      if (ms > 5000 && !globalThis.__FW_PREWARM_NO_BAILOUT) {
-        prewarmStallBailed = true;
-        const bailoutLabel = 'prewarm-stall-bailout-at-ms'; // bound first: the strings ratchet
-        prewarmTimings.push({ label: bailoutLabel, ms: +ms.toFixed(0) });
+      if (ms > SLOW_WARM_DRAW_MS) {
+        prewarmTimings.push({ label: slowWarmDrawLabel, ms: +ms.toFixed(0) });
       }
     };
     const WARM_VIEW_PX = 96;
@@ -12967,6 +12977,94 @@ export function makeCourseScene(canvas, state) {
     camera.quaternion.copy(settledQuaternion);
     camera.updateMatrixWorld(true);
 
+    // GOAL 31 — THE REST OF THE DAY'S LIGHT STATES, WARMED WHERE WARMS BELONG.
+    //
+    // Light VISIBILITY counts are packed into every program's cache key, and
+    // a day walks several of them: the porch light and the practicals flip
+    // with the clock (measured owner-play 2026-08-16: dawn walk 4 visible
+    // point lights, night 2, trading morning 3). Every census pinned one
+    // clock and warmed one census, so the other states arrived as +28..+31
+    // program compiles IN PLAY when the clock got there — one of them a
+    // 7.9 s freeze (ownerplay-states-sweep). The zero-intensity pad that
+    // tried to FLATTEN this axis was reverted the same night it was built:
+    // different shader families pack their light counts at different key
+    // positions and the tool rigs carry their own lights, so the constant it
+    // enforced was only ever one family's, and arrivals just moved axes
+    // (60 -> 59 net).
+    //
+    // So warm the axis instead of flattening it. Probe the whole day through
+    // applyTimeWeather — the exact function play's clock runs, practicals
+    // included via setTimeMood — collect the distinct visible-light censuses
+    // beyond the boot state, and draw two warm frames under each, walk
+    // regime, before restoring the authoritative clock. The first boot per
+    // machine pays these compiles behind the first-run compile screen;
+    // stamped boots replay them from the driver's disk cache. The census is
+    // COUNTS BY LIGHT TYPE because that is exactly what three.js keys
+    // programs on; representative minutes are derived fresh each boot so a
+    // lighting change can never strand this warm on a stale hardcoded list.
+    step('Warming the day');
+    {
+      const censusLights = [];
+      scene.traverse((o) => { if (o.isLight) censusLights.push(o); });
+      const lightCensus = () => {
+        const counts = new Map();
+        for (const light of censusLights) {
+          let vis = true;
+          for (let p = light; p; p = p.parent) { if (!p.visible) { vis = false; break; } }
+          if (!vis || !light.layers.test(camera.layers)) continue;
+          counts.set(light.type, (counts.get(light.type) || 0) + 1);
+        }
+        return [...counts.entries()].sort((a, b) => (a[0] < b[0] ? -1 : 1))
+          .map(([type, n]) => `${type}:${n}`).join('|');
+      };
+      const seenCensus = new Set([lightCensus()]);
+      const dayStateMinutes = [];
+      // 10-minute steps: the practicals ramp across 75-minute dawn/dusk
+      // windows (shell.js setTimeMood), so every visibility combination that
+      // exists for longer than a ramp edge is caught
+      for (let probeMinute = 0; probeMinute < 1440; probeMinute += 10) {
+        applyTimeWeather(probeMinute, state.weather);
+        const censusKey = lightCensus();
+        if (!seenCensus.has(censusKey)) {
+          seenCensus.add(censusKey);
+          dayStateMinutes.push(probeMinute);
+        }
+      }
+      const dayStatesLabel = 'light-states-beyond-boot'; // bound first: the strings ratchet
+      prewarmTimings.push({ label: dayStatesLabel, ms: dayStateMinutes.length });
+      for (const stateMinute of dayStateMinutes) {
+        if (!alive()) return false;
+        applyTimeWeather(stateMinute, state.weather);
+        fitSunShadow();
+        renderer.shadowMap.needsUpdate = true;
+        const stateProgramsBefore = renderer.info.programs?.length ?? -1;
+        const stateT0 = performance.now();
+        for (let stateFrame = 0; stateFrame < 2; stateFrame += 1) {
+          guardCourseWaterReflection.beginFrame();
+          timedWarmDraw(() => withWarmViewport(() => {
+            try { composer.render(); } catch { renderer.render(scene, camera); }
+          }));
+        }
+        // diagnostics, not player text: the minute and the programs it minted
+        // make a mismatch with play a number rather than a hunt
+        const stateMinted = (renderer.info.programs?.length ?? -1) - stateProgramsBefore;
+        const stateRowLabel = `light-state-${stateMinute}min-plus${stateMinted}p`; // bound first: the strings ratchet
+        prewarmTimings.push({ label: stateRowLabel, ms: +(performance.now() - stateT0).toFixed(1) });
+        await tick();
+        if (!alive()) return false;
+      }
+      // the authoritative clock back, exactly the way the editor warm restores
+      applyTimeWeather(prewarmMinuteOfDay, state.weather);
+      clubhouseApi?.syncCeilingCircuitPower?.();
+      fitSunShadow();
+      renderer.shadowMap.needsUpdate = true;
+      guardCourseWaterReflection.beginFrame();
+      timedWarmDraw(() => withWarmViewport(() => {
+        try { composer.render(); } catch { renderer.render(scene, camera); }
+      }));
+      phaseAt = markPrewarm('light-states-warm', phaseAt);
+    }
+
     // ROUND 7 — THE GESTURES THEMSELVES, BEHIND THE VEIL.
     //
     // Everything above this line warms by APPROXIMATION: reveal the object,
@@ -13125,10 +13223,6 @@ export function makeCourseScene(canvas, state) {
       try { composer.render(); } catch { renderer.render(scene, camera); }
     }
 
-    if (prewarmSkippedDraws > 0) {
-      const skippedDrawsLabel = 'prewarm-bailout-skipped-draws'; // bound first: the strings ratchet
-      prewarmTimings.push({ label: skippedDrawsLabel, ms: prewarmSkippedDraws });
-    }
     prewarmTimings.push({ label: 'TOTAL', ms: +(performance.now() - prewarmStartedAt).toFixed(1) });
     // Checkout cash representatives share the exact kit geometry/materials and
     // existed only so the forced warm-up draw above could realize them behind

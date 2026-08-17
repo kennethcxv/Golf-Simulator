@@ -25,7 +25,12 @@ export const COMPILE_LINES = {
   'driver-update': 'Your graphics driver was updated. Rebuilding for the new version.',
 };
 
-export const COMPILE_STAMP_KEY = 'golfEmpire.shaderCompileStamp.v1';
+// v2, deliberately: every v1 stamp was earned while the prewarm stall bailout
+// could gut the back half of the warm (the owner's own v1 stamp recorded 167
+// programs from a bailed boot), and v2 ships with the bailout dead plus the
+// whole-day light-state warm. Re-arming the screen once per existing profile
+// is the honest cost of making "this only happens once" true again.
+export const COMPILE_STAMP_KEY = 'golfEmpire.shaderCompileStamp.v2';
 
 // Measured on this build: the live program count at the moment the stamp is
 // written, first boot, fresh profile, pine-hills-v2 (the QA driver asserts the
@@ -33,7 +38,13 @@ export const COMPILE_STAMP_KEY = 'golfEmpire.shaderCompileStamp.v1';
 // drift in this constant shows up as a count that finishes early or late, not
 // as a silent lie). The display clamps: if the live count overtakes this, the
 // denominator follows the truth upward.
-export const COMPILE_EXPECTED_PROGRAMS = 171;
+//
+// GOAL 32: 171 was earned under the stall bailout, which gutted every warm
+// after the first slow draw. With the bailout dead the full warm builds 239
+// (the owner's own v2 stamp, RTX 5080, 2026-08-16 9:11 PM), plus the five
+// laptop-focus programs the new laptop-view warm adds: 244 measured at the
+// stamp on a seeded-save boot (qa/goal32/laptop-program-keys.json).
+export const COMPILE_EXPECTED_PROGRAMS = 244;
 
 // The GL half of the identity: vendor, unmasked renderer, GL version. On this
 // Electron build ANGLE's string carries NO driver version digits (measured:

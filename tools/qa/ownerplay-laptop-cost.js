@@ -14,7 +14,21 @@ async (page) => {
 
   const bootPath = `${process.cwd()}/tools/qa/lib/qa-boot.mjs`.replace(/\\/g, '/');
   const boot = await import(`file:///${bootPath}`);
-  await boot.clickThroughMenu(page, { forceNew: true });
+  // GOAL 32: QA_RESUME=1 boots through the menu's own Continue on a seeded
+  // profile — the fresh-save open measured CLEAN while the owner's resumed
+  // save carried the cost, so the owner shape is the one this instrument
+  // must be able to reach.
+  if (process.env.QA_RESUME) {
+    await page.waitForFunction(() => {
+      const cont = [...document.querySelectorAll('button')]
+        .find((b) => /\bContinue\b/.test(
+          b.querySelector('.menu-action-label')?.textContent || b.textContent || '',
+        ));
+      return !!(cont && !cont.disabled);
+    }, null, { timeout: 90000 });
+  }
+  const how = await boot.clickThroughMenu(page, { forceNew: !process.env.QA_RESUME });
+  if (process.env.QA_RESUME && how !== 'continue') throw new Error(`seeded profile did not resume: ${how}`);
   await page.waitForFunction(() => window.__fw?.scene3d?.walk?.isActive?.(), null, { timeout: 300000 });
   await page.waitForFunction(() => {
     const v = document.querySelector('.load-veil');
