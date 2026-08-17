@@ -362,6 +362,34 @@ def build():
     return crown, band, visor
 
 
+def retail(subject, centre):
+    """Caps on a shop shelf, which is the other way they are merchandised --
+    the peg wall is the cap-peg asset's context, this is this one's."""
+    for n in ("Backdrop", "key", "fill", "rim", "under"):
+        ob = bpy.data.objects.get(n)
+        if ob is not None:
+            bpy.data.objects.remove(ob, do_unlink=True)
+    lo, hi = H.bounds(subject)
+    made = [ST.shop_floor(lo.z - 0.001, value=0.30),
+            ST.shop_wall(0.62, lo.z - 0.001)]
+    off = []
+    for c in (-2, -1, 1, 2):
+        off.append((c * 0.212, 0.004 * c, 0.0))
+    for c in (-2, -1, 0, 1, 2):
+        off.append((c * 0.212 + 0.006, 0.245, 0.0))
+    made += ST.duplicate_along(subject, off, rot_jitter=0.10,
+                               scale_jitter=0.012)
+    mid = Vector((0.0, 0.10, lo.z + 0.06))
+    ST.garment_lights(centre=(0.0, 0.0, mid.z + 0.26), scale=0.80, warm=True)
+    ST.world_value(0.035)
+    for label, az, el, d in (("retail", -96, 26, 1.05),
+                             ("retail-q34", -126, 34, 1.00)):
+        cam = H.camera(label, H.orbit_position(mid, d, az, el), mid, lens=56.0)
+        H.render(cam, os.path.join(OUT, "cap-v4-%s.png" % label),
+                 res=(1360, 900))
+    return made
+
+
 def main():
     args = H.argv_after_dashes()
     crown, band, visor = build()
@@ -434,6 +462,9 @@ def main():
                    lens=78.0)
     H.render(cam, os.path.join(OUT, "cap-v4-compare.png"), res=(1060, 760))
 
+    made = retail(subject, centre)
+    for ob in made:
+        bpy.data.objects.remove(ob, do_unlink=True)
     if "noexport" not in args:
         GLB = os.path.join(REPO, "Assets", "models", "hero", "v4")
         os.makedirs(GLB, exist_ok=True)
