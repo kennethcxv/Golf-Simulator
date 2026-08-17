@@ -609,3 +609,48 @@ boundary" (expected 2, actual 1). Passes 12/12 in isolation across repeated runs
 fails only under full-suite contention. It reads real rAF timing through
 `tools/qa/lib/goal24-interaction-recorder.mjs`, so a loaded machine changes what
 it measures. Not attributable to any 2026-08-17 change.
+
+## 2026-08-17, goal 34 — the delays and the cap
+
+**Arrivals cannot see invalidation; count DEPARTURES too.** Every warm probe in
+this repo has counted new program cacheKeys. A surface that was warm, went cold
+and recompiled shows up as an arrival only after the stall, and as +0 net if
+anything else was disposed in the same window. `programs.length` is a NET count.
+The set difference A\B over full key lists is the missing instrument
+(`tools/qa/goal34-editor-roundtrip-invalidation.js`), and its negative control
+must swap a uniquely keyed material onto a mesh PROVEN TO BE DRAWING — an
+`onBeforeRender` stamp decides which. The first cut staged a 2 cm mesh at the
+camera origin, inside the near plane, where it never drew: the control reported
+"no deletion detected" and was measuring nothing at all.
+
+**Escape does not leave the course editor.** main.js claims it for the pause
+menu before courseEditor's own handler sees it. A driver that presses Escape and
+waits gets a paused game with the editor still active underneath, and every
+measurement after that point is taken inside the editor. The gesture that leaves
+is the Exit button in `.ced-top-btn`, plus "Discard & leave" if the session is
+dirty. Relatedly, `editorUi.hide()` leaves `.ced-rail` IN THE DOM — wait on
+`offsetParent === null`, never on removal.
+
+**A dead waitForFunction is an instrument, not just a delay.** Ninety seconds
+parked in a predicate that can never come true let the window lose the
+foreground, and Chromium throttled rAF to 1 Hz. Every gesture measured after
+that returned a tidy ~1,013 ms and looked like a real regression. The metronome
+near 1,004/1,013 ms is the tell. Every timed gesture now carries a QUIET
+no-input control immediately before it; if the control is already dirty the leg
+is void and says so.
+
+**Profile-cold is not machine-cold.** The NVIDIA shader cache sits underneath
+Chromium's GPUCache, is machine-wide, and survives a wiped profile. The same
+five laptop programs cost 14,401 ms, 3,565 ms and 383 ms on three runs of one
+build. The ARRIVAL LIST is exact on any machine state — programs are per-process
+and must be created every launch — but the seconds beside it are only a floor,
+and only the first run of a build after a driver-cache eviction sees the real
+number. Never A/B two warm fixes by their milliseconds; A/B them by arrivals.
+
+**Both of frameCap's periodic re-checks were dead after 31 samples.** They fired
+on `array.length % 8 === 0` and both arrays cap at HISTORY = 31; 31 % 8 is 7, so
+once the history filled the trigger never fired again for the rest of the
+session. `tests/frame-cap-cadence.test.js` asserts the panel estimate re-solves
+on a display change and passed throughout, because it builds a fresh instance
+per case. A test that never lets the buffer saturate cannot see a
+saturation bug.
