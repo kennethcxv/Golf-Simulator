@@ -1582,8 +1582,16 @@ def check(name, parts):
             # curve, not a set of separate edges. min_range is 3% of the
             # garment's own depth, so it scales with the garment instead of
             # being a number tuned on the polo and inherited by everything.
-            sil = CC.silhouette(host)
-            lo, hi = H.bounds([host])
+            # host is a LIST now -- every big cloth panel, not one part. The
+            # outline check wants the single folded shell and it is right
+            # there under its own key; passing the list gave H.bounds a list
+            # of lists and this whole block threw. It went unnoticed for five
+            # garments because only the FOLDED ones reach it, and none of them
+            # was rebuilt between the change and the full ten-garment pass.
+            # That pass is the only reason this is not still in.
+            shell = mesh["cloth"]
+            sil = CC.silhouette(shell)
+            lo, hi = H.bounds([shell])
             CC.assert_irregular(sil, f"{name}: the outline is not a machined "
                                 f"block", min_gap=0.0,
                                 min_range=(hi.y - lo.y) * 0.030)
