@@ -343,13 +343,21 @@ ten by the same cause.
 
 ## Still visibly imperfect, and named
 
-- **hoodie-hung** — the hood's cavity is dark but has no lining texture inside
-  it; the board's shows a seam and a lighter twill lining.
-- **polo-hung** — a faint vertical shading step remains at the lower centre
-  front. It is a fold's edge meeting the auto-smooth angle, not a seam, and it
-  survives at reduced fold amplitude.
-- **cap** — the keyhole's binding hides the quad-skip staircase from the back
-  view; from a steep low angle the step is still findable.
+Three of the four items first listed here were closed in the pass after it:
+
+- ~~hoodie-hung's hood cavity had no lining~~ — the lining is now a separate
+  object with the brushed-back material, and the roll's fold depth was doubled.
+- ~~polo-hung's vertical shading step~~ — it was the AUTO-SMOOTH ANGLE, not a
+  fold: at 48 degrees the shading broke flat wherever a fold's flank steepened
+  past it, and on the polo that happened along a line. 70 degrees on all eight
+  garments.
+- ~~the cap's keyhole staircase~~ — bound.
+
+What remains:
+
+- **tee-hung** — the sleeve heads sit 2.6 mm off the yoke (the clearance that
+  stops the shells interpenetrating), and from dead front that step is findable
+  as a soft rounded cap on each shoulder.
 - All ten — no UV work has been done. Nothing is textured; the fabric character
   is procedural noise on colour and bump only. That is within the brief's
   "microvariation rather than a perfect repeating grid", but it means the
