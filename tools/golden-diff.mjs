@@ -38,7 +38,24 @@ const normalize = async (p) => {
   return PNG.sync.read(buf);
 };
 
-const poseNames = readdirSync(CURRENT).filter((f) => f.endsWith('.png')).map((f) => f.slice(0, -4));
+// --only a,b restricts BOTH the diff and the rebaseline to the named poses.
+//
+// Without it --accept is all-or-nothing, and rebaselining ONE intended change
+// (the mop head was deliberately rebuilt across six commits after these
+// goldens were taken) would also re-accept twelve poses nobody looked at,
+// baking whatever noise those frames happened to carry into the reference. An
+// accept you have not reviewed is not an accept.
+const ONLY = (opt('--only', '') || '').split(',').map((s) => s.trim()).filter(Boolean);
+const allPoses = readdirSync(CURRENT).filter((f) => f.endsWith('.png')).map((f) => f.slice(0, -4));
+const poseNames = ONLY.length ? allPoses.filter((n) => ONLY.includes(n)) : allPoses;
+if (ONLY.length) {
+  const absent = ONLY.filter((n) => !allPoses.includes(n));
+  if (absent.length) {
+    console.error(`--only names ${absent.join(', ')}, which this capture does not contain`);
+    process.exit(2);
+  }
+  console.log(`--only ${poseNames.join(', ')} — ${allPoses.length - poseNames.length} other pose(s) left alone`);
+}
 
 if (flag('--accept')) {
   mkdirSync(GOLDENS, { recursive: true });
@@ -50,9 +67,12 @@ if (flag('--accept')) {
   // origin, the lens, the canvas and the device pixel ratio are the conditions
   // the reference was shot under; without them a future divergence is a day of
   // pixel archaeology, and with them it is one line of diff.
+  // ...but only on a FULL accept. A one-pose rebaseline has not re-shot the
+  // other twelve, so stamping this run's conditions over theirs would claim it
+  // had.
   const manifest = join(CURRENT, 'manifest.json');
-  if (existsSync(manifest)) copyFileSync(manifest, join(GOLDENS, 'capture-conditions.json'));
-  console.log(`accepted ${poseNames.length} goldens into tests/goldens/ at ${WIDTH}w`);
+  if (!ONLY.length && existsSync(manifest)) copyFileSync(manifest, join(GOLDENS, 'capture-conditions.json'));
+  console.log(`accepted ${poseNames.length} golden(s) into tests/goldens/ at ${WIDTH}w`);
   process.exit(0);
 }
 
@@ -113,7 +133,10 @@ for (const name of poseNames) {
 // simply vanished from the table — twelve rows of green and no thirteenth, and
 // nothing said the thirteenth was missing. The committed goldens are the
 // contract; every one of them must be answered by this run.
-const captured = new Set(poseNames);
+// Under --only the run was ASKED for a subset, so the poses it left out are
+// absent by instruction, not by failure. Calling them "NOT CAPTURED" would be
+// the differ reporting its own arguments as a defect.
+const captured = new Set(ONLY.length ? allPoses : poseNames);
 for (const f of readdirSync(GOLDENS)) {
   if (!f.endsWith('.png')) continue;
   const name = f.slice(0, -4);
