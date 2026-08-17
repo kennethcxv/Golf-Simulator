@@ -1992,12 +1992,63 @@ async function warmLaptopViewThroughLiveLoop(sceneRef, generationAtStart, genera
     setCameraLens(LAPTOP_FOV, LAPTOP_NEAR);
     walk.focusOn(pose);
     ch.laptopLid?.(true);
+    ch.laptopBoot?.();
     ch.laptopScreen?.('live');
-    for (let step = 0; step < 4; step += 1) {
+    // GOAL 34 — THIS WARM WAS DRAWING THE SEAT'S TRANSIT, NEVER THE SEAT.
+    //
+    // walkFocusOn does not snap: it starts a 0.4 s ease (pose.duration), and
+    // the clubhouse's own gates — interior draw distance, per-lamp budget,
+    // batched props — settle LATER inside the loop, after the camera lands.
+    // Four frames is about 66 ms, so every frame this warm drew was a camera
+    // in flight through states play never holds. Play's open waits 1,350 ms
+    // before the screen goes live.
+    //
+    // Measured on a played session, resumed save, twice independently: five
+    // programs still arrived at the real first open on a boot where this warm
+    // reported 'done' (qa/goal34/sess1.json row 05, qa/goal34/lap1.json). Same
+    // five, same axes — texture-slot shapes and one custom shader identity,
+    // not a light count — which is the signature of materials that simply never
+    // got submitted rather than a state one field off.
+    //
+    // So hold through the ease, settle the clubhouse gates in the same turn the
+    // camera lands (the goal-32 editor-entry fix, applied to the seat), and
+    // keep drawing afterwards so the settled state is what compiles.
+    const settleUntil = performance.now() + 900;
+    let laptopWarmFrames = 0;
+    while (laptopWarmFrames < 90
+      && (performance.now() < settleUntil || laptopWarmFrames < 24)) {
       if (app.scene3d !== sceneRef || generationNow() !== generationAtStart) return;
       await frame();
+      laptopWarmFrames += 1;
+      if (laptopWarmFrames === 20) sceneRef.settleClubhouseCameraVisibility?.();
+    }
+    // ...and the settled seat still was not enough: the five arrivals survived
+    // a 65-frame hold (qa/goal34/lap2.json). They are not the ROOM at all.
+    // The laptop's first page renders fifteen PRODUCT THUMBNAILS, each a real
+    // 3D draw of a catalogue proxy whose material carries a different texture-
+    // slot shape from anything the shop floor submits — which is exactly what
+    // the arrival axes said (uv->false, srgb->srgb-linear, a custom shader
+    // identity) and why holding the camera longer could never help. The second
+    // open costs 0.1 ms of thumbs and mints nothing, so they cache.
+    //
+    // So the warm renders them, by opening the real screen and closing it. This
+    // is the belt warm's rule again: do the thing, not a resemblance of it.
+    // laptopUi.open() is the DOM half only — it does not set app.laptopOpen,
+    // take the camera, or stamp the tutorial flag, so nothing here is a mode
+    // the player can be left in if the scene dies mid-warm.
+    try {
+      laptopUi?.open?.(null);
+      for (let step = 0; step < 8; step += 1) {
+        if (app.scene3d !== sceneRef || generationNow() !== generationAtStart) return;
+        await frame();
+        laptopWarmFrames += 1;
+      }
+      window.__fwWarm.laptopThumbs = 'drawn';
+    } finally {
+      laptopUi?.close?.();
     }
     window.__fwWarm.laptopView = 'done';
+    window.__fwWarm.laptopViewFrames = laptopWarmFrames;
   } finally {
     ch.laptopScreen?.(screenBefore || 'off');
     ch.laptopLid?.(false);
