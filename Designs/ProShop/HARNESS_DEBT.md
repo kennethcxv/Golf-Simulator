@@ -772,3 +772,57 @@ it. `programs.length` is a NET count — this is the same fault already recorded
 for arrival-only probes, one layer down, and it means the tripwire is a floor and
 the per-surface diff is the number. Do not report "empty tripwire" off the row
 count alone.
+
+## 2026-08-17, goal 36 — the editor cursor and the laptop
+
+**`renderer.info.programs` cannot see a SECOND WebGL context, and one of ours is
+load-bearing.** The laptop's product thumbnails are rendered per sku by
+`render3d/clubhouse/thumbs.js`, which owns its own `WebGLRenderer`. The Pro Shop
+page switch therefore reads `+0p/+0g/+0t` from the main renderer's census while
+`getProgramInfoLog` sits at 30.7 ms in its own CDP self-time profile
+(qa/goal36/cold1.json). Two goals have now read "0 program arrivals" as "nothing
+compiles here" — it only ever meant "nothing compiles in the renderer we asked".
+Any surface that draws through a second context needs its own instrument or a
+profiler, not the program census.
+
+**A warm that reports a FRAME COUNT can report success having warmed nothing.**
+`__fwWarm.laptopThumbs = 'drawn:90'` was ninety FRAMES held on the laptop's home
+page, which shows no product cards. Every thumbnail was still cold, and the first
+desk that showed them paid 116 ms for the catalogue. A warm's report has to name
+what it warmed, not how long it waited — the same fault as goal 35's
+`terrain+0p`, in the opposite direction: there the string exposed a dead warm,
+here the string looked like a count and was a duration.
+
+**An instrument that re-derives the shipped formula measures the build it was
+written against.** The first cut of the bar probe computed `bootStarted + 850`
+because that is what `paintScreen('boot')` did. That number is meaningless the
+moment the formula changes, and it would have gone silently green. The probe now
+asks `clubhouse.laptopBootProgress()` and falls back to the old constant only
+with the string `FALLBACK: bootStarted + 850 (old fixed clock)` in the report, so
+the two can never be confused. The negative control run shows the fallback label
+in exactly the run where the API is absent.
+
+**`walkInsideClubhouse` returns `ok`, not `inside` — and reading the wrong field
+produces TWO wrong facts.** qa/goal36/prof1.json both declared the walk a failure
+and went on to record its "shop floor" frame-time baseline outdoors, at 87 fps
+against the 102.8 fps the same window measures inside. A destructured field that
+does not exist is `undefined`, which is falsy, which reads as a clean negative.
+Check a helper's return shape before believing its answer.
+
+**The editor's rig-target fallback is nearly unreachable, so a driver has to
+FIND a miss rather than assume one.** Two phases of the cursor driver looked like
+they tested "the pointer is not over the course" and tested nothing of the sort:
+a ray through a tool-rail pixel lands on the ground BEHIND the panel, and a ray
+through the top of the screen lands on the ground at the HORIZON — both in
+bounds. It takes the editor's minimum pitch (0.08 rad) to put sky in frame. The
+driver now probes `raycastGround` across the screen for a pixel that misses,
+orbits until one exists, and records the pitch, so a run that never reached the
+branch says `the anchor path is UNTESTED by this run` instead of passing.
+
+**Scene-graph `.visible` is fair for the editor overlays, and here is why.** Debt
+item 8 says own-flag visibility counts geometry that never draws. It does not
+bite for `editorCursorState()`: `brushRing`, `editorFeaturePreview` and the
+placement ghost are all direct children of `scene` with default layers, so the
+flag is authoritative for submission. The driver still projects the world point
+through the live camera and fails on off-screen, and the frames were viewed.
+State that reasoning when using an own flag; do not just use one.

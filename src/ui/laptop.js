@@ -4000,6 +4000,39 @@ export function makeLaptop(app, opts) {
       pending = null;
       modal = null;
     },
+    // BOOT WARM — paint every desk once, under the veil.
+    //
+    // The catalogue's product thumbnails are rendered on demand into a SEPARATE
+    // WebGL context (render3d/clubhouse/thumbs.js) and cached forever by sku
+    // id, so the first visit to a page that shows them pays for the whole
+    // catalogue at once. Measured on his own save, profile-cold, inside the
+    // clubhouse: the Pro Shop page took 116 ms to paint against 22–43 ms for
+    // every other desk, with toDataURL and getProgramInfoLog in its self-time
+    // (qa/goal36/cold1.json). The old warm opened this shell on HOME and held
+    // ninety FRAMES — home shows no product cards, so it reported `drawn` and
+    // warmed none of them.
+    //
+    // Deliberately not go(): that plays the UI tick and pushes the Back stack.
+    // This paints each page exactly as go() would and puts the shell back where
+    // it found it.
+    warmPages(ids) {
+      const list = Array.isArray(ids) && ids.length ? ids : NAV.map((n) => n.id);
+      const wasPage = page;
+      const wasHistory = history.slice();
+      const painted = [];
+      for (const id of list) {
+        if (!PAGES[id]) continue;
+        page = id;
+        try {
+          render();
+          painted.push(id);
+        } catch { /* a desk that throws while warming is its own bug, not this one */ }
+      }
+      page = wasPage;
+      history = wasHistory;
+      render();
+      return painted;
+    },
     // main.js maps this rectangle onto the physical display's four projected corners
     setTransform(matrix3d) {
       frame.style.transform = matrix3d;

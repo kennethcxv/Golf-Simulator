@@ -2540,6 +2540,26 @@ export function makeClubhouse(ctx) {
     //            Information, not navigation. There is nothing on it to click.
     let screenMode = 'off';
     let bootT0 = 0;
+    // THE BAR USED TO RUN ON A CLOCK THAT KNEW NOTHING ABOUT THE MACHINE.
+    // `(now - bootT0) / 850` filled it 850 ms after the boot began, while
+    // main.js does not put the interface on the glass until 1,350 ms — so it
+    // was FULL and frozen for the last stretch of every open. Measured on the
+    // owner's own save, inside the clubhouse, on a profile-cold boot: full 124
+    // ms before the interface painted (qa/goal36/cold1.json), and longer than
+    // that on any machine where the build is slower, because the build blocks
+    // the main thread and the bar cannot even redraw.
+    //
+    // It now approaches, and only ARRIVES when main.js says the interface is
+    // up. A bar that stops moving reads as finished, so past the nominal beat
+    // it creeps instead of stopping.
+    let bootDone = false;
+    const BOOT_BAR_NOMINAL_MS = 480; // the boot screen's share of the open
+    const bootProgress = () => {
+      if (bootDone) return 1;
+      const t = performance.now() - bootT0;
+      if (t < BOOT_BAR_NOMINAL_MS) return 0.9 * (t / BOOT_BAR_NOMINAL_MS);
+      return 0.9 + 0.09 * (1 - Math.exp(-(t - BOOT_BAR_NOMINAL_MS) / 900));
+    };
     const clock12 = () => {
       const mins = Math.floor(((state.clock.minutes % 1440) + 1440) % 1440);
       const hh = Math.floor(mins / 60);
@@ -2573,7 +2593,7 @@ export function makeClubhouse(ctx) {
         return;
       }
       if (screenMode === 'boot') {
-        const p = Math.min(1, (performance.now() - bootT0) / 850);
+        const p = bootProgress();
         c2.fillStyle = '#0a160e';
         c2.fillRect(0, 0, 512, 320);
         pineMark(c2, 256, 120, 48, '#2e5a35');
@@ -2641,8 +2661,20 @@ export function makeClubhouse(ctx) {
     };
     office.startBoot = () => {
       bootT0 = performance.now();
+      bootDone = false;
       paintScreen('boot');
     };
+    // Called by main.js at the moment the interface is actually on the glass.
+    // This is the ONLY thing that completes the bar.
+    office.finishBoot = () => {
+      bootDone = true;
+      if (screenMode === 'boot') paintScreen();
+    };
+    // Only meaningful while the bar is on the glass. Read outside that window it
+    // reports the LAST open's finished state — which is how the goal-36 probe
+    // scored a second open as "the bar was full 923 ms early": `bootDone` stays
+    // true from the previous open until startBoot clears it 420 ms in.
+    office.bootProgress = () => (screenMode === 'boot' ? +bootProgress().toFixed(3) : null);
     // World-space corners of the DISPLAY, in the order the seated player reads them:
     // [top-left, top-right, bottom-right, bottom-left].
     //
@@ -14227,6 +14259,8 @@ export function makeClubhouse(ctx) {
     laptopPose: (fovDeg, aspect) => (office.seatPose ? office.seatPose(fovDeg, aspect) : null),
     laptopLid: (open) => office.setLid && office.setLid(open),
     laptopBoot: () => office.startBoot && office.startBoot(),
+    laptopBootFinish: () => office.finishBoot && office.finishBoot(),
+    laptopBootProgress: () => (office.bootProgress ? office.bootProgress() : null),
     laptopScreen: (mode) => office.paintScreen && office.paintScreen(mode),
     laptopScreenMode: () => (office.screenMode ? office.screenMode() : null),
     laptopScreenCorners: () => (office.screenCorners ? office.screenCorners() : null),

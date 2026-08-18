@@ -614,6 +614,20 @@ function setCameraLens(fov, near) {
   cam.updateProjectionMatrix();
 }
 
+// THE OPEN IS A TIMER, AND THESE ARE ITS THREE BEATS.
+//
+// Named because the measurement said so: profiled on the owner's own save,
+// inside the clubhouse, profile-cold (qa/goal36/cold1.json), the whole open is
+// 1,401 ms of which the laptop's own JS is 14 ms. Twice now this has been
+// chased as shader work — it is at zero program arrivals and always was.
+//
+// The lid's ease has a 154 ms time constant, so it is 99% open by ~710 ms; the
+// boot screen needs long enough to read as a machine waking, not long enough to
+// wait through. 1,350 ms was the old reveal and nothing measured chose it.
+const LAPTOP_BOOT_MS = 420; // lid swinging → power light and boot screen
+const LAPTOP_BUILD_MS = 470; // interface built here, hidden, while the lid finishes
+const LAPTOP_REVEAL_MS = 900; // bar completes and the glass goes live
+
 function enterLaptop(startPage = null) {
   putDownCarried(); // D1: a station takes the camera; nothing is left floating
   // 7 (Goal 25) — THE EXCLUSION HAS TO GO BOTH WAYS.
@@ -649,16 +663,39 @@ function enterLaptop(startPage = null) {
     if (!app.laptopOpen) return;
     if (ch.laptopBoot) ch.laptopBoot();
     if (audio.ready) audio.laptopBoot();
-  }, 420));
+  }, LAPTOP_BOOT_MS));
+  // BUILD DURING THE SWING, NOT AFTER IT. The interface used to be built inside
+  // the reveal timer, so its cost was ADDED to the choreography and the boot
+  // bar sat finished while it ran. Measured on his own save, inside, with the
+  // CDP profiler (qa/goal36/cold1.json): the build itself is 11–14 ms and the
+  // whole open is 1,401 ms — the open is a TIMER, not work. But the build
+  // blocks the main thread, so on a slower machine or a heavier save every one
+  // of those milliseconds used to land after the bar had already claimed to be
+  // done. Built here, hidden, it overlaps the lid instead.
   laptopTimers.push(setTimeout(() => {
     if (!app.laptopOpen) return;
-    // 'live': the canvas becomes a flat sheet of the interface's own paper colour. It used to
-    // paint a whole rival DESKTOP here — tiles and all — which stayed visible around the
-    // misaligned DOM. Two interfaces on one screen is what made it read as a popup.
-    if (ch.laptopScreen) ch.laptopScreen('live');
+    laptopUi.root.style.visibility = 'hidden';
     laptopUi.open(startPage);
-    alignLaptopUi(); // and from here the frame loop keeps it welded on, every frame
-  }, 1350));
+    alignLaptopUi();
+  }, LAPTOP_BUILD_MS));
+  laptopTimers.push(setTimeout(() => {
+    if (!app.laptopOpen) return;
+    if (!laptopUi.isOpen()) { // the early build never ran; do it now rather than show nothing
+      laptopUi.root.style.visibility = 'hidden';
+      laptopUi.open(startPage);
+    }
+    // The bar completes HERE — when the interface exists — and not on a clock.
+    if (ch.laptopBootFinish) ch.laptopBootFinish();
+    requestAnimationFrame(() => {
+      if (!app.laptopOpen) return;
+      // 'live': the canvas becomes a flat sheet of the interface's own paper colour. It used to
+      // paint a whole rival DESKTOP here — tiles and all — which stayed visible around the
+      // misaligned DOM. Two interfaces on one screen is what made it read as a popup.
+      if (ch.laptopScreen) ch.laptopScreen('live');
+      laptopUi.root.style.visibility = '';
+      alignLaptopUi(); // and from here the frame loop keeps it welded on, every frame
+    });
+  }, LAPTOP_REVEAL_MS));
   laptopResizeHandler = () => {
     if (!app.laptopOpen) return;
     // the window changed shape: re-seat (the fit depends on aspect). The projection itself
@@ -682,6 +719,9 @@ function exitLaptop(silent) {
     laptopResizeHandler = null;
   }
   laptopUi.close();
+  // Leaving between the hidden build and the reveal would otherwise strand the
+  // interface at visibility:hidden.
+  laptopUi.root.style.visibility = '';
   setLaptopBackdropHidden(false);
   laptopQuad = null;
   const ch = app.scene3d.clubhouse && app.scene3d.clubhouse();
@@ -2116,6 +2156,17 @@ async function warmLaptopViewThroughLiveLoop(sceneRef, generationAtStart, genera
     // being painted in the player's hands.
     try {
       laptopUi?.open?.(null);
+      // GOAL 36 — `drawn:90` WAS A FRAME COUNT, NOT A THUMBNAIL COUNT, AND THE
+      // WARM SAT ON A PAGE THAT HAS NO PRODUCT CARDS ON IT. Thumbnails are
+      // generated lazily per sku into the thumbs rig's own WebGL context and
+      // cached forever, so whichever desk shows them first pays for all of
+      // them: the Pro Shop page measured 116 ms to paint against 22–43 ms for
+      // every other desk, profile-cold on his own save, with toDataURL and
+      // getProgramInfoLog in its self-time (qa/goal36/cold1.json). Painting
+      // every desk once here is the same move the editor warm makes with the
+      // tool rail — do the thing, not a resemblance of it.
+      const warmed = laptopUi?.warmPages?.() || [];
+      window.__fwWarm.laptopPages = warmed.join('|') || 'none';
       const thumbsUntil = performance.now() + 900;
       let thumbFrames = 0;
       while (thumbFrames < 90 && (performance.now() < thumbsUntil || thumbFrames < 30)) {
@@ -2124,7 +2175,7 @@ async function warmLaptopViewThroughLiveLoop(sceneRef, generationAtStart, genera
         thumbFrames += 1;
         laptopWarmFrames += 1;
       }
-      window.__fwWarm.laptopThumbs = `drawn:${thumbFrames}`;
+      window.__fwWarm.laptopThumbs = `frames:${thumbFrames}`;
     } finally {
       laptopUi?.close?.();
     }
