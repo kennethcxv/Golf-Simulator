@@ -84,14 +84,28 @@ def fold(ob, axis, cut, radius=0.0, side=+1, gap=0.0009, near=0.030):
     z_flap = max(flap)
     A = (z_land + z_flap) * 0.5 + gap
     eps = max(1e-5, radius)
+    # CLOTH SLIPS. PAPER DOES NOT. Giving every point its own arc radius
+    # r = A - z is right for a rigid sheet and wrong for a stack of cloth: two
+    # plies 1.5 mm apart land pi * 1.5 = 4.7 mm apart, and over four plies the
+    # free edges fan out 19 mm. That is the whole of "the folded trousers'
+    # plies splay" -- it was arithmetic, not sag, and no amount of settling
+    # could have closed it.
+    #
+    # Real cloth shears between plies as it goes round the fold, so the plies
+    # come off the hinge FLUSH. One arc length for the whole flap, measured on
+    # the ply that has the longest way to go, and r still varies with z so the
+    # stack keeps its thickness and the mirror at th = pi is exact.
+    z_ref = min((v.co.z for v in me.vertices
+                 if (v.co[ax] - cut) * side > 0.0), default=0.0)
+    R = max(eps, A - z_ref)
     for v in me.vertices:
         p = v.co
         s = (p[ax] - cut) * side
         if s <= 0.0:
             continue
         r = max(eps, A - p.z)
-        th = min(s / r, math.pi)
-        sp = r * math.sin(th) - max(0.0, s - math.pi * r)
+        th = min(s / R, math.pi)
+        sp = R * math.sin(th) - max(0.0, s - math.pi * R)
         q = Vector(p)
         q[ax] = cut + sp * side
         q.z = A - r * math.cos(th)

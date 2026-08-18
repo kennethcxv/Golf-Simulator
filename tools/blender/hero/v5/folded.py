@@ -112,8 +112,11 @@ def fold_trousers(ob, leg_r=0.0075, last_r=0.0145, label=""):
     """Trousers fold differently: leg on leg, then in half, then in half again."""
     (x0, x1), (y0, y1), _z = span(ob)
     FD.fold(ob, 'x', (x0 + x1) * 0.5, leg_r, side=+1)
-    (x0, x1), (y0, y1), _z = span(ob)
-    FD.fold(ob, 'y', (y0 + y1) * 0.5, last_r, side=+1)
+    # TWO FOLDS ACROSS, NOT THREE. Three put eight plies in the stack and the
+    # free edges came off as a staircase, because a trouser leg TAPERS: every
+    # ply is a different length and folding again multiplies the difference
+    # rather than hiding it. The reference pair is folded leg-on-leg and then
+    # once across, and it reads as a rectangle.
     (x0, x1), (y0, y1), _z = span(ob)
     FD.fold(ob, 'y', (y0 + y1) * 0.5, last_r * 1.25, side=+1)
     FD.settle(ob, floor_z=0.0, sag=0.0020, corner=0.50)
