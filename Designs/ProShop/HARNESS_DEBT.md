@@ -760,3 +760,15 @@ and the discard's course rebuild disposes the water materials and mints them
 again. The cost is real and was invisible while the route never edited anything
 — but row 09 before and after this change is not the same measurement, and any
 table that puts them side by side has to say so.
+
+**The tripwire's row count UNDER-REPORTS, and it under-reported in this goal's
+favour.** `programTripwireScan` returns early unless `programs.length` grew since
+the last scan, so any window where arrivals and departures overlap is never
+examined at all — the new keys are simply never seen. The cold-profile run of
+this goal's route reported `tripwireRows: 0` while the per-surface key-set diffs
+in the same run reported **5 arrivals** (qa/goal34/cold35.json): row 09 arrived 3
+and departed 6, a net of −3, so the scan skipped and took rows 08b and 10 with
+it. `programs.length` is a NET count — this is the same fault already recorded
+for arrival-only probes, one layer down, and it means the tripwire is a floor and
+the per-surface diff is the number. Do not report "empty tripwire" off the row
+count alone.

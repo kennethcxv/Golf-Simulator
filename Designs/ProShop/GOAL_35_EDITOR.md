@@ -22,7 +22,7 @@ is a row on the tripwire, and every row is a surface some warm missed.
 | 09 editor exit | 0 arrivals, 58 ms | 3 arrivals, 641 ms † |
 | 04 Tab | 3 arrivals | **0 arrivals, 0 ms** |
 | 05 the laptop | 5 arrivals | **0 arrivals, 0 ms** |
-| tripwire rows, whole route | 21 | **5** |
+| program arrivals, whole route | 21 | **5** |
 
 † Row 09 is not the same measurement it was. Row 08b — place a tee — is new,
 because his route ends with "place something", so leaving now DISCARDS a real
@@ -32,6 +32,24 @@ Editor open and every editor tool read 0 arrivals and 0 ms on four independent
 runs. Read the ARRIVALS as the exact number and the milliseconds as a floor: the
 NVIDIA shader cache is machine-wide and survives a wiped profile, so the same
 eight arrivals cost 6,309 ms on one run of a build and 68 ms on the third.
+
+### On a COLD profile, where he measured 6.3 s
+
+A fresh profile, new game, the same route (`qa/goal34/cold35.json`, `failures:
+[]`): editor open **0 arrivals, 0 ms**; every editor tool **0 arrivals, 0 ms**.
+The same gap sampler on the same run reported **5,113 ms** on the laptop's pages,
+**5,383 ms** on the exit-after-an-edit and **6,651 ms** on the next tool press —
+so the zeros are not a blind instrument. That is the control this claim needs and
+it is inside the same run.
+
+### The tripwire's own row count is a FLOOR, not the number
+
+`cold35` reported `tripwireRows: 0` while the per-surface key-set diffs in the
+same run reported **5 arrivals**. `programTripwireScan` returns early unless
+`programs.length` grew, so a window where arrivals and departures overlap is
+never examined — row 09 arrived 3 and departed 6, a net of −3, and the scan
+skipped it and rows 08b and 10 with it. The honest count for this route is 5, not
+0, and it is the per-surface diff that says so.
 
 ## Why the two earlier attempts missed
 
