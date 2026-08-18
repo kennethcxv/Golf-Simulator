@@ -935,3 +935,43 @@ The stop-legality test picked (0.6, -0.2) as "open floor" and the front desk's
 centre as "solid"; both were the opposite. It now scans the room, classifies
 every point by asking the geometry, and fails loudly if the room contains no
 example of either — because then it is measuring nothing.
+
+---
+
+## 11. A DRIVER CANNOT CLOSE A TENDER (2026-08-18)
+
+`tools/qa/checkout-queue-exodus.js` drives a real sale as far as anything has:
+it stocks the shelf, stages the line, presses E, clicks each product mesh to
+scan it, calls `tapTerminal()` and clicks the offered card, and pushes the PIN
+through `register.onKey` — which is the key NAME, not a KeyboardEvent, and is
+why 128 samples once sat in `card-entry` while `page.keyboard.press` went to
+whatever had DOM focus.
+
+It still cannot finish. Card stalls at `card-entry` after the PIN; cash stalls
+at `cash-drawer` after the tender is accepted. `deskHitTargets()` at those
+stages draws only navigation tabs — `exit`, `home`, `tab-check-in`,
+`tab-checkout`, `tab-tee-sheet` — so there is no monitor row to dispatch and the
+remaining steps are physical objects a driver has to find and click.
+
+**Consequence, stated so nobody re-reads the evidence as more than it is:** the
+queue's response to the line advancing is measured through
+`dismissCounterCustomer()`, which goes through the same
+`removeCustomer -> leaveQueue -> every index behind drops by one` funnel a
+completed sale uses. It is NOT a sale. It banks no ticket and hands over no bag.
+
+**What would close it:** a screen point for the drawer and for the change
+selection, forwarded on the register facade beside `presentedCardScreenPoint()`.
+Three accessors, and the whole checkout becomes drivable end to end.
+
+## 12. THE QA PROFILE DRIFTS ACROSS RUNS (2026-08-18)
+
+Nine consecutive runs against one copied profile produced steadily worse
+staging: `sendToCounter` returned null (the shop was already at its population
+cap with real customers), shelves ran down, and patience clocks arrived at the
+measurement already at 710 s because customers had been queueing since a
+previous run. One run read "3 customers gave up" that were entirely artefacts of
+the drift.
+
+**Restore `saves/` from the owner's profile before any run whose measurement
+depends on the shop's state**, not just before the first one. The clean run and
+the drifted run of the same driver disagreed on every number that mattered.
