@@ -897,3 +897,41 @@ failed again. Slots are keyed by SKU, not by fixture: `polo1` builds
 `tableApparel`, which is folded stacks, whatever fixture it sits on. The check
 was wrong twice before the wiring was. Read the data model before asserting what
 it should produce.
+
+## 2026-08-18, close-the-week night
+
+**A STAGED SAVE THAT IS THE START OF A CAMPAIGN HAS NO CUSTOMERS, AND FIVE RUNS
+WENT INTO LEARNING THAT.** `people=0` for five minutes, three separate times.
+The shop opens at 09:00, so moving the clock looked like the fix and was not —
+the save's shop has never opened at all (condition 10, objective still "enter
+the closed clubhouse"). The nav watch's own guards fired correctly every time
+("never had two people in the room at once — this watch has measured nothing
+about crowds"); I did not act on them until the third run. **Read the driver's
+failures before re-running it.**
+
+The way through is `QA_NAV_STAGE=n`, which spawns through the production spawn
+path (`sendWalkInToDesk` / `sendToCounter`). Only the arrival is scripted. Say
+so in the report rather than implying organic play.
+
+**AND THAT DRIVER STILL WALKED IN WITH SIX BLIND LEGS OF HELD W** — the method
+goal 35 measured as unable to reach the room, in a file goal 35 did not touch.
+When a navigation fix lands, grep for the OLD method across `tools/qa` and
+retire it; otherwise every driver written before the fix keeps the bug.
+
+**A PROBE THAT ASKS THE PUBLIC API FOR SOMETHING IT DOES NOT EXPOSE REPORTS
+ABSENCE, NOT UNAVAILABILITY.** `clubhouse().merch` is not on the returned API,
+so `m?.has ? ... : null` answered null for all eleven hero models and printed
+`prototypes loaded: 0/11` on a build where the towel was demonstrably drawing.
+An unreachable probe must say UNAVAILABLE.
+
+**A CHECK CAN BE WRONG TWICE BEFORE THE CODE IS WRONG ONCE.** The apparel driver
+failed on "hung polo missing", so the polos were moved onto a rail — and it
+failed again. Slots are keyed by SKU, not by fixture: `polo1` builds
+`tableApparel`, which is folded stacks, whatever fixture it sits on. Read the
+data model before asserting what it should produce.
+
+**A UNIT TEST THAT HARD-CODES COORDINATES IN A ROOM WILL GET THEM BACKWARDS.**
+The stop-legality test picked (0.6, -0.2) as "open floor" and the front desk's
+centre as "solid"; both were the opposite. It now scans the room, classifies
+every point by asking the geometry, and fails loudly if the room contains no
+example of either — because then it is measuring nothing.
