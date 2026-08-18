@@ -93,6 +93,15 @@ def build(draft, hd, neckline, nu=30, nv=34, roll_rows=12, name="hood"):
             base = Vector((n.x * sx if sx > 0 else -abs(n.x), n.y, n.z))
             flat = Vector((sx * hd.half, by, bz))
             anchor = base.lerp(flat, w)
+            # THE PANEL CLOSES TOWARD THE CROWN. Drafted at a constant
+            # x = +/- half, each side of the hood is a flat slab and the only
+            # curvature in the whole thing is the seam bridging them -- which
+            # is a box with a rolled top edge, and it read as one flat facet
+            # across the crown however many rows the roll got. A hood is widest
+            # at the head and narrows over it, so the half-width is a profile
+            # in v and the seam it feeds narrows with it.
+            wf = 1.0 - 0.52 * PT.smoothstep(v, 0.40, 1.0) ** 1.35
+            anchor.x *= wf
             up = p.z - bz
             return anchor + Vector((0.0, p.y - by + hd.lean * max(0.0, up),
                                     up))
