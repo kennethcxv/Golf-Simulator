@@ -9648,6 +9648,35 @@ export function makeCourseScene(canvas, state) {
     }
   }
 
+  // --- the on-demand overlays, and why the freeze may never have them ---------
+  //
+  // "I see the thing for cursor when editing the terrain or paint however it
+  // doesn't move according to the user's cursor, it just stays there."
+  //
+  // Every overlay below is written ONLY at the moment it is revealed: the brush
+  // ring when the pointer moves, the ghost when an object is being placed, the
+  // ball when a playtest starts, the pin when the overview opens. While the
+  // player is walking around they sit invisible and perfectly still — which is
+  // precisely the stability freeze's criterion for "bit-stable", so at frame
+  // 900 of active walk they are frozen with `matrixAutoUpdate = false`.
+  //
+  // After that the two halves disagree for ever. `position` still takes every
+  // write, so editorCursorState() reports a ring tracking the mouse exactly;
+  // `matrixWorld` takes none, so the renderer draws it where it stood fifteen
+  // seconds ago. And the watchdog that exists to thaw a surprise mover cannot
+  // help here, because it only ticks while `walk.active` — and the editor is
+  // not walking. That is why this reads as "the cursor is stuck" rather than
+  // "the cursor is late".
+  //
+  // They are a live visual hierarchy by definition, so they are marked as one
+  // at construction and the freeze never enrols them at all. A thaw would be up
+  // to ~7 frames late; a cursor must be right on the frame it is asked for.
+  const addLiveOverlay = (object) => {
+    object.userData.liveVisualHierarchy = true;
+    scene.add(object);
+    return object;
+  };
+
   // --- brush ring / marker cursor -----------------------------------------------------------------
   const brushRing = new THREE.Mesh(
     new THREE.RingGeometry(0.9, 1, 48),
@@ -9657,7 +9686,7 @@ export function makeCourseScene(canvas, state) {
   brushRing.name = 'editor-brush-ring';
   brushRing.renderOrder = 999;
   brushRing.visible = false;
-  scene.add(brushRing);
+  addLiveOverlay(brushRing);
 
   // The outer ring is the full brush footprint; this quieter inner ring marks
   // the flat-strength core before the configured falloff begins. Widened from a
@@ -9671,7 +9700,7 @@ export function makeCourseScene(canvas, state) {
   brushFalloffRing.name = 'editor-brush-falloff-ring';
   brushFalloffRing.renderOrder = 998;
   brushFalloffRing.visible = false;
-  scene.add(brushFalloffRing);
+  addLiveOverlay(brushFalloffRing);
 
   // "So I can see how much I am about to affect — not just a point." Two
   // hairlines describe a boundary; the ground inside them is what the stroke
@@ -9687,7 +9716,7 @@ export function makeCourseScene(canvas, state) {
   brushFill.name = 'editor-brush-fill';
   brushFill.renderOrder = 996;
   brushFill.visible = false;
-  scene.add(brushFill);
+  addLiveOverlay(brushFill);
 
   function setBrush(cell, radiusCells, kind) {
     if (!cell || !kind) {
@@ -9746,7 +9775,7 @@ export function makeCourseScene(canvas, state) {
   const editorFeaturePreview = new THREE.Group();
   editorFeaturePreview.name = 'editor-feature-preview';
   editorFeaturePreview.visible = false;
-  scene.add(editorFeaturePreview);
+  addLiveOverlay(editorFeaturePreview);
 
   function dynamicPreviewGeometry(vertexCapacity) {
     const geometry = new THREE.BufferGeometry();
@@ -9937,7 +9966,7 @@ export function makeCourseScene(canvas, state) {
       disc.renderOrder = 998;
       disc.userData.isDisc = true;
       ghost.add(disc);
-      scene.add(ghost);
+      addLiveOverlay(ghost);
       ghostType = type;
     }
     ghost.visible = true;
@@ -9995,6 +10024,7 @@ export function makeCourseScene(canvas, state) {
     }
     if (!worldPts || worldPts.length < 1) return;
     measureGroup = new THREE.Group();
+    measureGroup.userData.liveVisualHierarchy = true;
     const lift = (p) => new THREE.Vector3(p.x, heightAt(p.x, p.z) + 0.5, p.z);
     if (worldPts.length >= 2) {
       const pts = [];
@@ -10047,12 +10077,32 @@ export function makeCourseScene(canvas, state) {
     return { x: +(sx / n).toFixed(2), z: +(sz / n).toFixed(2) };
   }
 
+  // WHERE IT IS DRAWN, NOT WHERE IT WAS ASKED TO BE.
+  //
+  // Reporting `object.position` is reporting the INPUT. Two drivers passed a
+  // build whose ring was nailed to one spot on screen because they projected
+  // that input and compared it against the mouse — which is circular, since the
+  // input came from the mouse ray in the first place. `matrixWorld` is what the
+  // renderer multiplies by, so it is the only honest answer to "where is it".
+  // `live` says whether this object is even allowed to move any more.
+  const drawnAt = (object) => {
+    const m = object.matrixWorld.elements;
+    return {
+      x: +m[12].toFixed(2),
+      y: +m[13].toFixed(2),
+      z: +m[14].toFixed(2),
+      live: object.matrixAutoUpdate === true,
+      frozenBy: object.userData?.matrixFrozen || null,
+    };
+  };
+
   function editorCursorState() {
     return {
       brush: brushRing.visible ? {
         x: +brushRing.position.x.toFixed(2),
         z: +brushRing.position.z.toFixed(2),
         radiusYd: +brushRing.scale.x.toFixed(2),
+        drawn: drawnAt(brushRing),
       } : null,
       preview: editorFeaturePreview.visible ? {
         outlineVerts: featureOutline.geometry.drawRange.count,
@@ -10066,6 +10116,7 @@ export function makeCourseScene(canvas, state) {
         type: ghostType,
         x: +ghost.position.x.toFixed(2),
         z: +ghost.position.z.toFixed(2),
+        drawn: drawnAt(ghost),
       } : null,
       measure: !!(measureGroup && measureGroup.children.length),
     };
@@ -10080,7 +10131,7 @@ export function makeCourseScene(canvas, state) {
   );
   ballMesh.castShadow = true;
   ballMesh.visible = false;
-  scene.add(ballMesh);
+  addLiveOverlay(ballMesh);
   const aimArcPositions = new Float32Array(33 * 3);
   const aimArcDistances = new Float32Array(33);
   const aimArcGeo = new THREE.BufferGeometry();
@@ -10107,7 +10158,7 @@ export function makeCourseScene(canvas, state) {
   aimArc.frustumCulled = false;
   aimArc.renderOrder = 900;
   aimArc.visible = false;
-  scene.add(aimArc);
+  addLiveOverlay(aimArc);
   function setBallVisual(pos) {
     if (!pos) {
       ballMesh.visible = false;
@@ -11105,7 +11156,7 @@ export function makeCourseScene(canvas, state) {
     // player opened this view to find
     group.traverse((n) => { if (n.isMesh) n.renderOrder = 9000; });
     group.visible = false;
-    scene.add(group);
+    addLiveOverlay(group);
     playerPin = group;
     return group;
   }
@@ -11144,15 +11195,25 @@ export function makeCourseScene(canvas, state) {
       stabilityFreezeFrames += 1;
       if (stabilityFreezeFrames >= 900) programTripwireScan();
     }
-    if (!globalThis.__FW_DISABLE_STABILITY_FREEZE && walk.active) {
-      if (stabilityFreezeFrames === 600) {
+    if (!globalThis.__FW_DISABLE_STABILITY_FREEZE) {
+      if (walk.active && stabilityFreezeFrames === 600) {
         stabilityFreezeSnapshotMap = matrixFreezeSnapshot(scene);
-      } else if (stabilityFreezeFrames === 900 && stabilityFreezeSnapshotMap) {
+      } else if (walk.active && stabilityFreezeFrames === 900 && stabilityFreezeSnapshotMap) {
         stabilityFreezeOutcome = stabilityFreeze(scene, stabilityFreezeSnapshotMap, {
           exclude: (node) => STABILITY_FREEZE_FEEL_SURFACES.has(node.name),
         });
         stabilityFreezeSnapshotMap = null;
       } else if (stabilityFreezeFrames > 900) {
+        // THE WATCHDOG IS NOT A WALK FEATURE, AND GATING IT ON ONE WAS THE
+        // OTHER HALF OF THE STUCK CURSOR. Arming is a walk decision — five
+        // settled seconds on foot is what "bit-stable" was measured against —
+        // but once the scene is frozen the freeze applies in EVERY mode, and
+        // the thaw has to as well. With this inside the walk gate, anything a
+        // verb wrote to while the editor, the overview or a playtest owned the
+        // camera stayed frozen for the whole session: the write landed on
+        // `position` and the renderer kept drawing `matrixWorld`. The frame
+        // counter only advances during walk, so `> 900` still means exactly
+        // "the freeze has happened" here.
         matrixFreezeWatchdogTick();
       }
     }
