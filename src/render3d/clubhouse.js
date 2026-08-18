@@ -9945,7 +9945,17 @@ export function makeClubhouse(ctx) {
       stops,
       stopIdx: 0,
       linger: loungeEarly ? 5 + identity.patience * 5 : (toCounter ? 0 : 2 + rng.next() * 4),
-      speed: toCounter ? 1.15 : 1.1 + rng.next() * 0.5,
+      // NOT EVERYONE WALKS AT ONE SPEED. Shoppers already varied 1.1-1.6; a
+      // desk errand was a flat 1.15 for every arrival, so a queue forming was
+      // four people moving as one object. Desk errands get their own spread —
+      // narrower, because somebody with an appointment walks with more purpose
+      // than somebody browsing.
+      speed: toCounter ? 1.02 + rng.next() * 0.34 : 1.1 + rng.next() * 0.5,
+      // Where along a shelf this person's eye starts, and how fast it wanders.
+      // Fixed per customer at spawn so the same shopper reads as the same
+      // person for their whole visit rather than re-rolling every stop.
+      gazePhase: rng.next() * Math.PI * 2,
+      gazeRate: 0.55 + rng.next() * 0.5,
       queued: false,
       rangBell: false,
       cart: [],
@@ -12921,11 +12931,32 @@ export function makeClubhouse(ctx) {
           }
         }
         if (stop.faceX !== undefined) {
+          // BROWSING THAT LOOKS LIKE BROWSING. Standing at a shelf, a person
+          // does not stare at one point for four seconds — the eye travels the
+          // face of the display. The stop's own face point is the centre of
+          // that travel and the offset runs ALONG the shelf (perpendicular to
+          // the look direction), so it reads as reading a row rather than as a
+          // head wobble. Only at a fixture: at the till or a doorway you look
+          // at the one thing.
+          let faceX = stop.faceX;
+          let faceZ = stop.faceZ;
+          if (stop.kind === 'fixture' && Number.isFinite(c.gazePhase)) {
+            const dx = stop.faceX - c.mesh.position.x;
+            const dz = stop.faceZ - c.mesh.position.z;
+            const len = Math.hypot(dx, dz) || 1;
+            // unit vector along the shelf face
+            const px = -dz / len;
+            const pz = dx / len;
+            c.gazeT = (c.gazeT || 0) + dt;
+            const swing = Math.sin(c.gazePhase + c.gazeT * c.gazeRate) * 0.55;
+            faceX += px * swing;
+            faceZ += pz * swing;
+          }
           const want = characterYawToward(
             c.mesh.position.x,
             c.mesh.position.z,
-            stop.faceX,
-            stop.faceZ,
+            faceX,
+            faceZ,
           );
           let dy = want - c.mesh.rotation.y;
           while (dy > Math.PI) dy -= Math.PI * 2;
