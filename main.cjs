@@ -45,8 +45,16 @@ app.commandLine.appendSwitch('gpu-disk-cache-size-kb', '262144');
 // covers the sticky case; this covers a one-shot run that leaves nothing behind.
 //
 // Validated here as well as in the renderer: only these names may cross into argv.
+// KEEP THIS IN STEP WITH src/data/clubhouseVariant.js. It is deliberately a
+// second copy — the main process cannot import an ES module the renderer owns —
+// and the cost of the duplication is exactly this: a room added there and not
+// here is SILENTLY IGNORED, and the launch falls back to modern-public, which is
+// a different building. `tools/qa/pine-hills-v3-dressed.js` caught that on its
+// first run with `requested=null layout=null`, which reads like a broken variant
+// rather than a rejected flag. tests/clubhouse-variant-selection.test.js holds
+// the two lists together.
 const SELECTABLE_CLUBHOUSE_VARIANTS = [
-  'pine-hills-v2', 'pine-hills', 'modern-public', 'mountain-lodge', 'legacy',
+  'pine-hills-v2', 'pine-hills-v3', 'pine-hills', 'modern-public', 'mountain-lodge', 'legacy',
 ];
 const requestedClubhouse = (() => {
   const flag = process.argv.find((arg) => arg.startsWith('--clubhouse='));

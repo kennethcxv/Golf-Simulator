@@ -38,6 +38,12 @@ export const CLUBHOUSE_LAUNCH_FLAG = '--fw-clubhouse=';
 // dev menu can send you to v1 for a side-by-side without hand-editing a URL.
 export const SELECTABLE_CLUBHOUSE_VARIANTS = Object.freeze([
   'pine-hills-v2',
+  // A COPY OF THE GREYBOX, on the same floor plan, where the finished Blender
+  // assets get dressed in. pine-hills-v2 is the working variant and CLAUDE.md
+  // says it stays grey; this is the room where raising it is allowed. It shares
+  // v2's layout datums exactly (see CLUBHOUSE_LAYOUT_VARIANT in shopLayout.js),
+  // so the two rooms differ only in what is drawn.
+  'pine-hills-v3',
   'pine-hills',
   'modern-public',
   'mountain-lodge',

@@ -144,6 +144,12 @@ export function createPineHillsV2Interior({
   hooks = {},
   onRestoration = () => {},
   onStockSocketsReady = () => {},
+  // pine-hills-v3: the same room with the finished assets DRESSED IN. The grey
+  // stand-ins for retail fixtures, the lounge suite and the wall boards step
+  // aside; the front desk shell does NOT, because its hero replacement has not
+  // been baked (see Block 5). Everything structural — walls, ceiling, beams,
+  // the corridor seal — is the ROOM, not a stand-in, and stays in both.
+  dressed = false,
 } = {}) {
   if (!interior?.add) throw new TypeError('Pine Hills v2 interior requires an Object3D mount.');
   void getRuntimeAssetRoot; // v2 rotates its own grey chairB; the GLB chair is suppressed
@@ -180,6 +186,10 @@ export function createPineHillsV2Interior({
 
   // --- suppression: the furniture the grey volumes replace --------------------------
   function hideRetailFixtureAnchors() {
+    // In the dressed copy the retail floor is the POINT: the baked garments are
+    // already wired through the merchandise system, and hiding their fixtures'
+    // anchors is exactly what put a hung polo inside an opaque box.
+    if (dressed) return;
     for (const fixture of placedFixtures(state)) {
       if (GREYBOX_ZONES_EXCLUDED.has(fixture.zone)) continue;
       const anchor = getFixtureAnchor(fixture.id);
@@ -521,6 +531,18 @@ export function createPineHillsV2Interior({
     piece.rotation.y = pose.ry || 0;
     loungeRoot.add(piece);
     greyStaticRoots.set(name, piece);
+  }
+
+  // THE THREE ROOTS THAT STAND IN FOR FINISHED ASSETS. Hidden rather than
+  // skipped: they stay in greyStaticRoots/greyFixtureRoots so diagnostics, the
+  // restoration wiring and the tee-time board reference keep resolving, and
+  // rebuildGreyFixtures can re-cut its children on a layout relay without
+  // having to know which room it is in. The desk shell is deliberately absent
+  // from this list — the counter stays grey until the hero counter is baked.
+  if (dressed) {
+    greyFixturesRoot.visible = false;
+    boardsRoot.visible = false;
+    loungeRoot.visible = false;
   }
 
   const officeDoorReveal = createPineHillsOfficeDoorReveal(group, state);

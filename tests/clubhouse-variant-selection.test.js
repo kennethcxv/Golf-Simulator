@@ -61,7 +61,9 @@ test('no source means no variant', () => {
 
 test('an unknown name is refused from every source', () => {
   for (const sources of [
-    { search: '?clubhouse=pine-hills-v3' },
+    // (pine-hills-v3 used to sit here as the example of a plausible-but-unknown
+    // name. It is a real room now: the dressed copy of the greybox.)
+    { search: '?clubhouse=pine-hills-v4' },
     { argv: ['--fw-clubhouse=../../etc/passwd'] },
     { stored: 'pine-hills-v2 ' }, // trailing space: a near-miss must not resolve
     { stored: '{"variant":"pine-hills-v2"}' },
@@ -89,18 +91,34 @@ test('in Node nothing asks, so the layout datums stay v1', () => {
 });
 
 test('presentation-only variants never move layout datums', () => {
-  // pine-hills-v2 is the ONLY entry that shifts coordinates. Selecting 'legacy' from the
-  // dev menu must change what draws, not where things are — CLUBHOUSE_LAYOUT_VARIANT is
-  // what shopLayout branches on, and it is derived, not the raw request.
+  // ONE floor plan moves coordinates, and exactly two rooms stand on it:
+  // pine-hills-v2 and its dressed copy pine-hills-v3. Selecting 'legacy' from
+  // the dev menu must change what draws, not where things are —
+  // CLUBHOUSE_LAYOUT_VARIANT is what shopLayout branches on, and it is derived,
+  // not the raw request.
   const layoutSeam = read('../src/data/shopLayout.js');
-  assert.match(
-    layoutSeam,
-    /CLUBHOUSE_LAYOUT_VARIANT = CLUBHOUSE_VARIANT_REQUEST\.variant === 'pine-hills-v2'/,
-  );
+  assert.match(layoutSeam, /CLUBHOUSE_LAYOUT_VARIANT = \(/);
+  assert.match(layoutSeam, /CLUBHOUSE_VARIANT_REQUEST\.variant === 'pine-hills-v2'/);
+  assert.match(layoutSeam, /CLUBHOUSE_VARIANT_REQUEST\.variant === 'pine-hills-v3'/);
+  // and both resolve to the SAME constant, so no datum can differ between them
+  assert.match(layoutSeam, /\)\s*\?\s*'pine-hills-v2'\s*:\s*null;/);
   for (const id of SELECTABLE_CLUBHOUSE_VARIANTS) {
     const r = resolveClubhouseVariantRequest({ stored: id });
     assert.equal(r.variant, id);
   }
+});
+
+test('the dressed copy is a PRESENTATION, and shares every v2 datum', () => {
+  // The whole safety of "make edits in a copy of the greybox" rests on this:
+  // v3 may change what is drawn and may never move a stand point, a collider or
+  // a queue slot, because pine-hills-v2 — the working variant — is standing on
+  // the same numbers.
+  assert.equal(SELECTABLE_CLUBHOUSE_VARIANTS.includes('pine-hills-v3'), true);
+  const club = read('../src/render3d/clubhouse.js');
+  assert.match(club, /requestedClubhousePresentation === 'pine-hills-v3'/,
+    'the difference is decided in the presentation switch');
+  assert.doesNotMatch(read('../src/data/shopLayout.js'), /'pine-hills-v3'\s*\?\s*\{/,
+    'no datum may branch on v3');
 });
 
 test('the layout seam resolves through the shared resolver, not its own query read', () => {
@@ -193,6 +211,19 @@ test('main.cjs forwards a validated --clubhouse into renderer argv', () => {
   assert.match(main, /SELECTABLE_CLUBHOUSE_VARIANTS\.includes\(value\)/);
   assert.match(main, /`--fw-clubhouse=\$\{requestedClubhouse\}`/);
   assert.match(main, /DEV \? \['--fw-dev'\] : \[\]/);
+
+  // AND THE TWO LISTS MUST AGREE. main.cjs cannot import the renderer's ES
+  // module, so the allowlist is a second copy — and a room added to one and not
+  // the other is silently ignored at launch, falling back to modern-public,
+  // which is a DIFFERENT BUILDING. That happened to pine-hills-v3 on its first
+  // run and read as a broken variant rather than a rejected flag.
+  const listed = main
+    .slice(main.indexOf('const SELECTABLE_CLUBHOUSE_VARIANTS = ['))
+    .match(/'[a-z0-9-]+'/g)
+    .map((s) => s.replace(/'/g, ''))
+    .slice(0, SELECTABLE_CLUBHOUSE_VARIANTS.length);
+  assert.deepEqual(listed, [...SELECTABLE_CLUBHOUSE_VARIANTS],
+    'main.cjs and src/data/clubhouseVariant.js must offer the same rooms, in the same order');
 });
 
 test('preload exposes launchArgs synchronously, filtered to the planted flags', () => {

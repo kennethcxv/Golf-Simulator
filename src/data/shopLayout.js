@@ -264,10 +264,21 @@ export const PARTITIONS = [
 // have to be readable synchronously.
 export const CLUBHOUSE_VARIANT_REQUEST = Object.freeze(resolveClubhouseVariant());
 
-// Only pine-hills-v2 moves DATUMS. The other selectable variants are presentation-only,
-// so they must resolve to null here or they would shift coordinates nobody authored
-// against them.
-export const CLUBHOUSE_LAYOUT_VARIANT = CLUBHOUSE_VARIANT_REQUEST.variant === 'pine-hills-v2'
+// Only the pine-hills-v2 FLOOR PLAN moves DATUMS. The other selectable variants are
+// presentation-only, so they must resolve to null here or they would shift coordinates
+// nobody authored against them.
+//
+// pine-hills-v3 is a COPY OF THE GREYBOX, not a new room. "Start making edits in a copy
+// of the gray box with the newly updated blender assets" — so it resolves to the SAME
+// layout constant, and therefore to byte-identical datums: one floor plan, one queue,
+// one fixture table, one set of layout tests. Everything that differs between the two is
+// PRESENTATION, decided in clubhouse.js, which is where the grey volumes live. That way
+// dressing v3 can never move a stand point, a collider or a queue slot out from under
+// pine-hills-v2 — the working variant CLAUDE.md protects.
+export const CLUBHOUSE_LAYOUT_VARIANT = (
+  CLUBHOUSE_VARIANT_REQUEST.variant === 'pine-hills-v2'
+  || CLUBHOUSE_VARIANT_REQUEST.variant === 'pine-hills-v3'
+)
   ? 'pine-hills-v2'
   : null;
 

@@ -11647,6 +11647,36 @@ export function makeClubhouse(ctx) {
       const record = crowdRecord(_crowdNear.length);
       record.x = ox;
       record.z = oz;
+      // MEASURED AND REJECTED: FEEDING THE SOLVER THEIR INTENT.
+      //
+      // "Make it so the NPCs know what the other NPC is about to do so they get
+      // out of their way." The obvious move is to hand ORCA each neighbour's
+      // PREFERRED velocity — heading times speed, after the look-ahead has
+      // turned it — instead of `vx/vz`, the displacement they achieved last
+      // frame. A walker who has just decided to turn still reports the old
+      // direction, so on the face of it everybody is planning around a course
+      // that is already being abandoned.
+      //
+      // It is worse, and not marginally. Same save, same staging, four minutes
+      // each, one boot apart (qa/nav/intent.json vs qa/nav/control.json):
+      //
+      //                    velocity (kept)   intent (rejected)
+      //   frames touching        2                 14
+      //   frames interpenetrating 0                 4
+      //   closest approach   0.6825 yd         0.5364 yd
+      //   contact episodes     1 (0 hard)        5 (2 hard)
+      //   infeasible solves    2.15%             26.2%
+      //
+      // The reason is in the derivation, not the numbers. ORCA's half-plane is
+      // built on the RELATIVE velocity of a pair, and its reciprocal split
+      // assumes the neighbour is currently travelling at the velocity you were
+      // given and will contribute half the correction. A preferred velocity is
+      // one the neighbour has NOT achieved — their own solve is about to reduce
+      // it — so every agent over-estimates how fast the other is closing, adds
+      // constraints that do not correspond to anything, and falls through to
+      // the infeasible path twelve times as often. The anticipation was already
+      // there: `timeHorizon` is 2.0 seconds of guaranteed contact-freedom, which
+      // IS knowing what the other is about to do.
       record.vx = other.vx || 0;
       record.vz = other.vz || 0;
       record.pinned = customerIsPinned(other);
