@@ -100,6 +100,22 @@ ships: drop a file, add a manifest entry, no code.
 4a landed earlier tonight (the laptop open is a **timer**: 1,401 ms of which
 14 ms is JS). 4b is an audit, not a fix — see "stale reports" below.
 
+### Block 2b — partly, once the staging existed
+
+Two of the four already existed and I am not claiming them: stops carry
+`faceX/faceZ` and the body turns to them, and a 1.5-5 s browse dwell is there.
+Shoppers already varied 1.1-1.6 yd/s.
+
+What did not: a **desk errand was a flat 1.15 for every arrival**, so four people
+queueing moved as one object; and standing at a shelf a person **stared at a
+single point** for the whole dwell. Both fixed — the gaze now travels along the
+face of the display, phase and rate fixed per customer at spawn.
+
+Clip watched, 693 frames at 4 fps. **What it does not show, and I am not
+claiming: no shelf-browse beat** (the framing is bunched at the entrance), and
+**natural entrance/exit pacing is not done.**
+
+
 ---
 
 ## PARKED, WITH THE REASON
@@ -124,8 +140,8 @@ Not done tonight on purpose: a queue slot cannot be nudged the way a browse
 point can. Moving slot 3 breaks single file and there is a suite pinned to that
 geometry. It is a floor-plan decision.
 
-**Block 2b (behave like people) — not started.** It needs the crowd staging I
-only built at the very end, and its acceptance is a clip of a crowd.
+**Block 2b is half done.** Pace and gaze landed; "approach, pause, consider,
+pick up or move on" and door pacing did not.
 
 **Block 5 (bake the four) and Block 6 (backlog) — not started.**
 
