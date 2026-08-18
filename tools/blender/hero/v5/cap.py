@@ -42,9 +42,23 @@ LINING = (0.0300, 0.0170, 0.0192)
 STITCH = (0.1420, 0.1180, 0.1050)
 EV = -1.02
 
-# a fitted six-panel cap: 185 mm across, 138 mm front to back at the band,
-# 118 mm tall, with a 72 mm visor
-R_X, R_Y = 0.0925, 0.0900
+# a fitted six-panel cap: 185 mm across, 157 mm front to back at the band,
+# 103 mm tall, with a 62 mm visor
+#
+# MEASURED, because "the visor is too large for its crown" is three numbers and
+# not an impression. Against the reference side elevations:
+#
+#            v5      v6     reference
+#   visor width / crown width   1.10    0.96    never exceeds the crown --
+#                                               the ends tuck into the band
+#   reach / crown height        0.73    0.60
+#   drop  / crown height        0.39    0.28
+#   crown depth                175 mm  157 mm   a head is not round
+#
+# The width was the one doing the damage: at 202.8 mm on a 185 mm crown the
+# visor stood proud on both sides in every view, which is what reads as "too
+# large" long before the length does.
+R_X, R_Y = 0.0925, 0.0785
 RISE = 0.1035
 BAND_Z = 0.0
 GORES = 6
@@ -63,7 +77,7 @@ def crown_radius(a, v):
     prof = (1.0 - v ** 3.00) ** 0.40
     # the panel facet: each gore's centre stands a little proud of the chord
     g = (a * GORES / (2 * math.pi)) % 1.0
-    facet = 1.0 - 0.030 * (1.0 - math.cos(2 * math.pi * g)) * 0.5
+    facet = 1.0 - 0.055 * (1.0 - math.cos(2 * math.pi * g)) * 0.5
     return prof * facet
 
 
@@ -101,7 +115,7 @@ def gore_seams():
     return ST.join("cap_seams", parts)
 
 
-def visor_point(u, v, span=2.14, reach=0.0700, drop=0.0432, curl=0.0176):
+def visor_point(u, v, span=1.86, reach=0.0620, drop=0.0292, curl=0.0168):
     """One point on the visor surface. `u` runs across, `v` out from the band.
 
     The reach TAPERS TO NOTHING at the two ends, so the visor's outline is a
@@ -155,23 +169,68 @@ def band(height=0.0285, out=0.0012):
 
 
 def strap():
-    """A webbing strap with a slide buckle at the back, and the keyhole it needs."""
-    parts = []
+    """An adjustable strap that is actually ON THE OUTSIDE of the band.
+
+    "The back strap reads weakly" was not a proportion. The strap was swept at
+    1.006 of the band radius and the BAND ITSELF stands 1.2 mm proud, so the
+    webbing was inside the thing it is supposed to sit on and the only part
+    visible from behind was the buckle -- a pale box floating at the hem. It is
+    3.5 mm proud here, which is a real strap on a real band.
+
+    And it now has what makes a strap legible at three metres rather than at
+    thirty centimetres: a row of adjustment holes on one arm and a slide with
+    the tail threaded through it on the other. The holes are recessed dark
+    discs rather than boolean cuts -- at any distance the player will ever see
+    this cap, a hole IS a dark disc, and a boolean through a swept ribbon is a
+    lot of risk for a result that renders the same.
+    """
+    parts, holes = [], []
     NA = 22
+    PROUD = 1.0 + 0.0035 / R_X          # 3.5 mm outboard of the band
+    ZS = BAND_Z - 0.0118
     for side in (-1, 1):
         pts = []
         for i in range(NA + 1):
             t = i / NA
-            a = math.pi / 2 + side * (0.10 + t * 0.62)
+            a = math.pi / 2 + side * (0.09 + t * 0.52)
             k = crown_radius(a, 0.0)
-            pts.append(Vector((R_X * k * 1.006 * math.cos(a),
-                               R_Y * k * 1.006 * math.sin(a),
-                               BAND_Z - 0.0125)))
-        parts.append(ST.sweep("cap_strap%d" % side, pts, 0.0092, 0.0016,
+            pts.append(Vector((R_X * k * PROUD * math.cos(a),
+                               R_Y * k * PROUD * math.sin(a), ZS)))
+        parts.append(ST.sweep("cap_strap%d" % side, pts, 0.0094, 0.0019,
                               sides=6))
-    buckle = ST.box("cap_buckle", (0.0, R_Y * 0.965, BAND_Z - 0.0125),
-                    (0.0128, 0.0038, 0.0104), bevel=0.0011)
-    return ST.join("cap_strap", parts), buckle
+        # the adjustment holes, on the left arm only -- the right one is the
+        # tail that goes through the slide
+        if side < 0:
+            for h in range(7):
+                t = 0.22 + 0.108 * h
+                a = math.pi / 2 + side * (0.09 + t * 0.52)
+                k = crown_radius(a, 0.0) * (PROUD + 0.0016 / R_X)
+                c = Vector((R_X * k * math.cos(a), R_Y * k * math.sin(a), ZS))
+                out = Vector((math.cos(a), math.sin(a), 0.0)).normalized()
+                holes.append(ST.sweep("cap_hole%d" % h,
+                                      [c - out * 0.0013, c + out * 0.0006],
+                                      0.0021, 0.0021, sides=14))
+    # THE SLIDE BRIDGES THE GAP. Off at 0.30 rad it sat on one arm and the
+    # back view showed two straps that stopped short of each other with
+    # nothing between them.
+    ka = math.pi / 2 + 0.045
+    kk = crown_radius(ka, 0.0) * (PROUD + 0.0022 / R_X)
+    # ROTATE THE VERTICES, NOT THE OBJECT. `ST.box` bakes the placement into
+    # the mesh and leaves the object at the identity, so setting
+    # `.rotation_euler` afterwards spins the box about the WORLD origin -- the
+    # buckle swung 101.59 mm and the export round-trip refused the file. It is
+    # the counter's "ST.box already places the part" trap wearing a rotation.
+    buckle = ST.box("cap_buckle", (0.0, 0.0, 0.0),
+                    (0.0128, 0.0032, 0.0118), bevel=0.0009)
+    ang = ka + math.pi / 2
+    ca, sa = math.cos(ang), math.sin(ang)
+    at = Vector((R_X * kk * math.cos(ka), R_Y * kk * math.sin(ka), ZS))
+    for v in buckle.data.vertices:
+        x, y = v.co.x, v.co.y
+        v.co = Vector((x * ca - y * sa + at.x, x * sa + y * ca + at.y,
+                       v.co.z + at.z))
+    buckle.data.update()
+    return ST.join("cap_strap", parts), buckle, holes
 
 
 def button():
@@ -243,7 +302,7 @@ def build():
     ST.smooth_by_angle(st, 34.0)
     btn = button()
     ST.smooth_by_angle(btn, 30.0)
-    strapob, buckle = strap()
+    strapob, buckle, holes = strap()
     ST.smooth_by_angle(strapob, 28.0)
     ST.smooth_by_angle(buckle, 26.0)
     eye = eyelets()
@@ -254,8 +313,9 @@ def build():
     dark = ST.fabric("CapUnder", LINING, rough=0.78, weave=0.0009, sheen=0.08,
                      scale_mm=240.0)
     thread = ST.matte("CapThread", STITCH, rough=0.52)
-    cloth = ST.join("cap_shell", [cr, seams, bd, btn, strapob])
+    cloth = ST.join("cap_shell", [cr, seams, bd, btn])
     cloth.data.materials.append(shell)
+    strapob.data.materials.append(dark)
 
     # the UNDERSIDE of a visor is a different, darker cloth on every cap made,
     # and it is most of what stops the visor reading as a moulded plastic scoop
@@ -266,9 +326,15 @@ def build():
             poly.material_index = 1
 
     st.data.materials.append(thread)
-    metal = ST.join("cap_metal", [eye, buckle])
-    metal.data.materials.append(ST.chrome("CapMetal", (0.66, 0.62, 0.58), 0.30))
-    return [cloth, vs, st], [metal]
+    # EYELETS ARE EMBROIDERED, NOT CHROMED. They were joined to the buckle and
+    # the pair given a mirror material, so six bright rings sat on a matte
+    # twill cap and read as machine screws. On every cap in the reference the
+    # eyelet is worked in thread the colour of the panel with a dark hole in
+    # the middle -- which is the same object the strap's adjustment holes are.
+    darkbits = ST.join("cap_dark", [eye] + holes)
+    darkbits.data.materials.append(ST.matte("CapEyelet", LINING, rough=0.62))
+    buckle.data.materials.append(ST.chrome("CapMetal", (0.60, 0.57, 0.54), 0.34))
+    return [cloth, vs, st, darkbits, strapob], [buckle]
 
 
 def main():
