@@ -356,6 +356,13 @@ export function makeCourseEditor(app, hooks) {
   let objectControlError = null;
   let camDrag = null; // {mode:'orbit'|'pan', x, y}
   let hover = null; // last raycastGround hit
+  // Last client-space pointer position this editor has SEEN. There is no way to
+  // ask a browser where the mouse is without an event, and the editor's own
+  // listeners only exist while it is open — so the very first open of a session
+  // has nothing here and seeds the cursor at the viewport centre instead, which
+  // is where the walking crosshair sits and where Chromium leaves the cursor
+  // when pointer lock releases.
+  let lastPointer = null;
   let hoverPreviewFrame = null;
   let pendingHoverPreview = null;
   let pt = null; // playtest session
@@ -1010,6 +1017,11 @@ export function makeCourseEditor(app, hooks) {
   // handles and props, where an arrow is correct.
   const BRUSH_CURSOR_TOOLS = new Set(['terrain', 'paint']);
 
+  // The cursor of last resort: small enough not to read as a brush, bright
+  // enough to find on fairway green.
+  const CURSOR_RING_YD = 3;
+  const CURSOR_RING_COLOR = 0xffffff;
+
   function applyToolCursor() {
     const body = typeof document !== 'undefined' ? document.body : null;
     if (!body) return;
@@ -1063,6 +1075,13 @@ export function makeCourseEditor(app, hooks) {
     ui.tipBody.textContent = TOOL_TIPS[key] || toolHint || 'Choose a tool and click on the course to begin.';
     applyToolCursor();
     hint(toolHint);
+    // Picking a tool from the rail means the mouse is ON THE RAIL, not over the
+    // course, so no pointermove follows and the overlays cleared at the top of
+    // this function would have stayed cleared until the player moved back out.
+    // Redraw in the same turn — after the camera snap above, so the raycast
+    // reads the pose the player will see, and before any frame is drawn, so the
+    // indicator never blinks out between tools.
+    refreshCursorIndicator();
   }
 
   function setSelected(obj) {
@@ -2752,7 +2771,44 @@ export function makeCourseEditor(app, hooks) {
   // ------------------------------------------------------ pointer input ----
 
   function groundAt(e) {
-    return scene() ? scene().raycastGround(e.clientX, e.clientY) : null;
+    return groundAtClient(e.clientX, e.clientY);
+  }
+
+  function groundAtClient(x, y) {
+    const sc = scene();
+    return sc && Number.isFinite(x) && Number.isFinite(y) ? sc.raycastGround(x, y) : null;
+  }
+
+  // THE CURSOR'S FALLBACK ANCHOR. When the pointer is off the course — parked
+  // over the tool rail, over the sky, or simply not yet moved — the indicator
+  // still has to be somewhere the player is looking, and the rig target is the
+  // one point the camera is guaranteed to be pointing at. Clamped into the
+  // course so the record comes back inBounds and the tool previews will draw.
+  function rigTargetGround() {
+    const sc = scene();
+    const course = state()?.course;
+    if (!sc || !course || !sc.groundAtWorld) return null;
+    const x = clamp(sc.rig.target.x, sc.worldX(0), sc.worldX(course.w - 1));
+    const z = clamp(sc.rig.target.z, sc.worldZ(0), sc.worldZ(course.h - 1));
+    const g = sc.groundAtWorld(x, z);
+    return g && g.inBounds ? g : null;
+  }
+
+  function pointerSeed() {
+    if (lastPointer) return lastPointer;
+    if (typeof window === 'undefined') return null;
+    return { x: Math.round(window.innerWidth / 2), y: Math.round(window.innerHeight / 2) };
+  }
+
+  // Draw the cursor NOW, from the pointer position rather than from a pointer
+  // event. Entry and every tool change land here, because both change what the
+  // indicator should be while the mouse sits perfectly still.
+  function refreshCursorIndicator() {
+    if (!active || pt || !scene()) return;
+    cancelHoverPreview();
+    const seed = pointerSeed();
+    hover = seed ? groundAtClient(seed.x, seed.y) : null;
+    updateHoverVisuals(hover);
   }
 
   // Editor ray hits retain the historical cell-centre coordinate (`fx/fy`)
@@ -3309,7 +3365,7 @@ export function makeCourseEditor(app, hooks) {
   }
 
   function refreshHoverPreview() {
-    if (!active || pt || !hover) return;
+    if (!active || pt) return;
     pendingHoverPreview = null;
     updateHoverVisuals(hover);
   }
@@ -3331,7 +3387,7 @@ export function makeCourseEditor(app, hooks) {
     hoverPreviewFrame = null;
   }
 
-  function updateHoverVisuals(g, e) {
+  function updateHoverVisuals(hit, e) {
     const sc = scene();
     // Reached from a rAF callback, so it outlives the pointer event that
     // scheduled it and can land after the course has been torn down. This is
@@ -3342,7 +3398,13 @@ export function makeCourseEditor(app, hooks) {
       sc.setPlacementGhost(null);
       return;
     }
-    if (!g || !g.inBounds) {
+    // THE INDICATOR IS NEVER ABSENT WHILE THE EDITOR IS OPEN. Off the course —
+    // no hit at all, or a hit outside the grid — used to clear all three
+    // overlays, which is the same picture as "before you have moved the mouse":
+    // nothing telling you where you are about to edit. It anchors at the rig
+    // target instead.
+    const g = hit && hit.inBounds ? hit : rigTargetGround();
+    if (!g) {
       sc.setEditorBrush(null);
       sc.setPlacementGhost(null);
       sc.setEditorFeaturePreview?.(null);
@@ -3458,8 +3520,12 @@ export function makeCourseEditor(app, hooks) {
       sc.setEditorBrush({ x: sc.worldX(selected.x), z: sc.worldZ(selected.y), radiusYd: 3, color: 0xffe9a0 });
       sc.setPlacementGhost(null);
     } else {
-      sc.setEditorBrush(null);
+      // Every remaining tool STATE — measure, paths, a green in pin mode, a
+      // stream, an unselected select, and the editor's own opening tool —
+      // reached here and drew nothing at all. Each of those is still a place
+      // the next click lands, so the ring is the cursor for them.
       sc.setPlacementGhost(null);
+      sc.setEditorBrush({ x: g.point.x, z: g.point.z, radiusYd: CURSOR_RING_YD, color: CURSOR_RING_COLOR });
     }
   }
 
@@ -4042,6 +4108,11 @@ export function makeCourseEditor(app, hooks) {
     scene().settleClubhouseCameraVisibility?.();
     refreshTop();
     applyToolCursor();
+    // setTool('select') above already drew a cursor, but it ran before the hole
+    // was selected and the camera framed. Now that the pose is final, raycast
+    // once more so the first frame the player ever sees of the editor already
+    // has the indicator on it.
+    refreshCursorIndicator();
     window.addEventListener('pointerdown', pdHandler, true);
     window.addEventListener('pointermove', pmHandler, true);
     window.addEventListener('pointerup', puHandler, true);
@@ -4143,9 +4214,27 @@ export function makeCourseEditor(app, hooks) {
     return fn(e);
   };
 
-  const pdHandler = guarded((e) => (pt ? playtestPointerDown(e) : onPointerDown(e)));
-  const pmHandler = guarded((e) => (pt ? playtestPointerMove(e) : onPointerMove(e)));
-  const puHandler = guarded((e) => (pt ? playtestPointerUp(e) : onPointerUp(e)));
+  // Remember where the mouse is, so the next tool change or re-entry can draw
+  // the cursor without waiting for a pointer event. Never during playtest: the
+  // pointer is locked there and clientX/Y are frozen at the lock point.
+  const trackPointer = (e) => {
+    if (!pt && Number.isFinite(e?.clientX) && Number.isFinite(e?.clientY)) {
+      lastPointer = { x: e.clientX, y: e.clientY };
+    }
+  };
+
+  const pdHandler = guarded((e) => {
+    trackPointer(e);
+    return pt ? playtestPointerDown(e) : onPointerDown(e);
+  });
+  const pmHandler = guarded((e) => {
+    trackPointer(e);
+    return pt ? playtestPointerMove(e) : onPointerMove(e);
+  });
+  const puHandler = guarded((e) => {
+    trackPointer(e);
+    return pt ? playtestPointerUp(e) : onPointerUp(e);
+  });
 
   // called from the main frame loop while the editor is open
   function onFrame(dtMs) {

@@ -10003,6 +10003,48 @@ export function makeCourseScene(canvas, state) {
     scene.add(measureGroup);
   }
 
+  // QA READ SIDE. Every cursor setter above is write-only, so a driver asking
+  // "is anything on screen telling the player where they are about to edit?"
+  // had to guess from the scene graph by name. This answers it from the objects
+  // the renderer will actually submit. Declared below all four so it cannot be
+  // read through a temporal-dead-zone binding.
+  function previewCentroid() {
+    const attr = featureOutline.geometry.getAttribute('position');
+    const n = featureOutline.geometry.drawRange.count;
+    if (!attr || !n) return {};
+    let sx = 0;
+    let sz = 0;
+    for (let i = 0; i < n; i++) {
+      sx += attr.array[i * 3];
+      sz += attr.array[i * 3 + 2];
+    }
+    return { x: +(sx / n).toFixed(2), z: +(sz / n).toFixed(2) };
+  }
+
+  function editorCursorState() {
+    return {
+      brush: brushRing.visible ? {
+        x: +brushRing.position.x.toFixed(2),
+        z: +brushRing.position.z.toFixed(2),
+        radiusYd: +brushRing.scale.x.toFixed(2),
+      } : null,
+      preview: editorFeaturePreview.visible ? {
+        outlineVerts: featureOutline.geometry.drawRange.count,
+        fillVerts: featureFill.geometry.drawRange.count,
+        // Where it is, not just that it exists: a preview whose vertices are
+        // all behind the camera is `visible` and invisible, and only a world
+        // point lets the driver project it and say so.
+        ...previewCentroid(),
+      } : null,
+      ghost: ghost && ghost.visible ? {
+        type: ghostType,
+        x: +ghost.position.x.toFixed(2),
+        z: +ghost.position.z.toFixed(2),
+      } : null,
+      measure: !!(measureGroup && measureGroup.children.length),
+    };
+  }
+
   // --- the playtest ball + aim arc ----------------------------------------------------
   const ballMesh = new THREE.Mesh(
     // Near-regulation scale with a small readability allowance; the previous
@@ -10707,9 +10749,7 @@ export function makeCourseScene(canvas, state) {
   }
 
   // the editor's ray: fractional cell coords + the world point (smooth brushes)
-  function raycastGround(px, py) {
-    const p = groundRayPoint(px, py);
-    if (!p) return null;
+  function groundRecordAt(p) {
     const fx = (p.x + worldW / 2) / CELL_YD - 0.5;
     const fy = (p.z + worldH / 2) / CELL_YD - 0.5;
     return {
@@ -10719,6 +10759,21 @@ export function makeCourseScene(canvas, state) {
       point: p,
       inBounds: fx >= -0.5 && fy >= -0.5 && fx <= W - 0.5 && fy <= H - 0.5,
     };
+  }
+
+  function raycastGround(px, py) {
+    const p = groundRayPoint(px, py);
+    if (!p) return null;
+    return groundRecordAt(p);
+  }
+
+  // The same record with no ray and no pointer event. The editor's cursor has
+  // to exist BEFORE the player touches the mouse — an indicator that only
+  // appears once you move it is a missing affordance, not a slow one — so when
+  // the pointer is not over the course the editor anchors at the rig target
+  // and asks for the ground record there.
+  function groundAtWorld(x, z) {
+    return groundRecordAt(new THREE.Vector3(x, heightAt(x, z), z));
   }
 
   // --- frame -------------------------------------------------------------------------------------------
@@ -13292,6 +13347,8 @@ export function makeCourseScene(canvas, state) {
     resize,
     raycastCell,
     raycastGround,
+    groundAtWorld,
+    editorCursorState,
     updateTurf,
     updateCourseMaintenance,
     updatePlan,
