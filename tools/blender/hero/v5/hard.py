@@ -30,6 +30,7 @@ import bpy
 from mathutils import Vector
 
 import studio as ST
+import weave as WV   # studio put v6 on the path
 
 
 # ---------------------------------------------------------------------------
@@ -436,7 +437,32 @@ def _bsdf(name, colour, rough, metallic=0.0, coat=0.0, coat_rough=0.05,
                      ("Specular IOR Level", spec)):
         if key in b.inputs:
             b.inputs[key].default_value = val
+    _surface(m, name, rough, metallic)
     return m
+
+
+def _surface(m, name, rough, metallic):
+    """Give a HARDGOOD surface its tiled normal + ORM, the way cloth gets one.
+
+    The four hardgoods shipped with img 0, tex 0 and no COLOR_0 -- they were
+    never in the bake and were not even in the assertion. On a shirt a chrome
+    eyelet is a finding and correct to leave bare; on a driver the crown IS the
+    object, and a milled face is the surface a putter is sold on.
+
+    Scoped by the same prefix rule the checker uses, so this cannot quietly
+    start texturing a bag buckle that nobody authored a family for.
+    """
+    if not WV.is_hardgood(name):
+        return None
+    fam = WV.family_or_none(name)
+    if fam is None:
+        print("    %-16s NO SURFACE FAMILY -- shipping flat" % name)
+        return None
+    rep = WV.repeat_for(fam, 0)
+    WV.wire(m, fam, rough, rep, metal=metallic)
+    print("    %-16s %-7s repeat %6.2f  rough %.3f  metal %.1f"
+          % (name, fam, rep, rough, metallic))
+    return fam
 
 
 def painted(name, colour, rough=0.14, coat=0.85):

@@ -123,19 +123,45 @@ async (page) => {
   // folded polo at 1.02 m where the ray to it goes down through a window pier.
   // A clearance measured along a different ray than the one the camera uses is
   // not a clearance.
-  const SUBJECTS = [
+  const APPAREL_SUBJECTS = [
     ['polo-folded', 'apparel_polo_folded.glb', 'base', 1.02, 'shelf', +0.03],
     ['hoodie-hung', 'apparel_hoodie_hung.glb', 'hook', 1.66, 'rail', -0.46],
   ];
+  // THE FOUR HARDGOODS. A club stands on the floor in a rack rather than
+  // sitting on a board, so they get no fixture -- a shelf under a driver would
+  // be staging that misrepresents how the thing is displayed.
+  // A club standing on the FLOOR is a metre tall and the camera ends up
+  // pitched 62 degrees down at it from 0.6 m, which foreshortens the whole
+  // thing into a stick lying on the tiles -- the milled face and the corded
+  // grip, which are the entire point of baking these, cannot be judged from
+  // that frame at all. A shop stands clubs in a RACK, head down at about knee
+  // height, and the last number here aims the camera at the HEAD rather than
+  // at the middle of a metre of shaft.
+  const HARDGOOD_SUBJECTS = [
+    ['driver', 'hard_driver.glb', 'base', 0.78, 'shelf', +0.10],
+    ['putter', 'hard_putter.glb', 'base', 0.78, 'shelf', +0.08],
+    ['iron', 'hard_iron.glb', 'base', 0.78, 'shelf', +0.08],
+    // The counter is 2.4 m wide: browsing it from 0.6 m puts the camera
+    // INSIDE it, and the aim check said so -- 7.23 half-frames off axis. A
+    // player walks up to a counter, they do not stand in it.
+    ['counter', 'hard_counter.glb', 'base', 0.0, 'none', +0.45, 1.70],
+  ];
+  const SET = process.env.V7_SET === 'hardgoods'
+    ? HARDGOOD_SUBJECTS : APPAREL_SUBJECTS;
+  const SUBJECTS = SET;
   const CONTROL = process.env.V7_CONTROL === 'wall';
   const ANCHOR = CONTROL ? 4.5 : 2.55;
   const DISTANCES = CONTROL
     ? [['wallcontrol', 4.5]]
     : [['room', 2.55], ['browse', 0.85]];
+  // A hardgood surface is a CLOSE-RANGE read -- a milled face and a corded
+  // grip are what a player looks at when the club is in front of them -- so
+  // the near frame comes in tighter than a garment's.
+  if (SET === HARDGOOD_SUBJECTS && !CONTROL) DISTANCES[1] = ['browse', 0.60];
   if (CONTROL) console.log('NEGATIVE CONTROL: the garment is inside the wall');
 
   const rows = [];
-  for (const [name, file, rule, height, display, centreY] of SUBJECTS) {
+  for (const [name, file, rule, height, display, centreY, nearOverride] of SUBJECTS) {
     // --- 1. which way is there room to stand back? -------------------------
     const aim = await page.evaluate(async ([ANCHOR, CONTROL, height, centreY]) => {
       const app = window.__fw;
@@ -195,7 +221,7 @@ async (page) => {
     await page.waitForTimeout(500);
 
     // --- 2. read the camera back, then place along the REAL forward --------
-    const placed = await page.evaluate(async ([file, rule, height, display, DIR, ANCHOR]) => {
+    const placed = await page.evaluate(async ([file, rule, height, display, DIR, ANCHOR, centreY, aimAtOrigin]) => {
       const app = window.__fw;
       const THREE = await import('three');
       const mod = await import('./src/render3d/gltfCache.js');
@@ -232,7 +258,9 @@ async (page) => {
       // be judged, and the first cut's folded polo hovered over bare floor
       // like a slab. Driver staging, the way the studio's shelf was; it is not
       // part of any asset and it does not ship.
-      if (display === 'shelf') {
+      if (display === 'none') {
+        // nothing: it stands on the floor
+      } else if (display === 'shelf') {
         const board = new THREE.MeshStandardMaterial({
           color: 0x6b6259, roughness: 0.78, metalness: 0.0,
         });
@@ -297,6 +325,7 @@ async (page) => {
       const size = box.getSize(new THREE.Vector3());
       window.__v7fwd = { x: fwd.x, z: fwd.z };
       window.__v7home = { x: app.scene3d.walk.state.x, z: app.scene3d.walk.state.z };
+      window.__v7aim = aimAtOrigin ? { x: at.x, y: at.y + centreY, z: at.z } : null;
       return {
         maps,
         originErrMm: +(err * 1000).toFixed(1),
@@ -305,7 +334,8 @@ async (page) => {
     }, [file, rule, height, display, DIR, ANCHOR]);
     console.log(`\n${name}: sightline ${aim.why}`);
 
-    for (const [tag, dist] of DISTANCES) {
+    for (const [tag, baseDist] of DISTANCES) {
+      const dist = (tag === 'browse' && nearOverride) ? nearOverride : baseDist;
       await page.evaluate(async ([dist, ANCHOR]) => {
         const w = window.__fw.scene3d.walk;
         const f = window.__v7fwd;
@@ -326,7 +356,9 @@ async (page) => {
         const eye = new THREE.Vector3().setFromMatrixPosition(cam.matrixWorld);
         const holder = window.__v7scene.getObjectByName('__v7probe');
         const box = new THREE.Box3().setFromObject(holder.children[0]);
-        const mid = box.getCenter(new THREE.Vector3());
+        const a = window.__v7aim;
+        const mid = a ? new THREE.Vector3(a.x, a.y, a.z)
+                      : box.getCenter(new THREE.Vector3());
         const flat = Math.hypot(mid.x - eye.x, mid.z - eye.z);
         w.state.pitch = Math.atan2(mid.y - eye.y, flat);
         return { realDist: +flat.toFixed(3),
@@ -363,35 +395,100 @@ async (page) => {
         }
         const spanX = Math.max(0, Math.min(hi[0], 1) - Math.max(lo[0], -1));
         const spanY = Math.max(0, Math.min(hi[1], 1) - Math.max(lo[1], -1));
-        const centre = [(lo[0] + hi[0]) / 2, (lo[1] + hi[1]) / 2];
+        // Off axis is measured from the AIM POINT where one was given: a club
+        // deliberately framed on its head has its bounding box centred half a
+        // metre higher, and calling that "the camera is not looking at it"
+        // would be the check misreading a deliberate composition.
+        const a = window.__v7aim;
+        let centre;
+        if (a) {
+          const q = new THREE.Vector3(a.x, a.y, a.z).project(cam);
+          centre = [q.x, q.y];
+        } else {
+          centre = [(lo[0] + hi[0]) / 2, (lo[1] + hi[1]) / 2];
+        }
         const offAxis = Math.hypot(centre[0], centre[1]);
 
-        // OCCLUSION: is anything between the eye and it. A Sprite raycast
-        // dereferences Raycaster.camera and this scene has sprites; the shop's
-        // batched props sit on layer masks the default raycaster skips.
-        const mid = box.getCenter(new THREE.Vector3());
-        const rc = new THREE.Raycaster(camPos, mid.clone().sub(camPos).normalize(),
-          0.05, camPos.distanceTo(mid) + 1.0);
+        // OCCLUSION: is anything between the eye and it.
+        //
+        // SAMPLE THE SURFACE, NOT THE BOUNDING-BOX CENTRE. One ray at the
+        // centre of an AABB is fine for a shirt and useless for a golf club:
+        // an L of head and shaft has nothing at the middle of its box, so the
+        // ray sailed past and hit the wall four metres behind, and the driver
+        // was reported "BLOCKED BY GREY_WestWall_SageBand at 3.46 m" while
+        // standing in clear air at 2.55 m. Take points that are actually ON
+        // the object and call it blocked only if most of them are.
+        const pts = [];
+        garment.traverse((o) => {
+          if (!o.isMesh || !o.geometry.attributes.position) return;
+          const pos = o.geometry.attributes.position;
+          const step = Math.max(1, Math.floor(pos.count / 6));
+          for (let i = 0; i < pos.count; i += step) {
+            pts.push(new THREE.Vector3().fromBufferAttribute(pos, i)
+              .applyMatrix4(o.matrixWorld));
+          }
+        });
+        if (!pts.length) pts.push(box.getCenter(new THREE.Vector3()));
+
+        const rc = new THREE.Raycaster();
+        // A Sprite raycast dereferences Raycaster.camera and this scene has
+        // sprites; the shop's batched props sit on layer masks the default
+        // raycaster skips.
         rc.camera = cam;
         rc.layers.enableAll();
-        const hits = rc.intersectObject(scene, true)
-          .filter((x) => x.object.visible && x.object.material);
+        // IGNORE THE HELD-TOOL VIEWMODEL. `HeldWasher`, `Tool_mop` and
+        // `Tool_vacuum` are prewarmed subtrees parented to the CAMERA, with
+        // arm and sleeve meshes left visible even though state.tool is null.
+        // They ride the camera, so they crossed a different number of sample
+        // rays every run: the same driver reported "clear" and "BLOCKED BY
+        // BroomLeftSleeve at 1.40 m" on two consecutive runs of the same
+        // scene. A viewmodel is drawn over everything by design and is in
+        // every frame -- it is not what "something is standing in front of
+        // the shelf" means.
+        const mine = (obj) => {
+          let n = obj;
+          while (n) {
+            if (n === holder || n === cam) return true;
+            n = n.parent;
+          }
+          return false;
+        };
+        let blockedCount = 0;
         let blocker = null;
-        for (const x of hits) {
-          let n = x.object, mine = false;
-          while (n) { if (n === holder) { mine = true; break; } n = n.parent; }
-          if (mine) break;
-          blocker = `${x.object.name || x.object.type} at ${x.distance.toFixed(2)} m`;
-          break;
+        let hitCount = 0;
+        let firstHits = [];
+        for (const pt of pts) {
+          const dir = pt.clone().sub(camPos);
+          const len = dir.length();
+          rc.set(camPos, dir.normalize());
+          rc.near = 0.05;
+          rc.far = len - 0.004;      // stop just short of the point itself
+          const hits = rc.intersectObject(scene, true)
+            .filter((x) => x.object.visible && x.object.material && !mine(x.object));
+          if (hits.length) {
+            blockedCount++;
+            if (!blocker) {
+              blocker = `${hits[0].object.name || hits[0].object.type} at `
+                + `${hits[0].distance.toFixed(2)} m`;
+              firstHits = hits.slice(0, 3).map((x) =>
+                `${x.object.name || x.object.type}@${x.distance.toFixed(2)}`);
+            }
+            hitCount += hits.length;
+          }
         }
+        const blockedFrac = blockedCount / pts.length;
+        // A hanger arm or a shelf edge clipping one sample is not "hidden".
+        if (blockedFrac <= 0.6) blocker = null;
+
         return {
           px: [Math.round(spanX * 800), Math.round(spanY * 450)],
           offAxis: Number.isFinite(offAxis) ? +offAxis.toFixed(2) : 9.9,
           behind,
           blocker,
-          hitCount: hits.length,
-          firstHits: hits.slice(0, 3).map((x) =>
-            `${x.object.name || x.object.type}@${x.distance.toFixed(2)}`),
+          samples: pts.length,
+          blockedPct: Math.round(blockedFrac * 100),
+          hitCount,
+          firstHits,
         };
       });
 
@@ -405,7 +502,8 @@ async (page) => {
         + `${v.px[0]} x ${v.px[1]} px  off-axis ${v.offAxis}  `
         + `${v.blocker ? `BLOCKED BY ${v.blocker}` : 'clear'}`);
       console.log(`  -> ${shot}   MAPS ${withMaps}/${placed.maps.length}   `
-        + `${v.hitCount} hits: ${v.firstHits.join('  ')}`);
+        + `${v.blockedPct}% of ${v.samples} surface samples blocked`
+        + `${v.firstHits.length ? `: ${v.firstHits.join('  ')}` : ''}`);
       for (const m of placed.maps) {
         console.log(`    ${(m.name || '?').padEnd(15)} `
           + `normal ${m.normal ? 'y' : 'N'} ao ${m.ao ? 'y' : 'N'} `

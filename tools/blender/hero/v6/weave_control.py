@@ -11,9 +11,12 @@ synthesiser fail on purpose and watch it.
      interior step: a tile that does not wrap repeats its seam across a whole
      garment as a visible grid, which is the classic way this fails and it is
      invisible in a single-tile preview.
-  3  Every real family must be MEASURABLY not flat, in both u and v -- a
+  3  Every real family must be MEASURABLY not flat in both u and v -- a
      one-directional map is corduroy, which one earlier round shipped by
-     summing two waves instead of multiplying them.
+     summing two waves instead of multiplying them -- UNLESS it declares
+     itself anisotropic, in which case the direction it claims must dominate
+     four to one. A drawn shaft is one-directional on purpose; that is why its
+     highlight is a line and not a spot.
 
 Then it writes each family's height, normal and occlusion out as PNG so they
 can be LOOKED AT, plus a nine-tile block per family, which is the only frame in
@@ -75,10 +78,23 @@ def structure_control(family, rough=0.8):
     sy = float(nrm[..., 1].std())
     ao = float(orm[..., 0].min())
     rg = float(orm[..., 1].max() - orm[..., 1].min())
-    ok = sx > 0.008 and sy > 0.008 and ao < 0.92 and rg > 0.02
+    # A family that DECLARES itself one-directional is held to that claim --
+    # the strong axis must beat the weak one four to one -- instead of to the
+    # two-directional demand, which is right for a knit and wrong for a drawn
+    # shaft. Everything else must still have structure both ways, because a
+    # knit that came out one-directional is the corduroy fault.
+    aniso = W.FAMILY[family].get("aniso")
+    if aniso:
+        strong, weak = (sx, sy) if aniso == "u" else (sy, sx)
+        ok = strong > 0.008 and weak > 0.001 and strong > 4.0 * weak
+        note = "  %s-dominant %.1f:1" % (aniso, strong / max(weak, 1e-6))
+    else:
+        ok = sx > 0.008 and sy > 0.008
+        note = ""
+    ok = ok and ao < 0.92 and rg > 0.02
     print("  %-5s %-7s normal sd u=%.3f v=%.3f   occlusion floor %.2f   "
-          "roughness spread %.3f" % ("ok" if ok else "FAIL", family,
-                                     sx, sy, ao, rg))
+          "roughness spread %.3f%s" % ("ok" if ok else "FAIL", family,
+                                       sx, sy, ao, rg, note))
     return ok
 
 
@@ -124,7 +140,7 @@ def main():
 
     print()
     print("=" * 74)
-    print("FABRIC TILE CONTROL")
+    print("SURFACE TILE CONTROL")
     print("=" * 74)
     ok = [flat_control()]
     print()
@@ -143,8 +159,8 @@ def main():
         raise SystemExit("CONTROL FAILED: %d of %d checks"
                          % (sum(1 for x in ok if not x), len(ok)))
     print("control passed: %d of %d. A flat height gives a flat map, every "
-          "tile wraps, and every family has structure in both directions."
-          % (len(ok), len(ok)))
+          "tile wraps, and every family has the structure it claims -- both "
+          "directions, or the one direction it declares." % (len(ok), len(ok)))
 
 
 if __name__ == "__main__":

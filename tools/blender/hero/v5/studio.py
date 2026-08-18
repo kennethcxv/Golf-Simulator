@@ -416,7 +416,26 @@ def matte(name, colour, rough=0.86, sheen=0.0):
     b.inputs["Roughness"].default_value = rough
     if sheen and "Sheen Weight" in b.inputs:
         _sheen(b, sheen, 0.45)
+    _hardgood_surface(m, name, rough, 0.0)
     return m
+
+
+def _hardgood_surface(m, name, rough, metal):
+    """The counter's worktop, kick plate and the putter's sight line come
+    through `matte`, and its oak through `wood` -- so the tiled surface has to
+    be reachable from here too, not only from `hard._bsdf`. Same prefix rule,
+    so a polo button and a wooden hanger are untouched."""
+    if not WV.is_hardgood(name):
+        return None
+    fam = WV.family_or_none(name)
+    if fam is None:
+        print("    %-16s NO SURFACE FAMILY -- shipping flat" % name)
+        return None
+    rep = WV.repeat_for(fam, 0)
+    WV.wire(m, fam, rough, rep, metal=metal)
+    print("    %-16s %-7s repeat %6.2f  rough %.3f  metal %.1f"
+          % (name, fam, rep, rough, metal))
+    return fam
 
 
 def fabric(name, colour, rough=0.83, weave=0.0016, sheen=0.10, scale_mm=520.0,
@@ -495,6 +514,10 @@ def wood(name, colour=(0.365, 0.242, 0.132), rough=0.42, span_mm=440.0):
     bump.inputs["Distance"].default_value = 0.0008
     nt.links.new(n.outputs["Fac"], bump.inputs["Height"])
     nt.links.new(bump.outputs["Normal"], b.inputs["Normal"])
+    # ...and a Bump node exports as NOTHING, which is the fault this whole
+    # pass exists for. A hardgood's wood gets the real tiled map instead; the
+    # hanger keeps the bump, because it is a finding and never asserted.
+    _hardgood_surface(m, name, rough, 0.0)
     return m
 
 

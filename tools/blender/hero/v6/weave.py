@@ -41,6 +41,7 @@ writer wants for one shared texture -- verified by probe_gltf_maps.py:
 
 import math
 import os
+import re
 
 import bpy
 import numpy as np
@@ -56,6 +57,7 @@ PX = 256
 # actually encodes. A real pique cell is about 0.35 mm proud on a 1.6 mm cell,
 # so 0.22. Twill is much flatter; terry loops are much rounder.
 FAMILY = {
+    # cloth
     "pique":  dict(slope=0.22, cell_mm=1.6, seed=11),
     "jersey": dict(slope=0.17, cell_mm=1.3, seed=22),
     "fleece": dict(slope=0.34, cell_mm=2.5, seed=33),
@@ -63,15 +65,77 @@ FAMILY = {
     "rib":    dict(slope=0.30, cell_mm=3.0, seed=55),
     "terry":  dict(slope=0.42, cell_mm=1.8, seed=66),
     "cord":   dict(slope=0.35, cell_mm=2.0, seed=77),
+    # HARDGOODS. `span_mm` is the typical size of the part the surface sits
+    # on, used to pick the repeat where there is no authored band count -- a
+    # shaft is a metre long and a ferrule is twenty millimetres, and one
+    # default for "metal" would put the same grain on both at wildly
+    # different scales.
+    "grip":    dict(slope=0.30, cell_mm=4.5, seed=101, span_mm=270.0),
+    # Orange peel at 0.05 over a 3 mm cell measured a normal sd of 0.006 --
+    # below the floor the control calls "measurably not flat", which means
+    # two 256 images that cost bytes and change no pixel. Real peel is
+    # finer AND deeper than that, and on a gloss surface the visible
+    # effect is a wobbling highlight rather than felt relief.
+    "paint":   dict(slope=0.13, cell_mm=1.5, seed=112, px=128, span_mm=120.0),
+    "cast":    dict(slope=0.14, cell_mm=0.5, seed=123, px=128, span_mm=110.0),
+    "milled":  dict(slope=0.20, cell_mm=0.9, seed=134, span_mm=95.0),
+    # `aniso` DECLARES a one-directional surface. A drawn shaft and a
+    # rotary-brushed plate are one-directional on purpose -- that is why
+    # their highlight is a line -- so the control must require the
+    # direction they claim rather than require structure both ways, which
+    # is the right demand of a knit and the wrong one of a shaft.
+    "steel":   dict(slope=0.07, cell_mm=1.2, seed=145, px=128, span_mm=1100.0,
+                    aniso="u"),
+    "ferrule": dict(slope=0.04, cell_mm=1.5, seed=156, px=128, span_mm=26.0),
+    "oak":     dict(slope=0.12, cell_mm=9.0, seed=167, span_mm=900.0),
+    "solid":   dict(slope=0.06, cell_mm=2.2, seed=178, px=128, span_mm=1800.0),
+    "brass":   dict(slope=0.06, cell_mm=0.8, seed=189, px=128, span_mm=200.0,
+                    aniso="v"),
 }
 
 # material name fragment -> family. Checked longest-first so "FFleece" and
 # "Fleece" cannot race. Inference is PRINTED at build time, not silent.
 INFER = [
+    # cloth
     ("pique", "pique"), ("jersey", "jersey"), ("fleece", "fleece"),
     ("terry", "terry"), ("twill", "twill"), ("cord", "cord"),
     ("thread", "cord"), ("under", "jersey"), ("rib", "rib"), ("trim", "rib"),
+    # hardgoods -- longest and most specific first, because "face" appears in
+    # both a driver face and a putter face and "insert" is also a face
+    ("grip", "grip"), ("crown", "paint"), ("sight", "paint"), ("kick", "paint"),
+    ("insert", "milled"), ("face", "milled"),
+    ("ferrule", "ferrule"),
+    ("shaft", "steel"),
+    ("brass", "brass"), ("oak", "oak"),
+    ("countertop", "solid"),
+    ("sole", "cast"), ("body", "cast"), ("cavity", "cast"),
+    ("weight", "cast"), ("hosel", "cast"), ("neck", "cast"),
 ]
+
+
+# THE SAME RULE assert_maps.mjs uses, and deliberately the same words. A
+# hardgood surface is matched on the asset's own prefix, not on "metal" or
+# "wood", because those appear on garment findings -- a chrome eyelet, a wooden
+# hanger -- that are right to ship bare. If the builder and the checker
+# disagreed about which materials must carry maps, one of them would be
+# certifying the other's blind spot.
+HARDGOOD = re.compile(r"^(driver|iron|putter|counter)", re.I)
+
+
+def is_hardgood(name):
+    return bool(HARDGOOD.match(name or ""))
+
+
+def family_or_none(name):
+    """Like `family_of` but silent, for a factory that also serves surfaces
+    nobody has authored a family for yet. The build PRINTS which way it went
+    and `assert_maps.mjs` is the gate -- a hardgood surface that ships flat
+    fails the file check, so this cannot hide."""
+    n = (name or "").lower()
+    for frag, fam in INFER:
+        if frag in n:
+            return fam
+    return None
 
 _CACHE = {}
 
@@ -144,6 +208,21 @@ def _blur(h, sigma_px):
     fu = np.fft.rfftfreq(px)[None, :]
     g = np.exp(-2.0 * (math.pi ** 2) * (sigma_px ** 2) * (fu ** 2 + fv ** 2))
     return np.fft.irfft2(np.fft.rfft2(h) * g, s=(px, px))
+
+
+def _blur1d(h, sigma_px, axis):
+    """Gaussian blur along ONE axis, periodic, in the Fourier domain.
+
+    Smearing noise with a handful of two-tap rolls -- the first cut -- moves it
+    about six texels out of 256, which is not a direction, and the shaft and
+    the brass both came out isotropic speckle. A drawn shaft's whole character
+    is that its highlight is a LINE, so the anisotropy has to be real.
+    """
+    px = h.shape[0]
+    f = np.fft.fftfreq(px)
+    g = np.exp(-2.0 * (math.pi ** 2) * (sigma_px ** 2) * (f ** 2))
+    g = g[:, None] if axis == 0 else g[None, :]
+    return np.real(np.fft.ifft2(np.fft.fft2(h) * (g if axis == 0 else g)))
 
 
 def _unit(h):
@@ -246,9 +325,97 @@ def _h_cord(px, f, seed):
     return 0.90 * ridge + 0.10 * _fractal(px, f * 3, 2, seed)
 
 
+# ---------------------------------------------------------------------------
+# hardgood surfaces. Same rule as the cloth above: describe how the surface was
+# MADE, not something that resembles it.
+
+
+def _h_grip(px, f, seed):
+    """A golf grip is MOULDED, not woven: a lozenge pattern lifted out of the
+    tool, wider than it is tall because the mould's diamond is stretched along
+    the shaft. Plus the rubber's own coarse grain, which is most of why a grip
+    never catches a highlight."""
+    u, v = _uv(px)
+    a = _tri(f * (u + v * 0.5))
+    b = _tri(f * (u - v * 0.5))
+    cell = (a * b) ** 0.5
+    return 0.72 * cell + 0.28 * _fractal(px, f * 5, 3, seed)
+
+
+def _h_paint(px, f, seed):
+    """ORANGE PEEL. Gloss paint over a composite crown is not flat -- it is a
+    very shallow, very smooth undulation left by the spray, and that is the
+    whole texture. Anything sharper would read as damage."""
+    return _unit(_fractal(px, max(2, f // 2), 2, seed))
+
+
+def _h_cast(px, f, seed):
+    """Bead-blasted cast metal: isotropic pitting, thousands of small round
+    craters from the media. Raised to a power so the field is mostly flat with
+    distinct pits rather than uniformly lumpy."""
+    n = _fractal(px, f * 2, 3, seed)
+    return _unit(1.0 - (1.0 - n) ** 2.2)
+
+
+def _h_milled(px, f, seed):
+    """A milled face is a TOOL PATH. The cutter leaves parallel score lines at
+    its own pitch, and across them the scallop between passes -- so the
+    dominant term is one-directional and there is a finer chatter at right
+    angles to it. This is the surface a putter is sold on."""
+    u, v = _uv(px)
+    score = _tri(f * v) ** 0.65
+    chatter = 0.5 + 0.5 * np.cos(2.0 * math.pi * u * f * 3.0)
+    return 0.80 * score + 0.13 * chatter + 0.07 * _fractal(px, f * 4, 2, seed)
+
+
+def _h_steel(px, f, seed):
+    """A drawn shaft: very fine longitudinal streaks from the die, and nothing
+    across them. Noise stretched hard along one axis -- an anisotropic surface
+    is the reason a shaft's highlight is a line and not a spot."""
+    n = _fractal(px, f * 6, 3, seed)
+    return _unit(_blur1d(n, px / 14.0, 0))
+
+
+def _h_ferrule(px, f, seed):
+    """Gloss moulded plastic: almost nothing, a trace of mould grain. Present
+    so the ferrule does not read as a perfect mirror beside a real surface."""
+    return _unit(_fractal(px, f * 3, 2, seed))
+
+
+def _h_oak(px, f, seed):
+    """Growth rings. Long bands running one way, their spacing uneven, the
+    whole set wandering slowly sideways -- which is what makes wood read as
+    wood rather than as stripes -- plus open pores as short dark flecks."""
+    u, v = _uv(px)
+    wander = _fractal(px, 2, 2, seed) - 0.5
+    ring = _tri(f * (u + 0.35 * wander)) ** 0.75
+    pores = _fractal(px, f * 8, 2, seed + 9)
+    pores = np.clip((pores - 0.62) * 4.0, 0.0, 1.0)
+    return _unit(0.82 * ring - 0.18 * pores)
+
+
+def _h_solid(px, f, seed):
+    """A solid-surface worktop: hard aggregate chips suspended in a matrix.
+    Small, hard-edged, evenly scattered, and barely proud -- you see them as
+    speckle long before you feel them."""
+    chips = _fractal(px, f * 4, 2, seed)
+    return _unit(np.clip((chips - 0.55) * 3.2, 0.0, 1.0) * 0.7
+                 + 0.3 * _fractal(px, f * 2, 2, seed + 5))
+
+
+def _h_brass(px, f, seed):
+    """Rotary-brushed brass: finer scratches than a drawn shaft and running the
+    other way, because the wheel crosses the part rather than following it."""
+    n = _fractal(px, f * 8, 3, seed)
+    return _unit(_blur1d(n, px / 22.0, 1))
+
+
 HEIGHT = {
     "pique": _h_pique, "jersey": _h_jersey, "fleece": _h_fleece,
     "twill": _h_twill, "rib": _h_rib, "terry": _h_terry, "cord": _h_cord,
+    "grip": _h_grip, "paint": _h_paint, "cast": _h_cast, "milled": _h_milled,
+    "steel": _h_steel, "ferrule": _h_ferrule, "oak": _h_oak,
+    "solid": _h_solid, "brass": _h_brass,
 }
 
 
@@ -256,8 +423,14 @@ HEIGHT = {
 # height -> the three maps
 
 
-def maps_for(family, rough, px=PX, cells=CELLS):
+def maps_for(family, rough, metal=0.0, px=None, cells=CELLS):
     spec = FAMILY[family]
+    # RESOLUTION PER FAMILY. A pique cell, a grip lozenge, a tool path and a
+    # growth ring all have edges worth 256; bead blasting, orange peel, mould
+    # grain and a drawn streak are band-limited noise and 128 holds every bit
+    # of them. The four hardgoods carry 11 to 15 images each, so this is the
+    # difference between a 1.3 MB club and a manageable one.
+    px = px or spec.get("px", PX)
     h = _unit(HEIGHT[family](px, cells, spec["seed"]))
 
     # NORMAL. Central differences in CELL units: a normal map records slope,
@@ -290,10 +463,15 @@ def maps_for(family, rough, px=PX, cells=CELLS):
     # ROUGHNESS. Rougher in the cavity where loose fibre catches, smoother on
     # the yarn crown that has been pressed, plus a grain finer than the cell so
     # the specular is not one sheet.
+    # PROPORTIONAL, not additive. The additive form was fine for cloth, which
+    # is all near 0.85, but a gloss crown is 0.11 and adding +/-0.09 to that
+    # then clipping at 0.12 turned every painted surface into the same flat
+    # number. Scaling instead keeps a tight gloss tight and a dull knit dull.
     grain = _fractal(px, cells * 6, 2, spec["seed"] + 3) - 0.5
-    rg = np.clip(rough + 0.085 * cav - 0.045 * h + 0.035 * grain, 0.12, 1.0)
+    rg = np.clip(rough * (1.0 + 0.30 * cav - 0.16 * h + 0.12 * grain),
+                 0.02, 1.0)
 
-    orm = np.stack([ao, rg, np.zeros_like(h)], axis=-1)
+    orm = np.stack([ao, rg, np.full_like(h, float(metal))], axis=-1)
     return h, nrm, orm
 
 
@@ -324,7 +502,7 @@ def _image(name, rgb):
     return img
 
 
-def atlas(family, rough):
+def atlas(family, rough, metal=0.0):
     """The pair of images for one fabric, shared by every material asking for
     it within one file.
 
@@ -335,13 +513,13 @@ def atlas(family, rough):
     six of ten reported success. What is expensive is the synthesis; the image
     datablock is cheap and belongs to whichever scene is current.
     """
-    key = (family, round(rough, 3))
+    key = (family, round(rough, 3), round(metal, 3))
     if key not in _CACHE:
-        _, nrm, orm = maps_for(family, rough)
+        _, nrm, orm = maps_for(family, rough, metal)
         _CACHE[key] = (nrm, orm)
     nrm, orm = _CACHE[key]
     nm = "wv_%s_n" % family
-    om = "wv_%s_orm_%03d" % (family, int(rough * 100))
+    om = "wv_%s_orm_%03d_%02d" % (family, int(rough * 100), int(metal * 10))
     have_n = bpy.data.images.get(nm)
     have_o = bpy.data.images.get(om)
     return (have_n if have_n is not None else _image(nm, nrm),
@@ -366,7 +544,7 @@ def gltf_settings_group():
     return grp
 
 
-def repeat_for(family, rib, scale_mm, cells=CELLS):
+def repeat_for(family, rib, scale_mm=None, cells=CELLS):
     """How many times the tile repeats across UV 0..1.
 
     Two sources, and which one applies is not a preference. Where the author
@@ -377,15 +555,19 @@ def repeat_for(family, rib, scale_mm, cells=CELLS):
     """
     if rib and rib > 0:
         return float(rib) / cells
-    span = max(float(scale_mm), 1.0)
-    return span / (cells * FAMILY[family]["cell_mm"])
+    # No authored band count: fall back to the panel's own span, or to the
+    # family's typical part size where the caller has none to give -- which is
+    # every hardgood, because a club's material factory takes a colour and a
+    # roughness and knows nothing about how big the part is.
+    span = float(scale_mm) if scale_mm else FAMILY[family].get("span_mm", 400.0)
+    return max(1.0, span) / (cells * FAMILY[family]["cell_mm"])
 
 
-def wire(mat, family, rough, repeat, strength=1.0):
+def wire(mat, family, rough, repeat, strength=1.0, metal=0.0):
     """Put the tile onto a material and return what was done, for printing."""
     nt = mat.node_tree
     bsdf = next(n for n in nt.nodes if n.type == "BSDF_PRINCIPLED")
-    nrm_img, orm_img = atlas(family, rough)
+    nrm_img, orm_img = atlas(family, rough, metal)
 
     uvn = nt.nodes.new("ShaderNodeUVMap")
     mp = nt.nodes.new("ShaderNodeMapping")
@@ -415,5 +597,5 @@ def wire(mat, family, rough, repeat, strength=1.0):
     gn = nt.nodes.new("ShaderNodeGroup")
     gn.node_tree = gltf_settings_group()
     nt.links.new(sep.outputs["Red"], gn.inputs["Occlusion"])
-    return dict(family=family, repeat=repeat, rough=rough,
+    return dict(family=family, repeat=repeat, rough=rough, metal=metal,
                 images=(nrm_img.name, orm_img.name))

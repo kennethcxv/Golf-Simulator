@@ -207,9 +207,14 @@ def main():
                 ST.unwrap(ob)
         ST.flatten_for_export(objs)
         EX.set_origin(objs, "base")
+        # MACRO OCCLUSION, into the vertices -- the shadow a sole casts
+        # into a cavity back, or a counter top over its own kick recess,
+        # belongs to this object once and cannot live in a tiling map.
+        import vertex_ao as VAO
+        VAO.bake(objs)
         H.bake_gltf_axis(objs)
         H.export_glb(objs, os.path.join(
-            ST.ROOT, "Assets", "models", "hero", "v5", "hard_counter.glb"))
+            ST.ROOT, "Assets", "models", "hero", "v5", "hard_counter.glb"), vertex_colors=True)
 
 
 if __name__ == "__main__":
