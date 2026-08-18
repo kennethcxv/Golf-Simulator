@@ -267,6 +267,12 @@ async (page) => {
         rough: !!m.roughnessMap,
         aoChan: m.aoMap ? (m.aoMap.channel ?? 0) : null,
         hasUv1: !!mesh.geometry.attributes.uv1,
+        // COLOR_0 IS THE BAKED MACRO OCCLUSION and it does nothing unless the
+        // material opts in. The attribute being in the file is not the same as
+        // the shader reading it -- the same gap as normalTexture, one level
+        // down -- so ask the material, not the geometry.
+        vcol: !!m.vertexColors,
+        hasCol0: !!mesh.geometry.attributes.color,
         colour: m.color ? [+m.color.r.toFixed(3), +m.color.g.toFixed(3),
           +m.color.b.toFixed(3)] : null,
       }));
@@ -404,7 +410,9 @@ async (page) => {
         console.log(`    ${(m.name || '?').padEnd(15)} `
           + `normal ${m.normal ? 'y' : 'N'} ao ${m.ao ? 'y' : 'N'} `
           + `rough ${m.rough ? 'y' : 'N'}  aoChannel ${m.aoChan} `
-          + `uv1 ${m.hasUv1 ? 'y' : 'n'}  rgb ${m.colour ? m.colour.join(',') : '-'}`);
+          + `uv1 ${m.hasUv1 ? 'y' : 'n'}  vcol ${m.vcol ? 'y' : 'N'}`
+          + `${m.hasCol0 ? '' : ' (no COLOR_0)'}  `
+          + `rgb ${m.colour ? m.colour.join(',') : '-'}`);
       }
       rows.push({ name, tag, shot, wanted: dist, ...placed, ...v });
     }
@@ -437,6 +445,13 @@ async (page) => {
       const cloth = /pique|jersey|fleece|twill|terry|rib|trim|cord|under|thread/i
         .test(m.name || '');
       if (!cloth) continue;
+      if (m.hasCol0 && !m.vcol) {
+        bad.push(`${r.name}/${m.name}: the mesh carries COLOR_0 and the material `
+          + `is not reading it -- the baked occlusion is doing nothing`);
+      }
+      if (!m.hasCol0) {
+        bad.push(`${r.name}/${m.name}: no COLOR_0 -- no baked macro occlusion`);
+      }
       if (!m.normal) bad.push(`${r.name}/${m.name}: no normalMap in the renderer`);
       if (!m.rough) bad.push(`${r.name}/${m.name}: no roughnessMap in the renderer`);
       if (!m.ao) bad.push(`${r.name}/${m.name}: no aoMap in the renderer`);

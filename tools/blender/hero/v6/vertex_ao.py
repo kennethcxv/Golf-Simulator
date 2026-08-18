@@ -63,7 +63,33 @@ def _frame(nrm):
     return t, b
 
 
-def bake(objs, samples=40, radius=0.16, floor=0.30, power=1.15, bias=0.0006):
+def _smooth(me, vals, rounds=3, w=0.55):
+    """Average each vertex with its neighbours along the mesh edges.
+
+    Forty rays per vertex is a coarse estimate of a hemisphere, and the error
+    is not smooth: on the hoodie it showed up in game as irregular dark
+    smudges across the chest and shoulder, which read as dirt on the garment.
+    More rays would cost linearly; this costs nothing and removes exactly the
+    high-frequency part, which is the part that is noise. A real contact
+    shadow is many vertices wide and survives it.
+    """
+    n = len(vals)
+    ea = np.empty(len(me.edges) * 2, np.int32)
+    me.edges.foreach_get("vertices", ea)
+    a, b = ea[0::2], ea[1::2]
+    deg = np.bincount(a, minlength=n) + np.bincount(b, minlength=n)
+    deg = np.maximum(deg, 1)
+    out = vals
+    for _ in range(rounds):
+        acc = np.zeros(n, np.float64)
+        np.add.at(acc, a, out[b])
+        np.add.at(acc, b, out[a])
+        out = ((1.0 - w) * out + w * (acc / deg)).astype(np.float32)
+    return out
+
+
+def bake(objs, samples=40, radius=0.16, floor=0.30, power=1.15, bias=0.0006,
+         contact=0.022, contact_floor=0.42, smooth=3):
     """Occlusion from EVERY object against EVERY object.
 
     One BVH over the lot, not one per mesh: the hanger has to darken the
@@ -102,7 +128,8 @@ def bake(objs, samples=40, radius=0.16, floor=0.30, power=1.15, bias=0.0006):
             n = (nm @ v.normal).normalized()
             p = (mw @ v.co) + n * bias
             t, b = _frame(n)
-            hit = 0
+            hit = 0.0
+            near = 0.0
             for d in dirs:
                 w = t * d.x + b * d.y + n * d.z
                 loc, _, _, dist = bvh.ray_cast(p, w, radius)
@@ -110,8 +137,22 @@ def bake(objs, samples=40, radius=0.16, floor=0.30, power=1.15, bias=0.0006):
                     # near hits occlude more than far ones -- a ply 2 mm away
                     # is a shadow slot, a wall 150 mm away is not
                     hit += 1.0 - (dist / radius)
-            occ = hit / samples
-            vals[i] = floor + (1.0 - floor) * max(0.0, 1.0 - occ) ** power
+                    if contact > 0.0 and dist < contact:
+                        near += 1.0 - (dist / contact)
+            # TWO RADII OFF ONE RAY. The broad term is ambient shape; the
+            # CONTACT term is the reason this exists. Last session's fold fix
+            # made the plies of a folded stack land flush -- correctly, they
+            # were splaying 19 mm -- and flush plies are millimetres apart, so
+            # a 160 mm ambient radius barely darkens the junction between them
+            # and the stack read in game as one pale cushion. The reference
+            # photograph of a folded stack is mostly the dark lines BETWEEN
+            # plies, and those are a 2 cm effect.
+            broad = floor + (1.0 - floor) * max(0.0, 1.0 - hit / samples) ** power
+            tight = (contact_floor + (1.0 - contact_floor)
+                     * max(0.0, 1.0 - near / samples))
+            vals[i] = max(floor * contact_floor, broad * tight)
+        if smooth:
+            vals = _smooth(me, vals, rounds=smooth)
         buf = np.empty(len(me.vertices) * 4, np.float32)
         buf[0::4] = vals
         buf[1::4] = vals
@@ -168,9 +209,9 @@ def control():
     b = _plane("upper", 0.003)
     r = bake([a, b], samples=24)
     v = r["lower"][1]
-    good = v < 0.55
+    good = v < 0.40
     ok.append(good)
-    print("  %-5s a ply 3 mm under another: mean %.3f, wanted well under 0.55"
+    print("  %-5s a ply 3 mm under another: mean %.3f, wanted well under 0.40"
           % ("ok" if good else "FAIL", v))
     # and the TOP of the stack must stay light, or the whole garment just
     # goes grey and nothing has been gained
@@ -185,7 +226,7 @@ def control():
     bpy.ops.wm.read_factory_settings(use_empty=True)
     a = _plane("lower", 0.0)
     b = _plane("upper", 0.003)
-    r = bake([a, b], samples=24, radius=0.0)
+    r = bake([a, b], samples=24, radius=0.0, contact=0.0, smooth=0)
     v = min(r["lower"][0], r["upper"][0])
     good = v > 0.999
     ok.append(good)

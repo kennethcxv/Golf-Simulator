@@ -100,7 +100,19 @@ def build(draft, hd, neckline, nu=30, nv=34, roll_rows=12, name="hood"):
             # across the crown however many rows the roll got. A hood is widest
             # at the head and narrows over it, so the half-width is a profile
             # in v and the seam it feeds narrows with it.
-            wf = 1.0 - 0.52 * PT.smoothstep(v, 0.40, 1.0) ** 1.35
+            # AND IT CLOSES ALMOST ALL THE WAY. v6 took the crown to 48% of
+            # the hood's width, which removed the flat facet but left an
+            # inflated tube -- and in game that tube's INTERIOR faced the
+            # player, so a navy fleece read as pale plastic. Switching the
+            # normal map off in the renderer removed the banding and not the
+            # paleness; it was never the material.
+            #
+            # Designs/ProShop/Apparel/v6/hoodie/flat-navy.jpg is the shape: a
+            # hood off a head is not a dome or a box, it is a flat WEDGE, the
+            # two side panels pressed together to a soft point. Closing to 12%
+            # leaves a fold rather than a hole, and there is no interior left
+            # to see into.
+            wf = 1.0 - 0.88 * PT.smoothstep(v, 0.12, 0.92) ** 1.15
             anchor.x *= wf
             up = p.z - bz
             return anchor + Vector((0.0, p.y - by + hd.lean * max(0.0, up),

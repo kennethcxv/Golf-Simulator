@@ -75,8 +75,23 @@ def build():
         x, z = blk.neckline(blk.back_drop)(min(1.0, max(0.0, t)))
         return Vector((abs(x), DEPTH * 0.5, z))
 
-    hd = HD.Hood(rise=0.196, forward=0.082, back=0.140, half=0.094,
-                 crown_y=0.036, brow=0.138, nape_drop=0.004, lean=0.34)
+    # A HOOD ON A HANGER IS A MOUND THAT HAS FALLEN BACKWARDS, and this one
+    # was a chimney. Measured off the in-game frame against
+    # Designs/ProShop/Apparel/v6/hoodie/shop-display.jpg, where the hood is
+    # about 28% of the shoulder-to-hem height and its mass sits BEHIND the
+    # shoulders with the face opening collapsed nearly shut and pointing up.
+    #
+    # rise  196 -> 152 mm   45% of the body height in the frame, 30% here
+    # brow  138 ->  88 mm   the opening was a mouth aimed at the player, and
+    #                       an open tube seen from inside is almost all
+    #                       grazing angle, which is why a navy fleece read as
+    #                       pale plastic. Switching the normal map off in the
+    #                       renderer removed the banding and not the paleness,
+    #                       so it was never the material.
+    # fwd    82 ->  46 mm   the face edge no longer reaches in front of the neck
+    # lean  0.34 -> 0.62    the crown falls 94 mm behind instead of 67
+    hd = HD.Hood(rise=0.152, forward=0.046, back=0.150, half=0.094,
+                 crown_y=0.036, brow=0.088, nape_drop=0.004, lean=0.62)
     HD.build(draft, hd, neckline, nu=34, nv=36, roll_rows=12,
              name="hoodie_hood")
 
