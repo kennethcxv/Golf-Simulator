@@ -1,6 +1,6 @@
 # v6 reference — real photographs, on disk, in the repository
 
-36 photographs from Wikimedia Commons, four to six per garment. Every file has
+38 photographs from Wikimedia Commons, four to six per garment. Every file has
 an entry in its folder's `sources.json` giving the Commons page, the licence,
 the author, and a `shows` line saying what the photograph is FOR.
 
@@ -45,7 +45,7 @@ triage sheet; the frames themselves are in `qa/hero/v6/ref-triage/`.
 | `tee/` | 4 | flat front and back, folded stacks under a hung rail |
 | `trousers/` | 6 | folded from above, a waistband and belt loops, a welt pocket, a worn crease |
 | `towel/` | 6 | waffle macro, terry macro, a low-angle stack of five folded towels |
-| `rail/` | 3 | hung garments from a low angle: hooks, shoulders, spacing |
+| `rail/` | 5 | a hung shirt in three-quarter, an empty rail from the side, hung garments from a low angle |
 
 These are other people's photographs under CC BY / CC BY-SA / CC0 / public
 domain. The attribution is in `sources.json` and travels with the files.
