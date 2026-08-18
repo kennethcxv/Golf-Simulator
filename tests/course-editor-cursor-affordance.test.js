@@ -54,15 +54,48 @@ test('the cursor is drawn from entry and from every tool change, not only from a
 test('a pointer that is not over the course anchors the indicator instead of clearing it', () => {
   const hover = sourceBetween(editorSource, '  function updateHoverVisuals(', '  function onPointerUp(e)');
 
-  assert.match(hover, /const g = hit && hit\.inBounds \? hit : rigTargetGround\(\)/,
-    'off the course, the indicator falls back to the rig target');
+  assert.match(hover, /const usable = hit && hit\.inBounds && \(gesturing \|\| !hit\.overChrome\)/,
+    'off the course — outside the grid OR behind the editor chrome — the indicator anchors');
+  assert.match(hover, /const g = usable \? hit : rigTargetGround\(\)/);
   assert.doesNotMatch(hover, /if \(!g \|\| !g\.inBounds\) \{\s*\n\s*sc\.setEditorBrush\(null\)/,
     'the old unconditional clear on an out-of-bounds hit is what left the course empty');
+
+  // Mid-gesture the pointer keeps the brush wherever it goes: a sculpt stroke
+  // dragged off the canvas must not teleport the ring to the course centre.
+  assert.match(hover, /const gesturing = !!\(stroke \|\| camDrag \|\| pathDrag \|\| featureDrag \|\| draggingObj\)/);
 
   const anchor = sourceBetween(editorSource, '  function rigTargetGround()', '  function pointerSeed()');
   assert.match(anchor, /clamp\(sc\.rig\.target\.x/,
     'the anchor is clamped into the course so its record comes back inBounds');
   assert.match(anchor, /return g && g\.inBounds \? g : null/);
+});
+
+test('the editor chrome is not the course, even though a ray goes through it', () => {
+  // The rail, the tool panel and the tip box are painted OVER the canvas, so a
+  // ray through them lands on ground the player cannot see. Measured with the
+  // pointer on the size slider: 0% of the ring visible at the small end
+  // (qa/editor-brush/before2.json).
+  const probe = sourceBetween(editorSource, '  function pointerOverCanvas(x, y)', '\n  // THE CURSOR\'S FALLBACK ANCHOR');
+  assert.match(probe, /document\.elementFromPoint/,
+    'only the DOM knows what is actually on top at a pixel');
+  assert.match(probe, /el === canvas \|\| canvas\.contains\(el\)/);
+
+  const ground = sourceBetween(editorSource, '  function groundAtClient(x, y)', '  // THE EDITOR\'S OWN PANELS');
+  assert.match(ground, /g\.overChrome = !pointerOverCanvas\(x, y\)/,
+    'every hit carries whether it is reachable by eye, not just by ray');
+});
+
+test('the sculpting brushes show an area, not two hairlines', () => {
+  const hover = sourceBetween(editorSource, '  function updateHoverVisuals(', '  function onPointerUp(e)');
+  const terrainPaint = hover.slice(hover.indexOf("if (tool === 'terrain' || tool === 'paint')"));
+  assert.match(terrainPaint.slice(0, 700), /fill: true/,
+    'terrain and paint have no ghost object to read — the footprint has to be an area');
+
+  assert.match(sceneSource, /const brushFill = new THREE\.Mesh\(/);
+  assert.match(sceneSource, /brushFill\.visible = !!opts\.fill/,
+    'opt-in, so the select highlight and the object radius stay outlines');
+  assert.match(sceneSource, /brushFill\.visible = false;[\s\S]{0,200}?brushRing\.visible = true/,
+    'and clearing the brush clears the fill with it');
 });
 
 test('every tool state draws something, including the three that used to draw nothing', () => {

@@ -218,3 +218,82 @@ cleared the flag 420 ms into the next one, so the probe scored a second open as
 "the bar was full 923 ms early". Real staleness, caught because the check ran
 twice in one session rather than once. It reports `null` outside the boot
 window now.
+
+---
+
+# Addendum — the terrain and paint brush, and the thing my own check missed
+
+> "TERRAIN AND PAINT SHOW NO CURSOR AT ALL. I click and I have no idea where the
+> edit is landing until after it lands."
+
+He was right, and the check above said otherwise. **The editor's panels are drawn
+over the canvas, and a ray goes straight through them.** So a pointer resting on
+the tool rail, the tool panel or the tip box produces a perfectly valid,
+perfectly in-bounds ground hit — behind the panel, where nothing can be seen.
+
+`qa/editor-cursor/fixed1-B02-Terrain.png` is that frame and I published it as a
+pass: Terrain selected from the rail, the ring at ndc (−0.846, 0.825), which is
+the top-left corner, which is where the rail is. One white sliver escapes past
+the panel edge. The goal-36 driver scored it `present=true onScreen=true` because
+it projected the ring's CENTRE and checked the frustum. **In frustum is not
+visible.**
+
+Terrain and paint feel it worst because the ring is their whole affordance —
+unlike tee or green there is no ghost object to look at — and because adjusting
+the brush size means the pointer is on the panel by definition.
+
+## Measured, with an instrument that can fail
+
+`tools/qa/editor-brush-ring.js` walks 64 samples around the ring's
+circumference, projects each through the live camera, and asks
+`document.elementFromPoint` what is actually on top. A sample counts only when
+the topmost element is the renderer's own canvas.
+
+| step | before | after |
+|---|---|---|
+| size slider dragged small, pointer on the slider | **0% visible** (`ced-row`, `ced-tool-panel`, `ced-seg`) | **100%** |
+| size slider, middle | 30% | 100% |
+| size slider, large | 44% | 100% |
+| pointer parked on the tip box | 42% | 100% |
+| Terrain/Paint selected, mouse never moved | 100% | 100% |
+| pointer out on the fairway | 100% | 100% |
+
+`qa/editor-brush/before2.json` → `after.json`, four failures → zero.
+
+**The first run of this driver passed everything**, and that is worth recording:
+on that boot the ray from the rail happened to leave the course, so the goal-36
+anchor caught it and the ring sat at the rig target. The course is seeded per
+boot. **This bug is intermittent by construction**, which is exactly how it
+survived a driver that only clicked the rail. The fix does not depend on
+geometry any more: chrome is chrome.
+
+## What changed
+
+* `pointerOverCanvas()` — `document.elementFromPoint`, the only thing that knows
+  a panel is on top. Every ground hit now carries `overChrome`.
+* `updateHoverVisuals` treats a hit behind the chrome as off-course and anchors
+  at the rig target — **except mid-gesture**, where the pointer owns the brush
+  wherever it goes, so dragging a sculpt stroke off the canvas cannot teleport
+  the ring to the middle of the course.
+* The sculpting brushes now draw a **fill**, opt-in per call so the select
+  highlight and the object radius stay outlines. Two hairlines describe a
+  boundary; the ground inside them is what the stroke will change.
+* The falloff ring's band went from 3.5% of its radius to 7% — it is drawn at
+  the CORE radius, so on an 8-yard brush the old band was a fraction of a yard.
+
+## Frames
+
+`qa/editor-brush/after-*.png`, viewed:
+
+* `A1-terrain` — Terrain selected, **mouse never moved**: filled disc on the
+  fairway, outer ring at 20 yd, inner ring at the 50% falloff core.
+* `A2-paint` — Paint, same, at its own 16 yd and no falloff ring (paint has no
+  falloff), so the two tools read differently and correctly.
+* `C-size-small` / `C-size-large` — 8 yd and 60 yd, dragged live with the real
+  mouse on the slider, the panel reading `8 yd` and `60 yd` to match.
+* `E1-parked-on-panel` — pointer sitting on the tip box, ring full size and
+  fully on the course.
+
+And the clip, `qa/clips/editor-brush`, 454 frames at 6 fps: the ring tracks the
+cursor across the fairway, onto the panel and back, and through a held sculpt
+stroke. **0 of 2,347 sampled frames had no ring**, with 93 position changes.

@@ -9660,9 +9660,11 @@ export function makeCourseScene(canvas, state) {
   scene.add(brushRing);
 
   // The outer ring is the full brush footprint; this quieter inner ring marks
-  // the flat-strength core before the configured falloff begins.
+  // the flat-strength core before the configured falloff begins. Widened from a
+  // 3.5% band: it is drawn at the CORE radius, so on a small brush the old band
+  // was a fraction of a yard and read as nothing at all.
   const brushFalloffRing = new THREE.Mesh(
-    new THREE.RingGeometry(0.965, 1, 48),
+    new THREE.RingGeometry(0.93, 1, 48),
     new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.48, depthTest: false, side: THREE.DoubleSide }),
   );
   brushFalloffRing.rotation.x = -Math.PI / 2;
@@ -9670,6 +9672,22 @@ export function makeCourseScene(canvas, state) {
   brushFalloffRing.renderOrder = 998;
   brushFalloffRing.visible = false;
   scene.add(brushFalloffRing);
+
+  // "So I can see how much I am about to affect — not just a point." Two
+  // hairlines describe a boundary; the ground inside them is what the stroke
+  // will actually change, and at small radii the rings alone are a few hundred
+  // pixels of thin line on busy grass. Opt-in per call: only the sculpting
+  // brushes ask for it, so the select highlight and the object radius stay the
+  // outlines they were.
+  const brushFill = new THREE.Mesh(
+    new THREE.CircleGeometry(1, 48),
+    new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.13, depthTest: false, side: THREE.DoubleSide }),
+  );
+  brushFill.rotation.x = -Math.PI / 2;
+  brushFill.name = 'editor-brush-fill';
+  brushFill.renderOrder = 996;
+  brushFill.visible = false;
+  scene.add(brushFill);
 
   function setBrush(cell, radiusCells, kind) {
     if (!cell || !kind) {
@@ -9692,6 +9710,7 @@ export function makeCourseScene(canvas, state) {
     if (!opts) {
       brushRing.visible = false;
       brushFalloffRing.visible = false;
+      brushFill.visible = false;
       return;
     }
     brushRing.visible = true;
@@ -9709,6 +9728,13 @@ export function makeCourseScene(canvas, state) {
       brushFalloffRing.position.y += 0.01;
       brushFalloffRing.scale.setScalar(coreRadiusYd);
       brushFalloffRing.material.color.copy(brushRing.material.color);
+    }
+    brushFill.visible = !!opts.fill;
+    if (brushFill.visible) {
+      brushFill.position.copy(brushRing.position);
+      brushFill.position.y -= 0.02; // under both rings, so neither is dimmed
+      brushFill.scale.setScalar(radiusYd);
+      brushFill.material.color.copy(brushRing.material.color);
     }
   }
 

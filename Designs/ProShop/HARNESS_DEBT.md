@@ -826,3 +826,27 @@ placement ghost are all direct children of `scene` with default layers, so the
 flag is authoritative for submission. The driver still projects the world point
 through the live camera and fails on off-screen, and the frames were viewed.
 State that reasoning when using an own flag; do not just use one.
+
+**IN FRUSTUM IS NOT VISIBLE, AND I SHIPPED A PASS THAT PROVED IT.** The goal-36
+cursor driver projected the indicator's centre through the live camera and
+checked `|ndc| <= 1`. `qa/editor-cursor/fixed1-B02-Terrain.png` passed that test
+at ndc (−0.846, 0.825) — the top-left corner, which is where the editor's tool
+rail is drawn. The ring was BEHIND AN OPAQUE PANEL with one sliver escaping past
+its edge, and the driver called it `present=true onScreen=true`. The editor's
+chrome is painted over the canvas and a ray goes straight through it, so a
+pointer on the rail yields a valid, in-bounds, invisible hit.
+
+The fix for the instrument is `document.elementFromPoint` — the only thing that
+knows what is actually on top at a pixel — sampled around the indicator's
+CIRCUMFERENCE, not just at its centre, since a large brush can be half visible.
+`tools/qa/editor-brush-ring.js` reports a visible fraction and names the blocking
+element (`ced-row`, `ced-tool-panel`, `ced-tip`), which turns "it looks wrong"
+into "0% visible, blocked by ced-row x31".
+
+**AND THE FIRST RUN OF THAT DRIVER PASSED EVERYTHING.** On that boot the ray
+from the rail happened to leave the course, so the rig-target anchor caught it.
+The course is seeded per boot, so whether the hidden hit is in bounds varies run
+to run: the defect is intermittent BY CONSTRUCTION. A single green run of a
+geometry-dependent check is not evidence — place the pointer deliberately
+(over the size slider, over the tip box) rather than hoping the interesting case
+turns up.

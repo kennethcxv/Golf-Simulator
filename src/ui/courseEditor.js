@@ -2776,7 +2776,28 @@ export function makeCourseEditor(app, hooks) {
 
   function groundAtClient(x, y) {
     const sc = scene();
-    return sc && Number.isFinite(x) && Number.isFinite(y) ? sc.raycastGround(x, y) : null;
+    if (!sc || !Number.isFinite(x) || !Number.isFinite(y)) return null;
+    const g = sc.raycastGround(x, y);
+    if (g) g.overChrome = !pointerOverCanvas(x, y);
+    return g;
+  }
+
+  // THE EDITOR'S OWN PANELS ARE DRAWN OVER THE CANVAS, AND A RAY GOES STRAIGHT
+  // THROUGH THEM. So a pointer resting on the tool rail, the tool panel or the
+  // tip box still produces a perfectly valid, perfectly in-bounds ground hit —
+  // behind the panel, where nothing can be seen. Terrain and paint feel this
+  // worst because the ring is their ONLY indicator: there is no ghost object to
+  // look at, and adjusting the brush size means the pointer is on the panel by
+  // definition. Measured with the pointer on the size slider: the ring was 0%
+  // visible at the small end and 30% at the middle (qa/editor-brush/before2.json).
+  //
+  // Whether the hidden hit is in bounds at all depends on the course seed and
+  // the camera, which is why this reads as intermittent rather than broken.
+  function pointerOverCanvas(x, y) {
+    const canvas = scene()?.renderer?.domElement;
+    if (!canvas || typeof document === 'undefined' || !document.elementFromPoint) return true;
+    const el = document.elementFromPoint(Math.round(x), Math.round(y));
+    return !!el && (el === canvas || canvas.contains(el));
   }
 
   // THE CURSOR'S FALLBACK ANCHOR. When the pointer is off the course — parked
@@ -3399,11 +3420,18 @@ export function makeCourseEditor(app, hooks) {
       return;
     }
     // THE INDICATOR IS NEVER ABSENT WHILE THE EDITOR IS OPEN. Off the course —
-    // no hit at all, or a hit outside the grid — used to clear all three
+    // no hit at all, a hit outside the grid, or a hit the player cannot SEE
+    // because it is behind the editor's own panels — used to clear all three
     // overlays, which is the same picture as "before you have moved the mouse":
     // nothing telling you where you are about to edit. It anchors at the rig
     // target instead.
-    const g = hit && hit.inBounds ? hit : rigTargetGround();
+    //
+    // Mid-gesture the pointer owns the brush whatever it is over: dragging a
+    // sculpt stroke off the edge of the canvas must not teleport the ring to
+    // the middle of the course.
+    const gesturing = !!(stroke || camDrag || pathDrag || featureDrag || draggingObj);
+    const usable = hit && hit.inBounds && (gesturing || !hit.overChrome);
+    const g = usable ? hit : rigTargetGround();
     if (!g) {
       sc.setEditorBrush(null);
       sc.setPlacementGhost(null);
@@ -3419,6 +3447,9 @@ export function makeCourseEditor(app, hooks) {
         radiusYd: tool === 'terrain' ? opt.terrain.radiusYd : opt.paint.radiusYd,
         falloff: tool === 'terrain' ? opt.terrain.falloff : null,
         color: 0xffffff,
+        // the two sculpting tools have no ghost object to read; the footprint
+        // has to be an AREA, not two hairlines
+        fill: true,
       });
     } else if (tool === 'tee') {
       sc.setEditorBrush(null);
