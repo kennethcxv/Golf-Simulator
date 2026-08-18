@@ -13329,6 +13329,23 @@ export function makeCourseScene(canvas, state) {
     flyoverHole,
     clearCourseCameraPreset,
     pickObject,
+    // GOAL 35 — WHERE THE PONDS ARE, so a caller can decide whether its edit
+    // could possibly have changed one. rebuildWater() DISPOSES every water
+    // material, and a disposed material is the one thing that actually releases
+    // a GL program (three's releaseProgram is reachable only from
+    // deallocateMaterial), so a pond rebuilt for an edit nowhere near it costs a
+    // shader recompile on the player's frame: 3 arrivals, 4 departures and a
+    // 638 ms frame leaving the editor after placing a tee, 5,383 ms cold
+    // (qa/goal34/warm5.json, cold35.json, row 09).
+    waterFootprints: () => waterMeshes.map((mesh) => {
+      const geometry = mesh.geometry;
+      if (geometry && !geometry.boundingSphere) geometry.computeBoundingSphere();
+      return {
+        x: mesh.position.x,
+        z: mesh.position.z,
+        r: geometry?.boundingSphere?.radius ?? 0,
+      };
+    }),
     worldX,
     worldZ,
     vectorWorldX,

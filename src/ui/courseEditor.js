@@ -2464,7 +2464,50 @@ export function makeCourseEditor(app, hooks) {
     const relief = hasKind((kind) => kind === 'vec' || kind === 'stamp');
     const terrain = terrainTiles.length > 0;
     const paths = hasKind((kind) => kind === 'path' || terrainKinds.has(kind));
-    const water = hasKind((kind) => terrainKinds.has(kind));
+    // GOAL 35 — ONLY REBUILD THE WATER IF THIS EDIT COULD HAVE TOUCHED WATER.
+    //
+    // rebuildWater() disposes every pond's material, and material disposal is
+    // the one thing that genuinely releases a GL program, so the next frame
+    // recompiles the Water shader: leaving the editor after placing a tee cost
+    // 3 arrivals, 4 departures and a 638 ms frame — 5,383 ms on a cold profile
+    // (qa/goal34/warm5.json, cold35.json, row 09) — for ponds the tee was
+    // nowhere near. Two ways an edit can matter: its footprint holds water now
+    // (a pond's level answers its own shore, so a terrain change beside one
+    // moves it — the tiles already carry RELIEF_PAD_CELLS of margin), or it
+    // overlaps a pond that EXISTS but no longer has water zones under it, which
+    // is a vec/stamp rollback that removed one and still needs the mesh gone.
+    const couldChangeWater = () => {
+      const sc = scene();
+      const course = state().course;
+      // One cell beyond the tile, because a pond's level is read from the cells
+      // BESIDE its water, and an edit to a shore cell sitting on a tile seam
+      // would otherwise look like it missed the pond entirely.
+      for (const rect of terrainTiles) {
+        const y0 = Math.max(0, rect.y0 - 1);
+        const y1 = Math.min(course.h - 1, rect.y1 + 1);
+        const x0 = Math.max(0, rect.x0 - 1);
+        const x1 = Math.min(course.w - 1, rect.x1 + 1);
+        for (let y = y0; y <= y1; y++) {
+          for (let x = x0; x <= x1; x++) {
+            if (course.zones[y * course.w + x] === ZONE.WATER) return true;
+          }
+        }
+      }
+      const ponds = sc?.waterFootprints ? sc.waterFootprints() : null;
+      if (!ponds) return true; // cannot tell — rebuild, which is the old behaviour
+      for (const rect of terrainTiles) {
+        const wx0 = Math.min(sc.worldX(rect.x0), sc.worldX(rect.x1 + 1));
+        const wx1 = Math.max(sc.worldX(rect.x0), sc.worldX(rect.x1 + 1));
+        const wz0 = Math.min(sc.worldZ(rect.y0), sc.worldZ(rect.y1 + 1));
+        const wz1 = Math.max(sc.worldZ(rect.y0), sc.worldZ(rect.y1 + 1));
+        for (const pond of ponds) {
+          if (pond.x + pond.r >= wx0 && pond.x - pond.r <= wx1
+            && pond.z + pond.r >= wz0 && pond.z - pond.r <= wz1) return true;
+        }
+      }
+      return false;
+    };
+    const water = hasKind((kind) => terrainKinds.has(kind)) && couldChangeWater();
     const objects = hasKind((kind) => kind.startsWith('object-'));
     const holes = hasKind((kind) => kind === 'hole' || kind.startsWith('hole-') || terrainKinds.has(kind));
     const flow = hasKind((kind) => kind === 'hole' || kind === 'hole-add' || kind === 'hole-delete'

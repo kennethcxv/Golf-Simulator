@@ -154,12 +154,35 @@ Five rows survive, and all five are downstream of the placement:
 * **08b place a tee — 1 arrival, 129 ms.** Placing builds new course geometry and
   its shadow pass compiles a `depth` variant for it. Warming that means editing
   the course under the veil, which a boot warm must not do.
-* **09 exit — 3 arrivals, 4 departures, 641 ms.** Leaving after an edit discards
-  it, and `discardPendingWork`'s course rebuild DISPOSES the water materials and
-  makes them again. Disposal is the one thing that does release a program, so
-  this cannot be warmed at all. It is fixable — build the replacement material
-  before disposing the old one and `usedTimes` never reaches zero — but that is a
-  change to the course rebuild, not to the editor.
+* **09 exit — 3 arrivals.** Leaving WITHOUT an edit is 0 arrivals and 58 ms
+  (`base1` row 09). These three are the cost of ROLLING BACK an edit.
+
+  Half of that cost has been removed. `rebuildWater()` disposes every pond's
+  material, and material disposal is the only path that actually frees a GL
+  program, so `refreshGround({ water: true })` recompiled the Water shader on the
+  player's frame — for ponds a tee placement was nowhere near, because `water`
+  was gated on nothing more than "was this a terrain-kind op". It is now gated on
+  whether the edit could have touched water at all: the rolled-back footprint
+  holds water zones now (scanned one cell beyond the tile, since a pond's level
+  answers its own shore and a shore edit can sit on a tile seam), or it overlaps
+  a pond that still exists but no longer has water under it — the vec/stamp
+  rollback that removed one and still needs the mesh gone. If the scene cannot
+  answer, it rebuilds, which is the old behaviour exactly.
+
+  Measured: row 09 departures **4 → 0**, `dGeometries`/`dTextures` −1/−1 → 0/0.
+  The ponds are no longer destroyed. But the three ARRIVALS did not move and the
+  frame did not reliably improve (638 ms before, 1,724 ms after — on a machine
+  where the same programs have measured 14,401 / 3,565 / 383 ms across three runs
+  of one build, one run cannot call that either way). So the water shader was
+  churn, not the cost.
+
+  What is left is that the discard's rebuild constructs material configurations
+  that differ from anything drawn before it — the arrival axis is `false → uv` at
+  field 7, a map slot appearing where there was none — so they are genuinely new
+  keys, not a warm gap. Chasing that is the course rebuild's material identity,
+  a different surface. Worth knowing when reading this row: the driver discards
+  because it must not bill his save, and a player who places something normally
+  clicks **Build & leave**.
 * **10 tools after the editor — 1 arrival, 0 ms.** One `depth` program, no
   measurable frame.
 * **the object placement ghost** is deliberately not warmed, for the same reason:
