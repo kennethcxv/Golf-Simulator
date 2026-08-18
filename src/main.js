@@ -1198,7 +1198,10 @@ function exitEditor() {
   // that frame never exists.
   app.scene3d?.settleClubhouseCameraVisibility?.();
   syncPresentationMode(presentationMode());
-  autosave();
+  // GOAL 35 — the boot warm opens and closes the editor before the veil lifts.
+  // It must not rotate autosave-prev: that slot is the player's previous
+  // session, and a boot that has not been played yet has nothing to put there.
+  if (!editorWarmActive) autosave();
 }
 
 // --- section lookup --------------------------------------------------------
@@ -1852,6 +1855,20 @@ function startGameNow(
       // hands on a resumed save) are paid here instead.
       await warmLaptopViewThroughLiveLoop(sceneRef, generation, () => sceneStartGeneration);
       if (app.scene3d !== sceneRef || generation !== sceneStartGeneration) { compileScreen.finish(false); return; }
+      // GOAL 35: the editor and Tab, the last two surfaces that still compiled
+      // in his hands — pressed for real, their rails pressed for real, closed
+      // for real, all of it under this veil.
+      await warmEditorThroughLiveLoop(sceneRef, generation, () => sceneStartGeneration);
+      if (app.scene3d !== sceneRef || generation !== sceneStartGeneration) { compileScreen.finish(false); return; }
+      // AFTER the editor, deliberately. The editor's hide() ends on
+      // frameCourse(), which re-poses the SHARED orbit rig — so a Tab warm run
+      // before it frames the course from one place and the player's real Tab
+      // frames it from another, which is six programs' worth of different
+      // objects in shot (qa/goal34/warm4.json row 04, all six one key-step from
+      // their twins on the light-count field with the census IDENTICAL either
+      // side, so framing is what is left).
+      await warmOverviewThroughLiveLoop(sceneRef, generation, () => sceneStartGeneration);
+      if (app.scene3d !== sceneRef || generation !== sceneStartGeneration) { compileScreen.finish(false); return; }
       // The compile work under this veil is done (prewarm + belt warm), so the
       // stamp is earned: land the count on n / n and gate the screen off for
       // every later boot on this profile and driver.
@@ -1941,6 +1958,26 @@ let loadVeil = null;
 // The immediate door, not the debounced one: the debounced setter parks a
 // switch made inside 120 ms in a queue drained only by walkUpdate — the
 // dustpan-in-your-hands bug of Playtest 5. And getTool, not walk.tool.
+// THE NUMBER THAT SAYS WHETHER A WARM AND A PRESS SAW THE SAME LIGHTING.
+// Counts by light type, visibility chain and camera layers included, because
+// that is exactly what three keys a program on. A warm that reports 'done'
+// while standing under a different census warmed a state the player never
+// reaches, and this repo has now shipped that mistake four times.
+function sceneLightCensus(sceneRef) {
+  const scene = sceneRef?.scene;
+  const camera = sceneRef?.camera;
+  if (!scene || !camera) return 'no-scene';
+  const counts = new Map();
+  scene.traverse((o) => {
+    if (!o.isLight) return;
+    for (let p = o; p; p = p.parent) { if (!p.visible) return; }
+    if (!o.layers.test(camera.layers)) return;
+    counts.set(o.type, (counts.get(o.type) || 0) + 1);
+  });
+  return [...counts.entries()].sort((a, b) => (a[0] < b[0] ? -1 : 1))
+    .map(([t, n]) => `${t}:${n}`).join('|');
+}
+
 async function warmBeltThroughLiveLoop(sceneRef, generationAtStart, generationNow) {
   const walk = sceneRef?.walk;
   if (!walk || typeof walk.setTool !== 'function') return;
@@ -1996,6 +2033,10 @@ async function warmBeltThroughLiveLoop(sceneRef, generationAtStart, generationNo
 // camera-side (warm the overview at each count and measure whether Tab's own
 // entry pays for it), not light-side, and it needs the goal-27 aftermath
 // measured before it ships.
+//
+// GOAL 35 TOOK THAT NEXT ATTEMPT — see warmEditorThroughLiveLoop below. The
+// aftermath was measured first and is gone; the census is now drawn from the
+// editor's own camera because the editor is really open when it is drawn.
 
 // GOAL 32 — THE LAPTOP FOCUS VIEW, WARMED THE WAY THE REGISTER IS.
 //
@@ -2089,12 +2130,204 @@ async function warmLaptopViewThroughLiveLoop(sceneRef, generationAtStart, genera
     }
     window.__fwWarm.laptopView = 'done';
     window.__fwWarm.laptopViewFrames = laptopWarmFrames;
+    window.__fwWarm.laptopCensus = sceneLightCensus(sceneRef);
   } finally {
     ch.laptopScreen?.(screenBefore || 'off');
     ch.laptopLid?.(false);
     walk.clearFocus();
     setCameraLens(walkFov(), WALK_NEAR);
   }
+}
+
+// GOAL 35 — TAB, WARMED BY PRESSING TAB.
+//
+// The overview has been warmed inside prewarm twice (goal 28 P4's framing, then
+// the owner-play fix that added the real walkExit and the player pin), and it
+// still arrived programs on the first press: 3 on his route, the largest one
+// key-step from its twin on the point-light field, 4 -> 1. Same story as the
+// editor's, same answer — the one-shot warm cannot reproduce a state the
+// clubhouse's own 2 Hz gate settles into. Press the key instead.
+async function warmOverviewThroughLiveLoop(sceneRef, generationAtStart, generationNow) {
+  const frame = () => new Promise((resolve) => requestAnimationFrame(resolve));
+  window.__fwWarm = { overview: 'skipped', ...(window.__fwWarm || {}) };
+  const alive = () => app.scene3d === sceneRef && generationNow() === generationAtStart;
+  if (!alive() || app.courseMode !== 'walk' || app.laptopOpen || hasCarriedCarton()) return;
+  const before = sceneRef.renderer?.info?.programs?.length ?? -1;
+  const hold = async (ms, minFrames) => {
+    const started = performance.now();
+    const until = started + ms;
+    const deadline = started + Math.max(2500, ms * 3); // an occluded window throttles rAF to 1 Hz
+    let n = 0;
+    while ((n < minFrames || performance.now() < until) && performance.now() < deadline) {
+      if (!alive() || n > 240) break;
+      await frame();
+      n += 1;
+    }
+  };
+  try {
+    handlers.toggleCourseMode();
+    if (app.courseMode !== 'overview') return;
+    await hold(1500, 30);
+    window.__fwWarm.overviewCensus = sceneLightCensus(sceneRef);
+  } catch (error) {
+    reportFault('scene.overview-warm', error);
+  } finally {
+    try { if (app.courseMode === 'overview') handlers.toggleCourseMode(); } catch (error) {
+      reportFault('scene.overview-warm-exit', error);
+    }
+    // toggleCourseMode announces itself; nobody was watching, and the message
+    // must not still be on screen when the veil lifts.
+    clearToasts();
+  }
+  if (!alive()) return;
+  await hold(300, 8);
+  window.__fwWarm.overview = app.courseMode === 'walk' ? 'done' : 'left-in-overview';
+  window.__fwWarm.overviewMinted = (sceneRef.renderer?.info?.programs?.length ?? -1) - before;
+}
+
+// GOAL 35 — THE COURSE EDITOR, WARMED BY OPENING THE COURSE EDITOR.
+//
+// The editor was the last surface still paying at the player's hands: 7 program
+// arrivals and a 2.5 s frame to open it, 2 more and an 8.4 s frame on the first
+// tool press (qa/goal34/census1.json rows 07 and 08 — his "I clicked FIRST TEE
+// and waited about ten seconds").
+//
+// TWO EARLIER SHAPES MISSED, AND THEY MISSED FOR THE SAME REASON.
+//   * courseScene's prewarm already puts the camera at the persisted editor pose
+//     and draws ONE frame there. Its own comment records the residual: "the rest
+//     needs the entry state produced by the editor's own loop."
+//   * Goal 34's point-light census hid lights one at a time and drew from the
+//     WALK camera. It reported drawn:6,5,4,3,2,1,0 and removed zero arrivals,
+//     because the materials that need those programs are batched with
+//     layers.mask = 0 and no shop-floor camera submits them at all.
+// Both were resemblances. This one opens the editor.
+//
+// WHAT THE FIRST TOOL PRESS ACTUALLY COSTS, which is why the tools are swept:
+// setTool pulls the rig IN — `rig.dist = key === 'objects' ? 155 : 260`, and
+// rig.apply() is a hard cut with no tween — while
+// clubhouse visibility is a function of camera distance (syncCameraVisibility's
+// draw-distance gate, then shell.js's nearest-N panel budget). So the first
+// press is a light-count change, which is a cache-key change on every physical
+// material in frame. Three distances, three states: the entry framing, 260, 155.
+//
+// THE GOAL-27 BAN THIS RETIRES. Goal 27 tried an under-veil round trip and
+// measured the player's next real entry at NINE AND A HALF SECONDS, and the ban
+// stood for two goals on the theory that exitEditor invalidates warmed state.
+// Goal 34's deletion detector measured that theory FALSE — zero deletions across
+// three round trips with a proven control (qa/goal34/rt*.json, cold1.json);
+// programs only ever grow. The aftermath was re-measured on this build before
+// this shipped, not assumed.
+//
+// exitEditor's autosave is suppressed for the duration: the warm must not
+// rotate autosave-prev, which is the player's previous-session safety net, over
+// a boot that has not been played yet.
+let editorWarmActive = false;
+async function warmEditorThroughLiveLoop(sceneRef, generationAtStart, generationNow) {
+  const frame = () => new Promise((resolve) => requestAnimationFrame(resolve));
+  window.__fwWarm = { editorView: 'skipped', ...(window.__fwWarm || {}) };
+  const alive = () => app.scene3d === sceneRef && generationNow() === generationAtStart;
+  if (!editorUi || !alive()) return;
+  // enterEditor refuses (and toasts) while a carton is carried, and a resumed
+  // save can arrive mid-carry. Nothing to warm through, so leave it.
+  if (app.courseMode !== 'walk' || app.laptopOpen || hasCarriedCarton()) return;
+  const programs = () => sceneRef.renderer?.info?.programs?.length ?? -1;
+  const minted = [];
+  // TIME-BOUNDED, NOT FRAME-COUNTED, and the first cut got this wrong in the
+  // way this repo keeps getting it wrong. Four frames is ~28 ms; the clubhouse
+  // gates settle on a 2 Hz clock, so every tool in that version warmed the
+  // camera's OLD light census and minted nothing (`terrain+0p paint+0p ...`,
+  // qa/goal34/warm1.json). A warm must outlast the slowest thing it is waiting
+  // for, and here that is half a second.
+  const hold = async (label, minFrames, minMs = 0) => {
+    const before = programs();
+    const started = performance.now();
+    const until = started + minMs;
+    // A frame budget alone is not a bound: an occluded window throttles rAF to
+    // 1 Hz, and 240 of those is four minutes of black veil. Both bounds, and
+    // the wall clock wins.
+    const deadline = started + Math.max(2500, minMs * 3);
+    let n = 0;
+    while ((n < minFrames || performance.now() < until) && performance.now() < deadline) {
+      if (!alive() || n > 240) break;
+      await frame();
+      n += 1;
+    }
+    minted.push(`${label}+${programs() - before}p`);
+    return alive();
+  };
+  editorWarmActive = true;
+  // enterEditor stores `app.speedIdx || 1` and exitEditor restores THAT, so a
+  // boot that intended speed 0 would come back out of this warm at speed 1.
+  // The warm restores what the startup hold actually chose.
+  const speedBefore = app.speedIdx;
+  try {
+    enterEditor();
+    if (!editorActive()) return;
+    // The editor's own show() snaps the camera and settles the clubhouse gates
+    // in the same turn, so the frames below are the settled entry state rather
+    // than a transit through states play never holds — the mistake the laptop
+    // warm had to be corrected for.
+    if (!(await hold('entry', 24, 700))) return;
+    // Then the tool rail, every button, through the editor's real setTool. A
+    // press that MOVES the camera changes the light census and is held long
+    // enough for the settled state to be drawn; one that does not costs four
+    // frames for its own panel and previews.
+    for (const key of ['terrain', 'paint', 'tee', 'green', 'bunker', 'water', 'objects', 'paths', 'measure', 'select']) {
+      if (!alive()) return;
+      const distBefore = sceneRef.rig?.dist ?? 0;
+      try { editorUi.setTool(key); } catch (error) { reportFault('scene.editor-warm-tool', error, { key }); }
+      const moved = Math.abs((sceneRef.rig?.dist ?? 0) - distBefore) > 0.5;
+      if (!(await hold(key, moved ? 12 : 4, moved ? 620 : 0))) return;
+    }
+    // THE OVERLAYS THE CURSOR CARRIES. The brush ring, the shaped-feature
+    // outline and its fill are module-level meshes that stay hidden until the
+    // pointer first moves over the course, so their basic/line programs are
+    // minted in the player's hand. They are RETAINED across pointer moves,
+    // which is what makes them warmable — unlike the object placement ghost,
+    // whose materials are cloned per type and disposed on the next one, so its
+    // program is released with them and can never be pre-built.
+    try {
+      const tx = sceneRef.rig?.target?.x ?? 0;
+      const tz = sceneRef.rig?.target?.z ?? 0;
+      sceneRef.setEditorBrush?.({ x: tx, z: tz, radiusYd: 8, color: 0xffe9a0, falloff: 0.5 });
+      sceneRef.setEditorFeaturePreview?.({
+        outline: {
+          closed: true,
+          points: [
+            { x: tx - 6, z: tz - 6 }, { x: tx + 6, z: tz - 6 },
+            { x: tx + 6, z: tz + 6 }, { x: tx - 6, z: tz + 6 },
+          ],
+        },
+        guides: [{ points: [{ x: tx - 6, z: tz }, { x: tx + 6, z: tz }] }],
+        controls: [{ x: tx, z: tz }],
+      });
+      sceneRef.setMeasureLine?.([{ x: tx - 10, z: tz }, { x: tx + 10, z: tz }], '20 yd');
+      await hold('overlays', 8, 200);
+      window.__fwWarm.editorCensus = sceneLightCensus(sceneRef);
+    } catch (error) {
+      reportFault('scene.editor-warm-overlays', error);
+    } finally {
+      // hide() clears all three on the way out; this is belt and braces so a
+      // throw between here and there cannot leave a ring on the course.
+      try {
+        sceneRef.setEditorBrush?.(null);
+        sceneRef.setEditorFeaturePreview?.(null);
+        sceneRef.setMeasureLine?.(null);
+      } catch { /* hide() clears them */ }
+    }
+  } catch (error) {
+    reportFault('scene.editor-warm', error);
+  } finally {
+    try { if (editorActive()) exitEditor(); } catch (error) { reportFault('scene.editor-warm-exit', error); }
+    app.speedIdx = speedBefore;
+    editorWarmActive = false;
+  }
+  if (!alive()) return;
+  // The way back is a surface too: exitEditor snaps to walk and settles the
+  // gates, and goal 32 paid 4.8 s for the one frame that ran before it did.
+  await hold('exit', 12);
+  window.__fwWarm.editorView = alive() && app.courseMode === 'walk' ? 'done' : 'left-the-editor-open';
+  window.__fwWarm.editorMinted = minted.join(' ');
 }
 
 // GOAL 27, THE 10-SECOND TARGET — THE DEFERRED SWEEP IS GONE, MEASURED OFF.

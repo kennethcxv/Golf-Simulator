@@ -705,3 +705,58 @@ zero by construction and made every before/after comparison in this rebuild
 meaningless. `separateMode = 'measure'` computes the correction and throws it
 away, so the number keeps meaning "how much would a positional pass have had to
 do" across the whole rebuild.
+
+## 2026-08-17, goal 35 — the course editor
+
+**A warm holding FRAMES cannot outlast a gate holding SECONDS.** The editor warm
+pressed every tool through the editor's real `setTool` and held four frames on
+each — about 28 ms. The clubhouse's visibility gate (interior draw distance,
+per-lamp render budget) runs on `visClock > 0.5` inside `clubhouse.update`, i.e.
+at 2 Hz, so every one of those presses warmed the camera's OLD light census and
+minted nothing: `terrain+0p paint+0p tee+0p …` (qa/goal34/warm1.json,
+`__fwWarm.editorMinted`). The tool row cost exactly what it had before while the
+warm reported `done`. Rules: a warm's hold is TIME-bounded against the slowest
+gate it waits on, and every warm reports what it MINTED per stage — otherwise a
+warm that does nothing is indistinguishable from one that works.
+
+**`nearestTwinDiffs` names an axis against the twins that HAPPEN to exist.** The
+editor's arrivals read "point-light count 4 → 0" for two goals, and that reading
+drove a whole light-census warm that removed nothing. Once the editor warm
+minted the 0-light programs, two UNCHANGED surfaces re-labelled themselves: the
+laptop's five went from a texture-slot/colorspace/shader-identity story to
+"0 → 4", and Tab's from "4 → 1" to "0 → 1", without one line of laptop or Tab
+code changing. The diff is a pointer to the nearest neighbour in the current
+key set, not a claim about what the program is FOR. Confirm with the census the
+gesture actually ran under (the tripwire now samples it mid-gesture, because a
+reading taken after the surface closes is the walk state again).
+
+**Programs are released from exactly one place.** `releaseProgram` in
+three.module.js is reachable only from `deallocateMaterial`; a material keeps a
+Map of every variant it has used, and changing light counts releases nothing.
+That is why goal 27's "the under-veil round trip invalidates warmed state" could
+be retired, and it also says which residuals are unwarmable: anything behind a
+material DISPOSAL (the editor's object-placement ghost clones a material per
+type and disposes it on the next; the exit discard rebuilds the water
+materials) mints a fresh program every time however well the boot warmed.
+
+**A driver that walks by holding W is not walking to the door, and a SHUT DOOR
+IS NOT A WALL.** Four cuts before the route got indoors: six blind legs (walks
+into a hillside); aim at the interior's world centre (a heading into a wall —
+14 legs, 7.6 yd, never in); aim at the node whose name matches the main entrance
+(found `ProceduralMainEntranceFallback`, the HIDDEN stand-in that only shows when
+the authored door fails to bind, sitting at the group origin — the same wrong
+heading with a better name on it); and then a VISIBLE `SOCKET_MainEntrance` with
+a consistent wall-follow, which circled the building for 26 legs from 8 yd and
+still never got in. The answer was one keypress: E, when blocked within 4.5 yd of
+the door. Twenty-six legs and outside became four legs and inside. The per-leg
+distances are what pointed at it — 5.13, 2.52, 0.18, 0.85, 0.40 … is a body
+leaning on something, not a bad heading — and a walk-in helper that does not
+report per-leg progress cannot show you that.
+
+**Adding a step to a route changes the steps after it.** Row 08b (place a tee)
+was added because his route ends with "place something". Row 09 below it then
+went from 0 arrivals / 0 departures to 3 / 4: leaving now DISCARDS a real edit,
+and the discard's course rebuild disposes the water materials and mints them
+again. The cost is real and was invisible while the route never edited anything
+— but row 09 before and after this change is not the same measurement, and any
+table that puts them side by side has to say so.

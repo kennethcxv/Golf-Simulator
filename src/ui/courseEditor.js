@@ -1044,6 +1044,17 @@ export function makeCourseEditor(app, hooks) {
         rig.dist = focusDistance;
         rig.pitch = Math.min(rig.pitch, 0.95);
         rig.apply();
+        // GOAL 35 — THE THIRD PLACE THIS SNAP NEEDED SETTLING, AND THE ONE HE
+        // FELT. rig.apply() is instant, but the clubhouse's own gates —
+        // interior draw distance, per-lamp render budget — are on a 2 Hz clock
+        // inside clubhouse.update (`visClock > 0.5`). So the half second after
+        // the first tool press drew the FAR light census at a NEAR camera, and
+        // when the gate finally caught up every physical material in frame
+        // wanted a new program: 6 arrivals and an 11,850 ms frame on his route
+        // (qa/goal34/base1.json row 08 — "I clicked FIRST TEE and waited about
+        // ten seconds"). Entry and exit were given this same treatment in goal
+        // 32; the tool rail moves the camera exactly as far and was missed.
+        scene().settleClubhouseCameraVisibility?.();
       }
     }
     for (const [k, b] of railButtons) b.classList.toggle('on', k === key);
@@ -4138,6 +4149,10 @@ export function makeCourseEditor(app, hooks) {
     root,
     show,
     hide,
+    // GOAL 35 — the boot warm presses the rail the way the player does, because
+    // setTool is where the camera moves (rig.dist 260, or 155 for objects) and
+    // that move is the light-count change the first press was paying for.
+    setTool,
     onFrame,
     isActive: () => active,
     isPlaytesting: () => !!pt,

@@ -30,7 +30,9 @@ async (page) => {
   const OUT = path.resolve('qa/goal34');
   fs.mkdirSync(OUT, { recursive: true });
   const tag = process.env.QA_TAG || 'session';
-  const out = { tag, errs: [], failures: [], surfaces: [] };
+  const out = {
+    tag, errs: [], failures: [], surfaces: [], midCensus: {},
+  };
   const fail = (why) => { out.failures.push(why); console.log('FAIL:', why); };
   page.on('pageerror', (e) => out.errs.push(String(e.message || e)));
 
@@ -80,6 +82,24 @@ async (page) => {
     const i = window.__fw.scene3d.renderer.info;
     return { geometries: i.memory.geometries, textures: i.memory.textures };
   });
+  // THE LIGHT CENSUS AT THE MOMENT OF THE GESTURE. Every arrival on this route
+  // names the light-count field as its nearest-twin difference, and every warm
+  // that missed drew the right surface under the WRONG census. Counts by type
+  // are exactly what three keys a program on, so this is the number that says
+  // whether a warm and a press were even looking at the same lighting.
+  const census = () => page.evaluate(() => {
+    const s3 = window.__fw.scene3d;
+    const counts = new Map();
+    s3.scene.traverse((o) => {
+      if (!o.isLight) return;
+      let vis = true;
+      for (let p = o; p; p = p.parent) { if (!p.visible) { vis = false; break; } }
+      if (!vis || !o.layers.test(s3.camera.layers)) return;
+      counts.set(o.type, (counts.get(o.type) || 0) + 1);
+    });
+    return [...counts.entries()].sort((a, b) => (a[0] < b[0] ? -1 : 1))
+      .map(([t, n]) => `${t}:${n}`).join('|');
+  });
   // DEPARTURES TOO, not only arrivals. The laptop warm proved out at zero
   // arrivals when the laptop is the first surface pressed and back at five when
   // real play happens in between, which can only mean something between the two
@@ -123,6 +143,7 @@ async (page) => {
 
     const before = await keys();
     const m0 = await mem();
+    const censusBefore = await census();
     const t0 = await now();
     let note = null;
     try { note = await run(); } catch (e) { note = `threw: ${e.message}`; }
@@ -130,6 +151,7 @@ async (page) => {
     const t1 = await now();
     const after = await keys();
     const m1 = await mem();
+    const censusAfter = await census();
     const timing = await page.evaluate(({ a, b }) => {
       const g = window.__ps.gaps.filter((x) => x.t >= a && x.t <= b).map((x) => x.ms);
       const l = window.__ps.longtasks.filter((x) => x.t >= a - 400 && x.t <= b && x.ms > 200);
@@ -140,6 +162,8 @@ async (page) => {
     const row = {
       label,
       note,
+      censusBefore,
+      censusAfter,
       quietMs,
       departures: departures.length,
       departed: departures,
@@ -154,7 +178,7 @@ async (page) => {
     };
     if (row.quietDirty) fail(`${label}: quiet control carried ${quietMs} ms — this row's timing is void`);
     out.surfaces.push(row);
-    console.log(`[${label}] arrivals=${row.arrivals} departures=${row.departures} worst=${row.worstGapMs}ms geom=${row.dGeometries} tex=${row.dTextures} quiet=${quietMs}`);
+    console.log(`[${label}] arrivals=${row.arrivals} departures=${row.departures} worst=${row.worstGapMs}ms geom=${row.dGeometries} tex=${row.dTextures} quiet=${quietMs} census=${censusAfter}`);
     return row;
   };
 
@@ -169,15 +193,14 @@ async (page) => {
   });
 
   // 1 — WALK IN (the front door, held W, his gesture)
+  //
+  // Aimed, not hoped. A played save leaves the player wherever he stopped, and
+  // six blind legs of W walked into a hillside on the first run of this build.
+  const aimPath = `${process.cwd()}/tools/qa/lib/nav-aim.mjs`.replace(/\\/g, '/');
+  const aim = await import(`file:///${aimPath}`);
   await surface('01-walk-in-door', async () => {
-    for (let leg = 0; leg < 6; leg += 1) {
-      await page.keyboard.down('w');
-      await page.waitForTimeout(leg === 0 ? 6500 : 1800);
-      await page.keyboard.up('w');
-      await page.waitForTimeout(600);
-      if (await inside()) return `inside after ${leg + 1} legs`;
-    }
-    return 'never got inside';
+    out.walkIn = await aim.walkInsideClubhouse(page, vp);
+    return `inside=${out.walkIn.ok} legs=${out.walkIn.legs} from ${out.walkIn.startDist} yd`;
   }, 2000);
   if (!(await inside())) fail('never got inside — every indoor row below is suspect');
 
@@ -214,13 +237,19 @@ async (page) => {
   });
 
   // 4 — TAB, THE OVERVIEW, and back
+  // THE CENSUS AT THE PEAK OF THE GESTURE, not on either side of it. The
+  // arrivals happen while the surface is OPEN, and a reading taken after it
+  // closes is the walk state again — which is how a run can report
+  // "PointLight:4" on every row of a route whose every arrival is about a
+  // different count.
   await surface('04-tab-overview', async () => {
     await page.keyboard.press('Tab');
     await page.waitForTimeout(4000);
     const mode = await page.evaluate(() => window.__fw?.courseMode ?? null);
+    out.midCensus['04-tab-overview'] = await census();
     await page.keyboard.press('Tab');
     await page.waitForTimeout(2000);
-    return `courseMode was ${mode}`;
+    return `courseMode was ${mode} · census ${out.midCensus['04-tab-overview']}`;
   });
 
   // 5 — THE LAPTOP, first open of the session
@@ -228,7 +257,9 @@ async (page) => {
     await page.evaluate(() => window.__fw.scene3d.walk.hooks.openLaptop?.(null));
     await page.waitForFunction(() => document.body.classList.contains('laptop-mode'), null, { timeout: 60000 })
       .catch(() => 'laptop-mode never applied');
-    return 'opened';
+    await page.waitForTimeout(1500);
+    out.midCensus['05-laptop-open'] = await census();
+    return `opened · census ${out.midCensus['05-laptop-open']}`;
   }, 4000);
   await page.screenshot({ path: path.join(OUT, `${tag}-laptop.png`) });
 
@@ -258,7 +289,9 @@ async (page) => {
     await page.waitForFunction(() => window.__fw?.courseMode === 'editor'
       && !!document.querySelector('.ced-rail'), null, { timeout: 90000 })
       .catch(() => 'editor never opened');
-    return 'opened';
+    await page.waitForTimeout(2500);
+    out.midCensus['07-editor-open'] = await census();
+    return `opened · census ${out.midCensus['07-editor-open']}`;
   }, 4000);
   await page.screenshot({ path: path.join(OUT, `${tag}-editor.png`) });
 
@@ -274,8 +307,30 @@ async (page) => {
       }
       return seen;
     });
-    return `tools: ${clicked.join('|')}`;
+    out.midCensus['08-editor-tools'] = await census();
+    return `tools: ${clicked.join('|')} · census ${out.midCensus['08-editor-tools']}`;
   }, 4000);
+
+  // 8b — PLACING SOMETHING. Selecting a tool is not using it: the hover ghost
+  // and the placed feature are their own meshes with their own materials, and
+  // his route ends with "place something" for that reason. Tee, then a click on
+  // the course in the middle of the frame. Discarded at the exit below, so his
+  // save is never billed for it.
+  await surface('08b-editor-place', async () => {
+    await page.evaluate(() => {
+      const b = [...document.querySelectorAll('.ced-tool')].find((x) => /Tee/i.test(x.textContent || ''));
+      b?.click();
+    });
+    await page.waitForTimeout(1200);
+    const before = await page.evaluate(() => window.__fw.editorUi?.().session?.()?.undo?.length ?? null);
+    await page.mouse.move(Math.round(vp.w * 0.5), Math.round(vp.h * 0.55), { steps: 8 });
+    await page.waitForTimeout(900); // the hover ghost is its own first draw
+    await page.mouse.click(Math.round(vp.w * 0.5), Math.round(vp.h * 0.55));
+    await page.waitForTimeout(1500);
+    const after = await page.evaluate(() => window.__fw.editorUi?.().session?.()?.undo?.length ?? null);
+    return `undoDepth ${before} -> ${after}`;
+  }, 4000);
+  await page.screenshot({ path: path.join(OUT, `${tag}-editor-place.png`) });
 
   // 9 — LEAVING. Escape opens the pause menu instead; the Exit button leaves.
   await surface('09-editor-exit', async () => {

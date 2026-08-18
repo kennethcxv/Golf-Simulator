@@ -44,7 +44,13 @@ export const COMPILE_STAMP_KEY = 'golfEmpire.shaderCompileStamp.v2';
 // (the owner's own v2 stamp, RTX 5080, 2026-08-16 9:11 PM), plus the five
 // laptop-focus programs the new laptop-view warm adds: 244 measured at the
 // stamp on a seeded-save boot (qa/goal32/laptop-program-keys.json).
-export const COMPILE_EXPECTED_PROGRAMS = 244;
+//
+// GOAL 35: the editor and overview warms add 22 more — 7 for the editor's entry
+// state, 6 for the tool rail's focus distance, 5 for the cursor overlays, 4 for
+// the overview — so the count at the first post-veil frame measured 260 on two
+// independent played sessions (qa/goal34/warm2.json, warm3.json, row 01
+// programs minus that row's arrivals).
+export const COMPILE_EXPECTED_PROGRAMS = 260;
 
 // The GL half of the identity: vendor, unmasked renderer, GL version. On this
 // Electron build ANGLE's string carries NO driver version digits (measured:
