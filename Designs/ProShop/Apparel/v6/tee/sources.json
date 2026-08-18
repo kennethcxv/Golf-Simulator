@@ -1,0 +1,38 @@
+{
+  "plain-2.jpg": {
+    "title": "File:T-shirt.jpg",
+    "page": "https://commons.wikimedia.org/wiki/File:T-shirt.jpg",
+    "licence": "CC BY-SA 3.0",
+    "author": "Lateiner",
+    "original": "1362x1248",
+    "bytes": 365468,
+    "shows": "flat-laid plain tee, front: neck rib, shoulder seam, sleeve hem, body hem"
+  },
+  "plain-3.jpg": {
+    "title": "File:T-shirt-2.jpg",
+    "page": "https://commons.wikimedia.org/wiki/File:T-shirt-2.jpg",
+    "licence": "CC BY-SA 3.0",
+    "author": "Lateiner",
+    "original": "1000x916",
+    "bytes": 177702,
+    "shows": "the same tee, back"
+  },
+  "shop-shelf.jpg": {
+    "title": "File:HK Quarry Bay 太古城中心 CityPlaza mall shop MUJI Clothing Store goods male TU Tee-shirts July 2021 SS2.jpg",
+    "page": "https://commons.wikimedia.org/wiki/File:HK_Quarry_Bay_%E5%A4%AA%E5%8F%A4%E5%9F%8E%E4%B8%AD%E5%BF%83_CityPlaza_mall_shop_MUJI_Clothing_Store_goods_male_TU_Tee-shirts_July_2021_SS2.jpg",
+    "licence": "CC BY-SA 4.0",
+    "author": "CHANGIMN SANGO Leigcz",
+    "original": "3096x4128",
+    "bytes": 1154018,
+    "shows": "MUJI: folded stacks on shelves under a hung rail -- both merchandising modes in one frame"
+  },
+  "shop-japan.jpg": {
+    "title": "File:T-Shirt folding skills (4111373509).jpg",
+    "page": "https://commons.wikimedia.org/wiki/File:T-Shirt_folding_skills_(4111373509).jpg",
+    "licence": "CC BY 2.0",
+    "author": "Christian Heilmann",
+    "original": "3072x2304",
+    "bytes": 524690,
+    "shows": "Japanese shop shelf: folded tees in colour blocks"
+  }
+}
