@@ -578,6 +578,60 @@ function solidAt(x, z, rects) {
   return rects.some((rect) => rectsOverlap(body, rect));
 }
 
+// A STOP NO BODY MAY STAND ON MUST NEVER BE ISSUED.
+//
+// The nav rebuild ended with the recovery ladder still on, and the reason was
+// written down at the time: the solver was not letting people touch, it was
+// being asked to reach somewhere nobody may stand. 354 escalations in five
+// minutes, almost all of them one walker grinding at a browse point inside a
+// neighbour's collider — shelf_balls' at 0.107 yd from the back counter, which
+// tools/qa/stop-geometry-audit.mjs still measures today.
+//
+// The ladder was the wrong place to solve that, because by the time it fires
+// the walker has already spent seconds failing. This is the right place: a stop
+// is checked WHEN IT IS CHOSEN, against the same rects the route proof uses,
+// and an impossible one is nudged to the nearest point a body fits or refused
+// outright. Nothing is moved at arrival and no beat is teleported.
+const STOP_SEARCH_STEP = 0.12;
+const STOP_SEARCH_RINGS = 10; // 1.2 yd — past this the stop is somewhere else
+const STOP_SEARCH_SPOKES = 16;
+
+// The collider set a batch of stop validations shares. Exposed so a caller
+// posing many stops in one pass (a retarget over every customer) builds it once
+// instead of once per stop.
+export function navigationRectsForStops(state, override = null) {
+  return navigationRects(state, override);
+}
+
+export function stopPointIsLegal(state, point, { rects = null } = {}) {
+  if (!point || !Number.isFinite(point.x) || !Number.isFinite(point.z)) return false;
+  return !solidAt(point.x, point.z, rects || navigationRects(state));
+}
+
+// Returns the point unchanged when it is already standable, the nearest legal
+// point within STOP_SEARCH_RINGS otherwise, and null when there is none — a
+// caller that gets null must pick a different stop rather than issue this one.
+export function legalStopPoint(state, point, { rects = null, keepOut = null } = {}) {
+  if (!point || !Number.isFinite(point.x) || !Number.isFinite(point.z)) return null;
+  const set = rects || navigationRects(state);
+  const blocked = (x, z) => solidAt(x, z, set)
+    || (keepOut ? keepOut.some((k) => Math.hypot(k.x - x, k.z - z) < (k.r || 0)) : false);
+  if (!blocked(point.x, point.z)) return { x: point.x, z: point.z, moved: 0 };
+  for (let ring = 1; ring <= STOP_SEARCH_RINGS; ring += 1) {
+    const radius = ring * STOP_SEARCH_STEP;
+    for (let spoke = 0; spoke < STOP_SEARCH_SPOKES; spoke += 1) {
+      // Rotate each ring by half a step so successive rings do not all sample
+      // the same spokes — a stop blocked along one axis was otherwise refused
+      // out to the cap even with clear floor half a step round.
+      const a = ((spoke + (ring % 2) * 0.5) / STOP_SEARCH_SPOKES) * Math.PI * 2;
+      const x = point.x + Math.cos(a) * radius;
+      const z = point.z + Math.sin(a) * radius;
+      if (!blocked(x, z)) return { x, z, moved: +radius.toFixed(3) };
+    }
+  }
+  return null;
+}
+
 export function routesIntact(state, override = null) {
   // The browse-point proof must use the same complete candidate plan as the
   // collision grid, including a fixture currently being moved.

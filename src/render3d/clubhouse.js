@@ -225,7 +225,10 @@ import {
   PAID_BAG_ACCEPTANCE_HOLD_SEC, attachPaidBagToCustomer,
   createPaidBagResourceLedger, disposePaidBagFromCustomer, syncPaidBagCarry,
 } from './clubhouse/customerPaidBag.js';
-import { activeFixtures, placedFixtures, ensureLayout, roomStyle } from '../sim/layout.js';
+import {
+  activeFixtures, placedFixtures, ensureLayout, roomStyle,
+  legalStopPoint, navigationRectsForStops,
+} from '../sim/layout.js';
 import { ROOM_STYLE_OPTIONS } from '../data/placeableCatalog.js';
 import {
   boxPlacementCapabilities,
@@ -1539,20 +1542,41 @@ export function makeClubhouse(ctx) {
     },
   });
 
-  function fixtureBrowsePose(fixture, localX = 0, localZ = null) {
+  // A BROWSE STOP IS VALIDATED WHERE IT IS CHOSEN, NOT WHERE IT IS REACHED.
+  //
+  // This is the one place a fixture-local browse pose becomes a world stop, so
+  // it is the one place that can refuse an impossible one. The recovery ladder
+  // used to absorb these: a stop inside a neighbour's collider had no legal
+  // body position at all, the walker ground against the clamp, and three rungs
+  // later the errand was abandoned — 354 escalations in five minutes, almost
+  // all of it this. tools/qa/stop-geometry-audit.mjs names the offenders on the
+  // shipped layout.
+  //
+  // `rects` is threaded through by callers that pose many stops at once so the
+  // collider set is built once per batch rather than once per customer.
+  function fixtureBrowsePose(fixture, localX = 0, localZ = null, rects = null) {
     const local = fixtureBrowsePoint(fixture, localX, localZ);
-    const target = L2W(local.x, local.z);
+    const legal = legalStopPoint(state, local, { rects });
+    // No legal point within the search cap: keep the authored pose rather than
+    // invent one somewhere else. The caller decides whether to use it, and the
+    // stop is marked so a driver can count refusals instead of guessing.
+    const target = L2W(legal ? legal.x : local.x, legal ? legal.z : local.z);
     const origin = L2W(fixture.x, fixture.z);
     return {
       x: target.x,
       z: target.z,
       faceX: origin.x,
       faceZ: origin.z,
+      stopNudgedYd: legal ? legal.moved : null,
+      stopUnreachable: !legal,
     };
   }
 
   function retargetCustomerFixtureStops() {
     const fixtures = new Map(placedFixtures(state).map((fixture) => [fixture.id, fixture]));
+    // One collider set for the whole sweep. Built per stop this walked every
+    // placeable once per customer per stop on a layout change.
+    const rects = navigationRectsForStops(state);
     for (const customer of customers) {
       let currentChanged = false;
       const kept = [];
@@ -1567,7 +1591,7 @@ export function makeClubhouse(ctx) {
           if (index === customer.stopIdx) currentChanged = true;
           continue;
         }
-        const pose = fixtureBrowsePose(fixture, stop.fixtureLocalX, stop.fixtureLocalZ);
+        const pose = fixtureBrowsePose(fixture, stop.fixtureLocalX, stop.fixtureLocalZ, rects);
         if (index === customer.stopIdx
           && Math.hypot(stop.x - pose.x, stop.z - pose.z) > 1e-6) currentChanged = true;
         Object.assign(stop, pose, {
@@ -9545,6 +9569,8 @@ export function makeClubhouse(ctx) {
     // Plan one real fixture visit per intended unit, preferring different
     // displays before revisiting a well-stocked one.
     const organicPlan = planOrganicOrder(browsable, state.shop.inventory, rng);
+    // Shared by every visit this plan poses; see fixtureBrowsePose.
+    const planRects = navigationRectsForStops(state);
     const visits = organicPlan.picks.length
       ? organicPlan.picks
       : (browsable.length ? [{ fixture: browsable[rng.int(browsable.length)], skuId: null }] : []);
@@ -9557,7 +9583,7 @@ export function makeClubhouse(ctx) {
         ? f.footprint.maxZ
         : (FIXTURE_HALF[f.kind] || [1, 1])[1];
       const fixtureLocalZ = halfDepth + 0.72 + (rng.next() - 0.5) * 0.4;
-      const pose = fixtureBrowsePose(f, fixtureLocalX, fixtureLocalZ);
+      const pose = fixtureBrowsePose(f, fixtureLocalX, fixtureLocalZ, planRects);
       stops.push({
         kind: 'fixture',
         fixtureId: f.id,
@@ -12072,6 +12098,22 @@ export function makeClubhouse(ctx) {
         if (d < BODY_RADIUS * 2) { pairs += 1; worst = Math.max(worst, BODY_RADIUS * 2 - d); }
       }
     }
+    // STOP GEOMETRY, as a live number. Every fixture stop carries what the
+    // assignment-time validator did to it, so a run can distinguish "the solver
+    // is still failing" from "the shop is still issuing stops nobody may stand
+    // on" — which is the distinction the recovery ladder was hiding.
+    let stopsNudged = 0;
+    let stopsUnreachable = 0;
+    let worstNudgeYd = 0;
+    for (const c of customers) {
+      for (const stop of (c.stops || [])) {
+        if (stop.stopUnreachable) stopsUnreachable += 1;
+        if (stop.stopNudgedYd > 0) {
+          stopsNudged += 1;
+          worstNudgeYd = Math.max(worstNudgeYd, stop.stopNudgedYd);
+        }
+      }
+    }
     return {
       people: live.length,
       pairs,
@@ -12079,6 +12121,10 @@ export function makeClubhouse(ctx) {
       touching: +(BODY_RADIUS * 2).toFixed(3),
       pinned: live.filter(customerIsPinned).length,
       passes: crowdStats.passes,
+      stopsNudged,
+      stopsUnreachable,
+      worstNudgeYd: +worstNudgeYd.toFixed(3),
+      ladder: navLadder,
     };
   }
 

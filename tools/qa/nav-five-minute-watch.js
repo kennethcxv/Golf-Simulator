@@ -52,19 +52,20 @@ async (page) => {
   const vp = await page.evaluate(() => ({ w: window.innerWidth, h: window.innerHeight }));
   await page.mouse.click(Math.round(vp.w / 2), Math.round(vp.h / 2));
   await page.waitForTimeout(500);
-  for (let leg = 0; leg < 6; leg += 1) {
-    await page.keyboard.down('w');
-    await page.waitForTimeout(leg === 0 ? 6500 : 1800);
-    await page.keyboard.up('w');
-    await page.waitForTimeout(600);
-    out.inside = await page.evaluate(() => {
-      const w = window.__fw.scene3d.walk.state;
-      const ch = window.__fw.scene3d.clubhouse?.();
-      return ch?.isInside ? !!ch.isInside(w.x, w.z) : false;
-    });
-    if (out.inside) break;
-  }
+  // SIX BLIND LEGS OF HELD W DO NOT REACH THE ROOM, and this driver spent two
+  // five-minute runs proving it again: people=0 for the whole watch and three
+  // honest failures at the end. Goal 35 measured why — held W walks into a
+  // hillside, aiming at the interior centre is a heading into a wall, and the
+  // door is SHUT, so the leg that gets in is an E press once you are close.
+  // walkInsideClubhouse does all three and reports its trail.
+  const aimPath = `${process.cwd()}/tools/qa/lib/nav-aim.mjs`.split('\\').join('/');
+  const navAim = await import(`file:///${aimPath}`);
+  await navAim.installAim(page);
+  const walkIn = await navAim.walkInsideClubhouse(page, vp);
+  out.walkIn = { ok: walkIn.ok, legs: walkIn.legs, door: walkIn.door, end: walkIn.end };
+  out.inside = !!walkIn.ok;
   if (!out.inside) fail('never got inside — this is not the room he watches');
+  console.log(`walk-in: ${walkIn.ok ? 'inside' : 'FAILED'} after ${walkIn.legs} legs via ${walkIn.door}`);
 
   // AIM AT THE PEOPLE, AND PROVE THEY ARE IN FRAME.
   //
@@ -158,6 +159,42 @@ async (page) => {
     };
   });
 
+  // TRADING HOURS, OR THERE IS NO CROWD TO WATCH.
+  //
+  // Three five-minute runs of this driver reported people=0 for every sample
+  // and its own guards caught all three. The shop opens at 09:00 and a resumed
+  // save sits at 06:01 with the door shut, so the watch was measuring an empty
+  // room very carefully. This moves the clock to mid-morning — the same move
+  // npc-obstacle-nav.js makes for the same reason — and then WAITS for somebody
+  // to actually arrive rather than assuming they will.
+  out.clock = await page.evaluate(() => {
+    const st = window.__fw.state;
+    if (!st?.clock) return null;
+    const day = Math.floor(st.clock.minutes / 1440) * 1440;
+    st.clock.minutes = day + 11 * 60;
+    return st.clock.minutes;
+  });
+  await page.waitForFunction(() => {
+    const ch = window.__fw.scene3d.clubhouse?.();
+    const d = ch?.crowdDiagnostics ? ch.crowdDiagnostics() : null;
+    return !!d && d.people > 0;
+  }, null, { timeout: 180000 }).catch(() => fail('nobody arrived within three minutes of opening — the watch has no crowd'));
+  out.firstArrivalPeople = await page.evaluate(() => {
+    const ch = window.__fw.scene3d.clubhouse?.();
+    return ch?.crowdDiagnostics ? ch.crowdDiagnostics().people : -1;
+  });
+  console.log(`clock -> ${out.clock} min; people at watch start: ${out.firstArrivalPeople}`);
+
+  // THE LADDER, ON A SWITCH FOR THIS RUN. QA_NAV_LADDER=0 deletes it for the
+  // watch, which is the only way to find out whether stop geometry has taken
+  // over its job. Recorded in the report so a clean run can never be mistaken
+  // for a clean run WITH the ladder still catching things.
+  out.ladder = await page.evaluate((on) => {
+    const ch = window.__fw.scene3d.clubhouse();
+    return typeof ch.setNavLadder === 'function' ? ch.setNavLadder(on) : null;
+  }, process.env.QA_NAV_LADDER !== '0');
+  console.log(`recovery ladder: ${out.ladder === false ? 'OFF' : 'on'}`);
+
   await page.evaluate(() => window.__fw.scene3d.clubhouse().resetContactWatch());
   out.watchStartedAt = await page.evaluate(() => +performance.now().toFixed(0));
 
@@ -187,6 +224,18 @@ async (page) => {
         worstNoProgress: w.stuck.worstNoProgressSeconds,
         wallClamps: w.solver.wallClampFrames,
         infeasible: w.solver.infeasible,
+        // STOP GEOMETRY. Every fixture stop now carries what the assignment-time
+        // validator did to it. A run with stalls AND zero unreachable stops is
+        // saying the remaining problem is not stop legality.
+        ...(() => {
+          const cd = ch.crowdDiagnostics ? ch.crowdDiagnostics() : {};
+          return {
+            stopsNudged: cd.stopsNudged ?? -1,
+            stopsUnreachable: cd.stopsUnreachable ?? -1,
+            worstNudgeYd: cd.worstNudgeYd ?? -1,
+            ladderOn: cd.ladder,
+          };
+        })(),
       };
     });
     // THE FRAMING GATE. Recorded every sample, so the clip's worth is a number
@@ -197,7 +246,8 @@ async (page) => {
     console.log(`[${String(s.t).padStart(3)}s] people=${s.people} onScreen=${s.onScreen} preTouch=${s.preTouch} preHard=${s.preHard} `
       + `postTouch=${s.postTouch} closest=${s.closest} shoves=${s.corrFrames} (${s.perSecond}/s) `
       + `contacts=${s.episodes} stalls=${s.stalls} worstNoProg=${s.worstNoProgress}s `
-      + `wallClamps=${s.wallClamps} infeasible=${s.infeasible}`);
+      + `wallClamps=${s.wallClamps} infeasible=${s.infeasible} `
+      + `stopsNudged=${s.stopsNudged} unreachable=${s.stopsUnreachable}`);
     if (patrol && tick % 4 === 0) {
       await page.keyboard.down('w');
       await page.waitForTimeout(900);
