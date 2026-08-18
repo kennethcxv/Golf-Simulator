@@ -1,0 +1,56 @@
+{
+  "waffle-macro.jpg": {
+    "title": "File:An example of waffle fabric.jpeg",
+    "page": "https://commons.wikimedia.org/wiki/File:An_example_of_waffle_fabric.jpeg",
+    "licence": "CC BY-SA 4.0",
+    "author": "Alexandra.birenbaum",
+    "original": "2601x1732",
+    "bytes": 660491,
+    "shows": "WAFFLE MACRO: raised cells separated by narrow channels, relief deep against cell size"
+  },
+  "waffle-knit.jpg": {
+    "title": "File:Knitted Waffle fabric.jpg",
+    "page": "https://commons.wikimedia.org/wiki/File:Knitted_Waffle_fabric.jpg",
+    "licence": "CC BY-SA 4.0",
+    "author": "RAJIVVASUDEV",
+    "original": "3000x4000",
+    "bytes": 1478720,
+    "shows": "knitted waffle at cloth scale -- how fine the cell really is"
+  },
+  "terry-macro.jpg": {
+    "title": "File:Tessuto a spugna grande.jpg",
+    "page": "https://commons.wikimedia.org/wiki/File:Tessuto_a_spugna_grande.jpg",
+    "licence": "CC BY 3.0",
+    "author": "Luigi Chiesa",
+    "original": "1000x1000",
+    "bytes": 229145,
+    "shows": "terry loop pile at macro"
+  },
+  "folded-pair.jpg": {
+    "title": "File:Zusammengelegte Handtücher.jpg",
+    "page": "https://commons.wikimedia.org/wiki/File:Zusammengelegte_Handt%C3%BCcher.jpg",
+    "licence": "Public domain",
+    "author": "User:Mattes",
+    "original": "2271x1944",
+    "bytes": 803055,
+    "shows": "LOW-ANGLE STACK of five folded towels: the fold edge is a ROUNDED BULGE, not a crease, and there is a flat dobby band near the hem"
+  },
+  "stack-low.jpg": {
+    "title": "File:Towel Stack (3249473893).jpg",
+    "page": "https://commons.wikimedia.org/wiki/File:Towel_Stack_(3249473893).jpg",
+    "licence": "CC BY-SA 2.0",
+    "author": "Harald Hoyer from Schwerin, Germany",
+    "original": "667x1000",
+    "bytes": 588763,
+    "shows": "folded red terry: pile direction flips across the fold, flat woven band"
+  },
+  "terry-towel.jpg": {
+    "title": "File:Terrycloth towel.jpg",
+    "page": "https://commons.wikimedia.org/wiki/File:Terrycloth_towel.jpg",
+    "licence": "Public domain",
+    "author": "No machine-readable author provided. FvS~commonswiki assumed (based on copyright claims).",
+    "original": "640x480",
+    "bytes": 20200,
+    "shows": "a single folded towel over a basin -- soft fold radius"
+  }
+}

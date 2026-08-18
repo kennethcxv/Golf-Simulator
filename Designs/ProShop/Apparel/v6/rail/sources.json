@@ -1,0 +1,47 @@
+{
+  "racks.jpg": {
+    "title": "File:Clothing racks 1 2017-02-09.jpg",
+    "page": "https://commons.wikimedia.org/wiki/File:Clothing_racks_1_2017-02-09.jpg",
+    "licence": "CC BY-SA 4.0",
+    "author": "FASTILY",
+    "original": "3024x4032",
+    "bytes": 1021312,
+    "shows": "hung garments close: the hook, the shoulder, how the hanger carries the weight"
+  },
+  "macys.jpg": {
+    "title": "File:Shopping at Macy's (2111009785).jpg",
+    "page": "https://commons.wikimedia.org/wiki/File:Shopping_at_Macy%27s_(2111009785).jpg",
+    "licence": "CC BY 2.0",
+    "author": "Phil Whitehouse from London, United Kingdom",
+    "original": "3072x2304",
+    "bytes": 568035,
+    "shows": "store rail, dense, with signage"
+  },
+  "jeans.jpg": {
+    "title": "File:Clothing Rack of Jeans.jpg",
+    "page": "https://commons.wikimedia.org/wiki/File:Clothing_Rack_of_Jeans.jpg",
+    "licence": "CC0",
+    "author": "Peter Griffin",
+    "original": "1920x1272",
+    "bytes": 532068,
+    "shows": "a rail of hung jeans from a LOW ANGLE -- hanger spacing and how the legs hang"
+  },
+  "hung-side-1.jpg": {
+    "title": "File:Studio Shots for HangSavvy (3535063505).jpg",
+    "page": "https://commons.wikimedia.org/wiki/File:Studio_Shots_for_HangSavvy_(3535063505).jpg",
+    "licence": "CC BY 2.0",
+    "author": "THOR",
+    "original": "1414x2136",
+    "bytes": 2553024,
+    "shows": "A HUNG SHIRT IN THREE-QUARTER: the depth of a garment on a hanger, and how the shoulders take the hanger's shape"
+  },
+  "hung-side-2.jpg": {
+    "title": "File:Studio Shots for HangSavvy (3535064347).jpg",
+    "page": "https://commons.wikimedia.org/wiki/File:Studio_Shots_for_HangSavvy_(3535064347).jpg",
+    "licence": "CC BY 2.0",
+    "author": "THOR",
+    "original": "2136x1414",
+    "bytes": 131134,
+    "shows": "an empty rail from the side -- hanger profile, hook, and the spacing garments actually sit at"
+  }
+}
