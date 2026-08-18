@@ -166,6 +166,28 @@ def build():
     parts["rail"].data.materials.append(m_brass)
     parts["brackets"].data.materials.append(m_brass)
 
+    # BLOCK 5 -- THE MAPS, through the same wire() the eleven garments went
+    # through. Without this the desk ships four mapped materials with no
+    # normalTexture, no occlusionTexture and no metallicRoughnessTexture, which
+    # assert_maps.mjs fails 12 times on this asset alone, and in game it is a
+    # flat brown box with a flat cream lid -- exactly the greybox it replaces.
+    #
+    # The span is the DESK'S, not the tile's: repeat_for turns millimetres of
+    # real surface into repeats, so an oak ring lands at 26 mm on a 2.4 m front
+    # instead of at whatever the unwrap happened to normalise to.
+    sys.path.insert(0, os.path.join(
+        os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "v7"))
+    import surface as SF  # noqa: E402
+    print("  surface families: %s" % ", ".join(SF.register()))
+    for mat, rough, span in ((m_oak, 0.42, L * 1000.0),
+                             (m_top, 0.34, L * 1000.0),
+                             (m_dark, 0.70, L * 1000.0),
+                             (m_brass, 0.30, (L - 0.12) * 1000.0)):
+        info = SF.wire(mat, rough=rough, span_mm=span)
+        print("  %-14s -> %-9s x%.1f  rough %.2f  %s"
+              % (mat.name, info["family"], info["repeat"], info["rough"],
+                 ", ".join(info["images"])))
+
     objs = list(parts.values())
     for ob in objs:
         # 22 degrees: joinery is flat panels and arrises. Anything that
@@ -207,9 +229,20 @@ def main():
                 ST.unwrap(ob)
         ST.flatten_for_export(objs)
         EX.set_origin(objs, "base")
+        # MACRO OCCLUSION INTO THE VERTICES, the other half of the bake. The
+        # tiling atlas carries the cavity between two grain lines; it cannot
+        # carry the shadow UNDER the bar's overhang, INSIDE the kick recess or
+        # BEHIND the rail, because those belong to this desk in this place and
+        # do not repeat. Those three shadows are most of what makes joinery
+        # read as joinery rather than as stacked boxes.
+        sys.path.insert(0, os.path.join(
+            os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "v6"))
+        import vertex_ao as VAO  # noqa: E402
+        VAO.bake(objs)
         H.bake_gltf_axis(objs)
         H.export_glb(objs, os.path.join(
-            ST.ROOT, "Assets", "models", "hero", "v5", "hard_counter.glb"))
+            ST.ROOT, "Assets", "models", "hero", "v5", "hard_counter.glb"),
+            vertex_colors=True)
 
 
 if __name__ == "__main__":

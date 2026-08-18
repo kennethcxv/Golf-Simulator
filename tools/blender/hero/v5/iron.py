@@ -148,6 +148,26 @@ def build():
         HD.brushed("IronShaft", (0.70, 0.71, 0.72), rough=0.17))
     p["grip"].data.materials.append(HD.rubber("IronGrip"))
 
+
+    # BLOCK 5 -- THE MAPS, through the same wire() the eleven garments went
+    # through. The families are EXPLICIT, never inferred from the material
+    # name: "IronShaft" contains "shaft", "shaft" would infer steel, and a
+    # graphite shaft with metallic 1.0 is the exact confusion hard.py warns
+    # about. The span is the PART'S in millimetres, so a grip's diamond lands
+    # at 3.4 mm and a head's brush at 5 mm rather than at whatever the unwrap
+    # normalised to.
+    sys.path.insert(0, os.path.join(
+        os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "v7"))
+    import surface as SF  # noqa: E402
+    SF.bake([
+        (m_steel, 'steel', 0.3, 90.0),
+        (m_face, 'steel', 0.47, 80.0),
+        (cavity.data.materials[0], 'steel', 0.52, 70.0),
+        (p['ferrule'].data.materials[0], 'paint', 0.3, 20.0),
+        (p['shaft'].data.materials[0], 'steel', 0.17, 900.0),
+        (p['grip'].data.materials[0], 'rubber', 0.82, 280.0),
+    ], "iron")
+
     metal = [face, band, shelf, cavity, p["hosel"]]
     soft = [p["ferrule"], p["shaft"], p["grip"]]
     for ob in metal:
@@ -196,9 +216,14 @@ def main():
                 ST.unwrap(ob)
         ST.flatten_for_export(subject)
         EX.set_origin(subject, "base")
+        sys.path.insert(0, os.path.join(
+            os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "v6"))
+        import vertex_ao as VAO  # noqa: E402
+        VAO.bake(subject)
         H.bake_gltf_axis(subject)
         H.export_glb(subject, os.path.join(
-            ST.ROOT, "Assets", "models", "hero", "v5", "hard_iron.glb"))
+            ST.ROOT, "Assets", "models", "hero", "v5", "hard_iron.glb"),
+            vertex_colors=True)
 
 
 if __name__ == "__main__":

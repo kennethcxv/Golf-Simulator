@@ -87,6 +87,8 @@ async (page) => {
       boardVolumesVisible: !!ch.interior.getObjectByName('GreyboxWallBoards')?.visible,
       // ...and the one it does NOT
       frontDeskVisible: !!ch.interior.getObjectByName('GreyboxFrontDesk')?.visible,
+      greySlabVisible: !!ch.interior.getObjectByName('GREY_frontCounter')?.visible,
+      heroCounterDrawn: !!ch.interior.getObjectByName('HeroFrontDesk'),
     };
   });
   console.log(`grey volumes visible: ${out.scene.greyCount} `
@@ -94,10 +96,17 @@ async (page) => {
     + `boards=${out.scene.boardVolumesVisible} frontDesk=${out.scene.frontDeskVisible})`);
   console.log(`hero/apparel meshes drawn: ${out.scene.heroCount}`);
 
-  // THE FRONT DESK STAYS GREY, in both rooms. Stated as a check, not a hope.
-  if (!out.scene.frontDeskVisible) {
-    fail('the front desk grey volume is NOT drawn — the counter has no baked asset '
-      + 'and must not be dressed until Block 5');
+  // THE DESK. Block 5 baked the hero counter, so v3 draws the real one and
+  // hides the grey slab; v2 keeps the slab, untouched. Both are checked, in
+  // both rooms, because "the greybox stays" is the rule this whole variant
+  // exists to honour.
+  const v3 = out.build.requested === 'pine-hills-v3';
+  if (v3) {
+    if (!out.scene.heroCounterDrawn) fail('v3 did not mount the hero counter');
+    if (out.scene.greySlabVisible) fail('v3 still draws the grey desk slab under the real one');
+  } else {
+    if (out.scene.heroCounterDrawn) fail('pine-hills-v2 mounted the hero counter — the greybox must stay');
+    if (!out.scene.greySlabVisible) fail('pine-hills-v2 lost its grey desk slab');
   }
 
   // Stand on the retail floor and photograph it at the default player camera.
@@ -145,6 +154,27 @@ async (page) => {
   console.log(`framed on: ${JSON.stringify(out.framedFixture)}`);
   await page.waitForTimeout(2500);
   await page.screenshot({ path: path.join(OUT, `${tag}-retail-floor.png`) });
+  // AND THE DESK, which is the one he named. Stood on the customer side at
+  // conversational distance, which is where the player spends every
+  // transaction and the only place the counter has to hold up.
+  await page.evaluate(async () => {
+    const layout = await import(new URL('src/data/shopLayout.js', document.baseURI).href);
+    const app = window.__fw;
+    const ch = app.scene3d.clubhouse();
+    const off = ch.interior.position;
+    const walk = app.scene3d.walk.state;
+    const stand = layout.queueSlot(3);  // back down the line, so the desk FRONT is in frame
+    walk.x = stand.x + off.x;
+    walk.z = stand.z + off.z;
+    const desk = layout.frontDeskPoint(0, 0);
+    const dx = (desk.x + off.x) - walk.x;
+    const dz = (desk.z + off.z) - walk.z;
+    const h = Math.hypot(dx, dz) || 1;
+    walk.yaw = Math.atan2(-dx / h, -dz / h);
+    walk.pitch = -0.10;
+  });
+  await page.waitForTimeout(2200);
+  await page.screenshot({ path: path.join(OUT, `${tag}-desk.png`) });
   await page.evaluate(() => { window.__fw.scene3d.walk.state.yaw = 0; });
   await page.waitForTimeout(1800);
   await page.screenshot({ path: path.join(OUT, `${tag}-opposite.png`) });

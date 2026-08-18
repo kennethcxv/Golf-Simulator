@@ -217,6 +217,28 @@ def build():
     parts["shaft"].data.materials.append(HD.graphite("DriverShaft"))
     parts["grip"].data.materials.append(HD.rubber("DriverGrip"))
 
+
+    # BLOCK 5 -- THE MAPS, through the same wire() the eleven garments went
+    # through. The families are EXPLICIT, never inferred from the material
+    # name: "DriverShaft" contains "shaft", "shaft" would infer steel, and a
+    # graphite shaft with metallic 1.0 is the exact confusion hard.py warns
+    # about. The span is the PART'S in millimetres, so a grip's diamond lands
+    # at 3.4 mm and a head's brush at 5 mm rather than at whatever the unwrap
+    # normalised to.
+    sys.path.insert(0, os.path.join(
+        os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "v7"))
+    import surface as SF  # noqa: E402
+    SF.bake([
+        (m_crown, 'paint', 0.11, 200.0),
+        (m_sole, 'steel', 0.46, 120.0),
+        (m_face, 'steel', 0.29, 100.0),
+        (port.data.materials[0], 'steel', 0.38, 40.0),
+        (parts['hosel'].data.materials[0], 'steel', 0.22, 60.0),
+        (parts['ferrule'].data.materials[0], 'paint', 0.3, 20.0),
+        (parts['shaft'].data.materials[0], 'graphite', 0.24, 1100.0),
+        (parts['grip'].data.materials[0], 'rubber', 0.82, 260.0),
+    ], "driver")
+
     # CRISPNESS. 30 degrees, not 70 -- and the skirt marked sharp on top, since
     # crown and sole meet at about 25 and smoothing alone would round it into
     # the memory-foam read the whole of v5 exists to kill.
@@ -283,9 +305,14 @@ def main():
                 ST.unwrap(ob)
         ST.flatten_for_export(subject)
         EX.set_origin(subject, "base")
+        sys.path.insert(0, os.path.join(
+            os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "v6"))
+        import vertex_ao as VAO  # noqa: E402
+        VAO.bake(subject)
         H.bake_gltf_axis(subject)
         H.export_glb(subject, os.path.join(
-            ST.ROOT, "Assets", "models", "hero", "v5", "hard_driver.glb"))
+            ST.ROOT, "Assets", "models", "hero", "v5", "hard_driver.glb"),
+            vertex_colors=True)
 
 
 if __name__ == "__main__":

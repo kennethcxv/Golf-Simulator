@@ -1487,6 +1487,7 @@ export function makeClubhouse(ctx) {
     // boards down so the finished assets are what you see. The v1 detailer
     // ignores this option, which is correct — it has no grey volumes.
     dressed: dressedGreybox,
+    merch,
     L2W,
     getFixtureAnchor: (fixtureId) => fixtureAnchors.get(fixtureId) || null,
     getRuntimeAssetRoot: (assetNumber) => props61to100.getRoot(assetNumber),

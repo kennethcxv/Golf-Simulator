@@ -688,5 +688,10 @@
     "from": "Assets/models/hero/v5/hard_towel.glb",
     "to": "vendor/models/clubhouse/hero_towel.glb",
     "sha1": "4d1fe1aed96c3e2b66897d663568b82605a89581"
+  },
+  {
+    "from": "Assets/models/hero/v5/hard_counter.glb",
+    "to": "vendor/models/clubhouse/hero_counter.glb",
+    "sha1": "26d48b0d9320b5183f6a5c69a7fc07b4641acc45"
   }
 ]

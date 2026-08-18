@@ -105,15 +105,22 @@ const RAW = [
   // The whole v7 bake would be thrown away at load.
   //
   // Verified before wiring: all eleven report images>0 and COLOR_0 on every
-  // primitive. The four v5 HARDGOODS (counter, driver, iron, putter) report
-  // img 0 / COLOR_0 0 — they never went through the bake — and are deliberately
-  // NOT here. See Designs/ProShop/GOAL_37_ASSET_MERGE.md.
+  // primitive. The four v5 HARDGOODS reported img 0 / COLOR_0 0 and were
+  // deliberately left out — until Block 5 baked them through the same wire().
+  // assert_maps.mjs now passes all fifteen; the counter is below, and the three
+  // clubs are baked but not placed anywhere yet, which is a separate decision.
   'hero_polo_hung', 'hero_polo_folded',
   'hero_tee_hung', 'hero_tee_folded',
   'hero_hoodie_hung', 'hero_hoodie_folded',
   'hero_trousers_hung', 'hero_trousers_folded',
   'hero_cap', 'hero_cap_peg',
   'hero_towel',
+  // BLOCK 5: the front desk. Baked at last — packed normal/occlusion/
+  // metallic-roughness on all four materials and COLOR_0 on all nine
+  // primitives — so it may finally be drawn. RAW like the garments: not one of
+  // its material names is in SLOT or TINTABLE, and resolve() would fall through
+  // to mats.charcoal and throw the whole bake away at load.
+  'hero_counter',
 ];
 
 // Which slot in the GLB maps to which material in the clubhouse kit.

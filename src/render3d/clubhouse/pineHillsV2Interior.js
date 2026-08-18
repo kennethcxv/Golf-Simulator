@@ -146,10 +146,13 @@ export function createPineHillsV2Interior({
   onStockSocketsReady = () => {},
   // pine-hills-v3: the same room with the finished assets DRESSED IN. The grey
   // stand-ins for retail fixtures, the lounge suite and the wall boards step
-  // aside; the front desk shell does NOT, because its hero replacement has not
-  // been baked (see Block 5). Everything structural — walls, ceiling, beams,
-  // the corridor seal — is the ROOM, not a stand-in, and stays in both.
+  // aside, and — since Block 5 baked it — so does the front desk slab, which
+  // the real hero counter replaces. Everything structural — walls, ceiling,
+  // beams, the corridor seal — is the ROOM, not a stand-in, and stays in both.
   dressed = false,
+  // the merchandise loader, for the one authored asset this module mounts
+  // itself. Absent under pine-hills-v2, which never asks for it.
+  merch = null,
 } = {}) {
   if (!interior?.add) throw new TypeError('Pine Hills v2 interior requires an Object3D mount.');
   void getRuntimeAssetRoot; // v2 rotates its own grey chairB; the GLB chair is suppressed
@@ -315,6 +318,41 @@ export function createPineHillsV2Interior({
       deskRoot.add(returnRun);
       greyStaticRoots.set(returnRun.name, returnRun);
     }
+  }
+
+  // THE REAL DESK, in the dressed copy only.
+  //
+  // "THE COUNTER ESPECIALLY." It stayed grey through goal 37 for a good reason
+  // — the hero counter came out of the v5 hardgoods line with img 0 and no
+  // COLOR_0, so it had never been baked, and wiring it would have shipped flat
+  // colour. That is fixed: it now carries packed normal, occlusion and
+  // metallic-roughness maps on all four materials and COLOR_0 on all nine
+  // primitives, and `tools/blender/hero/v6/assert_maps.mjs` passes all fifteen
+  // assets for the first time.
+  //
+  // The grey slab is NOT deleted, it is hidden. It is the shape the colliders,
+  // the register stand, the queue head and the ledger are all measured
+  // against, so removing it would move the thing every one of them is pinned
+  // to. The real desk is placed on the same datum, at the same rotation, and
+  // the greybox's own volume stays as the reference it always was.
+  let heroCounter = null;
+  function mountHeroCounter() {
+    if (!dressed || heroCounter || !merch?.instantiateRaw) return null;
+    const built = merch.instantiateRaw('hero_counter');
+    if (!built) return null;
+    const centre = frontDeskPoint(0, 0);
+    built.name = 'HeroFrontDesk';
+    built.position.set(centre.x, 0, centre.z);
+    built.rotation.y = FRONT_DESK_FRAME.ry;
+    built.userData.liveVisualHierarchy = false;
+    deskRoot.add(built);
+    heroCounter = built;
+    // Only the slab: the return run and the corridor seal are collision shape
+    // the authored asset does not carry, and a shop with an open pass-through
+    // where the seal used to be is a different floor plan.
+    const slab = greyStaticRoots.get('GREY_frontCounter');
+    if (slab) slab.visible = false;
+    return built;
   }
 
   // Wall boards: grey panels on the real wall plane at the frame-local x positions.
@@ -987,7 +1025,12 @@ export function createPineHillsV2Interior({
       // after a minute — a missing name means its loader never produced it.
       if (sweepLegacyVisuals()) sweepDeadline = 0;
       hideRetailFixtureAnchors();
+      // The hero counter arrives with the merchandise protos, which load
+      // asynchronously — so it is swept for on the same clock as everything
+      // else that mounts late rather than assumed present at build.
+      mountHeroCounter();
     },
+    heroCounterMounted: () => !!heroCounter,
     getRoot: (key) => greyRootFor(key) || greyRootFor(`GREY_${key}`),
     roots: () => [...greyStaticRoots.values(), ...greyFixtureRoots.values()],
     // Phase 5 dirt hook: every architecture material carries an aoMap (channel

@@ -171,6 +171,30 @@ def build():
     p["grip"].data.materials.append(HD.rubber("PutterGrip", (0.052, 0.050, 0.048),
                                               rough=0.78))
 
+
+    # BLOCK 5 -- THE MAPS, through the same wire() the eleven garments went
+    # through. The families are EXPLICIT, never inferred from the material
+    # name: "PutterShaft" contains "shaft", "shaft" would infer steel, and a
+    # graphite shaft with metallic 1.0 is the exact confusion hard.py warns
+    # about. The span is the PART'S in millimetres, so a grip's diamond lands
+    # at 3.4 mm and a head's brush at 5 mm rather than at whatever the unwrap
+    # normalised to.
+    sys.path.insert(0, os.path.join(
+        os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "v7"))
+    import surface as SF  # noqa: E402
+    SF.bake([
+        (m_body, 'steel', 0.38, 110.0),
+        (face.data.materials[0], 'steel', 0.24, 100.0),
+        (insert.data.materials[0], 'steel', 0.3, 90.0),
+        (sight.data.materials[0], 'paint', 0.42, 80.0),
+        (weights.data.materials[0], 'steel', 0.36, 30.0),
+        (neck.data.materials[0], 'steel', 0.2, 120.0),
+        (p['hosel'].data.materials[0], 'steel', 0.2, 60.0),
+        (p['ferrule'].data.materials[0], 'paint', 0.3, 20.0),
+        (p['shaft'].data.materials[0], 'steel', 0.17, 900.0),
+        (p['grip'].data.materials[0], 'rubber', 0.82, 280.0),
+    ], "putter")
+
     metal = [body, face, insert, sight, weights, neck, p["hosel"]]
     soft = [p["ferrule"], p["shaft"], p["grip"]]
     for ob in metal:
@@ -218,9 +242,14 @@ def main():
                 ST.unwrap(ob)
         ST.flatten_for_export(subject)
         EX.set_origin(subject, "base")
+        sys.path.insert(0, os.path.join(
+            os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "v6"))
+        import vertex_ao as VAO  # noqa: E402
+        VAO.bake(subject)
         H.bake_gltf_axis(subject)
         H.export_glb(subject, os.path.join(
-            ST.ROOT, "Assets", "models", "hero", "v5", "hard_putter.glb"))
+            ST.ROOT, "Assets", "models", "hero", "v5", "hard_putter.glb"),
+            vertex_colors=True)
 
 
 if __name__ == "__main__":
