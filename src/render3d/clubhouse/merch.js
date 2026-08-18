@@ -94,6 +94,26 @@ const RAW = [
   'pine_hills_front_desk_clutter_v1', 'pine_hills_lounge_litter_v1',
   'pine_hills_fallen_frame_v1', 'pine_hills_floor_plant_v1',
   'pine_hills_counter_plant_v1',
+  // HERO APPAREL (Assets/models/hero/v5, staged by the vendor manifest).
+  //
+  // RAW and not FILES, because the bake IS the garment. Each of these carries a
+  // normal + occlusion + metallicRoughness set with KHR_texture_transform
+  // tiling (the polo's pique lattice is scale 13), COLOR_0 on every primitive,
+  // and KHR_materials_sheen for the fabric's light. instantiate() would replace
+  // every one of those materials with a palette slot — and since none of these
+  // material names are in SLOT or TINTABLE, they would all resolve to charcoal.
+  // The whole v7 bake would be thrown away at load.
+  //
+  // Verified before wiring: all eleven report images>0 and COLOR_0 on every
+  // primitive. The four v5 HARDGOODS (counter, driver, iron, putter) report
+  // img 0 / COLOR_0 0 — they never went through the bake — and are deliberately
+  // NOT here. See Designs/ProShop/GOAL_37_ASSET_MERGE.md.
+  'hero_polo_hung', 'hero_polo_folded',
+  'hero_tee_hung', 'hero_tee_folded',
+  'hero_hoodie_hung', 'hero_hoodie_folded',
+  'hero_trousers_hung', 'hero_trousers_folded',
+  'hero_cap', 'hero_cap_peg',
+  'hero_towel',
 ];
 
 // Which slot in the GLB maps to which material in the clubhouse kit.
@@ -335,8 +355,16 @@ export function createMerch(mats) {
       g.userData.merchBakeOwned = true;
       g.applyMatrix4(o.matrixWorld);
       // merging needs identical attribute sets; drop anything exotic
+      //
+      // `color` IS NOT EXOTIC — it is the v7 bake. The hero garments carry
+      // COLOR_0 on every primitive and their materials come out of the loader
+      // with vertexColors = true. Deleting the attribute here left the material
+      // asking for a colour stream that no longer existed, which is not "the
+      // authored colour" and not "no colour" but undefined. Measured on the
+      // towel: material.vertexColors true, geometry.color absent
+      // (qa/goal37/wired.json, before this line changed).
       for (const attr of Object.keys(g.attributes)) {
-        if (!['position', 'normal', 'uv'].includes(attr)) g.deleteAttribute(attr);
+        if (!['position', 'normal', 'uv', 'color'].includes(attr)) g.deleteAttribute(attr);
       }
       if (!g.attributes.uv) {
         const n = g.attributes.position.count;
@@ -346,6 +374,21 @@ export function createMerch(mats) {
       buckets.get(m).push(g);
     });
     if (!buckets.size) return group;
+
+    // A bucket is keyed by MATERIAL, so its members agree about whether they
+    // carry colour — but a mismatched set would make mergeGeometries throw and
+    // drop the whole display to loose meshes. Fill the gaps with white, which
+    // multiplies to a no-op, exactly as the uv fallback above does.
+    for (const geos of buckets.values()) {
+      const withColor = geos.find((g) => g.attributes.color);
+      if (!withColor || geos.every((g) => g.attributes.color)) continue;
+      const size = withColor.attributes.color.itemSize;
+      for (const g of geos) {
+        if (g.attributes.color) continue;
+        const n = g.attributes.position.count;
+        g.setAttribute('color', new THREE.BufferAttribute(new Float32Array(n * size).fill(1), size));
+      }
+    }
 
     const out = new THREE.Group();
     for (const [m, geos] of buckets) {

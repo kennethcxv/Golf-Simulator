@@ -633,5 +633,60 @@
     "from": "Assets/hands/fp_hand.glb",
     "to": "vendor/models/hands/fp_hand.glb",
     "sha1": "e8ef10e673d12770b42270c8481b43a7638a38d7"
+  },
+  {
+    "from": "Assets/models/hero/v5/apparel_polo_hung.glb",
+    "to": "vendor/models/clubhouse/hero_polo_hung.glb",
+    "sha1": "b9a07f85849a51341f8701113b134b8c7f2f20a3"
+  },
+  {
+    "from": "Assets/models/hero/v5/apparel_polo_folded.glb",
+    "to": "vendor/models/clubhouse/hero_polo_folded.glb",
+    "sha1": "e241d2a3b3fdb202e945f30d37db907f087d715a"
+  },
+  {
+    "from": "Assets/models/hero/v5/apparel_tee_hung.glb",
+    "to": "vendor/models/clubhouse/hero_tee_hung.glb",
+    "sha1": "7e71414d8ac00bed66dece075c9bdd3eedae64ed"
+  },
+  {
+    "from": "Assets/models/hero/v5/apparel_tee_folded.glb",
+    "to": "vendor/models/clubhouse/hero_tee_folded.glb",
+    "sha1": "b17901f4cec9afa86ff3edb86dc81d67f7e8f4a9"
+  },
+  {
+    "from": "Assets/models/hero/v5/apparel_hoodie_hung.glb",
+    "to": "vendor/models/clubhouse/hero_hoodie_hung.glb",
+    "sha1": "6e3997119bbc20b28c9ed157b94f2a8673491222"
+  },
+  {
+    "from": "Assets/models/hero/v5/apparel_hoodie_folded.glb",
+    "to": "vendor/models/clubhouse/hero_hoodie_folded.glb",
+    "sha1": "cd5e1ee344d24bd46702a7048ac9368d636a95f5"
+  },
+  {
+    "from": "Assets/models/hero/v5/apparel_trousers_hung.glb",
+    "to": "vendor/models/clubhouse/hero_trousers_hung.glb",
+    "sha1": "58de5a17984d231ee6aa027f012ba7746f1e0e0e"
+  },
+  {
+    "from": "Assets/models/hero/v5/apparel_trousers_folded.glb",
+    "to": "vendor/models/clubhouse/hero_trousers_folded.glb",
+    "sha1": "64dd406b1ba39d4fd803ca8e36ece587979eb317"
+  },
+  {
+    "from": "Assets/models/hero/v5/apparel_cap.glb",
+    "to": "vendor/models/clubhouse/hero_cap.glb",
+    "sha1": "0b8ca1b0d5d02e2906d55d6d0f47b75141914218"
+  },
+  {
+    "from": "Assets/models/hero/v5/apparel_cap_peg.glb",
+    "to": "vendor/models/clubhouse/hero_cap_peg.glb",
+    "sha1": "946e8ee9d7e7340771d65eac8c8d81ebdf01ebb1"
+  },
+  {
+    "from": "Assets/models/hero/v5/hard_towel.glb",
+    "to": "vendor/models/clubhouse/hero_towel.glb",
+    "sha1": "4d1fe1aed96c3e2b66897d663568b82605a89581"
   }
 ]

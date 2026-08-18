@@ -850,3 +850,50 @@ to run: the defect is intermittent BY CONSTRUCTION. A single green run of a
 geometry-dependent check is not evidence — place the pointer deliberately
 (over the size slider, over the tip box) rather than hoping the interesting case
 turns up.
+
+## 2026-08-18, goal 37 — the asset merge
+
+**THE GOLDEN CAPTURE CAN STAGE A POSE AT THE CEILING, AND IT LOOKS LIKE A 24%
+REGRESSION.** The first full gate on the committed merge failed with `tool-mop`
+at 24.4245% against a 0.75% budget. It was not the mop: the merge changed no
+`src/`, no `vendor/`, no capture driver, and `tests/goldens/tool-mop.png` was
+byte-identical to pre-merge main, which had measured that pose at 0.2577% hours
+earlier. Putting the baseline beside the capture settled it in one look — the
+baseline is the shop wall with the mop in hand, the capture is two dark beams on
+a flat plane. The camera was pitched up and the mop was not in frame at all.
+Three later runs read 0.3077, 0.4251 and ok.
+
+The lesson is the number's SHAPE. A tool pose that drifts reads in tenths of a
+percent; twenty-four percent is a different photograph, and a different
+photograph is a staging fault until proven otherwise. Rebaselining that run
+would have written a picture of the ceiling into the contract — and `--accept`
+would have taken it without comment.
+
+**A LARGE UNCOMMITTED CHANGE BREAKS goal24's ORCHESTRATOR CONTRACT TEST WITH AN
+ERROR THAT HAS NOTHING TO DO WITH THE CONTRACT.** `repositoryMetadata()`
+fingerprints the tree with `git diff --binary --no-ext-diff HEAD`. A previous
+session already raised its `maxBuffer` to 256 MB for the standing 34-GLB wedge;
+101 new binary GLBs staged blow through even that and the test reports
+`spawnSync git ENOBUFS`. Committing takes the same diff to 0 bytes. Expect this
+on every future asset merge — the failure names git, not the code under test.
+
+**`git lfs checkout` CAN SILENTLY NO-OP ON POINTERS WHOSE OBJECTS ARE PRESENT.**
+Merging with the LFS clean filter bypassed (the only way past the pointer wedge)
+lands incoming LFS files as 132-byte pointer stubs. `git lfs checkout -- Assets/`
+returned success and changed nothing, with the objects sitting in
+`.git/lfs/objects` at the right size. They had to be copied by oid and then
+re-verified by glTF magic — 76 of 76. **Never assume an LFS materialisation
+worked; check the file's first four bytes.**
+
+**A PROBE THAT ASKS FOR SOMETHING THE PUBLIC API DOES NOT EXPOSE REPORTS ELEVEN
+PHANTOM MISSES.** `clubhouse().merch` is not on the returned API, so
+`m?.has ? ... : null` answered null for every hero model and the driver printed
+`prototypes loaded: 0/11` — on a build where the towel was demonstrably drawing.
+An unreachable probe must report UNAVAILABLE, never absent.
+
+**AND THE CHECK DEMANDED A POSE THE GAME NEVER ASKS FOR.** The same driver
+failed on "hung polo missing", so the polos were moved onto a rail — and it
+failed again. Slots are keyed by SKU, not by fixture: `polo1` builds
+`tableApparel`, which is folded stacks, whatever fixture it sits on. The check
+was wrong twice before the wiring was. Read the data model before asserting what
+it should produce.

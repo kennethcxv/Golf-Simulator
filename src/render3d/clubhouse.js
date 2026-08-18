@@ -4317,6 +4317,28 @@ export function makeClubhouse(ctx) {
     polo1: 0x4e7a52, polo2: 0x5b7f9e, jacket2: 0x33455e,
     pants2: 0x7d7667, shorts1: 0xb8a785,
   };
+  // GOAL 37 — which garment line each apparel SKU draws from the v5 hero set.
+  //
+  // Keyed by SKU so STOCK and TIER keep deciding what appears: this table only
+  // answers "which model", the merchandise system still decides how many and
+  // whether any at all. The slot decides hung vs folded.
+  //
+  //   polo1/polo2   the polo, on the rail and folded on the shelf
+  //   jacket2       the hoodie — the nearest authored garment to a storm shell
+  //   pants2        the trousers
+  //   shorts1       NOT mapped: there is no shorts model in v5, and dressing a
+  //                 shorts SKU as full-length trousers would be a lie on the
+  //                 shelf. It keeps the tinted checkout family.
+  //
+  // The tee garment (hero_tee_hung/folded) is exported and loaded but has no
+  // SKU in SHOP_CATALOG to hang it on; it stays available rather than being
+  // forced onto a line it does not describe.
+  const HERO_GARMENTS = {
+    polo1: { hung: 'hero_polo_hung', folded: 'hero_polo_folded' },
+    polo2: { hung: 'hero_polo_hung', folded: 'hero_polo_folded' },
+    jacket2: { hung: 'hero_hoodie_hung', folded: 'hero_hoodie_folded' },
+    pants2: { hung: 'hero_trousers_hung', folded: 'hero_trousers_folded' },
+  };
   const BAG_TINTS = [0x53688c, 0x4e8059, 0xb9b3a6, 0x9a7a56];
   const SHOE_DISPLAY_TINTS = [0xf0ead8, 0x78957e, 0x53688c, 0xd8d1bf, 0x315c43, 0xb8aa91];
   const CARTON_BRAND = { tees1: 'CADDIE CLUB', marker1: 'CADDIE CLUB' };
@@ -4549,7 +4571,30 @@ export function makeClubhouse(ctx) {
       // THE WORST ASSET IN THE SHOP, per the audit: a hanging polo was a 0.3 x 0.38 x 0.035 box
       // with two box sleeves stuck on at 30 degrees. Both the hanging and the folded shirts are
       // modelled garments now, and the tints sit on the room's palette.
+      //
+      // GOAL 37 — the v5 hero garments take over wherever one exists for the
+      // line. They are BAKED (normal/AO/roughness with tiled texture transforms,
+      // COLOR_0 per primitive, sheen), so they load through instantiateRaw and
+      // keep their authored identity; the palette tint is deliberately NOT
+      // applied to them, because tinting is what the bake replaced. The lines
+      // with no v5 garment — shorts1, which has no shorts model — keep the
+      // tinted checkout family, so nothing regresses to a placeholder.
       const tint = s.tint ?? POLO_TINTS[id];
+      const hero = HERO_GARMENTS[id];
+      if (hero) {
+        const name = s.folded ? hero.folded : hero.hung;
+        const garment = merch.instantiateRaw(name);
+        if (garment) {
+          // Both pivots are authored for their slot: a folded garment sits on
+          // its own base (min y = 0) and a hung one hangs from the hanger hook
+          // (max y = 0), which is the same convention the slot table already
+          // feeds the checkout family.
+          garment.position.set(s.x, s.y, s.z);
+          garment.rotation.y = s.ry || 0;
+          return garment;
+        }
+        // fall through to the checkout family if the hero model has not loaded
+      }
       if (s.folded) {
         const fold = merch.instantiate(
           id === 'jacket2' ? 'checkout_product_folded_jacket' : 'checkout_product_folded_polo',
@@ -4571,7 +4616,19 @@ export function makeClubhouse(ctx) {
       return shirt;
     }
 
-    if (id === 'cap1') {
+    if (id === 'cap1' || id === 'cap2') {
+      // Two authored caps, and the SLOT picks between them: the peg version is
+      // modelled around its peg (pivot at the wall, crown hanging forward), the
+      // shelf version stands on its own brim. `rx` is the slot table's "nose the
+      // crown down over the peg" flag, which is exactly the peg case.
+      const onPeg = !!s.rx || s.peg === true;
+      const heroCap = merch.instantiateRaw(onPeg ? 'hero_cap_peg' : 'hero_cap');
+      if (heroCap) {
+        heroCap.rotation.order = 'YXZ';
+        heroCap.position.set(s.x, s.y, s.z);
+        heroCap.rotation.set(0, s.ry || 0, 0);
+        return heroCap;
+      }
       const cap = merch.instantiate('checkout_product_cap', { tint: s.tint ?? 0x315c43 });
       if (!cap) return null;
       cap.position.set(s.x, s.y, s.z);
@@ -4601,6 +4658,15 @@ export function makeClubhouse(ctx) {
     }
 
     if (id === 'towel1') {
+      // The v5 towel is baked (2 images, COLOR_0 on all three primitives) and
+      // is the one hero hardgood that went through it — the other four did not
+      // and are not wired.
+      const heroTowel = merch.instantiateRaw('hero_towel');
+      if (heroTowel) {
+        heroTowel.position.set(s.x, s.y, s.z);
+        heroTowel.rotation.y = s.ry || 0;
+        return heroTowel;
+      }
       const towel = merch.instantiate('checkout_product_towel_roll', { tint: 0x78957e });
       if (!towel) return null;
       towel.position.set(s.x, s.y, s.z);
