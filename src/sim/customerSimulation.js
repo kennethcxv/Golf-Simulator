@@ -140,6 +140,84 @@ export function queueAdvanceSlot(held, wanted, isClear) {
   return isClear(next) ? next : held;
 }
 
+// "I DO A PURCHASE FOR ONE PERSON AND FOR SOME REASON EVERYONE IN LINE LEAVES."
+//
+// The pre-service fuse ran on ONE clock — time since this customer's route
+// turned for the counter — and nothing ever credited it. Five people arriving
+// together therefore expire together, and the only thing holding them was their
+// queue index: positions 0 and 1 are unconditional, everyone behind is not. So
+// the moment a sale completes and the array shifts, the person who has just
+// been exposed at position 2 is carrying a fuse that burned through minutes
+// ago, and they walk. Then the next. Then the next. From behind the counter
+// that is one purchase emptying the whole shop, and the player is punished for
+// doing the job correctly — the exact fault A2 (Goal 21) was written to fix,
+// reappearing one place downstream of the fix.
+//
+// The clock burns 4x faster than the wall (decisionDt), so PATIENCE_FULL's ten
+// authored minutes are two and a half real ones: about the length of one
+// unhurried transaction.
+//
+// A person in a queue is not counting the minutes, they are watching the line.
+// While it moves they stay; when it stops they go. So there are two fuses:
+//
+//   wait  — time since the line last MOVED. Reset on every advance. This is the
+//           one that decides "this shop is not serving anybody".
+//   total — time in the line, never reset, on a much longer fuse. Without it a
+//           shop that advances one place every four minutes would hold a queue
+//           for ever, and "the line is technically moving" is not patience.
+export const QUEUE_TOTAL_WAIT_MULTIPLIER = 3;
+
+/**
+ * One frame of a queued customer's two patience clocks.
+ *
+ * @param prev {wait, total, index} from last frame (any of them may be missing)
+ * @param dt   seconds to add, on whatever clock the caller is running
+ * @param queueIndex current 0-based position; negative/null = not in the line
+ * @param serving is the cashier working a sale at the till right now?
+ * @returns the next record, plus whether the line advanced this frame
+ */
+export function stepPreServiceWait(prev, dt, queueIndex, { serving = false } = {}) {
+  const wait = Number(prev?.wait) || 0;
+  const total = Number(prev?.total) || 0;
+  const step = Number.isFinite(dt) && dt > 0 ? dt : 0;
+  const last = Number.isFinite(prev?.index) && prev.index >= 0 ? prev.index : null;
+  const index = Number.isFinite(queueIndex) && queueIndex >= 0 ? queueIndex : null;
+  // Falling BACK is not a reason to punish anyone — a reservation guest
+  // inserted ahead is not this customer's fault — so only an improvement counts.
+  const advanced = last !== null && index !== null && index < last;
+  // BEING SERVED IS ITSELF PROGRESS, and saying so removes a one-frame race
+  // that the advance credit alone cannot: a customer whose fuse expires in the
+  // middle of the sale that is about to move them up walks out a frame before
+  // the thing that would have saved them. Whether the line survives should not
+  // be a coin flip on which check the frame ran first. `total` still runs — a
+  // sale being open is not a licence to keep anyone standing there for ever.
+  const holding = advanced || serving === true;
+  return {
+    wait: holding ? (advanced ? 0 : wait) : wait + step,
+    total: total + step,
+    index,
+    advanced,
+    held: !advanced && serving === true,
+  };
+}
+
+/**
+ * Has this customer given up?
+ *
+ * @param clocks {wait, total} from stepPreServiceWait
+ * @param queueIndex their position, for the never-abandon depth
+ * @param patienceFull the authored fuse length
+ */
+export function queueGiveUp(clocks, queueIndex, patienceFull) {
+  if (!queuePositionMayAbandon(queueIndex)) return false;
+  const full = Number(patienceFull);
+  if (!Number.isFinite(full) || full <= 0) return false;
+  const wait = Number(clocks?.wait) || 0;
+  const total = Number(clocks?.total) || 0;
+  if (wait > full) return true;
+  return total > full * QUEUE_TOTAL_WAIT_MULTIPLIER;
+}
+
 /** @param queueIndex 0-based position in the service line; negative = not in it */
 export function queuePositionMayAbandon(queueIndex) {
   // Number(null) is 0, and 0 is finite and is the front of the line — so a

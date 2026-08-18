@@ -94,6 +94,14 @@ test('WaitingForCashier recovery releases only unsafe input while the patience f
   assert.doesNotMatch(waiting, /register\.begin|register\.complete|surrenderCart|customerGiveUp|c\.tx\s*=/);
   assert.match(update, /c\.checkoutApproachArmed && c\.checkoutFlow/,
     'shopping time cannot consume the counter patience clock before arming');
-  assert.match(update, /c\.preServiceWait > PATIENCE_FULL[\s\S]*beginCustomerImpatientBeat\(c\)/,
-    'the ten-minute give-up fuse remains the sole abandonment path');
+  // The fuse is now two clocks in sim/customerSimulation.js — `wait` since the
+  // line last advanced, and `total` in the line at all — because one clock with
+  // no credit for the line MOVING is what emptied a five-deep queue on the back
+  // of a single completed sale. It is still the sole abandonment path, and it
+  // is still the only thing here that may begin the impatient beat.
+  assert.match(update, /queueGiveUp\(clocks, queueIndex, PATIENCE_FULL\)[\s\S]{0,200}beginCustomerImpatientBeat\(c\)/,
+    'the pre-service fuse remains the sole abandonment path');
+  assert.match(update, /stepPreServiceWait\(/, 'and it is stepped through the sim, not open-coded');
+  assert.doesNotMatch(waiting, /preServiceWait|queueGiveUp/,
+    'the watchdog must never touch the patience clocks');
 });

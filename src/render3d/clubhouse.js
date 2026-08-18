@@ -108,7 +108,8 @@ import {
   // (the walk-in ask rule lives in the sim; see the import below)
 } from '../sim/reservations.js';
 import {
-  walkInAskFrom, queuePositionMayAbandon, queueAdvanceSlot, queueSlotIsClear,
+  walkInAskFrom, queueAdvanceSlot, queueSlotIsClear,
+  stepPreServiceWait, queueGiveUp,
 } from '../sim/customerSimulation.js';
 import { steerAround, STEER_DEFAULTS } from './clubhouse/steerAhead.js';
 import { BODY_RADIUS, avoidanceHeading, separate } from './clubhouse/crowd.js';
@@ -680,7 +681,13 @@ export function makeClubhouse(ctx) {
     // constant, so accepting the variant from anywhere else (e.g. a saved property
     // field) would draw the v2 room over v1 coordinates. A save-only request degrades
     // to the v1 room — the datums it was built against.
-    if (CLUBHOUSE_LAYOUT_VARIANT === 'pine-hills-v2') return 'pine-hills-v2';
+    if (CLUBHOUSE_LAYOUT_VARIANT === 'pine-hills-v2') {
+      // Both greybox rooms sit on this one floor plan. v3 is the copy the
+      // finished Blender work gets dressed into; v2 stays exactly as it is.
+      return CLUBHOUSE_VARIANT_REQUEST.variant === 'pine-hills-v3'
+        ? 'pine-hills-v3'
+        : 'pine-hills-v2';
+    }
     // The same resolution shopLayout already performed, not a second read of the
     // query: query, launch flag and persisted dev setting all reach the room the same
     // way, and a presentation that re-derived only one of them would silently ignore
@@ -729,8 +736,34 @@ export function makeClubhouse(ctx) {
       + `savedProperty=${state?.property?.clubhouseVariant}. The player saw two different buildings.`,
     );
   }
-  const greyboxPresentation = requestedClubhousePresentation === 'pine-hills-v2';
-  const GREYBOX_SUPPRESSED_PROP_ASSETS = new Set([
+  // THE DRESSED COPY OF THE GREYBOX.
+  //
+  // "Start making edits in a copy of the gray box with the newly updated blender
+  // assets." pine-hills-v2 is the working variant and CLAUDE.md says it stays
+  // grey — so this is the room where raising it is allowed. Same floor plan,
+  // same datums, same colliders, same queue; the ONLY difference is which
+  // volumes are grey.
+  //
+  // What v3 raises today: the retail fixtures. The eleven baked v7 garments and
+  // the towel are already wired through the merchandise system, but on v2 every
+  // retail fixture's anchor is inside an opaque grey volume, so a hung polo is
+  // photographed from inside a box — which is why the goal-37 acceptance shots
+  // had to be taken in the STOCKROOM. Raising the fixtures is what puts the
+  // finished apparel on the shop floor where it belongs.
+  //
+  // What v3 does NOT raise, and why: the front desk (61), the back-counter
+  // hutch (62) and the fitting booth (63). Their hero replacements — the
+  // counter above all — came out of the v5 hardgoods line with `img 0` and no
+  // COLOR_0. They never went through the v7 bake, so dressing them now would
+  // ship flat colour, which is the exact fault the bake exists to fix. THE
+  // COUNTER STAYS A GREY BOX. It is Block 5, and it stays grey until it is
+  // baked and asserted.
+  const greyboxPresentation = requestedClubhousePresentation === 'pine-hills-v2'
+    || requestedClubhousePresentation === 'pine-hills-v3';
+  const dressedGreybox = requestedClubhousePresentation === 'pine-hills-v3';
+  const GREYBOX_SUPPRESSED_PROP_ASSETS = new Set(dressedGreybox ? [
+    61, 62, 63,        // still grey in v3: unbaked hardgoods (see Block 5)
+  ] : [
     61, 62, 63,        // desk shell, hutch cabinet, fitting booth — grey volumes instead
     67, 68, 69, 70,    // lounge suite — grey volumes instead
     85, 88, 89, 90,    // counter-top dressing (phone, key rack, clipboard, scorecards)
@@ -1450,6 +1483,10 @@ export function makeClubhouse(ctx) {
     addProp,
     removeProp,
     addCol,
+    // pine-hills-v3 only: stand the grey retail fixtures, lounge suite and wall
+    // boards down so the finished assets are what you see. The v1 detailer
+    // ignores this option, which is correct — it has no grey volumes.
+    dressed: dressedGreybox,
     L2W,
     getFixtureAnchor: (fixtureId) => fixtureAnchors.get(fixtureId) || null,
     getRuntimeAssetRoot: (assetNumber) => props61to100.getRoot(assetNumber),
@@ -1961,7 +1998,7 @@ export function makeClubhouse(ctx) {
     // ticket has banked. Even if leaveQueue itself is later decorated with a
     // fallible side effect, exact-identity removal below still frees the till.
     try {
-      leaveQueue(c);
+      leaveQueue(c, 'paid');
     } catch {
       const queueIndex = counterQueue.indexOf(c);
       if (queueIndex >= 0) counterQueue.splice(queueIndex, 1);
@@ -2577,12 +2614,48 @@ export function makeClubhouse(ctx) {
     // up. A bar that stops moving reads as finished, so past the nominal beat
     // it creeps instead of stopping.
     let bootDone = false;
-    const BOOT_BAR_NOMINAL_MS = 480; // the boot screen's share of the open
+    // ...AND IT HAS TO RUN EVENLY, WHICH IS A SEPARATE FAULT FROM LYING.
+    //
+    // "It goes really fast to 75% then takes 5 seconds to finish that. Make it
+    // even throughout the entire progress bar loading."
+    //
+    // The curve above was fast-then-slow BY CONSTRUCTION: nine tenths of the
+    // bar in a fixed 480 ms, then an asymptotic crawl through the last tenth
+    // with a 900 ms time constant. On a machine or a save where the open outran
+    // that authored beat — which is his, every time — the player watched a
+    // sprint and then a stall. Two things were wrong with it: a nominal no
+    // machine is obliged to meet, and a shape that cannot be even at any speed.
+    //
+    // So: ONE STRAIGHT RAMP across the whole bar, over a duration this machine
+    // has actually produced. The estimate starts from the choreography's own
+    // beat (main.js hands it over rather than a second copy of the number
+    // living here), is updated after every open, and is REMEMBERED ACROSS
+    // SESSIONS — because the open a player complains about is the first one of
+    // a session, and a bar that only paces correctly from the second open has
+    // not fixed anything he would notice.
+    const BOOT_BAR_STORE_KEY = 'golfempire:laptop:open-ms';
+    const BOOT_BAR_MIN_MS = 220;
+    const BOOT_BAR_MAX_MS = 9000;
+    const clampBootMs = (ms) => Math.min(BOOT_BAR_MAX_MS, Math.max(BOOT_BAR_MIN_MS, ms));
+    let bootBarNominalMs = 480;
+    (() => {
+      try {
+        const stored = Number(globalThis.localStorage?.getItem?.(BOOT_BAR_STORE_KEY));
+        if (Number.isFinite(stored) && stored > 0) bootBarNominalMs = clampBootMs(stored);
+      } catch { /* storage denied: the authored beat is a fine first guess */ }
+    })();
     const bootProgress = () => {
       if (bootDone) return 1;
-      const t = performance.now() - bootT0;
-      if (t < BOOT_BAR_NOMINAL_MS) return 0.9 * (t / BOOT_BAR_NOMINAL_MS);
-      return 0.9 + 0.09 * (1 - Math.exp(-(t - BOOT_BAR_NOMINAL_MS) / 900));
+      const f = (performance.now() - bootT0) / bootBarNominalMs;
+      // The straight part covers 97%. The last 3% is the honest remainder: the
+      // bar has not been told the interface is up yet, and only finishBoot()
+      // may claim that.
+      if (f <= 1) return Math.max(0, f) * 0.97;
+      // Past the estimate this machine is slower than it was last time. Keep
+      // moving — a bar that stops reads as hung — but through a small enough
+      // remainder that the overrun cannot become the sprint-and-crawl again.
+      // The estimate absorbs the overrun, so the next open is paced correctly.
+      return Math.min(0.995, 0.97 + 0.025 * (1 - Math.exp(-(f - 1) * 0.9)));
     };
     const clock12 = () => {
       const mins = Math.floor(((state.clock.minutes % 1440) + 1440) % 1440);
@@ -2683,17 +2756,41 @@ export function makeClubhouse(ctx) {
       lidState.target = open ? LID_OPEN : LID_IDLE;
       led.material.emissiveIntensity = open ? 1.4 : 0.75;
     };
-    office.startBoot = () => {
+    office.startBoot = (expectedMs = null) => {
       bootT0 = performance.now();
       bootDone = false;
+      // The choreography owns the beat, not this file. main.js hands over the
+      // gap between the boot screen appearing and the interface landing, so the
+      // two can never drift apart the way a second copy of "480" would. A
+      // machine that has already been measured keeps its own longer estimate:
+      // the authored beat is a floor, not a promise.
+      if (Number.isFinite(expectedMs) && expectedMs > 0) {
+        bootBarNominalMs = clampBootMs(Math.max(expectedMs, bootBarNominalMs));
+      }
       paintScreen('boot');
     };
     // Called by main.js at the moment the interface is actually on the glass.
-    // This is the ONLY thing that completes the bar.
+    // This is the ONLY thing that completes the bar — and it is also the only
+    // honest measurement of how long an open takes on this machine, so it is
+    // where the estimate is learned. A single slow open should not permanently
+    // slow every future bar, and a single fast one should not undo a real
+    // slowdown, so it is an EWMA rather than a replacement.
     office.finishBoot = () => {
+      if (!bootDone && bootT0) {
+        const actual = performance.now() - bootT0;
+        if (Number.isFinite(actual) && actual > 0) {
+          bootBarNominalMs = clampBootMs(bootBarNominalMs * 0.6 + actual * 0.4);
+          try {
+            globalThis.localStorage?.setItem?.(BOOT_BAR_STORE_KEY, String(Math.round(bootBarNominalMs)));
+          } catch { /* storage denied: the estimate lives for this session only */ }
+        }
+      }
       bootDone = true;
       if (screenMode === 'boot') paintScreen();
     };
+    // Read by the QA driver that measures the bar's SHAPE: without it a run
+    // cannot tell an even bar from a bar whose estimate happened to be right.
+    office.bootBarNominalMs = () => Math.round(bootBarNominalMs);
     // Only meaningful while the bar is on the glass. Read outside that window it
     // reports the LAST open's finished state — which is how the goal-36 probe
     // scored a second open as "the bar was full 923 ms early": `bootDone` stays
@@ -10607,7 +10704,7 @@ export function makeClubhouse(ctx) {
     // registerMode holds no authority over stock — the shelf is credited right here.
     if (register.getCustomer() === c) { register.abandon(); register.leave(); }
     clearCustomerItemMeshes(c);
-    leaveQueue(c);
+    leaveQueue(c, 'gave-up');
     c.stopIdx += 1;
     c.linger = 0;
     return true;
@@ -10684,7 +10781,7 @@ export function makeClubhouse(ctx) {
     if (c.tx) c.tx = null;
     c.awaitingCheckout = false;
     c.checkoutPhase = 'leaving';
-    leaveQueue(c);
+    leaveQueue(c, 'removed');
     // The paid carrier owns per-sale GPU resources that are intentionally not
     // part of the character's original resource snapshot. Release it before
     // any optional product/receipt presentation cleanup can fail.
@@ -10879,7 +10976,7 @@ export function makeClubhouse(ctx) {
     // Only on a successful check-in: someone turned away is leaving.
     if (reason === 'checked-in' || reason === 'completed') {
       visitTally.checkInsCompleted += 1;
-      leaveQueue(c);
+      leaveQueue(c, `reservation-${reason}`);
     }
     c.checkoutPhase = 'reservation-leaving';
     c.currentDestination = 'exit';
@@ -10887,7 +10984,7 @@ export function makeClubhouse(ctx) {
     c.linger = 0;
     c.impatientBeat = null;
     if (c.patienceMesh) c.patienceMesh.visible = false;
-    leaveQueue(c);
+    leaveQueue(c, `reservation-${reason}`);
     const exitIdx = c.stops.findIndex((stop) => stop.kind === 'exit');
     if (exitIdx >= 0) c.stopIdx = exitIdx;
     c.path = null;
@@ -11164,7 +11261,7 @@ export function makeClubhouse(ctx) {
       }
       customer.checkoutPhase = 'walk-in-leaving';
       customer.currentDestination = 'exit';
-      leaveQueue(customer);
+      leaveQueue(customer, 'walk-in-turned-away');
       const exitIdx = customer.stops.findIndex((stop) => stop.kind === 'exit');
       if (exitIdx >= 0) customer.stopIdx = exitIdx;
       customer.path = null;
@@ -11207,11 +11304,32 @@ export function makeClubhouse(ctx) {
     }
   }
 
-  function leaveQueue(c) {
+  // EIGHT WAYS OUT OF ONE LINE, AND FROM OUTSIDE THEY ARE INDISTINGUISHABLE.
+  //
+  // A run that watched the queue drop from five to three could say only that it
+  // dropped: the population was unchanged, so nobody had left the SHOP, and
+  // nothing recorded which of the eight callers had taken them out of the LINE.
+  // Every departure now names itself, and the last sixteen are readable from the
+  // QA facade. Diagnostic only — the game never reads either field.
+  const queueExitLog = [];
+  function leaveQueue(c, reason = 'unspecified') {
     const qi = counterQueue.indexOf(c);
     if (qi >= 0) {
       counterQueue.splice(qi, 1);
       c.queued = false;
+      c.queueExitReason = reason;
+      queueExitLog.push({
+        atMs: Math.round(flowNow()),
+        name: c.fullName || c.name || null,
+        reason,
+        fromIndex: qi,
+        queueLenAfter: counterQueue.length,
+        cartItems: c.cart ? c.cart.length : 0,
+        bought: !!c.bought,
+        waitSec: +(c.preServiceWait || 0).toFixed(1),
+        totalWaitSec: +(c.preServiceTotal || 0).toFixed(1),
+      });
+      if (queueExitLog.length > 16) queueExitLog.shift();
     }
     // B3: a rejoin starts from wherever the line actually puts them, not from
     // the slot they were holding last time they stood here.
@@ -12486,7 +12604,7 @@ export function makeClubhouse(ctx) {
         // somebody explicitly placed.
         if (c.scriptedVisit) continue;
         if (c.stops[c.stopIdx] && c.stops[c.stopIdx].kind !== 'exit' && c.stops[c.stopIdx].kind !== 'gone') {
-          leaveQueue(c);
+          leaveQueue(c, 'closing-time');
           c.stopIdx = c.stops.length - 2; // head for the exit
           c.linger = 0;
         }
@@ -12497,6 +12615,16 @@ export function makeClubhouse(ctx) {
     // so the peak is a real per-frame number rather than a running total that
     // any spread of repaths would produce.
     navRepathsThisFrame = 0;
+
+    // The collider set the queue-slot validator measures against, built AT MOST
+    // ONCE PER FRAME and only when somebody is actually in the line. Building it
+    // per queued customer per frame walked every placeable once per body, which
+    // is the cost the browse-stop validator was already careful to avoid.
+    let stopRectsThisFrame = null;
+    const stopRects = () => {
+      if (!stopRectsThisFrame) stopRectsThisFrame = navigationRectsForStops(state);
+      return stopRectsThisFrame;
+    };
 
     for (let i = customers.length - 1; i >= 0; i--) {
       const c = customers[i];
@@ -12561,26 +12689,48 @@ export function makeClubhouse(ctx) {
         // Patience is authored in real minutes but is a decision about the
         // shop's day: at 16x a customer must not wait sixteen game-hours for a
         // cashier just because the wall clock says ten minutes.
-        c.preServiceWait = (c.preServiceWait || 0) + decisionDt;
-        // A2 (Goal 21) — THE FRONT OF THE LINE NEVER LEAVES.
         //
-        // A customer queues, waits while the player serves the person ahead,
-        // reaches the front, and walks out before they can be served. Whatever
-        // that modelled, what the player experiences is being punished for
-        // doing the job correctly. Positions one and two are unconditional;
-        // from third place back patience is real, and that is where the
-        // pressure the game wants actually lives.
+        // A2 (Goal 21) — THE FRONT OF THE LINE NEVER LEAVES — put positions one
+        // and two beyond the fuse, and that held. What it did not do is credit
+        // anybody for the line MOVING, and that is the fault he reported as "I
+        // do a purchase for one person and for some reason everyone in line
+        // leaves": five people who arrived together expire together, the only
+        // thing holding them is their index, and completing a sale shifts the
+        // array so the next expired customer is exposed. They walk, the array
+        // shifts again, the next walks. One purchase empties the shop.
         //
+        // So there are two clocks now (sim/customerSimulation.js): `wait` since
+        // the line last advanced, reset on every advance, and `total` in the
+        // line at all, on a fuse three times as long. A shop that is serving
+        // people keeps its queue; a shop that has stopped still loses it; and a
+        // line that crawls for ever still drains.
+        const queueIndex = counterQueue.indexOf(c);
+        // The same test the head's own clock uses for "actively served": a
+        // transaction parked open while the player wanders the shop is not
+        // service, and must not hold the line's fuse.
+        const tillWorking = register.isActive() && register.hasTx();
+        const clocks = stepPreServiceWait(
+          { wait: c.preServiceWait, total: c.preServiceTotal, index: c.preServiceIndex },
+          decisionDt,
+          queueIndex,
+          { serving: tillWorking && register.getCustomer() !== c },
+        );
+        c.preServiceWait = clocks.wait;
+        c.preServiceTotal = clocks.total;
+        c.preServiceIndex = clocks.index;
+        if (clocks.advanced) c.preServiceAdvances = (c.preServiceAdvances || 0) + 1;
         // THIS IS THE LIVE FUSE. The same rule was first written into
         // clubhouse/customers.js, which turns out to be imported by nothing —
         // see the note in section B of Report 21.
-        if (c.preServiceWait > PATIENCE_FULL
-          && queuePositionMayAbandon(counterQueue.indexOf(c))) {
+        if (queueGiveUp(clocks, queueIndex, PATIENCE_FULL)) {
+          c.gaveUpBecause = clocks.wait > PATIENCE_FULL ? 'line-stopped' : 'line-too-slow';
           beginCustomerImpatientBeat(c);
           continue;
         }
       } else {
         c.preServiceWait = 0;
+        c.preServiceTotal = 0;
+        c.preServiceIndex = null;
       }
       // Keep the completed handoff in the player camera long enough to read as
       // a transfer of ownership. Queue/revenue state has already advanced; this
@@ -12670,8 +12820,26 @@ export function makeClubhouse(ctx) {
           queueSlotIsClear(queueSlotW(idx), bodies)
         ));
         const slot = queueSlotW(c.queueSlotHeld);
-        tx = slot.x;
-        tz = slot.z;
+        // THE COVERAGE GAP GOAL 38 WROTE DOWN, CLOSED WITH EVIDENCE.
+        //
+        // "The stop validator is wired only at fixtureBrowsePose, so queue
+        // slots, the overflow pocket, experience sockets and the exit are
+        // unvalidated — that is where the frozen walkers most likely stand."
+        // A five-deep staged line proved it: two customers ground at their slot
+        // until the recovery ladder threw them OUT OF THE LINE, and from the
+        // shop floor that is indistinguishable from giving up on the wait
+        // (qa/queue-exodus/fixed2.json — "Tessa Hayes (nav-gave-up)").
+        //
+        // A queue slot cannot be MOVED — single file is authored geometry with
+        // a suite pinned to it — but a body may stand a few inches off one, and
+        // asking for a point no body may occupy is what fed the ladder. So the
+        // slot is validated the same way a browse stop is: nudged to the
+        // nearest standable point, and left exactly where it is when it is
+        // already fine (which is the overwhelmingly common case).
+        const legal = legalStopPoint(state, { x: slot.x, z: slot.z }, { rects: stopRects() });
+        tx = legal ? legal.x : slot.x;
+        tz = legal ? legal.z : slot.z;
+        c.queueSlotNudgedYd = legal ? legal.moved : 0;
       }
 
       // NAV-WAIT-001. Claim the stand on APPROACH, not from across the room: a
@@ -12921,7 +13089,7 @@ export function makeClubhouse(ctx) {
             const reservation = reservationRecordForCustomer(c);
             if (reservation) reservation.currentDestination = 'front-desk';
           }
-          if (stop.kind === 'counter') leaveQueue(c);
+          if (stop.kind === 'counter') leaveQueue(c, 'errand-done');
           c.stopIdx++;
           const next = c.stops[c.stopIdx];
           c.linger = next && next.duration ? next.duration : 1.5 + Math.random() * 3.5;
@@ -13335,8 +13503,28 @@ export function makeClubhouse(ctx) {
                 stop.x = open.x;
                 stop.z = open.z;
               }
+            } else if (rung >= 5 && stop && stop.kind === 'counter') {
+              // A QUEUE IS THE ONE STOP THAT FIXES ITSELF, so the ladder must
+              // never abandon it. Rung 4 already refuses to move counter
+              // geometry ("queue geometry belongs to the counter"); rung 5 used
+              // to do something worse — drop the walker out of the LINE and
+              // advance their plan, which from behind the till is a customer
+              // silently deciding not to buy anything. Measured on a five-deep
+              // staged line: two of five left this way with their patience
+              // clocks barely started (qa/queue-exodus/fixed2.json).
+              //
+              // Their slot is blocked BECAUSE somebody is standing in it, and
+              // that somebody is being served. Holding is not a stall; it is
+              // the correct behaviour, and it resolves the moment the line
+              // advances. If it genuinely never advances, the pre-service fuse
+              // still runs and they still leave — on patience, which is the
+              // decision the design wants them to make.
+              c.stuckEscalation = 0;
+              c.bannedWp = null;
+              c.path = [];
+              c.pathGoal = null;
+              c.queueHoldRecoveries = (c.queueHoldRecoveries || 0) + 1;
             } else if (rung >= 5 && stop && stop.kind !== 'exit' && stop.kind !== 'gone') {
-              if (stop.kind === 'counter') leaveQueue(c);
               // F2: "if they cannot find any way to reach what they want,
               // tell me. I should never have a customer silently stuck in my
               // shop without knowing." The bell carries it; the dedupe key
@@ -14401,9 +14589,10 @@ export function makeClubhouse(ctx) {
     mainEntranceDiagnostics: () => doorsApi.mainEntranceDiagnostics?.() ?? null,
     laptopPose: (fovDeg, aspect) => (office.seatPose ? office.seatPose(fovDeg, aspect) : null),
     laptopLid: (open) => office.setLid && office.setLid(open),
-    laptopBoot: () => office.startBoot && office.startBoot(),
+    laptopBoot: (expectedMs) => office.startBoot && office.startBoot(expectedMs),
     laptopBootFinish: () => office.finishBoot && office.finishBoot(),
     laptopBootProgress: () => (office.bootProgress ? office.bootProgress() : null),
+    laptopBootBarNominalMs: () => (office.bootBarNominalMs ? office.bootBarNominalMs() : null),
     laptopScreen: (mode) => office.paintScreen && office.paintScreen(mode),
     laptopScreenMode: () => (office.screenMode ? office.screenMode() : null),
     laptopScreenCorners: () => (office.screenCorners ? office.screenCorners() : null),
@@ -14699,7 +14888,16 @@ export function makeClubhouse(ctx) {
         : customer.checkoutPhase,
       awaitingCheckout: !!customer.awaitingCheckout,
       phase: customer.checkoutPhase,
+      // The two patience clocks, so a driver can say WHY somebody walked
+      // instead of counting bodies and guessing. `wait` resets every time the
+      // line advances; `total` never does.
+      waitSec: +(customer.preServiceWait || 0).toFixed(1),
+      totalWaitSec: +(customer.preServiceTotal || 0).toFixed(1),
+      advances: customer.preServiceAdvances || 0,
+      gaveUpBecause: customer.gaveUpBecause || null,
     })),
+    // Who left the LINE, and which of the eight callers took them out of it.
+    checkoutQueueExits: () => queueExitLog.map((row) => ({ ...row })),
     // GOAL 25 LEGIBILITY — WHY THE TILL LOOKS EMPTY WHILE THE SHOP IS FULL.
     //
     // The Phase 1 stranger found this and the owner named it as one of the two
