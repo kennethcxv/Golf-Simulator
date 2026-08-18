@@ -87,6 +87,13 @@ async (page) => {
       ['hoodie-folded', 'apparel_hoodie_folded.glb', 'base'],
       ['trousers-folded', 'apparel_trousers_folded.glb', 'base'],
       ['cap', 'apparel_cap.glb', 'base'],
+      // THE TOWEL IS HERE TOO, though it is a hardgood and not apparel. It
+      // came out of the same fold machinery, it changed more than anything
+      // else in v6, and its fault -- a waffle that was reported missing from a
+      // frame that could not have shown it -- is exactly the kind that a check
+      // living only in Blender never catches. Same contract as the garments:
+      // it loads, it sits on the line, it keeps its UVs and its colour.
+      ['towel', 'hard_towel.glb', 'base'],
     ]],
     ['wall', 1.45, 1.55, -0.06, [
       ['cap-peg', 'apparel_cap_peg.glb', 'wall'],
@@ -288,6 +295,11 @@ async (page) => {
     if (r.white > 0) bad.push(`${r.name}: ${r.white}/${r.mats} materials came in WHITE — a linked Base Color did not flatten`);
     if (r.tris < 100) bad.push(`${r.name}: only ${r.tris} tris — the file did not really load`);
   }
-  console.log(bad.length ? `\nFAILED:\n  ${bad.join('\n  ')}` : '\nall ten load, sit on their line, keep their UVs and their colour');
+  // COUNT, do not assert. This read "all ten" while eleven assets were on the
+  // shelf. A summary line that cannot go wrong cannot be trusted either, and
+  // it is the same shape as every instrument fault in HARNESS_DEBT.
+  console.log(bad.length
+    ? `\nFAILED:\n  ${bad.join('\n  ')}`
+    : `\nall ${rows.length} load, sit on their line, keep their UVs and their colour`);
   return { rows, failures: bad };
 }
