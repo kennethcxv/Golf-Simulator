@@ -661,7 +661,13 @@ function enterLaptop(startPage = null) {
   if (audio.ready) audio.laptopOpen();
   laptopTimers.push(setTimeout(() => {
     if (!app.laptopOpen) return;
-    if (ch.laptopBoot) ch.laptopBoot();
+    // The bar's pace is THIS number, handed over rather than copied. It used to
+    // carry its own 480 ms nominal in clubhouse.js, which is the same beat
+    // written twice and free to drift; and because it was a constant rather
+    // than a measurement, on a machine slower than the beat the bar sprinted to
+    // nine tenths and crawled. It now paces against the choreography and
+    // re-estimates from what this machine actually does.
+    if (ch.laptopBoot) ch.laptopBoot(LAPTOP_REVEAL_MS - LAPTOP_BOOT_MS);
     if (audio.ready) audio.laptopBoot();
   }, LAPTOP_BOOT_MS));
   // BUILD DURING THE SWING, NOT AFTER IT. The interface used to be built inside
