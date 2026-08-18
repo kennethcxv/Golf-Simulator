@@ -26,13 +26,20 @@ const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(HERE, "..", "..", "..", "..");
 const GLB_DIR = path.join(ROOT, "Assets", "models", "hero", "v5");
 
-/** The eleven the brief names: ten garments plus the towel. */
-const SHIPPING = [
+/** The eleven: ten garments plus the towel. */
+const APPAREL = [
   "apparel_tee_hung.glb", "apparel_polo_hung.glb", "apparel_hoodie_hung.glb",
   "apparel_trousers_hung.glb", "apparel_cap.glb", "apparel_tee_folded.glb",
   "apparel_polo_folded.glb", "apparel_hoodie_folded.glb",
   "apparel_trousers_folded.glb", "apparel_cap_peg.glb", "hard_towel.glb",
 ];
+
+/** The four hardgoods, which never went through the bake at all. */
+const HARDGOODS = [
+  "hard_driver.glb", "hard_putter.glb", "hard_iron.glb", "hard_counter.glb",
+];
+
+const SHIPPING = [...APPAREL, ...HARDGOODS];
 
 /** Cloth. Matched as a case-insensitive substring of the material name. */
 const FABRIC = [
@@ -40,20 +47,40 @@ const FABRIC = [
   "thread", "cord", "webbing",
 ];
 
-/** Not cloth, and correct to ship without a fabric map. */
-const HARDWARE = [
+/**
+ * A GARMENT'S FINDINGS. A button, an eyelet, a hanger hook: millimetres
+ * across, seen at shelf distance, and correct to ship as a plain factor.
+ */
+const FINDINGS = [
   "button", "eyelet", "metal", "wood", "hook", "steel", "chrome",
   "grommet", "clip", "buckle",
 ];
 
+/**
+ * A HARDGOOD'S OWN SURFACE, which is a different question entirely.
+ *
+ * On a shirt a chrome eyelet is a finding. On a driver the crown IS the
+ * object -- it is the surface the whole asset is looked at for -- and the same
+ * goes for a milled face, a corded grip and an oak counter top. Matched on the
+ * asset's own prefix rather than on words like "metal" or "wood", because
+ * those words also appear on garment findings that are right to leave bare,
+ * and a substring list that tried to serve both would quietly change the
+ * verdict on the eleven.
+ */
+const HARDGOOD = /^(driver|iron|putter|counter)/i;
+
 function classify(name) {
   const n = (name || "").toLowerCase();
-  // hardware wins: "CapMetal" is metal, and "HoodieEyelet" is an eyelet even
-  // though a hoodie is cloth.
-  if (HARDWARE.some((h) => n.includes(h))) return "hardware";
+  if (HARDGOOD.test(n)) return "surface";
+  // findings win over cloth: "CapMetal" is metal, and "HoodieEyelet" is an
+  // eyelet even though a hoodie is cloth.
+  if (FINDINGS.some((h) => n.includes(h))) return "finding";
   if (FABRIC.some((f) => n.includes(f))) return "fabric";
   return "unclassified";
 }
+
+/** Does this material have to carry the three maps? */
+const NEEDS_MAPS = (kind) => kind === "fabric" || kind === "surface";
 
 export function readGlb(file) {
   const b = fs.readFileSync(file);
@@ -184,10 +211,10 @@ export function faults(json, bin = null) {
   for (const m of json.materials || []) {
     const kind = classify(m.name);
     if (kind === "unclassified") {
-      bad.push(`${m.name}: unclassified -- add it to FABRIC or HARDWARE`);
+      bad.push(`${m.name}: unclassified -- add it to FABRIC, FINDINGS or HARDGOOD`);
       continue;
     }
-    if (kind !== "fabric") continue;
+    if (!NEEDS_MAPS(kind)) continue;
     // SHEEN WEIGHT IS DROPPED ON EXPORT. Measured across four authored
     // combinations in Blender 5.1: `Sheen Weight` never reaches the file and
     // `Sheen Tint` becomes sheenColorFactor verbatim. So cloth authored at 7%
@@ -208,6 +235,21 @@ export function faults(json, bin = null) {
     texOk(m.occlusionTexture, "occlusionTexture", m.name, "orm");
     texOk(pbr.metallicRoughnessTexture, "metallicRoughnessTexture", m.name, "orm");
   }
+
+  // BAKED MACRO OCCLUSION. The tiling ORM carries the cavity between two
+  // yarns or two mill marks; it cannot carry the shadow a sole casts into a
+  // cavity back, because that belongs to that object once and does not
+  // repeat. It rides in COLOR_0, which is per PRIMITIVE, not per material.
+  for (const mesh of json.meshes || []) {
+    for (const prim of mesh.primitives || []) {
+      const mat = (json.materials || [])[prim.material];
+      if (!mat || !NEEDS_MAPS(classify(mat.name))) continue;
+      if (prim.attributes.COLOR_0 === undefined) {
+        bad.push(`${mesh.name || "?"} / ${mat.name}: no COLOR_0 -- no baked `
+          + `macro occlusion on this primitive`);
+      }
+    }
+  }
   return bad;
 }
 
@@ -215,7 +257,7 @@ function check(files) {
   let failed = 0;
   console.log();
   console.log("=".repeat(78));
-  console.log("FABRIC MAPS IN THE FILE");
+  console.log("SURFACE MAPS IN THE FILE");
   console.log("=".repeat(78));
   for (const f of files) {
     const p = path.join(GLB_DIR, f);
@@ -226,12 +268,12 @@ function check(files) {
     }
     const { json, bin, bytes } = readGlb(p);
     const bad = faults(json, bin);
-    const nFab = (json.materials || [])
-      .filter((m) => classify(m.name) === "fabric").length;
+    const kinds = (json.materials || []).map((m) => classify(m.name));
+    const nFab = kinds.filter((k) => NEEDS_MAPS(k)).length;
     const head = `  ${f.padEnd(30)} `
       + `${String((json.images || []).length).padStart(2)} img `
       + `${String((json.textures || []).length).padStart(2)} tex  `
-      + `${nFab} fabric mat  ${(bytes / 1024).toFixed(0).padStart(5)} KiB`;
+      + `${String(nFab).padStart(2)} mapped mat  ${(bytes / 1024).toFixed(0).padStart(5)} KiB`;
     if (bad.length) {
       failed++;
       console.log(`${head}   FAIL`);
@@ -242,11 +284,12 @@ function check(files) {
   }
   console.log();
   if (failed) {
-    console.log(`FAILED: ${failed} of ${files.length} assets ship fabric with no maps.`);
+    console.log(`FAILED: ${failed} of ${files.length} assets ship a mapped `
+      + `surface without its maps.`);
     return 1;
   }
   console.log(`all ${files.length} assets carry packed normal, occlusion and `
-    + `metallic-roughness maps on every fabric material`);
+    + `metallic-roughness maps, and baked COLOR_0, on every mapped surface`);
   return 0;
 }
 
@@ -308,6 +351,29 @@ function control() {
       drop((g) => { g.materials[0].normalTexture = { index: 9 }; }), false],
     ["a fabric nobody classified",
       drop((g) => { g.materials[0].name = "PoloSomethingNew"; }), false],
+    // THE HARDGOOD SURFACE CLASS, and the baked occlusion. New code needs new
+    // cases or it is untested code with a green control beside it.
+    ["a driver crown with no maps at all",
+      { materials: [{ name: "DriverCrown" }] }, false],
+    ["a putter grip with no maps at all",
+      { materials: [{ name: "PutterGrip" }] }, false],
+    ["a garment finding -- a hanger hook -- with no maps",
+      { materials: [{ name: "hangerHook" }] }, true],
+    ["a mapped surface on a primitive that carries COLOR_0",
+      (() => {
+        const g = base();
+        g.meshes = [{ name: "m", primitives: [{ material: 0, attributes: { COLOR_0: 3 } }] }];
+        return g;
+      })(), true],
+    ["a mapped surface on a primitive with NO COLOR_0",
+      (() => {
+        const g = base();
+        g.meshes = [{ name: "m", primitives: [{ material: 0, attributes: {} }] }];
+        return g;
+      })(), false],
+    ["a FINDING on a primitive with no COLOR_0, which is fine",
+      { materials: [{ name: "PoloButton" }],
+        meshes: [{ name: "b", primitives: [{ material: 0, attributes: {} }] }] }, true],
     ["a fabric with a believable sheen",
       drop((g) => {
         g.materials[0].extensions = {
