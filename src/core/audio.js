@@ -82,11 +82,56 @@ export function makeAudio(preferences = null) {
   let musicBus = null;
   let sampleBank = null;
 
+  // ---- THE MIX TRIM, SET FROM A MEASUREMENT AND NOT BY EAR -----------------
+  //
+  // "Balance every cue against the mix floor, not against silence. Anything
+  // under ~2x the floor is inaudible in play."
+  //
+  // Measured at the master bus on his save, ambience running, so the floor is
+  // the MIX and not silence (qa/goal33/before.json, RMS floor 0.00666):
+  //
+  //     ledger open      0.08160    12.25x floor     far too loud
+  //     ledger page      0.04692     7.05x
+  //     ui click         0.02539     3.81x           about right
+  //     escape menu      0.02257     3.39x           about right
+  //     tool use (held)  0.01408     2.11x           marginal
+  //     footsteps        0.01021     1.53x           INAUDIBLE
+  //     tool equip       0.00722     1.08x           INAUDIBLE
+  //
+  // An eight-to-one spread between the loudest cue and the quietest. The target
+  // is a band of roughly 3-5x for anything the player is meant to notice, and
+  // the trims below are the ratios that put each measured cue there. They are
+  // in ONE table on purpose: the previous levels were magic numbers scattered
+  // across two thousand lines, which is why the spread went unnoticed.
+  //
+  // A trim is a MULTIPLIER on the cue's existing level, so the shape of every
+  // sound is untouched — only how loud it sits in the mix.
+  // SECOND PASS, from the re-measurement: the first trim collapsed the spread
+  // from 204:1 to 5.8:1 but overshot the ledger (12.25x -> 2.39x, which is a
+  // hero interaction sitting at the same level as a footstep) and left equip
+  // under the 2x audibility line. A hero cue belongs at 3-4x, ambient texture
+  // at 2-3x, and nothing below 2.
+  const CUE_TRIM = {
+    // up: these were below the floor's own noise
+    footstep: 2.6,
+    equipTick: 4.5,
+    // down, but not flat: the ledger was eight times the footsteps it plays
+    // over, and it is still meant to be the loudest thing in the room when you
+    // open it
+    ledgerOpen: 0.62,
+    ledgerTurn: 0.72,
+    ledgerClose: 0.72,
+    ledgerPickup: 0.75,
+  };
+  const trimFor = (cue) => (Object.prototype.hasOwnProperty.call(CUE_TRIM, cue) ? CUE_TRIM[cue] : 1);
+
   // Ask the bank first. `true` means a recording played and the caller must
   // return; `false` means synthesise, which is the normal path today.
   function sampled(cue, bus, options = {}) {
     if (!sampleBank || !ctx) return false;
-    return sampleBank.play(cue, { ctx, destination: bus || sfxBus, ...options });
+    const trim = trimFor(cue);
+    const gain = (Number.isFinite(options.gain) ? options.gain : 1) * trim;
+    return sampleBank.play(cue, { ctx, destination: bus || sfxBus, ...options, gain });
   }
   let paused = false;
   let lifecycleActive = true;
@@ -690,7 +735,8 @@ export function makeAudio(preferences = null) {
   function footstep(surface = 'turf', intensity = 1) {
     if (!ctx) return;
     const t0 = ctx.currentTime;
-    const level = Math.max(0.25, Math.min(1.35, Number(intensity) || 1));
+    // trimmed against the measured mix floor; see CUE_TRIM
+    const level = Math.max(0.25, Math.min(1.35, Number(intensity) || 1)) * trimFor('footstep');
     const boards = surface === 'boards';
     const osc = ctx.createOscillator();
     osc.type = 'sine';
@@ -901,7 +947,7 @@ export function makeAudio(preferences = null) {
     osc.frequency.setValueAtTime(340, t0);
     osc.frequency.exponentialRampToValueAtTime(210, t0 + 0.07);
     const g = ctx.createGain();
-    g.gain.setValueAtTime(0.06, t0);
+    g.gain.setValueAtTime(0.06 * trimFor('equipTick'), t0);
     g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.09);
     osc.connect(g).connect(sfxBus);
     osc.start(t0);
