@@ -41,8 +41,16 @@ import sim as SIM
 import hanger as HG
 
 NAME = "polo-hung"
-CLOTH = (0.3620, 0.3410, 0.2985)
-TRIM = (0.3240, 0.3030, 0.2610)
+# VALUES FOR THE GAME'S EXPOSURE, NOT THE STUDIO'S.
+#
+# The studio gave every garment its own stop -- this hoodie rendered at EV
+# +0.62 and the polo at -1.85, nearly two and a half stops apart -- so both
+# looked right in Blender and neither could look right in the shop, which has
+# ONE exposure. In the first in-game frame the hoodie was a black void with
+# none of the fleece visible and the polo was blown to white. EV below is now
+# a studio-only convenience; these numbers are chosen for the shelf.
+CLOTH = (0.2172, 0.2046, 0.1791)
+TRIM = (0.1944, 0.1818, 0.1566)
 BUTTON = (0.3980, 0.3800, 0.3420)
 DEPTH = 0.0272
 # Oat has four times the albedo of the slate tee -- two full stops -- and at the

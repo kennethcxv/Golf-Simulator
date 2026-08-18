@@ -43,6 +43,10 @@ from mathutils import Vector  # noqa: E402
 import hero_lib as H  # noqa: E402
 import studio as ST  # noqa: E402
 
+sys.path.insert(0, os.path.join(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "v6"))
+import vertex_ao as VAO  # noqa: E402
+
 GLB_DIR = os.path.join(ST.ROOT, "Assets", "models", "hero", "v5")
 
 # name, module, glb, how the build's return splits, origin rule
@@ -173,9 +177,15 @@ def one(name, mod_name, glb, take, rule):
     lo, hi = set_origin(subject, rule)
     tris = ST.tris(subject)
 
+    # MACRO OCCLUSION, into the vertices. The tiling atlas carries the cavity
+    # between two yarns; it cannot carry the shadow between two plies of a
+    # folded stack, because that shadow belongs to that fold and does not
+    # repeat. In the first in-game frame the folded polo read as one pale slab
+    # and the reference photograph of a folded stack is mostly shadow slots.
+    VAO.bake(subject)
     H.bake_gltf_axis(subject)
     path = os.path.join(GLB_DIR, glb)
-    H.export_glb(subject, path)
+    H.export_glb(subject, path, vertex_colors=True)
     size = os.path.getsize(path)
     print("  %-16s %6d tris  %7.1f KiB  %.0f x %.0f x %.0f mm"
           % (name, tris, size / 1024.0, (hi.x - lo.x) * 1000,

@@ -381,6 +381,33 @@ def apply_mods(ob):
 # materials
 
 
+def _sheen(bsdf, strength, rough):
+    """Sheen that survives the export -- WEIGHT IN THE TINT.
+
+    Measured across four authored combinations in Blender 5.1: the glTF writer
+    never reads `Sheen Weight`. It copies `Sheen Tint` straight into
+    `sheenColorFactor` and drops the weight entirely, except that a weight of
+    zero removes the extension. So cloth authored at 7% sheen shipped at 100%
+    WHITE sheen -- fourteen times over -- and every grazing angle blew out. The
+    hoodie's hood is an open tube seen from inside, which is almost all grazing
+    angle, and it read in game as a silver plastic dome while its material was
+    navy.
+
+    Principled scales the lobe by weight x tint, so putting the strength in the
+    tint and the weight at 1.0 renders identically and exports honestly.
+    """
+    if strength <= 0.0:
+        bsdf.inputs["Sheen Weight"].default_value = 0.0
+        return
+    bsdf.inputs["Sheen Weight"].default_value = 1.0
+    if "Sheen Tint" in bsdf.inputs:
+        bsdf.inputs["Sheen Tint"].default_value = (strength, strength,
+                                                   strength, 1.0)
+    else:
+        bsdf.inputs["Sheen Weight"].default_value = strength
+    bsdf.inputs["Sheen Roughness"].default_value = rough
+
+
 def matte(name, colour, rough=0.86, sheen=0.0):
     m = bpy.data.materials.new(name)
     m.use_nodes = True
@@ -388,8 +415,7 @@ def matte(name, colour, rough=0.86, sheen=0.0):
     b.inputs["Base Color"].default_value = (*colour, 1.0)
     b.inputs["Roughness"].default_value = rough
     if sheen and "Sheen Weight" in b.inputs:
-        b.inputs["Sheen Weight"].default_value = sheen
-        b.inputs["Sheen Roughness"].default_value = 0.45
+        _sheen(b, sheen, 0.45)
     return m
 
 
@@ -417,9 +443,7 @@ def fabric(name, colour, rough=0.83, weave=0.0016, sheen=0.10, scale_mm=520.0,
     b.inputs["Base Color"].default_value = (*colour, 1.0)
     b.inputs["Roughness"].default_value = rough
     if "Sheen Weight" in b.inputs:
-        b.inputs["Sheen Weight"].default_value = sheen
-        b.inputs["Sheen Roughness"].default_value = 0.42
-        b.inputs["Sheen Tint"].default_value = (1.0, 1.0, 1.0, 1.0)
+        _sheen(b, sheen, 0.42)
     # THE GRAIN IS AN IMAGE NOW, NOT A BUMP NODE.
     #
     # Everything that used to be here -- the pique lattice, the knit wale, the

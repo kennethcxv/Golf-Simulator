@@ -188,6 +188,21 @@ export function faults(json, bin = null) {
       continue;
     }
     if (kind !== "fabric") continue;
+    // SHEEN WEIGHT IS DROPPED ON EXPORT. Measured across four authored
+    // combinations in Blender 5.1: `Sheen Weight` never reaches the file and
+    // `Sheen Tint` becomes sheenColorFactor verbatim. So cloth authored at 7%
+    // sheen shipped at 100% WHITE sheen, and every grazing angle blew out --
+    // which is why the hoodie's hood, an open tube seen from inside, read as a
+    // silver plastic dome with a navy material.
+    const sheen = (m.extensions || {}).KHR_materials_sheen;
+    if (sheen) {
+      const s = sheen.sheenColorFactor || [1, 1, 1];
+      if (Math.max(...s) > 0.40) {
+        bad.push(`${m.name}: sheenColorFactor ${s.map((x) => x.toFixed(2)).join(', ')} `
+          + `-- that is the TINT with the weight dropped. Author weight 1.0 and `
+          + `put the strength in the tint.`);
+      }
+    }
     const pbr = m.pbrMetallicRoughness || {};
     texOk(m.normalTexture, "normalTexture", m.name, "normal");
     texOk(m.occlusionTexture, "occlusionTexture", m.name, "orm");
@@ -293,6 +308,16 @@ function control() {
       drop((g) => { g.materials[0].normalTexture = { index: 9 }; }), false],
     ["a fabric nobody classified",
       drop((g) => { g.materials[0].name = "PoloSomethingNew"; }), false],
+    ["a fabric with a believable sheen",
+      drop((g) => {
+        g.materials[0].extensions = {
+          KHR_materials_sheen: { sheenColorFactor: [0.17, 0.17, 0.17] } };
+      }), true],
+    ["a fabric shipping FULL WHITE sheen because the weight was dropped",
+      drop((g) => {
+        g.materials[0].extensions = {
+          KHR_materials_sheen: { sheenColorFactor: [1, 1, 1] } };
+      }), false],
     // THE ONE THAT NEARLY SHIPPED. Every field present, every index valid,
     // and the image is solid black because assigning a colorspace after
     // writing the pixels wipes the buffer.

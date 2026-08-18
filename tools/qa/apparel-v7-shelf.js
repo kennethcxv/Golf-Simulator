@@ -113,7 +113,9 @@ async (page) => {
   await page.evaluate((s) => { window.__v7yawSign = s; }, YAW_SIGN);
 
   const DIR = process.env.APPAREL_DIR || 'Assets/models/hero/v5';
-  console.log(`loading from ${DIR}`);
+  const OFF = process.env.V7_OFF || '';
+  await page.evaluate((o) => { window.__v7off = o; }, OFF);
+  console.log(`loading from ${DIR}${OFF ? `   A/B: ${OFF} switched OFF` : ''}`);
 
   // name, file, origin rule, height off the floor, display, centre relative
   // to the origin. The last number is what the sightline is probed along: the
@@ -269,6 +271,22 @@ async (page) => {
           +m.color.b.toFixed(3)] : null,
       }));
 
+      // A/B SWITCHES, applied in the renderer so a hypothesis costs one run
+      // rather than one export. V7_OFF=normal zeroes the normal map, =ao
+      // switches off the baked vertex occlusion, =both does both. The hood
+      // reads as pale glossy plastic on a navy material and the candidates --
+      // normal-map aliasing where the pattern UV is compressed, or the
+      // occlusion, or the geometry itself -- are only distinguishable by
+      // turning them off one at a time.
+      const OFF = window.__v7off || '';
+      if (OFF) {
+        for (const { m } of mats) {
+          if (OFF.includes('normal') && m.normalMap) m.normalScale.set(0, 0);
+          if (OFF.includes('ao')) m.vertexColors = false;
+          m.needsUpdate = true;
+        }
+      }
+
       const err = rule === 'hook' ? box.max.y - at.y : box.min.y - at.y;
       const size = box.getSize(new THREE.Vector3());
       window.__v7fwd = { x: fwd.x, z: fwd.z };
@@ -372,7 +390,8 @@ async (page) => {
       });
 
       const v = { ...view, ...seen };
-      const shot = `qa/hero/v7/ingame/${name}-${tag}.png`;
+      const shot = `qa/hero/v7/ingame/${name}-${tag}`
+        + `${OFF ? `-no-${OFF}` : ''}.png`;
       await page.screenshot({ path: shot });
       const withMaps = placed.maps.filter((m) => m.normal && m.ao && m.rough).length;
       console.log(`${name} @ ${v.realDist} m (${tag})  ${placed.sizeMm.join(' x ')} mm  `

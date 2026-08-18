@@ -686,7 +686,7 @@ BAKE_TRANSFORMS = True
 _PRE_BAKE = None
 
 
-def export_glb(objects, path, verify=True):
+def export_glb(objects, path, verify=True, vertex_colors=False):
     os.makedirs(os.path.dirname(path), exist_ok=True)
     bpy.ops.object.select_all(action="DESELECT")
     for ob in objects:
@@ -698,6 +698,12 @@ def export_glb(objects, path, verify=True):
         use_selection=True,
         export_apply=True,
         export_yup=False,   # the swap is already in the vertices
+        # 'MATERIAL', the default, writes COLOR_0 only when the shader READS
+        # the attribute -- and the apparel materials deliberately do not, so
+        # that a linked Base Color cannot repeat the fault that shipped ten
+        # white garments. The baked occlusion still has to travel, so ask for
+        # the active colour attribute explicitly.
+        export_vertex_color='ACTIVE' if vertex_colors else 'MATERIAL',
     )
     size = os.path.getsize(path)
     print(f"  exported {os.path.basename(path)}  ({size} bytes)")

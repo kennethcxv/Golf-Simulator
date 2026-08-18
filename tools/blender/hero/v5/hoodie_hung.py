@@ -33,8 +33,16 @@ import hanger as HG
 import hood as HD
 
 NAME = "hoodie-hung"
-CLOTH = (0.0448, 0.0512, 0.0865)
-TRIM = (0.0372, 0.0428, 0.0742)
+# VALUES FOR THE GAME'S EXPOSURE, NOT THE STUDIO'S.
+#
+# The studio gave every garment its own stop -- this hoodie rendered at EV
+# +0.62 and the polo at -1.85, nearly two and a half stops apart -- so both
+# looked right in Blender and neither could look right in the shop, which has
+# ONE exposure. In the first in-game frame the hoodie was a black void with
+# none of the fleece visible and the polo was blown to white. EV below is now
+# a studio-only convenience; these numbers are chosen for the shelf.
+CLOTH = (0.1098, 0.1254, 0.2119)
+TRIM = (0.0911, 0.1049, 0.1818)
 CORD = (0.2650, 0.2600, 0.2420)
 DEPTH = 0.0355
 EV = 0.62

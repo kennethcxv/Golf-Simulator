@@ -227,9 +227,12 @@ def main():
                 ST.unwrap(o)
         ST.flatten_for_export(objs)
         EX.set_origin(objs, "base")
+        import vertex_ao as VAO
+        VAO.bake(objs)
         H.bake_gltf_axis(objs)
         H.export_glb(objs, os.path.join(
-            ST.ROOT, "Assets", "models", "hero", "v5", "hard_towel.glb"))
+            ST.ROOT, "Assets", "models", "hero", "v5", "hard_towel.glb"),
+            vertex_colors=True)
 
 
 if __name__ == "__main__":
