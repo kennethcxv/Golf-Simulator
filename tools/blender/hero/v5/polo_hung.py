@@ -110,9 +110,15 @@ def build():
     PT.turn_hem(ob, "hem", depth=0.024, inset=0.0026, up=True, label="hem")
     PT.turn_hem(ob, "cuff", depth=0.020, inset=0.0022, up=True, label="cuffs")
 
-    # pique knit: a coarser wale than jersey, and it is the reference's texture
+    # PIQUE, and this time it is a lattice. `rib` alone gave one set of wales,
+    # which is jersey or a cuff -- not the honeycomb of small raised cells that
+    # is the single most identifying thing about a polo in the reference macro.
+    # The collar and cuff KEEP the single direction, because rib IS what a
+    # collar is knitted in, and having the two read differently is half of why
+    # a real polo's trim looks like a separate piece of cloth.
     fabric = ST.fabric("PoloPique", CLOTH, rough=0.815, weave=0.0010,
-                       sheen=0.17, scale_mm=1020.0, rib=126, rib_depth=0.00070)
+                       sheen=0.17, scale_mm=1020.0, rib=104, rib_depth=0.00082,
+                       pique=1.9)
     trim = ST.fabric("PoloTrim", TRIM, rough=0.79, weave=0.0013, sheen=0.20,
                      scale_mm=400.0, rib=46, rib_depth=0.00095)
     ST.crisp(ob, dissolve=1.8, sharp=29.0, crease=33.0)
