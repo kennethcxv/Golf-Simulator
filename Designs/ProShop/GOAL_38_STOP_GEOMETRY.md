@@ -158,3 +158,32 @@ for N consecutive frames, one of the pair must take priority and move. Deferred
 tonight: that is surgery on the crowd solver, and the only verification I have
 is a staged crowd. It should be done against a trading save with organic
 arrivals, with this A/B as the before.
+
+## Where the deadlock actually is — a coverage gap in my own fix
+
+`bias` is not the problem: 0.02 rad is already there, already deterministic, and
+the circle test it was built for still passes. The tell is that **`infeasible`
+and `wallClamps` freeze together** (691 / ~620) while stalls climb. A fixed set
+of walkers is permanently clamped against STATIC geometry and permanently
+unsolvable — that is not agent-vs-agent symmetry, it is a body wedged with a
+goal it cannot approach.
+
+Which contradicts `stopsUnreachable = 0` only if you assume the validator covers
+every stop. **It does not.** It is wired at `fixtureBrowsePose`, so it validates
+**fixture browse stops and nothing else**:
+
+* queue slots and the **overflow pocket** — and this run staged four customers
+  straight to the desk, so the line was deep and slots past `lineSlots` fall into
+  the pocket's golden-angle packing;
+* `experienceStop` sockets (putting, fitting);
+* the desk stand point and the exit.
+
+So the honest statement is that stop legality is fixed **for browse points** and
+untested everywhere else, and the frozen-infeasible walkers are most likely
+standing on one of the stops nobody validates.
+
+**Not done tonight, on purpose.** A queue slot cannot simply be nudged — moving
+slot 3 breaks single file, and `tests/queue-single-file-and-reach.test.js` pins
+that geometry deliberately. Validating the queue means deciding what a customer
+does when the line's own slot is unstandable (wait further back? overflow
+earlier?), which is a floor-plan decision with a suite attached, not a nudge.
