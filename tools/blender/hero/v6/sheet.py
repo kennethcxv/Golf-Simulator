@@ -82,7 +82,7 @@ def main():
         elif a == "--cell":
             cell = int(argv[i + 1]); i += 2
         elif a == "--labels":
-            labels = argv[i + 1].split(","); i += 2
+            labels = argv[i + 1].split("|")   # not "," -- labels contain commas; i += 2
         else:
             paths.append(a); i += 1
     if not paths:
