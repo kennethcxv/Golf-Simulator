@@ -312,7 +312,11 @@ def build():
                       scale_mm=260.0, rib=150, rib_depth=0.00022, rib_angle=44.0)
     dark = ST.fabric("CapUnder", LINING, rough=0.78, weave=0.0009, sheen=0.08,
                      scale_mm=240.0)
-    thread = ST.matte("CapThread", STITCH, rough=0.52)
+    # Stitching is a twisted thread, so it gets the cord tile like the
+    # hoodie drawcord. As ST.matte it was the one cloth on the cap with no
+    # grain at all, and assert_maps would have called it an unmapped fabric.
+    thread = ST.fabric("CapThread", STITCH, rough=0.52, scale_mm=90.0,
+                       maps="cord")
     cloth = ST.join("cap_shell", [cr, seams, bd, btn])
     cloth.data.materials.append(shell)
     strapob.data.materials.append(dark)

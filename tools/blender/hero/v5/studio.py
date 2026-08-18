@@ -25,6 +25,7 @@ construction language and it is a topology property, not a shader one.
 
 import math
 import os
+import sys
 
 import bpy
 import bmesh
@@ -32,6 +33,9 @@ from mathutils import Vector
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(HERE))))
+
+sys.path.insert(0, os.path.join(os.path.dirname(HERE), "v6"))
+import weave as WV  # noqa: E402
 
 
 def out_dir(*parts):
@@ -390,10 +394,14 @@ def matte(name, colour, rough=0.86, sheen=0.0):
 
 
 def fabric(name, colour, rough=0.83, weave=0.0016, sheen=0.10, scale_mm=520.0,
-           rib=0, rib_depth=0.0004, rib_angle=0.0, pique=0.0):
+           rib=0, rib_depth=0.0004, rib_angle=0.0, pique=0.0, maps=None,
+           relief=1.0):
     """Cloth: a matte base, a little sheen, and grain at the scale of the yarn.
 
-    The grain is a bump only. v4 also drove Base Color through a Mix for
+    The grain is a TILED IMAGE -- normal plus packed ORM, built by v6/weave.py.
+    It used to be a Bump node, which is why none of it ever reached the game.
+
+    v4 also drove Base Color through a Mix for
     microvariation, which is what made every garment export WHITE -- the glTF
     writer emits baseColorFactor only for an unlinked constant. Keeping colour
     unlinked here means `flatten_for_export` has nothing to undo and the shipped
@@ -412,88 +420,28 @@ def fabric(name, colour, rough=0.83, weave=0.0016, sheen=0.10, scale_mm=520.0,
         b.inputs["Sheen Weight"].default_value = sheen
         b.inputs["Sheen Roughness"].default_value = 0.42
         b.inputs["Sheen Tint"].default_value = (1.0, 1.0, 1.0, 1.0)
-    prev = None
-    if rib > 0 and pique > 0.0:
-        # PIQUE IS A LATTICE, NOT A WALE. A polo is not jersey: the knit is a
-        # honeycomb of small raised cells, and in the reference macro it is the
-        # single most identifying thing about the cloth -- more than the colour
-        # and more than the collar. One set of bands gives ribbing, which is
-        # what a cuff has. TWO sets crossed give the cell.
-        #
-        # Multiplied, not added: two triangle waves summed make a diagonal
-        # corduroy, because the sum is large along either band. The product is
-        # only large where both are, which is the raised cell, and that is the
-        # honest description of a knit where two yarn systems interlock.
-        uvn = nt.nodes.new("ShaderNodeUVMap")
-        legs = []
-        for sgn in (-1.0, 1.0):
-            mp = nt.nodes.new("ShaderNodeMapping")
-            mp.inputs["Rotation"].default_value = (
-                0.0, 0.0, math.radians(rib_angle + sgn * 45.0))
-            nt.links.new(uvn.outputs["UV"], mp.inputs["Vector"])
-            w = nt.nodes.new("ShaderNodeTexWave")
-            w.wave_type = 'BANDS'
-            w.bands_direction = 'X'
-            w.wave_profile = 'TRI'
-            w.inputs["Scale"].default_value = float(rib)
-            w.inputs["Distortion"].default_value = 0.0
-            w.inputs["Detail"].default_value = 0.0
-            nt.links.new(mp.outputs["Vector"], w.inputs["Vector"])
-            legs.append(w)
-        mul = nt.nodes.new("ShaderNodeMath")
-        mul.operation = 'MULTIPLY'
-        nt.links.new(legs[0].outputs["Fac"], mul.inputs[0])
-        nt.links.new(legs[1].outputs["Fac"], mul.inputs[1])
-        bump = nt.nodes.new("ShaderNodeBump")
-        bump.inputs["Strength"].default_value = 0.80
-        bump.inputs["Distance"].default_value = rib_depth * pique
-        nt.links.new(mul.outputs["Value"], bump.inputs["Height"])
-        prev = bump
-    elif rib > 0:
-        # A KNIT RIB, and it is a TRIANGLE wave, not a sine one.
-        #
-        # This is material, not a fold: the reference's knits show fine vertical
-        # wales about 3 mm apart and that texture is most of what makes them read
-        # as knitted rather than as painted. The brief bans harmonic terms added
-        # to FAKE FOLDS, and a triangle profile is also the honest shape here --
-        # a wale is two flat flanks meeting at a line, which is exactly what the
-        # brief asks folds to be.
-        #
-        # Driven off UV, not Generated: in Generated space the pattern is a slice
-        # through a 3-D volume normalised to the bounding box, so on a sleeve --
-        # a thin diagonal part of a 900 mm box -- it smears along the sleeve's
-        # axis. In UV space it follows the panel, which is what a wale does.
-        uvn = nt.nodes.new("ShaderNodeUVMap")
-        mp = nt.nodes.new("ShaderNodeMapping")
-        mp.inputs["Rotation"].default_value = (0.0, 0.0, math.radians(rib_angle))
-        nt.links.new(uvn.outputs["UV"], mp.inputs["Vector"])
-        w = nt.nodes.new("ShaderNodeTexWave")
-        w.wave_type = 'BANDS'
-        w.bands_direction = 'X'
-        w.wave_profile = 'TRI'
-        w.inputs["Scale"].default_value = float(rib)
-        w.inputs["Distortion"].default_value = 0.0
-        w.inputs["Detail"].default_value = 0.0
-        nt.links.new(mp.outputs["Vector"], w.inputs["Vector"])
-        bump = nt.nodes.new("ShaderNodeBump")
-        bump.inputs["Strength"].default_value = 0.55
-        bump.inputs["Distance"].default_value = rib_depth
-        nt.links.new(w.outputs["Fac"], bump.inputs["Height"])
-        prev = bump
-    if weave > 0.0:
-        n = nt.nodes.new("ShaderNodeTexNoise")
-        n.inputs["Scale"].default_value = scale_mm
-        n.inputs["Detail"].default_value = 2.0
-        n.inputs["Roughness"].default_value = 0.55
-        bump = nt.nodes.new("ShaderNodeBump")
-        bump.inputs["Strength"].default_value = 0.30
-        bump.inputs["Distance"].default_value = weave
-        nt.links.new(n.outputs["Fac"], bump.inputs["Height"])
-        if prev is not None:
-            nt.links.new(prev.outputs["Normal"], bump.inputs["Normal"])
-        prev = bump
-    if prev is not None:
-        nt.links.new(prev.outputs["Normal"], b.inputs["Normal"])
+    # THE GRAIN IS AN IMAGE NOW, NOT A BUMP NODE.
+    #
+    # Everything that used to be here -- the pique lattice, the knit wale, the
+    # weave noise -- fed a Bump node, and the glTF writer emits NOTHING for a
+    # Bump node. Six revisions of cloth work never left Blender: every shipped
+    # garment was a bare baseColorFactor and the owner has never seen any of
+    # it. Measured, on all eleven exports: `normalTexture: 0`.
+    #
+    # So the same descriptions now build a small seamless TILE in numpy, and
+    # the tile is wired in as a real normal map plus a packed ORM. What the
+    # studio renders and what the game loads are the same two images.
+    #
+    # `rib` still chooses the frequency, because that is the number that was
+    # tuned by eye and looked right. `scale_mm` still does it where there is no
+    # rib. `weave`, `rib_depth` and `pique` no longer set relief -- the fabric
+    # family's own relief-to-cell ratio does, and only that ratio survives into
+    # a normal map anyway -- so `relief` is the knob for a per-call nudge.
+    fam = maps if maps else WV.family_of(name)
+    rep = WV.repeat_for(fam, rib, scale_mm)
+    WV.wire(m, fam, rough, rep, strength=relief)
+    print("    %-16s %-7s repeat %6.2f  rough %.3f  relief x%.2f"
+          % (name, fam, rep, rough, relief))
     return m
 
 
