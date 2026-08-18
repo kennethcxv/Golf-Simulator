@@ -174,6 +174,31 @@ async (page) => {
     st.clock.minutes = day + 11 * 60;
     return st.clock.minutes;
   });
+  // AND IF NOBODY COMES, STAGE THEM. QA_NAV_STAGE=n spawns n scripted shoppers
+  // through the production spawn path — the same staged-pinch method the nav
+  // rebuild used for its own ladder-off run. Five organic runs on this save
+  // measured people=0 for the whole watch: it is the START of the campaign, a
+  // shop that has never opened, and no clock change makes it trade. A staged
+  // crowd is a real crowd for the solver's purposes (they route, they queue,
+  // they browse); it is only the ARRIVAL that is scripted, and the report says
+  // so rather than implying organic play.
+  const staged = Number(process.env.QA_NAV_STAGE || 0);
+  if (staged > 0) {
+    out.staged = await page.evaluate(async (n) => {
+      const ch = window.__fw.scene3d.clubhouse();
+      let made = 0;
+      for (let i = 0; i < n; i += 1) {
+        // alternate the two errands so the queue and the shelves are both used
+        const c = (i % 2 === 0 && ch.sendWalkInToDesk)
+          ? ch.sendWalkInToDesk({ skipRetailPlan: false })
+          : (ch.sendToCounter ? ch.sendToCounter([]) : null);
+        if (c) made += 1;
+        await new Promise((r) => setTimeout(r, 350));
+      }
+      return made;
+    }, staged);
+    console.log(`staged ${out.staged}/${staged} customers through the production spawn path`);
+  }
   await page.waitForFunction(() => {
     const ch = window.__fw.scene3d.clubhouse?.();
     const d = ch?.crowdDiagnostics ? ch.crowdDiagnostics() : null;

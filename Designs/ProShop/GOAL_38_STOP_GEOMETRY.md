@@ -100,3 +100,61 @@ move fixtures, so a data-only fix would be wrong the moment they did. But
 bug as well as a nav one, and the audit will keep naming it until somebody moves
 it. Left alone tonight because moving an authored stand point is a floor-plan
 decision with a test suite pinned to it.
+
+---
+
+# The measurement, taken after all — and it says NO
+
+The blocker was staging, not the idea. `QA_NAV_STAGE=n` spawns shoppers through
+the **production spawn path** (`sendWalkInToDesk` / `sendToCounter`, alternating
+so both the queue and the shelves are used) — the same staged-pinch method the
+nav rebuild used for its own ladder-off run. Only the ARRIVAL is scripted; they
+route, queue and browse like anyone else.
+
+Two runs, same save, same eight-person crowd, four minutes each, one boot apart:
+
+| | ladder OFF | ladder ON |
+|---|---|---|
+| worst no-progress | **227.59 s** | **7.67 s** |
+| stall episodes | 168 | 56 |
+| shove frames | 11,858 (48.35/s) | 711 (2.90/s) |
+| contact episodes | **0** | **4** |
+| frames touching | **0** | 30 |
+| frames interpenetrating | **0** | **2** |
+| closest approach | **0.7566 yd** | **0.5628 yd** |
+| people at 245 s | 8 (nobody ever left) | 4 (they finished and went) |
+| **stops unreachable** | **0** | **0** |
+
+## The ladder is not deleted, and now there is a number for it
+
+With it off the crowd is **perfect** — zero contacts, zero touching frames,
+closest approach 0.7566 yd — and **nobody completes an errand**: the population
+never drops from eight, and one walker is held **227 seconds** on a 245-second
+watch. With it on, people finish and leave, at the price of 4 contact episodes,
+30 touching frames and **2 frames of actual interpenetration**.
+
+That is the trade, measured in one boot on one crowd instead of inferred across
+two afternoons.
+
+## And the brief's hypothesis is wrong, which is the useful part
+
+> "So fix the stop geometry. … Then delete the ladder and measure again. If not,
+> say what is still issuing impossible stops."
+
+**Nothing is.** `stopsUnreachable` is **0 in both runs** — every stop issued to
+every customer was one a body could stand on, and the validator nudged exactly
+one of them. Stop legality is fixed and it did not move the stalls.
+
+What is left is in the `infeasible` column. With the ladder OFF it **freezes at
+691** and never rises again while stalls climb linearly to 168 — the same
+walkers, permanently unsolvable, never re-solving. That is not an unreachable
+stop; that is the linear program having no feasible velocity at all, which is
+**mutual deadlock**: two or more bodies each yielding to the other, forever. It
+is the symmetry case the ORCA rebuild already flagged.
+
+So the next move on the ladder is not another rung and not more stop validation.
+It is a **deadlock break in the solver** — when a body's LP has been infeasible
+for N consecutive frames, one of the pair must take priority and move. Deferred
+tonight: that is surgery on the crowd solver, and the only verification I have
+is a staged crowd. It should be done against a trading save with organic
+arrivals, with this A/B as the before.
