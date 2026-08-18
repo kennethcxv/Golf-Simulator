@@ -249,8 +249,60 @@ export function makeCharacter({ polo = 0x3b6fb3, khaki = 0xc2b190, cap = 0xf2efe
   // The cost is triangles, not draw calls: one mesh either way, 280 -> 560
   // triangles on a head. A1 measured this renderer as draw-call bound, so this
   // is the cheap axis to spend on.
-  const skull = new THREE.Mesh(new THREE.SphereGeometry(0.155, 28, 20), mSkin);
-  skull.position.y = 0.06;
+  // ONE PLACE THE SKULL IS DESCRIBED. Both numbers were open-coded wherever a
+  // feature needed them, which is how a re-seating can be right about a sphere
+  // that is no longer the sphere being drawn.
+  const SKULL_R = 0.155;
+  const SKULL_CENTRE_Y = 0.06;
+  const SKULL_W_SEG = 28;
+  const SKULL_H_SEG = 20;
+  // ...AND THE RADIUS THAT MATTERS IS THE ONE THAT IS DRAWN. H2 (Goal 17) found
+  // this and it is still true: a UV sphere is a polygon in both axes, so between
+  // its vertices the surface pulls in by cos(pi/w) * cos(pi/h) — 2.9 mm on this
+  // head. Seating against the nominal 0.155 with a 1.5 mm margin still leaves a
+  // corner 1.4 mm proud of the skin the renderer actually puts on screen, which
+  // is exactly the gap H2 was written about. Everything below seats against
+  // this number instead.
+  const SKULL_DRAWN_R = SKULL_R
+    * Math.cos(Math.PI / SKULL_W_SEG) * Math.cos(Math.PI / SKULL_H_SEG);
+  // SEAT IT BY THE WORST CORNER, because the worst corner is the complaint.
+  //
+  // Every previous attempt reasoned about a point — the centre of the brow, the
+  // middle of its inner face — and a feature is not a point. Once a box is
+  // rotated (the brows carry a 0.14 rad tilt, and each segment is yawed to the
+  // local tangent) there is no closed form worth writing: so push the piece
+  // along its own radial until the FURTHEST of its four inner-face corners is
+  // inside the sphere by `margin`, and check it again afterwards because moving
+  // it changes which corner is furthest. Two passes converge to well under a
+  // tenth of a millimetre.
+  //
+  // tests/face-features-are-seated-on-the-skull.test.js measures exactly this
+  // and ships the old slab as its control.
+  const _fc = new THREE.Vector3();
+  const _fp = new THREE.Vector3();
+  const seatFeature = (mesh, size, margin = 0.0015) => {
+    const centre = new THREE.Vector3(0, SKULL_CENTRE_Y, 0);
+    for (let pass = 0; pass < 2; pass += 1) {
+      mesh.updateMatrix();
+      let worst = -Infinity;
+      for (const sx of [-0.5, 0.5]) {
+        for (const sy of [-0.5, 0.5]) {
+          _fp.set(sx * size.w, sy * size.h, -0.5 * size.d).applyMatrix4(mesh.matrix);
+          worst = Math.max(worst, _fp.distanceTo(centre));
+        }
+      }
+      const push = worst - (SKULL_DRAWN_R - margin);
+      if (push <= 0) break;
+      _fc.copy(mesh.position).sub(centre);
+      const len = _fc.length() || 1;
+      mesh.position.addScaledVector(_fc, -push / len);
+    }
+    return mesh;
+  };
+  const skull = new THREE.Mesh(new THREE.SphereGeometry(SKULL_R, SKULL_W_SEG, SKULL_H_SEG), mSkin);
+  skull.name = 'skull';
+  skull.userData.skull = { r: SKULL_R, drawnR: SKULL_DRAWN_R, centreY: SKULL_CENTRE_Y, wSeg: SKULL_W_SEG, hSeg: SKULL_H_SEG };
+  skull.position.y = SKULL_CENTRE_Y;
   skull.castShadow = true;
   head.add(skull);
   const mFace = M(0x2b2521, 0.9);
@@ -271,27 +323,77 @@ export function makeCharacter({ polo = 0x3b6fb3, khaki = 0xc2b190, cap = 0xf2efe
     catchlight.position.set(x - 0.004, 0.088, 0.168);
     fineDetail(catchlight);
     head.add(catchlight);
-    const brow = box(0.052, 0.012, 0.014, mBrow, 0.114, 0.137);
-    brow.position.x = x * 1.02;
-    // G2: seated on the skull along the FULL radial — the first fix used
-    // the x=0 surface (0.145) and left the brows 10 mm proud on their
-    // diagonal at x ±0.058, which the mesh-raycast instrument caught. The
-    // surface at (x, y 0.114) is sqrt(0.155^2 - x^2 - 0.054^2) ≈ 0.133.
-    brow.position.z = 0.139;
-    brow.rotation.z = x < 0 ? 0.14 : -0.14;
-    fineDetail(brow);
-    head.add(brow);
+    // D6, AND THE THIRD TIME THIS HAS BEEN "FIXED".
+    //
+    // "Eyebrows and moustaches float in front of the face in profile." H2 above
+    // raised the skull's segment count so the DRAWN surface stopped sitting
+    // inside the features, and G2 before it re-seated the brow along the full
+    // radial. Both are correct and neither could work, because both seat a FLAT
+    // 52 mm SLAB against a 155 mm SPHERE — and a chord that touches a sphere at
+    // its centre stands off it at its ends. Arithmetic, not opinion: with the
+    // brow's inner face at z = 0.132, the skull surface under its CENTRE
+    // (x 0.058, y 0.114) is 0.1332 — buried by 1.2 mm, exactly as G2 says — but
+    // under its outer END (x 0.084) the surface is 0.1185, so that end floats
+    // 13.5 mm off the skin, and at the outer TOP corner 16.5 mm. The temple end
+    // is the one you see silhouetted from the side, which is precisely the
+    // angle the complaint names and the angle no previous check photographed
+    // (qa/goal33/d6-profile-d6c.png is the first frame that does).
+    //
+    // So the brow is no longer one slab. It is four short ones, each seated
+    // against the sphere AT ITS OWN x and yawed to the local tangent, so the
+    // stand-off is bounded by the width of a segment rather than by the width
+    // of the whole brow. Same triangle budget class as before: four 12-triangle
+    // boxes instead of one, on a head that is 560 triangles of skull.
+    const BROW_W = 0.052;
+    const BROW_SEGS = 4;
+    const segW = BROW_W / BROW_SEGS;
+    for (let i = 0; i < BROW_SEGS; i += 1) {
+      const bx = x * 1.02 + (i - (BROW_SEGS - 1) / 2) * segW;
+      const seg = box(segW * 1.06, 0.012, 0.014, mBrow, 0.114, 0);
+      // Named and sized so the seating can be MEASURED rather than eyeballed.
+      // Three sessions have "fixed" this from arithmetic about the centre; the
+      // number that matters is the worst corner, and nothing could read it.
+      seg.name = 'faceFeature:brow';
+      seg.userData.faceFeature = { w: segW * 1.06, h: 0.012, d: 0.014 };
+      seg.position.x = bx;
+      // the sphere's own surface under THIS segment, minus a 2 mm bury
+      const dy = 0.114 - SKULL_CENTRE_Y;
+      const r2 = SKULL_R * SKULL_R - bx * bx - dy * dy;
+      seg.position.z = (r2 > 0 ? Math.sqrt(r2) : 0.10) - 0.002;
+      // face outward: without this the flat ends corner-poke through the skin
+      seg.rotation.y = -Math.atan2(bx, seg.position.z);
+      seg.rotation.z = x < 0 ? 0.14 : -0.14;
+      seatFeature(seg, seg.userData.faceFeature);
+      fineDetail(seg);
+      head.add(seg);
+    }
   }
   const nose = ellipsoid(0.034, 0.045, 0.030, mSkin, 0.043, 0.163, 8);
   fineDetail(nose);
   head.add(nose);
   // G2: this dark slab at z 0.158 hovered ~25 mm off the skull (surface z
   // at mouth height is 0.1276) and read in profile as a floating moustache
-  // — there IS no moustache mesh; this was it. Seated now, <=2 mm proud.
-  const mouth = box(0.058, 0.011, 0.010, mFace, -0.028, 0.133);
-  mouth.rotation.x = 0.12; // a faint upward set, so the resting face is neutral-friendly
-  fineDetail(mouth);
-  head.add(mouth);
+  // — there IS no moustache mesh; this was it. G2 seated its CENTRE, which
+  // left the corners 3.7 mm out for the same chord-on-a-sphere reason as the
+  // brow above. Segmented on the same rule, so the mouth's ends follow the jaw.
+  const MOUTH_W = 0.058;
+  const MOUTH_SEGS = 3;
+  const mSegW = MOUTH_W / MOUTH_SEGS;
+  for (let i = 0; i < MOUTH_SEGS; i += 1) {
+    const mx = (i - (MOUTH_SEGS - 1) / 2) * mSegW;
+    const seg = box(mSegW * 1.08, 0.011, 0.010, mFace, -0.028, 0);
+    seg.name = 'faceFeature:mouth';
+    seg.userData.faceFeature = { w: mSegW * 1.08, h: 0.011, d: 0.010 };
+    seg.position.x = mx;
+    const dy = -0.028 - SKULL_CENTRE_Y;
+    const r2 = SKULL_R * SKULL_R - mx * mx - dy * dy;
+    seg.position.z = (r2 > 0 ? Math.sqrt(r2) : 0.10) - 0.0015;
+    seg.rotation.y = -Math.atan2(mx, seg.position.z);
+    seg.rotation.x = 0.12; // a faint upward set, so the resting face is neutral-friendly
+    seatFeature(seg, seg.userData.faceFeature);
+    fineDetail(seg);
+    head.add(seg);
+  }
   for (const x of [-0.158, 0.158]) {
     const ear = ellipsoid(0.025, 0.052, 0.020, mSkin, 0.052, 0.004, 8);
     ear.position.x = x;
