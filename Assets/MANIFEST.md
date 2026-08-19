@@ -16,7 +16,7 @@ A loader that builds its filename at runtime — `` `vendor/models/flora/${id}.g
 proves the *directory*, not the file. Those rows say "loaded by name from", and the
 remaining question for them is whether the id is in that loader's registry.
 
-Totals: **1954** asset files — 720 SHIPPING, 1214 NOT WIRED, 20 SUPERSEDED.
+Totals: **1962** asset files — 718 SHIPPING, 1214 NOT WIRED, 30 SUPERSEDED.
 
 ## Archived
 
@@ -24,13 +24,14 @@ Totals: **1954** asset files — 720 SHIPPING, 1214 NOT WIRED, 20 SUPERSEDED.
 |---|---|---|---|
 | `Assets/models/hero/v3` | `Assets/_archive/hero/v3` | `Assets/models/hero/v5` | concertina-fold garments; the folds were modelled, not simulated, and four garments carried the same sticker fault |
 | `Assets/models/hero/v4` | `Assets/_archive/hero/v4` | `Assets/models/hero/v5` | simulated-body production line; superseded by v5's flat Coons pattern pieces sewn then folded |
+| `vendor/textures/fairway_diff.jpg` | `Assets/_archive/textures` | `vendor/textures/ground` | the five Poly Haven ground sets: ONE image (leafy_grass, a leafy meadow) was doing fairway, semi, tee, green, fringe, rough and heavy rough, and FW_STYLIZE reduced it to luminance before drawing it; replaced by four authored tiling sets with real normal, occlusion and roughness. All CC0 with their URLs in vendor/textures/_manifest.json |
 
 ## Families
 
 | family | what it is | files | SHIPPING | NOT WIRED | SUPERSEDED | size |
 |---|---|--:|--:|--:|--:|--:|
 | `Assets` | — | 29 | 0 | 29 | 0 | 105.4 MiB |
-| `Assets/_archive` | ARCHIVED — kept for history, must never be referenced | 20 | 0 | 0 | 20 | 26.9 MiB |
+| `Assets/_archive` | ARCHIVED — kept for history, must never be referenced | 30 | 0 | 0 | 30 | 37.1 MiB |
 | `Assets/architecture` | door sources | 89 | 0 | 89 | 0 | 36.5 MiB |
 | `Assets/assets_51_100` | sheet 51-100 sources | 74 | 58 | 16 | 0 | 225.2 MiB |
 | `Assets/ceiling_lights` | ceiling light sources | 36 | 18 | 18 | 0 | 17.3 MiB |
@@ -58,7 +59,7 @@ Totals: **1954** asset files — 720 SHIPPING, 1214 NOT WIRED, 20 SUPERSEDED.
 | `vendor/models/pro_shop_furniture` | the furniture catalogue, one GLB per category/tier | 150 | 150 | 0 | 0 | 68.5 MiB |
 | `vendor/models/shed` | the maintenance shed interior | 5 | 5 | 0 | 0 | 0.3 MiB |
 | `vendor/models/trees` | tree GLBs | 6 | 0 | 6 | 0 | 0.1 MiB |
-| `vendor/textures` | the ground and shell PBR sets (Poly Haven CC0) — see vendor/textures/_manifest.json | 15 | 15 | 0 | 0 | 12.8 MiB |
+| `vendor/textures` | the ground and shell PBR sets (Poly Haven CC0) — see vendor/textures/_manifest.json | 13 | 13 | 0 | 0 | 6.7 MiB |
 
 ## Every asset
 
@@ -120,6 +121,16 @@ Totals: **1954** asset files — 720 SHIPPING, 1214 NOT WIRED, 20 SUPERSEDED.
 | `hero/v4/apparel_tee_hung.glb` | SUPERSEDED | superseded by Assets/models/hero/v5 |
 | `hero/v4/apparel_trousers_folded.glb` | SUPERSEDED | superseded by Assets/models/hero/v5 |
 | `hero/v4/apparel_trousers_hung.glb` | SUPERSEDED | superseded by Assets/models/hero/v5 |
+| `textures/fairway_diff.jpg` | SUPERSEDED | superseded by vendor/textures/ground |
+| `textures/fairway_nor.jpg` | SUPERSEDED | superseded by vendor/textures/ground |
+| `textures/path_diff.jpg` | SUPERSEDED | superseded by vendor/textures/ground |
+| `textures/path_nor.jpg` | SUPERSEDED | superseded by vendor/textures/ground |
+| `textures/rough_diff.jpg` | SUPERSEDED | superseded by vendor/textures/ground |
+| `textures/rough_nor.jpg` | SUPERSEDED | superseded by vendor/textures/ground |
+| `textures/sand_diff.jpg` | SUPERSEDED | superseded by vendor/textures/ground |
+| `textures/sand_nor.jpg` | SUPERSEDED | superseded by vendor/textures/ground |
+| `textures/scrub_diff.jpg` | SUPERSEDED | superseded by vendor/textures/ground |
+| `textures/scrub_nor.jpg` | SUPERSEDED | superseded by vendor/textures/ground |
 
 ### `Assets/architecture`
 
@@ -626,8 +637,8 @@ Totals: **1954** asset files — 720 SHIPPING, 1214 NOT WIRED, 20 SUPERSEDED.
 | `divot_fork.glb` | NOT WIRED | no loader in src/ |
 | `dustpan.glb` | NOT WIRED | no loader in src/ |
 | `fp_hand.glb` | SHIPPING | source of vendor/models/hands/fp_hand.glb, loaded at src/render3d/fpHands.js:523 |
-| `greens_mower.glb` | SHIPPING | source of vendor/models/greens_mower.glb, loaded at src/render3d/courseScene.js:7107 |
-| `hose_nozzle.glb` | SHIPPING | source of vendor/models/hose_nozzle.glb, loaded at src/render3d/courseScene.js:571 |
+| `greens_mower.glb` | SHIPPING | source of vendor/models/greens_mower.glb, loaded at src/render3d/courseScene.js:7281 |
+| `hose_nozzle.glb` | SHIPPING | source of vendor/models/hose_nozzle.glb, loaded at src/render3d/courseScene.js:606 |
 | `ledger_book.glb` | SHIPPING | source of vendor/models/clubhouse/ledger_book.glb, loaded at src/render3d/clubhouse/ledgerBook.js:124 |
 | `merch_apparel.glb` | NOT WIRED | no loader in src/ |
 | `merch_carded.glb` | NOT WIRED | no loader in src/ |
@@ -641,7 +652,7 @@ Totals: **1954** asset files — 720 SHIPPING, 1214 NOT WIRED, 20 SUPERSEDED.
 | `retail_rack_low.glb` | NOT WIRED | no loader in src/ |
 | `retail_rack_standard.glb` | NOT WIRED | no loader in src/ |
 | `retail_rack_tall.glb` | NOT WIRED | no loader in src/ |
-| `rotary_spreader.glb` | SHIPPING | source of vendor/models/rotary_spreader.glb, loaded at src/render3d/courseScene.js:7108 |
+| `rotary_spreader.glb` | SHIPPING | source of vendor/models/rotary_spreader.glb, loaded at src/render3d/courseScene.js:7282 |
 | `shopping_bag.glb` | SHIPPING | source of vendor/models/checkout/shopping_bag.glb, loaded by name from src/render3d/clubhouse/merch.js:550 |
 | `spray_bottle.glb` | NOT WIRED | no loader in src/ |
 | `textures/apparel_atlas_v3.png` | NOT WIRED | no loader in src/ |
@@ -1536,34 +1547,34 @@ Totals: **1954** asset files — 720 SHIPPING, 1214 NOT WIRED, 20 SUPERSEDED.
 
 | file | status | evidence |
 |---|---|---|
-| `belt.glb` | SHIPPING | loaded at src/render3d/courseScene.js:11839 |
-| `bucket_soil.glb` | SHIPPING | loaded at src/render3d/courseScene.js:581 |
-| `club_sign.glb` | SHIPPING | loaded at src/render3d/courseScene.js:11644 (+1) |
-| `clubhouse_ext_opt.glb` | SHIPPING | loaded at src/render3d/courseScene.js:11645 (+1) |
+| `belt.glb` | SHIPPING | loaded at src/render3d/courseScene.js:12021 |
+| `bucket_soil.glb` | SHIPPING | loaded at src/render3d/courseScene.js:616 |
+| `club_sign.glb` | SHIPPING | loaded at src/render3d/courseScene.js:11826 (+1) |
+| `clubhouse_ext_opt.glb` | SHIPPING | loaded at src/render3d/courseScene.js:11827 (+1) |
 | `clubhouse_ext.glb` | NOT WIRED | no loader in src/ |
-| `course_sign.glb` | SHIPPING | loaded at src/render3d/courseScene.js:11646 (+1) |
+| `course_sign.glb` | SHIPPING | loaded at src/render3d/courseScene.js:11828 (+1) |
 | `flagpole.glb` | NOT WIRED | no loader in src/ |
-| `gas_can.glb` | SHIPPING | loaded at src/render3d/courseScene.js:11823 |
-| `golf_cart.glb` | SHIPPING | loaded at src/render3d/courseScene.js:5219 |
-| `golf_gameplay_kit.glb` | SHIPPING | loaded at src/render3d/courseScene.js:5198 |
-| `greens_mower.glb` | SHIPPING | loaded at src/render3d/courseScene.js:7107 |
-| `hand_fork.glb` | SHIPPING | loaded at src/render3d/courseScene.js:577 |
-| `hose_nozzle.glb` | SHIPPING | loaded at src/render3d/courseScene.js:571 |
-| `leaves_pile.glb` | SHIPPING | loaded at src/render3d/courseScene.js:11604 (+2) |
-| `mower_deck_production.glb` | SHIPPING | loaded at src/render3d/courseScene.js:11523 |
-| `mower_deck.glb` | SHIPPING | loaded at src/render3d/courseScene.js:11491 (+1) |
-| `rake.glb` | SHIPPING | loaded at src/render3d/courseScene.js:587 |
-| `rotary_spreader.glb` | SHIPPING | loaded at src/render3d/courseScene.js:7108 |
-| `shed.glb` | SHIPPING | loaded at src/render3d/courseScene.js:11643 (+1) |
+| `gas_can.glb` | SHIPPING | loaded at src/render3d/courseScene.js:12005 |
+| `golf_cart.glb` | SHIPPING | loaded at src/render3d/courseScene.js:5393 |
+| `golf_gameplay_kit.glb` | SHIPPING | loaded at src/render3d/courseScene.js:5372 |
+| `greens_mower.glb` | SHIPPING | loaded at src/render3d/courseScene.js:7281 |
+| `hand_fork.glb` | SHIPPING | loaded at src/render3d/courseScene.js:612 |
+| `hose_nozzle.glb` | SHIPPING | loaded at src/render3d/courseScene.js:606 |
+| `leaves_pile.glb` | SHIPPING | loaded at src/render3d/courseScene.js:11786 (+2) |
+| `mower_deck_production.glb` | SHIPPING | loaded at src/render3d/courseScene.js:11705 |
+| `mower_deck.glb` | SHIPPING | loaded at src/render3d/courseScene.js:11673 (+1) |
+| `rake.glb` | SHIPPING | loaded at src/render3d/courseScene.js:622 |
+| `rotary_spreader.glb` | SHIPPING | loaded at src/render3d/courseScene.js:7282 |
+| `shed.glb` | SHIPPING | loaded at src/render3d/courseScene.js:11825 (+1) |
 | `tee_markers.glb` | NOT WIRED | no loader in src/ |
-| `tee_sign_broken.glb` | SHIPPING | loaded at src/render3d/courseScene.js:11645 (+1) |
-| `tool_chest.glb` | SHIPPING | loaded at src/render3d/courseScene.js:11644 (+1) |
+| `tee_sign_broken.glb` | SHIPPING | loaded at src/render3d/courseScene.js:11827 (+1) |
+| `tool_chest.glb` | SHIPPING | loaded at src/render3d/courseScene.js:11826 (+1) |
 | `tractor_broken.glb` | NOT WIRED | no loader in src/ |
-| `tractor_production.glb` | SHIPPING | loaded at src/render3d/courseScene.js:11774 |
-| `tractor_red.glb` | SHIPPING | loaded at src/render3d/courseScene.js:11581 |
-| `tractor.glb` | SHIPPING | loaded at src/render3d/courseScene.js:11587 |
+| `tractor_production.glb` | SHIPPING | loaded at src/render3d/courseScene.js:11956 |
+| `tractor_red.glb` | SHIPPING | loaded at src/render3d/courseScene.js:11763 |
+| `tractor.glb` | SHIPPING | loaded at src/render3d/courseScene.js:11769 |
 | `treatment_sprayer.glb` | NOT WIRED | no loader in src/ |
-| `workbench.glb` | SHIPPING | loaded at src/render3d/courseScene.js:11643 (+1) |
+| `workbench.glb` | SHIPPING | loaded at src/render3d/courseScene.js:11825 (+1) |
 
 ### `vendor/models/architecture`
 
@@ -1889,63 +1900,63 @@ Totals: **1954** asset files — 720 SHIPPING, 1214 NOT WIRED, 20 SUPERSEDED.
 
 | file | status | evidence |
 |---|---|---|
-| `ball_washer.glb` | SHIPPING | loaded by name from src/render3d/courseScene.js:3519 |
-| `bell_post.glb` | SHIPPING | loaded by name from src/render3d/courseScene.js:3519 |
-| `bench_course.glb` | SHIPPING | loaded by name from src/render3d/courseScene.js:3519 |
-| `bridge_path.glb` | SHIPPING | loaded by name from src/render3d/courseScene.js:3519 |
-| `cup_flag_base.glb` | SHIPPING | loaded at src/render3d/courseScene.js:4078 |
-| `divot_box.glb` | SHIPPING | loaded by name from src/render3d/courseScene.js:3519 |
-| `flagstick.glb` | SHIPPING | loaded at src/render3d/courseScene.js:4072 |
-| `rake_prop.glb` | SHIPPING | loaded by name from src/render3d/courseScene.js:3519 |
-| `sign_directional.glb` | SHIPPING | loaded by name from src/render3d/courseScene.js:3519 |
-| `stake_boundary.glb` | SHIPPING | loaded by name from src/render3d/courseScene.js:3519 |
-| `tee_marker_blue.glb` | SHIPPING | loaded by name from src/render3d/courseScene.js:3519 |
-| `tee_marker_gold.glb` | SHIPPING | loaded by name from src/render3d/courseScene.js:3519 |
-| `tee_marker_red.glb` | SHIPPING | loaded by name from src/render3d/courseScene.js:3519 |
-| `tee_marker_silver.glb` | SHIPPING | loaded by name from src/render3d/courseScene.js:3519 |
-| `tee_sign.glb` | SHIPPING | loaded by name from src/render3d/courseScene.js:3519 |
-| `trash_course.glb` | SHIPPING | loaded by name from src/render3d/courseScene.js:3519 |
-| `yardage_marker.glb` | SHIPPING | loaded by name from src/render3d/courseScene.js:3519 |
+| `ball_washer.glb` | SHIPPING | loaded by name from src/render3d/courseScene.js:3674 |
+| `bell_post.glb` | SHIPPING | loaded by name from src/render3d/courseScene.js:3674 |
+| `bench_course.glb` | SHIPPING | loaded by name from src/render3d/courseScene.js:3674 |
+| `bridge_path.glb` | SHIPPING | loaded by name from src/render3d/courseScene.js:3674 |
+| `cup_flag_base.glb` | SHIPPING | loaded at src/render3d/courseScene.js:4252 |
+| `divot_box.glb` | SHIPPING | loaded by name from src/render3d/courseScene.js:3674 |
+| `flagstick.glb` | SHIPPING | loaded at src/render3d/courseScene.js:4246 |
+| `rake_prop.glb` | SHIPPING | loaded by name from src/render3d/courseScene.js:3674 |
+| `sign_directional.glb` | SHIPPING | loaded by name from src/render3d/courseScene.js:3674 |
+| `stake_boundary.glb` | SHIPPING | loaded by name from src/render3d/courseScene.js:3674 |
+| `tee_marker_blue.glb` | SHIPPING | loaded by name from src/render3d/courseScene.js:3674 |
+| `tee_marker_gold.glb` | SHIPPING | loaded by name from src/render3d/courseScene.js:3674 |
+| `tee_marker_red.glb` | SHIPPING | loaded by name from src/render3d/courseScene.js:3674 |
+| `tee_marker_silver.glb` | SHIPPING | loaded by name from src/render3d/courseScene.js:3674 |
+| `tee_sign.glb` | SHIPPING | loaded by name from src/render3d/courseScene.js:3674 |
+| `trash_course.glb` | SHIPPING | loaded by name from src/render3d/courseScene.js:3674 |
+| `yardage_marker.glb` | SHIPPING | loaded by name from src/render3d/courseScene.js:3674 |
 
 ### `vendor/models/flora`
 
 | file | status | evidence |
 |---|---|---|
-| `acacia_a.glb` | SHIPPING | loaded by name from src/render3d/courseScene.js:461 |
-| `acacia_far.glb` | SHIPPING | loaded by name from src/render3d/courseScene.js:461 |
-| `birch_a.glb` | SHIPPING | loaded by name from src/render3d/courseScene.js:461 |
-| `boulder_a.glb` | SHIPPING | loaded by name from src/render3d/courseScene.js:461 |
-| `bush_native.glb` | SHIPPING | loaded by name from src/render3d/courseScene.js:461 |
-| `cedar_a.glb` | SHIPPING | loaded by name from src/render3d/courseScene.js:461 |
-| `cypress_a.glb` | SHIPPING | loaded by name from src/render3d/courseScene.js:461 |
-| `cypress_far.glb` | SHIPPING | loaded by name from src/render3d/courseScene.js:461 |
-| `deciduous_far.glb` | SHIPPING | loaded by name from src/render3d/courseScene.js:461 |
-| `eucalyptus_a.glb` | SHIPPING | loaded by name from src/render3d/courseScene.js:461 |
-| `eucalyptus_far.glb` | SHIPPING | loaded by name from src/render3d/courseScene.js:461 |
-| `fill_a.glb` | SHIPPING | loaded by name from src/render3d/courseScene.js:461 |
-| `fill_b.glb` | SHIPPING | loaded by name from src/render3d/courseScene.js:461 |
-| `flower_a.glb` | SHIPPING | loaded by name from src/render3d/courseScene.js:461 |
-| `flower_bed_a.glb` | SHIPPING | loaded by name from src/render3d/courseScene.js:461 |
-| `grass_clump.glb` | SHIPPING | loaded by name from src/render3d/courseScene.js:461 |
-| `groundcover_a.glb` | SHIPPING | loaded by name from src/render3d/courseScene.js:461 |
-| `hedge_a.glb` | SHIPPING | loaded by name from src/render3d/courseScene.js:461 |
-| `maple_a.glb` | SHIPPING | loaded by name from src/render3d/courseScene.js:461 |
-| `oak_a.glb` | SHIPPING | loaded by name from src/render3d/courseScene.js:461 |
-| `oak_b.glb` | SHIPPING | loaded by name from src/render3d/courseScene.js:461 |
-| `ornamental_small_a.glb` | SHIPPING | loaded by name from src/render3d/courseScene.js:461 |
-| `palm_a.glb` | SHIPPING | loaded by name from src/render3d/courseScene.js:461 |
-| `palm_far.glb` | SHIPPING | loaded by name from src/render3d/courseScene.js:461 |
-| `pine_a.glb` | SHIPPING | loaded by name from src/render3d/courseScene.js:461 |
-| `pine_b.glb` | SHIPPING | loaded by name from src/render3d/courseScene.js:461 |
-| `pine_far.glb` | SHIPPING | loaded by name from src/render3d/courseScene.js:461 |
-| `reed_clump.glb` | SHIPPING | loaded by name from src/render3d/courseScene.js:461 |
-| `rock_m.glb` | SHIPPING | loaded by name from src/render3d/courseScene.js:461 |
-| `rock_s.glb` | SHIPPING | loaded by name from src/render3d/courseScene.js:461 |
-| `shade_a.glb` | SHIPPING | loaded by name from src/render3d/courseScene.js:461 |
-| `shore_rock.glb` | SHIPPING | loaded by name from src/render3d/courseScene.js:461 |
-| `shrub_flower.glb` | SHIPPING | loaded by name from src/render3d/courseScene.js:461 |
-| `shrub_round.glb` | SHIPPING | loaded by name from src/render3d/courseScene.js:461 |
-| `spruce_a.glb` | SHIPPING | loaded by name from src/render3d/courseScene.js:461 |
+| `acacia_a.glb` | SHIPPING | loaded by name from src/render3d/courseScene.js:462 |
+| `acacia_far.glb` | SHIPPING | loaded by name from src/render3d/courseScene.js:462 |
+| `birch_a.glb` | SHIPPING | loaded by name from src/render3d/courseScene.js:462 |
+| `boulder_a.glb` | SHIPPING | loaded by name from src/render3d/courseScene.js:462 |
+| `bush_native.glb` | SHIPPING | loaded by name from src/render3d/courseScene.js:462 |
+| `cedar_a.glb` | SHIPPING | loaded by name from src/render3d/courseScene.js:462 |
+| `cypress_a.glb` | SHIPPING | loaded by name from src/render3d/courseScene.js:462 |
+| `cypress_far.glb` | SHIPPING | loaded by name from src/render3d/courseScene.js:462 |
+| `deciduous_far.glb` | SHIPPING | loaded by name from src/render3d/courseScene.js:462 |
+| `eucalyptus_a.glb` | SHIPPING | loaded by name from src/render3d/courseScene.js:462 |
+| `eucalyptus_far.glb` | SHIPPING | loaded by name from src/render3d/courseScene.js:462 |
+| `fill_a.glb` | SHIPPING | loaded by name from src/render3d/courseScene.js:462 |
+| `fill_b.glb` | SHIPPING | loaded by name from src/render3d/courseScene.js:462 |
+| `flower_a.glb` | SHIPPING | loaded by name from src/render3d/courseScene.js:462 |
+| `flower_bed_a.glb` | SHIPPING | loaded by name from src/render3d/courseScene.js:462 |
+| `grass_clump.glb` | SHIPPING | loaded by name from src/render3d/courseScene.js:462 |
+| `groundcover_a.glb` | SHIPPING | loaded by name from src/render3d/courseScene.js:462 |
+| `hedge_a.glb` | SHIPPING | loaded by name from src/render3d/courseScene.js:462 |
+| `maple_a.glb` | SHIPPING | loaded by name from src/render3d/courseScene.js:462 |
+| `oak_a.glb` | SHIPPING | loaded by name from src/render3d/courseScene.js:462 |
+| `oak_b.glb` | SHIPPING | loaded by name from src/render3d/courseScene.js:462 |
+| `ornamental_small_a.glb` | SHIPPING | loaded by name from src/render3d/courseScene.js:462 |
+| `palm_a.glb` | SHIPPING | loaded by name from src/render3d/courseScene.js:462 |
+| `palm_far.glb` | SHIPPING | loaded by name from src/render3d/courseScene.js:462 |
+| `pine_a.glb` | SHIPPING | loaded by name from src/render3d/courseScene.js:462 |
+| `pine_b.glb` | SHIPPING | loaded by name from src/render3d/courseScene.js:462 |
+| `pine_far.glb` | SHIPPING | loaded by name from src/render3d/courseScene.js:462 |
+| `reed_clump.glb` | SHIPPING | loaded by name from src/render3d/courseScene.js:462 |
+| `rock_m.glb` | SHIPPING | loaded by name from src/render3d/courseScene.js:462 |
+| `rock_s.glb` | SHIPPING | loaded by name from src/render3d/courseScene.js:462 |
+| `shade_a.glb` | SHIPPING | loaded by name from src/render3d/courseScene.js:462 |
+| `shore_rock.glb` | SHIPPING | loaded by name from src/render3d/courseScene.js:462 |
+| `shrub_flower.glb` | SHIPPING | loaded by name from src/render3d/courseScene.js:462 |
+| `shrub_round.glb` | SHIPPING | loaded by name from src/render3d/courseScene.js:462 |
+| `spruce_a.glb` | SHIPPING | loaded by name from src/render3d/courseScene.js:462 |
 
 ### `vendor/models/golf_carts`
 
@@ -2150,19 +2161,17 @@ Totals: **1954** asset files — 720 SHIPPING, 1214 NOT WIRED, 20 SUPERSEDED.
 
 | file | status | evidence |
 |---|---|---|
-| `fairway_diff.jpg` | SHIPPING | loaded by name from src/render3d/courseScene.js:963 |
-| `fairway_nor.jpg` | SHIPPING | loaded by name from src/render3d/courseScene.js:963 |
-| `path_diff.jpg` | SHIPPING | loaded by name from src/render3d/courseScene.js:963 |
-| `path_nor.jpg` | SHIPPING | loaded by name from src/render3d/courseScene.js:963 |
-| `roof_diff.jpg` | SHIPPING | loaded by name from src/render3d/courseScene.js:963 |
-| `roof_nor.jpg` | SHIPPING | loaded by name from src/render3d/courseScene.js:963 |
-| `rough_diff.jpg` | SHIPPING | loaded by name from src/render3d/courseScene.js:963 |
-| `rough_nor.jpg` | SHIPPING | loaded by name from src/render3d/courseScene.js:963 |
-| `sand_diff.jpg` | SHIPPING | loaded by name from src/render3d/courseScene.js:963 |
-| `sand_nor.jpg` | SHIPPING | loaded by name from src/render3d/courseScene.js:963 |
-| `scrub_diff.jpg` | SHIPPING | loaded by name from src/render3d/courseScene.js:963 |
-| `scrub_nor.jpg` | SHIPPING | loaded by name from src/render3d/courseScene.js:963 |
-| `siding_diff.jpg` | SHIPPING | loaded by name from src/render3d/courseScene.js:963 |
-| `siding_nor.jpg` | SHIPPING | loaded by name from src/render3d/courseScene.js:963 |
-| `waternormals.jpg` | SHIPPING | loaded at src/render3d/courseScene.js:2326 |
+| `ground/hard_alb.png` | SHIPPING | loaded by name from src/render3d/courseScene.js:998 |
+| `ground/hard_nrm.png` | SHIPPING | loaded by name from src/render3d/courseScene.js:998 |
+| `ground/sand_alb.png` | SHIPPING | loaded by name from src/render3d/courseScene.js:998 |
+| `ground/sand_nrm.png` | SHIPPING | loaded by name from src/render3d/courseScene.js:998 |
+| `ground/turf_close_alb.png` | SHIPPING | loaded by name from src/render3d/courseScene.js:998 |
+| `ground/turf_close_nrm.png` | SHIPPING | loaded by name from src/render3d/courseScene.js:998 |
+| `ground/turf_rough_alb.png` | SHIPPING | loaded by name from src/render3d/courseScene.js:998 |
+| `ground/turf_rough_nrm.png` | SHIPPING | loaded by name from src/render3d/courseScene.js:998 |
+| `roof_diff.jpg` | SHIPPING | loaded by name from src/render3d/courseScene.js:998 |
+| `roof_nor.jpg` | SHIPPING | loaded by name from src/render3d/courseScene.js:998 |
+| `siding_diff.jpg` | SHIPPING | loaded by name from src/render3d/courseScene.js:998 |
+| `siding_nor.jpg` | SHIPPING | loaded by name from src/render3d/courseScene.js:998 |
+| `waternormals.jpg` | SHIPPING | loaded at src/render3d/courseScene.js:2481 |
 

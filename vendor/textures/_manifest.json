@@ -1,72 +1,87 @@
-[
-  {
-    "role": "fairway",
-    "asset": "leafy_grass",
-    "source": "https://polyhaven.com/a/leafy_grass",
-    "license": "CC0",
-    "diffuse": true,
-    "normal": true,
-    "bytes": 2661443
+{
+  "note": "What each texture in this directory is for, and where it came from. Updated 2026-08-18 when step one of the course replaced the ground sets. The five ground photograph pairs below are SUPERSEDED and no longer loaded: not because they were photographs, but because ONE of them (leafy_grass, a leafy meadow) was doing fairway, semi, tee, green, fringe, rough and heavy rough at once, and the terrain shader reduced it to its luminance before drawing it. They stay on disk because `npm run assets:check` will now report them NOT WIRED, which is the honest record, and because deleting them is a separate decision.",
+  "ground": {
+    "shipping": "vendor/textures/ground/*.png — four authored tiling sets (turf_close, turf_rough, sand, hard), built by tools/course/turf.py against the reference photographs in Designs/Course/Ground. Each is one periodic height field with a normal, an occlusion and a roughness derived from it and from nothing else. Packed <name>_alb.png = RGB albedo + A roughness, <name>_nrm.png = RG normal xy + B occlusion + A height, because the terrain shader is close to WebGL's 16 texture units.",
+    "constants": "src/data/groundTiles.js, generated alongside the PNGs; tests/ground-tiles-match-their-maps.test.js fails if either side is edited alone."
   },
-  {
-    "role": "rough",
-    "asset": "leafy_grass",
-    "source": "https://polyhaven.com/a/leafy_grass",
-    "license": "CC0",
-    "diffuse": true,
-    "normal": true,
-    "bytes": 2661443
-  },
-  {
-    "role": "sand",
-    "asset": "sand_01",
-    "source": "https://polyhaven.com/a/sand_01",
-    "license": "CC0",
-    "diffuse": true,
-    "normal": true,
-    "bytes": 1362909
-  },
-  {
-    "role": "path",
-    "asset": "gravel_road",
-    "source": "https://polyhaven.com/a/gravel_road",
-    "license": "CC0",
-    "diffuse": true,
-    "normal": true,
-    "bytes": 1667761
-  },
-  {
-    "role": "scrub",
-    "asset": "brown_mud_leaves_01",
-    "source": "https://polyhaven.com/a/brown_mud_leaves_01",
-    "license": "CC0",
-    "diffuse": true,
-    "normal": true,
-    "bytes": 2693025
-  },
-  {
-    "role": "siding",
-    "asset": "worn_planks",
-    "source": "https://polyhaven.com/a/worn_planks",
-    "license": "CC0",
-    "diffuse": true,
-    "normal": true,
-    "bytes": 1397801
-  },
-  {
-    "role": "roof",
-    "asset": "roof_tiles_14",
-    "source": "https://polyhaven.com/a/roof_tiles_14",
-    "license": "CC0",
-    "diffuse": true,
-    "normal": true,
-    "bytes": 950090
-  },
-  {
-    "role": "water-normals",
-    "asset": "waternormals.jpg",
-    "source": "https://github.com/mrdoob/three.js (examples/textures)",
-    "license": "MIT",
-    "bytes": 248813
-  }
-]
+  "entries": [
+    {
+      "role": "fairway",
+      "asset": "leafy_grass",
+      "source": "https://polyhaven.com/a/leafy_grass",
+      "license": "CC0",
+      "status": "SUPERSEDED 2026-08-18 by vendor/textures/ground/turf_close_*",
+      "diffuse": true,
+      "normal": true,
+      "bytes": 2661443
+    },
+    {
+      "role": "rough",
+      "asset": "leafy_grass",
+      "source": "https://polyhaven.com/a/leafy_grass",
+      "license": "CC0",
+      "status": "SUPERSEDED 2026-08-18 by vendor/textures/ground/turf_rough_* — it was the SAME image as the fairway, at a different scale and tint",
+      "diffuse": true,
+      "normal": true,
+      "bytes": 2661443
+    },
+    {
+      "role": "sand",
+      "asset": "sand_01",
+      "source": "https://polyhaven.com/a/sand_01",
+      "license": "CC0",
+      "status": "SUPERSEDED 2026-08-18 by vendor/textures/ground/sand_*",
+      "diffuse": true,
+      "normal": true,
+      "bytes": 1362909
+    },
+    {
+      "role": "path",
+      "asset": "gravel_road",
+      "source": "https://polyhaven.com/a/gravel_road",
+      "license": "CC0",
+      "status": "SUPERSEDED 2026-08-18 by vendor/textures/ground/hard_*",
+      "diffuse": true,
+      "normal": true,
+      "bytes": 1667761
+    },
+    {
+      "role": "scrub",
+      "asset": "brown_mud_leaves_01",
+      "source": "https://polyhaven.com/a/brown_mud_leaves_01",
+      "license": "CC0",
+      "status": "SUPERSEDED 2026-08-18 — the OUT band and the environment ring both draw from turf_rough now",
+      "diffuse": true,
+      "normal": true,
+      "bytes": 2693025
+    },
+    {
+      "role": "siding",
+      "asset": "worn_planks",
+      "source": "https://polyhaven.com/a/worn_planks",
+      "license": "CC0",
+      "status": "SHIPPING — the clubhouse shell (src/render3d/clubhouse/shell.js)",
+      "diffuse": true,
+      "normal": true,
+      "bytes": 1397801
+    },
+    {
+      "role": "roof",
+      "asset": "roof_tiles_14",
+      "source": "https://polyhaven.com/a/roof_tiles_14",
+      "license": "CC0",
+      "status": "SHIPPING — the clubhouse shell",
+      "diffuse": true,
+      "normal": true,
+      "bytes": 950090
+    },
+    {
+      "role": "water-normals",
+      "asset": "waternormals.jpg",
+      "source": "https://github.com/mrdoob/three.js (examples/textures)",
+      "license": "MIT",
+      "status": "SHIPPING — the course water surface",
+      "bytes": 248813
+    }
+  ]
+}

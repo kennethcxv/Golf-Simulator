@@ -47,9 +47,10 @@ import { makeCourseMaintenanceTextureState } from './courseMaintenanceVisuals.js
 import { prepareFrameShadows, shouldRefreshPlanarReflection } from './renderBudget.js';
 import { clubhouseInteriorGtaoExcludedAt, makeClubhouse } from './clubhouse.js';
 import {
-  makeGrassTexture, makeSandTexture, makeScrubTexture, makePathTexture, makeAsphaltTexture,
+  makeGrassTexture, makeSandTexture, makePathTexture,
   makeSoftParticleTexture,
 } from './proceduralTextures.js';
+import { GROUND_TILES, GROUND_TILE_M, GROUND_ZONES } from '../data/groundTiles.js';
 import { applyMouseLook, setFirstPersonOrientation } from './mouseLook.js';
 import {
   makeVisualField,
@@ -536,6 +537,40 @@ function loadFloraAssets() {
 }
 
 
+// --- the authored ground sets, as shader constants -------------------------
+//
+// One metre of tile against a world measured in yards. Written out rather than
+// left as 0.9144 in three places, because the tile size is a decision recorded
+// in tools/course/turf.py and a hard-coded copy of it is how the two drift.
+const GROUND_YD_TO_TILE = 0.9144 / GROUND_TILE_M;
+
+// How far the roller lays the blades over, as a tangent-space tilt. A mown
+// blade lies at 10-20 degrees, so 0.2 is the right order; the SIGN is what
+// separates one band from the next, and it is the sign that makes the pattern
+// behave like grass instead of like paint.
+// Measured against the reference rather than guessed: the mow bands in
+// Designs/Course/Ground/mow/cambridge_stripes.jpg differ by roughly a quarter
+// of their luma at a grazing angle, and the first pass of this change came out
+// at 2.4% -- so faint that the in-game frame showed no mowing at all and I had
+// replaced a wrong pattern with no pattern.
+const GROUND_LAY_TILT = 2.2;
+// What is LEFT as a straight albedo term once the tilt does the work. The old
+// value was effectively 1.0 -- the whole stripe was albedo. This residual is
+// what a photograph still shows at a grazing angle beyond what the lighting
+// accounts for, and it is scaled by the view so it vanishes underfoot.
+const GROUND_STRIPE_ALBEDO = 2.2;
+// How much of the tile's own occlusion multiplies the colour. Full strength
+// double-counts against the engine's GTAO on the near ground.
+const GROUND_AO_WEIGHT = 0.72;
+
+const glslVec3 = (v) => `vec3(${v.map((n) => n.toFixed(4)).join(', ')})`;
+const GROUND_Z_SCRUB = glslVec3(GROUND_ZONES.scrub.mul);
+const GROUND_GLSL = /* glsl */ `
+        #define GROUND_YD_TO_TILE ${GROUND_YD_TO_TILE.toFixed(6)}
+${Object.entries(GROUND_ZONES).map(([zone, z]) =>
+  `        #define Z_${zone.toUpperCase()} ${glslVec3(z.mul)}   // ${z.surface}`).join('\n')}
+`;
+
 const GLSL_NOISE = /* glsl */ `
   float fwHash(vec2 p) {
     return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453123);
@@ -981,19 +1016,44 @@ export function makeCourseScene(canvas, state) {
     return tex;
   }
 
-  const texFair = loadGroundTex('fairway_diff.jpg', { srgb: true, fallback: () => makeGrassTexture({ seed: 3, base: '#5f9c44', dark: '#4d8236', light: '#74b556' }) });
-  const texFairN = loadGroundTex('fairway_nor.jpg');
-  const texRough = loadGroundTex('rough_diff.jpg', { srgb: true, fallback: () => makeGrassTexture({ seed: 9, base: '#47752f', dark: '#385f24', light: '#568a3c', blades: 6500 }) });
-  const texRoughN = loadGroundTex('rough_nor.jpg');
-  const texSand = loadGroundTex('sand_diff.jpg', { srgb: true, fallback: () => makeSandTexture({}) });
-  const texSandN = loadGroundTex('sand_nor.jpg');
-  const texScrub = loadGroundTex('scrub_diff.jpg', { srgb: true, fallback: () => makeScrubTexture({}) });
-  const texScrubN = loadGroundTex('scrub_nor.jpg');
-  const texPath = loadGroundTex('path_diff.jpg', { srgb: true, fallback: () => makePathTexture({}) });
-  // cool-gray asphalt just for the cart-path ribbons (the warm tPath reads as dirt)
-  const texAsphalt = makeAsphaltTexture({});
-  texAsphalt.wrapS = texAsphalt.wrapT = THREE.RepeatWrapping;
-  texAsphalt.colorSpace = THREE.SRGBColorSpace;
+  // STEP ONE OF THE COURSE (2026-08-18). The five Poly Haven photograph pairs
+  // that used to sit here are gone from the ground, and what replaced them is
+  // four AUTHORED tiling sets built in tools/course/turf.py against the
+  // reference boards in Designs/Course/Ground.
+  //
+  // What was wrong with the photographs was not that they were photographs. It
+  // was that ONE of them -- leafy_grass, a leafy meadow -- was doing fairway,
+  // semi, tee, green, fringe, rough and heavy rough, separated only by a tint
+  // and a UV scale; that FW_STYLIZE reduced it to its luminance so its colour
+  // never reached the frame; and that there was no roughness map at all, which
+  // is why wet turf could darken but never go glossy.
+  //
+  // Each set is one periodic height field with a normal, an occlusion and a
+  // roughness derived from it and from nothing else -- weave.py's method, which
+  // is what finally got real maps onto the garments.
+  //
+  //   <name>_alb.png   RGB albedo (sRGB)      A roughness (linear)
+  //   <name>_nrm.png   RG  normal xy          B occlusion   A height
+  //
+  // Two files per surface rather than three because the terrain shader is close
+  // to WebGL's 16 active texture units. Normal z is reconstructed as
+  // sqrt(1 - x*x - y*y), which is exact for a unit normal and frees blue.
+  const flatNormalFallback = () => {
+    const t = new THREE.DataTexture(new Uint8Array([128, 128, 255, 255]), 1, 1);
+    t.needsUpdate = true;
+    return t;
+  };
+  const loadTileAlb = (name, fallback) => loadGroundTex(GROUND_TILES[name].albedo, { srgb: true, fallback });
+  const loadTileNrm = (name) => loadGroundTex(GROUND_TILES[name].normal, { fallback: flatNormalFallback });
+
+  const texCloseA = loadTileAlb('turf_close', () => makeGrassTexture({ seed: 3, base: '#5f9c44', dark: '#4d8236', light: '#74b556' }));
+  const texCloseN = loadTileNrm('turf_close');
+  const texRoughA = loadTileAlb('turf_rough', () => makeGrassTexture({ seed: 9, base: '#47752f', dark: '#385f24', light: '#568a3c', blades: 6500 }));
+  const texRoughN = loadTileNrm('turf_rough');
+  const texSandA = loadTileAlb('sand', () => makeSandTexture({}));
+  const texSandN = loadTileNrm('sand');
+  const texHardA = loadTileAlb('hard', () => makePathTexture({}));
+  const texHardN = loadTileNrm('hard');
 
   // --- data textures fed from sim state --------------------------------------------------
   const zoneData = new Uint8Array(W * H * 4);
@@ -1186,14 +1246,16 @@ export function makeCourseScene(canvas, state) {
   terrainGeo.rotateX(-Math.PI / 2); // XZ plane, +Y up; UV v runs 0 at -z edge after rotation? verify via raycast mapping below
 
   const terrainMat = new THREE.MeshStandardMaterial({
-    map: texFair,
-    normalMap: texFairN, // enables the tangent-frame normal path; shader picks per-zone
+    map: texCloseA,
+    normalMap: texCloseN, // enables the tangent-frame normal path; shader picks per-zone
     normalScale: new THREE.Vector2(0.45, 0.45), // §4: texture whispers, tint talks
     roughness: 1.0,
     metalness: 0.0,
   });
 
   const shaderRefs = { uniforms: null };
+  // QA override for the mow pattern; null means "whatever the policy says".
+  let stripeModeOverride = null;
   terrainMat.onBeforeCompile = (shader) => {
     shader.uniforms.uZoneTex = { value: zoneTex };
     shader.uniforms.uZoneHi = { value: zoneHiTex };
@@ -1205,11 +1267,18 @@ export function makeCourseScene(canvas, state) {
     shader.uniforms.uViewMode = { value: 0 };
     shader.uniforms.uTime = { value: 0 };
     shader.uniforms.uStripeModes = { value: new THREE.Vector3(1, 1, 1) }; // green, fairway, tee
-    shader.uniforms.tRough = { value: texRough };
-    shader.uniforms.tSand = { value: texSand };
-    shader.uniforms.tScrub = { value: texScrub };
-    shader.uniforms.tPath = { value: texPath };
+    // QA ONLY, and it defaults to the shipped behaviour. 1 = the mow pattern
+    // knows where the camera is; 0 = the formula this replaced, which did not.
+    // Without it, "the bands are stronger at the horizon than underfoot" is an
+    // argument from the source rather than a measurement, and an argument from
+    // the source is what four found-false items were built on.
+    shader.uniforms.uMowViewDep = { value: 1 };
+    shader.uniforms.tRoughA = { value: texRoughA };
     shader.uniforms.tRoughN = { value: texRoughN };
+    shader.uniforms.tSandA = { value: texSandA };
+    shader.uniforms.tSandN = { value: texSandN };
+    shader.uniforms.tHardA = { value: texHardA };
+    shader.uniforms.tHardN = { value: texHardN };
     shaderRefs.uniforms = shader.uniforms;
 
     shader.vertexShader = shader.vertexShader
@@ -1221,14 +1290,42 @@ export function makeCourseScene(canvas, state) {
         '#include <common>',
         `#include <common>
         varying vec3 vWp;
-        uniform sampler2D uZoneTex, uZoneHi, uSurfaceDistance, uAuxTex, uPlanTex, tRough, tSand, tScrub, tPath;
-        uniform sampler2D tRoughN;
+        uniform sampler2D uZoneTex, uZoneHi, uSurfaceDistance, uAuxTex, uPlanTex;
+        uniform sampler2D tRoughA, tRoughN, tSandA, tSandN, tHardA, tHardN;
         uniform vec2 uCells, uHiTexel;
         uniform float uViewMode, uTime;
         uniform vec3 uStripeModes;
-        vec3 gSplatN = vec3(0.5, 0.5, 1.0);
+        uniform float uMowViewDep;
+        // TANGENT-SPACE normal now, not the raw 0..1 texel: the four ground sets
+        // store only xy and z is reconstructed, so the decode happens once here
+        // rather than being repeated at every assignment.
+        vec3 gSplatN = vec3(0.0, 0.0, 1.0);
         vec2 gSplatUv = vec2(0.0);
+        vec2 gSplatDx = vec2(0.0);
+        vec2 gSplatDy = vec2(0.0);
         float gSplatRough = 0.95;
+        float gSplatAo = 1.0;
+
+        // ONE GROUND SET, sampled with an EXPLICIT gradient.
+        //
+        // The turf UV is rotated into the mow direction, and that direction
+        // varies from cell to cell. Left to dFdx, the derivative would pick up
+        // the rotation's own spatial rate multiplied by the world coordinate --
+        // hundreds of yards from the origin -- and the tile would blur to grey
+        // wherever the flow field turns. So the gradient is the LOCAL Jacobian:
+        // the world-space footprint, rotated, and nothing else.
+        struct GroundSet { vec3 alb; float rough; vec3 nrm; float ao; };
+        GroundSet groundAt(sampler2D albTex, sampler2D nrmTex, vec2 uv, vec2 dx, vec2 dy) {
+          vec4 a = textureGrad(albTex, uv, dx, dy);
+          vec4 n = textureGrad(nrmTex, uv, dx, dy);
+          vec2 nxy = n.xy * 2.0 - 1.0;
+          GroundSet g;
+          g.alb = a.rgb;
+          g.rough = a.a;
+          g.nrm = vec3(nxy, sqrt(max(1e-4, 1.0 - dot(nxy, nxy))));
+          g.ao = n.z;
+          return g;
+        }
         float surfaceInside(float distanceYd, float edgeYd) {
           // The distance field defines the world-space contour. Derivatives
           // provide only a roughly one-pixel analytic AA footprint, so close
@@ -1239,6 +1336,7 @@ export function makeCourseScene(canvas, state) {
           float aa = max(fwidth(distanceYd) * 0.65, ${Number(SURFACE_COVERAGE_MIN_AA_YD).toFixed(3)});
           return 1.0 - smoothstep(edgeYd - aa, edgeYd + aa, distanceYd);
         }
+        ${GROUND_GLSL}
         ${GLSL_NOISE}`,
       )
       .replace(
@@ -1288,61 +1386,76 @@ export function makeCourseScene(canvas, state) {
           float hRel = zSmooth.a * 255.0 / 64.0;
           float disSev = aSmooth.g;
 
-          // real PBR surfaces - sample every set in uniform control flow so mip
-          // derivatives stay valid across warped zone borders, then select
-          vec2 wxz = vWp.xz;
-          vec2 uvFair = wxz * 0.16;   // ~6 yd repeat: blade detail at play zoom
-          vec2 uvGreen = wxz * 0.30;  // tighter cut on the greens
-          vec2 uvTee = wxz * 0.24;
-          vec2 uvRough = wxz * 0.12;
-          vec2 uvSand = wxz * 0.11;
-          vec2 uvScrub = wxz * 0.14;
-          vec2 uvPath = wxz * 0.30;
+          // THE MOW DIRECTION, read here rather than down in the stripe block,
+          // because it is what the turf sample is ROTATED INTO. The tile carries
+          // the lay of the blades along its own +u; rotating u onto the flow
+          // field is what makes the mowing follow the mower's path across a
+          // dogleg instead of running in one fixed world direction.
+          // Averaged as VECTORS because angles wrap, and bilinearly so the lay
+          // bends smoothly rather than stepping at every 8 yd cell.
+          vec2 texel2 = 1.0 / uCells;
+          vec2 f0 = (floor(cellUv - 0.5) + 0.5) * texel2;
+          vec2 fF = fract(cellUv - 0.5);
+          float fa00 = texture2D(uAuxTex, f0).a;
+          float fa10 = texture2D(uAuxTex, f0 + vec2(texel2.x, 0.0)).a;
+          float fa01 = texture2D(uAuxTex, f0 + vec2(0.0, texel2.y)).a;
+          float fa11 = texture2D(uAuxTex, f0 + texel2).a;
+          vec2 fv00 = vec2(cos(fa00 * 6.28318), sin(fa00 * 6.28318));
+          vec2 fv10 = vec2(cos(fa10 * 6.28318), sin(fa10 * 6.28318));
+          vec2 fv01 = vec2(cos(fa01 * 6.28318), sin(fa01 * 6.28318));
+          vec2 fv11 = vec2(cos(fa11 * 6.28318), sin(fa11 * 6.28318));
+          vec2 flow = normalize(mix(mix(fv00, fv10, fF.x), mix(fv01, fv11, fF.x), fF.y) + vec2(1e-5));
+          mat2 layRot = mat2(flow.x, -flow.y, flow.y, flow.x);
 
-          vec3 dFair = texture2D(map, uvFair).rgb;
-          vec3 dGreen = texture2D(map, uvGreen).rgb;
-          vec3 dTee = texture2D(map, uvTee).rgb;
-          vec3 dRough = texture2D(tRough, uvRough).rgb;
-          vec3 dSand = texture2D(tSand, uvSand).rgb;
-          vec3 dScrub = texture2D(tScrub, uvScrub).rgb;
-          vec3 dPath = texture2D(tPath, uvPath).rgb;
+          // The authored tiles are ONE METRE square; the world is in yards.
+          vec2 wxz = vWp.xz * GROUND_YD_TO_TILE;
+          vec2 wDx = dFdx(wxz);
+          vec2 wDy = dFdy(wxz);
+          vec2 uvTurf = layRot * wxz;
+          vec2 dTurfX = layRot * wDx;
+          vec2 dTurfY = layRot * wDy;
+          // Rough is scaled up because an uncut tuft is a bigger feature than a
+          // mown blade; sand and concrete keep close to the authored metre.
+          vec2 uvRough = uvTurf * 0.55;
+          vec2 uvSand = uvTurf * 0.72;
+          vec2 uvHard = wxz * 0.85;
 
-          vec3 nFair = texture2D(normalMap, uvFair).xyz;
-          // Normal detail is deliberately restrained, so one coherent turf
-          // sample serves all close-cut surfaces. This saves two fragment
-          // texture reads without changing diffuse scale or mowing patterns.
+          // Every set sampled in uniform control flow so the gradients stay
+          // valid across a warped zone border, then selected below.
+          GroundSet gClose = groundAt(map, normalMap, uvTurf, dTurfX, dTurfY);
+          GroundSet gRough = groundAt(tRoughA, tRoughN, uvRough, dTurfX * 0.55, dTurfY * 0.55);
+          GroundSet gSand = groundAt(tSandA, tSandN, uvSand, dTurfX * 0.72, dTurfY * 0.72);
+          GroundSet gHard = groundAt(tHardA, tHardN, uvHard, wDx * 0.85, wDy * 0.85);
+
+          // THE ZONE COLOUR IS A RATIO, NOT A REPLACEMENT.
+          //
+          // The old FW_STYLIZE was (0.46 + luma(tex) * 1.28) * tint, which threw
+          // away every bit of the texture's colour and kept only its brightness
+          // -- seven surfaces off one leafy-meadow photograph, each rendering as
+          // a flat field of its own tint. But those tints were tuned IN THE GAME
+          // for legibility from the tee, and discarding that would be a second
+          // mistake on top of the first.
+          //
+          // So each multiplier is target / tile-mean in linear light, written by
+          // tools/course/turf.py into src/data/groundTiles.js. The surface's
+          // AVERAGE lands exactly where it was tuned to land, and the tile's
+          // departure from its own average -- the part that was being discarded
+          // -- is what now reaches the frame.
+          vec3 colRough = gRough.alb * Z_ROUGH;
+          vec3 colFair = gClose.alb * Z_FAIR;
+          vec3 colSemi = gClose.alb * Z_SEMI;
+          vec3 colGreen = gClose.alb * Z_GREEN;
+          vec3 colFringe = gClose.alb * Z_FRINGE;
+          vec3 colTee = gClose.alb * Z_TEE;
+          vec3 colSand = gSand.alb * Z_SAND;
+
+          vec3 nFair = gClose.nrm;
           vec3 nGreen = nFair;
           vec3 nTee = nFair;
-          vec3 nRough = texture2D(tRoughN, uvRough).xyz;
-          // Reuse the rough-ground micro-normal for sand and scrub. Their
-          // diffuse maps and UV scales remain distinct, while sharing detail keeps the
-          // terrain shader within WebGL's 16 active texture-unit limit when the
-          // production RectAreaLight lookup textures are present.
-          vec3 nSand = texture2D(tRoughN, uvSand).xyz;
-          vec3 nScrub = texture2D(tRoughN, uvScrub).xyz;
-          // The visible asphalt is a separate ribbon mesh. Reuse the restrained
-          // rough normal for its buried terrain bed and preserve a texture unit
-          // for the high-resolution edge-weight map on 16-unit WebGL hardware.
-          vec3 nPath = vec3(0.5, 0.5, 1.0);
-
-          // Textures supply restrained brightness variation; warm, muted zone
-          // tints carry the parkland palette without a fluorescent luma swing.
-          #define FW_LUMA vec3(0.299, 0.587, 0.114)
-          #define FW_STYLIZE(tex, tint) ((0.46 + dot(tex, FW_LUMA) * 1.28) * (tint))
-
-          vec3 colRough = FW_STYLIZE(dRough, vec3(0.145, 0.235, 0.082));
-          vec3 colFair = FW_STYLIZE(dFair, vec3(0.150, 0.325, 0.080));
-          // First cut is a deliberate intermediate ribbon, not a blurred
-          // fairway edge.  The darker sage value stays above rough while
-          // remaining legible from tee height.
-          vec3 colSemi = FW_STYLIZE(dFair, vec3(0.145, 0.275, 0.074));
-          // Close-cut complexes need a readable identity from both the editor
-          // camera and tee height.  Keep the parkland hue, but give greens a
-          // brighter, cooler value and their collar a deliberate dark frame.
-          vec3 colGreen = FW_STYLIZE(dGreen, vec3(0.180, 0.360, 0.082));
-          vec3 colFringe = FW_STYLIZE(dGreen, vec3(0.150, 0.300, 0.070));
-          vec3 colTee = FW_STYLIZE(dTee, vec3(0.168, 0.340, 0.084));
-          vec3 colSand = (0.5 + dot(dSand, FW_LUMA) * 1.18) * vec3(0.78, 0.66, 0.46);
+          vec3 nRough = gRough.nrm;
+          vec3 nSand = gSand.nrm;
+          vec3 nScrub = nRough;
+          vec3 nPath = gHard.nrm;
 
           vec3 col;
           float stripeAmp = 0.0;
@@ -1350,38 +1463,38 @@ export function makeCourseScene(canvas, state) {
           float modeSel = 0.0;
           bool followFlow = false;
           if (zone < 0.5) {        // OUT - native scrub
-            col = FW_STYLIZE(dScrub, vec3(0.170, 0.225, 0.100)); gSplatN = nScrub; gSplatUv = uvScrub; gSplatRough = 0.97;
+            col = gRough.alb * Z_SCRUB; gSplatN = nScrub; gSplatUv = uvRough; gSplatRough = gRough.rough * 1.04; gSplatAo = gRough.ao;
           } else if (zone < 1.5) { // ROUGH
-            col = colRough; gSplatN = nRough; gSplatUv = uvRough; gSplatRough = 0.96;
+            col = colRough; gSplatN = nRough; gSplatUv = uvRough; gSplatRough = gRough.rough * 1.03; gSplatAo = gRough.ao;
           } else if (zone < 2.5) { // FAIRWAY
-            col = colFair; gSplatN = nFair; gSplatUv = uvFair; gSplatRough = 0.94;
+            col = colFair; gSplatN = nFair; gSplatUv = uvTurf; gSplatRough = gClose.rough * 1.05; gSplatAo = gClose.ao;
             // Roughly six-yard alternating cuts make the mowing read down the
             // hole at player height as well as from the planning camera.
             stripeAmp = 0.12; stripeFreq = 0.082; modeSel = uStripeModes.y; followFlow = true;
           } else if (zone < 3.5) { // GREEN
-            col = colGreen; gSplatN = nGreen; gSplatUv = uvGreen; gSplatRough = 0.9;
+            col = colGreen; gSplatN = nGreen; gSplatUv = uvTurf; gSplatRough = gClose.rough * 0.96; gSplatAo = gClose.ao;
             stripeAmp = 0.055; stripeFreq = 0.24; modeSel = uStripeModes.x; followFlow = true;
           } else if (zone < 4.5) { // TEE
-            col = colTee; gSplatN = nTee; gSplatUv = uvTee; gSplatRough = 0.93;
+            col = colTee; gSplatN = nTee; gSplatUv = uvTurf; gSplatRough = gClose.rough * 1.01; gSplatAo = gClose.ao;
             stripeAmp = 0.06; stripeFreq = 0.16; modeSel = uStripeModes.z; followFlow = true;
           } else if (zone < 5.5) { // BUNKER - warm sand on a gentler curve (never blows to white)
             col = colSand;
-            gSplatN = nSand; gSplatUv = uvSand; gSplatRough = 0.82;
+            gSplatN = nSand; gSplatUv = uvSand; gSplatRough = gSand.rough; gSplatAo = gSand.ao;
           } else if (zone < 6.5) { // WATER bed
-            col = FW_STYLIZE(dScrub, vec3(0.13, 0.205, 0.09)); gSplatN = nScrub; gSplatUv = uvScrub; gSplatRough = 0.85;
+            col = gRough.alb * Z_WATERBED; gSplatN = nScrub; gSplatUv = uvRough; gSplatRough = gRough.rough * 0.9; gSplatAo = gRough.ao;
           } else if (zone < 7.5) { // PATH - a dusty worn shoulder; the ribbon mesh is the pavement
-            col = colRough; gSplatN = nRough; gSplatUv = uvRough; gSplatRough = 0.95;
+            col = colRough; gSplatN = nRough; gSplatUv = uvRough; gSplatRough = gRough.rough; gSplatAo = gRough.ao;
           } else if (zone < 8.5) { // FRINGE - a shade deeper than green, tight cut
-            col = colFringe; gSplatN = nGreen; gSplatUv = uvGreen; gSplatRough = 0.92;
+            col = colFringe; gSplatN = nGreen; gSplatUv = uvTurf; gSplatRough = gClose.rough * 0.99; gSplatAo = gClose.ao;
           } else if (zone < 9.5) { // HEAVY rough - tall, warm, golden-tipped
-            col = FW_STYLIZE(dRough, vec3(0.170, 0.225, 0.085)); gSplatN = nRough; gSplatUv = uvRough; gSplatRough = 0.97;
+            col = gRough.alb * Z_HEAVY; gSplatN = nRough; gSplatUv = uvRough; gSplatRough = gRough.rough * 1.04; gSplatAo = gRough.ao;
             col = mix(col, vec3(0.30, 0.29, 0.12), fwNoise(cellUv * 2.7) * 0.16); // seedhead shimmer
           } else if (zone < 10.5) { // DIRT
-            col = FW_STYLIZE(dPath, vec3(0.42, 0.31, 0.20)); gSplatN = nPath; gSplatUv = uvPath; gSplatRough = 0.95;
+            col = gHard.alb * Z_DIRT; gSplatN = nPath; gSplatUv = uvHard; gSplatRough = gHard.rough * 1.06; gSplatAo = gHard.ao;
           } else if (zone < 11.5) { // BED - dark mulch
-            col = FW_STYLIZE(dScrub, vec3(0.23, 0.15, 0.09)); gSplatN = nScrub; gSplatUv = uvScrub; gSplatRough = 0.98;
+            col = gRough.alb * Z_BED; gSplatN = nScrub; gSplatUv = uvRough; gSplatRough = gRough.rough * 1.05; gSplatAo = gRough.ao;
           } else {                 // SEMI - first cut between fairway and rough
-            col = colSemi; gSplatN = nFair; gSplatUv = uvFair; gSplatRough = 0.95;
+            col = colSemi; gSplatN = nFair; gSplatUv = uvTurf; gSplatRough = gClose.rough * 1.05; gSplatAo = gClose.ao;
             stripeAmp = 0.055; stripeFreq = 0.082; modeSel = uStripeModes.y; followFlow = true;
           }
           // Sharp, subpixel categorical material contours reconstructed from
@@ -1403,19 +1516,19 @@ export function makeCourseScene(canvas, state) {
           if (edgeBlendSurface) {
             col = baseTurfCol;
             gSplatN = baseTurfN;
-            gSplatUv = uvFair;
+            gSplatUv = uvTurf;
           }
 
           if (teeCov > 0.001 && edgeBlendSurface) {
             col = mix(baseTurfCol, colTee, teeCov);
             gSplatN = mix(baseTurfN, nTee, teeCov);
-            gSplatUv = uvTee;
+            gSplatUv = uvTurf;
           }
           if (greenComplexCov > 0.001 && edgeBlendSurface) {
             vec3 greenComplexCol = mix(colFringe, colGreen, greenCov);
             col = mix(baseTurfCol, greenComplexCol, greenComplexCov);
             gSplatN = mix(baseTurfN, nGreen, greenComplexCov);
-            gSplatUv = uvGreen;
+            gSplatUv = uvTurf;
           }
           // Bunkers have the same priority as the vector rasterizer: their
           // signed contour is applied last, including where one clips a green.
@@ -1431,9 +1544,9 @@ export function makeCourseScene(canvas, state) {
           // to their own outward boundary in edgeYd, so feather each band into
           // the neighbour it borders across the last yard and the step goes away
           // without softening anything that owns an SDF channel.
-          vec3 heavyBand = FW_STYLIZE(dRough, vec3(0.170, 0.225, 0.085));
+          vec3 heavyBand = gRough.alb * Z_HEAVY;
           heavyBand = mix(heavyBand, vec3(0.30, 0.29, 0.12), fwNoise(cellUv * 2.7) * 0.16);
-          vec3 scrubBand = FW_STYLIZE(dScrub, vec3(0.170, 0.225, 0.100));
+          vec3 scrubBand = gRough.alb * Z_SCRUB;
           const float bandFeatherYd = 1.25;
           if (zone < 0.5) {
             // native scrub, fading back toward the heavy band on its inner edge
@@ -1451,25 +1564,30 @@ export function makeCourseScene(canvas, state) {
           // five simulation cells (roughly forty yards).
           col *= 0.96 + fwNoise(cellUv * 0.18 + vec2(9.7, 21.3)) * 0.08;
 
+          // MOWING IS NOT PAINT.
+          //
+          // What it was: col *= 1.0 + band * amp. One number, the same at the
+          // player's feet as at three hundred yards, the same whichever way the
+          // player faces. What a mown surface actually does is in
+          // Designs/Course/Ground/mow/cambridge_stripes.jpg: the bands are
+          // nearly invisible in the near foreground, they reach their strongest
+          // contrast toward the horizon, and they SWAP when you walk to the
+          // other end -- because the light and dark bands are the same grass
+          // laid in opposite directions, and which one returns more light
+          // depends on where you are standing.
+          //
+          // So the band is applied twice, both times as the thing it physically
+          // is. First it TILTS THE LAY: the tile's blades already run along
+          // tangent +u, so a signed tilt on the normal's x is the roller having
+          // gone the other way, and the lighting works out the rest. Second, a
+          // small albedo residual scaled by how far along the ground the player
+          // is looking and by whether they are looking with the lay or against
+          // it -- which is what makes it vanish at their feet and invert behind
+          // them.
           if (stripeAmp > 0.001 && modeSel > 0.5) {
             // overgrown turf softens the bands but never erases the pattern -
             // a freshly-mown surface still pops the most
             float fade = max(0.4, clamp(1.7 - hRel, 0.0, 1.0));
-            // mow bands follow the HOLE: per-cell direction from the flow field
-            // (bilinear-smoothed so the bands bend around doglegs)
-            vec2 texel2 = 1.0 / uCells;
-            vec2 f0 = (floor(cellUv - 0.5) + 0.5) * texel2;
-            vec2 fF = fract(cellUv - 0.5);
-            float a00 = texture2D(uAuxTex, f0).a;
-            float a10 = texture2D(uAuxTex, f0 + vec2(texel2.x, 0.0)).a;
-            float a01 = texture2D(uAuxTex, f0 + vec2(0.0, texel2.y)).a;
-            float a11 = texture2D(uAuxTex, f0 + texel2).a;
-            // average as VECTORS (angles wrap); flow is stored as angle/2pi
-            vec2 v00 = vec2(cos(a00 * 6.28318), sin(a00 * 6.28318));
-            vec2 v10 = vec2(cos(a10 * 6.28318), sin(a10 * 6.28318));
-            vec2 v01 = vec2(cos(a01 * 6.28318), sin(a01 * 6.28318));
-            vec2 v11 = vec2(cos(a11 * 6.28318), sin(a11 * 6.28318));
-            vec2 flow = normalize(mix(mix(v00, v10, fF.x), mix(v01, v11, fF.x), fF.y) + vec2(1e-5));
             vec2 dir1 = followFlow ? vec2(-flow.y, flow.x) : normalize(vec2(1.0, 0.32));
             vec2 dir2 = vec2(-dir1.y, dir1.x);
             float s1 = sin(dot(vWp.xz, dir1) * stripeFreq * 6.28318);
@@ -1478,7 +1596,21 @@ export function makeCourseScene(canvas, state) {
               float s2 = sin(dot(vWp.xz, dir2) * stripeFreq * 6.28318);
               band = (band + (smoothstep(-0.35, 0.35, s2) * 2.0 - 1.0)) * 0.6;
             }
-            col *= 1.0 + band * stripeAmp * fade;
+            // the lay, in tangent space, along the direction the mower drove
+            gSplatN.x += band * stripeAmp * ${GROUND_LAY_TILT} * fade;
+            gSplatN = normalize(gSplatN);
+
+            vec3 vDir = normalize(vWp - cameraPosition);
+            // 1 when the eye rakes along the turf, ~0 when it looks straight down
+            float graze = clamp(1.0 - abs(vDir.y), 0.0, 1.0);
+            graze *= graze;
+            // with the lay or against it; flips when the player turns round
+            float withLay = dot(normalize(vec2(vDir.x, vDir.z) + vec2(1e-5)), flow);
+            float view = mix(1.0, withLay * graze, uMowViewDep);
+            float gain = mix(1.0, ${GROUND_STRIPE_ALBEDO}, uMowViewDep);
+            gSplatN.x -= band * stripeAmp * ${GROUND_LAY_TILT} * fade * (1.0 - uMowViewDep);
+            gSplatN = normalize(gSplatN);
+            col *= 1.0 + band * view * gain * stripeAmp * fade;
           }
 
           bool isTurf = (zone > 0.5 && zone < 4.5) || (zone > 7.5 && zone < 9.5) || zone > 11.5;
@@ -1500,6 +1632,20 @@ export function makeCourseScene(canvas, state) {
               col = mix(col, blotch, blot * 0.34);
             }
           }
+
+          // WET IS GLOSSIER, NOT MERELY DARKER. moisture already darkened the
+          // albedo above and stopped there, so a freshly-watered green looked
+          // like a green in shade. Water fills the space between the blades and
+          // the surface starts to behave like one surface: roughness falls.
+          if (isTurf || (zone > 4.5 && zone < 5.5)) {
+            gSplatRough = mix(gSplatRough, gSplatRough * 0.52, smoothstep(0.35, 1.0, moisture));
+          }
+          gSplatRough = clamp(gSplatRough, 0.05, 1.0);
+          // The tile's own occlusion: the light that never reaches down between
+          // two blades. Under a sky-dominated outdoor light this does more work
+          // than the normal does, because turf has almost no specular highlight
+          // for a normal to bend.
+          col *= mix(1.0, gSplatAo, ${GROUND_AO_WEIGHT});
 
           if (zone > 4.5 && zone < 5.5) {
             // grass-lip shadow: the sand right under the rolled turf edge sits in
@@ -1546,9 +1692,13 @@ export function makeCourseScene(canvas, state) {
         '#include <normal_fragment_maps>',
         /* glsl */ `
         {
-          // apply the per-zone PBR normal picked in the splat stage, using a
-          // derivative tangent frame against the SAME world-scaled uv
-          vec3 mapN = gSplatN * 2.0 - 1.0;
+          // The per-zone normal picked in the splat stage is ALREADY tangent
+          // space: the ground sets store xy and z is reconstructed once in
+          // groundAt(), so there is no 0..1 decode left to do here. The tangent
+          // frame is derived against the same rotated uv the tile was sampled
+          // with, which is what puts tangent +x along the mow direction and
+          // makes the lay tilt above mean what it says.
+          vec3 mapN = gSplatN;
           mapN.xy *= normalScale;
           mat3 tbnSplat = getTangentFrame( - vViewPosition, normal, gSplatUv );
           normal = normalize( tbnSplat * mapN );
@@ -1626,8 +1776,10 @@ export function makeCourseScene(canvas, state) {
     }
     geo.computeVertexNormals();
     const mat = new THREE.MeshStandardMaterial({
-      map: texScrub,
-      normalMap: texScrubN,
+      // The ring continues the OUT band, and OUT is drawn from the rough turf
+      // set now that scrub_diff.jpg is no longer loaded.
+      map: texRoughA,
+      normalMap: texRoughN,
       normalScale: new THREE.Vector2(0.4, 0.4),
       // White base: the shader below ASSIGNS the OUT-zone colour outright rather
       // than tinting, so the ring cannot drift from the terrain it continues.
@@ -1647,9 +1799,12 @@ export function makeCourseScene(canvas, state) {
       sh.fragmentShader = sh.fragmentShader.replace(
         '#include <map_fragment>',
         `{
-          vec4 sampledDiffuseColor = texture2D( map, vMapUv * 90.0 );
-          float luma = dot(sampledDiffuseColor.rgb, vec3(0.299, 0.587, 0.114));
-          diffuseColor.rgb = (0.46 + luma * 1.28) * vec3(0.170, 0.225, 0.100);
+          // Still the OUT branch outright, but OUT is now the authored rough
+          // turf tile times its zone ratio rather than a luminance curve over a
+          // photograph. Same one line, same reason: assigning it lands at 1.00x
+          // against the terrain it abuts, flat across the range, which is what
+          // removes the property edge.
+          diffuseColor.rgb = texture2D( map, vMapUv * 90.0 ).rgb * ${GROUND_Z_SCRUB};
         }`,
       );
     };
@@ -3697,11 +3852,30 @@ export function makeCourseScene(canvas, state) {
   let pathGroup = null;
   const editorGroundTargets = [terrain];
   // the diffuse map multiplies DOWN, so these read two shades lighter in place
+  // THE CART PATH is one of the six surfaces this step is about, and it was a
+  // canvas-drawn speckle with no normal and no roughness. It now takes the
+  // authored `hard` set: broom-finished concrete with exposed aggregate, sized
+  // off Designs/Course/Ground/fairway/hole_and_path.jpg where the path is a
+  // light warm grey, not the dirt-brown the terrain's PATH zone tinted.
+  // The tile is one metre; a ribbon UV of 1 unit per yard needs 1.0936 repeats.
+  const hardRepeat = (t) => {
+    const c = t.clone();
+    c.needsUpdate = true;
+    c.repeat.set(1.0936, 1.0936);
+    return c;
+  };
+  const pathMaps = () => ({ map: hardRepeat(texHardA), normalMap: hardRepeat(texHardN),
+    normalScale: new THREE.Vector2(0.7, 0.7) });
   const PATH_MATERIALS = {
-    asphalt: () => new THREE.MeshStandardMaterial({ map: texAsphalt, color: 0xb0a58e, roughness: 0.98 }),
-    concrete: () => new THREE.MeshStandardMaterial({ map: texAsphalt, color: 0xcac6bd, roughness: 0.9 }),
-    gravel: () => new THREE.MeshStandardMaterial({ map: texPath, color: 0xd9cba4, roughness: 1 }),
-    dirt: () => new THREE.MeshStandardMaterial({ map: texPath, color: 0xc09a6a, roughness: 1 }),
+    // Sized against the boards rather than by eye. The first cut multiplied the
+    // old tint (0xb0a58e, chosen for a LIGHT canvas speckle) down onto the new
+    // 0.63-mean concrete tile and put the asphalt at 0.35 -- read back as a
+    // near-black ribbon in qa/ground_r2/07_cart_path.png, where every cart path
+    // on the reference board is a light grey somebody could read a scorecard on.
+    asphalt: () => new THREE.MeshStandardMaterial({ ...pathMaps(), color: 0xb5b2ab, roughness: 0.96 }),
+    concrete: () => new THREE.MeshStandardMaterial({ ...pathMaps(), color: 0xe4e1da, roughness: 0.88 }),
+    gravel: () => new THREE.MeshStandardMaterial({ ...pathMaps(), color: 0xc4b491, roughness: 1 }),
+    dirt: () => new THREE.MeshStandardMaterial({ ...pathMaps(), color: 0xa5825a, roughness: 1 }),
   };
 
   function pathBridgeEnabled(path) {
@@ -3745,7 +3919,7 @@ export function makeCourseScene(canvas, state) {
         ? { color: 0x454b47, roughness: 0.5, metalness: 0.72 }
         : { color: 0x765438, roughness: 0.83, metalness: 0 };
     const deckMaterial = new THREE.MeshStandardMaterial({
-      map: deckKind === 'steel' ? null : texPath,
+      map: deckKind === 'steel' ? null : texHardA,
       ...deckStyle,
     });
     const supportMaterial = new THREE.MeshStandardMaterial({
@@ -10349,7 +10523,15 @@ export function makeCourseScene(canvas, state) {
     if (shaderRefs.uniforms && st.maintenance) {
       const modeOf = (p) => (p === 'stripes' ? 1 : p === 'cross' ? 2 : 0);
       const pol = st.maintenance.policies;
-      shaderRefs.uniforms.uStripeModes.value.set(modeOf(pol.green.pattern), modeOf(pol.fairway.pattern), modeOf(pol.tee.pattern));
+      if (stripeModeOverride === null) {
+        shaderRefs.uniforms.uStripeModes.value.set(
+          modeOf(pol.green.pattern), modeOf(pol.fairway.pattern), modeOf(pol.tee.pattern),
+        );
+      } else {
+        shaderRefs.uniforms.uStripeModes.value.set(
+          stripeModeOverride, stripeModeOverride, stripeModeOverride,
+        );
+      }
     }
     recordEditorPerformance(
       'turfPack', started,
@@ -11416,8 +11598,8 @@ export function makeCourseScene(canvas, state) {
       }, cachedObjectResources);
     }
     const explicitTextures = new Set([
-      texFair, texFairN, texRough, texRoughN, texSand, texSandN,
-      texScrub, texScrubN, texPath, texAsphalt,
+      texCloseA, texCloseN, texRoughA, texRoughN, texSandA, texSandN,
+      texHardA, texHardN,
       zoneTex, auxTex, planTex, zoneHiTex, surfaceDistanceTex, waterNormalsTex,
     ]);
     const explicitTargets = new Set();
@@ -13446,6 +13628,32 @@ export function makeCourseScene(canvas, state) {
     editorPerformanceSnapshot,
     resetEditorPerformanceStats,
     rebuildObjects,
+    // READ-ONLY QA on the mow pattern, plus an override so it can be A/B'd in
+    // one boot. Whether the mowing reads is not something to settle by looking
+    // at one frame and saying "I think I see bands": force it off, shoot, force
+    // it on, shoot, and the difference image IS the pattern.
+    terrainStripeModes: () => {
+      const v = shaderRefs.uniforms?.uStripeModes?.value;
+      return v ? { green: v.x, fairway: v.y, tee: v.z } : null;
+    },
+    // QA control for the mow mechanism: 1 is what ships, 0 restores the flat
+    // albedo multiply it replaced, in the same boot and the same frame.
+    setMowViewDependence: (on) => {
+      const u = shaderRefs.uniforms?.uMowViewDep;
+      if (!u) return null;
+      u.value = on ? 1 : 0;
+      return u.value;
+    },
+    setTerrainStripeModes: (mode) => {
+      const v = shaderRefs.uniforms?.uStripeModes?.value;
+      if (!v) return null;
+      // The turf repack rewrites these from the maintenance policy every time
+      // it runs, so an override has to be sticky or the next repack undoes it
+      // mid-capture and the A/B silently compares two identical frames.
+      stripeModeOverride = mode === null || mode === undefined ? null : Number(mode);
+      if (stripeModeOverride !== null) v.set(stripeModeOverride, stripeModeOverride, stripeModeOverride);
+      return { green: v.x, fairway: v.y, tee: v.z, override: stripeModeOverride };
+    },
     rebuildPaths,
     rebuildStructures,
     rebuildTrees,

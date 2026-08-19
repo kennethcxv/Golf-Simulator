@@ -1,5 +1,5 @@
 {
-  "note": "Assets declared dead. They stay on disk because the build scripts and the reference boards that produced them are still readable history, and because deleting an LFS object from a shared branch is a rewrite. They must never be loaded. `node tools/asset-manifest.mjs --check` fails on any reference to `path` OR `formerPath` from src/, tools/, tests/, main.cjs or index.html — the old path matters as much as the new one, because a loader that still names Assets/models/hero/v4 is exactly the mistake this move is meant to stop.",
+  "note": "Assets declared dead. They stay on disk because the build scripts and the reference boards that produced them are still readable history, and because deleting an LFS object from a shared branch is a rewrite. They must never be loaded. `node tools/asset-manifest.mjs --check` fails on any reference to `path` OR `formerPath` from src/, tools/, tests/, main.cjs or index.html \u2014 the old path matters as much as the new one, because a loader that still names Assets/models/hero/v4 is exactly the mistake this move is meant to stop.",
   "entries": [
     {
       "path": "Assets/_archive/hero/v3",
@@ -14,6 +14,13 @@
       "supersededBy": "Assets/models/hero/v5",
       "archived": "2026-08-18",
       "reason": "simulated-body production line; superseded by v5's flat Coons pattern pieces sewn then folded"
+    },
+    {
+      "path": "Assets/_archive/textures",
+      "formerPath": "vendor/textures/fairway_diff.jpg",
+      "supersededBy": "vendor/textures/ground",
+      "archived": "2026-08-18",
+      "reason": "the five Poly Haven ground sets: ONE image (leafy_grass, a leafy meadow) was doing fairway, semi, tee, green, fringe, rough and heavy rough, and FW_STYLIZE reduced it to luminance before drawing it; replaced by four authored tiling sets with real normal, occlusion and roughness. All CC0 with their URLs in vendor/textures/_manifest.json"
     }
   ]
 }
