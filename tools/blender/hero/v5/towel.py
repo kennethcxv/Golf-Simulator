@@ -11,14 +11,61 @@ WHAT MAKES A TOWEL READ AS A TOWEL and not as a folded sheet of card:
 
   * a HEM on all four sides -- a turned, stitched border that is thicker and
     denser than the field, and the only thing on the object with a hard edge;
-  * a WAFFLE FIELD, cut as real relief in a piecewise grid, because a golf
-    towel's whole visual identity is that texture;
+  * a PILE FIELD, because a towel's whole visual identity is that texture;
   * a GROMMET and a CARABINER at one corner, which is what says "golf" rather
     than "bathroom".
 
 The folds go through `fold.fold`, the same hinge the folded garments use: the
 axis sits half way between the flap and what it lands on, so the panels either
 side stay rigid and what comes out is flat faces meeting at crisp lines.
+
+
+THE PILE DECISION -- TERRY, WITH REAL LOOPS ON THE SILHOUETTE RIM ONLY
+======================================================================
+Asked to choose between building loop geometry at the silhouette edge and
+dropping the pile entirely (and renaming `TowelTerry` to match), this is the
+first, and the argument is three measurements, not a preference.
+
+1. THE ACCEPTANCE REFERENCE IS TERRY. `towel/folded-pair.jpg` and
+   `towel/stack-low.jpg` are both looped terry, and folded-pair is the image
+   both `tools/qa/v7-value.mjs` and `tools/qa/v7-compare-sheet.mjs` put this
+   asset beside. The two waffle files in the reference set are MACROS of the
+   weave -- construction study, not the product.
+
+2. WHAT IS BUILT TODAY IS NEITHER. `towel/waffle-knit.jpg` is in the set
+   captioned "how fine the cell really is", and it is 3-4 mm. This module
+   builds 20 mm cells with 2.2 mm of relief -- five times the real pitch --
+   which is not a weave at that size, it is quilting, and that is exactly what
+   the 90 mm macro at qa/hero/v5/shop-towel/waffle-90mm.png shows: a green
+   quilted mattress with a hard-cut edge. So "keep the waffle and rename the
+   material honestly" is not a cheap rename onto the truth. It renames one
+   wrong fabric to a second wrong fabric.
+
+3. THE SILHOUETTE IS WHERE SUB-PIXEL CLOTH STILL READS, AND THE FACE IS NOT.
+   The earlier ruling here -- loops are 1.8 mm, which is ~1.5 px at browse
+   distance, so no map will carry them -- is correct ABOUT THE FACE. A shading
+   gradient below a pixel averages to flat and nothing recovers it. A
+   silhouette is not a gradient; it is a figure/ground boundary, and a broken
+   boundary still reads as broken well below the size at which surface relief
+   reads as relief. Look at folded-pair.jpg: at that photograph's own scale the
+   loops on the flat faces are already a fine mush. What tells you those are
+   terry from across a room is that EVERY FOLD EDGE IS A SOFT 3-4 MM FRINGE
+   and the woven hem band is the only hard line on the object. That contrast is
+   the material. So the pile goes where it is legible and the surface map
+   carries the face, which is the one thing a 1.8 mm feature can be.
+
+WHY THIS IS NOT DONE YET, AND WHAT IT COSTS. The rim needs ADDED geometry: the
+panel grid samples at 3.33 mm and a loop is 1.8 mm, so no density of vertices
+on the existing mesh can carry one -- this is the same sampling wall that ate
+the waffle twice. The affordable shape is a scalloped ribbon following each rim
+curve rather than one tuft per loop: ~910 mm of perimeter at a 4 mm scallop is
+~228 scallops per rim, three quads each, ~1.4k tris a rim and ~5.5k for the
+stack -- against a 19.5k cap in the same set. Individual tufts are 3x that and
+buy nothing extra at browse distance.
+
+Until that is built, `TowelTerry` names the DECISION and not the mesh, and the
+mesh is still the 20 mm quilt described above. It is the one claim in this
+module that is ahead of what ships.
 
 Run: blender --factory-startup -b --python towel.py -- render export
 """
