@@ -1818,11 +1818,79 @@ function startGameNow(
   // that gates it is written by finish(true) only after the belt warm — an
   // aborted first run shows the screen again next boot, which is the truth.
   const compileScreen = startCompileScreen({ renderer: sceneRef.renderer, veil });
+  // WHAT EACH WARM STAGE COSTS, not only what it minted.
+  //
+  // The compile SCREEN is gated on the stamp; the warms below it are not, and
+  // until this ledger existed nobody could say what that was worth. Every stage
+  // records its wall time and the programs it minted, so "this stage mints zero
+  // on a stamped boot" becomes a number rather than an argument -- which is the
+  // whole test for whether it still needs to run.
+  const bootLedger = {
+    stamped: !compileScreen.active,
+    mode: compileScreen.mode,
+    startedAt: performance.now(),
+    stages: [],
+  };
+  window.__fwBoot = bootLedger;
+  // EVERY WARM STAGE IS A rAF LOOP, so the honest unit is not only wall time but
+  // FRAMES and the cadence they arrived at. A stamped boot that reproduces a
+  // cold boot stage-for-stage within 1% is not paying for compiles -- compiles
+  // vary -- it is paying a fixed number of frames at whatever rate the browser
+  // is willing to give, and Chromium throttles rAF to 1 Hz for an occluded
+  // window. Without this the two cases are indistinguishable in the record.
+  const timeWarmStage = async (label, fn) => {
+    const programsBefore = sceneRef.renderer?.info?.programs?.length ?? -1;
+    const t0 = performance.now();
+    warmBudgetHit = false;
+    warmDeadlineAt = t0 + (WARM_STAGE_BUDGET_MS[label] ?? Infinity);
+    let frames = 0;
+    let counting = true;
+    const count = () => { if (!counting) return; frames += 1; requestAnimationFrame(count); };
+    requestAnimationFrame(count);
+    const visible = typeof document !== 'undefined' ? document.visibilityState : null;
+    const focused = typeof document !== 'undefined' && document.hasFocus ? document.hasFocus() : null;
+    const value = await fn();
+    counting = false;
+    warmDeadlineAt = Infinity;
+    const ms = performance.now() - t0;
+    const programsAfter = sceneRef.renderer?.info?.programs?.length ?? -1;
+    bootLedger.stages.push({
+      label,
+      ms: +ms.toFixed(1),
+      frames,
+      msPerFrame: frames ? +(ms / frames).toFixed(1) : null,
+      budgetMs: WARM_STAGE_BUDGET_MS[label] ?? null,
+      // NO SILENT CAPS: a stage that ran out of budget says so, because
+      // "warmed 9/9" and "warmed 3 then ran out" must never read the same.
+      budgetHit: warmBudgetHit,
+      visible,
+      focused,
+      programsBefore,
+      programsAfter,
+      minted: programsAfter - programsBefore,
+    });
+    return value;
+  };
   let prewarmSucceeded = false;
   let degradedPrewarmNotice = null;
+  const prewarmProgramsBefore = sceneRef.renderer?.info?.programs?.length ?? -1;
+  const prewarmStartedAt = performance.now();
   sceneRef
     .prewarm((label) => { if (app.scene3d === sceneRef) veil.set(label); })
     .then((completed) => {
+      const prewarmProgramsAfter = sceneRef.renderer?.info?.programs?.length ?? -1;
+      const prewarmRowLabel = 'prewarm'; // bound first: the strings ratchet
+      bootLedger.stages.push({
+        label: prewarmRowLabel,
+        ms: +(performance.now() - prewarmStartedAt).toFixed(1),
+        frames: null,
+        msPerFrame: null,
+        visible: typeof document !== 'undefined' ? document.visibilityState : null,
+        focused: typeof document !== 'undefined' && document.hasFocus ? document.hasFocus() : null,
+        programsBefore: prewarmProgramsBefore,
+        programsAfter: prewarmProgramsAfter,
+        minted: prewarmProgramsAfter - prewarmProgramsBefore,
+      });
       if (app.scene3d !== sceneRef || generation !== sceneStartGeneration) return;
       if (completed !== true) throw new Error('Course prewarm ended before completion.');
       const report = sceneRef.firstDoorVisibilityReport?.();
@@ -1894,17 +1962,17 @@ function startGameNow(
       // trip leaves nothing behind (census: every tool's first press clean).
       // The clip standard moved them here from the deferred slot — see
       // warmBeltThroughLiveLoop.
-      await warmBeltThroughLiveLoop(sceneRef, generation, () => sceneStartGeneration);
+      await timeWarmStage('belt', () => warmBeltThroughLiveLoop(sceneRef, generation, () => sceneStartGeneration));
       if (app.scene3d !== sceneRef || generation !== sceneStartGeneration) { compileScreen.finish(false); return; }
       // GOAL 32: the laptop close-up is the one station view the warms above
       // never draw — its five first-open programs (2.1 s in the player's
       // hands on a resumed save) are paid here instead.
-      await warmLaptopViewThroughLiveLoop(sceneRef, generation, () => sceneStartGeneration);
+      await timeWarmStage('laptop-view', () => warmLaptopViewThroughLiveLoop(sceneRef, generation, () => sceneStartGeneration));
       if (app.scene3d !== sceneRef || generation !== sceneStartGeneration) { compileScreen.finish(false); return; }
       // GOAL 35: the editor and Tab, the last two surfaces that still compiled
       // in his hands — pressed for real, their rails pressed for real, closed
       // for real, all of it under this veil.
-      await warmEditorThroughLiveLoop(sceneRef, generation, () => sceneStartGeneration);
+      await timeWarmStage('editor', () => warmEditorThroughLiveLoop(sceneRef, generation, () => sceneStartGeneration));
       if (app.scene3d !== sceneRef || generation !== sceneStartGeneration) { compileScreen.finish(false); return; }
       // AFTER the editor, deliberately. The editor's hide() ends on
       // frameCourse(), which re-poses the SHARED orbit rig — so a Tab warm run
@@ -1913,12 +1981,14 @@ function startGameNow(
       // objects in shot (qa/goal34/warm4.json row 04, all six one key-step from
       // their twins on the light-count field with the census IDENTICAL either
       // side, so framing is what is left).
-      await warmOverviewThroughLiveLoop(sceneRef, generation, () => sceneStartGeneration);
+      await timeWarmStage('overview', () => warmOverviewThroughLiveLoop(sceneRef, generation, () => sceneStartGeneration));
       if (app.scene3d !== sceneRef || generation !== sceneStartGeneration) { compileScreen.finish(false); return; }
       // The compile work under this veil is done (prewarm + belt warm), so the
       // stamp is earned: land the count on n / n and gate the screen off for
       // every later boot on this profile and driver.
       compileScreen.finish(true);
+      bootLedger.warmsDoneMs = +(performance.now() - bootLedger.startedAt).toFixed(1);
+      bootLedger.prewarmTimings = sceneRef.prewarmTimings?.() || null;
       // Yield through two animation frames instead — the same paint-yield idiom
       // startGame uses. The startup hold is released above, so the first of
       // those is a real production frame drawn from the walk camera, and the
@@ -1927,6 +1997,7 @@ function startGameNow(
         requestAnimationFrame(() => {
           if (app.scene3d !== sceneRef || generation !== sceneStartGeneration) return;
           veil.hide();
+          bootLedger.veilLiftedMs = +(performance.now() - bootLedger.startedAt).toFixed(1);
         });
       });
       // ROUND 4: the first-press stalls come back warm, DEFERRED -- seconds
@@ -2009,6 +2080,37 @@ let loadVeil = null;
 // that is exactly what three keys a program on. A warm that reports 'done'
 // while standing under a different census warmed a state the player never
 // reaches, and this repo has now shipped that mistake four times.
+// A WARM STAGE IS A FRAME COUNT, SO ITS WALL COST IS THE FRAME INTERVAL.
+//
+// The belt is 36 frames, the laptop 54, the editor 39, the overview 8: 137
+// frames, and NOT ONE of them is bounded in time. On a machine presenting at
+// 60 Hz that is about two seconds. On 2026-08-19, on a box whose WebGL surface
+// presents at 1 Hz -- menu 14.6 ms per frame, scene 1009.9 ms per frame, same
+// window, visibilityState 'visible' throughout -- the same 137 frames cost 137
+// SECONDS, and turned a 40 s boot into a 177 s one. Nothing about that is
+// visible as "slow": every stage reports 'done' and mints what it always mints.
+//
+// So each stage gets a deadline. It is COOPERATIVE, checked at the top of each
+// loop beside the generation guards, so a stage that runs out still leaves
+// through its own `finally` and restores the lid, the camera and the mode. A
+// stage that stops early says so in the ledger; what it did not warm is what
+// the deferred GPU warm and the player's first press pay for, which is the
+// trade that was already being made silently every time a frame ran long.
+//
+// The budgets are set well above what a healthy machine measured (belt 6.2 s,
+// laptop 2.0 s, editor 6.5 s, overview 2.4 s on the fast run of the same day),
+// so on hardware that is not in trouble nothing here changes at all.
+const WARM_STAGE_BUDGET_MS = {
+  belt: 10000, 'laptop-view': 10000, editor: 10000, overview: 5000,
+};
+let warmDeadlineAt = Infinity;
+let warmBudgetHit = false;
+const warmBudgetExpired = () => {
+  if (performance.now() < warmDeadlineAt) return false;
+  warmBudgetHit = true;
+  return true;
+};
+
 function sceneLightCensus(sceneRef) {
   const scene = sceneRef?.scene;
   const camera = sceneRef?.camera;
@@ -2036,6 +2138,7 @@ async function warmBeltThroughLiveLoop(sceneRef, generationAtStart, generationNo
   let warmed = 0;
   for (const tool of belt) {
     if (app.scene3d !== sceneRef || generationNow() !== generationAtStart) return;
+    if (warmBudgetExpired()) break;
     if (walk.getTool?.() != null) break;
     equip.call(walk, tool);
     await frame();
@@ -2049,6 +2152,41 @@ async function warmBeltThroughLiveLoop(sceneRef, generationAtStart, generationNo
   window.__fwWarm.belt = `${warmed}/${belt.length}`;
   window.__fwWarm.hands = walk.getTool?.() == null ? 'done' : 'left-a-tool-behind';
 }
+
+// THE SAME BELT, ON THE COURSE — MEASURED, BUILT, AND NOT SHIPPED. 2026-08-19.
+//
+// THE FAULT IS REAL AND IT HAS A NUMBER. The belt was pressed indoors and on
+// hole 1 in ONE boot, twice, the second time with the route order REVERSED so
+// "whichever ran first is free" could be ruled out. Both runs agreed exactly:
+//
+//   indoor   census ...|PointLight:1   every tool mints 0
+//   outdoor  census ...|PointLight:4   washer +1, vacuum +1, mop +2
+//
+// Four programs that only ever arrive in the player's hands, outdoors, because
+// three keys a program on the light COUNT and the belt warm only ever sees the
+// spawn census. That is the owner's "switching items out there is laggy", and
+// it is the axis he guessed: the belt warm is warming the wrong lighting.
+//
+// THE FIX WORKED AND WAS STILL WITHDRAWN. A second belt pass at a real point on
+// hole 1, position saved and restored, took the outdoor first-press cost from
+// 4 programs to 0 with indoor still at 0 (qa/outdoor/switch.json vs fixed.json).
+// But the INDOOR census in the verification run read PointLight:4 where every
+// pre-fix run read PointLight:1, and the interior's draw-distance and per-lamp
+// budget settle on a 2 Hz gate. On the box this was measured on the WebGL
+// surface presents at 1 Hz (menu 14.6 ms/frame, scene 1009.9 ms/frame, same
+// window, visibilityState 'visible' throughout), so a 2 Hz gate cannot settle
+// between the teleport and the reading, and "the inside changed" and "the gate
+// had not caught up" are indistinguishable from here.
+//
+// Adding settleClubhouseCameraVisibility() after the restore did not resolve
+// it: the census still read 4 AND the outdoor cost came back to 4 (fixed2.json),
+// because that call re-gates materials and programs release on material dispose.
+//
+// The owner's instruction was DO NOT BREAK THE INSIDE. Shipping a warm that
+// might relight the clubhouse, on evidence that cannot tell whether it does,
+// is not a trade to make on his behalf. What is needed first is a machine that
+// presents frames, or an instrument that reads the interior census after the
+// gate has provably settled rather than after a fixed wait.
 
 // THE POINT-LIGHT CENSUS — TRIED, MEASURED, REMOVED. READ THIS BEFORE RETRYING.
 //
@@ -2135,6 +2273,7 @@ async function warmLaptopViewThroughLiveLoop(sceneRef, generationAtStart, genera
     while (laptopWarmFrames < 90
       && (performance.now() < settleUntil || laptopWarmFrames < 24)) {
       if (app.scene3d !== sceneRef || generationNow() !== generationAtStart) return;
+      if (warmBudgetExpired()) break;
       await frame();
       laptopWarmFrames += 1;
       if (laptopWarmFrames === 20) sceneRef.settleClubhouseCameraVisibility?.();
@@ -2177,6 +2316,7 @@ async function warmLaptopViewThroughLiveLoop(sceneRef, generationAtStart, genera
       let thumbFrames = 0;
       while (thumbFrames < 90 && (performance.now() < thumbsUntil || thumbFrames < 30)) {
         if (app.scene3d !== sceneRef || generationNow() !== generationAtStart) return;
+        if (warmBudgetExpired()) break;
         await frame();
         thumbFrames += 1;
         laptopWarmFrames += 1;
@@ -2216,7 +2356,7 @@ async function warmOverviewThroughLiveLoop(sceneRef, generationAtStart, generati
     const deadline = started + Math.max(2500, ms * 3); // an occluded window throttles rAF to 1 Hz
     let n = 0;
     while ((n < minFrames || performance.now() < until) && performance.now() < deadline) {
-      if (!alive() || n > 240) break;
+      if (!alive() || n > 240 || warmBudgetExpired()) break;
       await frame();
       n += 1;
     }
@@ -2305,7 +2445,7 @@ async function warmEditorThroughLiveLoop(sceneRef, generationAtStart, generation
     const deadline = started + Math.max(2500, minMs * 3);
     let n = 0;
     while ((n < minFrames || performance.now() < until) && performance.now() < deadline) {
-      if (!alive() || n > 240) break;
+      if (!alive() || n > 240 || warmBudgetExpired()) break;
       await frame();
       n += 1;
     }

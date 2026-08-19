@@ -36,6 +36,31 @@ if (DEV) {
 app.commandLine.appendSwitch('gpu-program-cache-size-kb', '262144');
 app.commandLine.appendSwitch('gpu-disk-cache-size-kb', '262144');
 
+// THE QA THROTTLE EXEMPTION DID NOT WORK, AND EVERY LOAD NUMBER TAKEN THROUGH
+// IT WAS WRONG BY 4-5x.
+//
+// Goal 27 set `backgroundThrottling: false` plus setAlwaysOnTop for QA windows
+// because an occluded window's rAF drops to 1 Hz and every warm stage yields
+// through rAF. Both were in force on 2026-08-19 and the boot ledger still
+// measured a metronomic 1005.1 / 1005.7 / 1007.0 / 1003.0 ms per frame across
+// the belt, laptop, editor and overview stages -- 137 frames at 1 Hz, 137 of
+// the boot's 170 seconds -- with document.visibilityState 'visible' and
+// document.hasFocus() true the whole time.
+//
+// `backgroundThrottling: false` only covers the HIDDEN/MINIMIZED path. The
+// other one is the compositor: when Chromium decides the native window is
+// occluded (or there is no visible display at all, which is any unattended
+// machine), the renderer is backgrounded and its BeginFrame source falls back
+// to ~1 Hz. That is a process-level decision and only a process-level switch
+// turns it off.
+//
+// QA ONLY, deliberately: a shipped player's minimized game should still not
+// burn the machine. The loading case is handled separately -- see the veil.
+if (process.env.FW_QA === '1') {
+  app.commandLine.appendSwitch('disable-backgrounding-occluded-windows');
+  app.commandLine.appendSwitch('disable-renderer-backgrounding');
+}
+
 // WHICH CLUBHOUSE ROOM THIS LAUNCH ASKS FOR, e.g.
 //   npm run dev -- --clubhouse=pine-hills-v2
 // The packaged app has no address bar, so the greybox room used to be unreachable outside
