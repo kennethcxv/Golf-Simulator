@@ -3960,8 +3960,10 @@ function regActive() {
 }
 
 let toolKeyTimer = null;
-let toolKeyStarted = 0;
-let toolHoldOpened = false;
+// What was in hand when the belt key went down, so a hold can put it back after
+// the keydown tap has already been applied (see beginToolKey).
+let toolKeyToolAtPress = null;
+let toolKeyCycled = false;
 let previousWalkTool = null;
 let walkToolWheelRemainder = 0;
 
@@ -4148,7 +4150,6 @@ function showToolWheel() {
     toast(carried === 'ledger' ? 'Put the book down first.' : 'Put that down first.', 'warn');
     return;
   }
-  toolHoldOpened = true;
   resetCameraInput();
   app.scene3d.walk.setSpraying(false);
   app.scene3d.walk.setSoaping?.(false);
@@ -4159,12 +4160,51 @@ function showToolWheel() {
   toolWheel.show(walkToolEntries(), app.scene3d.walk.getTool());
 }
 
+// THE BELT CYCLES ON KEY DOWN. IT USED TO CYCLE ON KEY UP.
+//
+// Measured 2026-08-19 with tools/qa/tool-swap-input-to-pixel.js -- the first
+// instrument in this repo to press an actual key rather than call
+// `walk.setTool()`. On a warm belt, a live scene and a 90 ms press:
+//
+//   input to pixel, real key press   p50 122.1 ms   (nine of nine, 108-128)
+//   the same swap through the API     28.1 ms
+//   frame intervals over that run     p50 5.6, p95 16.5, p99 21.8 ms
+//
+// The renderer was never the problem. 94 of those 122 ms were spent waiting for
+// the player to LET GO, because `cycleWalkTool()` hung off endToolKey and
+// endToolKey runs on key up. Every tool swap therefore cost the player the
+// duration of their own finger before anything began, and no frame-time probe
+// could ever see it -- the frames in that window are 5 ms and perfectly healthy.
+// That is the "every tool swap has noticeable latency" the owner reported after
+// playing, against a harness that answered 4.2 ms.
+//
+// It also swallowed presses outright: endToolKey only cycled when the press had
+// lasted under 500 ms, so any block longer than half a second (and boot blocks
+// here reach seconds) turned a normal tap into a discarded one. A run with an
+// 8,142 ms stall in it lost seven presses in a row.
+//
+// The tap/hold split survives intact. The tap is applied at once; if the key is
+// still down at the hold threshold the wheel opens and the tool equipped at
+// keydown is put back, so a hold ends exactly where it began. THE COST of that
+// arrangement, stated rather than discovered later: a player who HOLDS the belt
+// key sees the next tool in hand for the 230 ms before the wheel appears. Taps
+// outnumber holds by a wide margin and a tap is the gesture that felt broken,
+// so the flash is the right side of the trade -- but it is a real artifact.
 function beginToolKey(event) {
   if (event.repeat || toolKeyTimer || toolWheel?.isOpen()) return;
-  toolKeyStarted = performance.now();
-  toolHoldOpened = false;
+  toolKeyToolAtPress = app.scene3d?.walk?.getTool?.() ?? null;
+  toolKeyCycled = false;
+  if (walkActive()) {
+    cycleWalkTool();
+    toolKeyCycled = true;
+  }
   toolKeyTimer = setTimeout(() => {
     toolKeyTimer = null;
+    // Hold: undo the tap that has already been applied, then open the wheel.
+    if (toolKeyCycled) {
+      selectWalkTool(toolKeyToolAtPress);
+      toolKeyCycled = false;
+    }
     showToolWheel();
   }, 230);
 }
@@ -4174,16 +4214,13 @@ function endToolKey() {
     clearTimeout(toolKeyTimer);
     toolKeyTimer = null;
   }
-  if (!toolHoldOpened && performance.now() - toolKeyStarted < 500 && walkActive()) cycleWalkTool();
-  toolKeyStarted = 0;
-  toolHoldOpened = false;
+  toolKeyCycled = false;
 }
 
 function cancelToolKey() {
   if (toolKeyTimer) clearTimeout(toolKeyTimer);
   toolKeyTimer = null;
-  toolKeyStarted = 0;
-  toolHoldOpened = false;
+  toolKeyCycled = false;
   if (toolWheel?.isOpen()) toolWheel.close('mode-change');
   stopToolUse();
 }
@@ -4844,7 +4881,7 @@ window.addEventListener('keyup', (e) => {
 window.addEventListener('blur', () => {
   if (toolKeyTimer) clearTimeout(toolKeyTimer);
   toolKeyTimer = null;
-  toolHoldOpened = false;
+  toolKeyCycled = false;
   stopToolUse();
   resetCameraInput();
   const reg = regApi();
@@ -4878,7 +4915,7 @@ function resetStartupInputLatches() {
   walkToolWheelRemainder = 0;
   if (toolKeyTimer) clearTimeout(toolKeyTimer);
   toolKeyTimer = null;
-  toolHoldOpened = false;
+  toolKeyCycled = false;
   if (tapBurstTimer) clearTimeout(tapBurstTimer);
   tapBurstTimer = null;
   stopToolUse();
