@@ -331,8 +331,29 @@ export const PINE_HILLS_V2_LAYOUT = Object.freeze({
   // Cut rather than crammed (report §3's table): a failing muni starter keeps
   // consumables, one fitting booth, the demo strip, and the mandated lounge.
   // Clubs, apparel depth, bags, shoes and refreshments are the upgrade path.
+  // THE CLUB WALL REPLACES THE FITTING BOOTH (2026-08-19, the owner's placement).
+  //
+  // "Put the three racks on the retail wall opposite the front desk, so a
+  // customer walking in sees clubs and the desk in the same frame." The desk is
+  // a south counter at (3.30, 3.35) facing north, the door is on the entry axis
+  // at x -0.8, so that wall is the NORTH wall. It has 5.00 yd of retail run --
+  // 8.30 of wall, less everything east of x 2.40, which the LOUNGE owns under a
+  // visible-from-the-door mandate the audit enforces.
+  //
+  // The booth used 2.2 of those 5.00, and every other home for it costs the F1
+  // door sightline the D1 plan was designed to win (41 rays, +-55 deg from the
+  // door eye, gate 60%): 53.7% mid-floor, 58.5% flush to the east partition,
+  // worse on the west wall and worse beside the door, where it is closest to
+  // the eye and eats whole rays. There is no spot in 70 m2 for a 2.05 m booth
+  // that is both out of the door's fan and off the wall the clubs need.
+  //
+  // So the booth joins the upgrade path, exactly as shoerack, bagstand and the
+  // rest of the cut list already do. ONE LINE REVERTS IT: take 'fittingroom'
+  // out of this array and put a rack back in. Asset 63 needs no other change --
+  // it is already in FIXTURE_GATED_PROP_ASSETS, so it hides while the fixture is
+  // uninstalled.
   cutFixtures: Object.freeze([
-    'rack_drivers', 'rack_irons', 'rack_putters',
+    'fittingroom',
     'table_polos', 'shoerack', 'bagstand', 'rail_outer',
     'hatstand', 'snackrack', 'cold_drinks', 'shelf_small',
   ]),
@@ -346,10 +367,50 @@ export const PINE_HILLS_V2_LAYOUT = Object.freeze({
   }),
 
   fixturePoses: Object.freeze({
-    // NW corner, ry 0: the booth's authored analytic hull is axis-aligned with
-    // its curtain on +x, so at ry 0 the visible shell and the collision walls
-    // agree — the rotation desync the punch list flagged cannot exist here.
-    fittingroom: Object.freeze({ x: -0.35, z: -3.70, ry: 0 }),
+    // THE CLUB WALL: the north wall, opposite the front desk.
+    //
+    // ry 0 puts each rack's browse side on +z, into the room. z -4.25 with a
+    // 0.60 depth puts the backs at -4.55, inside the -4.60 wall line.
+    //
+    // THE WIDTH IS RE-AUTHORED AND IT HAD TO BE. FIXTURE_HALF.rack is
+    // [1.5, 0.45] -- HALF-extents -- so a stock rack is 3.0 yd wide and three
+    // need 9.00 against a 5.00 yd run. As slim towers at 1.50 x 0.60 they sit
+    // at -1.80 / -0.10 / 1.60 with 0.20 between neighbours and 0.05 clear of
+    // the lounge. fixtureRect() honours an explicit footprint over
+    // FIXTURE_HALF, and it is THE definition -- collider, layout tests, browse
+    // sockets and the drawn geometry in fixtures.js all read it -- so a slim
+    // rack is slim to every one of them at once. Three narrow towers is also
+    // the truthful reading of a municipal starter's club wall.
+    //
+    // Drivers nearest the door, putters nearest the desk: the order a customer
+    // meets them walking in. The browse pairs are pulled to +-0.45 because the
+    // towers are narrower than the rack the default +-0.65 was written for, and
+    // rack_drivers browses from its EAST side only -- its west side is 0.20 from
+    // shelf_balls, which the stand-point audit refuses.
+    rack_drivers: Object.freeze({
+      x: -1.80,
+      z: -4.25,
+      ry: 0,
+      footprint: Object.freeze({ minX: -0.75, maxX: 0.75, minZ: -0.30, maxZ: 0.30 }),
+      browse: Object.freeze([{ x: 0.45, z: 0.90 }, { x: 0.70, z: 0.90 }]),
+      stock: Object.freeze([{ x: 0.45, z: 0.80 }]),
+    }),
+    rack_irons: Object.freeze({
+      x: -0.10,
+      z: -4.25,
+      ry: 0,
+      footprint: Object.freeze({ minX: -0.75, maxX: 0.75, minZ: -0.30, maxZ: 0.30 }),
+      browse: Object.freeze([{ x: -0.45, z: 0.90 }, { x: 0.45, z: 0.90 }]),
+      stock: Object.freeze([{ x: 0, z: 0.80 }]),
+    }),
+    rack_putters: Object.freeze({
+      x: 1.60,
+      z: -4.25,
+      ry: 0,
+      footprint: Object.freeze({ minX: -0.75, maxX: 0.75, minZ: -0.30, maxZ: 0.30 }),
+      browse: Object.freeze([{ x: -0.45, z: 0.90 }, { x: 0.45, z: 0.90 }]),
+      stock: Object.freeze([{ x: 0, z: 0.80 }]),
+    }),
     // The west wall carries the whole tier-0 retail run: balls south, the
     // (gloves-folded) essentials pegboard north, both ending short of the door
     // clearway's x band.
@@ -496,8 +557,13 @@ export const PINE_HILLS_V2_LAYOUT = Object.freeze({
   // Eight authored neglect spots — corners and dead zones of the NEW envelope,
   // each ≥0.8 yd off every traffic leg (the layout test holds this).
   clutterSpots: Object.freeze([
-    Object.freeze({ x: 1.55, z: -4.25 }),  // unshelved sleeve boxes under the north wall
-    Object.freeze({ x: -2.05, z: -4.05 }), // dead pocket between the booth and the west wall
+    // Both north-wall spots moved 2026-08-19: the club wall now runs along
+    // z -4.55..-3.95 from x -2.55 to 2.35, and the booth that made the second
+    // pocket is gone. These are the dead floor the racks leave -- the sliver
+    // west of the drivers tower against the west wall, and the gap between the
+    // putters tower and the lounge.
+    Object.freeze({ x: -2.30, z: -3.55 }),  // sleeve boxes in the west sliver
+    Object.freeze({ x: 2.10, z: -3.45 }),   // dead pocket between clubs and lounge
     Object.freeze({ x: -2.35, z: 4.85 }),  // SW sliver west of the door clearway
     // C5, 2026-08-04: the "south-wall pocket east of the door" at (0.95, 4.90)
     // is DELETED. That pocket is now the staff pass-through, and a clutter pile

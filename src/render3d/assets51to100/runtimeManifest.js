@@ -30,7 +30,14 @@ const FACE_W = -Math.PI / 2;
 const FACE_E = Math.PI / 2;
 const DESK_SURFACE_Y = 0.76 * 1.0936133;
 const FILING_CABINET_TOP_Y = 1.32 * 1.0936133;
-const fixturePose = (id) => FIXTURES.find((fixture) => fixture.id === id);
+// A CUT FIXTURE HAS NO POSE, and this table is read at module load. pine-hills-v2
+// cuts eleven fixtures outright and this array names four by id, so a variant
+// that cuts one of THOSE would throw before the first frame rather than simply
+// not draw a prop. The fallback is inert: every id here that a variant can cut
+// is also in FIXTURE_GATED_PROP_ASSETS, so its prop is hidden unless the fixture
+// is installed, and a default pose for a prop that never draws costs nothing.
+const fixturePose = (id) => FIXTURES.find((fixture) => fixture.id === id)
+  || { x: 0, z: 0, ry: 0 };
 
 const freezeTransform = ({ x, y = 0, z, ry = 0, scale }) => Object.freeze({
   position: Object.freeze([x, y, z]),

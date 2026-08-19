@@ -212,7 +212,9 @@ test('ceiling and beams: 2.56 m of pressure that still clears every head', () =>
 });
 
 test('the cut list is exact and touches nothing in the service wing', () => {
-  assert.equal(L.cutFixtures.length, 11);
+  // 2026-08-19: the three club racks came OFF this list and the fitting booth
+  // went ON it -- the owner's club-wall placement. Nine, not eleven.
+  assert.equal(L.cutFixtures.length, 9);
   for (const id of L.cutFixtures) {
     assert.ok(!byId.has(id), `${id} should be cut`);
     assert.ok(!L.fixturePoses[id], `${id} is cut - a pose for it is dead data`);

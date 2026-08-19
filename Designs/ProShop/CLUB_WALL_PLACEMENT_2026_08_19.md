@@ -1,71 +1,88 @@
-# The club wall: I tried to place it, and the room says booth-or-clubs
+# The club wall is on the wall opposite the desk
 
-Item 3. **The racks are not placed.** Not because the wall was misread — it was
-read right — but because building it turned up a hard trade that is yours, not
-mine. Everything below is measured against the real layout audit
-(`tests/pine-hills-v2-layout.test.js`, 21 checks), not reasoned about.
+Item 3, **DONE**. Frames in `qa/clubwall/`, instrument
+`tools/qa/club-wall-frame.js`, layout audit 21/21, `GATE_EXIT=0`.
 
-## The wall is right
+## Where they are
 
-The desk is a south-wall counter at (3.30, 3.35) whose customer side faces
-north; the door is on the entry axis at x −0.8. So the wall opposite it is the
-**north wall**, and your framing holds: walk in, clubs ahead, desk to the right.
+Your placement: the **north wall**, opposite the south-wall desk at (3.30, 3.35)
+whose customer side faces north, with the door on the entry axis at x -0.8.
+Drivers nearest the door, putters nearest the desk -- the order a customer meets
+them walking in. Confirmed in the live scene by `matrixWorld`, not by the numbers
+I typed:
 
-## Four things the room said when I built it
+    Fixture_rack_drivers   world x -361.75
+    Fixture_rack_irons     world x -360.00
+    Fixture_rack_putters   world x -358.50
 
-**1. A stock rack is 3.0 yd wide, not 1.5.** `FIXTURE_HALF.rack = [1.5, 0.45]`
-is **half**-extents. Three need **9.00 yd**; the north wall is **8.30**.
+`qa/clubwall/01-door-clubs-and-desk.png` is the acceptance frame: standing just
+inside the door, the club wall runs along the left with DRIVERS & WOODS, IRONS &
+WEDGES and PUTTER STUDIO racked, and the front desk with the register is on the
+right. **Clubs and desk in one frame**, which is the whole claim the placement
+was chosen to make.
 
-**2. The lounge owns the east third of that wall.** `LOUNGE.bounds` is
-x 2.40 → 5.70, under a mandate to stay visible from the door — and the audit
-proved it, failing `door→chairA sightline crosses rack_putters` the moment a
-rack went east of 2.40. **The retail run on that wall is 5.00 yd, not 8.30.**
+All twelve hero club materials are **drawn** -- `layers.mask` non-zero and every
+ancestor visible, because batched props draw through the mask and a scene-graph
+`visible` check measures geometry that never draws:
 
-**3. Slim towers do fit.** Re-authored at **1.50 × 0.90** via an explicit
-`footprint` (which `fixtureRect` honours over `FIXTURE_HALF`, and which the
-collider, the browse sockets, the layout tests and the drawn geometry in
-`fixtures.js` all read, so it is narrow to every one of them at once), three
-racks sit at x −1.80 / −0.10 / 1.60 with 0.20 between them and 0.05 clear of the
-lounge. **Envelope, overlap and lounge-sightline checks all passed.** Three
-narrow towers is also the honest read of a municipal starter's club wall.
+    DriverCrown DriverFace DriverShaft DriverGrip
+    IronBody IronFace IronShaft IronGrip
+    PutterBody PutterFace PutterShaft PutterGrip
 
-**4. And then the fitting booth has nowhere to go.** The booth is 2.2 × 1.7 and
-currently occupies x −1.45 → 0.75 of that same 5.00 yd run. Every alternative
-home I measured costs the **F1 door sightline** — the metric the whole D1 floor
-plan was designed to win, 41 rays fanned ±55° from the door eye, gate at 60%:
+## What it cost, and it is not what I expected
+
+**Two things had to change, and one of them turned out to be a gain.**
+
+**1. The racks are re-authored as slim towers, 1.50 x 0.60.** `FIXTURE_HALF.rack`
+is [1.5, 0.45] -- **half**-extents -- so a stock rack is 3.0 yd wide and three
+need 9.00. The north wall is 8.30, and the **LOUNGE owns everything east of
+x 2.40** on it under a visible-from-the-door mandate the audit enforces (it
+failed `door->chairA sightline crosses rack_putters` the moment a rack went
+past). The retail run is 5.00 yd. Three towers at 1.50 sit at -1.80 / -0.10 /
+1.60 with 0.20 between them and 0.05 clear of the lounge. `fixtureRect()` honours
+an explicit footprint over `FIXTURE_HALF`, and that is THE definition -- the
+collider, the layout tests, the browse sockets and the drawn geometry in
+`fixtures.js` all read it -- so a slim rack is slim to every one at once.
+
+**2. The fitting booth is cut, and the room got BETTER for it.** The booth used
+2.2 of those 5.00 yd. I measured every alternative home against F1 (41 rays,
++-55 deg from the door eye, 80% of the empty-room distance, gate 60%):
 
 | booth at | F1 |
 |---|---|
-| its proven north-wall spot, no racks | **passes** |
-| mid-floor east (3.60, 0.70) | **53.7%** |
-| flush to the east partition (4.55, 0.60) | **58.5%** |
-| west wall, north end | worse — it lands straight ahead of the door |
-| beside the door, south wall | worse — it is closest to the eye, so it eats whole rays |
+| mid-floor east | 53.7% |
+| flush to the east partition | 58.5% |
+| west wall / beside the door | worse |
+| **cut, club wall in place** | **73.2%** |
 
-58.5% was also what the *first* attempt gave with full-width racks, so the racks
-themselves cost about 1.5 points and **the booth is the rest of it**. There is no
-spot in a 70 m² room for a 2.05 m booth that is both out of the door's fan and
-off the one wall the clubs need.
+The booth was itself the biggest obstruction in the door's fan. Cutting it and
+hanging three slim towers flat on the wall **raised** the D1 sightline the whole
+v2 plan was designed to win. That was not the trade I predicted.
 
-## So it is booth or clubs, and that is yours
+The booth joins the upgrade path exactly as shoerack, bagstand and the rest of
+the cut list already do. **One line reverts it**: take `'fittingroom'` out of
+`cutFixtures`. Asset 63 needed no other change -- it is already in
+`FIXTURE_GATED_PROP_ASSETS`, so it hides while the fixture is uninstalled -- but
+`runtimeManifest.js` read `fixturePose('fittingroom').x` at module load and would
+have thrown on a variant that cuts it, so that lookup now falls back.
 
-- **Clubs.** Cut `fittingroom` from v2 the way the cut list already trades
-  shoerack, bagstand and the rest to the upgrade path. Three slim racks land on
-  your wall and every gate stays green. Cost: no fitting booth in the starter,
-  and `runtimeManifest.js` reads `fixturePose('fittingroom')` at module load, so
-  that call needs a guard first.
-- **Booth.** Keep it where it is and the wall holds **one** rack (x 0.75 → 2.40
-  is 1.65 yd). Putters or drivers, not the set.
-- **Both, smaller.** Two slim racks fit beside the booth only if the booth also
-  narrows, which is a change to an authored analytic hull.
+## Two honest notes on the frame
 
-Say which and it is a short session's work. The layout is reverted and the audit
-is 21/21.
+**The wall is underlit.** The room is lit -- ceiling panels on, architecture
+restored -- but the club wall itself reads dark against it. That is the standing
+`vertical-surfaces-unlit` defect (hung garments measured 1-6% against folded
+30-44%, and six causes were ruled out by measurement: it is the room light, not
+the asset). It is not something this placement introduced, and it is the next
+thing worth fixing if you want this wall to sell clubs.
 
-## One thing that is true whichever you pick
+**The frame is staged, and here is exactly how.** The starter is a failing
+municipal shop, so the driver pins the clock to 10:30, marks the architecture
+restored and every ceiling panel working (the repair beat the player does), and
+puts four of each club SKU on the shelf. The first pass without the lighting step
+photographed a correctly built wall in the dark and the game's own HUD said why:
+"the ceiling circuit is dead; repair the ceiling first." Shop condition still
+reads *filthy* in the frame, which is the honest starter.
 
-`pine-hills-v3` is presentation-only — `CLUBHOUSE_LAYOUT_VARIANT` resolves it to
-`pine-hills-v2` — so **the layout is shared**. Placing clubs for the photograph
-places them in pine-hills-v2 too, drawn grey. There is no v3-only path without
-splitting the seam CLAUDE.md protects, and no lit frame of the clubs can exist
-until the placement is real.
+**The layout seam stands:** `pine-hills-v3` is presentation-only, so
+pine-hills-v2 has these three racks too, drawn grey. There is no v3-only path
+without splitting the seam CLAUDE.md protects.
