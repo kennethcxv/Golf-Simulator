@@ -8699,9 +8699,44 @@ export function makeCourseScene(canvas, state) {
     return Number.isFinite(turf) ? turf : null;
   }
 
+  // THE OUTDOOR TOOLS ARE FETCHED WHEN YOU STEP OUTSIDE, NOT WHEN YOU PRESS.
+  //
+  // The owner reported a multi-second hitch running back through the door and
+  // switching items around that moment, and it reproduced exactly:
+  // tools/qa/outdoor-program-identity.js, keyboard path, standing outdoors --
+  //
+  //     out-KEY  press 2 -> hose    block 1459.5 ms   minted 0
+  //
+  // ZERO programs. It is not a shader link and not the texture-unit ceiling,
+  // which were the two standing hypotheses. hose, divot and rake live in
+  // HELD_TOOL_ASSET_MANIFEST, deliberately outside the course-boot asset set,
+  // and `ensure(tool, 'equip')` starts their GLB fetch and parse on the first
+  // equip -- in the player's hands, on the frame they pressed. It is invisible
+  // indoors because the indoor belt is a different nine tools, which is also why
+  // every driver that measured tool swaps on the shop floor read this as fine.
+  //
+  // The deferral itself is right and stays: a session that never goes outdoors
+  // should not pay for grounds equipment. What moves is the TRIGGER. Crossing
+  // the threshold is the same "actual-use boundary" argument one step earlier,
+  // and it buys the seconds of walking between the door and the first press.
+  // ensure() is idempotent and hands back its cached promise, so this costs one
+  // map lookup per frame after the first crossing.
+  let outdoorToolsPrefetched = false;
+  const OUTDOOR_HELD_TOOLS = ['hose', 'divot', 'rake'];
+  function prefetchOutdoorHeldTools() {
+    if (outdoorToolsPrefetched || !walk.active || cart.mounted) return;
+    if (!clubhouseApi?.isInside) return;
+    if (clubhouseApi.isInside(walk.x, walk.z)) return;
+    outdoorToolsPrefetched = true;
+    for (const tool of OUTDOOR_HELD_TOOLS) {
+      if (HELD_TOOL_ASSET_MANIFEST[tool]) heldAssetRegistry.ensure(tool, 'stepped-outside');
+    }
+  }
+
   function walkUpdate(dtMs) {
     if (!walk.active) return;
     const dt = dtMs / 1000;
+    prefetchOutdoorHeldTools();
     toolViewmodels.update(dt, walkFloorWorldY());
     const px0 = walk.x; // where this frame started, so recovery can tell moving from pinned
     const pz0 = walk.z;

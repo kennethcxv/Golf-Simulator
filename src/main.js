@@ -1854,7 +1854,20 @@ function startGameNow(
     } catch { return new Set(); }
   })();
   const timeWarmStage = async (label, fn) => {
-    if (RETIRED_WARM_STAGES.has(label) || skippedWarms.has(label) || skippedWarms.has('all')) {
+    // A RETIRED STAGE CAN BE PUT BACK FOR A MEASUREMENT. `?forcewarm=belt-outdoor`
+    // (or window.__fwForceWarm) runs a stage the retirement list would skip, so
+    // "what did retiring this cost" is answerable without editing the source --
+    // which matters because the retirement was decided on a driver that only
+    // ever stood indoors.
+    const forced = (() => {
+      try {
+        const raw = new URLSearchParams(location.search).get('forcewarm')
+          || (typeof window !== 'undefined' ? window.__fwForceWarm : '') || '';
+        return new Set(String(raw).split(',').map((x) => x.trim()).filter(Boolean));
+      } catch { return new Set(); }
+    })();
+    const retired = RETIRED_WARM_STAGES.has(label) && !forced.has(label) && !forced.has('all');
+    if (retired || skippedWarms.has(label) || skippedWarms.has('all')) {
       bootLedger.stages.push({
         label,
         ms: 0,
@@ -1863,6 +1876,7 @@ function startGameNow(
         msPerYield: null,
         skipped: true,
         retired: RETIRED_WARM_STAGES.has(label),
+        forced: false,
         minted: 0,
       });
       return undefined;
