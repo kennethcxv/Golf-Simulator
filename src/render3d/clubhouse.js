@@ -684,9 +684,11 @@ export function makeClubhouse(ctx) {
     if (CLUBHOUSE_LAYOUT_VARIANT === 'pine-hills-v2') {
       // Both greybox rooms sit on this one floor plan. v3 is the copy the
       // finished Blender work gets dressed into; v2 stays exactly as it is.
-      return CLUBHOUSE_VARIANT_REQUEST.variant === 'pine-hills-v3'
-        ? 'pine-hills-v3'
-        : 'pine-hills-v2';
+      if (CLUBHOUSE_VARIANT_REQUEST.variant === 'pine-hills-v3') return 'pine-hills-v3';
+      // `final` is a third presentation of the same floor plan: the dressed
+      // room with almost everything in it stood down.
+      if (CLUBHOUSE_VARIANT_REQUEST.variant === 'final') return 'final';
+      return 'pine-hills-v2';
     }
     // The same resolution shopLayout already performed, not a second read of the
     // query: query, launch flag and persisted dev setting all reach the room the same
@@ -759,9 +761,26 @@ export function makeClubhouse(ctx) {
   // COUNTER STAYS A GREY BOX. It is Block 5, and it stays grey until it is
   // baked and asserted.
   const greyboxPresentation = requestedClubhousePresentation === 'pine-hills-v2'
-    || requestedClubhousePresentation === 'pine-hills-v3';
-  const dressedGreybox = requestedClubhousePresentation === 'pine-hills-v3';
-  const GREYBOX_SUPPRESSED_PROP_ASSETS = new Set(dressedGreybox ? [
+    || requestedClubhousePresentation === 'pine-hills-v3'
+    || requestedClubhousePresentation === 'final';
+  // THE STRIPPED ROOM. `final` is the dressed copy with the room emptied: the
+  // shell, the hero front desk, two shelves and the laptop, and nothing else.
+  // It is a presentation, so it shares v2's datums exactly and every collider,
+  // stand point and queue slot stays where it is -- what changes is only what
+  // DRAWS. The three things it strips are the grey volumes (already stood down
+  // by `dressed`), the fixture floor (FINAL_FIXTURE_IDS below) and the runtime
+  // prop sheets 51-100.
+  const strippedPresentation = requestedClubhousePresentation === 'final';
+  const dressedGreybox = requestedClubhousePresentation === 'pine-hills-v3'
+    || strippedPresentation;
+  // The two shelves are the public-room display fixtures that have authored
+  // Blender geometry behind them; `backcounter` is the hero front desk. If a
+  // different pair is wanted this list is the whole change.
+  const FINAL_FIXTURE_IDS = new Set(['backcounter', 'shelf_balls', 'shelf_acc']);
+  const GREYBOX_SUPPRESSED_PROP_ASSETS = new Set(strippedPresentation
+    // Every runtime prop, 51 through 100. The room is meant to be empty.
+    ? Array.from({ length: 50 }, (unused, i) => 51 + i)
+    : dressedGreybox ? [
     61, 62, 63,        // still grey in v3: unbaked hardgoods (see Block 5)
   ] : [
     61, 62, 63,        // desk shell, hutch cabinet, fitting booth — grey volumes instead
@@ -769,6 +788,9 @@ export function makeClubhouse(ctx) {
     85, 88, 89, 90,    // counter-top dressing (phone, key rack, clipboard, scorecards)
     91, 93, 96, 98, 99, // wall/entrance dressing (safety board, camera, bulletin, sanitiser, umbrella stand)
   ]);
+  const strippedRoomFixtureFilter = strippedPresentation
+    ? (fixtureId) => FINAL_FIXTURE_IDS.has(fixtureId)
+    : null;
   // The stage-1 maintenance-shed test scene substitutes a small real room for
   // the clubhouse and suppresses all clubhouse dressing. Every shed branch in
   // this file gates on this single boolean; normal boots are untouched.
@@ -1059,6 +1081,10 @@ export function makeClubhouse(ctx) {
     ctx, state, group, interior, custGroup, mats, merch, hooks, walk, camera, renderer,
     addCol, removeCol, addProp, removeProp, colBoxAt, L2W, W2L, FLOOR_TOP,
     presentRestorationFeedback,
+    // `final` only: which fixtures are allowed to be laid at all. Null in every
+    // other room, and layFixtures treats null as "lay everything", so v2 and v3
+    // take exactly the path they took before.
+    fixtureAllowed: strippedRoomFixtureFilter,
     getCustomers: () => customerView?.actors || [],
   };
   let shell;
@@ -4250,7 +4276,13 @@ export function makeClubhouse(ctx) {
     }
     clutterObjs.length = 0;
     const reno = state && state.shop && state.shop.reno;
-    if (reno) reno.clutter.forEach((pile, idx) => { if (!pile.cleared) buildClutterPile(idx, pile); });
+    // `final` is a room for looking at assets, so the starter's neglect is not
+    // BUILT in it. The piles stay in state.shop.reno.clutter untouched -- this
+    // skips their visual only, so nothing about the save, the objectives or the
+    // cleaning sim differs between rooms.
+    if (reno && !strippedPresentation) {
+      reno.clutter.forEach((pile, idx) => { if (!pile.cleared) buildClutterPile(idx, pile); });
+    }
     rebuildDecor();
     decorSig = decorSignature();
     repaintGrime();

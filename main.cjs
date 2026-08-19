@@ -98,7 +98,7 @@ if (process.env.FW_QA === '1') {
 // rather than a rejected flag. tests/clubhouse-variant-selection.test.js holds
 // the two lists together.
 const SELECTABLE_CLUBHOUSE_VARIANTS = [
-  'pine-hills-v2', 'pine-hills-v3', 'pine-hills', 'modern-public', 'mountain-lodge', 'legacy',
+  'pine-hills-v2', 'pine-hills-v3', 'final', 'pine-hills', 'modern-public', 'mountain-lodge', 'legacy',
 ];
 const requestedClubhouse = (() => {
   const flag = process.argv.find((arg) => arg.startsWith('--clubhouse='));

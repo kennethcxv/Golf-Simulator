@@ -275,9 +275,15 @@ export const CLUBHOUSE_VARIANT_REQUEST = Object.freeze(resolveClubhouseVariant()
 // PRESENTATION, decided in clubhouse.js, which is where the grey volumes live. That way
 // dressing v3 can never move a stand point, a collider or a queue slot out from under
 // pine-hills-v2 — the working variant CLAUDE.md protects.
+// `final` joins them on exactly the same terms: it is a stripped PRESENTATION of
+// the same floor plan, so it resolves to the same layout constant and therefore
+// to byte-identical datums. Nothing below branches on it, which is the point --
+// tests/pine-hills-v2-layout.test.js forbids datum branching and must keep
+// passing unchanged.
 export const CLUBHOUSE_LAYOUT_VARIANT = (
   CLUBHOUSE_VARIANT_REQUEST.variant === 'pine-hills-v2'
   || CLUBHOUSE_VARIANT_REQUEST.variant === 'pine-hills-v3'
+  || CLUBHOUSE_VARIANT_REQUEST.variant === 'final'
 )
   ? 'pine-hills-v2'
   : null;

@@ -125,7 +125,7 @@ export function setTrackedFixtureCollidersActive(
 export function buildFixtures(B) {
   const {
     interior, mats, merch, addCol: rawAddCol, addProp: rawAddProp, removeCol, removeProp,
-    colBoxAt, L2W, state, hooks,
+    colBoxAt, L2W, state, hooks, fixtureAllowed,
   } = B;
   const fixtureCoreBatcher = createMovableFixtureCoreBatcher(merch);
   const fixtureInternalsFreezeLabel = 'FixtureInternalsMatrixFreeze'; // bound first: the strings ratchet
@@ -1207,6 +1207,13 @@ export function buildFixtures(B) {
   function layFixtures() {
     tracking = true;
     for (const f of activeFixtures(state)) {
+      // A presentation may stand the fixture floor down without touching the
+      // LAYOUT: `final` lays only the front desk and two shelves. Null means lay
+      // everything, which is every other room, so this is inert outside `final`.
+      // The datums are untouched either way -- activeFixtures(state) still
+      // returns the same set, so colliders the rest of the file installs from
+      // the layout, stand points and queue slots do not move.
+      if (typeof fixtureAllowed === 'function' && !fixtureAllowed(f.id)) continue;
       const build = FIXTURE_BUILDERS[f.kind];
       if (!build) continue;
       activeFixtureId = f.id;

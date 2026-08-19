@@ -32,16 +32,40 @@ test('held course-tool manifest contains only the measured deferred assets', () 
   );
 });
 
-test('course scene starts held I/O only from the equip boundary', () => {
+// THE BOUNDARY MOVED, AND THE CONTRACT MOVED WITH IT -- deliberately, and no
+// looser than before. Held I/O used to start only at equip, which meant the
+// first press of `hose` outdoors fetched and parsed its GLB in the player's
+// hands: measured at 1,459.5 ms with ZERO programs minted
+// (tools/qa/outdoor-program-identity.js), and 4,603 ms at the door
+// (tools/qa/door-crossing-stall.js). Stepping outside is the same actual-use
+// boundary one step earlier and buys the walk to the first press.
+//
+// So this now pins TWO call sites by name and place rather than counting one.
+// A third would still fail, an eager loader would still fail, and the
+// stepped-outside path is required to carry its is-the-player-outdoors guard --
+// without that assertion this test would pass on an unconditional boot prefetch,
+// which is the exact regression the original was written to prevent.
+test('course scene starts held I/O only from the equip and stepped-outside boundaries', () => {
   assert.equal(
     [...source.matchAll(/heldAssetRegistry\.ensure\(/g)].length,
-    1,
-    'one production ensure call prevents hidden prefetch paths from creeping back in',
+    2,
+    'exactly two production ensure calls: equip, and stepping outside — a third is a hidden prefetch path',
   );
   const equipStart = source.indexOf('function walkSetTool(tool)');
   const equipEnd = source.indexOf('function walkSetSpraying', equipStart);
   assert.ok(equipStart >= 0 && equipEnd > equipStart);
   assert.match(source.slice(equipStart, equipEnd), /heldAssetRegistry\.ensure\(tool, 'equip'\)/);
+
+  const preStart = source.indexOf('function prefetchOutdoorHeldTools()');
+  const preEnd = source.indexOf('function walkUpdate(', preStart);
+  assert.ok(preStart >= 0 && preEnd > preStart, 'the stepped-outside prefetch must exist and be findable');
+  const pre = source.slice(preStart, preEnd);
+  assert.match(pre, /heldAssetRegistry\.ensure\(tool, 'stepped-outside'\)/);
+  // The guard is the whole contract: it must refuse while the player is INSIDE,
+  // so a session that never goes out still pays nothing.
+  assert.match(pre, /clubhouseApi\.isInside\(walk\.x, walk\.z\)/,
+    'the prefetch must be gated on the player actually being outdoors');
+  assert.match(pre, /if \(outdoorToolsPrefetched/, 'the prefetch must run at most once');
   for (const assets of Object.values(HELD_TOOL_ASSET_MANIFEST)) {
     for (const asset of assets) {
       assert.equal(

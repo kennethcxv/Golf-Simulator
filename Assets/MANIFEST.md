@@ -603,12 +603,12 @@ Totals: **1965** asset files — 724 SHIPPING, 1211 NOT WIRED, 30 SUPERSEDED.
 
 | file | status | evidence |
 |---|---|---|
-| `approach.jpg` | SHIPPING | loaded by name from src/main.js:2860 |
-| `fairway.jpg` | SHIPPING | loaded by name from src/main.js:2860 |
-| `green.jpg` | SHIPPING | loaded by name from src/main.js:2860 |
-| `porch.jpg` | SHIPPING | loaded by name from src/main.js:2860 |
-| `shopfront.jpg` | SHIPPING | loaded by name from src/main.js:2860 |
-| `treeline.jpg` | SHIPPING | loaded by name from src/main.js:2860 |
+| `approach.jpg` | SHIPPING | loaded by name from src/main.js:2874 |
+| `fairway.jpg` | SHIPPING | loaded by name from src/main.js:2874 |
+| `green.jpg` | SHIPPING | loaded by name from src/main.js:2874 |
+| `porch.jpg` | SHIPPING | loaded by name from src/main.js:2874 |
+| `shopfront.jpg` | SHIPPING | loaded by name from src/main.js:2874 |
+| `treeline.jpg` | SHIPPING | loaded by name from src/main.js:2874 |
 
 ### `Assets/models/hero`
 
@@ -1547,34 +1547,34 @@ Totals: **1965** asset files — 724 SHIPPING, 1211 NOT WIRED, 30 SUPERSEDED.
 
 | file | status | evidence |
 |---|---|---|
-| `belt.glb` | SHIPPING | loaded at src/render3d/courseScene.js:12021 |
+| `belt.glb` | SHIPPING | loaded at src/render3d/courseScene.js:12056 |
 | `bucket_soil.glb` | SHIPPING | loaded at src/render3d/courseScene.js:616 |
-| `club_sign.glb` | SHIPPING | loaded at src/render3d/courseScene.js:11826 (+1) |
-| `clubhouse_ext_opt.glb` | SHIPPING | loaded at src/render3d/courseScene.js:11827 (+1) |
+| `club_sign.glb` | SHIPPING | loaded at src/render3d/courseScene.js:11861 (+1) |
+| `clubhouse_ext_opt.glb` | SHIPPING | loaded at src/render3d/courseScene.js:11862 (+1) |
 | `clubhouse_ext.glb` | NOT WIRED | no loader in src/ |
-| `course_sign.glb` | SHIPPING | loaded at src/render3d/courseScene.js:11828 (+1) |
+| `course_sign.glb` | SHIPPING | loaded at src/render3d/courseScene.js:11863 (+1) |
 | `flagpole.glb` | NOT WIRED | no loader in src/ |
-| `gas_can.glb` | SHIPPING | loaded at src/render3d/courseScene.js:12005 |
+| `gas_can.glb` | SHIPPING | loaded at src/render3d/courseScene.js:12040 |
 | `golf_cart.glb` | SHIPPING | loaded at src/render3d/courseScene.js:5393 |
 | `golf_gameplay_kit.glb` | SHIPPING | loaded at src/render3d/courseScene.js:5372 |
 | `greens_mower.glb` | SHIPPING | loaded at src/render3d/courseScene.js:7281 |
 | `hand_fork.glb` | SHIPPING | loaded at src/render3d/courseScene.js:612 |
 | `hose_nozzle.glb` | SHIPPING | loaded at src/render3d/courseScene.js:606 |
-| `leaves_pile.glb` | SHIPPING | loaded at src/render3d/courseScene.js:11786 (+2) |
-| `mower_deck_production.glb` | SHIPPING | loaded at src/render3d/courseScene.js:11705 |
-| `mower_deck.glb` | SHIPPING | loaded at src/render3d/courseScene.js:11673 (+1) |
+| `leaves_pile.glb` | SHIPPING | loaded at src/render3d/courseScene.js:11821 (+2) |
+| `mower_deck_production.glb` | SHIPPING | loaded at src/render3d/courseScene.js:11740 |
+| `mower_deck.glb` | SHIPPING | loaded at src/render3d/courseScene.js:11708 (+1) |
 | `rake.glb` | SHIPPING | loaded at src/render3d/courseScene.js:622 |
 | `rotary_spreader.glb` | SHIPPING | loaded at src/render3d/courseScene.js:7282 |
-| `shed.glb` | SHIPPING | loaded at src/render3d/courseScene.js:11825 (+1) |
+| `shed.glb` | SHIPPING | loaded at src/render3d/courseScene.js:11860 (+1) |
 | `tee_markers.glb` | NOT WIRED | no loader in src/ |
-| `tee_sign_broken.glb` | SHIPPING | loaded at src/render3d/courseScene.js:11827 (+1) |
-| `tool_chest.glb` | SHIPPING | loaded at src/render3d/courseScene.js:11826 (+1) |
+| `tee_sign_broken.glb` | SHIPPING | loaded at src/render3d/courseScene.js:11862 (+1) |
+| `tool_chest.glb` | SHIPPING | loaded at src/render3d/courseScene.js:11861 (+1) |
 | `tractor_broken.glb` | NOT WIRED | no loader in src/ |
-| `tractor_production.glb` | SHIPPING | loaded at src/render3d/courseScene.js:11956 |
-| `tractor_red.glb` | SHIPPING | loaded at src/render3d/courseScene.js:11763 |
-| `tractor.glb` | SHIPPING | loaded at src/render3d/courseScene.js:11769 |
+| `tractor_production.glb` | SHIPPING | loaded at src/render3d/courseScene.js:11991 |
+| `tractor_red.glb` | SHIPPING | loaded at src/render3d/courseScene.js:11798 |
+| `tractor.glb` | SHIPPING | loaded at src/render3d/courseScene.js:11804 |
 | `treatment_sprayer.glb` | NOT WIRED | no loader in src/ |
-| `workbench.glb` | SHIPPING | loaded at src/render3d/courseScene.js:11825 (+1) |
+| `workbench.glb` | SHIPPING | loaded at src/render3d/courseScene.js:11860 (+1) |
 
 ### `vendor/models/architecture`
 

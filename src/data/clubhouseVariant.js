@@ -44,6 +44,13 @@ export const SELECTABLE_CLUBHOUSE_VARIANTS = Object.freeze([
   // v2's layout datums exactly (see CLUBHOUSE_LAYOUT_VARIANT in shopLayout.js),
   // so the two rooms differ only in what is drawn.
   'pine-hills-v3',
+  // THE STRIPPED ROOM. Walls, floor and ceiling, the hero front desk, two
+  // shelves and the laptop -- nothing else. It exists to look at the finished
+  // assets with no greybox noise around them, and because an empty lit room is
+  // the cleanest possible test of the vertical-surface question. Like v3 it is
+  // PRESENTATION ONLY and shares pine-hills-v2's datums exactly, so it cannot
+  // move a stand point, a collider or a queue slot.
+  'final',
   'pine-hills',
   'modern-public',
   'mountain-lodge',
