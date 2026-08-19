@@ -105,11 +105,43 @@ def crown():
     return ob
 
 
+def assert_seams_on_seams():
+    """THE WELT MUST SIT ON THE RIDGE, not in the valley.
+
+    `crown_radius` facets the dome: full radius at a = 2*pi*m/GORES, pulled in
+    5.5% half way between. Those maxima ARE the seams -- that is where two
+    panels meet. The welt was swept at (g + 0.5), the facet MINIMUM, so six
+    raised seams ran down the middle of six panels, half a panel out of phase
+    with the facets they exist to define. The two cancelled and the crown read
+    as a smooth ball with faint stripes, which is the "spherical crown" fault.
+    """
+    bad = []
+    for g in range(GORES):
+        a = seam_azimuth(g)
+        here = crown_radius(a, 0.35)
+        step = (2 * math.pi / GORES) * 0.25
+        if crown_radius(a - step, 0.35) > here or crown_radius(a + step, 0.35) > here:
+            bad.append(g)
+    if bad:
+        raise SystemExit(
+            "CAP SEAMS WRONG: %d of %d welts sit in a facet valley, not on a "
+            "ridge -- the crown will read as a ball. azimuths %s"
+            % (len(bad), GORES, ", ".join("%.1f deg" % math.degrees(seam_azimuth(g))
+                                          for g in bad)))
+    print("  seams  %d of %d welts on the facet ridge" % (GORES, GORES))
+
+
+def seam_azimuth(g):
+    """Where seam `g` runs. The facet ridge, which is where panels meet."""
+    return 2 * math.pi * g / GORES
+
+
 def gore_seams():
     """A raised welt along each of the six seams: real geometry, not a groove."""
+    assert_seams_on_seams()
     parts = []
     for g in range(GORES):
-        a = 2 * math.pi * (g + 0.5) / GORES
+        a = seam_azimuth(g)
         pts = []
         for iv in range(19):
             v = iv / 18.0
