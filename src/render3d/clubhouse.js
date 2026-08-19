@@ -4455,7 +4455,15 @@ export function makeClubhouse(ctx) {
   // The tee garment (hero_tee_hung/folded) is exported and loaded but has no
   // SKU in SHOP_CATALOG to hang it on; it stays available rather than being
   // forced onto a line it does not describe.
-  const HERO_GARMENTS = {
+  // The three baked v5 hardgood clubs, by the SKU whose display they take over.
+// Deliberately one per family: see the note at the clubs branch of makeStockItem.
+const HERO_CLUBS = {
+  driver3: 'hero_driver',
+  irons2: 'hero_iron',
+  putter3: 'hero_putter',
+};
+
+const HERO_GARMENTS = {
     polo1: { hung: 'hero_polo_hung', folded: 'hero_polo_folded' },
     polo2: { hung: 'hero_polo_hung', folded: 'hero_polo_folded' },
     jacket2: { hung: 'hero_hoodie_hung', folded: 'hero_hoodie_folded' },
@@ -4664,6 +4672,38 @@ export function makeClubhouse(ctx) {
         s.z,
       );
       accent.rotation.z = -s.lean;
+      // BLOCK 5 — THE BAKED HERO CLUB TAKES OVER THE TOP TIER OF ITS FAMILY.
+      //
+      // Wired here and not in catalogProductVisual: that module is the CHECKOUT
+      // representation -- the unit in a customer's hand and on the desk -- and
+      // the club DISPLAY is built right here, procedurally, out of a cylinder
+      // shaft, a cylinder grip, a tinted accent ring and a `head_*` GLB. A
+      // first cut wired the descriptor instead and changed nothing on the wall.
+      //
+      // TOP TIER ONLY, and that is a budget and a legibility decision rather
+      // than a wiring one. A hero driver is 13,884 triangles across EIGHT
+      // materials and a comb rack has twenty slots; and the accent ring above
+      // is how a tier reads from across the room, which a raw bake cannot
+      // carry because instantiateRaw does not tint. So tier 3 is the hero and
+      // the lower tiers keep the tinted procedural club beside it.
+      //
+      // Seated on the datum the procedural build already uses: the slot marks
+      // the HEAD on the comb rail and the shaft grows downward from it when
+      // headUp, so the trough floor is s.y - len*cos(lean). The asset's pivot
+      // is base-centre (measured min y = 0, x symmetric about 0), so it stands
+      // ON that point rather than hanging from the slot.
+      const heroClub = HERO_CLUBS[id];
+      if (heroClub) {
+        const club = merch.instantiateRaw(heroClub);
+        if (club) {
+          const foot = s.headUp ? s.y - Math.cos(s.lean) * s.len : s.y;
+          club.position.set(s.x, foot, s.z);
+          club.rotation.y = s.ry || 0;
+          club.rotation.z = -s.lean;
+          return club;
+        }
+        // the hero has not loaded yet: fall through to the tinted family below
+      }
       g.add(shaft, grip, accent);
       const head = merch.instantiate(headModel);
       if (head) {

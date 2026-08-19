@@ -16,7 +16,7 @@ A loader that builds its filename at runtime — `` `vendor/models/flora/${id}.g
 proves the *directory*, not the file. Those rows say "loaded by name from", and the
 remaining question for them is whether the id is in that loader's registry.
 
-Totals: **1962** asset files — 718 SHIPPING, 1214 NOT WIRED, 30 SUPERSEDED.
+Totals: **1965** asset files — 724 SHIPPING, 1211 NOT WIRED, 30 SUPERSEDED.
 
 ## Archived
 
@@ -40,7 +40,7 @@ Totals: **1962** asset files — 718 SHIPPING, 1214 NOT WIRED, 30 SUPERSEDED.
 | `Assets/clubhouse_resort_4000` | — | 1 | 1 | 0 | 0 | 10.2 MiB |
 | `Assets/hands` | — | 1 | 1 | 0 | 0 | 0.1 MiB |
 | `Assets/loading` | loading-screen plates | 6 | 6 | 0 | 0 | 1.3 MiB |
-| `Assets/models/hero` | hero-quality authored garments and hardgoods (v5 is current) | 81 | 18 | 63 | 0 | 44.6 MiB |
+| `Assets/models/hero` | hero-quality authored garments and hardgoods (v5 is current) | 81 | 21 | 60 | 0 | 44.6 MiB |
 | `Assets/premium_clubhouse` | — | 26 | 1 | 25 | 0 | 10.7 MiB |
 | `Assets/pro_shop` | the pro-shop product/fixture library (PF) | 495 | 0 | 495 | 0 | 248.1 MiB |
 | `Assets/pro_shop_furniture` | furniture catalogue sources | 301 | 20 | 281 | 0 | 99.7 MiB |
@@ -50,7 +50,7 @@ Totals: **1962** asset files — 718 SHIPPING, 1214 NOT WIRED, 30 SUPERSEDED.
 | `vendor/models/assets_51_100` | the numbered asset sheets 51-100, placed through placeableCatalog | 58 | 58 | 0 | 0 | 74.0 MiB |
 | `vendor/models/ceiling_lights` | ceiling light fixtures | 18 | 18 | 0 | 0 | 5.7 MiB |
 | `vendor/models/checkout` | the checkout kit: register, tender, bags, fixtures | 49 | 49 | 0 | 0 | 25.9 MiB |
-| `vendor/models/clubhouse` | clubhouse interior props, merch and the hero garments/hardgoods, loaded by name through merch.js | 165 | 165 | 0 | 0 | 78.7 MiB |
+| `vendor/models/clubhouse` | clubhouse interior props, merch and the hero garments/hardgoods, loaded by name through merch.js | 168 | 168 | 0 | 0 | 81.9 MiB |
 | `vendor/models/course` | outdoor course props loaded by type name | 17 | 17 | 0 | 0 | 1.3 MiB |
 | `vendor/models/flora` | trees and shrubs for the scatter, loaded by id | 35 | 35 | 0 | 0 | 1.1 MiB |
 | `vendor/models/golf_carts` | cart bodies and their configs | 5 | 5 | 0 | 0 | 7.1 MiB |
@@ -350,55 +350,55 @@ Totals: **1962** asset files — 718 SHIPPING, 1214 NOT WIRED, 30 SUPERSEDED.
 
 | file | status | evidence |
 |---|---|---|
-| `glb/accessory_slatwall.glb` | SHIPPING | source of vendor/models/checkout/accessory_slatwall.glb, loaded by name from src/render3d/clubhouse/merch.js:550 |
-| `glb/apparel_table.glb` | SHIPPING | source of vendor/models/checkout/apparel_table.glb, loaded by name from src/render3d/clubhouse/merch.js:550 |
-| `glb/apparel_wall_display.glb` | SHIPPING | source of vendor/models/checkout/apparel_wall_display.glb, loaded by name from src/render3d/clubhouse/merch.js:550 |
-| `glb/apparel_wall.glb` | SHIPPING | source of vendor/models/checkout/apparel_wall.glb, loaded by name from src/render3d/clubhouse/merch.js:550 |
-| `glb/bag_display.glb` | SHIPPING | source of vendor/models/checkout/bag_display.glb, loaded by name from src/render3d/clubhouse/merch.js:550 |
-| `glb/ball_shelf.glb` | SHIPPING | source of vendor/models/checkout/ball_shelf.glb, loaded by name from src/render3d/clubhouse/merch.js:550 |
-| `glb/barcode_scanner.glb` | SHIPPING | source of vendor/models/checkout/barcode_scanner.glb, loaded by name from src/render3d/clubhouse/merch.js:550 |
-| `glb/cash_bill_1.glb` | SHIPPING | source of vendor/models/checkout/cash_bill_1.glb, loaded by name from src/render3d/clubhouse/merch.js:550 |
-| `glb/cash_bill_10.glb` | SHIPPING | source of vendor/models/checkout/cash_bill_10.glb, loaded by name from src/render3d/clubhouse/merch.js:550 |
-| `glb/cash_bill_20.glb` | SHIPPING | source of vendor/models/checkout/cash_bill_20.glb, loaded by name from src/render3d/clubhouse/merch.js:550 |
-| `glb/cash_bill_5.glb` | SHIPPING | source of vendor/models/checkout/cash_bill_5.glb, loaded by name from src/render3d/clubhouse/merch.js:550 |
-| `glb/cash_bill_50.glb` | SHIPPING | source of vendor/models/checkout/cash_bill_50.glb, loaded by name from src/render3d/clubhouse/merch.js:550 |
-| `glb/cash_coin_01.glb` | SHIPPING | source of vendor/models/checkout/cash_coin_01.glb, loaded by name from src/render3d/clubhouse/merch.js:550 |
-| `glb/cash_coin_05_sheet01.glb` | SHIPPING | source of vendor/models/checkout/cash_coin_05_sheet01.glb, loaded by name from src/render3d/clubhouse/merch.js:550 |
-| `glb/cash_coin_05.glb` | SHIPPING | source of vendor/models/checkout/cash_coin_05.glb, loaded by name from src/render3d/clubhouse/merch.js:550 |
-| `glb/cash_coin_10.glb` | SHIPPING | source of vendor/models/checkout/cash_coin_10.glb, loaded by name from src/render3d/clubhouse/merch.js:550 |
-| `glb/cash_coin_20.glb` | SHIPPING | source of vendor/models/checkout/cash_coin_20.glb, loaded by name from src/render3d/clubhouse/merch.js:550 |
-| `glb/cash_coin_25.glb` | SHIPPING | source of vendor/models/checkout/cash_coin_25.glb, loaded by name from src/render3d/clubhouse/merch.js:550 |
-| `glb/cash_coin_50.glb` | SHIPPING | source of vendor/models/checkout/cash_coin_50.glb, loaded by name from src/render3d/clubhouse/merch.js:550 |
-| `glb/cash_drawer.glb` | SHIPPING | source of vendor/models/checkout/cash_drawer.glb, loaded by name from src/render3d/clubhouse/merch.js:550 |
-| `glb/cash_handoff_stack.glb` | SHIPPING | source of vendor/models/checkout/cash_handoff_stack.glb, loaded by name from src/render3d/clubhouse/merch.js:550 |
-| `glb/checkout_counter.glb` | SHIPPING | source of vendor/models/checkout/checkout_counter.glb, loaded by name from src/render3d/clubhouse/merch.js:550 |
-| `glb/club_rack.glb` | SHIPPING | source of vendor/models/checkout/club_rack.glb, loaded by name from src/render3d/clubhouse/merch.js:550 |
-| `glb/customer_display.glb` | SHIPPING | source of vendor/models/checkout/customer_display.glb, loaded by name from src/render3d/clubhouse/merch.js:550 |
-| `glb/filing_cabinet.glb` | SHIPPING | source of vendor/models/checkout/filing_cabinet.glb, loaded by name from src/render3d/clubhouse/merch.js:550 |
-| `glb/hat_wall.glb` | SHIPPING | source of vendor/models/checkout/hat_wall.glb, loaded by name from src/render3d/clubhouse/merch.js:550 |
-| `glb/loose_receipt.glb` | SHIPPING | source of vendor/models/checkout/loose_receipt.glb, loaded by name from src/render3d/clubhouse/merch.js:550 |
-| `glb/lounge_armchair.glb` | SHIPPING | source of vendor/models/checkout/lounge_armchair.glb, loaded by name from src/render3d/clubhouse/merch.js:550 |
-| `glb/lounge_coffee_table.glb` | SHIPPING | source of vendor/models/checkout/lounge_coffee_table.glb, loaded by name from src/render3d/clubhouse/merch.js:550 |
-| `glb/lounge_side_table.glb` | SHIPPING | source of vendor/models/checkout/lounge_side_table.glb, loaded by name from src/render3d/clubhouse/merch.js:550 |
-| `glb/merch_table.glb` | SHIPPING | source of vendor/models/checkout/merch_table.glb, loaded by name from src/render3d/clubhouse/merch.js:550 |
-| `glb/office_chair.glb` | SHIPPING | source of vendor/models/checkout/office_chair.glb, loaded by name from src/render3d/clubhouse/merch.js:550 |
-| `glb/office_desk.glb` | SHIPPING | source of vendor/models/checkout/office_desk.glb, loaded by name from src/render3d/clubhouse/merch.js:550 |
-| `glb/payment_card.glb` | SHIPPING | source of vendor/models/checkout/payment_card.glb, loaded by name from src/render3d/clubhouse/merch.js:550 |
-| `glb/payment_terminal.glb` | SHIPPING | source of vendor/models/checkout/payment_terminal.glb, loaded by name from src/render3d/clubhouse/merch.js:550 |
-| `glb/pos_monitor.glb` | SHIPPING | source of vendor/models/checkout/pos_monitor.glb, loaded by name from src/render3d/clubhouse/merch.js:550 |
-| `glb/putter_rack.glb` | SHIPPING | source of vendor/models/checkout/putter_rack.glb, loaded by name from src/render3d/clubhouse/merch.js:550 |
-| `glb/rangefinder_display.glb` | SHIPPING | source of vendor/models/checkout/rangefinder_display.glb, loaded by name from src/render3d/clubhouse/merch.js:550 |
-| `glb/receipt_printer.glb` | SHIPPING | source of vendor/models/checkout/receipt_printer.glb, loaded by name from src/render3d/clubhouse/merch.js:550 |
-| `glb/retail_gondola.glb` | SHIPPING | source of vendor/models/checkout/retail_gondola.glb, loaded by name from src/render3d/clubhouse/merch.js:550 |
-| `glb/scannable_product_box.glb` | SHIPPING | source of vendor/models/checkout/scannable_product_box.glb, loaded by name from src/render3d/clubhouse/merch.js:550 |
-| `glb/shoe_wall.glb` | SHIPPING | source of vendor/models/checkout/shoe_wall.glb, loaded by name from src/render3d/clubhouse/merch.js:550 |
-| `glb/shopping_bag.glb` | SHIPPING | source of vendor/models/checkout/shopping_bag.glb, loaded by name from src/render3d/clubhouse/merch.js:550 |
-| `glb/snack_shelf.glb` | SHIPPING | source of vendor/models/checkout/snack_shelf.glb, loaded by name from src/render3d/clubhouse/merch.js:550 |
-| `glb/stock_shelving.glb` | SHIPPING | source of vendor/models/checkout/stock_shelving.glb, loaded by name from src/render3d/clubhouse/merch.js:550 |
-| `glb/storage_tote_charcoal.glb` | SHIPPING | source of vendor/models/checkout/storage_tote_charcoal.glb, loaded by name from src/render3d/clubhouse/merch.js:550 |
-| `glb/storage_tote_olive.glb` | SHIPPING | source of vendor/models/checkout/storage_tote_olive.glb, loaded by name from src/render3d/clubhouse/merch.js:550 |
-| `glb/storage_tote_slate.glb` | SHIPPING | source of vendor/models/checkout/storage_tote_slate.glb, loaded by name from src/render3d/clubhouse/merch.js:550 |
-| `glb/storage_tote_stone.glb` | SHIPPING | source of vendor/models/checkout/storage_tote_stone.glb, loaded by name from src/render3d/clubhouse/merch.js:550 |
+| `glb/accessory_slatwall.glb` | SHIPPING | source of vendor/models/checkout/accessory_slatwall.glb, loaded by name from src/render3d/clubhouse/merch.js:557 |
+| `glb/apparel_table.glb` | SHIPPING | source of vendor/models/checkout/apparel_table.glb, loaded by name from src/render3d/clubhouse/merch.js:557 |
+| `glb/apparel_wall_display.glb` | SHIPPING | source of vendor/models/checkout/apparel_wall_display.glb, loaded by name from src/render3d/clubhouse/merch.js:557 |
+| `glb/apparel_wall.glb` | SHIPPING | source of vendor/models/checkout/apparel_wall.glb, loaded by name from src/render3d/clubhouse/merch.js:557 |
+| `glb/bag_display.glb` | SHIPPING | source of vendor/models/checkout/bag_display.glb, loaded by name from src/render3d/clubhouse/merch.js:557 |
+| `glb/ball_shelf.glb` | SHIPPING | source of vendor/models/checkout/ball_shelf.glb, loaded by name from src/render3d/clubhouse/merch.js:557 |
+| `glb/barcode_scanner.glb` | SHIPPING | source of vendor/models/checkout/barcode_scanner.glb, loaded by name from src/render3d/clubhouse/merch.js:557 |
+| `glb/cash_bill_1.glb` | SHIPPING | source of vendor/models/checkout/cash_bill_1.glb, loaded by name from src/render3d/clubhouse/merch.js:557 |
+| `glb/cash_bill_10.glb` | SHIPPING | source of vendor/models/checkout/cash_bill_10.glb, loaded by name from src/render3d/clubhouse/merch.js:557 |
+| `glb/cash_bill_20.glb` | SHIPPING | source of vendor/models/checkout/cash_bill_20.glb, loaded by name from src/render3d/clubhouse/merch.js:557 |
+| `glb/cash_bill_5.glb` | SHIPPING | source of vendor/models/checkout/cash_bill_5.glb, loaded by name from src/render3d/clubhouse/merch.js:557 |
+| `glb/cash_bill_50.glb` | SHIPPING | source of vendor/models/checkout/cash_bill_50.glb, loaded by name from src/render3d/clubhouse/merch.js:557 |
+| `glb/cash_coin_01.glb` | SHIPPING | source of vendor/models/checkout/cash_coin_01.glb, loaded by name from src/render3d/clubhouse/merch.js:557 |
+| `glb/cash_coin_05_sheet01.glb` | SHIPPING | source of vendor/models/checkout/cash_coin_05_sheet01.glb, loaded by name from src/render3d/clubhouse/merch.js:557 |
+| `glb/cash_coin_05.glb` | SHIPPING | source of vendor/models/checkout/cash_coin_05.glb, loaded by name from src/render3d/clubhouse/merch.js:557 |
+| `glb/cash_coin_10.glb` | SHIPPING | source of vendor/models/checkout/cash_coin_10.glb, loaded by name from src/render3d/clubhouse/merch.js:557 |
+| `glb/cash_coin_20.glb` | SHIPPING | source of vendor/models/checkout/cash_coin_20.glb, loaded by name from src/render3d/clubhouse/merch.js:557 |
+| `glb/cash_coin_25.glb` | SHIPPING | source of vendor/models/checkout/cash_coin_25.glb, loaded by name from src/render3d/clubhouse/merch.js:557 |
+| `glb/cash_coin_50.glb` | SHIPPING | source of vendor/models/checkout/cash_coin_50.glb, loaded by name from src/render3d/clubhouse/merch.js:557 |
+| `glb/cash_drawer.glb` | SHIPPING | source of vendor/models/checkout/cash_drawer.glb, loaded by name from src/render3d/clubhouse/merch.js:557 |
+| `glb/cash_handoff_stack.glb` | SHIPPING | source of vendor/models/checkout/cash_handoff_stack.glb, loaded by name from src/render3d/clubhouse/merch.js:557 |
+| `glb/checkout_counter.glb` | SHIPPING | source of vendor/models/checkout/checkout_counter.glb, loaded by name from src/render3d/clubhouse/merch.js:557 |
+| `glb/club_rack.glb` | SHIPPING | source of vendor/models/checkout/club_rack.glb, loaded by name from src/render3d/clubhouse/merch.js:557 |
+| `glb/customer_display.glb` | SHIPPING | source of vendor/models/checkout/customer_display.glb, loaded by name from src/render3d/clubhouse/merch.js:557 |
+| `glb/filing_cabinet.glb` | SHIPPING | source of vendor/models/checkout/filing_cabinet.glb, loaded by name from src/render3d/clubhouse/merch.js:557 |
+| `glb/hat_wall.glb` | SHIPPING | source of vendor/models/checkout/hat_wall.glb, loaded by name from src/render3d/clubhouse/merch.js:557 |
+| `glb/loose_receipt.glb` | SHIPPING | source of vendor/models/checkout/loose_receipt.glb, loaded by name from src/render3d/clubhouse/merch.js:557 |
+| `glb/lounge_armchair.glb` | SHIPPING | source of vendor/models/checkout/lounge_armchair.glb, loaded by name from src/render3d/clubhouse/merch.js:557 |
+| `glb/lounge_coffee_table.glb` | SHIPPING | source of vendor/models/checkout/lounge_coffee_table.glb, loaded by name from src/render3d/clubhouse/merch.js:557 |
+| `glb/lounge_side_table.glb` | SHIPPING | source of vendor/models/checkout/lounge_side_table.glb, loaded by name from src/render3d/clubhouse/merch.js:557 |
+| `glb/merch_table.glb` | SHIPPING | source of vendor/models/checkout/merch_table.glb, loaded by name from src/render3d/clubhouse/merch.js:557 |
+| `glb/office_chair.glb` | SHIPPING | source of vendor/models/checkout/office_chair.glb, loaded by name from src/render3d/clubhouse/merch.js:557 |
+| `glb/office_desk.glb` | SHIPPING | source of vendor/models/checkout/office_desk.glb, loaded by name from src/render3d/clubhouse/merch.js:557 |
+| `glb/payment_card.glb` | SHIPPING | source of vendor/models/checkout/payment_card.glb, loaded by name from src/render3d/clubhouse/merch.js:557 |
+| `glb/payment_terminal.glb` | SHIPPING | source of vendor/models/checkout/payment_terminal.glb, loaded by name from src/render3d/clubhouse/merch.js:557 |
+| `glb/pos_monitor.glb` | SHIPPING | source of vendor/models/checkout/pos_monitor.glb, loaded by name from src/render3d/clubhouse/merch.js:557 |
+| `glb/putter_rack.glb` | SHIPPING | source of vendor/models/checkout/putter_rack.glb, loaded by name from src/render3d/clubhouse/merch.js:557 |
+| `glb/rangefinder_display.glb` | SHIPPING | source of vendor/models/checkout/rangefinder_display.glb, loaded by name from src/render3d/clubhouse/merch.js:557 |
+| `glb/receipt_printer.glb` | SHIPPING | source of vendor/models/checkout/receipt_printer.glb, loaded by name from src/render3d/clubhouse/merch.js:557 |
+| `glb/retail_gondola.glb` | SHIPPING | source of vendor/models/checkout/retail_gondola.glb, loaded by name from src/render3d/clubhouse/merch.js:557 |
+| `glb/scannable_product_box.glb` | SHIPPING | source of vendor/models/checkout/scannable_product_box.glb, loaded by name from src/render3d/clubhouse/merch.js:557 |
+| `glb/shoe_wall.glb` | SHIPPING | source of vendor/models/checkout/shoe_wall.glb, loaded by name from src/render3d/clubhouse/merch.js:557 |
+| `glb/shopping_bag.glb` | SHIPPING | source of vendor/models/checkout/shopping_bag.glb, loaded by name from src/render3d/clubhouse/merch.js:557 |
+| `glb/snack_shelf.glb` | SHIPPING | source of vendor/models/checkout/snack_shelf.glb, loaded by name from src/render3d/clubhouse/merch.js:557 |
+| `glb/stock_shelving.glb` | SHIPPING | source of vendor/models/checkout/stock_shelving.glb, loaded by name from src/render3d/clubhouse/merch.js:557 |
+| `glb/storage_tote_charcoal.glb` | SHIPPING | source of vendor/models/checkout/storage_tote_charcoal.glb, loaded by name from src/render3d/clubhouse/merch.js:557 |
+| `glb/storage_tote_olive.glb` | SHIPPING | source of vendor/models/checkout/storage_tote_olive.glb, loaded by name from src/render3d/clubhouse/merch.js:557 |
+| `glb/storage_tote_slate.glb` | SHIPPING | source of vendor/models/checkout/storage_tote_slate.glb, loaded by name from src/render3d/clubhouse/merch.js:557 |
+| `glb/storage_tote_stone.glb` | SHIPPING | source of vendor/models/checkout/storage_tote_stone.glb, loaded by name from src/render3d/clubhouse/merch.js:557 |
 | `previews/accessory_slatwall_front.png` | NOT WIRED | no loader in src/ |
 | `previews/accessory_slatwall_stocked.png` | NOT WIRED | no loader in src/ |
 | `previews/accessory_slatwall.png` | NOT WIRED | no loader in src/ |
@@ -653,7 +653,7 @@ Totals: **1962** asset files — 718 SHIPPING, 1214 NOT WIRED, 30 SUPERSEDED.
 | `retail_rack_standard.glb` | NOT WIRED | no loader in src/ |
 | `retail_rack_tall.glb` | NOT WIRED | no loader in src/ |
 | `rotary_spreader.glb` | SHIPPING | source of vendor/models/rotary_spreader.glb, loaded at src/render3d/courseScene.js:7282 |
-| `shopping_bag.glb` | SHIPPING | source of vendor/models/checkout/shopping_bag.glb, loaded by name from src/render3d/clubhouse/merch.js:550 |
+| `shopping_bag.glb` | SHIPPING | source of vendor/models/checkout/shopping_bag.glb, loaded by name from src/render3d/clubhouse/merch.js:557 |
 | `spray_bottle.glb` | NOT WIRED | no loader in src/ |
 | `textures/apparel_atlas_v3.png` | NOT WIRED | no loader in src/ |
 | `textures/apparel_atlas.png` | NOT WIRED | no loader in src/ |
@@ -680,21 +680,21 @@ Totals: **1962** asset files — 718 SHIPPING, 1214 NOT WIRED, 30 SUPERSEDED.
 | `textures/money_coins.png` | NOT WIRED | no loader in src/ |
 | `textures/money_notes.png` | NOT WIRED | no loader in src/ |
 | `textures/register_screens.png` | NOT WIRED | no loader in src/ |
-| `v5/apparel_cap_peg.glb` | SHIPPING | source of vendor/models/clubhouse/hero_cap_peg.glb, loaded by name from src/render3d/clubhouse/merch.js:507 |
-| `v5/apparel_cap.glb` | SHIPPING | source of vendor/models/clubhouse/hero_cap.glb, loaded by name from src/render3d/clubhouse/merch.js:507 |
-| `v5/apparel_hoodie_folded.glb` | SHIPPING | source of vendor/models/clubhouse/hero_hoodie_folded.glb, loaded by name from src/render3d/clubhouse/merch.js:507 |
-| `v5/apparel_hoodie_hung.glb` | SHIPPING | source of vendor/models/clubhouse/hero_hoodie_hung.glb, loaded by name from src/render3d/clubhouse/merch.js:507 |
-| `v5/apparel_polo_folded.glb` | SHIPPING | source of vendor/models/clubhouse/hero_polo_folded.glb, loaded by name from src/render3d/clubhouse/merch.js:507 |
-| `v5/apparel_polo_hung.glb` | SHIPPING | source of vendor/models/clubhouse/hero_polo_hung.glb, loaded by name from src/render3d/clubhouse/merch.js:507 |
-| `v5/apparel_tee_folded.glb` | SHIPPING | source of vendor/models/clubhouse/hero_tee_folded.glb, loaded by name from src/render3d/clubhouse/merch.js:507 |
-| `v5/apparel_tee_hung.glb` | SHIPPING | source of vendor/models/clubhouse/hero_tee_hung.glb, loaded by name from src/render3d/clubhouse/merch.js:507 |
-| `v5/apparel_trousers_folded.glb` | SHIPPING | source of vendor/models/clubhouse/hero_trousers_folded.glb, loaded by name from src/render3d/clubhouse/merch.js:507 |
-| `v5/apparel_trousers_hung.glb` | SHIPPING | source of vendor/models/clubhouse/hero_trousers_hung.glb, loaded by name from src/render3d/clubhouse/merch.js:507 |
-| `v5/hard_counter.glb` | SHIPPING | source of vendor/models/clubhouse/hero_counter.glb, loaded by name from src/render3d/clubhouse/merch.js:507 |
-| `v5/hard_driver.glb` | NOT WIRED | no loader in src/ |
-| `v5/hard_iron.glb` | NOT WIRED | no loader in src/ |
-| `v5/hard_putter.glb` | NOT WIRED | no loader in src/ |
-| `v5/hard_towel.glb` | SHIPPING | source of vendor/models/clubhouse/hero_towel.glb, loaded by name from src/render3d/clubhouse/merch.js:507 |
+| `v5/apparel_cap_peg.glb` | SHIPPING | source of vendor/models/clubhouse/hero_cap_peg.glb, loaded by name from src/render3d/clubhouse/merch.js:514 |
+| `v5/apparel_cap.glb` | SHIPPING | source of vendor/models/clubhouse/hero_cap.glb, loaded by name from src/render3d/clubhouse/merch.js:514 |
+| `v5/apparel_hoodie_folded.glb` | SHIPPING | source of vendor/models/clubhouse/hero_hoodie_folded.glb, loaded by name from src/render3d/clubhouse/merch.js:514 |
+| `v5/apparel_hoodie_hung.glb` | SHIPPING | source of vendor/models/clubhouse/hero_hoodie_hung.glb, loaded by name from src/render3d/clubhouse/merch.js:514 |
+| `v5/apparel_polo_folded.glb` | SHIPPING | source of vendor/models/clubhouse/hero_polo_folded.glb, loaded by name from src/render3d/clubhouse/merch.js:514 |
+| `v5/apparel_polo_hung.glb` | SHIPPING | source of vendor/models/clubhouse/hero_polo_hung.glb, loaded by name from src/render3d/clubhouse/merch.js:514 |
+| `v5/apparel_tee_folded.glb` | SHIPPING | source of vendor/models/clubhouse/hero_tee_folded.glb, loaded by name from src/render3d/clubhouse/merch.js:514 |
+| `v5/apparel_tee_hung.glb` | SHIPPING | source of vendor/models/clubhouse/hero_tee_hung.glb, loaded by name from src/render3d/clubhouse/merch.js:514 |
+| `v5/apparel_trousers_folded.glb` | SHIPPING | source of vendor/models/clubhouse/hero_trousers_folded.glb, loaded by name from src/render3d/clubhouse/merch.js:514 |
+| `v5/apparel_trousers_hung.glb` | SHIPPING | source of vendor/models/clubhouse/hero_trousers_hung.glb, loaded by name from src/render3d/clubhouse/merch.js:514 |
+| `v5/hard_counter.glb` | SHIPPING | source of vendor/models/clubhouse/hero_counter.glb, loaded by name from src/render3d/clubhouse/merch.js:514 |
+| `v5/hard_driver.glb` | SHIPPING | source of vendor/models/clubhouse/hero_driver.glb, loaded by name from src/render3d/clubhouse/merch.js:514 |
+| `v5/hard_iron.glb` | SHIPPING | source of vendor/models/clubhouse/hero_iron.glb, loaded by name from src/render3d/clubhouse/merch.js:514 |
+| `v5/hard_putter.glb` | SHIPPING | source of vendor/models/clubhouse/hero_putter.glb, loaded by name from src/render3d/clubhouse/merch.js:514 |
+| `v5/hard_towel.glb` | SHIPPING | source of vendor/models/clubhouse/hero_towel.glb, loaded by name from src/render3d/clubhouse/merch.js:514 |
 
 ### `Assets/premium_clubhouse`
 
@@ -1676,194 +1676,197 @@ Totals: **1962** asset files — 718 SHIPPING, 1214 NOT WIRED, 30 SUPERSEDED.
 
 | file | status | evidence |
 |---|---|---|
-| `accessory_slatwall.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:550 |
-| `apparel_table.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:550 |
-| `apparel_wall_display.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:550 |
-| `apparel_wall.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:550 |
-| `bag_display.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:550 |
-| `ball_shelf.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:550 |
-| `barcode_scanner.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:550 |
-| `cash_bill_1.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:550 |
-| `cash_bill_10.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:550 |
-| `cash_bill_20.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:550 |
-| `cash_bill_5.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:550 |
-| `cash_bill_50.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:550 |
-| `cash_coin_01.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:550 |
-| `cash_coin_05_sheet01.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:550 |
-| `cash_coin_05.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:550 |
-| `cash_coin_10.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:550 |
-| `cash_coin_20.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:550 |
-| `cash_coin_25.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:550 |
-| `cash_coin_50.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:550 |
-| `cash_drawer.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:550 |
-| `cash_handoff_stack.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:550 |
-| `checkout_counter.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:550 |
-| `club_rack.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:550 |
-| `customer_display.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:550 |
-| `filing_cabinet.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:550 |
-| `hat_wall.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:550 |
-| `loose_receipt.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:550 |
-| `lounge_armchair.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:550 |
-| `lounge_coffee_table.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:550 |
-| `lounge_side_table.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:550 |
-| `merch_table.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:550 |
-| `office_chair.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:550 |
-| `office_desk.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:550 |
-| `payment_card.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:550 |
-| `payment_terminal.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:550 |
-| `pos_monitor.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:550 |
-| `putter_rack.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:550 |
-| `rangefinder_display.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:550 |
-| `receipt_printer.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:550 |
-| `retail_gondola.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:550 |
-| `scannable_product_box.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:550 |
-| `shoe_wall.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:550 |
-| `shopping_bag.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:550 |
-| `snack_shelf.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:550 |
-| `stock_shelving.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:550 |
-| `storage_tote_charcoal.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:550 |
-| `storage_tote_olive.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:550 |
-| `storage_tote_slate.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:550 |
-| `storage_tote_stone.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:550 |
+| `accessory_slatwall.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:557 |
+| `apparel_table.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:557 |
+| `apparel_wall_display.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:557 |
+| `apparel_wall.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:557 |
+| `bag_display.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:557 |
+| `ball_shelf.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:557 |
+| `barcode_scanner.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:557 |
+| `cash_bill_1.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:557 |
+| `cash_bill_10.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:557 |
+| `cash_bill_20.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:557 |
+| `cash_bill_5.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:557 |
+| `cash_bill_50.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:557 |
+| `cash_coin_01.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:557 |
+| `cash_coin_05_sheet01.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:557 |
+| `cash_coin_05.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:557 |
+| `cash_coin_10.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:557 |
+| `cash_coin_20.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:557 |
+| `cash_coin_25.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:557 |
+| `cash_coin_50.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:557 |
+| `cash_drawer.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:557 |
+| `cash_handoff_stack.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:557 |
+| `checkout_counter.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:557 |
+| `club_rack.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:557 |
+| `customer_display.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:557 |
+| `filing_cabinet.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:557 |
+| `hat_wall.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:557 |
+| `loose_receipt.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:557 |
+| `lounge_armchair.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:557 |
+| `lounge_coffee_table.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:557 |
+| `lounge_side_table.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:557 |
+| `merch_table.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:557 |
+| `office_chair.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:557 |
+| `office_desk.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:557 |
+| `payment_card.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:557 |
+| `payment_terminal.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:557 |
+| `pos_monitor.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:557 |
+| `putter_rack.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:557 |
+| `rangefinder_display.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:557 |
+| `receipt_printer.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:557 |
+| `retail_gondola.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:557 |
+| `scannable_product_box.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:557 |
+| `shoe_wall.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:557 |
+| `shopping_bag.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:557 |
+| `snack_shelf.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:557 |
+| `stock_shelving.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:557 |
+| `storage_tote_charcoal.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:557 |
+| `storage_tote_olive.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:557 |
+| `storage_tote_slate.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:557 |
+| `storage_tote_stone.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:557 |
 
 ### `vendor/models/clubhouse`
 
 | file | status | evidence |
 |---|---|---|
-| `accessory_stand.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:507 |
-| `apparel_wall.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:507 |
-| `armchair.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:507 |
-| `bag_closed.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:507 |
-| `bag_empty.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:507 |
-| `bag_open.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:507 |
-| `bag_rack.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:507 |
-| `bag.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:507 |
-| `ball_wall.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:507 |
-| `basket_station.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:507 |
-| `basket.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:507 |
-| `cap_pro.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:507 |
-| `cap.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:507 |
-| `cardterm_pro.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:507 |
-| `cardterm.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:507 |
-| `cart.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:507 |
-| `carton_open.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:507 |
-| `carton.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:507 |
-| `cash_drawer.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:507 |
-| `chair_lounge.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:507 |
-| `chair_office.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:507 |
-| `character_parts.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:507 |
-| `checkout_card_reader.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:507 |
-| `checkout_cash_drawer.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:507 |
-| `checkout_change_handoff_tray.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:507 |
-| `checkout_counter.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:507 |
-| `checkout_product_ball_carton.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:507 |
-| `checkout_product_beverage_can.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:507 |
-| `checkout_product_bottle.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:507 |
-| `checkout_product_cap.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:507 |
-| `checkout_product_divot_tool_card.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:507 |
-| `checkout_product_driver.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:507 |
-| `checkout_product_eyewear_case.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:507 |
-| `checkout_product_folded_bottom.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:507 |
-| `checkout_product_folded_jacket.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:507 |
-| `checkout_product_folded_polo.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:507 |
-| `checkout_product_glove.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:507 |
-| `checkout_product_hanging_jacket.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:507 |
-| `checkout_product_hanging_polo.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:507 |
-| `checkout_product_headcover.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:507 |
-| `checkout_product_iron_set.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:507 |
-| `checkout_product_marker_blister.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:507 |
-| `checkout_product_putter.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:507 |
-| `checkout_product_rangefinder.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:507 |
-| `checkout_product_scorecard.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:507 |
-| `checkout_product_shoe_box.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:507 |
-| `checkout_product_shoe_pair.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:507 |
-| `checkout_product_snack_bar.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:507 |
-| `checkout_product_snack_pouch.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:507 |
-| `checkout_product_sock_pair.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:507 |
-| `checkout_product_staging_tray.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:507 |
-| `checkout_product_stand_bag.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:507 |
-| `checkout_product_tee_pouch.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:507 |
-| `checkout_product_towel_roll.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:507 |
-| `checkout_product_umbrella.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:507 |
-| `checkout_product_visor.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:507 |
-| `checkout_product_wedge.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:507 |
-| `checkout_receipt_printer.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:507 |
-| `checkout_scanner.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:507 |
-| `checkout_shopping_bag.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:507 |
-| `club_wall_bay.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:507 |
-| `club_wall.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:507 |
+| `accessory_stand.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:514 |
+| `apparel_wall.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:514 |
+| `armchair.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:514 |
+| `bag_closed.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:514 |
+| `bag_empty.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:514 |
+| `bag_open.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:514 |
+| `bag_rack.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:514 |
+| `bag.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:514 |
+| `ball_wall.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:514 |
+| `basket_station.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:514 |
+| `basket.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:514 |
+| `cap_pro.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:514 |
+| `cap.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:514 |
+| `cardterm_pro.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:514 |
+| `cardterm.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:514 |
+| `cart.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:514 |
+| `carton_open.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:514 |
+| `carton.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:514 |
+| `cash_drawer.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:514 |
+| `chair_lounge.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:514 |
+| `chair_office.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:514 |
+| `character_parts.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:514 |
+| `checkout_card_reader.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:514 |
+| `checkout_cash_drawer.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:514 |
+| `checkout_change_handoff_tray.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:514 |
+| `checkout_counter.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:514 |
+| `checkout_product_ball_carton.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:514 |
+| `checkout_product_beverage_can.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:514 |
+| `checkout_product_bottle.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:514 |
+| `checkout_product_cap.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:514 |
+| `checkout_product_divot_tool_card.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:514 |
+| `checkout_product_driver.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:514 |
+| `checkout_product_eyewear_case.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:514 |
+| `checkout_product_folded_bottom.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:514 |
+| `checkout_product_folded_jacket.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:514 |
+| `checkout_product_folded_polo.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:514 |
+| `checkout_product_glove.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:514 |
+| `checkout_product_hanging_jacket.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:514 |
+| `checkout_product_hanging_polo.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:514 |
+| `checkout_product_headcover.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:514 |
+| `checkout_product_iron_set.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:514 |
+| `checkout_product_marker_blister.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:514 |
+| `checkout_product_putter.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:514 |
+| `checkout_product_rangefinder.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:514 |
+| `checkout_product_scorecard.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:514 |
+| `checkout_product_shoe_box.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:514 |
+| `checkout_product_shoe_pair.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:514 |
+| `checkout_product_snack_bar.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:514 |
+| `checkout_product_snack_pouch.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:514 |
+| `checkout_product_sock_pair.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:514 |
+| `checkout_product_staging_tray.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:514 |
+| `checkout_product_stand_bag.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:514 |
+| `checkout_product_tee_pouch.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:514 |
+| `checkout_product_towel_roll.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:514 |
+| `checkout_product_umbrella.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:514 |
+| `checkout_product_visor.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:514 |
+| `checkout_product_wedge.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:514 |
+| `checkout_receipt_printer.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:514 |
+| `checkout_scanner.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:514 |
+| `checkout_shopping_bag.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:514 |
+| `club_wall_bay.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:514 |
+| `club_wall.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:514 |
 | `clubhouse_resort_4000.glb` | SHIPPING | loaded at src/render3d/clubhouse/resortClubhouse.js:7 |
-| `coffee_table.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:507 |
-| `delivery_accessory_carton.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:507 |
-| `delivery_apparel_box.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:507 |
-| `delivery_box_cutter.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:507 |
-| `delivery_bulk_provisions_carton.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:507 |
-| `delivery_fixture_package.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:507 |
-| `delivery_fixture_product_events_board.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:507 |
-| `delivery_fixture_product_pendant.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:507 |
-| `delivery_fixture_product_plant.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:507 |
-| `delivery_fixture_product_poster.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:507 |
-| `delivery_fixture_product_vacuum.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:507 |
-| `delivery_furniture_crate.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:507 |
-| `delivery_generic_merchandise_box.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:507 |
-| `delivery_golf_bag_carton.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:507 |
-| `delivery_golf_ball_case.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:507 |
-| `delivery_golf_club_box.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:507 |
-| `delivery_hand_truck.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:507 |
-| `delivery_iron_set_carton.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:507 |
-| `delivery_packing_tape_roll.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:507 |
-| `delivery_pallet_jack.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:507 |
-| `delivery_recycling_station.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:507 |
-| `delivery_shoe_carton.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:507 |
-| `delivery_stock_shelf.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:507 |
-| `delivery_stocking_cart.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:507 |
-| `delivery_umbrella_carton.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:507 |
-| `delivery_van.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:507 |
-| `delivery_wooden_pallet.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:507 |
-| `delivery_worktable.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:507 |
-| `demo_club_rack.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:507 |
-| `desk.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:507 |
-| `display_shelf.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:507 |
-| `divider.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:507 |
-| `drinks_fridge.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:507 |
-| `feature_table.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:507 |
-| `fitting_room.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:507 |
-| `garment_rack.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:507 |
-| `glove.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:507 |
-| `golf_bag.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:507 |
-| `golf_balls_display.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:507 |
-| `handtruck.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:507 |
-| `hat_wall.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:507 |
-| `head_driver.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:507 |
-| `head_iron.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:507 |
-| `head_putter.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:507 |
-| `head_wedge.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:507 |
-| `headcover.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:507 |
-| `hero_cap_peg.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:507 |
-| `hero_cap.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:507 |
-| `hero_counter.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:507 |
-| `hero_hoodie_folded.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:507 |
-| `hero_hoodie_hung.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:507 |
-| `hero_polo_folded.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:507 |
-| `hero_polo_hung.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:507 |
-| `hero_tee_folded.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:507 |
-| `hero_tee_hung.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:507 |
-| `hero_towel.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:507 |
-| `hero_trousers_folded.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:507 |
-| `hero_trousers_hung.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:507 |
-| `impulse_rack.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:507 |
-| `jacket_hanging.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:507 |
-| `kiosk.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:507 |
+| `coffee_table.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:514 |
+| `delivery_accessory_carton.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:514 |
+| `delivery_apparel_box.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:514 |
+| `delivery_box_cutter.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:514 |
+| `delivery_bulk_provisions_carton.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:514 |
+| `delivery_fixture_package.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:514 |
+| `delivery_fixture_product_events_board.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:514 |
+| `delivery_fixture_product_pendant.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:514 |
+| `delivery_fixture_product_plant.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:514 |
+| `delivery_fixture_product_poster.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:514 |
+| `delivery_fixture_product_vacuum.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:514 |
+| `delivery_furniture_crate.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:514 |
+| `delivery_generic_merchandise_box.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:514 |
+| `delivery_golf_bag_carton.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:514 |
+| `delivery_golf_ball_case.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:514 |
+| `delivery_golf_club_box.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:514 |
+| `delivery_hand_truck.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:514 |
+| `delivery_iron_set_carton.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:514 |
+| `delivery_packing_tape_roll.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:514 |
+| `delivery_pallet_jack.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:514 |
+| `delivery_recycling_station.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:514 |
+| `delivery_shoe_carton.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:514 |
+| `delivery_stock_shelf.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:514 |
+| `delivery_stocking_cart.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:514 |
+| `delivery_umbrella_carton.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:514 |
+| `delivery_van.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:514 |
+| `delivery_wooden_pallet.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:514 |
+| `delivery_worktable.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:514 |
+| `demo_club_rack.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:514 |
+| `desk.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:514 |
+| `display_shelf.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:514 |
+| `divider.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:514 |
+| `drinks_fridge.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:514 |
+| `feature_table.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:514 |
+| `fitting_room.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:514 |
+| `garment_rack.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:514 |
+| `glove.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:514 |
+| `golf_bag.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:514 |
+| `golf_balls_display.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:514 |
+| `handtruck.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:514 |
+| `hat_wall.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:514 |
+| `head_driver.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:514 |
+| `head_iron.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:514 |
+| `head_putter.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:514 |
+| `head_wedge.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:514 |
+| `headcover.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:514 |
+| `hero_cap_peg.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:514 |
+| `hero_cap.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:514 |
+| `hero_counter.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:514 |
+| `hero_driver.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:514 |
+| `hero_hoodie_folded.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:514 |
+| `hero_hoodie_hung.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:514 |
+| `hero_iron.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:514 |
+| `hero_polo_folded.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:514 |
+| `hero_polo_hung.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:514 |
+| `hero_putter.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:514 |
+| `hero_tee_folded.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:514 |
+| `hero_tee_hung.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:514 |
+| `hero_towel.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:514 |
+| `hero_trousers_folded.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:514 |
+| `hero_trousers_hung.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:514 |
+| `impulse_rack.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:514 |
+| `jacket_hanging.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:514 |
+| `kiosk.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:514 |
 | `ledger_book.glb` | SHIPPING | loaded at src/render3d/clubhouse/ledgerBook.js:124 (+1) |
-| `merch_hutch.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:507 |
+| `merch_hutch.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:514 |
 | `modern_public_clubhouse_site_v1.glb` | SHIPPING | loaded at src/render3d/clubhouse/modernPublicClubhouse.js:55 |
 | `modern_public_clubhouse_v1.glb` | SHIPPING | loaded at src/render3d/clubhouse/modernPublicClubhouse.js:54 |
 | `mountain_clubhouse_3000sqft.glb` | SHIPPING | loaded at src/render3d/clubhouse/mountainLodge.js:7 |
-| `office_chair.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:507 |
-| `packed_product_lounge1.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:507 |
-| `packed_product_rug1.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:507 |
-| `pegboard_wall.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:507 |
-| `pendant.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:507 |
+| `office_chair.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:514 |
+| `packed_product_lounge1.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:514 |
+| `packed_product_rug1.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:514 |
+| `pegboard_wall.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:514 |
+| `pendant.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:514 |
 | `pine_hills_counter_plant_v1.glb` | SHIPPING | loaded at src/render3d/clubhouse/pineHillsInterior.js:99 |
 | `pine_hills_fallen_frame_v1.glb` | SHIPPING | loaded at src/render3d/clubhouse/pineHillsInterior.js:97 |
 | `pine_hills_floor_plant_v1.glb` | SHIPPING | loaded at src/render3d/clubhouse/pineHillsInterior.js:98 |
@@ -1875,26 +1878,26 @@ Totals: **1962** asset files — 718 SHIPPING, 1214 NOT WIRED, 30 SUPERSEDED.
 | `pine_hills_public_waste_bin_overflow_v1.glb` | SHIPPING | loaded at src/render3d/clubhouse/pineHillsInterior.js:94 |
 | `pine_hills_public_waste_bin_v1.glb` | SHIPPING | loaded at src/render3d/clubhouse/pineHillsInterior.js:93 |
 | `pine_hills_water_cooler_v1.glb` | SHIPPING | loaded at src/render3d/clubhouse/pineHillsInterior.js:92 |
-| `polo_folded.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:507 |
-| `polo_hanging.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:507 |
-| `premium_case.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:507 |
-| `printer.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:507 |
-| `provisions_bunker_bites_chips.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:507 |
-| `provisions_fairway_spring_water.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:507 |
-| `putting_demo.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:507 |
-| `rangefinder.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:507 |
-| `register.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:507 |
-| `scanner.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:507 |
-| `service_station.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:507 |
-| `shoe_pro.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:507 |
-| `shoe_wall.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:507 |
-| `shoe.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:507 |
-| `slat_shelf.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:507 |
-| `snack_rack.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:507 |
-| `storage_rack.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:507 |
-| `trophy.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:507 |
-| `wall_shelf.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:507 |
-| `workbench.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:507 |
+| `polo_folded.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:514 |
+| `polo_hanging.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:514 |
+| `premium_case.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:514 |
+| `printer.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:514 |
+| `provisions_bunker_bites_chips.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:514 |
+| `provisions_fairway_spring_water.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:514 |
+| `putting_demo.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:514 |
+| `rangefinder.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:514 |
+| `register.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:514 |
+| `scanner.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:514 |
+| `service_station.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:514 |
+| `shoe_pro.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:514 |
+| `shoe_wall.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:514 |
+| `shoe.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:514 |
+| `slat_shelf.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:514 |
+| `snack_rack.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:514 |
+| `storage_rack.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:514 |
+| `trophy.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:514 |
+| `wall_shelf.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:514 |
+| `workbench.glb` | SHIPPING | loaded by name from src/render3d/clubhouse/merch.js:514 |
 
 ### `vendor/models/course`
 

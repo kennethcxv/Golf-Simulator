@@ -693,5 +693,20 @@
     "from": "Assets/models/hero/v5/hard_counter.glb",
     "to": "vendor/models/clubhouse/hero_counter.glb",
     "sha1": "26d48b0d9320b5183f6a5c69a7fc07b4641acc45"
+  },
+  {
+    "from": "Assets/models/hero/v5/hard_driver.glb",
+    "to": "vendor/models/clubhouse/hero_driver.glb",
+    "sha1": "1f03a1308a65cda08128c8f4c69872feeaec7f99"
+  },
+  {
+    "from": "Assets/models/hero/v5/hard_iron.glb",
+    "to": "vendor/models/clubhouse/hero_iron.glb",
+    "sha1": "6f0455f98cad3f09dacbbe91b6405694f15146b0"
+  },
+  {
+    "from": "Assets/models/hero/v5/hard_putter.glb",
+    "to": "vendor/models/clubhouse/hero_putter.glb",
+    "sha1": "879730a76464914bf07980e2decbc9268fedcaad"
   }
 ]

@@ -121,6 +121,13 @@ const RAW = [
   // its material names is in SLOT or TINTABLE, and resolve() would fall through
   // to mats.charcoal and throw the whole bake away at load.
   'hero_counter',
+  // BLOCK 5, the three clubs. Same reasoning as the counter: DriverCrown,
+  // IronFace and PutterBody are not in SLOT or TINTABLE, so instantiate()
+  // would resolve all twenty-four of their materials to charcoal. Each is
+  // fitted to the rack's authored slot size by fitAuthored(), which is why
+  // they are wired at the TOP TIER only -- tint is how a tier reads on the
+  // wall and a raw bake cannot be tinted.
+  'hero_driver', 'hero_iron', 'hero_putter',
 ];
 
 // Which slot in the GLB maps to which material in the clubhouse kit.

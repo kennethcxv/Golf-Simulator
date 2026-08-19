@@ -13,7 +13,7 @@
     "tool-trashbag",
     "tool-washer",
     "tool-paint",
-    "SKIP bag-packed: only 2 goods packed"
+    "bag-packed"
   ],
   "prep": {
     "clock": 840,
@@ -29,5 +29,25 @@
       "shipped": 66,
       "after": 66
     }
-  }
+  },
+  "bagStaging": [
+    {
+      "uid": "anonymous-1",
+      "found": true,
+      "clicks": 3,
+      "packed": true
+    },
+    {
+      "uid": "anonymous-2",
+      "found": true,
+      "clicks": 3,
+      "packed": true
+    },
+    {
+      "uid": "anonymous-3",
+      "found": true,
+      "clicks": 3,
+      "packed": true
+    }
+  ]
 }

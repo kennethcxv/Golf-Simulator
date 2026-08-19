@@ -337,7 +337,14 @@ export function createPineHillsV2Interior({
   // the greybox's own volume stays as the reference it always was.
   let heroCounter = null;
   function mountHeroCounter() {
-    if (!dressed || heroCounter || !merch?.instantiateRaw) return null;
+    // THE 61-63 SUPPRESSION IS LIFTED FOR THIS ONE ASSET, DELIBERATELY.
+    // pine-hills-v2 greys assets 61/62/63 so the floor plan is read as volume
+    // rather than as dressing, and that stays true for 62 and 63. The desk is
+    // the exception the owner named: it is the surface he stands at for every
+    // transaction, and the greybox's job -- holding the datum for the
+    // colliders, the register stand, the queue head and the ledger -- is
+    // untouched, because the slab is HIDDEN, not removed.
+    if (heroCounter || !merch?.instantiateRaw) return null;
     const built = merch.instantiateRaw('hero_counter');
     if (!built) return null;
     const centre = frontDeskPoint(0, 0);
