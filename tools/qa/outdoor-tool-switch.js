@@ -51,6 +51,33 @@ async (page) => {
     };
     requestAnimationFrame(tick);
   });
+  // THE rAF RECORDER CAN RETURN NOTHING, AND NOTHING READS LIKE FINE.
+  //
+  // The red run reported worstMs: null for the indoor vacuum and mop presses
+  // and for the outdoor washer, and a null in a worst-frame column is exactly
+  // the shape of a stall being hidden: if a press blocks the main thread for
+  // most of the 1.2 s window, fewer than two rAF callbacks fire and there are
+  // no GAPS to report. So a second recorder runs on the TIMER queue, which
+  // does not wait on the compositor and always lands a sample once the block
+  // ends. Its longest gap is the stall, whether or not any frame was drawn.
+  const startBlocks = () => page.evaluate(() => {
+    const b = { on: true, last: 0, worst: 0 };
+    window.__fwBlocks = b;
+    const tick = () => {
+      const t = performance.now();
+      if (b.last) b.worst = Math.max(b.worst, t - b.last);
+      b.last = t;
+      if (b.on) setTimeout(tick, 0);
+    };
+    setTimeout(tick, 0);
+  });
+  const stopBlocks = () => page.evaluate(() => {
+    const b = window.__fwBlocks;
+    if (!b) return null;
+    b.on = false;
+    return +b.worst.toFixed(1);
+  });
+
   const startFrames = () => page.evaluate(() => {
     window.__fwFrames.samples.length = 0;
     window.__fwFrames.last = 0;
@@ -141,7 +168,57 @@ async (page) => {
           .map(([t, n]) => `${t}:${n}`).join('|'),
       };
     });
-    await page.waitForTimeout(1600);
+    // THE CENSUS, READ AFTER THE GATE HAS PROVABLY SETTLED.
+    //
+    // The last attempt at the outdoor belt warm was WITHDRAWN because the
+    // indoor census read PointLight:4 where every pre-fix run read 1, and a
+    // fixed 1.6 s wait could not distinguish "the inside relit" from "the
+    // interior's 2 Hz draw-distance gate had not caught up". So do not wait a
+    // fixed time: sample until the SAME census comes back on four consecutive
+    // samples spanning more than two full gate periods (>1 s at 2 Hz), and
+    // report how long that took and how many distinct values were seen on the
+    // way. A settled reading that took 3 s and passed through 1 then 4 is a
+    // different fact from one that was 4 the whole time, and the driver now
+    // says which.
+    const settled = await page.evaluate(() => new Promise((done) => {
+      const sc = window.__fw.scene3d;
+      const read = () => {
+        const counts = new Map();
+        sc.scene.traverse((o) => {
+          if (!o.isLight) return;
+          for (let q = o; q; q = q.parent) { if (!q.visible) return; }
+          if (!o.layers.test(sc.camera.layers)) return;
+          counts.set(o.type, (counts.get(o.type) || 0) + 1);
+        });
+        return [...counts.entries()].sort((a, b) => (a[0] < b[0] ? -1 : 1))
+          .map(([t, n]) => `${t}:${n}`).join('|');
+      };
+      const seen = [];
+      const t0 = performance.now();
+      const tick = () => {
+        const v = read();
+        if (!seen.length || seen[seen.length - 1].v !== v) {
+          seen.push({ v, atMs: +(performance.now() - t0).toFixed(0), n: 1 });
+        } else {
+          seen[seen.length - 1].n += 1;
+        }
+        const tail = seen[seen.length - 1];
+        const elapsed = performance.now() - t0;
+        // four consecutive identical samples AND more than 1.2 s of wall time
+        // in that run, so a 2 Hz gate has had at least two chances to move it
+        if (tail.n >= 4 && elapsed - tail.atMs > 1200) {
+          done({ census: v, settledAfterMs: +elapsed.toFixed(0), history: seen, settled: true });
+          return;
+        }
+        if (elapsed > 12000) {
+          done({ census: v, settledAfterMs: null, history: seen, settled: false });
+          return;
+        }
+        setTimeout(tick, 300);
+      };
+      tick();
+    }));
+    await page.waitForTimeout(400);
 
     const rows = [];
     for (const tool of belt) {
@@ -150,12 +227,14 @@ async (page) => {
         return { p: i.programs ? i.programs.length : -1, t: i.memory ? i.memory.textures : -1 };
       });
       await startFrames();
+      await startBlocks();
       await page.evaluate((id) => {
         const w = window.__fw.scene3d.walk;
         (w.setToolImmediate || w.setTool).call(w, id);
       }, tool);
       await page.waitForTimeout(1200);
       const frames = await stopFrames();
+      const worstBlockMs = await stopBlocks();
       const after = await page.evaluate(() => {
         const i = window.__fw.scene3d.renderer.info;
         return { p: i.programs ? i.programs.length : -1, t: i.memory ? i.memory.textures : -1 };
@@ -165,6 +244,9 @@ async (page) => {
         minted: after.p - before.p,
         dTextures: after.t - before.t,
         worstMs: frames ? frames.worstMs : null,
+        // the honest one: never null, and it is the number that says "laggy"
+        worstBlockMs,
+        framesSeen: frames ? frames.n : 0,
         p95Ms: frames ? frames.p95Ms : null,
         medianMs: frames ? frames.medianMs : null,
       });
@@ -174,7 +256,15 @@ async (page) => {
       });
       await page.waitForTimeout(500);
     }
-    return { where: `${labelWhere} inside=${where.inside} at ${where.x},${where.z}`, census: where.census, rows };
+    return {
+      where: `${labelWhere} inside=${where.inside} at ${where.x},${where.z}`,
+      census: where.census,
+      settledCensus: settled.census,
+      censusSettled: settled.settled,
+      censusSettledAfterMs: settled.settledAfterMs,
+      censusHistory: settled.history,
+      rows,
+    };
   }
 
   async function walkFrames(labelWhere, pos, yaw, ms) {

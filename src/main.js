@@ -1972,6 +1972,13 @@ function startGameNow(
       // warmBeltThroughLiveLoop.
       await timeWarmStage('belt', () => warmBeltThroughLiveLoop(sceneRef, generation, () => sceneStartGeneration));
       if (app.scene3d !== sceneRef || generation !== sceneStartGeneration) { compileScreen.finish(false); return; }
+      // The same belt again under the COURSE's light count. The pass above
+      // mints the four-light variant of every tool because the interior's
+      // lamps are still lit under this veil; outdoors is one light, and the
+      // player pays 3.5 s for the washer the first time he presses it out
+      // there. See warmBeltUnderCourseLights.
+      await timeWarmStage('belt-outdoor', () => warmBeltUnderCourseLights(sceneRef, generation, () => sceneStartGeneration));
+      if (app.scene3d !== sceneRef || generation !== sceneStartGeneration) { compileScreen.finish(false); return; }
       // GOAL 32: the laptop close-up is the one station view the warms above
       // never draw — its five first-open programs (2.1 s in the player's
       // hands on a resumed save) are paid here instead.
@@ -2109,7 +2116,7 @@ let loadVeil = null;
 // laptop 2.0 s, editor 6.5 s, overview 2.4 s on the fast run of the same day),
 // so on hardware that is not in trouble nothing here changes at all.
 const WARM_STAGE_BUDGET_MS = {
-  belt: 10000, 'laptop-view': 10000, editor: 10000, overview: 5000,
+  belt: 10000, 'belt-outdoor': 10000, 'laptop-view': 10000, editor: 10000, overview: 5000,
 };
 let warmDeadlineAt = Infinity;
 let warmBudgetHit = false;
@@ -2159,6 +2166,145 @@ async function warmBeltThroughLiveLoop(sceneRef, generationAtStart, generationNo
   }
   window.__fwWarm.belt = `${warmed}/${belt.length}`;
   window.__fwWarm.hands = walk.getTool?.() == null ? 'done' : 'left-a-tool-behind';
+}
+
+// THE SAME BELT, UNDER THE COURSE'S LIGHT COUNT. 2026-08-19, round two.
+//
+// REINSTATED ON THE OWNER'S CALL, and built a different way from the withdrawn
+// attempt below, because the measurement that justified withdrawing it was
+// wrong in two places.
+//
+// WHAT THE NEW MEASUREMENT SAYS (qa/outdoor/red2.json, settled census reader):
+//
+//   indoor   PointLight:4   vacuum +1, mop +2     worst block   607 ms
+//   outdoor  PointLight:1   washer +1, vacuum +1, mop +2   worst block 3,539 ms
+//
+// The census is the OTHER WAY ROUND from the note below: indoors is four point
+// lights and the course is one. The old reading came from a fixed 1.6 s wait,
+// and the settle history shows the outdoor station reading a stale
+// PointLight:4 for its first 306 ms before the gate caught up -- so every
+// pre-fix run recorded the previous station's value. Nothing ever "relit the
+// interior": indoors was always 4.
+//
+// AND THE LAG HAS A REAL NUMBER NOW. The old driver reported worstMs: null for
+// the presses that stalled, because a press that blocks the thread for most of
+// its window produces too few rAF callbacks to have any GAPS -- a stall so big
+// it erased its own evidence. Measured on the timer queue instead, the outdoor
+// washer's first press blocks for 3.5 SECONDS. That is what "switching items
+// out there is laggy" is.
+//
+// THE FIX DOES NOT MOVE THE PLAYER. All four late program arrivals differ from
+// their nearest existing twin in exactly one field -- 36, the light count --
+// wanting 1 where the warm produced 4 and 7. The warm runs under the veil with
+// the interior's lamps all still visible, so it mints the four-light variant of
+// every tool and the player walks outside and pays for the one-light variant.
+// So: hide the scene's point lights down to the course's count, run the same
+// belt through the same live loop, and put every light back exactly as it was.
+//
+// No teleport, no camera move, no settleClubhouseCameraVisibility() -- which is
+// what poisoned the previous attempt, because it re-gates materials and
+// programs release on material dispose. Nothing here disposes anything. The
+// tool viewmodel is drawn by the walk camera on every frame, which is why this
+// reaches the materials that the goal-34 light-census experiment could not:
+// that one hid lights and drew the SHOP, whose props batch at layers.mask 0.
+//
+// The restore is asserted, and it is the control: window.__fwWarm.beltOutdoor
+// records lightsRestored, and a mismatch is reported rather than swallowed.
+async function warmBeltUnderCourseLights(sceneRef, generationAtStart, generationNow) {
+  const walk = sceneRef?.walk;
+  const scene = sceneRef?.scene;
+  const camera = sceneRef?.camera;
+  window.__fwWarm = { hands: 'skipped', belt: 'skipped', ...(window.__fwWarm || {}) };
+  if (!walk || typeof walk.setTool !== 'function' || !scene || !camera) {
+    window.__fwWarm.beltOutdoor = 'no-scene';
+    return;
+  }
+  if (typeof walk.getTool === 'function' && walk.getTool()) {
+    window.__fwWarm.beltOutdoor = 'holding-a-tool';
+    return;
+  }
+  const frame = () => new Promise((resolve) => requestAnimationFrame(resolve));
+
+  // Every point light the camera can currently see, with the visibility it
+  // arrived with. THIS LIST IS THE RESTORE, so it is captured before anything
+  // is touched and nothing else may be added to it.
+  const lit = [];
+  scene.traverse((o) => {
+    if (!o.isPointLight) return;
+    let shown = o.visible;
+    for (let q = o.parent; q && shown; q = q.parent) shown = q.visible;
+    if (!shown) return;
+    if (!o.layers.test(camera.layers)) return;
+    lit.push(o);
+  });
+  const censusBefore = sceneLightCensus(sceneRef);
+  // Leave ONE standing: the course reads PointLight:1, not zero, and warming a
+  // count the player never stands in is the exact mistake this is fixing.
+  const hidden = lit.slice(1);
+
+  // THE LAYER MASK, NOT `visible`. The first cut of this set o.visible = false
+  // and the census still read PointLight:4 during the whole warm
+  // (warmSummary.beltOutdoor.censusDuring, which is why that field exists): the
+  // interior's per-lamp budget gate WRITES o.visible on its own tick, so the
+  // hide was undone before the next frame and nine tools were warmed under
+  // exactly the census they were already warmed under. Three keys the light
+  // count off lights that are visible AND pass the camera's layer test, and
+  // nothing re-asserts the mask.
+  const wasMask = hidden.map((o) => o.layers.mask);
+  hidden.forEach((o) => { o.layers.mask = 0; });
+  await frame();
+  const censusDuring = sceneLightCensus(sceneRef);
+
+  let warmed = 0;
+  const equip = walk.setToolImmediate || walk.setTool;
+  const belt = BELT_ORDER.filter((tool) => tool && CLEANING_TOOLS[tool]);
+  // IF THE CENSUS DID NOT MOVE, DO NOT WARM. Nine tool equips under the census
+  // the previous stage already warmed is pure cost for zero arrivals removed,
+  // and -- worse -- it would report "warmed 9/9" while warming nothing new.
+  if (censusDuring === censusBefore) {
+    hidden.forEach((o, i) => { o.layers.mask = wasMask[i]; });
+    window.__fwWarm.beltOutdoor = {
+      warmed: '0/0',
+      skipped: 'the light census did not change when the point lights were masked',
+      pointLightsHidden: hidden.length,
+      censusBefore,
+      censusDuring,
+      censusAfter: sceneLightCensus(sceneRef),
+      lightsRestored: sceneLightCensus(sceneRef) === censusBefore,
+    };
+    return;
+  }
+  try {
+    for (const tool of belt) {
+      if (app.scene3d !== sceneRef || generationNow() !== generationAtStart) break;
+      if (warmBudgetExpired()) break;
+      if (walk.getTool?.() != null) break;
+      equip.call(walk, tool);
+      await frame();
+      await frame();
+      await frame();
+      if (walk.getTool?.() === tool) equip.call(walk, null);
+      await frame();
+      warmed += 1;
+    }
+  } finally {
+    // ALWAYS, including on an aborted generation or a thrown equip: a warm that
+    // leaves the shop dark is a far worse bug than a slow tool switch.
+    hidden.forEach((o, i) => { o.layers.mask = wasMask[i]; });
+    if (walk.getTool?.() != null) equip.call(walk, null);
+  }
+  await frame();
+  const censusAfter = sceneLightCensus(sceneRef);
+  window.__fwWarm.beltOutdoor = {
+    warmed: `${warmed}/${belt.length}`,
+    pointLightsHidden: hidden.length,
+    censusBefore,
+    censusDuring,
+    censusAfter,
+    // THE CONTROL. The inside is only safe if the census it started with is the
+    // census it ends with, and this says so in the record rather than assuming.
+    lightsRestored: censusAfter === censusBefore,
+  };
 }
 
 // THE SAME BELT, ON THE COURSE — MEASURED, BUILT, AND NOT SHIPPED. 2026-08-19.
