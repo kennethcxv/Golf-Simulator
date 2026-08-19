@@ -36,7 +36,14 @@ async (page) => {
   const fail = (w) => { out.failures.push(w); console.log('FAIL:', w); };
 
   const boot = await import(`file:///${process.cwd().split(String.fromCharCode(92)).join('/')}/tools/qa/lib/qa-boot.mjs`);
-  await boot.clickThroughMenu(page);
+  // PIN THE WORLD. Without this the harness clicks New Game and rolls a fresh
+  // random seed every boot, so two runs stand on two different courses -- which
+  // is exactly what the first attempt at this A/B did, at an ~18% noise floor in
+  // p50 and a hole-1 tee that moved between runs. The golden suite already
+  // solved this; the driver simply was not asking for it. forceNew is here for
+  // the same reason it is there: a resumed save is an arbitrary world, not the
+  // canonical one.
+  await boot.clickThroughMenu(page, { forceNew: true, pinSeed: 0.4242 });
   await page.waitForFunction(() => window.__fw?.scene3d?.walk?.isActive?.(), null, { timeout: 300000 });
   await page.waitForFunction(() => {
     const v = document.querySelector('.load-veil');
