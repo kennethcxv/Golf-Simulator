@@ -41,11 +41,19 @@ def hang(objs, tilt=64.0, lift=0.0):
             v.co.z = y * s + z * c
         ob.data.update()
     lo = min(min(v.co.z for v in ob.data.vertices) for ob in objs)
+    shift = lift - lo
     for ob in objs:
         for v in ob.data.vertices:
-            v.co.z += lift - lo
+            v.co.z += shift
         ob.data.update()
-    return objs
+    # RETURN THE SHIFT. The seating below computes where the sweatband ended up
+    # by rotating its authored centre through `tilt` -- and that arithmetic is
+    # only right if rotation is the ONLY thing that happened. It is not: this
+    # function also drops the whole cap so its lowest point sits at `lift`, and
+    # that drop was invisible to the caller. The cap was therefore seated
+    # exactly `shift` too high, which is why the studio side elevation has the
+    # peg hanging in clear air 200 mm below a cap resting on nothing.
+    return shift
 
 
 def build():
@@ -55,11 +63,11 @@ def build():
     # INSIDE the head opening. The first cut placed the cap by its bounding box
     # and left it floating beside the peg with the ball in clear air behind it.
     TILT = 34.0
-    hang(parts, tilt=TILT, lift=0.0)
+    shift = hang(parts, tilt=TILT, lift=0.0)
     a = math.radians(TILT)
     c, sn = math.cos(a), math.sin(a)
-    # the band's centre, carried through the same rotation
-    oy, oz = 0.014 * sn, -0.014 * c
+    # the band's centre, carried through the same rotation AND the same drop
+    oy, oz = 0.014 * sn, -0.014 * c + shift
     ball_y, ball_z = PEG_Y - 0.104, PEG_Z - 0.017
     dy, dz = ball_y - oy, ball_z - oz
     for ob in parts:
