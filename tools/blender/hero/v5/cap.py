@@ -73,32 +73,126 @@ GORES = 6
 SEAM = 0.0016
 
 
-def crown_radius(a, v):
-    """The crown's half-width at angle `a` round and height fraction `v`.
+# THE CROWN DOES NOT COME TO A POINT, AND IT IS NOT FULLER THAN A HEMISPHERE.
+# Both halves of that were wrong here, and both pushed the same way: a wall that
+# stands outside a hemisphere all the way up and then rolls over into a smooth
+# tip is a helmet, which is the "spherical crown" the brief names.
+#
+# MEASURED, by `tools/qa/cap-profile.mjs`, as half-width against height with the
+# band at h = 0 and the button at h = 1, each normalised to its own band width
+# (chart at qa/hero/v7/profile/overlay.png -- reference white, model red, a true
+# hemisphere blue):
+#
+#     h              0.50   0.70   0.80   0.90   0.95
+#     reference      0.84   0.69   0.62   0.50   0.45   <- lies ON the hemisphere
+#     v7 as shipped  0.98   0.89   0.79   0.58   0.07   <- outside it, then a point
+#
+# So: a parabola from the band to a FLAT TOP at 0.42 of the band radius, then a
+# short closing cap over the last 5.5% of the height. The plateau is what the
+# eye reads as "flat top" -- on every reference cap the six panels' upper edges
+# are nearly horizontal for the last centimetre and the button sits on a disc,
+# not on a tip.
+TOP_R = 0.42
+CAP_H = 0.055
+FACET = 0.075
+# fitted to the four measured heights, largest residual 0.023 against a 0.055
+# tolerance -- deliberately NOT fitted tighter than that. Four points read off
+# one JPEG do not carry four significant figures, and a curve that matches them
+# exactly is matching their noise.
+WALL_P, WALL_Q = 1.40, 0.66
+FILLET = 0.075
 
-    Slightly FLATTER than a hemisphere between the seams and pulled in at them,
-    so the six panels read as facets. A cap is not a ball.
+
+def crown_shape(h):
+    """Half-width at height fraction `h`, as a fraction of the band half-width.
+
+    h = 0 is the band, h = 1 is the button. Continuous in value at the plateau
+    edge and deliberately NOT in slope -- that crease is the top seam ring, and
+    a real cap has one.
     """
-    # the profile: full at the band, closing to nothing at the button, and
-    # fuller than a circle in the middle third -- a cap's crown is a dome with a
-    # nearly vertical wall for the first 30 mm above the band
-    prof = (1.0 - v ** 3.00) ** 0.40
-    # the panel facet: each gore's centre stands a little proud of the chord
+    join = 1.0 - CAP_H
+    w = min(1.0, h / join)
+    wall = TOP_R + (1.0 - TOP_R) * (1.0 - w ** WALL_P) ** WALL_Q
+    s = min(1.0, max(0.0, (h - join) / CAP_H))
+    dome = TOP_R * math.sqrt(max(0.0, 1.0 - s * s))
+    # FILLET THE JOIN. Both branches pass through TOP_R at the join, so the
+    # value was already continuous -- but the wall arrives at an angle and the
+    # plateau leaves flat, and that corner caught a highlight all the way round
+    # and read as a lid dropped on a bell. A smoothstep over +/- FILLET turns it
+    # into the soft shoulder the reference has.
+    if abs(h - join) >= FILLET:
+        return wall if h < join else dome
+    t = (h - (join - FILLET)) / (2.0 * FILLET)
+    t = t * t * (3.0 - 2.0 * t)
+    return wall * (1.0 - t) + dome * t
+
+
+def crown_z(h):
+    """Height of the crown surface at height fraction `h`.
+
+    ONE function. Three separate places used to write `BAND_Z + RISE * v**0.82`
+    out by hand -- the crown grid, the seam sweep and the eyelets -- which is the
+    same shape of fault as the seam phase: parallel copies of one formula drift,
+    and nothing can tell you they have.
+    """
+    return BAND_Z + RISE * h
+
+
+def crown_radius(a, h):
+    """The crown's half-width at angle `a` round and height fraction `h`.
+
+    Pulled in between the seams so the six panels read as facets. The 0.75 power
+    puts the fall-off close to the seam, which turns each seam into a ridge with
+    a flat panel either side rather than a sine wave. A cap is not a ball, and
+    it is not a fluted column either.
+    """
     g = (a * GORES / (2 * math.pi)) % 1.0
-    facet = 1.0 - 0.055 * (1.0 - math.cos(2 * math.pi * g)) * 0.5
-    return prof * facet
+    facet = 1.0 - FACET * ((1.0 - math.cos(2 * math.pi * g)) * 0.5) ** 0.75
+    return crown_shape(h) * facet
+
+
+def assert_crown_profile(tol=0.055):
+    """THE SILHOUETTE, AGAINST THE MEASURED REFERENCE.
+
+    The four numbers below are read off the reference side elevation by
+    `tools/qa/cap-profile.mjs`, whose control separates a hemisphere (shoulder
+    0.440, fill 0.789) from a flat-topped solid (0.790, 0.922) and a cylinder
+    (1.000, 1.000). It runs on `crown_shape`, which is the function the crown
+    grid and the seam sweep both call -- not on a copy of it.
+    """
+    want = [(0.50, 0.84), (0.70, 0.69), (0.85, 0.60), (0.95, 0.45)]
+    bad = []
+    for h, r in want:
+        got = crown_shape(h)
+        if abs(got - r) > tol:
+            bad.append("h %.2f wants %.2f, is %.2f" % (h, r, got))
+    if bad:
+        raise SystemExit(
+            "CAP CROWN WRONG SHAPE: the silhouette is off the measured "
+            "reference by more than %.3f at %d of %d heights -- %s. A crown "
+            "fuller than a hemisphere that closes to a point reads as a ball."
+            % (tol, len(bad), len(want), "; ".join(bad)))
+    print("  crown  silhouette within %.3f of the reference at %d heights "
+          "(top plateau %.2f)" % (tol, len(want), crown_shape(1.0 - CAP_H)))
 
 
 def crown():
-    NA, NV = GORES * 22, 30
+    """Rows sampled in HEIGHT, densest across the closing cap.
+
+    Uniform sampling in h puts one row in the top 5.5% and the plateau comes out
+    as a single quad ring; the shoulder needs rows to hold its edge.
+    """
+    assert_crown_profile()
+    NA = GORES * 22
+    wall = [(1.0 - CAP_H) * (iv / 30.0) for iv in range(31)]
+    dome = [(1.0 - CAP_H) + CAP_H * (iv / 8.0) for iv in range(1, 9)]
     rows = []
-    for iv in range(NV + 1):
-        v = iv / NV
-        z = BAND_Z + RISE * (v ** 0.82)
+    for h in wall + dome:
+        z = crown_z(h)
         row = []
         for ia in range(NA):
             a = 2 * math.pi * ia / NA
-            k = crown_radius(a, v)
+            k = crown_radius(a, h)
             row.append((R_X * k * math.cos(a), R_Y * k * math.sin(a), z))
         rows.append(row)
     ob = ST.grid("cap_crown", rows, wrap_u=True)
@@ -143,12 +237,14 @@ def gore_seams():
     for g in range(GORES):
         a = seam_azimuth(g)
         pts = []
-        for iv in range(19):
-            v = iv / 18.0
-            z = BAND_Z + RISE * (v ** 0.82)
-            k = crown_radius(a, v)
+        for iv in range(23):
+            # over the plateau edge, not stopping at the shoulder: on a real cap
+            # the seam runs across the flat top into the button, and that run is
+            # the TOP SEAM the reference has and this did not
+            h = (1.0 - CAP_H * 0.42) * (iv / 22.0)
+            k = crown_radius(a, h)
             pts.append(Vector((R_X * k * math.cos(a), R_Y * k * math.sin(a),
-                               z)))
+                               crown_z(h))))
         parts.append(ST.sweep("cap_seam%d" % g, pts, SEAM, SEAM * 0.62,
                               sides=6, cap=False,
                               taper=lambda t: max(0.16, 1.0 - t ** 2.2)))
@@ -276,7 +372,7 @@ def strap():
 def button():
     bpy.ops.mesh.primitive_uv_sphere_add(radius=0.0072, segments=18,
                                          ring_count=10,
-                                         location=(0.0, 0.0, BAND_Z + RISE))
+                                         location=(0.0, 0.0, crown_z(1.0)))
     b = bpy.context.object
     b.name = "cap_button"
     b.scale = (1.0, 1.0, 0.62)
@@ -288,10 +384,9 @@ def eyelets():
     parts = []
     for g in range(GORES):
         a = 2 * math.pi * (g + 0.5) / GORES
-        v = 0.44
-        k = crown_radius(a, v)
-        p = Vector((R_X * k * math.cos(a), R_Y * k * math.sin(a),
-                    BAND_Z + RISE * (v ** 0.82)))
+        h = 0.40
+        k = crown_radius(a, h)
+        p = Vector((R_X * k * math.cos(a), R_Y * k * math.sin(a), crown_z(h)))
         bpy.ops.mesh.primitive_torus_add(
             major_radius=0.0034, minor_radius=0.0013, major_segments=12,
             minor_segments=6, location=p,
