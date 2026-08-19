@@ -150,7 +150,7 @@ def build():
     FD.press(ob)
     FO.centre_xy(ob)
     ST.crisp(ob, dissolve=1.4, sharp=26.0, crease=30.0)
-    FO.check_stack(ob, "towel")
+    FO.check_stack(ob, "towel", plan_max=2.20)
 
     # THE GROMMET AND THE CARABINER at one corner
     # ON THE SURFACE UNDER IT, not at the stack's global maximum. z1 is the

@@ -35,7 +35,7 @@ TRIM = (0.1420, 0.1330, 0.1090)
 # At 6 mm the three trouser folds compounded to 135 mm on a 352 mm footprint --
 # 0.38, which is the brief's "too tall for their footprint" arrived at by
 # arithmetic rather than by modelling a pillow.
-DEPTH = 0.0026
+DEPTH = 0.0060
 EV = -0.92
 
 
@@ -66,8 +66,14 @@ def build():
         poly.material_index = 0 if i < n0 else 1
 
     FO.lay_flat(whole, face_up=True)
-    FO.fold_trousers(whole, leg_r=0.0080, last_r=0.0150, label="trousers")
-    FO.check_stack(whole, NAME)
+    FO.fold_trousers(whole, leg_r=0.0060, last_r=0.0090, label="trousers")
+    # A TROUSER IS NOT A SHIRT IN PLAN. Leg-on-leg halves the width and the
+    # fold in three cuts the length: 1090/3 over 490/2 is 1.48 by construction,
+    # and the hinges add the rest. The garment default of 1.60 was set from
+    # three shirts and a towel. What matters is that the bound still catches
+    # the fault it was written for -- folding in HALF instead of in three is
+    # 2.22 by the same arithmetic, and shipped at 2.24.
+    FO.check_stack(whole, NAME, plan_max=1.75)
     ST.crisp(whole, dissolve=1.5, sharp=26.0, crease=30.0)
     lo, hi = H.bounds([whole])
     sh = HG.shelf(z=0.0, y=(lo.y + hi.y) * 0.5,

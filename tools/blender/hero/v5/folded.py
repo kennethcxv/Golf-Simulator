@@ -109,16 +109,37 @@ def fold_shirt(ob, body_half, sleeve_r=0.0055, side_r=0.0085, last_r=0.0135,
 
 
 def fold_trousers(ob, leg_r=0.0075, last_r=0.0145, label=""):
-    """Trousers fold differently: leg on leg, then in half, then in half again."""
+    """Trousers fold differently: leg on leg, then IN THREE.
+
+    In two -- leg on leg and once across -- is arithmetically a fold and
+    visually a sheet. A 1090 mm pair folded once is 550 mm long and four plies
+    thick, so it came out 550 x 246 x 37: forty per cent longer than the polo
+    beside it on the shelf and forty per cent shorter, which in game read as a
+    draped sheet with one rolled end. check_stack passed it at 0.07 because the
+    check only had a ceiling.
+
+    Three, the way a shop assistant does it, and the order matters:
+
+        A  the hem third comes UP onto the middle third
+        B  the waist third comes DOWN over the top of it
+
+    That puts the waistband on the top face where it is the thing that says
+    trousers, buries the tapered hem edge under it, and leaves a clean folded
+    hinge at BOTH ends. The staircase that made three folds fail before came
+    from folding in half twice around a moving midpoint -- every ply a
+    different length and every one of them ending at the outer boundary. Here
+    the widest ply, the waist, is the one on top, so it covers the others and
+    the plan silhouette is a rectangle.
+
+    +y is the hem end: the draft runs down in -z from the waist and lay_flat
+    maps y = -z.
+    """
     (x0, x1), (y0, y1), _z = span(ob)
     FD.fold(ob, 'x', (x0 + x1) * 0.5, leg_r, side=+1)
-    # TWO FOLDS ACROSS, NOT THREE. Three put eight plies in the stack and the
-    # free edges came off as a staircase, because a trouser leg TAPERS: every
-    # ply is a different length and folding again multiplies the difference
-    # rather than hiding it. The reference pair is folded leg-on-leg and then
-    # once across, and it reads as a rectangle.
     (x0, x1), (y0, y1), _z = span(ob)
-    FD.fold(ob, 'y', (y0 + y1) * 0.5, last_r * 1.25, side=+1)
+    third = (y1 - y0) / 3.0
+    FD.fold(ob, 'y', y0 + third * 2.0, last_r, side=+1)
+    FD.fold(ob, 'y', y0 + third, last_r * 1.15, side=-1)
     FD.settle(ob, floor_z=0.0, sag=0.0020, corner=0.50)
     FD.press(ob)
     centre_xy(ob)
@@ -128,26 +149,51 @@ def fold_trousers(ob, leg_r=0.0075, last_r=0.0145, label=""):
     return ob
 
 
-def check_stack(ob, label=""):
-    """A folded garment is WIDER THAN IT IS TALL, by a lot.
+def check_stack(ob, label="", plan_max=1.60):
+    """A folded garment is WIDER THAN IT IS TALL -- but NOT FLAT, and NOT LONG.
 
-    The brief's word for v4's is "too tall for their footprint", so it is worth
-    measuring rather than eyeballing: a folded tee on a shop table is about
-    300 x 240 and 40 tall, which is a height of an eighth of its width. Anything
-    over a third is a pile, not a fold.
+    The brief's word for v4's was "too tall for their footprint", so this began
+    as a ceiling: anything over a third is a pile, not a fold. A ceiling alone
+    passes a bedsheet. trousers-folded shipped at 0.07 and read in game as a
+    draped sheet with one rolled edge, and this check called it the best fold in
+    the set. The four garments that DO read as folded sit in a band:
+
+        polo    393 x 315 x 62   0.16     hoodie  394 x 372 x 92   0.23
+        tee     380 x 316 x 54   0.14     towel   305 x 150 x 47   0.15
+        trousers 550 x 246 x 37  0.07  <- half the lowest, and twice as long
+
+    So a floor at 0.11 -- clear of all four by a third, clear of the fault by
+    2x. It is not tuned to fit: nothing in the set lands between 0.07 and 0.14.
+
+    And a PLAN bound, because thickness alone can be bought by thickening the
+    cloth without folding anything. A garment folded for a shelf comes out
+    roughly square (1.06 to 1.25 here). A towel does not -- folded in three it
+    is a 2:1 rectangle and the reference photograph agrees -- so the towel
+    DECLARES its own bound rather than the bound being slackened for everyone.
     """
     (a, b), (c, d), (e, f) = span(ob)
     w = max(b - a, d - c)
+    n = min(b - a, d - c)
     h = f - e
     ratio = h / max(1e-6, w)
+    plan = w / max(1e-6, n)
     if ratio > 0.34:
         raise SystemExit(
             "FOLD FAILED: %s is %.0f mm tall on a %.0f mm footprint (%.2f). "
             "That is a pile, not a fold." % (label or ob.name, h * 1000,
                                              w * 1000, ratio))
-    print("  stack %-13s %.0f mm on %.0f mm = %.2f" % (label or ob.name,
-                                                       h * 1000, w * 1000,
-                                                       ratio))
+    if ratio < 0.11:
+        raise SystemExit(
+            "FOLD FAILED: %s is %.0f mm tall on a %.0f mm footprint (%.2f). "
+            "That is a sheet, not a fold -- the plies are not there."
+            % (label or ob.name, h * 1000, w * 1000, ratio))
+    if plan > plan_max:
+        raise SystemExit(
+            "FOLD FAILED: %s is %.0f x %.0f mm in plan (%.2f, limit %.2f). "
+            "That is unfolded length, not a shelf stack."
+            % (label or ob.name, w * 1000, n * 1000, plan, plan_max))
+    print("  stack %-13s %.0f mm on %.0f x %.0f mm = %.2f, plan %.2f"
+          % (label or ob.name, h * 1000, w * 1000, n * 1000, ratio, plan))
     return ratio
 
 

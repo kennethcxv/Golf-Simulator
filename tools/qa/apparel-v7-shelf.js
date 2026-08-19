@@ -146,7 +146,7 @@ async (page) => {
     ['polo-folded', 'apparel_polo_folded.glb', 'base', 1.02, 'shelf', +0.03],
     ['tee-folded', 'apparel_tee_folded.glb', 'base', 1.02, 'shelf', +0.027],
     ['hoodie-folded', 'apparel_hoodie_folded.glb', 'base', 1.02, 'shelf', +0.046],
-    ['trousers-folded', 'apparel_trousers_folded.glb', 'base', 1.02, 'shelf', +0.018],
+    ['trousers-folded', 'apparel_trousers_folded.glb', 'base', 1.02, 'shelf', +0.024],
     ['towel', 'hard_towel.glb', 'base', 1.02, 'shelf', +0.035],
     ['cap', 'apparel_cap.glb', 'base', 1.02, 'shelf', +0.068],
     // THE PEG CAP IS THE ODD ONE and it must not be staged like the others.
