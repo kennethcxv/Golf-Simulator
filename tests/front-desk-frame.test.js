@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  HERO_COUNTER_DRAWN_HALF_LENGTH,
   COUNTER,
   DOOR_CLEARWAY,
   DOOR_MAIN,
@@ -132,23 +133,37 @@ test('the queue turns out of the entrance corridor with readable spacing', () =>
   }
 });
 
-// B-STAND (B8, 2026-08-03). This test used to require the opposite: the laptop
-// in the RECEPTION half (local x < -1.2) and within 1.35 yd of the staff chair,
-// because the chair was its seat. LAPTOP_LOCATION_PROPOSAL §3 recommended option
-// B at the clearance-safe pose and B-stand over B-sit, and that was approved —
-// the laptop is a standing device at the counter's east end now, and the chair
-// is simply the desk's chair. The assertions invert accordingly.
-test('the tee-sheet laptop stands at the counter end, clear of the checkout hardware', () => {
+// 2026-08-19: THIS TEST PINNED THE BUG.
+//
+// It asserted `laptop.x > 1.2` -- the counter's east end -- and passed for
+// sixteen days while the laptop hung in mid air. It could not have failed,
+// because every coordinate in it is a LAYOUT coordinate and the layout's desk
+// is the greybox slab (FRONT_DESK_FRAME.frontLength, 4.2 m). The DRAWN desk is
+// `hero_counter`, instantiated raw at 2.388 m, and a prop at local x 1.75 sits
+// 0.56 m past its end. A check that reads a different object than the shipped
+// code reads can never fail on the thing it is watching.
+//
+// So the assertions are now made against the object that is actually drawn.
+// tools/qa/laptop-seating.js is the in-game half of this: it drops a vertical
+// line through the laptop and asserts the gap to the surface beneath is under
+// 1 mm, with a 40 mm lift as its control.
+test('the tee-sheet laptop stands on the desk that is actually drawn', () => {
   const laptop = frontDeskLocalPoint(FRONT_DESK.laptop.x, FRONT_DESK.laptop.z);
-  assert.ok(laptop.x > 1.2, 'the laptop is at the east end, away from the reception backdrop');
+  // Half the laptop's own deck, so the ASSERTION is about the object and not
+  // about its centre point: an origin inside the desk with the body hanging
+  // over the edge is still a floating laptop.
+  const halfDeck = 0.390 / 2;
+  assert.ok(Math.abs(laptop.x) + halfDeck <= HERO_COUNTER_DRAWN_HALF_LENGTH,
+    `the laptop's full body is inside the drawn counter: |${laptop.x.toFixed(2)}| + ${halfDeck} `
+    + `must be <= ${HERO_COUNTER_DRAWN_HALF_LENGTH}`);
   assert.ok(Math.abs(laptop.z) < FRONT_DESK_FRAME.frontDepth / 2, 'laptop sits on the front worktop');
-  // …and clear of the receipt printer, which is the neighbour the proposal
-  // measured: 1.08 local, so the first-choice 1.44 would have left 0.36 yd.
+  // Still clear of the receipt printer, which is the neighbour the original
+  // proposal measured -- that requirement did not stop being true.
   const printer = frontDeskLocalPoint(REGISTER.printer.x, REGISTER.printer.z);
-  assert.ok(laptop.x - printer.x >= 0.6,
-    `the laptop clears the receipt printer by ${(laptop.x - printer.x).toFixed(2)} yd`);
-  // The chair is NO LONGER the laptop's seat — that coupling is what B-stand
-  // removes. It must not have quietly followed the laptop across the desk.
+  assert.ok(Math.abs(laptop.x - printer.x) >= 0.6,
+    `the laptop clears the receipt printer by ${Math.abs(laptop.x - printer.x).toFixed(2)} yd`);
+  // The chair is NOT the laptop's seat -- that coupling was removed by B-stand
+  // and must not quietly come back because the laptop moved back across the desk.
   const chair = frontDeskLocalPoint(FRONT_DESK.staffChair.x, FRONT_DESK.staffChair.z);
   assert.ok(chair.x < 0, 'the staff chair stays at the reception end as the desk\'s own seat');
 });

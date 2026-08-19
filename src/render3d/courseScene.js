@@ -12508,6 +12508,7 @@ export function makeCourseScene(canvas, state) {
   let programKeyBreakdown = null;
   let assetIdleReport = null;
   let firstDoorVisibilityReport = null;
+  let warmDrawPhase = 'pre-step';
   const prewarmTimings = [];
   function markPrewarm(label, sinceMs) {
     prewarmTimings.push({ label, ms: +(performance.now() - sinceMs).toFixed(1) });
@@ -12517,7 +12518,8 @@ export function makeCourseScene(canvas, state) {
   async function prewarm(onStep) {
     const tick = () => new Promise((res) => requestAnimationFrame(res));
     const alive = () => !sceneDisposed;
-    const step = (label) => { if (alive() && onStep) onStep(label); };
+    warmDrawPhase = 'pre-step';
+    const step = (label) => { warmDrawPhase = label; if (alive() && onStep) onStep(label); };
     if (!alive()) return false;
     prewarmTimings.length = 0;
     const prewarmStartedAt = performance.now();
@@ -12555,14 +12557,41 @@ export function makeCourseScene(canvas, state) {
     // no-bailout behaviour it used to opt into.)
     const SLOW_WARM_DRAW_MS = 5000;
     const slowWarmDrawLabel = 'prewarm-slow-draw-ms'; // bound first: the strings ratchet
+    // EVERY WARM DRAW, LEDGERED BY WHAT IT BUYS.
+    //
+    // The slow-draw row above records that a draw took 21.9 s. It cannot say
+    // WHY, and the draw is at a 96 px viewport so it is not fill-bound. The
+    // two candidates are the programs it forces to link and the SHADOW BAKE it
+    // carries -- and the warm viewport shrinks only the colour pass, never the
+    // shadow map, which renders at its own full resolution with frustum
+    // culling deliberately off. So each draw now records the programs it
+    // minted beside its draw calls and triangles. A draw that mints zero
+    // programs and submits a million triangles is paying for the bake, not the
+    // compile, and that distinction is the whole of item 0.
+    let warmDrawSeq = 0;
+    const warmDrawLedger = [];
     const timedWarmDraw = (fn) => {
+      const programsBefore = renderer.info.programs?.length ?? -1;
+      renderer.info.autoReset = false;
+      renderer.info.reset();
       const t0 = performance.now();
       fn();
       const ms = performance.now() - t0;
+      const minted = (renderer.info.programs?.length ?? -1) - programsBefore;
+      warmDrawLedger.push({
+        i: warmDrawSeq += 1,
+        phase: warmDrawPhase,
+        ms: +ms.toFixed(1),
+        minted,
+        calls: renderer.info.render.calls,
+        tris: renderer.info.render.triangles,
+      });
+      renderer.info.autoReset = true;
       if (ms > SLOW_WARM_DRAW_MS) {
         prewarmTimings.push({ label: slowWarmDrawLabel, ms: +ms.toFixed(0) });
       }
     };
+    window.__fwWarmDraws = warmDrawLedger;
     const WARM_VIEW_PX = 96;
     const warmViewportPrev = {
       viewport: new THREE.Vector4(), scissor: new THREE.Vector4(), scissorTest: false,

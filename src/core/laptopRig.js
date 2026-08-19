@@ -38,6 +38,16 @@ export const LAPTOP = {
   keyboard: { z: 0.035, w: 0.345, d: 0.125 },
   trackpad: { z: -0.088, w: 0.115, d: 0.072 },
   led: { x: 0.168, z: -0.128 },            // power light on the front lip, player side
+  // THE FEET, AND HOW FAR THEY HANG BELOW THE GROUP'S ORIGIN.
+  //
+  // The origin is the top of the desk as far as a caller is concerned, but the
+  // lowest DRAWN point is the underside of the rubber feet, 1.55 mm below it.
+  // A caller that sets position.y to a surface height therefore sinks the
+  // laptop into that surface by exactly this much. It is declared here so the
+  // geometry that builds the feet and the code that seats them read the same
+  // number -- which is the failure the seating bug was made of.
+  foot: { rTop: 0.006, rBottom: 0.007, h: 0.0035, y: 0.0002, inset: 0.022 },
+  baseDrop: 0.0035 / 2 - 0.0002,
 };
 
 const v3 = (x, y, z) => ({ x, y, z });

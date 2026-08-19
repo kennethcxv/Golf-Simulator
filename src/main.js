@@ -2203,7 +2203,28 @@ const WARM_STAGE_BUDGET_MS = {
 // Boot times on this machine are enormously variable -- three identical control
 // boots read 45.2 s, 25.2 s and 16.2 s -- so these are decisions taken on
 // repeated runs, not on one.
-const RETIRED_WARM_STAGES = new Set(['belt', 'belt-outdoor', 'editor', 'overview']);
+// AND THE FIFTH WENT ON 2026-08-19 TOO, ON A MEASUREMENT THE ABOVE COULD NOT
+// MAKE: what the stage COSTS on a stamped boot, per phase.
+//
+// The row above kept the laptop because its first open was worth 1,197.8 ms.
+// That number is still right; what was never put beside it is the price. On a
+// stamped boot tools/qa/prewarm-draw-anatomy.js reads the stage at 7,300 ms --
+// and reads it drawing ONE frame, minting 4 programs, with laptopThumbs
+// `frames:0`. The budget above expires inside the stage's first atomic frame
+// (laptopScreen('live') and the draw that follows it are one uninterruptible
+// block, so a 4 s ceiling cannot stop a 7.3 s frame), and both hold loops then
+// break immediately. The stage pays for the expensive half and skips the
+// thumbnail half it exists for.
+//
+// So it was 7.3 s of every launch to save 1.2 s once, on a desk the player has
+// to walk across the room to reach -- and it was not even buying the 1.2 s on
+// these boots. It cannot be moved to an idle warm after the veil either: it
+// takes the camera (walk.focusOn) and opens the real screen, which is not
+// something that can happen while a player is holding the controls.
+//
+// The trade is stated rather than hidden: the FIRST laptop open of a session
+// now costs about 1.2 s, and every launch is 7.3 s shorter.
+const RETIRED_WARM_STAGES = new Set(['belt', 'belt-outdoor', 'laptop-view', 'editor', 'overview']);
 let warmDeadlineAt = Infinity;
 let warmBudgetHit = false;
 const warmBudgetExpired = () => {

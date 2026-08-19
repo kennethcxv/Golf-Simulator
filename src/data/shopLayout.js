@@ -656,6 +656,14 @@ export function deriveFrontDeskFrame(variant = null) {
     returnCollisionWidth: 0.798 / METERS_PER_YARD,
     returnStaffExtent: 1.645 / METERS_PER_YARD,
     counterTop: 1.055,
+    // THE HERO DESK HAS TWO LEVELS AND THE DATUM ABOVE IS THE UPPER ONE.
+    //
+    // counterTop is the customer-facing bar (`counter_bar`, measured at local
+    // y 1.054 in the live scene). The staff work surface behind it,
+    // `counter_work`, is 155 mm lower. Nothing named the lower one, so every
+    // prop meant to stand on the staff side was placed on the bar's height.
+    // Measured, not assumed: tools/qa/laptop-seating.js.
+    counterWorkTop: 0.900,
     // Does the desk carry a return leg across the staff corridor? See C5 on
     // PINE_HILLS_V2_LAYOUT.frame. A desk without one is an I, not an L, and its
     // near end is the staff pass-through.
@@ -790,7 +798,30 @@ export const FRONT_DESK = Object.freeze({
   // the E prop is derived from these coordinates, so all three follow the move
   // rather than needing their own edits — which is what the proposal predicted
   // and what the acceptance harnesses re-check.
-  laptop: Object.freeze(frontDeskPose(1.75, 0.24, 0)),
+  // 2026-08-19: 1.75 -> -0.50, AND OFF THE BAR ONTO THE STAFF WORK SURFACE.
+  //
+  // The reasoning above is sound in the layout's own coordinates and was never
+  // wrong there. What it could not know is that the DRAWN desk is not the desk
+  // the layout describes: pineHillsV2Interior.mountHeroCounter instantiates
+  // `hero_counter` RAW, at its authored 2.39 m, standing in for a grey slab
+  // built to FRONT_DESK_FRAME.frontLength (4.2 m) -- and the slab is hidden,
+  // not removed, so the colliders and the queue still use the long shape while
+  // the visible desk is barely half of it.
+  //
+  // A prop at local x 1.75 therefore sits 0.56 m PAST the right-hand end of the
+  // object it is supposed to rest on. tools/qa/laptop-seating.js drops a
+  // vertical line through the laptop and finds GREY_Ceiling above and
+  // ShopTierFloorFinish 1.03 m below, with nothing in between: the owner's
+  // floating laptop. The ledger book hangs off the LEFT end for the same
+  // reason, which is what rules out "the props are misplaced" and names the
+  // length mismatch instead.
+  //
+  // This seats the laptop on measured geometry: `counter_work` spans world x
+  // [-357.894, -355.506] and z [6.97, 7.568], clear of POS_Base (x from
+  // -356.576) and CustDisp_Base (x from -355.85) at this end. The desk's own
+  // length is NOT changed here -- stretching a hero asset 1.9x to fill a
+  // greybox volume is a decision about the desk, not about the laptop.
+  laptop: Object.freeze(frontDeskPose(-0.50, -0.10, 0)),
   // L3: the club register SPAWNS in the west-end paperwork cluster, beside
   // the clipboard - ruled 2026-08-05: "the physical ledger book should not be
   // spawned in at the middle of the checkout desk". It is a MOVEABLE prop
@@ -1145,6 +1176,21 @@ export function queueSlot(i) {
 // top is 1.055) because the scan volume has to be a real height off a real surface.
 
 export const COUNTER_TOP = FRONT_DESK_FRAME.counterTop;
+// The staff work surface, 155 mm below the customer bar. See the datum's note.
+export const COUNTER_WORK_TOP = FRONT_DESK_FRAME.counterWorkTop;
+// HOW LONG THE DESK ACTUALLY IS, WHICH IS NOT HOW LONG THE LAYOUT SAYS IT IS.
+//
+// FRONT_DESK_FRAME.frontLength (4.2 m) is the greybox slab's length, and the
+// slab is what the colliders and the queue are measured against. But
+// pineHillsV2Interior.mountHeroCounter hides that slab and instantiates
+// `hero_counter` RAW, at its authored size, and the authored size is smaller:
+// measured in the live scene the drawn counter spans world x
+// [-357.894, -355.506] about a centre of -356.70, so 2.388 m end to end.
+//
+// Anything placed ON the desk has to fit inside THIS, not inside the slab.
+// Two props were placed against the slab and hung in mid air off opposite ends
+// (the laptop and the ledger book). Declared here so a test can say so.
+export const HERO_COUNTER_DRAWN_HALF_LENGTH = 1.194;
 
 // Everything below was DERIVED against two reach circles, not eyeballed. The player
 // stands at (2.80, 5.10) and can reach 1.55 yd; the customer stands at the head of

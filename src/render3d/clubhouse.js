@@ -24,7 +24,7 @@ import {
   SHELL, INTERIOR, FIXTURES, FIXTURE_HALF, COUNTER, OFFICE, STOCKROOM, LOUNGE,
   DOOR_MAIN, DOOR_STOCK, DOOR_BACK,
   FRONT_DESK, FRONT_DESK_FRAME, MAT, BASKET_STATION, HOURS_SIGN, LOGO_RUG, queueSlot, REGISTER,
-  COUNTER_TOP, fixtureBrowsePoint, frontDeskPoint,
+  COUNTER_TOP, COUNTER_WORK_TOP, fixtureBrowsePoint, frontDeskPoint,
   CLUBHOUSE_LAYOUT_VARIANT,
   CLUBHOUSE_VARIANT_REQUEST,
   PINE_HILLS_V2_LAYOUT,
@@ -2556,10 +2556,16 @@ export function makeClubhouse(ctx) {
     // the small honest details: four rubber feet under the deck and a charge port on the
     // left flank, rear — the things that make a slab read as a machine somebody plugs in
     const rubber = new THREE.MeshStandardMaterial({ color: 0x1b1d20, roughness: 0.95 });
-    const footGeo = new THREE.CylinderGeometry(0.006, 0.007, 0.0035, 10);
+    const footGeo = new THREE.CylinderGeometry(
+      LAPTOP.foot.rTop, LAPTOP.foot.rBottom, LAPTOP.foot.h, 10,
+    );
     for (const [fx, fz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) {
       const foot = new THREE.Mesh(footGeo, rubber);
-      foot.position.set(fx * (LAPTOP.deck.w / 2 - 0.022), 0.0002, fz * (LAPTOP.deck.d / 2 - 0.022));
+      foot.position.set(
+        fx * (LAPTOP.deck.w / 2 - LAPTOP.foot.inset),
+        LAPTOP.foot.y,
+        fz * (LAPTOP.deck.d / 2 - LAPTOP.foot.inset),
+      );
       laptop.add(foot);
     }
     const chargePort = new THREE.Mesh(new THREE.BoxGeometry(0.0022, 0.006, 0.016), rubber);
@@ -2610,7 +2616,15 @@ export function makeClubhouse(ctx) {
     // The tee-sheet laptop shares the reception worktop. Its screen corners and
     // seated pose derive from this live matrix, so the UI cannot remain behind
     // on the retired office desk.
-    laptop.position.set(FRONT_DESK.laptop.x, COUNTER_TOP + 0.003, FRONT_DESK.laptop.z);
+    // ON THE MEASURED PLANE, NOT ON A DATUM PLUS A GUESS. The old +0.003 was a
+    // 3 mm nudge above the customer bar; the laptop stands on the STAFF WORK
+    // SURFACE, which is a different height and had no name until now. Seated
+    // exactly: tools/qa/laptop-seating.js asserts the gap between the laptop's
+    // lowest drawn vertex and the surface beneath it is under 1 mm, and proves
+    // the probe can see a change by re-measuring with the laptop lifted 40 mm.
+    laptop.position.set(
+      FRONT_DESK.laptop.x, COUNTER_WORK_TOP + LAPTOP.baseDrop, FRONT_DESK.laptop.z,
+    );
     laptop.rotation.y = FRONT_DESK.laptop.ry;
     interior.add(laptop);
 
