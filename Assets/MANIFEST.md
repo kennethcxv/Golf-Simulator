@@ -603,12 +603,12 @@ Totals: **1965** asset files — 724 SHIPPING, 1211 NOT WIRED, 30 SUPERSEDED.
 
 | file | status | evidence |
 |---|---|---|
-| `approach.jpg` | SHIPPING | loaded by name from src/main.js:2634 |
-| `fairway.jpg` | SHIPPING | loaded by name from src/main.js:2634 |
-| `green.jpg` | SHIPPING | loaded by name from src/main.js:2634 |
-| `porch.jpg` | SHIPPING | loaded by name from src/main.js:2634 |
-| `shopfront.jpg` | SHIPPING | loaded by name from src/main.js:2634 |
-| `treeline.jpg` | SHIPPING | loaded by name from src/main.js:2634 |
+| `approach.jpg` | SHIPPING | loaded by name from src/main.js:2788 |
+| `fairway.jpg` | SHIPPING | loaded by name from src/main.js:2788 |
+| `green.jpg` | SHIPPING | loaded by name from src/main.js:2788 |
+| `porch.jpg` | SHIPPING | loaded by name from src/main.js:2788 |
+| `shopfront.jpg` | SHIPPING | loaded by name from src/main.js:2788 |
+| `treeline.jpg` | SHIPPING | loaded by name from src/main.js:2788 |
 
 ### `Assets/models/hero`
 
