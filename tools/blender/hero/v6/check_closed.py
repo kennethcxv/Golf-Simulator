@@ -24,6 +24,7 @@ file somebody else produced.
     blender ... -- --control          # prove it can fail AND pass
 """
 
+import math
 import os
 import sys
 
@@ -38,6 +39,41 @@ SINK = 0.40
 # More than this share of the footprint sunk, and it is not a closed stack.
 OPEN_LIMIT = 0.12
 GRID = 40
+# Elevation the rays come from, in degrees. 90 is overhead; the game's browse
+# frame sits at about 33, and the trousers fault is invisible from overhead.
+ELEV = 33.0
+# Cells of silhouette edge to discard before scoring. See closure().
+MARGIN = 2
+
+
+def _dump(path, drops, mask, inner, pits=None):
+    """Write the drop grid as a picture so the number can be LOOKED AT.
+
+    Black = the top ply. White = a ray that fell to the floor. Red = a cell the
+    margin discarded. A cavity is a connected pale blob in the middle; an edge
+    artefact is a pale ring around the rim, and the two are indistinguishable
+    in a single percentage.
+    """
+    g = drops.shape[0]
+    px = np.zeros((g, g, 3), np.uint8)
+    v = np.nan_to_num(drops, nan=0.0)
+    grey = np.clip(v, 0.0, 1.0)
+    px[..., 0] = (grey * 255).astype(np.uint8)
+    px[..., 1] = (grey * 255).astype(np.uint8)
+    px[..., 2] = (grey * 255).astype(np.uint8)
+    edge = mask & ~inner
+    px[edge] = [180, 40, 40]
+    if pits is not None:
+        px[pits] = [60, 220, 90]          # green: an ENCLOSED pit, the real fault
+    px[~mask] = [20, 24, 40]
+    img = bpy.data.images.new(os.path.basename(path), g, g, alpha=False)
+    buf = np.ones((g, g, 4), np.float32)
+    buf[..., :3] = px.astype(np.float32) / 255.0
+    img.pixels.foreach_set(buf[::-1].ravel())
+    img.filepath_raw = path
+    img.file_format = "PNG"
+    img.save()
+    bpy.data.images.remove(img)
 
 
 def _load(path):
@@ -60,8 +96,32 @@ def _bvh(objs):
     return BVHTree.FromPolygons([tuple(v) for v in verts], tris, all_triangles=True)
 
 
-def closure(objs, label="", grid=GRID, verbose=True):
-    """Fraction of the footprint you can see INTO from directly above."""
+def closure(objs, label="", grid=GRID, verbose=True, margin=None, dump=None,
+            elev=None):
+    """Can you see INTO it -- and is what you see a PIT or a STEP?
+
+    THREE THINGS THIS GOT WRONG, all found by dumping the ray grid as a picture
+    instead of trusting the percentage:
+
+    1  IT NORMALISED BY THE BOUNDING HEIGHT. The towel is 70 mm tall and 30 mm
+       of that is a steel clip standing proud, so the cloth's own top surface
+       sat 43% below "the top" and the ENTIRE towel scored as sunk. The
+       reference height is now the 90th percentile of the hit surface, which
+       hardware cannot inflate.
+
+    2  IT COUNTED STEPS AS HOLES. A folded polo is four plies in the middle and
+       one at the end; the picture showed a clean white band across a third of
+       the footprint, running right off the silhouette edge. That is the shape
+       of a fold, not a hole. Only sunk regions that are ENCLOSED -- that never
+       touch the edge of the silhouette -- count now.
+
+    3  IT ONLY EVER LOOKED STRAIGHT DOWN, and the fault it was written for is
+       not visible from there. apparel_trousers_folded reads as an open box in
+       game and its overhead grid is almost solid black: the cavity opens
+       toward the END of the fold, and you only see into it from a browsing
+       angle. `elev` is the elevation in degrees the rays come from -- 90 is
+       overhead, and the game's browse frame is about 33.
+    """
     lo = Vector((1e9, 1e9, 1e9))
     hi = Vector((-1e9, -1e9, -1e9))
     for ob in objs:
@@ -75,34 +135,108 @@ def closure(objs, label="", grid=GRID, verbose=True):
         raise SystemExit("CLOSURE FAILED: %s has no height" % label)
     bvh = _bvh(objs)
 
-    above = hi.z + max(0.05, height)
-    hits = 0
-    sunk = 0
-    depths = []
+    e = math.radians(elev if elev is not None else ELEV)
+    # rays travel along -d; the grid is laid out on the plane perpendicular to it
+    d = Vector((math.cos(e), 0.0, math.sin(e)))
+    up = Vector((0.0, 0.0, 1.0))
+    right = d.cross(up)
+    if right.length < 1e-6:
+        right = Vector((0.0, 1.0, 0.0))
+    right.normalize()
+    upv = right.cross(d).normalized()
+    centre = (lo + hi) * 0.5
+    span = (hi - lo).length * 0.55
+    start = centre + d * (span * 2.2)
+
+    mask = np.zeros((grid, grid), bool)
+    depth = np.full((grid, grid), np.nan)
     for iy in range(grid):
         for ix in range(grid):
-            # cell centres, so the ray never runs exactly along a shared edge
-            x = lo.x + (ix + 0.5) / grid * (hi.x - lo.x)
-            y = lo.y + (iy + 0.5) / grid * (hi.y - lo.y)
-            loc, _, _, _ = bvh.ray_cast(Vector((x, y, above)), Vector((0, 0, -1)))
+            u = (ix + 0.5) / grid * 2.0 - 1.0
+            v = (iy + 0.5) / grid * 2.0 - 1.0
+            o = start + right * (u * span) + upv * (v * span)
+            loc, _, _, dist = bvh.ray_cast(o, -d)
             if loc is None:
                 continue          # outside the silhouette: not part of the test
-            hits += 1
-            drop = (hi.z - loc.z) / height
-            depths.append(drop)
-            if drop > SINK:
-                sunk += 1
-    if not hits:
+            mask[iy, ix] = True
+            depth[iy, ix] = dist
+
+    if not mask.any():
         raise SystemExit("CLOSURE FAILED: %s -- no ray hit it at all" % label)
-    frac = sunk / hits
-    d = np.array(depths)
+    # SUBTRACT THE PLANE FIRST. Seen from 33 degrees, a flat slab 200 mm across
+    # has 170 mm of honest depth gradient over it, and against a 40 mm stack
+    # height that is a drop of four -- the control's solid slab scored 71%
+    # "pit" before this line existed. What a cavity is, at any elevation, is a
+    # LOCAL DEPARTURE from the surface the object presents, so fit that surface
+    # and measure the residual against it.
+    yy, xx = np.mgrid[0:grid, 0:grid]
+    A = np.stack([xx[mask].astype(float), yy[mask].astype(float),
+                  np.ones(int(mask.sum()))], axis=1)
+    coef, *_ = np.linalg.lstsq(A, depth[mask], rcond=None)
+    plane = coef[0] * xx + coef[1] * yy + coef[2]
+    resid = depth - plane
+    # zero the residual at the surface the bulk of the rays land on
+    resid -= float(np.percentile(resid[mask], 25))
+    drops = resid / height
+
+    m = margin if margin is not None else MARGIN
+    inner = _erode(mask, int(m))
+    sunk = inner & (drops > SINK)
+    # A PIT IS ENCLOSED. Drop every sunk component that reaches the silhouette
+    # edge: that is the far side of a fold, and it is supposed to be lower.
+    pits = _enclosed(sunk, mask)
+    hits = int(inner.sum())
+    frac = int(pits.sum()) / max(1, hits)
+    if dump:
+        _dump(dump, drops, mask, inner, pits)
+    d_in = drops[inner] if hits else np.array([0.0])
     ok = frac <= OPEN_LIMIT
     if verbose:
-        print("  %-5s %-24s %5.1f%% of the footprint sunk past %.0f%% of the "
-              "stack height  (median drop %.2f, worst %.2f, %d rays)"
-              % ("ok" if ok else "FAIL", label, frac * 100, SINK * 100,
-                 float(np.median(d)), float(d.max()), hits))
+        print("  %-5s %-26s %5.1f%% enclosed pit at %.0f deg  "
+              "(step+pit %4.1f%%, median %.2f, worst %.2f, %d rays)"
+              % ("ok" if ok else "FAIL", label, frac * 100,
+                 math.degrees(e), float((sunk.sum() / max(1, hits)) * 100),
+                 float(np.median(d_in)), float(d_in.max()), hits))
     return ok, frac
+
+
+def _erode(mask, n):
+    out = mask.copy()
+    for _ in range(n):
+        p = np.zeros((out.shape[0] + 2, out.shape[1] + 2), bool)
+        p[1:-1, 1:-1] = out
+        out = out & p[:-2, 1:-1] & p[2:, 1:-1] & p[1:-1, :-2] & p[1:-1, 2:]
+    return out
+
+
+def _enclosed(sunk, mask):
+    """Sunk cells in components that never touch the silhouette boundary."""
+    g = sunk.shape[0]
+    boundary = mask & ~_erode(mask, 1)
+    keep = np.zeros_like(sunk)
+    seen = np.zeros_like(sunk)
+    for sy in range(g):
+        for sx in range(g):
+            if not sunk[sy, sx] or seen[sy, sx]:
+                continue
+            stack = [(sy, sx)]
+            comp = []
+            touches = False
+            seen[sy, sx] = True
+            while stack:
+                y, x = stack.pop()
+                comp.append((y, x))
+                if boundary[y, x] or y == 0 or x == 0 or y == g - 1 or x == g - 1:
+                    touches = True
+                for dy, dx in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+                    ny, nx = y + dy, x + dx
+                    if 0 <= ny < g and 0 <= nx < g and sunk[ny, nx] and not seen[ny, nx]:
+                        seen[ny, nx] = True
+                        stack.append((ny, nx))
+            if not touches:
+                for y, x in comp:
+                    keep[y, x] = True
+    return keep
 
 
 # ---------------------------------------------------------------------------
@@ -174,9 +308,14 @@ def main():
     # the bar to rays that fall NEARLY TO THE FLOOR, which no amount of honest
     # stepping produces and which is what an open cavity looks like.
     global SINK
+    global MARGIN, ELEV
     for a in argv:
         if a.startswith("--sink="):
             SINK = float(a.split("=", 1)[1])
+        if a.startswith("--margin="):
+            MARGIN = int(a.split("=", 1)[1])
+        if a.startswith("--elev="):
+            ELEV = float(a.split("=", 1)[1])
     files = [a for a in argv if a.endswith(".glb")]
     if not files:
         raise SystemExit("usage: -- <file.glb> [...]   or   -- --control")
@@ -185,9 +324,12 @@ def main():
     print("IS THE FOLD CLOSED FROM ABOVE?")
     print("=" * 78)
     bad = []
+    out = os.path.abspath(os.path.join("qa", "hero", "v7", "closure"))
+    os.makedirs(out, exist_ok=True)
     for f in files:
         objs = _load(f)
-        good, frac = closure(objs, os.path.basename(f))
+        good, frac = closure(objs, os.path.basename(f),
+                             dump=os.path.join(out, os.path.basename(f).replace(".glb", ".png")))
         if not good:
             bad.append((os.path.basename(f), frac))
     print()

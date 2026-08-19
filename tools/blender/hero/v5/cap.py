@@ -51,13 +51,21 @@ EV = -1.02
 #            v5      v6     reference
 #   visor width / crown width   1.10    0.96    never exceeds the crown --
 #                                               the ends tuck into the band
-#   reach / crown height        0.73    0.60
+#   reach / crown height        0.73    0.60    -> 0.72, see below
 #   drop  / crown height        0.39    0.28
 #   crown depth                175 mm  157 mm   a head is not round
 #
 # The width was the one doing the damage: at 202.8 mm on a 185 mm crown the
 # visor stood proud on both sides in every view, which is what reads as "too
 # large" long before the length does.
+# THE VISOR WENT TOO FAR THE OTHER WAY. v6 cut the reach to 62 mm because the
+# v5 visor "stood proud on both sides in every view" -- but that fault was the
+# WIDTH (1.10 of the crown), and the length was cut along with it. In game the
+# result reads as a helmet: at browse distance the brim is a lip and the cap
+# has no direction. A real fitted six-panel cap carries a 70-80 mm visor on a
+# 105 mm crown, and the reference side elevation in Designs/ProShop/Apparel/v6/
+# cap/side.jpg is at the long end of that. 74 mm puts reach/crown at 0.72 and
+# leaves the width fix -- which was the actual v5 fault -- untouched at 0.96.
 R_X, R_Y = 0.0925, 0.0785
 RISE = 0.1035
 BAND_Z = 0.0
@@ -115,7 +123,7 @@ def gore_seams():
     return ST.join("cap_seams", parts)
 
 
-def visor_point(u, v, span=1.86, reach=0.0620, drop=0.0292, curl=0.0168):
+def visor_point(u, v, span=1.86, reach=0.0740, drop=0.0292, curl=0.0168):
     """One point on the visor surface. `u` runs across, `v` out from the band.
 
     The reach TAPERS TO NOTHING at the two ends, so the visor's outline is a
