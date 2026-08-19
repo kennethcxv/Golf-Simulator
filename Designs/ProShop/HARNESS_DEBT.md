@@ -975,3 +975,35 @@ the drift.
 **Restore `saves/` from the owner's profile before any run whose measurement
 depends on the shop's state**, not just before the first one. The clean run and
 the drifted run of the same driver disagreed on every number that mattered.
+
+## 13. THE CHECK READ A DIFFERENT OBJECT THAN THE SHIPPED CODE (2026-08-19)
+
+**This is one class, not four incidents, and it is the most expensive pattern in
+the project.** Every instance PASSED. The shape is always the same: the check
+measures something ADJACENT to the thing it claims to measure — a copy of the
+formula, a sibling field, the parent object, the whole subject instead of the
+feature — and adjacency is invisible in a green result.
+
+**The rule: the check must read the same object the shipped code reads.** If it
+recomputes the quantity, it is testing its own arithmetic. If it reads a
+different field, scope or scale, it can never fail for the reason it exists.
+Wire the check and the shipped path to ONE function, then break that function
+and watch it go red.
+
+**The generic tell: the check cannot fail.** Before trusting a new one, change
+the thing it guards to something obviously wrong and confirm red.
+
+| claimed to measure | actually measured | tell | fix |
+|---|---|---|---|
+| a close-up of a 2 mm feature | the whole object — `studio.shots` sizes with `fit_view(SUBJECT)`, so its `radius` only aims the cyc and the lights | the "close-up" and the wide shot are the same photograph | frame a stated WIDTH: `v6/shot.py:macro()`. Cost: two rounds calling the towel's waffle missing from a frame in which it was four pixels |
+| on-screen coverage of a garment | nothing — `view.frameFrac`/`view.blocker` lived on `seen`, so coverage printed NaN, and **`NaN < threshold` is FALSE**, so the guard passed | a printed metric is NaN, or a blocker prints "clear" unconditionally | `Number.isFinite` before any comparison against a possibly-undefined number, plus a known-blocked case in every visibility check |
+| that the six cap welts sit on the facet ridges | the brand-new `seam_azimuth()` helper, while `gore_seams()` still computed its own angle inline at `(g + 0.5)` | the check passes on the build it was written to condemn | point the shipped sweep at the same function the assertion calls, then restore the old phase and watch it fail |
+| a crown silhouette as normalised half-width | half-widths divided by a FULL width: a `half` mode was added to the reader and the normaliser guarded with `if (half)`, so the full-width path drifted out of sync | the control moved — hemisphere fill 0.789 → 0.395, exactly ×0.5 | normalise with the same function that measures. **The control caught this one**, which is what controls are for |
+
+Two entries elsewhere are this class in disguise: the fabric-atlas colorspace
+trap (fifteen control numbers computed in numpy BEFORE the image existed, so
+none of them ever read the file that shipped) and the azimuth trap (a test
+claiming to separate geometry from light that rotated both).
+
+Related habit that hides all of them: `blender -b --python` **exits 0 when the
+script RAISES**. Always pass `--python-exit-code 1`.
