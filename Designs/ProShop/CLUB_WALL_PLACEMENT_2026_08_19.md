@@ -1,63 +1,71 @@
-# The club wall: the room is 0.70 yd short
+# The club wall: I tried to place it, and the room says booth-or-clubs
 
-Item 3. **NOT DONE**, and the reason is geometric rather than an implementation
-problem, so it needs your decision rather than another attempt from me.
+Item 3. **The racks are not placed.** Not because the wall was misread — it was
+read right — but because building it turned up a hard trade that is yours, not
+mine. Everything below is measured against the real layout audit
+(`tests/pine-hills-v2-layout.test.js`, 21 checks), not reasoned about.
 
-## What you asked for
-
-> Put the three racks on the retail wall opposite the front desk, so a customer
-> walking in sees clubs and the desk in the same frame.
+## The wall is right
 
 The desk is a south-wall counter at (3.30, 3.35) whose customer side faces
-north, and the door is on the entry axis at x −0.8. So the wall opposite it is
-the **north wall**, and the framing logic is right: from the mat the north wall
-is ahead and the desk is to the right.
+north; the door is on the entry axis at x −0.8. So the wall opposite it is the
+**north wall**, and your framing holds: walk in, clubs ahead, desk to the right.
 
-## Why it does not fit
+## Four things the room said when I built it
 
-A club rack's footprint entry `rack: [1.5, 0.45]` is **half**-extents. Each rack
-is **3.0 yd wide**, which the layout test named the moment I placed them
-(`rack_drivers rect {minX:-0.40, maxX:2.60}` — 3.0 yd, not the 1.5 I had
-assumed).
+**1. A stock rack is 3.0 yd wide, not 1.5.** `FIXTURE_HALF.rack = [1.5, 0.45]`
+is **half**-extents. Three need **9.00 yd**; the north wall is **8.30**.
 
-    three racks          9.00 yd
-    the north wall       8.30 yd   (publicBounds x −2.60 → 5.70)
-                        --------
-                         0.70 yd short, before anything else on that wall
+**2. The lounge owns the east third of that wall.** `LOUNGE.bounds` is
+x 2.40 → 5.70, under a mandate to stay visible from the door — and the audit
+proved it, failing `door→chairA sightline crosses rack_putters` the moment a
+rack went east of 2.40. **The retail run on that wall is 5.00 yd, not 8.30.**
 
-And the north wall is not empty: the fitting booth sits at (−0.35, −3.70) and
-eats about 3.1 yd of it, which leaves **5.50 yd — room for exactly one rack.**
+**3. Slim towers do fit.** Re-authored at **1.50 × 0.90** via an explicit
+`footprint` (which `fixtureRect` honours over `FIXTURE_HALF`, and which the
+collider, the browse sockets, the layout tests and the drawn geometry in
+`fixtures.js` all read, so it is narrow to every one of them at once), three
+racks sit at x −1.80 / −0.10 / 1.60 with 0.20 between them and 0.05 clear of the
+lounge. **Envelope, overlap and lounge-sightline checks all passed.** Three
+narrow towers is also the honest read of a municipal starter's club wall.
 
-The east and west walls are 10.09 yd deep, which is why the full layout puts all
-three on the **west** wall at z −3.2 / −0.2 / 2.8, spanning exactly 9.0.
+**4. And then the fitting booth has nowhere to go.** The booth is 2.2 × 1.7 and
+currently occupies x −1.45 → 0.75 of that same 5.00 yd run. Every alternative
+home I measured costs the **F1 door sightline** — the metric the whole D1 floor
+plan was designed to win, 41 rays fanned ±55° from the door eye, gate at 60%:
 
-The layout change is reverted; the tree is green (`GATE_EXIT=0`).
+| booth at | F1 |
+|---|---|
+| its proven north-wall spot, no racks | **passes** |
+| mid-floor east (3.60, 0.70) | **53.7%** |
+| flush to the east partition (4.55, 0.60) | **58.5%** |
+| west wall, north end | worse — it lands straight ahead of the door |
+| beside the door, south wall | worse — it is closest to the eye, so it eats whole rays |
 
-## Three ways to have it, and the trade in each
+58.5% was also what the *first* attempt gave with full-width racks, so the racks
+themselves cost about 1.5 points and **the booth is the rest of it**. There is no
+spot in a 70 m² room for a 2.05 m booth that is both out of the door's fan and
+off the one wall the clubs need.
 
-1. **Two on the north wall, putters elsewhere.** Needs the fitting booth moved
-   off the north wall first, because two racks are 6.0 yd and only 5.50 is
-   clear. Keeps your framing for the two that matter most.
-2. **All three on the west wall.** Fits exactly, no other fixture moves, and it
-   is the arrangement the full layout already proves. Costs your framing: from
-   the door the west wall is on the customer's left and the desk is behind their
-   right shoulder, so clubs and desk are not one frame.
-3. **Re-author the rack footprint narrower.** A 2.6-yd rack puts three on the
-   north wall with the booth moved. This is a change to the fixture itself and
-   affects every room that uses it.
+## So it is booth or clubs, and that is yours
 
-My recommendation is **1**: your framing is the point of the request, and the
-fitting booth has no reason to be on the north wall specifically — its authored
-rationale is only that at ry 0 its curtain faces +x so the shell and the
-collision walls agree, which is preserved anywhere.
+- **Clubs.** Cut `fittingroom` from v2 the way the cut list already trades
+  shoerack, bagstand and the rest to the upgrade path. Three slim racks land on
+  your wall and every gate stays green. Cost: no fitting booth in the starter,
+  and `runtimeManifest.js` reads `fixturePose('fittingroom')` at module load, so
+  that call needs a guard first.
+- **Booth.** Keep it where it is and the wall holds **one** rack (x 0.75 → 2.40
+  is 1.65 yd). Putters or drivers, not the set.
+- **Both, smaller.** Two slim racks fit beside the booth only if the booth also
+  narrows, which is a change to an authored analytic hull.
 
-## One thing worth knowing before you choose
+Say which and it is a short session's work. The layout is reverted and the audit
+is 21/21.
+
+## One thing that is true whichever you pick
 
 `pine-hills-v3` is presentation-only — `CLUBHOUSE_LAYOUT_VARIANT` resolves it to
-`pine-hills-v2`, so **the layout is shared**. Un-cutting the racks puts them in
-pine-hills-v2 as well, drawn grey. There is no way to place clubs in the room for
-v3 alone without splitting the layout seam, and CLAUDE.md protects v2's plan. v2
-gaining three grey rack volumes on a wall that carried nothing looked to me like
-the smaller price, but it is your plan and your call.
-
-No photograph exists yet, because there is nothing correct to photograph.
+`pine-hills-v2` — so **the layout is shared**. Placing clubs for the photograph
+places them in pine-hills-v2 too, drawn grey. There is no v3-only path without
+splitting the seam CLAUDE.md protects, and no lit frame of the clubs can exist
+until the placement is real.
