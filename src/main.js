@@ -1838,7 +1838,35 @@ function startGameNow(
   // vary -- it is paying a fixed number of frames at whatever rate the browser
   // is willing to give, and Chromium throttles rAF to 1 Hz for an occluded
   // window. Without this the two cases are indistinguishable in the record.
+  // A STAGE CAN BE TURNED OFF FROM THE URL, so what each one BUYS can be
+  // measured rather than argued about. `?nowarm=belt,editor` skips those stages
+  // and records them as skipped in the ledger, which is how the A/B that decides
+  // whether a stage earns its place in the boot is run (tools/qa/warm-stage-
+  // value.js). It changes nothing when the parameter is absent.
+  const skippedWarms = (() => {
+    try {
+      // window.__fwNoWarm is the same switch reachable from a QA init script,
+      // because the Electron shell loads index.html with no query string and a
+      // driver cannot add one before the scene starts.
+      const raw = new URLSearchParams(location.search).get('nowarm')
+        || (typeof window !== 'undefined' ? window.__fwNoWarm : '') || '';
+      return new Set(String(raw).split(',').map((x) => x.trim()).filter(Boolean));
+    } catch { return new Set(); }
+  })();
   const timeWarmStage = async (label, fn) => {
+    if (RETIRED_WARM_STAGES.has(label) || skippedWarms.has(label) || skippedWarms.has('all')) {
+      bootLedger.stages.push({
+        label,
+        ms: 0,
+        frames: 0,
+        msPerFrame: null,
+        msPerYield: null,
+        skipped: true,
+        retired: RETIRED_WARM_STAGES.has(label),
+        minted: 0,
+      });
+      return undefined;
+    }
     const programsBefore = sceneRef.renderer?.info?.programs?.length ?? -1;
     const t0 = performance.now();
     warmBudgetHit = false;
@@ -1970,6 +1998,10 @@ function startGameNow(
       // trip leaves nothing behind (census: every tool's first press clean).
       // The clip standard moved them here from the deferred slot — see
       // warmBeltThroughLiveLoop.
+      // RETIRED 2026-08-19 -- MEASURED, NOT ASSUMED. See the tombstone below the
+      // overview stage for the table and the reasoning. The functions stay,
+      // reachable through the ledger's stage machinery, because the measurement
+      // that retired them is a measurement of THIS machine on THIS build.
       await timeWarmStage('belt', () => warmBeltThroughLiveLoop(sceneRef, generation, () => sceneStartGeneration));
       if (app.scene3d !== sceneRef || generation !== sceneStartGeneration) { compileScreen.finish(false); return; }
       // The same belt again under the COURSE's light count. The pass above
@@ -2116,8 +2148,48 @@ let loadVeil = null;
 // laptop 2.0 s, editor 6.5 s, overview 2.4 s on the fast run of the same day),
 // so on hardware that is not in trouble nothing here changes at all.
 const WARM_STAGE_BUDGET_MS = {
-  belt: 10000, 'belt-outdoor': 10000, 'laptop-view': 10000, editor: 10000, overview: 5000,
+  // The laptop is the only stage still on the critical path, and 4 s is a real
+  // ceiling rather than the 10 s one it used to overrun. Its two holds are time
+  // bounded already but carry MINIMUM frame floors (24 and 30 frames), and at
+  // the 150 ms/frame the thumbnail rig costs those floors alone were 8-9.6 s.
+  belt: 10000, 'belt-outdoor': 10000, 'laptop-view': 4000, editor: 10000, overview: 5000,
 };
+
+// FOUR OF THE FIVE WARM STAGES WERE RETIRED FROM THE BOOT ON 2026-08-19.
+//
+// They were built one at a time, each against a real stall in the owner's
+// hands, and each was correct when it was written. Together they had grown to
+// 45 s of a 67 s stamped boot. tools/qa/warm-stage-value.js booted with them
+// skipped and then TOUCHED every surface they exist to protect -- every belt
+// tool equipped for the first time, the laptop opened, Tab, the editor entered
+// and exited -- measuring the worst main-thread block each first touch caused,
+// on a timer-queue recorder with a deliberate 400 ms block as its control.
+//
+//   first touch, with NO warm at all      worst block   programs minted
+//     all nine belt tools                   <= 54.3 ms   vacuum 6, mop 2
+//     Tab, the overview                        44.8 ms   2
+//     enter the editor                         79.3 ms   7
+//     exit the editor                          32.0 ms   0
+//     open the laptop                       1,197.8 ms   6
+//
+// So four stages were spending ~23 s of every boot to prevent at most 79 ms of
+// hitch, once, on surfaces the player reaches minutes in. Prewarm's compile
+// pass and its hidden-object reveal had grown to cover what they were written
+// for. The laptop is the one that still buys something real and it stays.
+//
+// TWO WARNINGS FOR WHOEVER REVISITS THIS. The first measurement of this A/B was
+// void: the skip flag was delivered through addInitScript on an already-loaded
+// page, so two CONTROL boots were compared and a 20 s "saving" was nearly
+// reported from a switch that was not connected. The second was void too: the
+// laptop row pressed 'l' (cart lights) and the editor check asked
+// scene3d.courseEditor(), which does not exist -- so three surfaces read as
+// costing nothing on a boot where they never opened. Both are why every surface
+// in that driver now asserts that it actually opened before its number counts.
+//
+// Boot times on this machine are enormously variable -- three identical control
+// boots read 45.2 s, 25.2 s and 16.2 s -- so these are decisions taken on
+// repeated runs, not on one.
+const RETIRED_WARM_STAGES = new Set(['belt', 'belt-outdoor', 'editor', 'overview']);
 let warmDeadlineAt = Infinity;
 let warmBudgetHit = false;
 const warmBudgetExpired = () => {
