@@ -43,6 +43,39 @@ shows it.
 | `mow/` | striping: a lawn at a grazing angle, and mower track marks |
 | `turf_close/` | a sod farm — turf with nothing else in the frame |
 
+## Step two: the wear board (2026-08-19)
+
+Six close references in `wear/`, fetched by category from Commons and credited
+in `wear/sources.json`. **Both of the frames below say the opposite of the
+obvious implementation**, which is why they were fetched before anything was
+authored.
+
+| # | reference | what it shows | what an unread implementation would have done |
+|---|---|---|---|
+| W1 | `wear/santander_scar.jpg` | worn ground is **LIGHTER than the turf, not darker** — a pale grey-cream soil close to the value of the paving beside it, and strongly **desaturated** rather than browned | darken the turf where wear is high. Wear would have read as shadow or as damp, which is the one thing it is not |
+| W2 | `wear/santander_scar.jpg` | the scar's edge is **ragged and fingered**, with surviving grass in islands and tufts *inside* the bare area and a broken fringe of thinning blades maybe 10–20 cm wide | a threshold on a smooth mask: a clean contour, which reads as a decal |
+| W3 | `wear/amer_path.jpg` | wear is **two-toned**. A broad **straw-blond halo** of dry, dying grass spreads metres wide, and a **narrow darker compacted line** runs through it where the traffic actually concentrates | one channel, one colour. The halo is most of the visible area and it is a different material from the track |
+| W4 | `wear/amer_path.jpg`, `wear/cyclepath_margin.jpg` | at a hard edge the worn ground **creeps over the paving** — the outer courses of brick are half-buried in soil, so there is no clean seam | a hard boundary between path ribbon and turf, which is what the game draws today (G2) |
+| W5 | `wear/santander_scar.jpg` | the turf **immediately beside** the scar is not darkened or discoloured at all; the wear is confined and the healthy grass runs right up to the fringe | a soft radial falloff tinting good turf for metres around |
+| W6 | `wear/helsinki_line.jpg`, `wear/lisboa_organic.jpg`, `wear/amer_path_2.jpg` | scars **converge and widen at their junctions**, and they follow the desire line, not the built line | width constant along the mask |
+
+### What that means for the authoring
+
+The brief is *worn apron by each tee, walk-off scar at each green, scuffed margin
+where carts leave the path, authored from the course vector as a mask, sampled by
+the mow flow field.* The board says the mask needs **two thresholds, not one**:
+
+- a wide **dry** band — desaturate hard, lift value, kill the mow lay
+- a narrow **compacted** core inside it — darker than the dry band, still lighter
+  than turf, smooth and near-specular when damp
+
+and the boundary between them and the turf wants the fringe noise of W2 rather
+than a contour. `turf.py` already builds a periodic height field per surface, so
+the dry band is a candidate for a fifth authored set rather than a tint.
+
+**Nothing is authored yet.** This is the reference, gathered first, the way step
+one did.
+
 ## Not on this board yet
 
 Step one stopped at the surfaces. Nothing here yet answers **wear**: the worn,
