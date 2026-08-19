@@ -1858,7 +1858,15 @@ function startGameNow(
       label,
       ms: +ms.toFixed(1),
       frames,
+      // NOT A PRESENTATION RATE, and it was read as one for a week. During a
+      // stage that blocks the main thread this is wall time PER YIELD: the
+      // editor stage measured 3,008.4 here on 2026-08-19 while rAF on the same
+      // page ran at 9.9 ms. A metronomic ~1005 across four stages was four
+      // stages blocking about a second at a time, not a 1 Hz compositor.
+      // msPerYield is the same number under the name that cannot mislead;
+      // msPerFrame stays because tools/qa/boot-cost-ledger.js reads it.
       msPerFrame: frames ? +(ms / frames).toFixed(1) : null,
+      msPerYield: frames ? +(ms / frames).toFixed(1) : null,
       budgetMs: WARM_STAGE_BUDGET_MS[label] ?? null,
       // NO SILENT CAPS: a stage that ran out of budget says so, because
       // "warmed 9/9" and "warmed 3 then ran out" must never read the same.

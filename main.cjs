@@ -56,6 +56,25 @@ app.commandLine.appendSwitch('gpu-disk-cache-size-kb', '262144');
 //
 // QA ONLY, deliberately: a shipped player's minimized game should still not
 // burn the machine. The loading case is handled separately -- see the veil.
+// CORRECTED 2026-08-19 -- THE THROTTLING THEORY ABOVE IS WRONG.
+//
+// The theory was testable and it was tested (tools/qa/boot-frame-clock.js).
+// Four queues were recorded concurrently across a stamped boot: rAF, which
+// waits on the compositor; setTimeout, which does not; and a MessageChannel,
+// which waits on nothing whatsoever. If rAF were being starved at 1 Hz by the
+// compositor the other two would run freely. They did not: rAF lost 86,650 ms
+// to gaps over a quarter second, setTimeout lost 87,796 and the MessageChannel
+// lost 87,654. A ratio of 1.01 across a queue that has no compositor in its
+// path means the MAIN THREAD IS BLOCKED, in stretches up to 21 seconds.
+//
+// Measured cadence with nothing blocking: 4.2 ms at the menu (the panel's 240)
+// and 9.8 ms in play. There is no 1 Hz floor on this machine and there was
+// none then; the 1005 ms figure was window.__fwBoot's msPerFrame, which is
+// stage wall time divided by yields, not a presentation rate.
+//
+// The two switches below STAY. They are still correct for an occluded QA
+// window and they cost a shipped player nothing (FW_QA gates them). They were
+// simply not the fault. See Designs/ProShop/FRAME_CLOCK_2026_08_19.md.
 if (process.env.FW_QA === '1') {
   app.commandLine.appendSwitch('disable-backgrounding-occluded-windows');
   app.commandLine.appendSwitch('disable-renderer-backgrounding');
