@@ -115,6 +115,7 @@ async (page) => {
   const DIR = process.env.APPAREL_DIR || 'Assets/models/hero/v5';
   const OFF = process.env.V7_OFF || '';
   await page.evaluate((o) => { window.__v7off = o; }, OFF);
+  await page.evaluate((p) => { window.__v7parent = p; }, process.env.V7_PARENT || '');
   console.log(`loading from ${DIR}${OFF ? `   A/B: ${OFF} switched OFF` : ''}`);
 
   // name, file, origin rule, height off the floor, display, centre relative
@@ -123,22 +124,129 @@ async (page) => {
   // folded polo at 1.02 m where the ray to it goes down through a window pier.
   // A clearance measured along a different ray than the one the camera uses is
   // not a clearance.
-  const SUBJECTS = [
-    ['polo-folded', 'apparel_polo_folded.glb', 'base', 1.02, 'shelf', +0.03],
+  //
+  // ALL ELEVEN, because only two of them have ever had this frame. The hung
+  // hoodie and the folded polo were taken to twelve rounds each; the other
+  // nine were carried along by whatever fix those two needed and then verified
+  // in the FILE -- assert_maps.mjs opens the GLB and reads the PNG bytes, which
+  // says the maps are there and nothing whatever about whether the thing looks
+  // like a garment in a shop.
+  //
+  // Heights and centres are MEASURED off each GLB, not guessed: hung garments
+  // carry max y = 0 and hang from the hook, resting ones carry min y = 0 and
+  // sit on their own base, and the centre offset is half the real drop or
+  // height so the sightline is probed along the ray the camera will use.
+  const APPAREL_SUBJECTS = [
+    // hung on the rail -- the hook is the origin, the drop is real
+    ['polo-hung', 'apparel_polo_hung.glb', 'hook', 1.66, 'rail', -0.40],
+    ['tee-hung', 'apparel_tee_hung.glb', 'hook', 1.66, 'rail', -0.40],
     ['hoodie-hung', 'apparel_hoodie_hung.glb', 'hook', 1.66, 'rail', -0.46],
+    ['trousers-hung', 'apparel_trousers_hung.glb', 'hook', 1.66, 'rail', -0.60],
+    // folded on the shelf -- base at zero
+    ['polo-folded', 'apparel_polo_folded.glb', 'base', 1.02, 'shelf', +0.03],
+    ['tee-folded', 'apparel_tee_folded.glb', 'base', 1.02, 'shelf', +0.027],
+    ['hoodie-folded', 'apparel_hoodie_folded.glb', 'base', 1.02, 'shelf', +0.046],
+    ['trousers-folded', 'apparel_trousers_folded.glb', 'base', 1.02, 'shelf', +0.018],
+    ['towel', 'hard_towel.glb', 'base', 1.02, 'shelf', +0.035],
+    ['cap', 'apparel_cap.glb', 'base', 1.02, 'shelf', +0.068],
+    // THE PEG CAP IS THE ODD ONE and it must not be staged like the others.
+    // Its origin is the WALL PLANE (z runs 0 .. +0.331, y straddles zero), so
+    // it is not resting on anything and it is not hanging from a hook -- it
+    // sticks out of a wall. Standing it on a shelf would photograph it lying
+    // on its side and call the result a fault in the asset.
+    ['cap-peg', 'apparel_cap_peg.glb', 'wall', 1.52, 'peg', 0.0],
   ];
+  // THE FOUR HARDGOODS. A club stands on the floor in a rack rather than
+  // sitting on a board, so they get no fixture -- a shelf under a driver would
+  // be staging that misrepresents how the thing is displayed.
+  // A club standing on the FLOOR is a metre tall and the camera ends up
+  // pitched 62 degrees down at it from 0.6 m, which foreshortens the whole
+  // thing into a stick lying on the tiles -- the milled face and the corded
+  // grip, which are the entire point of baking these, cannot be judged from
+  // that frame at all. A shop stands clubs in a RACK, head down at about knee
+  // height, and the last number here aims the camera at the HEAD rather than
+  // at the middle of a metre of shaft.
+  const HARDGOOD_SUBJECTS = [
+    ['driver', 'hard_driver.glb', 'base', 0.78, 'shelf', +0.10],
+    ['putter', 'hard_putter.glb', 'base', 0.78, 'shelf', +0.08],
+    ['iron', 'hard_iron.glb', 'base', 0.78, 'shelf', +0.08],
+    // The counter is 2.4 m wide: browsing it from 0.6 m puts the camera
+    // INSIDE it, and the aim check said so -- 7.23 half-frames off axis. A
+    // player walks up to a counter, they do not stand in it.
+    ['counter', 'hard_counter.glb', 'base', 0.0, 'none', +0.45, 1.70],
+  ];
+  const SET = process.env.V7_SET === 'hardgoods'
+    ? HARDGOOD_SUBJECTS : APPAREL_SUBJECTS;
+  // Eleven subjects x two distances in one boot is a long run, and a re-shoot
+  // of one garment after a fix should not cost the other ten. V7_ONLY takes a
+  // comma-separated list of subject names.
+  const ONLY = (process.env.V7_ONLY || '').split(',').map((s) => s.trim()).filter(Boolean);
+  const SUBJECTS = ONLY.length ? SET.filter(([n]) => ONLY.includes(n)) : SET;
+  if (ONLY.length && SUBJECTS.length !== ONLY.length) {
+    const got = SUBJECTS.map(([n]) => n);
+    throw new Error(`V7_ONLY named ${ONLY.length} subject(s) but matched ${SUBJECTS.length}`
+      + ` (${got.join(', ') || 'none'}) -- a typo would silently shoot the wrong set`);
+  }
   const CONTROL = process.env.V7_CONTROL === 'wall';
   const ANCHOR = CONTROL ? 4.5 : 2.55;
   const DISTANCES = CONTROL
     ? [['wallcontrol', 4.5]]
     : [['room', 2.55], ['browse', 0.85]];
+  // A hardgood surface is a CLOSE-RANGE read -- a milled face and a corded
+  // grip are what a player looks at when the club is in front of them -- so
+  // the near frame comes in tighter than a garment's.
+  if (SET === HARDGOOD_SUBJECTS && !CONTROL) DISTANCES[1] = ['browse', 0.60];
   if (CONTROL) console.log('NEGATIVE CONTROL: the garment is inside the wall');
 
   const rows = [];
-  for (const [name, file, rule, height, display, centreY] of SUBJECTS) {
-    // --- 1. which way is there room to stand back? -------------------------
-    const aim = await page.evaluate(async ([ANCHOR, CONTROL, height, centreY]) => {
-      const app = window.__fw;
+  // WHERE THE PLAYER WAS STAGED. Every subject starts from here. Without this
+  // the loop walked: subject N's home was subject N-1's BROWSE position, so
+  // after a few garments the player was pressed into a wall and the browse
+  // move had nowhere to go -- "asked to shoot from 0.85 m and the camera was
+  // at 2.55 m", nine times out of eleven, on a run that otherwise looked fine.
+  const BASE = await page.evaluate(() => {
+    const w = window.__fw.scene3d.walk;
+    return { x: w.state.x, z: w.state.z, yaw: w.state.yaw };
+  });
+
+  // V7_HEIGHT overrides every subject's height off the floor. The hung
+  // garments measure 1-6% of full value on screen and the folded ones 30-44%
+  // -- same garment, same albedo, same maps -- and the two differ in BOTH
+  // height (1.66 m vs 1.02 m) and surface orientation (vertical vs facing the
+  // ceiling). This separates them: hang them at shelf height and see which
+  // number follows.
+  const HEIGHT_OVERRIDE = process.env.V7_HEIGHT ? Number(process.env.V7_HEIGHT) : null;
+  for (const [name, file, rule, heightAuthored, display, centreY, nearOverride] of SUBJECTS) {
+    const height = HEIGHT_OVERRIDE ?? heightAuthored;
+    // --- 1. TURN, THEN LOOK. -----------------------------------------------
+    //
+    // This used to rotate a forward vector in its own convention, pick the
+    // clear bearing, write it to walk.state.yaw and trust it. Two things went
+    // wrong with that and both were silent. The hand-rolled rotation turns the
+    // opposite way to the game's yaw, so the sweep certified -30 deg and the
+    // camera went to +30 -- through a pier. And the sign was established by a
+    // one-shot calibration that came back 0.000 rad on this run and defaulted
+    // to +1, which is how ELEVEN garments ended up photographed inside
+    // MESH_InteriorWarmCreamPlasterLiners while the maps table printed beside
+    // them still said MAPS 2/3 and looked like a result.
+    //
+    // So: no prediction and no sign. Turn the head to a candidate, let the
+    // game tick, and measure the clearance along the direction the camera is
+    // ACTUALLY facing. The first bearing that really clears is the one used.
+    await page.evaluate((b) => {
+      const w = window.__fw.scene3d.walk;
+      w.state.x = b.x; w.state.z = b.z; w.state.yaw = b.yaw;
+      w.state.pitch = 0; w.state.vx = 0; w.state.vz = 0;
+      // AND TAKE THE LAST GARMENT DOWN FIRST. The placement step clears the
+      // probe, but it runs AFTER this sweep -- so subject N was choosing its
+      // bearing with subject N-1 still hanging in the room, and the clearest
+      // line in the shop reads as blocked by the thing we just photographed.
+      const prev = window.__v7scene.getObjectByName('__v7probe');
+      if (prev) prev.parent.remove(prev);
+    }, BASE);
+    await page.waitForTimeout(450);
+
+    const measure = () => page.evaluate(async ([ANCHOR, height, centreY]) => {
       const THREE = await import('three');
       const cam = window.__v7cam;
       const scene = window.__v7scene;
@@ -147,55 +255,65 @@ async (page) => {
       const q = cam.getWorldQuaternion(new THREE.Quaternion());
       const fwd = new THREE.Vector3(0, 0, -1).applyQuaternion(q);
       fwd.y = 0; fwd.normalize();
-
       const probe = new THREE.Raycaster();
       probe.camera = cam;
       probe.layers.enableAll();
       const floorY = eye.y - 1.62;
-      // Clearance ALONG THE RAY THE CAMERA WILL ACTUALLY USE: from the eye to
-      // the point where the garment's middle would sit, not along the horizon.
-      const clearance = (d, dropY) => {
-        const target = eye.clone().add(d.clone().normalize().multiplyScalar(ANCHOR));
+      // Clearance ALONG THE RAY THE CAMERA WILL ACTUALLY USE: eye to where the
+      // garment's middle will sit, not along the horizon.
+      const clearance = (dropY) => {
+        const target = eye.clone().add(fwd.clone().multiplyScalar(ANCHOR));
         target.y = floorY + height + dropY;
         const ray = target.clone().sub(eye);
         const len = ray.length();
-        probe.set(eye, ray.normalize());
+        probe.set(eye, ray.clone().normalize());
         probe.near = 0.05; probe.far = 12.0;
+        // AND IGNORE WHAT IS PARENTED TO THE CAMERA. `HeldWasher`, `Tool_mop`
+        // and `Tool_vacuum` are prewarmed held-tool viewmodels with visible
+        // arm meshes even when state.tool is null, and they hang off the
+        // camera -- so they sit ~1.17 m in front of the eye no matter which
+        // way the head turns. The sweep reported "NO CLEAR LINE" at every one
+        // of ten bearings, all of them 1.17 m, which is not a room, it is a
+        // sleeve. The occlusion check already excluded these; the sightline
+        // that chooses where to stand did not.
+        const camOwned = (obj) => {
+          let n = obj;
+          while (n) { if (n === cam) return true; n = n.parent; }
+          return false;
+        };
         const h = probe.intersectObject(scene, true)
-          .filter((x) => x.object.visible && x.object.material);
+          .filter((x) => x.object.visible && x.object.material && !camOwned(x.object));
         return (h.length ? h[0].distance : 99) * (ANCHOR / Math.max(len, 1e-6));
       };
-      // TURN UNTIL THERE IS SOMEWHERE TO STAND BACK TO. pine-hills-v2
-      // suppresses assets 61/62/63 to grey volumes and one of them stands
-      // 1.06 m in front of the shop-floor pose at chest height, so a garment
-      // hung dead ahead is photographed through it, and stepping sideways did
-      // not help at any offset out to 2.4 m. The greybox stays; the camera
-      // turns, and the bearing it chose gets reported rather than assumed.
-      let turn = 0, why = null, best = -1;
-      const sweep = CONTROL ? [0] : [0, -30, 30, -60, 60, -90, 90, -150, 150, 180];
-      for (const deg of sweep) {
-        const a = deg * Math.PI / 180;
-        const d = new THREE.Vector3(
-          fwd.x * Math.cos(a) - fwd.z * Math.sin(a), 0,
-          fwd.x * Math.sin(a) + fwd.z * Math.cos(a));
-        // the middle of the garment and its extremes -- a rail passes over a
-        // counter that a hem does not
-        const c = Math.min(clearance(d, centreY), clearance(d, centreY + 0.35),
-          clearance(d, centreY - 0.35));
-        if (c > best) { best = c; turn = deg; }
-        if (c > ANCHOR + 0.45) { turn = deg; why = `${deg} deg, ${c.toFixed(2)} m clear`; break; }
-      }
-      if (why === null) why = `NO CLEAR LINE -- best ${turn} deg at ${best.toFixed(2)} m`;
-      // Set the yaw and stop there. WHICH WAY the game turns for a positive
-      // yaw is not assumed: step 2 reads the camera back and places the
-      // garment along whatever direction actually came out.
-      app.scene3d.walk.state.yaw += (window.__v7yawSign || 1) * turn * Math.PI / 180;
-      return { why, turn };
-    }, [ANCHOR, CONTROL, height, centreY]);
+      // the middle of the garment and its extremes -- a rail passes over a
+      // counter that a hem does not
+      return Math.min(clearance(centreY), clearance(centreY + 0.35),
+        clearance(centreY - 0.35));
+    }, [ANCHOR, height, centreY]);
+
+    let best = { deg: 0, clear: -1 };
+    let why = null;
+    const sweep = CONTROL ? [0] : [0, -30, 30, -60, 60, -90, 90, -150, 150, 180];
+    for (const deg of sweep) {
+      await page.evaluate(([b, d]) => {
+        window.__fw.scene3d.walk.state.yaw = b.yaw + d * Math.PI / 180;
+      }, [BASE, deg]);
+      await page.waitForTimeout(260);
+      const c = await measure();
+      if (c > best.clear) best = { deg, clear: c };
+      if (c > ANCHOR + 0.45) { why = `${deg} deg, ${c.toFixed(2)} m clear (verified after turning)`; break; }
+    }
+    if (why === null) {
+      why = `NO CLEAR LINE -- best ${best.deg} deg at ${best.clear.toFixed(2)} m`;
+    }
+    await page.evaluate(([b, d]) => {
+      window.__fw.scene3d.walk.state.yaw = b.yaw + d * Math.PI / 180;
+    }, [BASE, best.deg]);
+    const aim = { why, turn: best.deg, clear: +best.clear.toFixed(2) };
     await page.waitForTimeout(500);
 
     // --- 2. read the camera back, then place along the REAL forward --------
-    const placed = await page.evaluate(async ([file, rule, height, display, DIR, ANCHOR]) => {
+    const placed = await page.evaluate(async ([file, rule, height, display, DIR, ANCHOR, centreY, aimAtOrigin]) => {
       const app = window.__fw;
       const THREE = await import('three');
       const mod = await import('./src/render3d/gltfCache.js');
@@ -215,7 +333,30 @@ async (page) => {
       if (prev) prev.parent.remove(prev);
       const holder = new THREE.Group();
       holder.name = '__v7probe';
-      scene.add(holder);
+      // WHOSE CHILD IS THE GARMENT? It has always been the SCENE's, and that
+      // is a hypothesis nobody tested: the shop's own contents hang off the
+      // clubhouse INTERIOR group, and if any light, layer or shadow decision
+      // is scoped to that subtree then a garment parented to the scene root is
+      // lit by a different room than the one it is being judged in. The hung
+      // garments measure 1-6% of full value and the folded ones 30-44%, which
+      // is a 30:1 difference no albedo explains -- so before that is reported
+      // as a room fault it has to be ruled out as a staging one.
+      // V7_PARENT=interior mounts it where the shop's own props live.
+      let mount = scene;
+      if (window.__v7parent === 'interior') {
+        const inter = app.scene3d.clubhouse()?.interior;
+        if (inter) mount = inter;
+      }
+      mount.add(holder);
+      // world-space `at` is computed below off the camera, so if the mount has
+      // its own transform the holder has to undo it or the garment lands in
+      // the wrong room entirely
+      mount.updateMatrixWorld(true);
+      holder.matrixAutoUpdate = true;
+      if (mount !== scene) {
+        const inv = new THREE.Matrix4().copy(mount.matrixWorld).invert();
+        holder.applyMatrix4(inv);
+      }
 
       const g = await new Promise((res, rej) =>
         loader.load(`${DIR}/${file}`, res, undefined, rej));
@@ -232,7 +373,19 @@ async (page) => {
       // be judged, and the first cut's folded polo hovered over bare floor
       // like a slab. Driver staging, the way the studio's shelf was; it is not
       // part of any asset and it does not ship.
-      if (display === 'shelf') {
+      if (display === 'none') {
+        // nothing: it stands on the floor
+      } else if (display === 'peg') {
+        // A WALL, because that is what it is mounted to. Behind the subject
+        // along the camera's forward, not under it.
+        const panel = new THREE.MeshStandardMaterial({
+          color: 0x5f5852, roughness: 0.86, metalness: 0.0,
+        });
+        const bd = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.9, 0.03), panel);
+        bd.position.set(at.x - fwd.x * 0.02, at.y, at.z - fwd.z * 0.02);
+        bd.rotation.y = Math.atan2(-fwd.x, -fwd.z);
+        holder.add(bd);
+      } else if (display === 'shelf') {
         const board = new THREE.MeshStandardMaterial({
           color: 0x6b6259, roughness: 0.78, metalness: 0.0,
         });
@@ -293,28 +446,55 @@ async (page) => {
         }
       }
 
-      const err = rule === 'hook' ? box.max.y - at.y : box.min.y - at.y;
+      const err = rule === 'hook' ? box.max.y - at.y
+        : rule === 'wall' ? (box.max.y + box.min.y) / 2 - at.y
+        : box.min.y - at.y;
       const size = box.getSize(new THREE.Vector3());
       window.__v7fwd = { x: fwd.x, z: fwd.z };
       window.__v7home = { x: app.scene3d.walk.state.x, z: app.scene3d.walk.state.z };
+      window.__v7aim = aimAtOrigin ? { x: at.x, y: at.y + centreY, z: at.z } : null;
       return {
         maps,
         originErrMm: +(err * 1000).toFixed(1),
         sizeMm: [size.x, size.y, size.z].map((v) => +(v * 1000).toFixed(0)),
       };
-    }, [file, rule, height, display, DIR, ANCHOR]);
+      // SIX ARGUMENTS WERE BEING PASSED TO AN EIGHT-ARGUMENT LIST. `centreY`
+      // and `aimAtOrigin` arrived undefined, so the aim override was always
+      // null and the counter was framed on its bounding-box centre after all --
+      // the fix written for it never ran. Nothing reported this, because a
+      // missing argument is not an error in JavaScript, it is `undefined`.
+    }, [file, rule, height, display, DIR, ANCHOR, centreY, !!nearOverride]);
     console.log(`\n${name}: sightline ${aim.why}`);
 
-    for (const [tag, dist] of DISTANCES) {
-      await page.evaluate(async ([dist, ANCHOR]) => {
+    for (const [tag, baseDist] of DISTANCES) {
+      const dist = (tag === 'browse' && nearOverride) ? nearOverride : baseDist;
+      const moved = await page.evaluate(async ([dist, ANCHOR]) => {
         const w = window.__fw.scene3d.walk;
         const f = window.__v7fwd;
         const h = window.__v7home;
         const back = ANCHOR - dist;
-        w.state.x = h.x + f.x * back;
-        w.state.z = h.z + f.z * back;
+        const want = { x: h.x + f.x * back, z: h.z + f.z * back };
+        w.state.x = want.x;
+        w.state.z = want.z;
         w.state.vx = 0; w.state.vz = 0;
+        return { want, immediately: { x: w.state.x, z: w.state.z } };
       }, [dist, ANCHOR]);
+      // WHO PUT IT BACK? The browse frame kept coming out at the room distance
+      // and the only reason it was noticed is the requested-vs-measured
+      // assertion. Read walk.state again AFTER the tick: if it snapped back,
+      // the walk simulation rejected the position (a collider), and if it held
+      // but the camera did not follow, the camera is not driven by state.
+      await page.waitForTimeout(350);
+      const settled = await page.evaluate(() => {
+        const w = window.__fw.scene3d.walk;
+        return { x: w.state.x, z: w.state.z };
+      });
+      const slip = Math.hypot(settled.x - moved.want.x, settled.z - moved.want.z);
+      if (slip > 0.05) {
+        console.log(`  move ${tag}: asked for (${moved.want.x.toFixed(2)}, ${moved.want.z.toFixed(2)}), `
+          + `walk.state settled at (${settled.x.toFixed(2)}, ${settled.z.toFixed(2)}) `
+          + `-- ${slip.toFixed(2)} m of slip, the sim moved the player back`);
+      }
       // Let the game tick, THEN look: the camera lags walk.state by a frame
       // and measuring in the same evaluate reported the previous position.
       await page.waitForTimeout(500);
@@ -326,7 +506,9 @@ async (page) => {
         const eye = new THREE.Vector3().setFromMatrixPosition(cam.matrixWorld);
         const holder = window.__v7scene.getObjectByName('__v7probe');
         const box = new THREE.Box3().setFromObject(holder.children[0]);
-        const mid = box.getCenter(new THREE.Vector3());
+        const a = window.__v7aim;
+        const mid = a ? new THREE.Vector3(a.x, a.y, a.z)
+                      : box.getCenter(new THREE.Vector3());
         const flat = Math.hypot(mid.x - eye.x, mid.z - eye.z);
         w.state.pitch = Math.atan2(mid.y - eye.y, flat);
         return { realDist: +flat.toFixed(3),
@@ -363,35 +545,100 @@ async (page) => {
         }
         const spanX = Math.max(0, Math.min(hi[0], 1) - Math.max(lo[0], -1));
         const spanY = Math.max(0, Math.min(hi[1], 1) - Math.max(lo[1], -1));
-        const centre = [(lo[0] + hi[0]) / 2, (lo[1] + hi[1]) / 2];
+        // Off axis is measured from the AIM POINT where one was given: a club
+        // deliberately framed on its head has its bounding box centred half a
+        // metre higher, and calling that "the camera is not looking at it"
+        // would be the check misreading a deliberate composition.
+        const a = window.__v7aim;
+        let centre;
+        if (a) {
+          const q = new THREE.Vector3(a.x, a.y, a.z).project(cam);
+          centre = [q.x, q.y];
+        } else {
+          centre = [(lo[0] + hi[0]) / 2, (lo[1] + hi[1]) / 2];
+        }
         const offAxis = Math.hypot(centre[0], centre[1]);
 
-        // OCCLUSION: is anything between the eye and it. A Sprite raycast
-        // dereferences Raycaster.camera and this scene has sprites; the shop's
-        // batched props sit on layer masks the default raycaster skips.
-        const mid = box.getCenter(new THREE.Vector3());
-        const rc = new THREE.Raycaster(camPos, mid.clone().sub(camPos).normalize(),
-          0.05, camPos.distanceTo(mid) + 1.0);
+        // OCCLUSION: is anything between the eye and it.
+        //
+        // SAMPLE THE SURFACE, NOT THE BOUNDING-BOX CENTRE. One ray at the
+        // centre of an AABB is fine for a shirt and useless for a golf club:
+        // an L of head and shaft has nothing at the middle of its box, so the
+        // ray sailed past and hit the wall four metres behind, and the driver
+        // was reported "BLOCKED BY GREY_WestWall_SageBand at 3.46 m" while
+        // standing in clear air at 2.55 m. Take points that are actually ON
+        // the object and call it blocked only if most of them are.
+        const pts = [];
+        garment.traverse((o) => {
+          if (!o.isMesh || !o.geometry.attributes.position) return;
+          const pos = o.geometry.attributes.position;
+          const step = Math.max(1, Math.floor(pos.count / 6));
+          for (let i = 0; i < pos.count; i += step) {
+            pts.push(new THREE.Vector3().fromBufferAttribute(pos, i)
+              .applyMatrix4(o.matrixWorld));
+          }
+        });
+        if (!pts.length) pts.push(box.getCenter(new THREE.Vector3()));
+
+        const rc = new THREE.Raycaster();
+        // A Sprite raycast dereferences Raycaster.camera and this scene has
+        // sprites; the shop's batched props sit on layer masks the default
+        // raycaster skips.
         rc.camera = cam;
         rc.layers.enableAll();
-        const hits = rc.intersectObject(scene, true)
-          .filter((x) => x.object.visible && x.object.material);
+        // IGNORE THE HELD-TOOL VIEWMODEL. `HeldWasher`, `Tool_mop` and
+        // `Tool_vacuum` are prewarmed subtrees parented to the CAMERA, with
+        // arm and sleeve meshes left visible even though state.tool is null.
+        // They ride the camera, so they crossed a different number of sample
+        // rays every run: the same driver reported "clear" and "BLOCKED BY
+        // BroomLeftSleeve at 1.40 m" on two consecutive runs of the same
+        // scene. A viewmodel is drawn over everything by design and is in
+        // every frame -- it is not what "something is standing in front of
+        // the shelf" means.
+        const mine = (obj) => {
+          let n = obj;
+          while (n) {
+            if (n === holder || n === cam) return true;
+            n = n.parent;
+          }
+          return false;
+        };
+        let blockedCount = 0;
         let blocker = null;
-        for (const x of hits) {
-          let n = x.object, mine = false;
-          while (n) { if (n === holder) { mine = true; break; } n = n.parent; }
-          if (mine) break;
-          blocker = `${x.object.name || x.object.type} at ${x.distance.toFixed(2)} m`;
-          break;
+        let hitCount = 0;
+        let firstHits = [];
+        for (const pt of pts) {
+          const dir = pt.clone().sub(camPos);
+          const len = dir.length();
+          rc.set(camPos, dir.normalize());
+          rc.near = 0.05;
+          rc.far = len - 0.004;      // stop just short of the point itself
+          const hits = rc.intersectObject(scene, true)
+            .filter((x) => x.object.visible && x.object.material && !mine(x.object));
+          if (hits.length) {
+            blockedCount++;
+            if (!blocker) {
+              blocker = `${hits[0].object.name || hits[0].object.type} at `
+                + `${hits[0].distance.toFixed(2)} m`;
+              firstHits = hits.slice(0, 3).map((x) =>
+                `${x.object.name || x.object.type}@${x.distance.toFixed(2)}`);
+            }
+            hitCount += hits.length;
+          }
         }
+        const blockedFrac = blockedCount / pts.length;
+        // A hanger arm or a shelf edge clipping one sample is not "hidden".
+        if (blockedFrac <= 0.6) blocker = null;
+
         return {
           px: [Math.round(spanX * 800), Math.round(spanY * 450)],
           offAxis: Number.isFinite(offAxis) ? +offAxis.toFixed(2) : 9.9,
           behind,
           blocker,
-          hitCount: hits.length,
-          firstHits: hits.slice(0, 3).map((x) =>
-            `${x.object.name || x.object.type}@${x.distance.toFixed(2)}`),
+          samples: pts.length,
+          blockedPct: Math.round(blockedFrac * 100),
+          hitCount,
+          firstHits,
         };
       });
 
@@ -405,7 +652,8 @@ async (page) => {
         + `${v.px[0]} x ${v.px[1]} px  off-axis ${v.offAxis}  `
         + `${v.blocker ? `BLOCKED BY ${v.blocker}` : 'clear'}`);
       console.log(`  -> ${shot}   MAPS ${withMaps}/${placed.maps.length}   `
-        + `${v.hitCount} hits: ${v.firstHits.join('  ')}`);
+        + `${v.blockedPct}% of ${v.samples} surface samples blocked`
+        + `${v.firstHits.length ? `: ${v.firstHits.join('  ')}` : ''}`);
       for (const m of placed.maps) {
         console.log(`    ${(m.name || '?').padEnd(15)} `
           + `normal ${m.normal ? 'y' : 'N'} ao ${m.ao ? 'y' : 'N'} `
