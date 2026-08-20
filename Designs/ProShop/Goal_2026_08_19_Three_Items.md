@@ -1,16 +1,34 @@
 # Three items, 2026-08-19
 
-## Item 0 — load time: 12.1 s -> 9.2 s best, ~11.9 s typical. TARGET NOT RELIABLY MET.
+## Item 0 — 12.1 s -> 10.5 s median, 8.0 s best. TARGET NOT RELIABLY MET.
 
-Measured with `tools/qa/boot-cost-ledger.js`, same stamped profile, serial runs,
-nothing else on the machine:
+Measured with `tools/qa/boot-cost-ledger.js`, same stamped profile, serial, quiet
+machine, N=5: **7,991 / 8,006 / 10,493 / 11,035 / 11,379 ms.** Median 10,493 ms,
+min 7,991 ms. Baseline over the same driver was 12,102 / 13,631 / 16,367 ms.
 
-| | min | median |
-|---|---|---|
-| baseline | 12,102 ms | 13,631 ms |
-| after | **9,234 ms** | 11,926 ms |
+Two boots in five are already ~8 s. The median is 0.5 s over the line.
 
-Under 10 s happens on the best boot and not on the typical one.
+### Where the boot actually goes, end to end
+
+`tools/qa/boot-premilestones.js` (new) polls milestones from the menu click, so
+the half of the boot that is NOT prewarm stops being one number. On a 10,068 ms
+boot:
+
+| | ms |
+|---|---|
+| menu click -> the scene starts its own clock | 3,453 |
+| scene3d / renderer / clubhouse first readable | 3,502 |
+| prewarm running | 2,320 -> 8,797 |
+| prewarm total | 6,477 |
+| veil lifted | 10,068 |
+
+Its control: every milestone must land inside the veil this same run measures
+independently. It does.
+
+**So prewarm is ~65% of the boot and the scene construction ahead of it is ~35%.**
+That first 3.4 s — module load, save load, world build — has never been taken
+apart by anyone, including me. It is the only remaining stretch that carries no
+play risk at all, and it is where I would look next.
 
 ### What the veil is actually made of
 
