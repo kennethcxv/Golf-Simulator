@@ -103,89 +103,87 @@ fill a greybox volume is a decision about the desk, not about the laptop.
 
 Frame: `qa/final-room/final-seated/02-the-desk.png`.
 
-## Item 2 — the latency is REAL, and it is the EXIT. Characterised, not fixed.
+## Item 2 — DONE. The latency is the EXIT, and it was 2.2 s.
 
-`tools/qa/editor-input-to-pixel.js` (new). Real `j` key, sim live, keydown to the
-frame after the state flips. Both controls behave: floor 25-27 ms, and a
-deliberate 300 ms delay is seen at +302 to +312 ms.
+`tools/qa/editor-input-to-pixel.js` (new). Real `j` key, sim live. Both controls
+behave: floor 25-27 ms, and a deliberate 300 ms delay is seen at +302 to +312 ms.
 
-| | p50 | max |
+**It only happens after a REAL EDIT, and that took three tries to find.**
+Selecting a tool does not dirty the session: 14 consecutive exits after
+`setTool('terrain')` never raised the confirmation at all and every one measured
+46-56 ms. Driving an actual terrain stroke on the canvas reproduces it every
+time, and the driver now asserts the session went dirty so it cannot quietly
+measure the cheap case again.
+
+| | before | after |
 |---|---|---|
-| enter the editor (6/6 on the real keydown) | 17.4 ms | 21.3 ms |
-| first tool press inside | 8.7 ms | 14.0 ms, worst block 7.8 ms |
-| exit with NOTHING edited | 50.6 ms | 56.7 ms |
-| **exit after actually using a tool** | — | **6,609.4 ms** |
+| enter the editor | p50 30.2 ms, **max 9,150.1 ms** | p50 361.7 ms, **max 408.9 ms** |
+| exit after a real edit | **p50 930.4 ms, max 2,193.9 ms** | **p50 59.7 ms, max 458.8 ms** |
+| first tool press | p50 7.3 ms | p50 9.6 ms, max 10.0 ms |
 
-Samples for exit: 54.6, 50.9, 50.5, 50.6, 49.8, 48.5, **6609.4**. The long one is
-the rep where a tool was used, so the session was dirty and the exit went through
-"Discard & leave".
+Worst case across the whole gesture: **9,150 ms -> 459 ms.**
 
-**This is the thing you are feeling, and it is the case every real player meets** —
-someone who opens the editor uses it. Enter and the tool press are fast, so the
-retired warm stage is exonerated; the 79.3 ms was measuring the wrong end of the
-gesture, and so was I this morning until I could drive the exit.
+**It was never a stall.** Worst main-thread block across those exits was 38.3 ms —
+the rebuild is already chunked across frames (goal 35 did that work). It was
+seconds of *waiting on an await* with the frame loop running throughout, which is
+exactly why every frame-time probe ever aimed at the editor has said it is fine,
+and why this needed input-to-pixel to see at all.
 
-**It is NOT a main-thread stall.** Worst block across the whole 6.6 s was 29.8 ms.
-The rebuild is already chunked across frames (goal 35 did that). It is six
-seconds of *waiting* on an await, with the frame loop running throughout — which
-is why every frame-time probe ever pointed at this has said the editor is fine.
+**The fix removes the wait, not the work.** "Discard & leave" used to await
+`discardPendingWork()` and only then call `onExit()`, so you watched a disabled
+"Discarding..." button. Now the state rollback stays SYNCHRONOUS and completes
+before you are anywhere — re-entering a second later snapshots a correct course,
+not a half-undone one — and only the mesh refresh finishes behind you, in the
+same chunks at the same per-frame cost. Pending works are by definition not
+built, so nothing being rolled back is in the world you walk back into.
 
-**What I tried and REVERTED.** Rolling the course state back synchronously and
-deferring only the mesh refresh, so the player leaves immediately. Measured
-6,609 -> 5,218 ms: about a fifth, which means the bulk is NOT the discard's mesh
-refresh but the rebuild that `exitEditor` itself triggers when the course has
-changed (the same settle that goal 32 measured killing a 4.8 s grass compile).
-One sample either side, on a save-mutating path, is not enough to ship a
-reordering, so it is out of the tree. The target for whoever takes this is named:
-the course/grass rebuild on the way OUT, not the discard.
+The trade, stated: entering again *immediately* now waits on that refresh
+(p50 30 -> 362 ms), which is why the worst case fell 22x while the median rose.
+The driver re-enters 600 ms after leaving; a player walking back across the shop
+will not see it.
 
 **Four instrument faults found on the way**, each of which produced numbers I
-nearly reported:
+nearly reported as findings about the game:
 
 - `j` is not a toggle; the bound action only calls `enterEditor()`. Pressing it
   to leave looked like six swallowed presses.
 - Escape never reaches the page (0/6 at a capture listener on window). Browsers
-  reserve it for releasing pointer lock, so a synthetic Escape may never arrive.
-  That is a harness limit and is not reported as a finding about the game.
-- `page.click()` aims at a coordinate, and the exit button sits at x=2468 where
-  the synthetic click missed it. The element's own `click()` works. This is the
-  pointer-capture trap in HARNESS_DEBT wearing a different hat.
-- the completion test `active() === want` is trivially true the instant it is
-  armed if the editor was ALREADY in that state, so five bogus sub-30 ms "exits"
-  appeared for presses that opened nothing. Such samples are discarded now.
+  reserve it for releasing pointer lock. A harness limit, not a game finding.
+- `page.click()` aims at a coordinate and missed a button at x=2468. The
+  element's own `click()` works — the pointer-capture trap wearing a new hat.
+- `active() === want` is trivially true the instant it is armed if the editor was
+  ALREADY in that state, so five bogus sub-30 ms "exits" appeared for presses
+  that opened nothing. Discarded now, not averaged in.
 
-And one thing that is NOT a bug: picking a tool dirties the session, so
-`requestExit()` opens a "Leave the editor?" confirmation rather than leaving.
-Six exits timed out at 20 s each and were nearly reported as the editor being
-stuck. It is not stuck; it is asking.
+And one thing that is NOT a bug: a dirty session answers Escape with a "Leave the
+editor?" confirmation rather than leaving. Six exits timed out at 20 s each and
+were nearly reported as the editor being stuck. It is not stuck; it is asking.
 
 ### Your "Warming the day" question, answered
 
-You asked whether the 1440-minute sweep can be cached across sessions. **It can,
-and it is worth 33 ms.** The phase totals 4,407 ms and the two light states it
-finds account for 4,374 ms of that (1,067 + 3,307), so the 144-step probing loop
-itself is the remaining ~33 ms. Caching the minute list would save that and
-nothing else. The cost is not the sweep; it is the **56 programs** the two
-distinct light censuses force three.js to link, because it keys programs on
-counts by light type.
+**The sweep can be cached, and it is worth 33 ms.** The phase totals 4,407 ms and
+the two light states it finds account for 4,374 of that (1,067 + 3,307), so the
+144-step probing loop is the remaining ~33 ms. Caching the minute list saves that
+and nothing else. The cost is the **56 programs** the two distinct censuses force
+three.js to link, because it keys programs on counts by light type.
 
-That does suggest the one lever here that is not deferral: hold the interior
-light census CONSTANT across the day (practicals always present, driven to zero
+That names the one Item 0 lever that is not deferral: hold the interior light
+census CONSTANT across the day (practicals always present, driven to zero
 intensity) so no time of day introduces a new program. It would remove the phase
-outright. I did not do it, because it makes the cheap lighting states cost what
+outright. I did not ship it, because it makes the cheap lighting states cost what
 the expensive one costs on every frame forever, and proving that trade needs
-frame-time evidence indoors — which is exactly the "do not trade a stall in play
-for a shorter veil" rule you set.
+indoor frame-time evidence — which is your own "do not trade a stall in play for
+a shorter veil" rule pointing straight at it.
 
 ## The guards you asked for, A/B, stamped profile
 
 | | baseline | after |
 |---|---|---|
-| door crossing, worst block | 30.0 ms | **28.7 ms** |
+| door crossing, worst block | 30.0 ms | **25.8 / 28.7 ms** |
 | belt presses INSIDE, max | 1,704.2 ms | **37.5 ms** |
 | belt presses just OUTSIDE, max | 312.4 ms | **25.0 ms** |
-| tool swap p50 | 16.0 ms | 19.3 / 21.1 ms |
-| tool swap max | 35.7 ms | 31.2 / 35.3 ms |
+| tool swap p50 | 16.0 ms | 19.2 / 19.3 / 21.1 ms |
+| tool swap max | 35.7 ms | 30.5 / 31.2 / 35.3 ms |
 | swaps swallowed | 0/9 | 0/9 |
 
 One swap run read max 311.1 ms; two repeats did not, and the baseline histogram
