@@ -11860,7 +11860,7 @@ export function makeCourseScene(canvas, state) {
   const STATIC_PUT_MODELS = new Set([
     'vendor/models/shed.glb', 'vendor/models/workbench.glb',
     'vendor/models/tool_chest.glb', 'vendor/models/club_sign.glb',
-    'vendor/models/clubhouse_ext_opt.glb', 'vendor/models/tee_sign_broken.glb',
+    'vendor/models/tee_sign_broken.glb',
     'vendor/models/course_sign.glb',
   ]);
   const putModelFreezeLabel = 'CoursePutModelMatrixFreeze'; // bound first: the strings ratchet
@@ -12451,20 +12451,12 @@ export function makeCourseScene(canvas, state) {
         );
       }
 
-      // the groundskeeper's residence — the owner-supplied house GLB, optimized
-      // (334k→67k tris, see DEV_LOG 2026-07-13) and finally on the property.
-      // Its baked garden bed reads as its own yard on the entrance approach.
-      if (!luxuryPresentation) {
-        putModel('vendor/models/clubhouse_ext_opt.glb', 20, bx - 30, bz + 27, 1.25, (m) => {
-          m.position.y -= 0.12; // settle the baked landscaping bed into the turf
-        });
-        propColliders.push({ minX: bx - 40, maxX: bx - 20, minZ: bz + 21, maxZ: bz + 33 });
-        walkProps.push({
-          x: bx - 30, z: bz + 24, r: 4.5,
-          label: () => "The groundskeeper's house - someone kept a nicer yard than the course",
-          action: null,
-        });
-      }
+      // The groundskeeper's residence is GONE (Overnight 2026-08-21 Block 1).
+      // It was a downloaded house model placed here at scale 20, 40 m from the
+      // clubhouse, and it read as a second clubhouse on the entrance approach.
+      // Now under Assets/_archive with its entry in ARCHIVED.json, whose gate
+      // fails the suite on any reference to its old or new path by name.
+      // Owner ruling: one clubhouse — ours — and nothing else on the map.
 
       // Golf carts are no longer parked scenery. The fleet is assigned to live
       // round parties and the same vehicle follows their canonical route.

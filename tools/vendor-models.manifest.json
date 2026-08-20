@@ -485,11 +485,6 @@
     "sha1": "8925e42acee8c200a25754e27fad78819776eae0"
   },
   {
-    "from": "Assets/house+3d+model.glb",
-    "to": "vendor/models/clubhouse_ext.glb",
-    "sha1": "10ea1e832384eb3c5a138c410778f0c19b0778d3"
-  },
-  {
     "from": "Assets/clubhouse/mountain_clubhouse_3000sqft.glb",
     "to": "vendor/models/clubhouse/mountain_clubhouse_3000sqft.glb",
     "sha1": "acccf09c987c7533dfa9d77d90c954fe52ee294b"

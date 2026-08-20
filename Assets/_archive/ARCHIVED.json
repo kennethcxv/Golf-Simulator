@@ -21,6 +21,27 @@
       "supersededBy": "vendor/textures/ground",
       "archived": "2026-08-18",
       "reason": "the five Poly Haven ground sets: ONE image (leafy_grass, a leafy meadow) was doing fairway, semi, tee, green, fringe, rough and heavy rough, and FW_STYLIZE reduced it to luminance before drawing it; replaced by four authored tiling sets with real normal, occlusion and roughness. All CC0 with their URLs in vendor/textures/_manifest.json"
+    },
+    {
+      "path": "Assets/_archive/house+3d+model.glb",
+      "formerPath": "Assets/house+3d+model.glb",
+      "supersededBy": "Assets/assets_51_100/glb/sheet_06/asset_051_finished_clubhouse_exterior.glb",
+      "archived": "2026-08-21",
+      "reason": "a downloaded residential house model that stood on the course at scale 20 as \"the groundskeeper's residence\", 40 m from the clubhouse, reading as a second clubhouse on the entrance approach. Owner ruling (Overnight 2026-08-21 Block 1): one clubhouse - ours - and nothing else."
+    },
+    {
+      "path": "Assets/_archive/clubhouse_ext_opt.glb",
+      "formerPath": "vendor/models/clubhouse_ext_opt.glb",
+      "supersededBy": "Assets/assets_51_100/glb/sheet_06/asset_051_finished_clubhouse_exterior.glb",
+      "archived": "2026-08-21",
+      "reason": "the optimized (334k to 67k tris) runtime copy of house+3d+model.glb that courseScene placed on the map; removed with its placement"
+    },
+    {
+      "path": "Assets/_archive/house+3d+model.glb",
+      "formerPath": "vendor/models/clubhouse_ext.glb",
+      "supersededBy": "Assets/assets_51_100/glb/sheet_06/asset_051_finished_clubhouse_exterior.glb",
+      "archived": "2026-08-21",
+      "reason": "the generated vendor copy of house+3d+model.glb; its vendor-models.manifest.json entry is removed so the build no longer produces it, and nothing ever loaded it"
     }
   ]
 }

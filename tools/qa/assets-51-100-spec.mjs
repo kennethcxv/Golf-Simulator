@@ -77,8 +77,6 @@ const defs = [
     ['SOCKET_MainEntrance', 'SOCKET_Porch', 'SOCKET_ClubSign', 'SOCKET_ExteriorLight_W', 'SOCKET_ExteriorLight_E'],
     'Simplified wall, roof, foundation and column proxies with real door/window openings.', {
       currentCandidates: {
-        canonicalGlb: ['vendor/models/clubhouse_ext.glb'],
-        runtimeGlb: ['vendor/models/clubhouse_ext_opt.glb'],
         runtimeIntegrationFiles: ['src/render3d/courseScene.js', 'src/render3d/clubhouse/shell.js'],
         rawInputs: ['Assets/house+3d+model.glb'],
       },
@@ -92,8 +90,6 @@ const defs = [
     ['SOCKET_MainEntrance', 'SOCKET_Porch', 'SOCKET_ClubSign', 'SOCKET_Damage_Roof', 'SOCKET_Damage_Trim'],
     'Reuse Asset 51 structural proxies; damaged visuals must never obstruct valid navigation.', {
       currentCandidates: {
-        canonicalGlb: ['vendor/models/clubhouse_ext.glb'],
-        runtimeGlb: ['vendor/models/clubhouse_ext_opt.glb'],
         runtimeIntegrationFiles: ['src/render3d/clubhouse/dirt.js', 'src/render3d/clubhouse/washing.js', 'src/sim/washing.js'],
         rawInputs: ['Assets/house+3d+model.glb'],
       },

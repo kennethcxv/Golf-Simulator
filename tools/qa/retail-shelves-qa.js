@@ -22,7 +22,7 @@ async (page) => {
     const error = request.failure()?.errorText || 'unknown';
     if (intentionalReload && error === 'net::ERR_ABORTED') return;
     if (error === 'net::ERR_ABORTED'
-        && /\/vendor\/models\/(?:shed|clubhouse_ext_opt)\.glb(?:\?|$)/.test(request.url())) return;
+        && /\/vendor\/models\/(?:shed)\.glb(?:\?|$)/.test(request.url())) return;
     if (error === 'net::ERR_ABORTED'
         && /\/vendor\/models\/pro_shop_furniture\/retail-shelving\/shelf_[^/?]+\.glb(?:\?|$)/
           .test(request.url())) return;

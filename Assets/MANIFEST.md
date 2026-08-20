@@ -16,7 +16,7 @@ A loader that builds its filename at runtime — `` `vendor/models/flora/${id}.g
 proves the *directory*, not the file. Those rows say "loaded by name from", and the
 remaining question for them is whether the id is in that loader's registry.
 
-Totals: **1965** asset files — 724 SHIPPING, 1211 NOT WIRED, 30 SUPERSEDED.
+Totals: **1964** asset files — 723 SHIPPING, 1209 NOT WIRED, 32 SUPERSEDED.
 
 ## Archived
 
@@ -25,13 +25,16 @@ Totals: **1965** asset files — 724 SHIPPING, 1211 NOT WIRED, 30 SUPERSEDED.
 | `Assets/models/hero/v3` | `Assets/_archive/hero/v3` | `Assets/models/hero/v5` | concertina-fold garments; the folds were modelled, not simulated, and four garments carried the same sticker fault |
 | `Assets/models/hero/v4` | `Assets/_archive/hero/v4` | `Assets/models/hero/v5` | simulated-body production line; superseded by v5's flat Coons pattern pieces sewn then folded |
 | `vendor/textures/fairway_diff.jpg` | `Assets/_archive/textures` | `vendor/textures/ground` | the five Poly Haven ground sets: ONE image (leafy_grass, a leafy meadow) was doing fairway, semi, tee, green, fringe, rough and heavy rough, and FW_STYLIZE reduced it to luminance before drawing it; replaced by four authored tiling sets with real normal, occlusion and roughness. All CC0 with their URLs in vendor/textures/_manifest.json |
+| `Assets/house+3d+model.glb` | `Assets/_archive/house+3d+model.glb` | `Assets/assets_51_100/glb/sheet_06/asset_051_finished_clubhouse_exterior.glb` | a downloaded residential house model that stood on the course at scale 20 as "the groundskeeper's residence", 40 m from the clubhouse, reading as a second clubhouse on the entrance approach. Owner ruling (Overnight 2026-08-21 Block 1): one clubhouse - ours - and nothing else. |
+| `vendor/models/clubhouse_ext_opt.glb` | `Assets/_archive/clubhouse_ext_opt.glb` | `Assets/assets_51_100/glb/sheet_06/asset_051_finished_clubhouse_exterior.glb` | the optimized (334k to 67k tris) runtime copy of house+3d+model.glb that courseScene placed on the map; removed with its placement |
+| `vendor/models/clubhouse_ext.glb` | `Assets/_archive/house+3d+model.glb` | `Assets/assets_51_100/glb/sheet_06/asset_051_finished_clubhouse_exterior.glb` | the generated vendor copy of house+3d+model.glb; its vendor-models.manifest.json entry is removed so the build no longer produces it, and nothing ever loaded it |
 
 ## Families
 
 | family | what it is | files | SHIPPING | NOT WIRED | SUPERSEDED | size |
 |---|---|--:|--:|--:|--:|--:|
-| `Assets` | — | 29 | 0 | 29 | 0 | 105.4 MiB |
-| `Assets/_archive` | ARCHIVED — kept for history, must never be referenced | 30 | 0 | 0 | 30 | 37.1 MiB |
+| `Assets` | — | 28 | 0 | 28 | 0 | 92.9 MiB |
+| `Assets/_archive` | ARCHIVED — kept for history, must never be referenced | 32 | 0 | 0 | 32 | 52.1 MiB |
 | `Assets/architecture` | door sources | 89 | 0 | 89 | 0 | 36.5 MiB |
 | `Assets/assets_51_100` | sheet 51-100 sources | 74 | 58 | 16 | 0 | 225.2 MiB |
 | `Assets/ceiling_lights` | ceiling light sources | 36 | 18 | 18 | 0 | 17.3 MiB |
@@ -45,7 +48,7 @@ Totals: **1965** asset files — 724 SHIPPING, 1211 NOT WIRED, 30 SUPERSEDED.
 | `Assets/pro_shop` | the pro-shop product/fixture library (PF) | 495 | 0 | 495 | 0 | 248.1 MiB |
 | `Assets/pro_shop_furniture` | furniture catalogue sources | 301 | 20 | 281 | 0 | 99.7 MiB |
 | `Assets/shed` | — | 5 | 5 | 0 | 0 | 0.3 MiB |
-| `vendor/models` | — | 28 | 23 | 5 | 0 | 35.3 MiB |
+| `vendor/models` | — | 26 | 22 | 4 | 0 | 20.4 MiB |
 | `vendor/models/architecture` | door systems | 5 | 0 | 5 | 0 | 7.1 MiB |
 | `vendor/models/assets_51_100` | the numbered asset sheets 51-100, placed through placeableCatalog | 58 | 58 | 0 | 0 | 74.0 MiB |
 | `vendor/models/ceiling_lights` | ceiling light fixtures | 18 | 18 | 0 | 0 | 5.7 MiB |
@@ -85,7 +88,6 @@ Totals: **1965** asset files — 724 SHIPPING, 1211 NOT WIRED, 30 SUPERSEDED.
 | `golf+swing+prop+3d+model.glb` | NOT WIRED | no loader in src/ |
 | `green+baseball+cap+3d+model.glb` | NOT WIRED | no loader in src/ |
 | `green+office+chair+3d+model.glb` | NOT WIRED | no loader in src/ |
-| `house+3d+model.glb` | NOT WIRED | source of vendor/models/clubhouse_ext.glb, which nothing loads |
 | `modern+display+shelf+3d+model.glb` | NOT WIRED | no loader in src/ |
 | `rake+3d+model.glb` | NOT WIRED | no loader in src/ |
 | `red+agricultural+machine+3d+model.glb` | NOT WIRED | no loader in src/ |
@@ -101,6 +103,7 @@ Totals: **1965** asset files — 724 SHIPPING, 1211 NOT WIRED, 30 SUPERSEDED.
 
 | file | status | evidence |
 |---|---|---|
+| `clubhouse_ext_opt.glb` | SUPERSEDED | declared in ARCHIVED.json |
 | `hero/v3/apparel_cap_hung.glb` | SUPERSEDED | superseded by Assets/models/hero/v5 |
 | `hero/v3/apparel_cap.glb` | SUPERSEDED | superseded by Assets/models/hero/v5 |
 | `hero/v3/apparel_hoodie_folded.glb` | SUPERSEDED | superseded by Assets/models/hero/v5 |
@@ -121,6 +124,7 @@ Totals: **1965** asset files — 724 SHIPPING, 1211 NOT WIRED, 30 SUPERSEDED.
 | `hero/v4/apparel_tee_hung.glb` | SUPERSEDED | superseded by Assets/models/hero/v5 |
 | `hero/v4/apparel_trousers_folded.glb` | SUPERSEDED | superseded by Assets/models/hero/v5 |
 | `hero/v4/apparel_trousers_hung.glb` | SUPERSEDED | superseded by Assets/models/hero/v5 |
+| `house+3d+model.glb` | SUPERSEDED | declared in ARCHIVED.json |
 | `textures/fairway_diff.jpg` | SUPERSEDED | superseded by vendor/textures/ground |
 | `textures/fairway_nor.jpg` | SUPERSEDED | superseded by vendor/textures/ground |
 | `textures/path_diff.jpg` | SUPERSEDED | superseded by vendor/textures/ground |
@@ -603,12 +607,12 @@ Totals: **1965** asset files — 724 SHIPPING, 1211 NOT WIRED, 30 SUPERSEDED.
 
 | file | status | evidence |
 |---|---|---|
-| `approach.jpg` | SHIPPING | loaded by name from src/main.js:2902 |
-| `fairway.jpg` | SHIPPING | loaded by name from src/main.js:2902 |
-| `green.jpg` | SHIPPING | loaded by name from src/main.js:2902 |
-| `porch.jpg` | SHIPPING | loaded by name from src/main.js:2902 |
-| `shopfront.jpg` | SHIPPING | loaded by name from src/main.js:2902 |
-| `treeline.jpg` | SHIPPING | loaded by name from src/main.js:2902 |
+| `approach.jpg` | SHIPPING | loaded by name from src/main.js:2935 |
+| `fairway.jpg` | SHIPPING | loaded by name from src/main.js:2935 |
+| `green.jpg` | SHIPPING | loaded by name from src/main.js:2935 |
+| `porch.jpg` | SHIPPING | loaded by name from src/main.js:2935 |
+| `shopfront.jpg` | SHIPPING | loaded by name from src/main.js:2935 |
+| `treeline.jpg` | SHIPPING | loaded by name from src/main.js:2935 |
 
 ### `Assets/models/hero`
 
@@ -1550,8 +1554,6 @@ Totals: **1965** asset files — 724 SHIPPING, 1211 NOT WIRED, 30 SUPERSEDED.
 | `belt.glb` | SHIPPING | loaded at src/render3d/courseScene.js:12057 |
 | `bucket_soil.glb` | SHIPPING | loaded at src/render3d/courseScene.js:617 |
 | `club_sign.glb` | SHIPPING | loaded at src/render3d/courseScene.js:11862 (+1) |
-| `clubhouse_ext_opt.glb` | SHIPPING | loaded at src/render3d/courseScene.js:11863 (+1) |
-| `clubhouse_ext.glb` | NOT WIRED | no loader in src/ |
 | `course_sign.glb` | SHIPPING | loaded at src/render3d/courseScene.js:11864 (+1) |
 | `flagpole.glb` | NOT WIRED | no loader in src/ |
 | `gas_can.glb` | SHIPPING | loaded at src/render3d/courseScene.js:12041 |
