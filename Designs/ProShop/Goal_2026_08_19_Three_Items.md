@@ -167,6 +167,43 @@ looks like a warm, is still called on every boot, and does nothing but write a
 diagnostic string. It should either be deleted or refilled deliberately; right
 now it reads as coverage that does not exist.
 
+### Your actual Item 0 question, answered: WHICH PARTS DOES A STAMPED BOOT STILL NEED?
+
+You asked which parts of prewarm a stamped boot genuinely needs and which are
+re-deriving work the stamp says is already done. I went through every phase. The
+answer is **all of them, and none.**
+
+| phase | quiet ms | what it prevents, as measured when it was written |
+|---|---|---|
+| interior-camera-warm | ~1,900 | the interior's own depth pass — a different shadowMapType/size, therefore different programs, which never warm otherwise |
+| light-states-warm | ~1,500 | 56 programs for the day's other light censuses |
+| compile-hidden | ~950 | 69 programs on objects revealed later in play |
+| assets-and-door-ready | ~550 | not a warm at all — a genuine wait on asset readiness |
+| gesture-register | ~190 | a 71.8 ms frame against a 21.4 ms idle worst, +56 geometries |
+| gesture-ledger | ~120 | a real frame is TWO passes; a one-pass warm warms half of one |
+| editor-camera-warm | ~100 | +28 programs (21 physical) on the first real editor entry |
+| gesture-overview | ~46 | **1,490 ms on the first Tab press** — the owner-play freeze fix |
+
+**Nothing in prewarm is re-deriving stamped work.** The stamp (v2) suppresses the
+compile SCREEN; it cannot carry programs across sessions, because three.js's
+program cache lives on the renderer and dies with the process. What CAN cross
+sessions is the driver's disk cache, and `tools/qa/program-key-stability.js`
+proves it is already being hit: byte-identical keys across boots, and ~69 ms per
+cached link against ~495 ms cold — the 4-7x saving is already banked.
+
+So the prewarm is not fat. Every second in it is holding back a specific,
+previously-measured freeze, each one written after the owner hit it in play. Two
+of those seconds can be removed — the light states and the hidden-object compile
+— and both were tested: the first relocates into multi-second belt-press stalls,
+and the second is under your standing "stop skipping the work" ruling for having
+done exactly that before.
+
+**That is the finding of Item 0.** Not a number, but a boundary: the veil cannot
+be shortened by removing program links, because the links do not disappear — they
+move into your hands. Under 10 s needs the load side (module + save + scene
+construction, 1.1 s + 3.4 s + 1.1 s), which is bundler work and carries no play
+risk at all.
+
 ### Where I stopped, and why
 
 CLAUDE.md's 45-minute rule exists for exactly this, and I have blown it many times
