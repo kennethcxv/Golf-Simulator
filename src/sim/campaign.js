@@ -117,7 +117,10 @@ export const CAMPAIGN_DEBRIS_SPOTS = Object.freeze([
   Object.freeze({ x: -8.1, z: 1.3, a: 0.21 }),
   Object.freeze({ x: -4.8, z: 1.8, a: 0.16 }),
   Object.freeze({ x: -3.7, z: 0.0, a: 0.27 }),
-  Object.freeze({ x: -0.4, z: 0.7, a: 0.19 }),
+  // Block 2: was (-0.4, 0.7) — the shortened desk pulled the return leg east
+  // and the old spot landed 0.03 yd from its collider; one yard west clears it
+  // by 0.63 while staying on the same reachable strip.
+  Object.freeze({ x: -1.0, z: 0.7, a: 0.19 }),
   Object.freeze({ x: 1.8, z: -0.2, a: 0.25 }),
   Object.freeze({ x: 3.2, z: -1.1, a: 0.14 }),
   Object.freeze({ x: -7.4, z: -3.8, a: 0.23 }),

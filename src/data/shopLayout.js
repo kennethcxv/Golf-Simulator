@@ -169,7 +169,11 @@ export const FIXTURE_HALF = {
   bagstand: [1.3, 0.65], shoerack: [1.3, 0.4], fittingroom: [1.1, 0.85],
   feature: [1.05, 0.65], fridge: [0.48, 0.48], snackrack: [0.75, 0.38],
   service: [0.48, 0.38], premiumcase: [1.2, 0.4], demo: [2.0, 0.62],
-  backshelf: [1.4, 0.45], rail: [0.60, 0.225], backcounter: [1.6, 0.3],
+  backshelf: [1.4, 0.45], rail: [0.60, 0.225],
+  // The back cabinets shrank with the desk (Block 2): a 3.2 yd cabinet run
+  // behind a 2.61 yd counter left no staff way in — the mouth at the desk's
+  // east end needs STAFF_CORRIDOR_MIN (1.1 yd) and the audit measures it.
+  backcounter: [0.64, 0.3],
   officeDesk: [1.0, 0.55], officeChair: [0.34, 0.34], officeFiling: [0.375, 0.30],
   packingbench: [0.95, 0.525],
 };
@@ -433,7 +437,9 @@ export const PINE_HILLS_V2_LAYOUT = Object.freeze({
     member_station: Object.freeze({ x: 5.15, z: 2.15, ry: -Math.PI / 2 }),
   }),
   // The wordmark hutch stays on the staff side of the corridor, against the S wall.
-  backcounterLocal: Object.freeze({ x: 0.70, z: 1.84, ry: 0 }),
+  // Block 2: moved west with the shortened desk so the staff mouth at the
+  // east end keeps its 1.1 yd (was x 0.70 against the old 4.2 m frame).
+  backcounterLocal: Object.freeze({ x: -0.55, z: 1.84, ry: 0 }),
   // The safety campaign facility keeps its partition-run site (FLOOR_PLAN.md §8).
   safetySite: Object.freeze({ x: 5.30, z: 1.35 }),
 
@@ -539,11 +545,13 @@ export const PINE_HILLS_V2_LAYOUT = Object.freeze({
     // because a sub-capsule gap let body-separation shoves tunnel customers into
     // a sealed corridor; the gap is now a full 1.07 yd doorway with the staff
     // side open at both ends, so there is no pocket left to be pinned in.
-    hutchGapFill: Object.freeze({ minX: 1.88, maxX: 2.40, minZ: 4.89, maxZ: 5.49 }),
-    // The hutch-east sliver (hutch ends 5.60, partition band 5.60–5.80): a
-    // 0.10-yd corridor↔wing seam over the south band. Sub-capsule, and the 1×
-    // curve leg proved once more that sub-capsule is not sealed.
-    hutchEastFill: Object.freeze({ minX: 5.60, maxX: 5.80, minZ: 4.89, maxZ: 5.49 }),
+    // Block 2: the hutch shrank and moved west with the desk (now x 2.11-3.39
+    // world), so both fills re-derive — gapFill still runs doorway-edge to the
+    // hutch's west face, and the east fill now covers the whole south band the
+    // cabinets vacated, out to the partition band. Same dead strip, more of it
+    // filled by wall instead of cabinet.
+    hutchGapFill: Object.freeze({ minX: 1.88, maxX: 2.13, minZ: 4.89, maxZ: 5.49 }),
+    hutchEastFill: Object.freeze({ minX: 3.37, maxX: 5.80, minZ: 4.89, maxZ: 5.49 }),
   }),
 
   // The lounge keeps its mandate (cleaning surface, entrance-visible) inside the
@@ -650,7 +658,13 @@ export function deriveFrontDeskFrame(variant = null) {
     // camera composition, customer queue, and save-safe interactions do not move.
     z: INTERIOR.d / 2 - (FRONT_DESK_DOOR_SETBACK_METERS / METERS_PER_YARD),
     ry: Math.PI,
-    frontLength: 4.2 / METERS_PER_YARD,
+    // THE LAYOUT COMES TO THE ASSET (Overnight 2026-08-21 Block 2, owner call).
+    // 4.2 m was a greybox nobody measured; hero_counter, the desk that actually
+    // draws, is 2.388 m long (2 x HERO_COUNTER_DRAWN_HALF_LENGTH, measured by
+    // ray sampling in tools/qa/laptop-seating.js). Props placed in the old
+    // frame hung off both ends of the real desk - the laptop 0.56 m off one
+    // end, the ledger book off the other.
+    frontLength: 2.388 / METERS_PER_YARD,
     frontDepth: 0.75 / METERS_PER_YARD,
     returnLength: 2.1 / METERS_PER_YARD,
     returnCollisionWidth: 0.798 / METERS_PER_YARD,
@@ -832,11 +846,17 @@ export const FRONT_DESK = Object.freeze({
   // (-2.08), clipboard (-1.56) and lamp point (-1.12), and the first spawn on
   // that rail opened the spread INTO the phone (photographed). The front-half
   // spot keeps the open book clear of all three.
-  ledger: Object.freeze(frontDeskPose(-1.70, 0.14, 0.14)),
-  phone: Object.freeze(frontDeskPose(-2.08, -0.16, 0.12)),
-  deskLamp: Object.freeze(frontDeskPose(-1.12, -0.12, 0)),
-  clipboard: Object.freeze(frontDeskPose(-1.56, -0.17, 0.18)),
-  scorecards: Object.freeze(frontDeskPose(1.55, -0.16, -0.12)),
+  // Block 2: the whole west-end paperwork cluster lived at x -1.12..-2.08 —
+  // beyond the drawn desk's ends (±1.306 yd) — which is exactly the owner's
+  // complaint: the ledger book hung off one end while the laptop floated off
+  // the other. The cluster compacts inboard with its order preserved
+  // (phone outermost, then clipboard, lamp innermost; ledger on the front
+  // half; scorecards on the east half clear of the register block).
+  ledger: Object.freeze(frontDeskPose(-1.15, 0.14, 0.14)),
+  phone: Object.freeze(frontDeskPose(-1.24, -0.16, 0.12)),
+  deskLamp: Object.freeze(frontDeskPose(-0.72, -0.12, 0)),
+  clipboard: Object.freeze(frontDeskPose(-0.95, -0.17, 0.18)),
+  scorecards: Object.freeze(frontDeskPose(1.22, -0.16, -0.12)),
   // C5, 2026-08-04. The staff corridor is 1.19 yd of clear floor and a swivel
   // chair is 0.68 yd across, so a chair standing anywhere in the middle of it is
   // a plug — measured, this chair (frame-local -1.00, i.e. right at the pass-
@@ -850,13 +870,21 @@ export const FRONT_DESK = Object.freeze({
   // thing in the way.
   // A desk that still has its return leg keeps the historical seat: its corridor
   // is closed at one end anyway, so the chair is not in anybody's only route.
-  staffChair: Object.freeze(frontDeskPose(
-    FRONT_DESK_FRAME.staffReturn
-      ? -1.00
-      : -Math.sign(FRONT_DESK_FRAME.passThroughLocalX) * (FRONT_DESK_FRAME.frontLength / 2 - 0.36),
-    1.05,
-    Math.PI,
-  )),
+  // Block 2 unifies the two chair rules: on the 2.388 m desk the historical
+  // -1.00 seat lands inside the return leg's own collision zone (the leg now
+  // hugs the west end), so EVERY desk parks the chair one radius inside the
+  // end furthest from the pass-through — out of the doorway on a no-return
+  // desk, out of the leg on a return desk, by the same arithmetic.
+  // Block 2, final cut: THE CHAIR PARKS AT THE OPEN EAST END. Four contracts
+  // were tried against the west half of the 2.388 m desk and the space is
+  // geometrically closed: the west end IS the pass-through band on a v2 desk
+  // (chair there plugs the doorway, staff-pass-through), mid-desk swallows the
+  // cashier stand probe with the chair blocker (a carton is 0.72 yd wide), and
+  // deep-z parking penetrates the back cabinets. The east end is the only end
+  // of this desk that is not a doorway. B-stand's real ruling — the chair is
+  // the DESK'S seat, not the laptop's — survives: the laptop is at -0.50 on
+  // the west half, 1.45 yd away.
+  staffChair: Object.freeze(frontDeskPose(0.95, 1.05, Math.PI)),
   // One readable backdrop row: keys at reception-left, the live tee sheet near
   // the staff chair, and the club mark on the checkout half. The board poses
   // compensate the renderer's world-Z offset so all three elements share the
@@ -977,6 +1005,15 @@ export const SHELL_LIGHT_PLACEMENTS = CLUBHOUSE_LAYOUT_VARIANT === 'pine-hills-v
 // Exact Blender-to-layout datums for the two-piece 4.20 m reception shell.
 // Asset 61 contributes 2.93 m; the supplemental module contributes 1.27 m
 // plus the staff return. Both remain at authored scale and meet at one seam.
+// Block 2: the frame is the DRAWN hero counter now (2.388 m). The legacy
+// modules — asset 61's 2.93 m body and the 1.27 m return extension — were
+// authored to tile 4.20 m and they still do: the pair stays a coherent unit at
+// its authored seam, centred on the frame, overhanging the shorter frame by a
+// symmetric 0.906 yd at each end IN THE LEGACY ROOMS THAT STILL DRAW IT
+// (pine-hills v2/v3/final suppress asset 61 outright). A first cut split the
+// pair to fit the frame and the GLB contract test caught the two bodies
+// interpenetrating by 1.4 yd — the seam is authored INTO the models, and
+// poses must respect it.
 export const FRONT_DESK_ASSETS = Object.freeze({
   asset61: Object.freeze(frontDeskPose(0.635 / METERS_PER_YARD, 0, Math.PI)),
   returnModule: Object.freeze(frontDeskPose(
@@ -1136,7 +1173,12 @@ const queuePitch = V2_QUEUE
 // What DID move for C3/C4 is the money: the counted change now sits left of the
 // monitor instead of through it, and the customer's own cash has its own anchor
 // on their half of the counter beside the goods they put down.
-const staffDatum = frontDeskPoint(-0.10, 0.90);
+// Block 2: -0.10 -> 0.00. On the 2.388 m desk the return leg's inner edge
+// sits at local -0.433, and a carton is 0.72 yd wide — dropped at a stand of
+// -0.10 it grazed the return collider by 0.03 yd and the placement audit
+// refused the staff workspace as "front desk return". At 0.00 the carton
+// clears the leg by 0.07 and the cashier still stands opposite the queue head.
+const staffDatum = frontDeskPoint(0.00, 0.90);
 
 export const COUNTER = {
   x: counterCentre.x,
@@ -1190,7 +1232,10 @@ export const COUNTER_WORK_TOP = FRONT_DESK_FRAME.counterWorkTop;
 // Anything placed ON the desk has to fit inside THIS, not inside the slab.
 // Two props were placed against the slab and hung in mid air off opposite ends
 // (the laptop and the ledger book). Declared here so a test can say so.
-export const HERO_COUNTER_DRAWN_HALF_LENGTH = 1.194;
+// METERS, half of the 2.388 m drawn counter (ray-sampled in tools/qa/laptop-seating.js).
+export const HERO_COUNTER_DRAWN_HALF_LENGTH_M = 1.194;
+// ...and in layout yards, which is what every pose and frame length uses.
+export const HERO_COUNTER_DRAWN_HALF_LENGTH = HERO_COUNTER_DRAWN_HALF_LENGTH_M / METERS_PER_YARD;
 
 // Everything below was DERIVED against two reach circles, not eyeballed. The player
 // stands at (2.80, 5.10) and can reach 1.55 yd; the customer stands at the head of
@@ -1222,7 +1267,7 @@ export const REGISTER = {
   // The pose stays as DATA because the placeable catalog's socket map and the
   // frame tests key off it.
   printer: frontDeskPose(0.14, 0.36, Math.PI - 0.06),
-  custdisplay: frontDeskPose(0.94, -0.10, Math.PI),
+  custdisplay: frontDeskPose(0.70, -0.10, Math.PI),
   // THE CARRIER LIES FLAT at the counter's LEFT end (playtest round 5,
   // 2026-07-30, vs Designs/CashRegister/Final and the 2026-07-30 counter shot):
   // "the bag is laid flat and it's long, opened, and small height." This point
@@ -1236,10 +1281,14 @@ export const REGISTER = {
   // just on the staff half) so the goods staged across the seam share its
   // line — the click-slide into the mouth is then one lateral run down the
   // counter with no cross-counter drift.
-  bag: frontDeskPose(-1.16, 0.06, 0),
-  bagstand: frontDeskPose(1.30, 0.30, 0),
-  divider: frontDeskPose(1.52, -0.15, 0),
-  impulse: frontDeskPose(1.28, -0.34, 0),
+  // Block 2 compaction: the drawn desk's usable run is ±1.194 m, so the
+  // east-end dressing that lived out to x 1.52 comes inboard. Order and
+  // sides are unchanged — bag far left on the seam, register block right,
+  // customer-side dressing on -z — only the spread compresses.
+  bag: frontDeskPose(-1.05, 0.06, 0),
+  bagstand: frontDeskPose(1.02, 0.30, 0),
+  divider: frontDeskPose(0.98, -0.15, 0),
+  impulse: frontDeskPose(0.86, -0.34, 0),
 
   // The drawer lives UNDER the counter, directly below the POS, and slides out
   // toward the staff side. Travel 0.44 pulls the BILL row (the tray's rear
@@ -1393,7 +1442,7 @@ export const FIXTURES = [
   // Bias the full-width hutch toward the closed return end.  This preserves a
   // true 1.20 m staff entrance at the opposite end of the L instead of leaving
   // two decorative slivers that the player capsule cannot use.
-  { id: 'backcounter', kind: 'backcounter', ...frontDeskPose(-0.62, 2.14, 0), skus: [], title: 'Back counter', zone: 'checkout' },
+  { id: 'backcounter', kind: 'backcounter', ...frontDeskPose(-0.55, 2.14, 0), skus: [], title: 'Back counter', zone: 'checkout' },
   // stockroom (non-retail; visualizes backroom stock + receives boxes)
   // A short north rack fits beside, rather than through, the permanent
   // restroom pod and meets the east rack as a clean L-shaped storage run.

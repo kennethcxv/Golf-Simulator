@@ -853,6 +853,14 @@ function fixedFloorBlockers(state, options) {
       'checkout-counter', 'checkout counter',
       COUNTER.x, COUNTER.z, COUNTER.len + 0.30, COUNTER.depth + 0.20, COUNTER.ry,
     ),
+    // Block 2: the chair parks beside the return zone on the 2.388 m desk, so
+    // the two blockers adjoin; the chair is listed first so a probe standing
+    // on the chair is refused as the chair, not as the return.
+    ...(campaignFacilityVisible(state, 'officeChair') ? [fixedBlocker(
+      'front-desk-chair', 'front-desk reception chair',
+      FRONT_DESK.staffChair.x, FRONT_DESK.staffChair.z, 0.85, 0.85,
+      FRONT_DESK.staffChair.ry,
+    )] : []),
     {
       id: 'front-desk-return',
       label: 'front desk return',
@@ -902,13 +910,7 @@ function fixedFloorBlockers(state, options) {
       OFFICE.desk.x, OFFICE.desk.z, 1.10, 2.00,
     ));
   }
-  if (campaignFacilityVisible(state, 'officeChair')) {
-    blockers.push(fixedBlocker(
-      'front-desk-chair', 'front-desk reception chair',
-      FRONT_DESK.staffChair.x, FRONT_DESK.staffChair.z, 0.85, 0.85,
-      FRONT_DESK.staffChair.ry,
-    ));
-  }
+
   if (!['resortStyle', 'premiumPrivate'].includes(state.property?.tierId)) {
     const restroom = MODERN_PUBLIC_RESTROOM;
     const roomDepth = Math.abs(restroom.northWallZ - restroom.southWallZ);

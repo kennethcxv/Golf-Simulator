@@ -36,7 +36,13 @@ test('the Pine Hills reception run is centred on the entrance at the approved me
   close(FRONT_DESK_FRAME.x, DOOR_MAIN.x, 1e-12, 'desk and door share an axis');
   close((INTERIOR.d / 2 - FRONT_DESK_FRAME.z) * METERS_PER_YARD,
     FRONT_DESK_DOOR_SETBACK_METERS, 1e-9, 'door setback');
-  close(FRONT_DESK_FRAME.frontLength * METERS_PER_YARD, 4.2, 1e-9, 'frontage');
+  // Block 2 (Overnight 2026-08-21, owner call): the approved frontage is the
+  // DRAWN hero counter — 2.388 m, twice HERO_COUNTER_DRAWN_HALF_LENGTH — not
+  // the 4.2 m greybox nobody measured. Props sat in a frame half again as
+  // long as the desk under them; now the frame IS the desk.
+  close(FRONT_DESK_FRAME.frontLength * METERS_PER_YARD, 2.388, 1e-9, 'frontage');
+  close(FRONT_DESK_FRAME.frontLength / 2, HERO_COUNTER_DRAWN_HALF_LENGTH, 1e-9,
+    'the frame half-length IS the drawn counter half-length');
   close(FRONT_DESK_FRAME.frontDepth * METERS_PER_YARD, 0.75, 1e-9, 'depth');
   close(FRONT_DESK_FRAME.returnLength * METERS_PER_YARD, 2.1, 1e-9, 'return');
   close(COUNTER.x, FRONT_DESK_FRAME.x);
@@ -44,7 +50,13 @@ test('the Pine Hills reception run is centred on the entrance at the approved me
   close(COUNTER.ry, FRONT_DESK_FRAME.ry);
 });
 
-test('Asset 61 and the authored return module meet at one exact 4.20 m seam', () => {
+test('the legacy module pair keeps its authored 4.20 m seam, centred on the drawn frame', () => {
+  // Block 2: the frame is the drawn hero counter (2.388 m); the legacy modules
+  // were authored to tile 4.20 m and STILL DO — the seam is baked into the
+  // GLBs, so the pair stays a unit, centred, overhanging the frame by a
+  // symmetric 0.906 yd per end in the legacy rooms that draw it (pine-hills
+  // suppresses asset 61). A split-to-fit pose was tried and the GLB contract
+  // test caught the bodies interpenetrating by 1.4 yd.
   const base = frontDeskLocalPoint(FRONT_DESK_ASSETS.asset61.x, FRONT_DESK_ASSETS.asset61.z);
   const module = frontDeskLocalPoint(
     FRONT_DESK_ASSETS.returnModule.x,
@@ -52,9 +64,14 @@ test('Asset 61 and the authored return module meet at one exact 4.20 m seam', ()
   );
   const baseHalf = (2.93 / METERS_PER_YARD) / 2;
   const moduleHalf = (1.27 / METERS_PER_YARD) / 2;
-  close(base.x - baseHalf, module.x + moduleHalf, 1e-9, 'front modules share a seam');
-  close(module.x - moduleHalf, -FRONT_DESK_FRAME.frontLength / 2, 1e-9, 'extension reaches reception end');
-  close(base.x + baseHalf, FRONT_DESK_FRAME.frontLength / 2, 1e-9, 'Asset 61 reaches checkout end');
+  const unitHalf = (4.20 / METERS_PER_YARD) / 2;
+  close(base.x - baseHalf, module.x + moduleHalf, 1e-9, 'front modules share their authored seam');
+  close(module.x - moduleHalf, -unitHalf, 1e-9, 'the pair is centred: extension reaches the unit west end');
+  close(base.x + baseHalf, unitHalf, 1e-9, 'the pair is centred: Asset 61 reaches the unit east end');
+  const overhang = unitHalf - FRONT_DESK_FRAME.frontLength / 2;
+  // (4.20 - 2.388) / 2 = 0.906 m = 0.991 yd per end
+  assert.ok(Math.abs(overhang - (0.906 / METERS_PER_YARD)) < 1e-9,
+    `the legacy unit overhangs the drawn frame symmetrically (${overhang.toFixed(3)} yd per end)`);
   close(FRONT_DESK_ASSETS.asset61.ry, 0, 1e-12, 'Asset 61 faces the south entrance');
   close(FRONT_DESK_ASSETS.returnModule.ry, 0, 1e-12, 'return faces the south entrance');
 });
@@ -108,9 +125,14 @@ test('front and return collision footprints meet cleanly without entering the do
     min: frontDeskLocalPoint(deskReturn.maxX, deskReturn.maxZ),
     max: frontDeskLocalPoint(deskReturn.minX, deskReturn.minZ),
   };
-  assert.ok(Math.min(localReturn.min.x, localReturn.max.x) <= -2.256,
+  // Block 2: the hull expectations derive from the frame rather than pinning
+  // the retired 4.2 m pose — the return collider hugs the frame's west end at
+  // its authored collision width, wherever that end now is.
+  const frontHalf = FRONT_DESK_FRAME.frontLength / 2;
+  assert.ok(Math.min(localReturn.min.x, localReturn.max.x) <= -frontHalf + 0.05,
     'analytic hull encloses the authored outer COL_ReturnLegHull edge');
-  assert.ok(Math.max(localReturn.min.x, localReturn.max.x) >= -1.424,
+  assert.ok(Math.max(localReturn.min.x, localReturn.max.x)
+      >= -frontHalf + FRONT_DESK_FRAME.returnCollisionWidth - 0.05,
     'analytic hull encloses the authored inner COL_ReturnLegHull edge');
   assert.ok(Math.max(localReturn.min.z, localReturn.max.z) >= 1.761,
     'analytic hull encloses the authored staff-end COL_ReturnLegHull edge');
@@ -165,7 +187,13 @@ test('the tee-sheet laptop stands on the desk that is actually drawn', () => {
   // The chair is NOT the laptop's seat -- that coupling was removed by B-stand
   // and must not quietly come back because the laptop moved back across the desk.
   const chair = frontDeskLocalPoint(FRONT_DESK.staffChair.x, FRONT_DESK.staffChair.z);
-  assert.ok(chair.x < 0, 'the staff chair stays at the reception end as the desk\'s own seat');
+  // Block 2: on the 2.388 m desk the west end IS the staff doorway, so the
+  // chair parks at the open EAST end. B-stand's actual ruling was that the
+  // chair is the desk's seat rather than the laptop's — held by distance, not
+  // by which end: the laptop is on the west half.
+  assert.ok(chair.x > 0.5, 'the chair parks at the open east end, out of the doorway');
+  assert.ok(Math.hypot(chair.x - laptop.x, chair.z - laptop.z) >= 1.2,
+    'the chair is not the laptop seat — B-stand holds');
 });
 
 test('backdrop signs and key rack occupy separate readable bays on one wall plane', () => {
@@ -206,10 +234,12 @@ test('backdrop signs and key rack occupy separate readable bays on one wall plan
     x: FRONT_DESK.teeTimeBoard.x,
     z: FRONT_DESK.teeTimeBoard.z + FRONT_DESK_BACKDROP.boardWorldZOffset,
   };
+  // Block 2: the reception WORK position is the cashier stand — the chair now
+  // parks at the east end, but the tee sheet is worked standing at the till.
   assert.ok(Math.hypot(
-    teeInteraction.x - FRONT_DESK.staffChair.x,
-    teeInteraction.z - FRONT_DESK.staffChair.z,
-  ) < 1.1, 'tee board remains reachable from the reception work position');
+    teeInteraction.x - REGISTER.stand.x,
+    teeInteraction.z - REGISTER.stand.z,
+  ) < 1.35, 'tee board remains reachable from the reception work position');
 });
 
 test('cash drawer travel remains a magnitude plus a frame-derived staff vector', () => {

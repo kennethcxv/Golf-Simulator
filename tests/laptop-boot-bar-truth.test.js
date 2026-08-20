@@ -48,8 +48,11 @@ test('the interface is built during the lid swing and revealed after the bar', (
   assert.ok(enter.length > 200, 'found enterLaptop');
   // The TIMERS, not the first mention of each name: LAPTOP_REVEAL_MS is also
   // read inside the boot timer now, to hand the bar its expected duration.
-  const buildAt = enter.indexOf('}, LAPTOP_BUILD_MS)');
-  const revealAt = enter.indexOf('}, LAPTOP_REVEAL_MS)');
+  // Block 0 (Overnight 2026-08-21): the beats are chosen per open now — boot
+  // constants for the session's first, wake constants after — so the timers
+  // schedule `buildMs`/`revealMs`, both resolved from the named constants.
+  const buildAt = enter.indexOf('}, buildMs)');
+  const revealAt = enter.indexOf('}, revealMs)');
   assert.ok(buildAt > 0 && revealAt > buildAt, 'the build timer is scheduled before the reveal timer');
   assert.match(enter, /laptopUi\.root\.style\.visibility = 'hidden';\s*[\r\n]+\s*laptopUi\.open\(startPage\)/,
     'the early build must not be visible: it happens over the boot screen');
@@ -58,7 +61,8 @@ test('the interface is built during the lid swing and revealed after the bar', (
 
   // The three beats are named constants so the feel decision is one edit, not a
   // magic number buried in a setTimeout.
-  for (const name of ['LAPTOP_BOOT_MS', 'LAPTOP_BUILD_MS', 'LAPTOP_REVEAL_MS']) {
+  for (const name of ['LAPTOP_BOOT_MS', 'LAPTOP_BUILD_MS', 'LAPTOP_REVEAL_MS',
+    'LAPTOP_WAKE_BUILD_MS', 'LAPTOP_WAKE_REVEAL_MS']) {
     assert.match(mainSource, new RegExp(`const ${name} = \\d+;`), `${name} is a named constant`);
   }
 });

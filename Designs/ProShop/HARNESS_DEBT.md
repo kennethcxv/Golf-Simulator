@@ -1003,3 +1003,12 @@ menu — i.e. before the game starts. Detached DevTools and Playwright are both
 attached to the same webContents. Pre-existing on both builds, harness-only; the
 owner's own `npm run dev` reaches its menu immediately. Do not measure with
 `--dev` unless DevTools is the thing under test.
+
+## 13. `golden-diff.mjs --accept --only=<pose>` accepts ALL poses — twice now
+
+The source comment at line 41 claims `--only` restricts the rebaseline; the
+accept path ignores it and rewrites every baseline plus capture-conditions.json
+(bitten 2026-08-19 and again 2026-08-20 — "accepted 13 golden(s)" with
+`--only=bag-packed`). Until fixed: accept by letting it clobber, then
+`git checkout HEAD --` every golden you did NOT mean to change, and re-run the
+diff to prove the survivors.

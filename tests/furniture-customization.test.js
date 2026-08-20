@@ -128,7 +128,10 @@ test('wall placement locks the true wall normal and rejects glass, doors, gaps, 
 
 test('counter and shelf placement uses finite authored surfaces and protects checkout equipment', () => {
   const state = newGame('normal', 22);
-  const openCounterPoint = frontDeskPoint(2.0, -0.25);
+  // Block 2: local x 2.0 fell off the counter when the frame came down to the
+  // drawn 2.388 m desk. 0.55 is the measured open stretch between the register
+  // block and the east-end dressing (validated by scanning the validator).
+  const openCounterPoint = frontDeskPoint(0.55, -0.28);
   const counterProp = {
     x: openCounterPoint.x, y: COUNTER_TOP, z: openCounterPoint.z, ry: COUNTER.ry, surface: 'counter',
     attachment: { parentId: 'surface:checkout-counter' }, room: 'sales',

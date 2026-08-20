@@ -67,15 +67,23 @@ async (page) => {
   // sidestep along the desk until walk.getFocusLabel() names the laptop. The
   // focus label is the exact gate the player's own E goes through; a DOM
   // selector was tried first and matched nothing that exists.
+  // Stand from the drawn laptop itself: register.cashierPose was a ghost API
+  // (nothing exports it — tests/qa-harness-integrity.test.js caught the call),
+  // which is why every earlier aim pass swept from the spawn point and found
+  // nothing. The laptop mesh is findable by name and matrixWorld is the truth.
   await page.evaluate(() => {
     const fw = window.__fw;
-    const ch = fw.scene3d.clubhouse();
-    const pose = ch.register?.cashierPose?.();
-    if (pose) {
-      const w = fw.scene3d.walk.state;
-      w.x = pose.x; w.z = pose.z;
-      if (typeof pose.yaw === 'number') w.yaw = pose.yaw;
-    }
+    let target = null;
+    fw.scene3d.scene.traverse((o) => {
+      if (target) return;
+      if (/laptop/i.test(o.name || '')) target = o;
+    });
+    if (!target) return;
+    target.updateWorldMatrix(true, false);
+    const e = target.matrixWorld.elements;
+    const w = fw.scene3d.walk.state;
+    w.x = e[12] + 0.75; w.z = e[14];
+    w.yaw = Math.atan2(e[12] - w.x, -(e[14] - w.z));
   });
   await page.waitForTimeout(500);
 

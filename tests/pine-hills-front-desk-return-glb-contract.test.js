@@ -177,6 +177,10 @@ test('the shipped front-desk return join socket lands on Asset 61 world-east sea
     FRONT_DESK_ASSETS.scale,
   );
 
+  // Block 2 note: the pair keeps its authored 4.20 m tiling as a centred unit
+  // on the shorter drawn frame, so the authored socket still lands on the
+  // seam — this test held, and it is what caught a split-to-fit pose
+  // interpenetrating the two bodies by 1.4 yd before it could ship.
   const asset61Bounds = visibleWorldBounds(asset61Json, asset61Matrices, asset61Runtime);
   const canonicalEastSeam = new Vector3(
     asset61Bounds.max.x,

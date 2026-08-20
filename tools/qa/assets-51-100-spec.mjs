@@ -78,9 +78,9 @@ const defs = [
     'Simplified wall, roof, foundation and column proxies with real door/window openings.', {
       currentCandidates: {
         runtimeIntegrationFiles: ['src/render3d/courseScene.js', 'src/render3d/clubhouse/shell.js'],
-        rawInputs: ['Assets/house+3d+model.glb'],
+        rawInputs: [],
       },
-      candidateNotes: 'The current Tripo-derived exterior and procedural shell are unverified visual candidates; there is no traceable Blender source or Sheet-6 restored-state asset.',
+      candidateNotes: 'The downloaded exterior candidate was archived 2026-08-21 under the one-clubhouse ruling (Assets/_archive, ARCHIVED.json); only the procedural shell remains as an unverified visual candidate.',
     }],
   [52, 'DILAPIDATED CLUBHOUSE EXTERIOR', 'dilapidated_clubhouse_exterior', 'architecture-shell',
     'Spatially aligned neglected starting state for the restored clubhouse',
@@ -91,9 +91,9 @@ const defs = [
     'Reuse Asset 51 structural proxies; damaged visuals must never obstruct valid navigation.', {
       currentCandidates: {
         runtimeIntegrationFiles: ['src/render3d/clubhouse/dirt.js', 'src/render3d/clubhouse/washing.js', 'src/sim/washing.js'],
-        rawInputs: ['Assets/house+3d+model.glb'],
+        rawInputs: [],
       },
-      candidateNotes: 'Existing grime masks provide only part of the neglected state; the shared GLB is not a verified damaged/restored pair.',
+      candidateNotes: 'Existing grime masks provide only part of the neglected state; the shared exterior candidate was archived 2026-08-21 under the one-clubhouse ruling.',
     }],
   [53, 'MAIN ENTRANCE DOUBLE-DOOR ASSEMBLY', 'main_entrance_double_door', 'architecture-module',
     'Operable glazed front entrance for players and customers',
