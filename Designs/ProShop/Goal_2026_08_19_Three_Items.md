@@ -122,6 +122,42 @@ because the links removed from the boot reappear in the player's hands. The
 remaining stretch with no play risk is the 3,453 ms BEFORE prewarm starts —
 module load, save load, world build — which no one has examined.
 
+### The whole boot, finally accounted for
+
+`tools/qa/boot-mark-breakdown.js` (new) reads the performance marks main.js
+already stamps and that nobody had ever read together. On a 10,160 ms boot:
+
+| stretch | ms |
+|---|---|
+| Electron start -> `app-eval-start` | 1,130 |
+| `app-eval-start` -> `scene-construct-start` (ESM module load, menu, save load) | 3,397 |
+| scene construction | 1,108 |
+| prewarm | 6,627 |
+
+So the boot is roughly 1.1 s of Electron, 3.4 s of module-and-save, 1.1 s of
+scene construction, and 6.6 s of prewarm. **The renderer has no bundler** — the
+import map owns `three` and the app is hundreds of separate ESM fetches — which
+is the most likely shape of that 3.4 s and is the one remaining stretch with no
+play risk whatsoever. It is also a project, not an evening.
+
+### Where I stopped, and why
+
+CLAUDE.md's 45-minute rule exists for exactly this, and I have blown it many times
+over on Item 0. The state is honest and green: two items fixed and proven, the
+third improved 12.1 -> 10.5 s with the decisive diagnosis written down, one lever
+built and rejected on measured evidence, and the whole boot accounted for so the
+next attempt starts from arithmetic instead of a hunch.
+
+**The single most promising next step, stated concretely:** keep the constant
+light census (it demonstrably gives every boot under 10 s) and add the nine belt
+tools to the prewarm's existing `gesture-tools` phase, which currently costs
+1.7 ms and does almost nothing. The stalls the census change caused were belt
+tool programs that no longer matched anything the prewarm had warmed; warming
+them under the veil at a 96 px viewport should cost a few hundred ms and remove
+the multi-second presses. That is a one-evening experiment with a clear pass/fail:
+the door driver must come back at A2 <= 40 ms and B2 <= 30 ms, three runs running,
+and the boot must stay under 10 s across N=5.
+
 ### What was retired
 
 `laptop-view`, the last surviving warm stage. On a quiet boot it costs 2,628 ms;
