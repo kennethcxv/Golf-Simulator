@@ -184,14 +184,21 @@ async (page) => {
   // so rather than implying organic play.
   const staged = Number(process.env.QA_NAV_STAGE || 0);
   if (staged > 0) {
+    await page.evaluate((share) => { window.__qaNavDeskShare = share; },
+      Number(process.env.QA_NAV_DESK_SHARE || 4));
     out.staged = await page.evaluate(async (n) => {
       const ch = window.__fw.scene3d.clubhouse();
       let made = 0;
       for (let i = 0; i < n; i += 1) {
-        // alternate the two errands so the queue and the shelves are both used
-        const c = (i % 2 === 0 && ch.sendWalkInToDesk)
-          ? ch.sendWalkInToDesk({ skipRetailPlan: false })
-          : (ch.sendToCounter ? ch.sendToCounter([]) : null);
+        // Block 4: THREE errand shapes, not one. Desk walk-ins wait on a
+        // register nobody in a QA run is operating — an all-desk crowd pins
+        // people=N for the whole watch and says nothing about errand
+        // completion. Browsers (debugSpawn organic path) walk shelves and
+        // LEAVE, which is the completable errand this watch measures.
+        let c = null;
+        const deskShare = Number(window.__qaNavDeskShare ?? 4); // every Nth is a desk walk-in
+        if (deskShare > 0 && i % deskShare === 0 && ch.sendWalkInToDesk) c = ch.sendWalkInToDesk({ skipRetailPlan: false });
+        else if (ch.debugSpawn) c = ch.debugSpawn(false, null, { allowWalkInRequest: false, spawnSource: 'qa-nav-stage' });
         if (c) made += 1;
         await new Promise((r) => setTimeout(r, 350));
       }
@@ -220,6 +227,21 @@ async (page) => {
   }, process.env.QA_NAV_LADDER !== '0');
   console.log(`recovery ladder: ${out.ladder === false ? 'OFF' : 'on'}`);
 
+  // QA_NAV_CAMERA=desk parks the player at a vantage over the queue before
+  // the watch starts — a clip of the wall corner the save happened to leave
+  // the camera in certifies nothing (the on-screen-is-not-legible trap).
+  if (process.env.QA_NAV_CAMERA === 'desk') {
+    await page.evaluate(() => {
+      const fw = window.__fw;
+      const ch = fw.scene3d.clubhouse();
+      const p = ch.localToWorld(0.4, -0.8);
+      const t = ch.localToWorld(3.3, 2.6);
+      const w = fw.scene3d.walk.state;
+      w.x = p.x; w.z = p.z;
+      w.yaw = Math.atan2(t.x - p.x, -(t.z - p.z));
+      w.pitch = 0.06;
+    });
+  }
   await page.evaluate(() => window.__fw.scene3d.clubhouse().resetContactWatch());
   out.watchStartedAt = await page.evaluate(() => +performance.now().toFixed(0));
 

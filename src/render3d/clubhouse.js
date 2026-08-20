@@ -9709,14 +9709,19 @@ const HERO_GARMENTS = {
     return true;
   }
 
-  function experienceStop(fixture, claimed) {
+  function experienceStop(fixture, claimed, rects = null) {
     if (!fixture?.experience) return null;
     const socket = fixtureSockets(fixture).find((candidate) => !claimed.has(candidate.key));
     if (!socket) return null;
     const target = fixture.experienceTarget
       ? fixtureSockets({ ...fixture, browse: [fixture.experienceTarget] })[0]
       : { x: fixture.x, z: fixture.z };
-    const world = L2W(socket.x, socket.z);
+    // BLOCK 4 (Overnight 2026-08-21): the experience socket goes through the
+    // SAME stop validator as a browse pose. This was the written coverage gap
+    // — queue slots were closed with evidence in goal 38 and the sockets never
+    // were, and tour_vault's socket is the one the ladder kept escalating on.
+    const legal = legalStopPoint(state, { x: socket.x, z: socket.z }, { rects });
+    const world = L2W(legal ? legal.x : socket.x, legal ? legal.z : socket.z);
     const face = L2W(target.x, target.z);
     return {
       kind: 'experience',
@@ -9724,6 +9729,8 @@ const HERO_GARMENTS = {
       title: fixture.title,
       fixtureId: fixture.id,
       socketKey: socket.key,
+      stopNudgedYd: legal ? legal.moved : null,
+      stopUnreachable: !legal,
       x: world.x,
       z: world.z,
       faceX: face.x,
@@ -9780,7 +9787,7 @@ const HERO_GARMENTS = {
         ...pose,
       });
       for (const id of f.experienceAfter || []) {
-        const beat = experienceStop(floorFixtures.find((candidate) => candidate.id === id), claimed);
+        const beat = experienceStop(floorFixtures.find((candidate) => candidate.id === id), claimed, planRects);
         if (!beat || stops.some((s) => s.fixtureId === id)) continue;
         claimed.add(beat.socketKey);
         stops.push(beat);
@@ -11597,7 +11604,7 @@ const HERO_GARMENTS = {
   const CUSTOMER_COLLIDER_RADIUS = 0.3; // must match resolveCustomer's r
   // A body and a bit. Past this the walker is not "as close as allowed", it is
   // somewhere else, and calling that arrival would teleport the beat.
-  const ARRIVAL_SLACK_CAP = 0.75;
+  // ARRIVAL_SLACK_CAP deleted with arrivalSlack (Block 4).
   // How long a walker waits for the player to move out of a doorway before it
   // gives up on politeness and lets the recovery ladder run. Long enough to
   // read as courtesy, short enough that a player who wanders off mid-step does
@@ -11622,44 +11629,34 @@ const HERO_GARMENTS = {
   }
   // How long a walker must have stopped closing on a BLOCKED stop before where
   // it stands counts as arrival. Half a second is long enough that a walker
-  // still threading a gap is not credited, short enough that the recovery
-  // ladder's first rung (0.35 s + jitter) does not get there first.
+  // still threading a gap is not credited.
   const NAV_BLOCKED_ARRIVAL_SECONDS = 0.5;
-  function arrivalSlack(c, stop, tx, tz) {
-    let slack = 0;
-    // The counter is excluded from BODY slack deliberately: the queue owns its
-    // own spacing through queueAdvanceSlot/queueSlotIsClear, and letting a
-    // queuer call it arrival a body-width short would open the gaps the line is
-    // supposed to close. Collider slack still applies — a slot inside a fixture
-    // is unreachable for everyone equally.
-    const bodiesCount = stop?.kind !== 'counter';
-    if (bodiesCount && walk.active) {
-      const d = Math.hypot(tx - walk.x, tz - walk.z);
-      if (d < PLAYER_BODY_CLEARANCE) slack = Math.max(slack, PLAYER_BODY_CLEARANCE - d);
+  // BLOCK 4 (Overnight 2026-08-21): the give-up fuse. If a walker has made no
+  // progress for this long the stop is genuinely unservable and the owner is
+  // told (the bell the ladder's last rung used to carry). Thirty seconds is
+  // far beyond anything hold-and-pass or the patience escalation leaves
+  // standing — in the fixed staged runs the worst no-progress is single-digit.
+  const NAV_GIVE_UP_SECONDS = 30;
+  // Identity, as a number: no two walkers escalate a deadlock identically.
+  // The same FNV-1a avalanche the repath jitter used (sequential ids must not
+  // produce sequential scales), mapped into [0.7, 1.3). Deterministic per
+  // customer, so a scenario replays the same way every run.
+  function patienceScaleOf(c) {
+    if (Number.isFinite(c.patienceScale)) return c.patienceScale;
+    let h = 2166136261;
+    const id = String(c.customerId || c.id || '');
+    for (let i = 0; i < id.length; i += 1) {
+      h ^= id.charCodeAt(i);
+      h = Math.imul(h, 16777619);
     }
-    if (bodiesCount) {
-      const reach = BODY_RADIUS * 2;
-      for (const other of customers) {
-        if (other === c || !other.mesh || other.mesh.visible === false) continue;
-        const d = Math.hypot(tx - other.mesh.position.x, tz - other.mesh.position.z);
-        if (d < reach) slack = Math.max(slack, reach - d);
-      }
-    }
-    const r = CUSTOMER_COLLIDER_RADIUS;
-    for (const col of custCols) {
-      if (col.door) continue;
-      if (tx + r > col.minX && tx - r < col.maxX && tz + r > col.minZ && tz - r < col.maxZ) {
-        // How far resolveCustomer would shove a body standing here, along the
-        // axis it would choose — which is exactly how far short the walker ends.
-        const push = Math.min(
-          tx + r - col.minX, col.maxX - (tx - r),
-          tz + r - col.minZ, col.maxZ - (tz - r),
-        );
-        slack = Math.max(slack, Math.min(push, r));
-      }
-    }
-    return Math.min(slack, ARRIVAL_SLACK_CAP);
+    h ^= h >>> 15; h = Math.imul(h, 2246822507);
+    h ^= h >>> 13; h = Math.imul(h, 3266489909);
+    h ^= h >>> 16;
+    c.patienceScale = 0.7 + ((h >>> 0) / 4294967296) * 0.6;
+    return c.patienceScale;
   }
+  // arrivalSlack DELETED with the ladder (Block 4): hasArrived is depth-aware now.
+
   // Has this walker arrived? Two ways, and the second one is why the first is
   // not enough.
   //
@@ -11697,15 +11694,39 @@ const HERO_GARMENTS = {
     // and one walker held 9.72 s from a stop somebody was standing on. It was
     // not grinding or shoving — ORCA parked it politely at 0.80 yd — but the
     // errand never ended.
-    if (!navLadder) {
-      const reach = ARRIVE_YD + BODY_RADIUS * 2 + ORCA_DEFAULTS.comfort;
-      if (dist > reach) return false;
-      return (c.noProgressT || 0) > NAV_BLOCKED_ARRIVAL_SECONDS;
+    // DEPTH-AWARE (Block 4): one body's width of reach only forgives a stop
+    // with ONE body standing on it. The red staged run parked a walker behind
+    // a TWO-deep knot — 1.2 yd from the stop, past the old reach — and its
+    // no-progress clock ran to 125 s with the stop legal and occupied the
+    // whole time. Reach now extends by a body's width per STATIONARY body
+    // standing in the corridor between this walker and the stop, capped at
+    // three deep.
+    let blockers = 0;
+    {
+      const ax = c.mesh.position.x;
+      const az = c.mesh.position.z;
+      const vx = tx - ax;
+      const vz = tz - az;
+      const len2 = (vx * vx) + (vz * vz);
+      if (len2 > 1e-6) {
+        for (const other of customers) {
+          if (other === c || !other.mesh) continue;
+          const speed = Math.hypot(other.vx || 0, other.vz || 0);
+          if (speed > 0.15) continue; // a moving body clears itself
+          let t = ((other.mesh.position.x - ax) * vx + (other.mesh.position.z - az) * vz) / len2;
+          if (t <= 0.02 || t >= 0.98) continue;
+          t = Math.max(0, Math.min(1, t));
+          const d = Math.hypot(
+            other.mesh.position.x - (ax + vx * t),
+            other.mesh.position.z - (az + vz * t),
+          );
+          if (d < BODY_RADIUS * 2.2) blockers += 1;
+          if (blockers >= 3) break;
+        }
+      }
     }
-    if (dist > ARRIVE_YD + ARRIVAL_SLACK_CAP) return false;
-    const slack = arrivalSlack(c, stop, tx, tz);
-    if (slack <= 0) return false;
-    if (dist < ARRIVE_YD + slack) return true;
+    const reach = ARRIVE_YD + (1 + blockers) * (BODY_RADIUS * 2) + ORCA_DEFAULTS.comfort;
+    if (dist > reach) return false;
     return (c.noProgressT || 0) > NAV_BLOCKED_ARRIVAL_SECONDS;
   }
   // POOLED. The first version allocated a fresh record per neighbour per
@@ -11931,8 +11952,10 @@ const HERO_GARMENTS = {
   // right yet — not because it lets people touch, but because "reachable stop"
   // is not yet its problem. See NAV_RESEARCH.md §8: the fix is stop geometry
   // (a stop nobody may stand on should never be issued), NOT another rung.
-  let navLadder = true;
-  function setNavLadder(on) { navLadder = on === true; return navLadder; }
+  // Block 4: the ladder is DELETED, not switched. The setter survives because
+  // QA drivers call it; it now answers false and changes nothing.
+  function setNavLadder() { return false; }
+  let navDeadlockHolds = 0;
   // Likewise the positional relaxation. NOT deleted outright, because it is also
   // the acceptance instrument: `corrections` is "how much would a positional
   // pass have had to do", and that number has to stay comparable across the
@@ -12270,7 +12293,7 @@ const HERO_GARMENTS = {
       // stepping around each other rather than through.
       solver: {
         kind: crowdSolver,
-        ladder: navLadder,
+        ladder: 'deleted',
         separate: separateMode,
         obstacleLinesPerSolve: +(orcaStats.obstacleLines / Math.max(1, orcaStats.solves)).toFixed(2),
         solves: orcaStats.solves,
@@ -12369,7 +12392,7 @@ const HERO_GARMENTS = {
       stopsNudged,
       stopsUnreachable,
       worstNudgeYd: +worstNudgeYd.toFixed(3),
-      ladder: navLadder,
+      ladder: 'deleted',
     };
   }
 
@@ -12417,43 +12440,8 @@ const HERO_GARMENTS = {
   let navProgressPeak = 0;
   let navSlidingRescues = 0;
   const debugFloorBoxCols = []; // QA-only: obstacles a driver dropped, so it can take them away
-  function recordNavBlock(c, action, tx, tz, wp) {
-    navBlocksTotal += 1;
-    const near = [];
-    for (const col of custCols) {
-      if (c.mesh.position.x + 0.9 > col.minX && c.mesh.position.x - 0.9 < col.maxX
-        && c.mesh.position.z + 0.9 > col.minZ && c.mesh.position.z - 0.9 < col.maxZ) {
-        near.push({
-          minX: +col.minX.toFixed(2),
-          maxX: +col.maxX.toFixed(2),
-          minZ: +col.minZ.toFixed(2),
-          maxZ: +col.maxZ.toFixed(2),
-          door: col.door === true,
-        });
-        if (near.length >= 6) break;
-      }
-    }
-    const stop = c.stops[c.stopIdx] || null;
-    const entry = {
-      atMinute: +((state.clock?.minutes ?? 0) % 1440).toFixed(1),
-      id: c.customerId ?? c.name,
-      action,
-      stopIdx: c.stopIdx,
-      stopKind: stop?.kind ?? null,
-      fixtureId: stop?.fixtureId ?? null,
-      x: +c.mesh.position.x.toFixed(2),
-      z: +c.mesh.position.z.toFixed(2),
-      tx: +tx.toFixed(2),
-      tz: +tz.toFixed(2),
-      wpx: +((wp?.x ?? tx)).toFixed(2),
-      wpz: +((wp?.z ?? tz)).toFixed(2),
-      colliders: near,
-    };
-    navBlockLog.push(entry);
-    if (navBlockLog.length > 300) navBlockLog.shift();
-    console.warn(`[customer-nav] ${entry.id} ${action} at (${entry.x}, ${entry.z}) `
-      + `→ stop ${entry.stopKind}${entry.fixtureId ? `:${entry.fixtureId}` : ''} (${entry.tx}, ${entry.tz})`);
-  }
+  // recordNavBlock DELETED with the ladder (Block 4): no rung acts, so none is recorded.
+
 
   // walkable grid around the building; doors are excluded (they open for walkers)
   const navCreateStartedAtMs = performance.now();
@@ -13327,6 +13315,38 @@ const HERO_GARMENTS = {
         // same frame and each takes half the correction -- which is what makes
         // them step past one another instead of both dodging the same way.
         const crowdNear = customerNeighbours(c);
+        // HOLD-AND-PASS (Block 4). Two mobile bodies deadlocked head to head
+        // seesaw for ever under any symmetric escalation — measured in the
+        // pure solver: the yielder retreats down the aisle, roles flip, and
+        // the pair oscillates. What people do is: one STOPS, the other passes
+        // the standing body. When this walker and a neighbour have both made
+        // no progress for 1.6 s, the LESS bold of the pair (identity hash)
+        // stands still for 1.6 s — a velocity of zero, not a teleport — and
+        // the bolder one's patience escalation carries it past. The hold
+        // freezes this walker's own no-progress clock: standing aside on
+        // purpose is not being stuck.
+        c.deadlockHolding = false;
+        if ((c.deadlockHoldT || 0) > 0) {
+          c.deadlockHoldT -= dt;
+          c.deadlockHolding = true;
+        } else if ((c.noProgressT || 0) > 1.6 && !(c.queued && stop?.kind === 'counter')) {
+          for (const body of crowdNear) {
+            const other = body.c;
+            if (!other || other === c) continue;
+            if ((other.noProgressT || 0) <= 1.6) continue;
+            const gap = Math.hypot(
+              other.x - c.mesh.position.x,
+              other.z - c.mesh.position.z,
+            );
+            if (gap > 1.35) continue;
+            if (patienceScaleOf(c) <= patienceScaleOf(other)) {
+              c.deadlockHoldT = 1.6;
+              c.deadlockHolding = true;
+              navDeadlockHolds += 1;
+            }
+            break;
+          }
+        }
         // The step this walker is about to take, as a DISPLACEMENT. Both solvers
         // write it; only one of them decides it in velocity space.
         let stepX = heading.x * step;
@@ -13348,7 +13368,7 @@ const HERO_GARMENTS = {
             // c.speed*locomotionSpeed in wall seconds, the player moves in real
             // time and is a neighbour, and mixing the two frames would have the
             // solver reason about a player travelling at a quarter speed.
-            const wantSpeed = dt > 1e-6 ? step / dt : 0;
+            const wantSpeed = (c.deadlockHolding ? 0 : 1) * (dt > 1e-6 ? step / dt : 0);
             const v = orcaVelocity(
               {
                 x: c.mesh.position.x,
@@ -13356,12 +13376,23 @@ const HERO_GARMENTS = {
                 vx: c.vx || 0,
                 vz: c.vz || 0,
                 radius: BODY_RADIUS,
-                maxSpeed: Math.max(wantSpeed, c.speed * locomotionSpeed),
+                maxSpeed: Math.max(dt > 1e-6 ? step / dt : 0, c.speed * locomotionSpeed),
               },
               crowdNear,
               heading.x * wantSpeed,
               heading.z * wantSpeed,
-              { timeStep: dt, obstacles: wallsNear },
+              {
+                timeStep: dt,
+                obstacles: wallsNear,
+                // seconds of no progress, scaled by identity so a mirrored
+                // pair never escalates in lockstep (see orca.js `patience`).
+                // A body WAITING IN THE QUEUE does not escalate: its lack of
+                // progress is the line working, and green1 measured what
+                // happens otherwise — four unserved waiters squeezed into a
+                // permanent 0.66 yd huddle at the desk.
+                patience: (c.deadlockHolding || (c.queued && stop?.kind === 'counter'))
+                  ? 0 : (c.noProgressT || 0) * patienceScaleOf(c),
+              },
             );
             stepX = v.vx * dt;
             stepZ = v.vz * dt;
@@ -13477,7 +13508,7 @@ const HERO_GARMENTS = {
           // Moving again: the courtesy budget for waiting on the player refills,
           // or the second doorway of the day would get none of it.
           c.yieldT = 0;
-        } else {
+        } else if (!c.deadlockHolding) {
           c.noProgressT = (c.noProgressT || 0) + dt;
         }
         // G2: the verdict is a pure function now, so the claim item 14 was
@@ -13497,39 +13528,8 @@ const HERO_GARMENTS = {
           // F2: a wrong ROUTE gets acted on within ~a beat of the 1 s verdict;
           // a displacement scrape keeps the patient 3 s gate (its sidesteps
           // are cheap but jittery when too eager).
-          let ladderGate = verdict.reason === 'no-progress' ? 0.35 : 3.0;
-          // 3.3 (Goal 26) — "BOUNDED REPATH TIMING WITH JITTER SO AGENTS DO NOT
-          // ALL REPATH ON ONE FRAME."
-          //
-          // Without this they do, and the case is not hypothetical: when the
-          // player stands in the corridor, every shopper behind them stops
-          // making progress within a few frames of each other, so every one of
-          // them crosses the same 0.35 s gate on the same frame and the whole
-          // queue repaths at once. One recast query is 0.135 ms; eight on one
-          // frame is a visible hitch on the frame a player is already annoyed.
-          //
-          // The offset is DERIVED FROM THE CUSTOMER ID, not random: a random
-          // offset re-rolled per frame would smear the gate rather than stagger
-          // it, and two runs of the same scenario would not be comparable.
-          if (c.repathJitter === undefined) {
-            // A MIXING hash, not `h * 31 + ch`. Customer ids here are sequential,
-            // and the classic string hash maps sequential inputs to sequential
-            // outputs: measured, seven customers came out at 0.120, 0.121, 0.121,
-            // 0.122, 0.122, 0.122, 0.123 -- a three-millisecond spread wearing
-            // the name "jitter". The avalanche step is what makes ids that
-            // differ by one character land far apart.
-            let h = 2166136261;
-            const id = String(c.customerId || '');
-            for (let i = 0; i < id.length; i += 1) {
-              h ^= id.charCodeAt(i);
-              h = Math.imul(h, 16777619);
-            }
-            h ^= h >>> 15; h = Math.imul(h, 2246822507);
-            h ^= h >>> 13; h = Math.imul(h, 3266489909);
-            h ^= h >>> 16;
-            c.repathJitter = ((h >>> 0) / 4294967296) * 0.4;
-          }
-          ladderGate += c.repathJitter;
+          // (the ladder's gate and its repath jitter went with the ladder; the
+          // per-identity stagger lives on as patienceScaleOf)
           // YIELDING TO THE PLAYER IS NOT BEING STUCK (B1, 2026-08-17).
           //
           // "The player standing in a doorway. They must path around me, not
@@ -13552,131 +13552,51 @@ const HERO_GARMENTS = {
           // and zeroing that clock here disabled the rescue. Measured with the
           // reset in place: escalations fell to 0 and stalls rose 5 -> 46 with
           // nobody reaching the counter at all — the two fixes fighting.
-          if (!navLadder) {
-            // THE LADDER IS OFF. The plain repath below stays — asking for a
-            // fresh route when the world has changed under you is ordinary
-            // navigation and moves nobody. What goes is everything that PUTS A
-            // BODY SOMEWHERE: two random sidesteps, a nudge onto the nearest
-            // open cell, a target relocation, and abandoning the stop. Those are
-            // teleports with no yaw and no gait behind them, which is the same
-            // artefact as the separation shove and just as visible. The doorway
-            // yield timer goes too: yielding is what the solver does now, as a
-            // velocity, and a scripted six-second wait on top of it is a second
-            // opinion nobody asked for.
-            if (c.stuckT > 1.2 && !c.repathed) {
-              c.pathGoal = null;
-              navVersion = -1;
-              c.repathed = true;
-            }
-          } else if (playerInTheWayOf(c, wp) && (c.yieldT || 0) < PLAYER_YIELD_SECONDS) {
+          // THE RECOVERY LADDER IS DELETED (Overnight 2026-08-21 Block 4).
+          //
+          // Every rung that PUT A BODY SOMEWHERE — two random sidesteps, the
+          // nudge onto the nearest open cell, the target relocation, the
+          // stop-abandon — was a teleport with no yaw and no gait behind it,
+          // the same artefact as the separation shove. What replaces it is
+          // upstream and is all velocities: patience escalation in the solver
+          // (orca.js `patience`), hold-and-pass for mutual deadlocks, the
+          // depth-aware blocked-arrival, and validated stops (browse, queue,
+          // experience sockets). What SURVIVES here:
+          //   - yielding to the player (a bounded, honest wait);
+          //   - the plain repath — asking for a fresh route moves nobody;
+          //   - the give-up fuse with the owner's bell, because "I should
+          //     never have a customer silently stuck without knowing" is a
+          //     requirement about the OWNER, not about recovery.
+          if (playerInTheWayOf(c, wp) && (c.yieldT || 0) < PLAYER_YIELD_SECONDS) {
             c.yieldT = (c.yieldT || 0) + dt;
             c.stuckT = 0;
             if (char) char.setMode(c.hasBasket ? 'BasketIdle' : 'Idle');
-          } else if (c.stuckT > ladderGate) {
-            navRepathsThisFrame += 1;
-            c.stuckEscalation = (c.stuckEscalation || 0) + 1;
-            // G10: "Not a nudge, not a repath along the same line: a genuinely
-            // different path, and if none exists, they abandon that stop."
-            //
-            // A displacement stall means the walker is against something and a
-            // sidestep usually clears it, so that keeps the full ladder. Three
-            // seconds of NO PROGRESS means the route is wrong, and sidestepping
-            // a wrong route just wastes two more rungs against it - so this
-            // reason enters the ladder at the RETARGET rung and escalates to
-            // abandoning the stop from there.
-            if (verdict.reason === 'no-progress' && c.stuckEscalation < 3) {
-              c.stuckEscalation = 3;
-            }
-            // F2: "a genuinely different route". The nudge rung repositions
-            // and repaths, but the fresh path can lead straight back through
-            // the same blocked waypoint — the sidestep/nudge/retarget trio
-            // looping at one shelf in the logs is that cycle. Ban the
-            // waypoint the stall happened at: if the next path leads there
-            // again, skip straight to moving the TARGET instead.
-            if (verdict.reason === 'no-progress' && c.bannedWp
-              && Math.hypot(c.bannedWp.x - wp.x, c.bannedWp.z - wp.z) < 0.5) {
-              c.stuckEscalation = Math.max(c.stuckEscalation, 4);
-            }
-            if (verdict.reason === 'no-progress') c.bannedWp = { x: wp.x, z: wp.z };
-            const rung = Math.min(5, c.stuckEscalation);
-            recordNavBlock(c, ['sidestep', 'sidestep', 'nudge', 'retarget', 'skip'][rung - 1], tx, tz, wp);
-            if (rung <= 2) {
-              const side = Math.random() < 0.5 ? 1 : -1;
-              const sres = resolveCustomer(c, c.mesh.position.x + (wdz / wdist) * 0.6 * side, c.mesh.position.z - (wdx / wdist) * 0.6 * side);
-              c.mesh.position.x = sres.nx;
-              c.mesh.position.z = sres.nz;
-            } else if (rung === 3) {
-              const open = navFresh().nearestOpenWorld(c.mesh.position.x, c.mesh.position.z, 6);
-              if (open) {
-                const nres = resolveCustomer(c, open.x, open.z);
-                c.mesh.position.x = nres.nx;
-                c.mesh.position.z = nres.nz;
-              }
-            } else if (rung === 4 && stop && stop.kind !== 'counter') {
-              // Queue geometry belongs to the counter; every other stop may move
-              // to the nearest point the grid can actually deliver a walker to.
-              const open = navFresh().nearestOpenWorld(tx, tz, 6);
-              if (open && Math.hypot(open.x - tx, open.z - tz) > 0.05) {
-                stop.x = open.x;
-                stop.z = open.z;
-              }
-            } else if (rung >= 5 && stop && stop.kind === 'counter') {
-              // A QUEUE IS THE ONE STOP THAT FIXES ITSELF, so the ladder must
-              // never abandon it. Rung 4 already refuses to move counter
-              // geometry ("queue geometry belongs to the counter"); rung 5 used
-              // to do something worse — drop the walker out of the LINE and
-              // advance their plan, which from behind the till is a customer
-              // silently deciding not to buy anything. Measured on a five-deep
-              // staged line: two of five left this way with their patience
-              // clocks barely started (qa/queue-exodus/fixed2.json).
-              //
-              // Their slot is blocked BECAUSE somebody is standing in it, and
-              // that somebody is being served. Holding is not a stall; it is
-              // the correct behaviour, and it resolves the moment the line
-              // advances. If it genuinely never advances, the pre-service fuse
-              // still runs and they still leave — on patience, which is the
-              // decision the design wants them to make.
-              c.stuckEscalation = 0;
-              c.bannedWp = null;
-              c.path = [];
-              c.pathGoal = null;
-              c.queueHoldRecoveries = (c.queueHoldRecoveries || 0) + 1;
-            } else if (rung >= 5 && stop && stop.kind !== 'exit' && stop.kind !== 'gone') {
-              // F2: "if they cannot find any way to reach what they want,
-              // tell me. I should never have a customer silently stuck in my
-              // shop without knowing." The bell carries it; the dedupe key
-              // keeps one report per customer+stop, not a stream.
-              try {
-                notify(state, {
-                  kind: 'shop',
-                  text: t('shop.customerGaveUpStop', { name: c.name || 'A customer', what: stop.kind }),
-                  dedupeKey: `nav-giveup:${c.id}:${c.stopIdx}`,
-                });
-              } catch { /* a notification must never take the walker down */ }
-              c.stopIdx += 1;
-              c.stuckEscalation = 0;
-              c.bannedWp = null;
-            }
-            c.pathGoal = null;
-            c.stuckT = 0;
-            c.repathed = false;
-            // a rung has just moved them or their target; give the progress
-            // test a fresh baseline or it re-fires on the next frame
-            c.bestGoalDist = Infinity;
-            c.noProgressT = 0;
           } else if (c.stuckT > 1.2 && !c.repathed) {
             c.pathGoal = null;
             navVersion = -1; // rebake — a door or hauled pile may have changed the world
             c.repathed = true;
+          } else if ((c.noProgressT || 0) > NAV_GIVE_UP_SECONDS
+            && stop && stop.kind !== 'counter' && stop.kind !== 'exit' && stop.kind !== 'gone') {
+            // The fuse. A queue fixes itself and the way out must never be
+            // skipped; anything else unreachable for this long gets reported
+            // and released. No body is moved.
+            try {
+              notify(state, {
+                kind: 'shop',
+                text: t('shop.customerGaveUpStop', { name: c.name || 'A customer', what: stop.kind }),
+                dedupeKey: `nav-giveup:${c.id}:${c.stopIdx}`,
+              });
+            } catch { /* a notification must never take the walker down */ }
+            c.stopIdx += 1;
+            c.pathGoal = null;
+            c.stuckT = 0;
+            c.repathed = false;
+            c.bestGoalDist = Infinity;
+            c.noProgressT = 0;
           }
-        // G2: the clear-the-stuck-clock arm used to hold off while the progress
-        // clock was over its threshold. With `sliding` no longer a stuck reason
-        // that guard would keep a genuinely walking customer's escalation state
-        // alive for no reason, so it goes with the branch it belonged to.
         } else if (moved > step * 0.6) {
           c.stuckT = 0;
           c.repathed = false;
-          c.stuckEscalation = 0;
         }
       }
       c.mesh.position.y = groundYAt(c.mesh.position.x, c.mesh.position.z) ?? heightAt(c.mesh.position.x, c.mesh.position.z);
@@ -14643,11 +14563,9 @@ const HERO_GARMENTS = {
         stopZ: (c.stops && c.stops[c.stopIdx] && Number.isFinite(c.stops[c.stopIdx].z))
           ? +c.stops[c.stopIdx].z.toFixed(4) : null,
         stopCount: Array.isArray(c.stops) ? c.stops.length : null,
-        // Which rung of the give-up ladder this walker is on. 0 = walking
-        // normally; 4 = its target has just been moved; 5 = the stop is being
-        // abandoned. Without it, "stopped short" and "gave up and moved on" look
-        // identical from the outside.
-        stuckEscalation: Number.isFinite(c.stuckEscalation) ? c.stuckEscalation : 0,
+        // The ladder is deleted (Block 4); walkers no longer carry a rung.
+        // Kept as a constant 0 so diagnostics consumers keep their shape.
+        stuckEscalation: 0,
         // How deep inside the nearest customer collider this body is, and how far
         // outside if it is clear. The residual walk-in-place happens with ~1.9 yd
         // of clear space to the nearest neighbour, so it is NOT crowd separation;
@@ -14868,7 +14786,7 @@ const HERO_GARMENTS = {
     crowdSolver: () => crowdSolver,
     setNavLadder,
     setSeparateMode,
-    navMode: () => ({ crowdSolver, navLadder, separateMode }),
+    navMode: () => ({ crowdSolver, navLadder: 'deleted', separateMode, deadlockHolds: navDeadlockHolds }),
     // QA-ONLY. The nearest position a body of this radius may legally stand,
     // colliders only — no player, no other bodies. A driver that stages a crowd
     // by writing mesh positions has no idea where the counter is, and the first

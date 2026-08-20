@@ -286,6 +286,33 @@ export function orcaVelocity(self, neighbours, prefVx, prefVz, options = {}) {
   const step = Number.isFinite(options.timeStep) ? options.timeStep : ORCA_DEFAULTS.timeStep;
   const comfort = Number.isFinite(options.comfort) ? options.comfort : ORCA_DEFAULTS.comfort;
   const bias = Number.isFinite(options.bias) ? options.bias : ORCA_DEFAULTS.bias;
+  // MUTUAL DEADLOCK IS BROKEN BY PATIENCE, NOT BY TELEPORTS (Overnight
+  // 2026-08-21 Block 4). The theorem covers contact, never progress: two
+  // bodies swapping places build mirror half-planes, each concedes half, and
+  // the pair can park nose to nose for ever with every program FEASIBLE. The
+  // recovery ladder used to break this by MOVING a body, which is the same
+  // artefact as the shove. `options.patience` is seconds this body has made
+  // no progress (0 for a body that is moving, which keeps an empty room and
+  // every flowing crowd bit-for-bit unchanged), and it escalates two things,
+  // both deterministic, both still velocities:
+  //   1. the lean — the same fixed-side bias, grown with the wait, so a body
+  //      that has been parked leans harder and harder to its side until the
+  //      pair shears; and
+  //   2. this body's reciprocal share — a body that has waited longer takes
+  //      more than half of the correction, which is what "after you" is in
+  //      velocity space, and the asymmetry unsticks pairs the lean alone
+  //      cannot (both leans cancel head-on in a narrow aisle).
+  //   3. the comfort band — personal space shrinks as the wait grows (never
+  //      the radii: contact stays impossible), because a narrow aisle that two
+  //      full comfort bands cannot pass is passable the way people actually
+  //      pass, brushing shoulders. Floor at 40% so the squeeze is a brush,
+  //      not a grind. While a body is squeezed the measure-mode separate()
+  //      meter will read virtual corrections for the pair it passes — that is
+  //      the meter's 0.78 yd opinion, not displacement; nothing moves anybody.
+  const patience = Math.min(12, Math.max(0, Number(options.patience) || 0));
+  const patientBias = bias * (1 + patience * 2.5);
+  const patientShare = 0.5 + Math.min(0.35, patience * 0.06);
+  const patientComfort = comfort * Math.max(0.4, 1 - patience * 0.10);
   const obstacleHorizon = Number.isFinite(options.timeHorizonObstacle)
     ? options.timeHorizonObstacle : ORCA_DEFAULTS.timeHorizonObstacle;
   const dt = Math.max(1e-3, Math.min(step, 0.25));
@@ -361,7 +388,7 @@ export function orcaVelocity(self, neighbours, prefVx, prefVz, options = {}) {
     }
     const dvx = vx - (Number.isFinite(other.vx) ? other.vx : 0);
     const dvz = vz - (Number.isFinite(other.vz) ? other.vz : 0);
-    const combined = selfR + otherR + comfort;
+    const combined = selfR + otherR + patientComfort;
     const combinedSq = combined * combined;
     const line = lineAt(_lines, count);
     // The shortest change to the relative velocity that leaves the cone. Every
@@ -426,7 +453,7 @@ export function orcaVelocity(self, neighbours, prefVx, prefVz, options = {}) {
     // THE RECIPROCAL SPLIT. Half, because the other body is running the same
     // computation on the same frame and will contribute the other half. A
     // neighbour that is not running it takes none, so this body takes all.
-    const share = other.reciprocal === false ? 1 : 0.5;
+    const share = other.reciprocal === false ? 1 : patientShare;
     line.px = vx + share * ux;
     line.pz = vz + share * uz;
     count += 1;
@@ -438,9 +465,9 @@ export function orcaVelocity(self, neighbours, prefVx, prefVz, options = {}) {
   // exactly where it meant to.
   let optX = prefVx;
   let optZ = prefVz;
-  if (count > 0 && bias) {
-    const c = Math.cos(bias);
-    const s = Math.sin(bias);
+  if (count > 0 && patientBias) {
+    const c = Math.cos(patientBias);
+    const s = Math.sin(patientBias);
     optX = prefVx * c - prefVz * s;
     optZ = prefVx * s + prefVz * c;
   }

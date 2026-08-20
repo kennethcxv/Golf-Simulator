@@ -23,16 +23,26 @@ test('under a second of no progress is not yet stuck when still moving', () => {
   assert.equal(walking.stuck, false, 'a fresh detour must not trip the rule');
 });
 
-test('the live ladder acts promptly on a wrong route and can notify on abandonment', () => {
-  // Source contracts on the two F2 behaviours the pure verdict cannot carry:
-  // the prompt gate for no-progress stalls, and the give-up notification.
+test('the ladder is deleted; the give-up fuse still reaches the owner', () => {
+  // Block 4 (Overnight 2026-08-21): the recovery ladder — every rung that put
+  // a body somewhere — is DELETED, replaced upstream by patience escalation in
+  // the solver, hold-and-pass, depth-aware blocked arrival and validated
+  // stops. Two things had to survive it, and this holds them: the owner's
+  // bell ("never a customer silently stuck without knowing") now rides a
+  // 30-second give-up fuse, and no rung machinery may quietly return.
 
   const src = fs.readFileSync(new URL('../src/render3d/clubhouse.js', import.meta.url), 'utf8')
     .replace(/\/\/.*$/gm, '');
-  assert.match(src, /reason === 'no-progress' \? 0\.35 : 3\.0/,
-    'a no-progress stall must enter the ladder within a beat, not after another 3 s');
   assert.match(src, /shop\.customerGaveUpStop/,
-    'an abandoned stop must reach the player through the notification bell');
-  assert.match(src, /bannedWp/,
-    'the re-route must be guaranteed different (banned-waypoint escalation)');
+    'an unservable stop must still reach the player through the notification bell');
+  assert.match(src, /NAV_GIVE_UP_SECONDS/,
+    'the bell rides a named fuse, not a rung');
+  // the diagnostics shape keeps a constant-zero stuckEscalation field for its
+  // consumers; what must not return is anything ASSIGNING a rung
+  assert.doesNotMatch(src, /c\.stuckEscalation = [^0]/,
+    'rung escalation machinery must not return');
+  assert.doesNotMatch(src, /stuckEscalation \+= /,
+    'rung escalation machinery must not return (increment form)');
+  assert.doesNotMatch(src, /nearestOpenWorld\(c\.mesh\.position\.x/,
+    'the nudge rung (teleport to the nearest open cell) must not return');
 });
