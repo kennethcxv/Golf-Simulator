@@ -769,12 +769,31 @@ export function makeLaptop(app, opts) {
   // various things at once" — so every consumer that resolves an order's skuId
   // gets undefined back and must still draw something. Crashing here took the
   // whole page down while the order itself had already committed.
+  // STREAMED, NOT BLOCKING. ch.productThumb() rendered the whole catalogue
+  // synchronously the first time any desk showed a card -- profiled at
+  // 4.8-12.8 s in one main-thread block on an unwarmed profile (toDataURL +
+  // getProgramInfoLog; tools/qa/laptop-open-input-to-pixel.js). The cards now
+  // draw their category icon immediately and swap the real render in when the
+  // rig delivers it, one sku per beat. A cached sku still lands sync.
   const thumbOf = (sku) => {
     const ch = app.scene3d && app.scene3d.clubhouse && app.scene3d.clubhouse();
-    const url = sku && ch && ch.productThumb ? ch.productThumb(sku) : null;
+    const icon = () => el('div', { class: 'lt-prodicon', text: (sku && CAT_ICON[sku.cat]) || '📦' });
+    if (!sku || !ch) return icon();
+    const swapIn = (node) => (url) => {
+      if (!url || !node.isConnected) return;
+      node.replaceWith(el('img', { class: 'lt-prodimg', src: url, alt: sku.name, loading: 'lazy' }));
+    };
+    if (ch.productThumbAsync) {
+      const placeholder = icon();
+      const url = ch.productThumbAsync(sku, swapIn(placeholder));
+      return url
+        ? el('img', { class: 'lt-prodimg', src: url, alt: sku.name, loading: 'lazy' })
+        : placeholder;
+    }
+    const url = ch.productThumb ? ch.productThumb(sku) : null;
     return url
       ? el('img', { class: 'lt-prodimg', src: url, alt: sku.name, loading: 'lazy' })
-      : el('div', { class: 'lt-prodicon', text: (sku && CAT_ICON[sku.cat]) || '📦' });
+      : icon();
   };
 
   // The active property's state.cash is the empire wallet authority. empire.cash

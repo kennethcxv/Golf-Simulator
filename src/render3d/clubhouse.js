@@ -173,7 +173,7 @@ import { buildShedDirt } from './clubhouse/shedDirt.js';
 import { createShedInterior } from './clubhouse/shedInterior.js';
 import { createPineHillsInterior } from './clubhouse/pineHillsInterior.js';
 import { createPineHillsV2Interior } from './clubhouse/pineHillsV2Interior.js';
-import { productThumb } from './clubhouse/thumbs.js';
+import { productThumb, productThumbAsync, warmProductThumbRig } from './clubhouse/thumbs.js';
 import { buildExterior } from './clubhouse/exterior.js';
 import { buildWashing } from './clubhouse/washing.js';
 import { buildCampaignWorld } from './clubhouse/campaignWorld.js';
@@ -15235,6 +15235,10 @@ const HERO_GARMENTS = {
       return c.name;
     },
     productThumb: (sku) => productThumb(sku), // rendered supplier-card imagery
+    // streaming variant: cache hit returns the URL, a miss returns null now and
+    // fires the callback when the thumbnail lands (one per beat, off the open)
+    productThumbAsync: (sku, onReady) => productThumbAsync(sku, onReady),
+    warmProductThumbRig: (renderer) => warmProductThumbRig(renderer),
     condition: () => conditionNow,
     setTimeMood: (minuteOfDay) => {
       shell.lighting.setTimeMood(minuteOfDay);

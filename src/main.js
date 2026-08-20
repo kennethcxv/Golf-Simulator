@@ -627,6 +627,15 @@ function setCameraLens(fov, near) {
 const LAPTOP_BOOT_MS = 420; // lid swinging → power light and boot screen
 const LAPTOP_BUILD_MS = 470; // interface built here, hidden, while the lid finishes
 const LAPTOP_REVEAL_MS = 900; // bar completes and the glass goes live
+// A WOKEN LAPTOP DOES NOT BOOT. exitLaptop leaves the lid open on the lock
+// screen (laptopScreen('desk')), and the open used to replay the full 900 ms
+// power-on choreography against that picture -- a boot animation on a machine
+// the player can SEE is already on, paid on every open after the first. Once
+// this session has booted the laptop once, later opens are a wake: no power
+// light, no bar, interface on the glass in a quarter second.
+const LAPTOP_WAKE_BUILD_MS = 60;
+const LAPTOP_WAKE_REVEAL_MS = 240;
+let laptopBootedThisSession = false;
 
 function enterLaptop(startPage = null) {
   putDownCarried(); // D1: a station takes the camera; nothing is left floating
@@ -657,9 +666,13 @@ function enterLaptop(startPage = null) {
   walkOverlay.style.display = 'none';
   setLaptopBackdropHidden(true);
   // the physical sequence: lid swings → power light → boot → interface lands on the glass
+  // (first open of the session only; a later open is a WAKE and skips the boot)
+  const wake = laptopBootedThisSession;
+  const buildMs = wake ? LAPTOP_WAKE_BUILD_MS : LAPTOP_BUILD_MS;
+  const revealMs = wake ? LAPTOP_WAKE_REVEAL_MS : LAPTOP_REVEAL_MS;
   if (ch.laptopLid) ch.laptopLid(true);
   if (audio.ready) audio.laptopOpen();
-  laptopTimers.push(setTimeout(() => {
+  if (!wake) laptopTimers.push(setTimeout(() => {
     if (!app.laptopOpen) return;
     // The bar's pace is THIS number, handed over rather than copied. It used to
     // carry its own 480 ms nominal in clubhouse.js, which is the same beat
@@ -683,7 +696,7 @@ function enterLaptop(startPage = null) {
     laptopUi.root.style.visibility = 'hidden';
     laptopUi.open(startPage);
     alignLaptopUi();
-  }, LAPTOP_BUILD_MS));
+  }, buildMs));
   laptopTimers.push(setTimeout(() => {
     if (!app.laptopOpen) return;
     if (!laptopUi.isOpen()) { // the early build never ran; do it now rather than show nothing
@@ -691,7 +704,9 @@ function enterLaptop(startPage = null) {
       laptopUi.open(startPage);
     }
     // The bar completes HERE — when the interface exists — and not on a clock.
-    if (ch.laptopBootFinish) ch.laptopBootFinish();
+    // On a wake no bar ever started, so there is nothing to complete.
+    if (!wake && ch.laptopBootFinish) ch.laptopBootFinish();
+    laptopBootedThisSession = true;
     requestAnimationFrame(() => {
       if (!app.laptopOpen) return;
       // 'live': the canvas becomes a flat sheet of the interface's own paper colour. It used to
@@ -701,7 +716,7 @@ function enterLaptop(startPage = null) {
       laptopUi.root.style.visibility = '';
       alignLaptopUi(); // and from here the frame loop keeps it welded on, every frame
     });
-  }, LAPTOP_REVEAL_MS));
+  }, revealMs));
   laptopResizeHandler = () => {
     if (!app.laptopOpen) return;
     // the window changed shape: re-seat (the fit depends on aspect). The projection itself
@@ -1491,6 +1506,10 @@ function startGame(state, loadNotice = null) {
   // touches nothing the player can stutter on. It was one opaque number because
   // nothing in here was stamped. Now it is three.
   performance.mark('start-scene-entry');
+  // A fresh scene builds a fresh clubhouse with the laptop lid CLOSED, so the
+  // wake shortcut must not survive across scenes -- the first open in a new
+  // scene boots again, as the picture on the desk says it should.
+  laptopBootedThisSession = false;
   requestAnimationFrame(() => {
     requestAnimationFrame(() => {
       if (generation !== sceneStartGeneration) return;
@@ -2036,6 +2055,20 @@ function startGameNow(
       // never draw — its five first-open programs (2.1 s in the player's
       // hands on a resumed save) are paid here instead.
       await timeWarmStage('laptop-view', () => warmLaptopViewThroughLiveLoop(sceneRef, generation, () => sceneStartGeneration));
+      if (app.scene3d !== sceneRef || generation !== sceneStartGeneration) { compileScreen.finish(false); return; }
+      // THE THUMBNAIL RIG'S BOOT COST, PAID HERE ON PURPOSE. Retiring the
+      // laptop-view stage handed the rig's first-ever render -- a second WebGL
+      // context, its shader programs, one PNG encode -- to the player's first
+      // laptop open, where it profiled at 1.9 s of getProgramInfoLog inside a
+      // 4.8-12.8 s block (tools/qa/laptop-open-input-to-pixel.js). Two sample
+      // units here pay the context and programs; the catalogue itself streams
+      // in one sku per beat after the interface lands (thumbs.js drain), so
+      // neither the veil nor the open ever pays the whole shelf again.
+      await timeWarmStage('thumb-rig', async () => {
+        const ch = sceneRef?.clubhouse?.();
+        const ms = ch?.warmProductThumbRig?.(sceneRef?.renderer || null);
+        window.__fwWarm = { ...(window.__fwWarm || {}), thumbRig: ms == null ? 'unavailable' : `ms:${ms}` };
+      });
       if (app.scene3d !== sceneRef || generation !== sceneStartGeneration) { compileScreen.finish(false); return; }
       // GOAL 35: the editor and Tab, the last two surfaces that still compiled
       // in his hands — pressed for real, their rails pressed for real, closed

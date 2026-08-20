@@ -6,25 +6,58 @@
 import * as THREE from 'three';
 import { makeProductLabel, roundedBox } from './materials.js';
 
-let renderer = null;
+// ONE CONTEXT, NOT TWO. This file used to own a private WebGLRenderer, and a
+// second live GL context turned out to cost seconds in two different places:
+// alive, it turned the first outdoor belt press from 88 ms into a 2.5-3.6 s
+// block (door-crossing driver, twice, and back to baseline with it gone);
+// disposed-and-recreated, the recreation re-paid the whole ANGLE translate --
+// 2.3 s in one drain beat, same boot, so the program-binary cache does not
+// cover a fresh context. Both stalls die the same way: render thumbnails with
+// the MAIN renderer into an offscreen render target. The scene and lights stay
+// private; only the GL context is shared. main.js adopts the renderer into
+// this module inside the thumb-rig warm stage, before anything can queue.
+const SIZE = 192; // the cards draw these at 64 CSS px, and the laptop scales up to 130%
+
+let sharedRenderer = null;
+let target = null;
 let scene = null;
 let camera = null;
+let readCanvas = null;
+let readCtx = null;
+let pixels = null;
 const cache = new Map();
 
+export function adoptThumbRenderer(r) {
+  if (sharedRenderer === r) return;
+  if (target) { target.dispose(); target = null; }
+  sharedRenderer = r || null;
+}
+
 function ensureRig() {
-  if (renderer) return;
-  renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true, preserveDrawingBuffer: true });
-  renderer.setSize(192, 192); // the cards draw these at 64 CSS px, and the laptop scales up to 130%
-  renderer.setClearColor(0x000000, 0);
-  scene = new THREE.Scene();
-  const key = new THREE.DirectionalLight(0xfff2dc, 2.6);
-  key.position.set(1.4, 2.2, 1.8);
-  scene.add(key);
-  const fill = new THREE.DirectionalLight(0xdfe9f5, 0.9);
-  fill.position.set(-1.6, 0.8, -1.2);
-  scene.add(fill);
-  scene.add(new THREE.AmbientLight(0xffffff, 0.55));
-  camera = new THREE.PerspectiveCamera(30, 1, 0.01, 20);
+  if (!sharedRenderer) throw new Error('thumbs: no adopted renderer');
+  if (!target) {
+    target = new THREE.WebGLRenderTarget(SIZE, SIZE, {
+      colorSpace: THREE.SRGBColorSpace,
+    });
+  }
+  if (!scene) {
+    scene = new THREE.Scene();
+    const key = new THREE.DirectionalLight(0xfff2dc, 2.6);
+    key.position.set(1.4, 2.2, 1.8);
+    scene.add(key);
+    const fill = new THREE.DirectionalLight(0xdfe9f5, 0.9);
+    fill.position.set(-1.6, 0.8, -1.2);
+    scene.add(fill);
+    scene.add(new THREE.AmbientLight(0xffffff, 0.55));
+    camera = new THREE.PerspectiveCamera(30, 1, 0.01, 20);
+  }
+  if (!readCanvas) {
+    readCanvas = document.createElement('canvas');
+    readCanvas.width = SIZE;
+    readCanvas.height = SIZE;
+    readCtx = readCanvas.getContext('2d');
+    pixels = new Uint8Array(SIZE * SIZE * 4);
+  }
 }
 
 const std = (color, opts = {}) => new THREE.MeshStandardMaterial({ color, roughness: 0.6, ...opts });
@@ -150,9 +183,26 @@ function buildUnit(sku) {
   return g;
 }
 
-export function productThumb(sku) {
-  if (!sku) return null;
-  if (cache.has(sku.id)) return cache.get(sku.id);
+// THE FIRST OPEN WAS 5-13 SECONDS OF THIS FILE, SYNCHRONOUSLY.
+//
+// Measured 2026-08-20 with the CDP sampling profiler around the first laptop
+// open on an unwarmed profile (tools/qa/laptop-open-input-to-pixel.js):
+// toDataURL 2,797 ms + getProgramInfoLog 1,889 ms in one 4.8-12.8 s
+// main-thread block, because the whole catalogue's thumbnails were rendered
+// and PNG-encoded inside laptopUi.open() the moment any desk showed a card.
+// The laptop-view boot warm used to hide that cost under the veil; it was
+// retired for boot time, which handed the block to the player's first open.
+//
+// So the cards now take a PLACEHOLDER and a callback: one sku is rendered per
+// drain beat (a 16 ms setTimeout chain, deliberately not rAF -- a throttled
+// compositor must not stop thumbnails from arriving), and the image pops in
+// when it exists. The cache keeps its sync fast-path: a warmed or previously
+// seen sku still returns its URL immediately.
+const queue = [];
+const waiters = new Map(); // sku.id -> [cb, ...]
+let draining = false;
+
+function renderThumbNow(sku) {
   ensureRig();
   const unit = buildUnit(sku);
 
@@ -183,12 +233,105 @@ export function productThumb(sku) {
     sphere.center.z + dist * 0.72,
   );
   camera.lookAt(sphere.center);
-  renderer.render(scene, camera);
-  const url = renderer.domElement.toDataURL('image/png');
+  // Render into the offscreen target with the main renderer, restoring every
+  // piece of state that is touched. Tone mapping stays whatever the main scene
+  // uses -- flipping it would mint a second program variant per material.
+  const r = sharedRenderer;
+  const prevTarget = r.getRenderTarget();
+  const prevClearColor = new THREE.Color();
+  r.getClearColor(prevClearColor);
+  const prevClearAlpha = r.getClearAlpha();
+  const prevAutoClear = r.autoClear;
+  try {
+    r.setRenderTarget(target);
+    r.setClearColor(0x000000, 0);
+    r.autoClear = true;
+    r.render(scene, camera);
+    r.readRenderTargetPixels(target, 0, 0, SIZE, SIZE, pixels);
+  } finally {
+    r.setRenderTarget(prevTarget);
+    r.setClearColor(prevClearColor, prevClearAlpha);
+    r.autoClear = prevAutoClear;
+  }
+  // GL rows come back bottom-up; the canvas wants top-down.
+  const img = readCtx.createImageData(SIZE, SIZE);
+  const rowBytes = SIZE * 4;
+  for (let y = 0; y < SIZE; y += 1) {
+    const src = (SIZE - 1 - y) * rowBytes;
+    img.data.set(pixels.subarray(src, src + rowBytes), y * rowBytes);
+  }
+  readCtx.putImageData(img, 0, 0);
+  const url = readCanvas.toDataURL('image/png');
   scene.remove(unit);
   unit.traverse((o) => {
     if (o.geometry) o.geometry.dispose();
   });
   cache.set(sku.id, url); // cached forever — never regenerated per frame
   return url;
+}
+
+function drain() {
+  if (!queue.length) { draining = false; return; }
+  draining = true;
+  const sku = queue.shift();
+  let url = cache.get(sku.id);
+  if (url == null) {
+    try {
+      url = renderThumbNow(sku);
+    } catch {
+      url = null; // a sku that cannot render resolves null; the card keeps its icon
+    }
+  }
+  const cbs = waiters.get(sku.id) || [];
+  waiters.delete(sku.id);
+  for (const cb of cbs) {
+    try { cb(url); } catch { /* a dead card must not stop the queue */ }
+  }
+  setTimeout(drain, 16);
+}
+
+// Sync fast-path plus streaming miss: returns the URL when it is already
+// cached, otherwise null immediately -- and the callback fires when the
+// thumbnail has actually been rendered, one sku per beat.
+export function productThumbAsync(sku, onReady) {
+  if (!sku) return null;
+  if (cache.has(sku.id)) return cache.get(sku.id);
+  if (!sharedRenderer) return null; // no renderer adopted: cards keep their icons
+  if (typeof onReady === 'function') {
+    if (!waiters.has(sku.id)) {
+      waiters.set(sku.id, []);
+      queue.push(sku);
+    }
+    waiters.get(sku.id).push(onReady);
+    if (!draining) setTimeout(drain, 16);
+  }
+  return null;
+}
+
+// The rig's own boot cost -- context creation, its shader programs, and one
+// PNG encode -- paid once, deliberately, where the caller chooses (the veil).
+// Two representative units cover the material variants the catalogue uses:
+// a club (chrome + painted metal) and a labelled box (canvas-texture label).
+export function warmProductThumbRig(renderer) {
+  if (renderer) adoptThumbRenderer(renderer);
+  if (!sharedRenderer) return null;
+  const t0 = performance.now();
+  const samples = [
+    { id: 'driver-rigwarm', cat: 'clubs', tier: 2, name: 'rig warm' },
+    { id: 'balls-rigwarm', cat: 'balls', tier: 1, name: 'rig warm' },
+  ];
+  for (const sku of samples) {
+    try {
+      renderThumbNow(sku);
+      cache.delete(sku.id); // warm units are not products; keep the cache honest
+    } catch { /* the warm must never break a boot */ }
+  }
+  return +(performance.now() - t0).toFixed(1);
+}
+
+export function productThumb(sku) {
+  if (!sku) return null;
+  if (cache.has(sku.id)) return cache.get(sku.id);
+  if (!sharedRenderer) return null;
+  return renderThumbNow(sku);
 }
