@@ -3338,9 +3338,29 @@ const handlers = {
         : 'Overview camera - Tab returns you to your feet.');
       performance.mark('ov-enter-end');
     } else {
+      performance.mark('ov-exit-start');
       app.courseMode = 'walk';
       app.scene3d.clubhouse?.()?.setDirtReveal?.(0, false);
       enterWalk('resume');
+      // THE EXIT NEVER GOT THE SETTLE THE ENTRY GOT.
+      //
+      // Goal 34 put settleClubhouseCameraVisibility() in the branch above so
+      // the interior draw-distance and per-lamp budget land in the SAME TURN as
+      // the camera, and the first overview frame stops drawing a light census
+      // that exists nowhere in the played day. Coming BACK was left alone, and
+      // it has the identical problem in the identical shape: the rig re-poses
+      // instantly, the clubhouse gates settle later inside the loop, and the
+      // first walk frame after Tab draws a census whose program has to be
+      // compiled synchronously, mid-frame.
+      //
+      // Measured on the owner's own resumed save (tools/qa/tab-overview-cost.js,
+      // qa/tab-overview/): the first Tab minted 3 programs going in and 1 more
+      // coming back, and the first exit blocked the main thread for 658.3 ms --
+      // one gap over 250 ms in the whole round trip, and it is this one. The
+      // cursor is not heavy in the overview at all (p50 8.3 ms against 24.6 in
+      // walk); the freeze is the toggle, and mostly the way back.
+      app.scene3d?.settleClubhouseCameraVisibility?.();
+      performance.mark('ov-exit-settled');
       // P1 (Goal 25 playtest): "Tab, then Tab again to leave, and the game
       // effectively crashed."
       //
@@ -3361,6 +3381,7 @@ const handlers = {
       // requestLook already swallows a refusal, and a refusal just leaves
       // today's click-to-look behaviour.
       requestLook();
+      performance.mark('ov-exit-end');
     }
     syncPresentationMode(presentationMode());
   },

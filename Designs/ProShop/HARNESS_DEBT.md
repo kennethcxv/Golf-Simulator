@@ -975,3 +975,31 @@ the drift.
 **Restore `saves/` from the owner's profile before any run whose measurement
 depends on the shop's state**, not just before the first one. The clean run and
 the drifted run of the same driver disagreed on every number that mattered.
+
+## 11. Boot numbers are silently conditioned on whether the display is awake
+
+`tools/qa/boot-frame-clock.js` measured rAF at a 1003.7 ms median while the
+timer queue ran at 4.0 ms and a MessageChannel at 0.0 — a throttled compositor,
+on a machine whose display heads had gone offline. `prewarm()` yields through
+rAF, so the same build measured 6.05 s one evening and 34.8 s the next night on
+the SAME profile, flags and commit.
+
+Nothing in the harness records this, so any boot number taken without it is
+uninterpretable. Before quoting a boot figure, read `window.__fwVeilTicks`: a
+non-zero `timer` count means the compositor was not delivering and the number
+describes the machine's sleep state, not the build.
+
+Corollary: **input-to-pixel drivers cannot run in that state at all.**
+`tool-swap-input-to-pixel.js` correctly refused — its own floor control read
+null, because nothing can resolve a sub-second latency when pixels arrive at
+1 Hz. That refusal is the instrument working.
+
+## 12. `--dev` makes the runner's own menu wait time out about a third of the time
+
+`node tools/qa/run-electron.cjs <driver> --dev` failed 3 of 5 runs on the fixed
+build and 1 of 3 on the unfixed one, always as
+`page.waitForFunction: Timeout 120000ms exceeded` against the interactive main
+menu — i.e. before the game starts. Detached DevTools and Playwright are both
+attached to the same webContents. Pre-existing on both builds, harness-only; the
+owner's own `npm run dev` reaches its menu immediately. Do not measure with
+`--dev` unless DevTools is the thing under test.

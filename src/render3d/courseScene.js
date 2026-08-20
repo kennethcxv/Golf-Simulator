@@ -15,6 +15,7 @@ import {
   matrixFreezeWatchdogTick, matrixFreezeDiagnostics, matrixFreezeReset,
 } from './matrixFreeze.js';
 import { createAssetIdleBarrier } from './assetIdleBarrier.js';
+import { createVeilTick } from '../core/veilFrame.js';
 import { initKTX2, ktx2Diagnostics } from './ktx2Support.js';
 import { sharedTextureDiagnostics } from './sharedTexturePool.js';
 import * as BufferGeometryUtils from 'three/addons/utils/BufferGeometryUtils.js';
@@ -12516,7 +12517,27 @@ export function makeCourseScene(canvas, state) {
   }
 
   async function prewarm(onStep) {
-    const tick = () => new Promise((res) => requestAnimationFrame(res));
+    // Races the frame against a short timer: a healthy compositor still wins
+    // every yield, a throttled one no longer costs a second each.
+    // See src/core/veilFrame.js for the three-queue measurement.
+    // Asks for a real frame every time and waits a full quarter second for it,
+    // so a compositor that is working still drives every warm draw exactly as
+    // before; only after two consecutive misses does it stop waiting.
+    // See src/core/veilFrame.js for the three-queue measurement behind this.
+    const rawTick = createVeilTick();
+    // WHICH QUEUE ACTUALLY CARRIED THIS BOOT. A yield resolved by the timer is
+    // one the compositor did not deliver, so a boot with a high `timer` count
+    // was throttled and one with none was not -- read straight off the owner's
+    // own launch rather than inferred from a QA run.
+    const tickTally = { frame: 0, timer: 0, ms: 0 };
+    window.__fwVeilTicks = tickTally;
+    const tick = async () => {
+      const at = performance.now();
+      const via = await rawTick();
+      tickTally[via] += 1;
+      tickTally.ms = +(tickTally.ms + (performance.now() - at)).toFixed(1);
+      return via;
+    };
     const alive = () => !sceneDisposed;
     warmDrawPhase = 'pre-step';
     const step = (label) => { warmDrawPhase = label; if (alive() && onStep) onStep(label); };
