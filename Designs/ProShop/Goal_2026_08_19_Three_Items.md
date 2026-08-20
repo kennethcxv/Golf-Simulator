@@ -62,6 +62,33 @@ skipped draw came back as a 10-16 s freeze in play. Linking is atomic per progra
 at 60-130 ms, so spreading 125 programs across the first seconds of play trades a
 wait for a stutter. I did not do it.
 
+### The last lever, priced, and why I did not pull it
+
+The two day states cost **56 program links**, ~1.5 s of a quiet boot. The census
+flips on exactly two lines in `src/render3d/clubhouse/shell.js` `setTimeMood`:
+
+```js
+f.visible = moodDayF > 0.001;        // the window fills
+porchLight.visible = moodDayF < 0.999;
+```
+
+Both already drive intensity to 0 on their own, so leaving them permanently
+visible would make the light census CONSTANT across the day, and three.js -- which
+keys programs on counts by light type -- would never link a new program for a
+time of day again. The "Warming the day" phase would delete itself, and the
+median boot would land near 8.9 s.
+
+**The price:** they are all PointLights, and the interior already runs
+PointLight:4. A constant census means every indoor frame carries the UNION --
+about one more point light in the fragment loop, on every frame, forever, to buy
+1.5 s once per launch.
+
+That is precisely the trade you told me not to make silently, and proving it is
+free needs indoor frame-time evidence at both a day and a night minute, which I
+could not complete honestly in what was left of this session. So it is priced and
+left for you rather than shipped on a hunch. It is a small change and a
+measurable one; it just needs its measurement first.
+
 ### What was retired
 
 `laptop-view`, the last surviving warm stage. On a quiet boot it costs 2,628 ms;
