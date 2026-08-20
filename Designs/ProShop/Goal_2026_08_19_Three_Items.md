@@ -140,6 +140,33 @@ import map owns `three` and the app is hundreds of separate ESM fetches — whic
 is the most likely shape of that 3.4 s and is the one remaining stretch with no
 play risk whatsoever. It is also a project, not an evening.
 
+### Why the belt cannot simply be warmed instead — and a stub worth knowing about
+
+The obvious rescue for the census lever is "warm the nine belt tools too". It does
+not work, and the reasons are already in the tree:
+
+1. **Under the veil**: courseScene.js records the attempt. Equipping all nine and
+   drawing two forced composer frames each cost **9.3-18.2 s of every warm load**,
+   and the mop's first in-play equip STILL arrived +1 program because the lazy
+   piece builds inside `walkUpdate`'s tool branches, which no warm-only draw can
+   run. That fails Item 0 by itself.
+2. **Deferred after the veil**: `scheduleDeferredGpuWarm` used to do exactly this,
+   1.6 s after the game is interactive. **It is now a stub** — it sets
+   `sweep: 'retired'` on `window.__fwWarm` and warms nothing at all. Restoring it
+   would move the hitch into the first seconds of play, which is the thing
+   "prove the first play does not stutter" exists to prevent.
+3. **Lazily, at first press**: what ships today. It is FREE (37 ms) precisely
+   because the belt's materials match programs the scene already has — and the
+   constant census is what stops them matching.
+
+So the 80 links the census lever removes from the veil have nowhere cheap to go.
+That is the finding, and it is why the lever is out rather than merely untested.
+
+**Flagged separately:** `scheduleDeferredGpuWarm` is dead weight — a function that
+looks like a warm, is still called on every boot, and does nothing but write a
+diagnostic string. It should either be deleted or refilled deliberately; right
+now it reads as coverage that does not exist.
+
 ### Where I stopped, and why
 
 CLAUDE.md's 45-minute rule exists for exactly this, and I have blown it many times
