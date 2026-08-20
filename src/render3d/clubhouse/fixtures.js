@@ -14,7 +14,7 @@
 import * as THREE from 'three';
 import {
   FIXTURES, COUNTER, LOUNGE, STOCKROOM, INTERIOR, SHELL, LOGO_RUG, REGISTER,
-  COUNTER_TOP, FRONT_DESK_ASSETS, FRONT_DESK_COLLIDERS, FRONT_DESK_FRAME,
+  COUNTER_TOP, FIXTURE_HALF, FRONT_DESK_ASSETS, FRONT_DESK_COLLIDERS, FRONT_DESK_FRAME,
   METERS_PER_YARD, fixtureRect,
 } from '../../data/shopLayout.js';
 import { priceFor, restockShelfFromBackroom } from '../../sim/shop.js';
@@ -906,32 +906,42 @@ export function buildFixtures(B) {
   // ------------------------------------------------------- back counter -----
   function backcounterUnit(f) {
     const g = new THREE.Group();
+    // BLOCK 2: THE DRAWN UNIT FOLLOWS THE FIXTURE FOOTPRINT. This cabinet was a
+    // hardcoded 3.2 yd while the desk shrank to the drawn 2.39 m counter and
+    // FIXTURE_HALF.backcounter came down to 0.64 — the exact drawn-versus-layout
+    // mismatch the desk itself just got cured of. Everything below derives from
+    // the fixture's own width.
+    const W = (FIXTURE_HALF.backcounter?.[0] ?? 0.64) * 2;
     // lower cabinets with doors + brass pulls
-    const cab = new THREE.Mesh(roundedBox(3.2, 0.95, 0.5, 0.02), mats.walnut);
+    const cab = new THREE.Mesh(roundedBox(W, 0.95, 0.5, 0.02), mats.walnut);
     cab.position.set(0, 0.48, 0);
     cab.castShadow = true;
     g.add(cab);
-    const cabTop = new THREE.Mesh(roundedBox(3.3, 0.06, 0.56, 0.02), mats.walnutDark);
+    const cabTop = new THREE.Mesh(roundedBox(W + 0.1, 0.06, 0.56, 0.02), mats.walnutDark);
     cabTop.position.set(0, 0.98, 0);
     g.add(cabTop);
-    for (let i = 0; i < 4; i++) {
-      const door = new THREE.Mesh(new THREE.BoxGeometry(0.72, 0.72, 0.02), mats.walnutDark);
-      door.position.set(-1.2 + i * 0.8, 0.46, 0.26);
+    const doorCount = Math.max(2, Math.round(W / 0.64));
+    const doorW = Math.min(0.72, (W - 0.12) / doorCount - 0.06);
+    for (let i = 0; i < doorCount; i++) {
+      const dx = -W / 2 + (i + 0.5) * (W / doorCount);
+      const door = new THREE.Mesh(new THREE.BoxGeometry(doorW, 0.72, 0.02), mats.walnutDark);
+      door.position.set(dx, 0.46, 0.26);
       g.add(door);
       const pull = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.1, 6), mats.brass);
-      pull.position.set(-1.2 + i * 0.8 + 0.26, 0.52, 0.27);
+      pull.position.set(dx + doorW * 0.36, 0.52, 0.27);
       g.add(pull);
     }
-    // hutch shelves above for branded bags + boxes
+    // hutch shelves above for the hero garments + branded stock
+    const boardW = W - 0.2;
     for (const y of [1.5, 1.95]) {
-      const board = new THREE.Mesh(roundedBox(3.0, 0.045, 0.32, 0.015), mats.walnut);
+      const board = new THREE.Mesh(roundedBox(boardW, 0.045, 0.32, 0.015), mats.walnut);
       board.position.set(0, y, -0.08);
       g.add(board);
-      const strip = lightStrip(mats, 2.85);
+      const strip = lightStrip(mats, boardW - 0.15);
       strip.position.set(0, y - 0.03, -0.02);
       g.add(strip);
     }
-    for (const sx of [-1.55, 1.55]) {
+    for (const sx of [-(W / 2 - 0.035), W / 2 - 0.035]) {
       const cheek = new THREE.Mesh(roundedBox(0.07, 1.35, 0.36, 0.02), mats.walnut);
       cheek.position.set(sx, 1.6, -0.08);
       g.add(cheek);
@@ -939,23 +949,54 @@ export function buildFixtures(B) {
     // The hutch was two lit boards with NOTHING on them — the back counter is
     // where a pro shop keeps its branded bags and boxed stock (ref 4).
     if (merch) merch.onReady(() => {
-      // the Sheet-03 rangefinder case presents the premium optics behind the
-      // counter, where a shop keeps its $279 glass. It ships EMPTY like every
-      // fixture — its felt tiers fill when optics are stocked, not before.
+      // BLOCK 3 (Overnight 2026-08-21): the hutch shows the BAKED HERO WORK,
+      // day one, in every dressed room — the folded polo, hoodie and tee, the
+      // rolled towel, and the cap standing on its brim on the cabinet top.
+      // Fifteen hero assets are baked and asserted and most were in no room at
+      // all; the ones with a folded/countertop form belong here. instantiateRaw,
+      // like the garment slots: their material names are not in SLOT/TINTABLE
+      // and instantiate() would resolve them to charcoal.
       const dress = new THREE.Group();
-      for (let i = 0; i < 7; i++) {
+      const heroShelf = [
+        ['hero_polo_folded', -0.36],
+        ['hero_hoodie_folded', 0.0],
+        ['hero_tee_folded', 0.36],
+      ];
+      for (const [name, hx] of heroShelf) {
+        const garment = merch.instantiateRaw?.(name);
+        if (!garment) continue;
+        garment.position.set(hx, 1.545, -0.08);
+        garment.rotation.y = 0.06 * (hx < 0 ? 1 : -1);
+        dress.add(garment);
+      }
+      const heroTowel = merch.instantiateRaw?.('hero_towel');
+      if (heroTowel) {
+        heroTowel.position.set(-(W / 2) + 0.22, 1.01, 0.05);
+        dress.add(heroTowel);
+      }
+      const heroCap = merch.instantiateRaw?.('hero_cap');
+      if (heroCap) {
+        heroCap.position.set(W / 2 - 0.22, 1.01, 0.05);
+        heroCap.rotation.y = -0.5;
+        dress.add(heroCap);
+      }
+      // branded cartons keep the upper shelf; count follows the board width
+      const cartonCount = Math.max(1, Math.floor((boardW / 2 - 0.05) / 0.42));
+      for (let i = 0; i < cartonCount; i++) {
         const box = merch.instantiate('carton');
         if (!box) break;
         box.scale.setScalar(0.40 + (i % 3) * 0.06);
-        box.position.set(-1.25 + i * 0.42, 1.545, -0.08);
+        box.position.set(-(boardW / 2) + 0.25 + i * 0.42, 1.995, -0.08);
         box.rotation.y = 0.1 * ((i % 2) ? 1 : -1);
         dress.add(box);
       }
-      // the club's own carrier bags, stood on the upper shelf
+      // the club's own carrier bags, stood on the upper shelf east of the
+      // cartons; the count follows the shrunken board
       const bagMat = new THREE.MeshStandardMaterial({ color: 0x2c5233, roughness: 0.86 });
-      for (let i = 0; i < 5; i++) {
+      const bagCount = Math.max(1, Math.floor((boardW / 2 - 0.05) / 0.32));
+      for (let i = 0; i < bagCount; i++) {
         const bag = new THREE.Mesh(roundedBox(0.24, 0.30, 0.09, 0.012), bagMat);
-        bag.position.set(-1.0 + i * 0.45, 2.12, -0.08);
+        bag.position.set(0.10 + i * 0.32, 2.12, -0.08);
         bag.rotation.y = 0.08 * ((i % 2) ? 1 : -1);
         bag.castShadow = true;
         dress.add(bag);

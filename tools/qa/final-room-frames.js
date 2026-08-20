@@ -47,6 +47,8 @@ async (page) => {
   await shot('from-desk', 3.3, 4.25, 0.5, 0.5, 0.16);
   // the desk itself from the customer side, square on
   await shot('desk-front', 3.3, 0.8, 3.3, 3.35, 0.10);
+  // the hutch close-up: the hero garments on their lit board
+  await shot('hutch-closeup', 2.75, 2.9, 2.75, 5.2, 0.42);
   console.log('done');
   return { ok: true };
 }
