@@ -5207,12 +5207,61 @@ function productionFrameLoopDiagnostics() {
   };
 }
 
+// FRAME HEALTH, RECORDED WHERE THE PLAYER LIVES. This machine throws
+// multi-second rAF outages with a healthy main thread (rAF gaps of 2.0-5.7 s
+// while a 0 ms timer chain keeps beating -- measured across two nights, on
+// two builds, at healthy display states). A player feels each one as the
+// game freezing for a beat and there has never been a record of them in a
+// real session. So: every production frame stamps the gap since the last
+// one; a 100 ms heartbeat runs beside it; a gap over 250 ms is logged with
+// how many heartbeats landed inside it. Heartbeats missing too -> the main
+// thread was blocked (the build). Heartbeats present -> the compositor
+// stopped delivering frames (the machine). Read window.__fwFrameHealth
+// after a session; it costs two compares per frame and one idle interval.
+const frameHealth = {
+  gaps250: 0,
+  gaps900: 0,
+  worstMs: 0,
+  mainThreadShare: null, // of the worst gap, how much the heartbeat ALSO lost
+  recent: [], // last 40 events: { at, gapMs, beatsMissed, verdict }
+};
+window.__fwFrameHealth = frameHealth;
+let fhLastFrameAt = 0;
+let fhLastBeatAt = 0;
+setInterval(() => { fhLastBeatAt = performance.now(); }, 100);
+
+function recordFrameHealth(now) {
+  if (fhLastFrameAt) {
+    const gap = now - fhLastFrameAt;
+    if (gap > 250) {
+      const beatAge = now - fhLastBeatAt;
+      // if the heartbeat also went quiet for most of the gap, the main thread
+      // was blocked; if a beat landed recently, timers ran while rAF starved
+      const mainBlocked = beatAge > Math.max(250, gap * 0.6);
+      frameHealth.gaps250 += 1;
+      if (gap > 900) frameHealth.gaps900 += 1;
+      if (gap > frameHealth.worstMs) {
+        frameHealth.worstMs = +gap.toFixed(1);
+        frameHealth.mainThreadShare = mainBlocked ? 'blocked' : 'compositor';
+      }
+      frameHealth.recent.push({
+        at: +(now / 1000).toFixed(1),
+        gapMs: +gap.toFixed(1),
+        verdict: mainBlocked ? 'blocked' : 'compositor',
+      });
+      if (frameHealth.recent.length > 40) frameHealth.recent.shift();
+    }
+  }
+  fhLastFrameAt = now;
+}
+
 function runProductionFrame(timestamp) {
   const state = productionFrameLoopState;
   if (state.pendingCallbackCount === 0) state.pendingUnderflowCount += 1;
   else state.pendingCallbackCount -= 1;
   state.callbackCount += 1;
   state.lastCallbackAtMs = timestamp;
+  recordFrameHealth(performance.now());
   frame(timestamp);
 }
 

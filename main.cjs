@@ -279,7 +279,11 @@ function createWindow() {
     // typing in whatever they were already using. A visible-but-unfocused window
     // is not occluded, so the render loop runs at full rate; minimising it would
     // throttle the renderer and is deliberately NOT done.
-    if (QA_LAUNCH) win.showInactive(); else win.show();
+    // FW_QA_FOCUS=1: show the QA window FOCUSED, the way the player's own
+    // window runs. Exists to A/B the compositor-outage class (multi-second rAF
+    // gaps, healthy main thread) against window focus -- an unfocused QA
+    // window is the one visibility state the player never plays in.
+    if (QA_LAUNCH && process.env.FW_QA_FOCUS !== '1') win.showInactive(); else win.show();
   });
   if (DEV) {
     win.webContents.openDevTools({ mode: 'detach' });

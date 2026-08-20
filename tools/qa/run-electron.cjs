@@ -1546,6 +1546,36 @@ async function main() {
     );
     const menuReadyEvidence = await menuReadyHandle.jsonValue();
     await menuReadyHandle.dispose();
+    // COMPOSITOR STATE, STAMPED INTO EVERY RUN. Boot and latency numbers taken
+    // while the compositor is throttled describe the machine, not the build
+    // (6.05 s and 34.8 s were the same build on the same profile) -- so every
+    // run now carries a 700 ms three-queue sample taken right after the menu.
+    // rAF starved while the timer runs = throttled compositor; both starved =
+    // blocked main thread; the verdict prints beside the run and rides the
+    // result envelope. HARNESS_DEBT #11.
+    const compositorSample = await window.evaluate(async () => {
+      const res = { raf: [], timer: [] };
+      let lr = 0; let lt = 0; let stop = false;
+      const rl = () => { const t = performance.now(); if (lr) res.raf.push(t - lr); lr = t; if (!stop) requestAnimationFrame(rl); };
+      requestAnimationFrame(rl);
+      const tl = () => { const t = performance.now(); if (lt) res.timer.push(t - lt); lt = t; if (!stop) setTimeout(tl, 0); };
+      setTimeout(tl, 0);
+      await new Promise((r) => { setTimeout(r, 700); });
+      stop = true;
+      const med = (a) => (a.length ? a.slice().sort((x, y) => x - y)[Math.floor(a.length / 2)] : null);
+      const rafMed = med(res.raf); const timerMed = med(res.timer);
+      let verdict = 'HEALTHY';
+      if (rafMed == null || rafMed > 400) verdict = (timerMed != null && timerMed < 50) ? 'THROTTLED-COMPOSITOR' : 'BLOCKED-MAIN-THREAD';
+      return { rafMedianMs: rafMed == null ? null : +rafMed.toFixed(1), timerMedianMs: timerMed == null ? null : +timerMed.toFixed(1), rafN: res.raf.length, verdict };
+    }).catch(() => null);
+    if (compositorSample) {
+      timing.mark('compositorSampled', { source: 'renderer-three-queue-sample', verdict: compositorSample.verdict });
+      console.log('compositor at menu: ' + compositorSample.verdict + ' (raf median ' + compositorSample.rafMedianMs + ' ms, n=' + compositorSample.rafN + ')');
+      if (compositorSample.verdict !== 'HEALTHY') {
+        console.log('WARNING: numbers from this run describe the MACHINE STATE, not the build — see HARNESS_DEBT #11');
+      }
+    }
+    global.__fwCompositorSample = compositorSample;
     if (!menuReadyEvidence || menuReadyEvidence.discriminator !== 'main-menu-interactive') {
       throw new Error('Main-menu readiness observation did not return its exact discriminator.');
     }
@@ -1892,6 +1922,7 @@ async function main() {
   if (driverCompleted && metadata) {
     const json = `${JSON.stringify({
       electronArgs: args,
+      compositorAtMenu: global.__fwCompositorSample || null,
       runner: metadata,
       result: completedResult,
     }, null, 2)}\n`;

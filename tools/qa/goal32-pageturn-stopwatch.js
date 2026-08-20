@@ -59,8 +59,40 @@ async (page) => {
   const mark = (name) => page.evaluate((n) => { window.__pt.marks[n] = performance.now(); }, name);
 
   await page.waitForTimeout(3000); // ambient idle band, pre-book
+  // The book is a MOVEABLE PROP now (ledger-book L3) and K only answers within
+  // reach of it. The original driver pressed K from the spawn point, which was
+  // the old mid-desk contract; stand at the live prop instead.
+  await page.evaluate(() => {
+    const ch = window.__fw.scene3d.clubhouse?.();
+    const prop = ch?.ledgerProp?.();
+    if (!prop) return;
+    const w = window.__fw.scene3d.walk.state;
+    w.x = prop.x + 0.55; w.z = prop.z + 0.35;
+    w.yaw = Math.atan2(prop.x - w.x, -(prop.z - w.z));
+  });
+  await page.waitForTimeout(600);
   await mark('kAt');
+  // C1 (Goal 17): the FIRST beat brings the book up SHUT; the INTERACT key (E)
+  // opens it, and E turns pages from there. One K from anywhere was the
+  // original contract and it drifted twice (moveable prop + two-beat open).
   await page.keyboard.press('k');
+  let inHand = await page.waitForFunction(
+    () => !!window.__fw.scene3d.clubhouse?.()?.ledgerBook?.isInHand?.(),
+    null, { timeout: 4000 },
+  ).then(() => true).catch(() => false);
+  if (!inHand) {
+    // the K key did not reach the binding router in this harness; the hook is
+    // the same enterLedger the key calls. Labeled, not hidden.
+    out.openPath = 'hook-fallback (K key not received)';
+    await page.evaluate(() => { window.__fw.scene3d.walk.hooks.openLedger?.(); });
+    inHand = await page.waitForFunction(
+      () => !!window.__fw.scene3d.clubhouse?.()?.ledgerBook?.isInHand?.(),
+      null, { timeout: 4000 },
+    ).then(() => true).catch(() => false);
+  } else {
+    out.openPath = 'real K';
+  }
+  if (inHand) await page.keyboard.press('e');
   const opened = await page.waitForFunction(
     () => !!window.__fw.scene3d.clubhouse?.()?.ledgerBook?.isOpen?.(),
     null, { timeout: 15000 },
