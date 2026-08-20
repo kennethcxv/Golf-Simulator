@@ -1,6 +1,6 @@
 # Three items, 2026-08-19
 
-## Item 0 — 12.1 s -> 10.5 s median, 8.0 s best. TARGET NOT RELIABLY MET.
+## Item 0 — 12.1 s -> 10.5 s median, 8.0 s best. TARGET NOT MET, and the last lever was built and rejected on evidence.
 
 Measured with `tools/qa/boot-cost-ledger.js`, same stamped profile, serial, quiet
 machine, N=5: **7,991 / 8,006 / 10,493 / 11,035 / 11,379 ms.** Median 10,493 ms,
@@ -62,32 +62,65 @@ skipped draw came back as a 10-16 s freeze in play. Linking is atomic per progra
 at 60-130 ms, so spreading 125 programs across the first seconds of play trades a
 wait for a stutter. I did not do it.
 
-### The last lever, priced, and why I did not pull it
+### The last lever: BUILT, MEASURED, AND REJECTED
 
-The two day states cost **56 program links**, ~1.5 s of a quiet boot. The census
-flips on exactly two lines in `src/render3d/clubhouse/shell.js` `setTimeMood`:
+I did not leave this as a recommendation. I built it, measured it end to end, and
+it fails your own constraint — so it is out of the tree, and the evidence is here
+so nobody rebuilds it.
 
-```js
-f.visible = moodDayF > 0.001;        // the window fills
-porchLight.visible = moodDayF < 0.999;
-```
+**The change.** `shell.js` `setTimeMood` toggled `visible` on two daylight fills
+and one porch light, giving the interior three different light counts across a
+day (2 by day, 1 by night, 3 through the ramps). three.js keys programs on the
+visible census, so two censuses existed beyond boot and the prewarm had to draw
+the whole scene under each. Both lights already drive their own intensity to
+zero, so holding them visible changes nothing visually and makes the census
+constant.
 
-Both already drive intensity to 0 on their own, so leaving them permanently
-visible would make the light census CONSTANT across the day, and three.js -- which
-keys programs on counts by light type -- would never link a new program for a
-time of day again. The "Warming the day" phase would delete itself, and the
-median boot would land near 8.9 s.
+**It worked, and by more than predicted:**
 
-**The price:** they are all PointLights, and the interior already runs
-PointLight:4. A constant census means every indoor frame carries the UNION --
-about one more point light in the fragment loop, on every frame, forever, to buy
-1.5 s once per launch.
+| | before | after |
+|---|---|---|
+| `warmingTheDay` | 2 states, 4,407 ms | **0 states, 0 ms** |
+| GL programs after boot | 242 | **162** |
+| boot, N=5 serial quiet | 7,991 / 8,006 / 10,493 / 11,035 / 11,379 | **7,595 / 7,661 / 9,063 / 9,104 / 9,591** |
+| median | 10,493 ms | **9,063 ms** |
 
-That is precisely the trade you told me not to make silently, and proving it is
-free needs indoor frame-time evidence at both a day and a night minute, which I
-could not complete honestly in what was left of this session. So it is priced and
-left for you rather than shipped on a hunch. It is a small change and a
-measurable one; it just needs its measurement first.
+Every boot under ten seconds. And the per-frame price was measured FIRST, with
+`tools/qa/indoor-frame-cost-by-daylight.js` (new), before the change was made:
+
+    DAY   12:00   PointLight:5   p50 8.3 ms   p99 16.7 ms
+    NIGHT 01:00   PointLight:4   p50 8.3 ms   p99 16.7 ms
+
+The day already ran one more point light than the night at identical frame time,
+and the same driver saw a deliberate 8 ms injection as +8.30 ms on p50, so it
+could have seen a cost. After the change: PointLight:6 at both, p50 8.3, p99
+16.7/16.8 — no per-frame regression at all, and the day pass's max fell from
+21,924 ms to 20.8 ms because the first-frame compile no longer exists.
+
+**And then the door driver found where the cost went.** Three consecutive runs on
+the same stamped profile:
+
+| | before | after the census change | after reverting |
+|---|---|---|---|
+| A2 belt presses INSIDE, max | 37.5 ms | 11,595 ms / 33 ms / 1,500 ms | **37.3 ms** |
+| B2 belt presses just OUTSIDE, max | 25.0 ms | 129 ms / 13,204 ms / 7,896 ms | **25.1 ms** |
+| frames over 100 ms | 0 | 1-2 per run | **0** |
+
+`dProg` stayed at 5 and 1 — the same programs arrive in play, they just cost
+seconds now instead of milliseconds, because every shader's source changed and
+the variants the belt reaches are no longer the ones the prewarm warmed. The
+spike moved between phases run to run, which is why one run could not have
+settled it and three could.
+
+That is 1.4 s of boot bought with multi-second stalls on tool presses — exactly
+the trade you ruled out, and exactly the thing you told me not to regress. So it
+is reverted, and the revert is verified green above.
+
+**What this leaves.** The boot stays at a 10.5 s median, and the honest reading is
+that the veil cannot be shortened further by removing program links from it,
+because the links removed from the boot reappear in the player's hands. The
+remaining stretch with no play risk is the 3,453 ms BEFORE prewarm starts —
+module load, save load, world build — which no one has examined.
 
 ### What was retired
 
