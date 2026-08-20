@@ -1485,6 +1485,12 @@ function startGame(state, loadNotice = null) {
   // A single animation-frame callback runs before paint. Yield through two so
   // the opaque veil reaches the screen before teardown and course construction
   // occupy the main thread.
+  // MARKS ACROSS THE PRE-SCENE STRETCH. tools/qa/boot-mark-breakdown.js measured
+  // 2,317 ms between the player committing at the menu and scene construction
+  // even STARTING -- 28% of the veil, and the only large stretch of it that
+  // touches nothing the player can stutter on. It was one opaque number because
+  // nothing in here was stamped. Now it is three.
+  performance.mark('start-scene-entry');
   requestAnimationFrame(() => {
     requestAnimationFrame(() => {
       if (generation !== sceneStartGeneration) return;
@@ -1493,6 +1499,7 @@ function startGame(state, loadNotice = null) {
       if (barrier) {
         veil.set('Finishing the previous course load');
         barrier.finally(() => {
+          performance.mark('destroy-barrier-settled');
           if (generation !== sceneStartGeneration) return;
           startGameNow(state, loadNotice, generation, startupToken);
         });
@@ -3116,7 +3123,9 @@ async function loadEmpireSave(key, label) {
   try {
     // A syntactically valid backup may still belong to a newer build. Defer
     // repairing the primary until empire validation accepts the candidate.
+    performance.mark('save-read-start');
     status = await loadDataWithStatus(key, { repair: false });
+    performance.mark('save-read-end');
   } catch (error) {
     console.error(`${label} storage read failed`, error);
     toast(t('hud.saveUnreadable', { label }), 'warn');
@@ -3129,7 +3138,9 @@ async function loadEmpireSave(key, label) {
     return null;
   }
   try {
+    performance.mark('save-deserialize-start');
     const loaded = deserializeEmpireWithReport(status.value);
+    performance.mark('save-deserialize-end');
     const notices = [];
     if (status.recovered) notices.push('recovered from its previous valid backup');
     if (loaded.report.migrations.length) {
@@ -5904,9 +5915,19 @@ function boot() {
       // H2: the rotated generation is a real fallback, not just a file on disk.
       // If the whole autosave pair (primary + .bak) fails validation, the
       // previous generation still boots the run.
+      //
+      // MARKED, because this is where the boot's biggest unexamined stretch
+      // lives. tools/qa/boot-mark-breakdown.js measured 2,291 ms between the
+      // player committing here and startScene being ENTERED, with the teardown
+      // and scene construction inside it taking 10.4 ms and 0.5 ms. All of that
+      // time is save load plus bootEmpire, it touches nothing the player can
+      // stutter on, and it had never been split.
+      performance.mark('continue-handler-start');
       const empire = await loadEmpireSave('autosave', 'Autosave')
         || await loadEmpireSave('autosave-prev', 'Previous autosave');
+      performance.mark('save-loaded');
       if (empire) bootEmpire(empire);
+      performance.mark('boot-empire-returned');
     },
     async onLoad(_data, slot) {
       const index = SLOTS.indexOf(slot);

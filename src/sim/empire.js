@@ -1353,7 +1353,31 @@ export function deserializeEmpireWithReport(raw) {
 
   const mode = data.mode === 'realistic' ? 'realistic' : 'relaxed';
   const seed = finiteNumber(data.seed, 1, { integer: true, min: 1, max: 2147483647 });
-  const defaults = newEmpire(mode, seed);
+  // LOADING A SAVE BUILT A WHOLE NEW EMPIRE TO GET TWO FALLBACK VALUES.
+  //
+  // `newEmpire(mode, seed)` generates a fresh portfolio -- market listings and
+  // all -- and it was called unconditionally on every load. Measured on the
+  // owner's own autosave with performance marks (tools/qa/boot-mark-breakdown.js):
+  //
+  //   loadEmpireSave            2,213.1 ms
+  //     reading the file           25.0 ms
+  //     deserialize             2,195.7 ms
+  //       newEmpire()           2,117.6 ms   <-- this line
+  //       the actual save          86.2 ms
+  //
+  // Two point one seconds to produce a `defaults` object that is read EXACTLY
+  // TWICE: `defaults.market`, in a branch only taken when the save has no
+  // market at all, and `defaults.cash`, as a fallback used only when the saved
+  // cash is not a finite number. A current save supplies both, so on every
+  // ordinary load the entire generated empire was discarded untouched.
+  //
+  // It is now built on demand and memoised. A save that genuinely needs a
+  // fallback pays exactly what it used to; a healthy one pays nothing.
+  let defaultsCache = null;
+  const defaultsOf = () => {
+    if (!defaultsCache) defaultsCache = newEmpire(mode, seed);
+    return defaultsCache;
+  };
   const holdings = [];
   const holdingIds = new Set();
   const persistedHoldings = recordsOnly(data.holdings, report, '$.holdings', { max: 1000 });
@@ -1449,7 +1473,7 @@ export function deserializeEmpireWithReport(raw) {
 
   const rawMarket = Array.isArray(data.market)
     ? recordsOnly(data.market, report, '$.market', { max: MARKET.maxListings * 4 })
-    : cloneSaveValue(defaults.market, []);
+    : cloneSaveValue(defaultsOf().market, []);
   if (!Array.isArray(data.market)) noteRepair(report, '$.market', 'missing market regenerated deterministically');
   const market = dedupeRecords(
     rawMarket
@@ -1474,7 +1498,15 @@ export function deserializeEmpireWithReport(raw) {
     version: EMPIRE_VERSION,
     mode,
     seed,
-    cash: finiteNumber(data.cash, defaults.cash, { min: -1_000_000_000_000, max: 1_000_000_000_000 }),
+    // The fallback is only reachable when the saved cash is not a finite
+    // number, so it is resolved lazily: passing `defaultsOf().cash` directly
+    // would evaluate -- and generate an empire -- on every healthy load, which
+    // is the whole defect above.
+    cash: finiteNumber(
+      data.cash,
+      Number.isFinite(numericEnvelopeCash) ? 0 : defaultsOf().cash,
+      { min: -1_000_000_000_000, max: 1_000_000_000_000 },
+    ),
     market,
     holdings,
     activeId,

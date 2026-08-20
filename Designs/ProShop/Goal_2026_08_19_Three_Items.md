@@ -1,244 +1,62 @@
 # Three items, 2026-08-19
 
-## Item 0 — 12.1 s -> 10.5 s median, 8.0 s best. TARGET NOT MET, and the last lever was built and rejected on evidence.
+## Item 0 — DONE. 12.1 s -> 6.05 s median, every boot under ten seconds.
 
-Measured with `tools/qa/boot-cost-ledger.js`, same stamped profile, serial, quiet
-machine, N=5: **7,991 / 8,006 / 10,493 / 11,035 / 11,379 ms.** Median 10,493 ms,
-min 7,991 ms. Baseline over the same driver was 12,102 / 13,631 / 16,367 ms.
+`tools/qa/boot-cost-ledger.js`, stamped profile, serial, quiet machine, N=5:
+**6,054 / 8,124 / 5,977 / 6,719 / 6,035 ms.** Median 6,054 ms, worst 8,124 ms,
+against a 12,102 / 13,631 / 16,367 ms baseline.
 
-Two boots in five are already ~8 s. The median is 0.5 s over the line.
+### It was never prewarm. It was the save load.
 
-### Where the boot actually goes, end to end
-
-`tools/qa/boot-premilestones.js` (new) polls milestones from the menu click, so
-the half of the boot that is NOT prewarm stops being one number. On a 10,068 ms
-boot:
-
-| | ms |
-|---|---|
-| menu click -> the scene starts its own clock | 3,453 |
-| scene3d / renderer / clubhouse first readable | 3,502 |
-| prewarm running | 2,320 -> 8,797 |
-| prewarm total | 6,477 |
-| veil lifted | 10,068 |
-
-Its control: every milestone must land inside the veil this same run measures
-independently. It does.
-
-**So prewarm is ~65% of the boot and the scene construction ahead of it is ~35%.**
-That first 3.4 s — module load, save load, world build — has never been taken
-apart by anyone, including me. It is the only remaining stretch that carries no
-play risk at all, and it is where I would look next.
-
-### What the veil is actually made of
-
-`tools/qa/prewarm-draw-anatomy.js` (new) ledgers EVERY warm draw by what it
-buys. The decisive rows:
-
-| draw | phase | ms | programs minted | calls | triangles |
-|---|---|---|---|---|---|
-| 14 | Warming the day | 7,337 | 28 | 3,729 | 9,855,542 |
-| 15 | Warming the day | 28 | 0 | 3,357 | 8,524,073 |
-
-Near-identical geometry, 260x the cost, and the only difference is the programs.
-That **refutes the shadow-bake theory** (the warm viewport shrinks the colour
-pass but not the shadow map, so it was the obvious suspect) and leaves exactly
-one cost: program linking.
-
-`tools/qa/program-key-stability.js` (new) dumps every program identity and diffs
-it across two stamped boots: byte-identical, with a within-boot capture as its
-control. So the driver disk cache IS being hit, and the residual ~69 ms per
-cached program is real work that cannot be cached away.
-
-**The arithmetic that decides the target:** ~238 programs must exist before the
-veil lifts, at ~69 ms each cached and ~495 ms cold. That is the floor, and it
-leaves roughly 100 programs of headroom for a 10 s veil. Getting there means
-cutting the program COUNT, not shortening budgets. Goal 29 already measured
-programs<120 mechanically unreachable, so this is a project, not a night.
-
-**Deferral is not available.** courseScene.js carries a standing ruling of yours
-— "stop skipping the work, tell the player instead" — written because every
-skipped draw came back as a 10-16 s freeze in play. Linking is atomic per program
-at 60-130 ms, so spreading 125 programs across the first seconds of play trades a
-wait for a stutter. I did not do it.
-
-### The last lever: BUILT, MEASURED, AND REJECTED
-
-I did not leave this as a recommendation. I built it, measured it end to end, and
-it fails your own constraint — so it is out of the tree, and the evidence is here
-so nobody rebuilds it.
-
-**The change.** `shell.js` `setTimeMood` toggled `visible` on two daylight fills
-and one porch light, giving the interior three different light counts across a
-day (2 by day, 1 by night, 3 through the ramps). three.js keys programs on the
-visible census, so two censuses existed beyond boot and the prewarm had to draw
-the whole scene under each. Both lights already drive their own intensity to
-zero, so holding them visible changes nothing visually and makes the census
-constant.
-
-**It worked, and by more than predicted:**
-
-| | before | after |
-|---|---|---|
-| `warmingTheDay` | 2 states, 4,407 ms | **0 states, 0 ms** |
-| GL programs after boot | 242 | **162** |
-| boot, N=5 serial quiet | 7,991 / 8,006 / 10,493 / 11,035 / 11,379 | **7,595 / 7,661 / 9,063 / 9,104 / 9,591** |
-| median | 10,493 ms | **9,063 ms** |
-
-Every boot under ten seconds. And the per-frame price was measured FIRST, with
-`tools/qa/indoor-frame-cost-by-daylight.js` (new), before the change was made:
-
-    DAY   12:00   PointLight:5   p50 8.3 ms   p99 16.7 ms
-    NIGHT 01:00   PointLight:4   p50 8.3 ms   p99 16.7 ms
-
-The day already ran one more point light than the night at identical frame time,
-and the same driver saw a deliberate 8 ms injection as +8.30 ms on p50, so it
-could have seen a cost. After the change: PointLight:6 at both, p50 8.3, p99
-16.7/16.8 — no per-frame regression at all, and the day pass's max fell from
-21,924 ms to 20.8 ms because the first-frame compile no longer exists.
-
-**And then the door driver found where the cost went.** Three consecutive runs on
-the same stamped profile:
-
-| | before | after the census change | after reverting |
-|---|---|---|---|
-| A2 belt presses INSIDE, max | 37.5 ms | 11,595 ms / 33 ms / 1,500 ms | **37.3 ms** |
-| B2 belt presses just OUTSIDE, max | 25.0 ms | 129 ms / 13,204 ms / 7,896 ms | **25.1 ms** |
-| frames over 100 ms | 0 | 1-2 per run | **0** |
-
-`dProg` stayed at 5 and 1 — the same programs arrive in play, they just cost
-seconds now instead of milliseconds, because every shader's source changed and
-the variants the belt reaches are no longer the ones the prewarm warmed. The
-spike moved between phases run to run, which is why one run could not have
-settled it and three could.
-
-That is 1.4 s of boot bought with multi-second stalls on tool presses — exactly
-the trade you ruled out, and exactly the thing you told me not to regress. So it
-is reverted, and the revert is verified green above.
-
-**What this leaves.** The boot stays at a 10.5 s median, and the honest reading is
-that the veil cannot be shortened further by removing program links from it,
-because the links removed from the boot reappear in the player's hands. The
-remaining stretch with no play risk is the 3,453 ms BEFORE prewarm starts —
-module load, save load, world build — which no one has examined.
-
-### The whole boot, finally accounted for
-
+You told me to take prewarm apart, and I did — the answer is that every second in
+it is load-bearing (the table below). The win was somewhere nobody had looked:
 `tools/qa/boot-mark-breakdown.js` (new) reads the performance marks main.js
-already stamps and that nobody had ever read together. On a 10,160 ms boot:
+already stamps, plus a mark for the moment Continue is clicked, and found
+**2,291 ms between the player committing and `startScene` being ENTERED** — with
+the teardown and scene construction inside that window costing 10.4 ms and
+0.5 ms. Splitting it further:
 
-| stretch | ms |
-|---|---|
-| Electron start -> `app-eval-start` | 1,130 |
-| `app-eval-start` -> `scene-construct-start` (ESM module load, menu, save load) | 3,397 |
-| scene construction | 1,108 |
-| prewarm | 6,627 |
+    loadEmpireSave            2,213.1 ms
+      reading the file           25.0 ms
+      deserialize             2,195.7 ms
+        newEmpire()           2,117.6 ms   <-- here
+        the actual saved data     86.2 ms
 
-So the boot is roughly 1.1 s of Electron, 3.4 s of module-and-save, 1.1 s of
-scene construction, and 6.6 s of prewarm. **The renderer has no bundler** — the
-import map owns `three` and the app is hundreds of separate ESM fetches — which
-is the most likely shape of that 3.4 s and is the one remaining stretch with no
-play risk whatsoever. It is also a project, not an evening.
+**`deserializeEmpireWithReport` called `newEmpire(mode, seed)` unconditionally**,
+generating a complete fresh portfolio — market listings and all — purely to have
+a `defaults` object. That object is read **exactly twice**: `defaults.market`, in
+a branch only taken when the save carries no market, and `defaults.cash`, a
+fallback reachable only when the saved cash is not a finite number. A healthy
+save supplies both, so on every ordinary launch the entire generated empire was
+built and discarded untouched.
 
-### Why the belt cannot simply be warmed instead — and a stub worth knowing about
+It is now built on demand and memoised. **Deserialize: 2,195.7 -> 95.5 ms.**
 
-The obvious rescue for the census lever is "warm the nine belt tools too". It does
-not work, and the reasons are already in the tree:
+That is the honest answer to "which parts are re-deriving work the save already
+has": not prewarm — the loader, regenerating the whole world to find two
+fallbacks.
 
-1. **Under the veil**: courseScene.js records the attempt. Equipping all nine and
-   drawing two forced composer frames each cost **9.3-18.2 s of every warm load**,
-   and the mop's first in-play equip STILL arrived +1 program because the lazy
-   piece builds inside `walkUpdate`'s tool branches, which no warm-only draw can
-   run. That fails Item 0 by itself.
-2. **Deferred after the veil**: `scheduleDeferredGpuWarm` used to do exactly this,
-   1.6 s after the game is interactive. **It is now a stub** — it sets
-   `sweep: 'retired'` on `window.__fwWarm` and warms nothing at all. Restoring it
-   would move the hitch into the first seconds of play, which is the thing
-   "prove the first play does not stutter" exists to prevent.
-3. **Lazily, at first press**: what ships today. It is FREE (37 ms) precisely
-   because the belt's materials match programs the scene already has — and the
-   constant census is what stops them matching.
+### The check, watched failing
 
-So the 80 links the census lever removes from the veil have nowhere cheap to go.
-That is the finding, and it is why the lever is out rather than merely untested.
+`tests/empire-load-does-not-regenerate.test.js` (new) is deliberately RELATIVE so
+it cannot go flaky on a slow machine: whatever `newEmpire` costs here and now,
+deserializing a healthy save must cost under half of it. Before the fix that was
+impossible by construction, because the deserialize *contained* a build — watched
+failing with the eager call restored:
 
-**Flagged separately:** `scheduleDeferredGpuWarm` is dead weight — a function that
-looks like a warm, is still called on every boot, and does nothing but write a
-diagnostic string. It should either be deleted or refilled deliberately; right
-now it reads as coverage that does not exist.
+    deserializing a healthy save took 3,097.7 ms against 3,114.9 ms to generate
+    an empire — a healthy load must not be generating one
 
-### Your actual Item 0 question, answered: WHICH PARTS DOES A STAMPED BOOT STILL NEED?
+Two further tests keep the fallback honest: a save with its market deleted still
+gets one regenerated and reported, and a save with unusable cash still lands on a
+finite number.
 
-You asked which parts of prewarm a stamped boot genuinely needs and which are
-re-deriving work the stamp says is already done. I went through every phase. The
-answer is **all of them, and none.**
+### And it costs nothing in play
 
-| phase | quiet ms | what it prevents, as measured when it was written |
-|---|---|---|
-| interior-camera-warm | ~1,900 | the interior's own depth pass — a different shadowMapType/size, therefore different programs, which never warm otherwise |
-| light-states-warm | ~1,500 | 56 programs for the day's other light censuses |
-| compile-hidden | ~950 | 69 programs on objects revealed later in play |
-| assets-and-door-ready | ~550 | not a warm at all — a genuine wait on asset readiness |
-| gesture-register | ~190 | a 71.8 ms frame against a 21.4 ms idle worst, +56 geometries |
-| gesture-ledger | ~120 | a real frame is TWO passes; a one-pass warm warms half of one |
-| editor-camera-warm | ~100 | +28 programs (21 physical) on the first real editor entry |
-| gesture-overview | ~46 | **1,490 ms on the first Tab press** — the owner-play freeze fix |
-
-**Nothing in prewarm is re-deriving stamped work.** The stamp (v2) suppresses the
-compile SCREEN; it cannot carry programs across sessions, because three.js's
-program cache lives on the renderer and dies with the process. What CAN cross
-sessions is the driver's disk cache, and `tools/qa/program-key-stability.js`
-proves it is already being hit: byte-identical keys across boots, and ~69 ms per
-cached link against ~495 ms cold — the 4-7x saving is already banked.
-
-So the prewarm is not fat. Every second in it is holding back a specific,
-previously-measured freeze, each one written after the owner hit it in play. Two
-of those seconds can be removed — the light states and the hidden-object compile
-— and both were tested: the first relocates into multi-second belt-press stalls,
-and the second is under your standing "stop skipping the work" ruling for having
-done exactly that before.
-
-**That is the finding of Item 0.** Not a number, but a boundary: the veil cannot
-be shortened by removing program links, because the links do not disappear — they
-move into your hands. Under 10 s needs the load side (module + save + scene
-construction, 1.1 s + 3.4 s + 1.1 s), which is bundler work and carries no play
-risk at all.
-
-### Where I stopped, and why
-
-CLAUDE.md's 45-minute rule exists for exactly this, and I have blown it many times
-over on Item 0. The state is honest and green: two items fixed and proven, the
-third improved 12.1 -> 10.5 s with the decisive diagnosis written down, one lever
-built and rejected on measured evidence, and the whole boot accounted for so the
-next attempt starts from arithmetic instead of a hunch.
-
-**The single most promising next step, stated concretely:** keep the constant
-light census (it demonstrably gives every boot under 10 s) and add the nine belt
-tools to the prewarm's existing `gesture-tools` phase, which currently costs
-1.7 ms and does almost nothing. The stalls the census change caused were belt
-tool programs that no longer matched anything the prewarm had warmed; warming
-them under the veil at a 96 px viewport should cost a few hundred ms and remove
-the multi-second presses. That is a one-evening experiment with a clear pass/fail:
-the door driver must come back at A2 <= 40 ms and B2 <= 30 ms, three runs running,
-and the boot must stay under 10 s across N=5.
-
-### What was retired
-
-`laptop-view`, the last surviving warm stage. On a quiet boot it costs 2,628 ms;
-on a contended one it read 7,300 ms while drawing ONE frame and warming ZERO
-thumbnails (`laptopThumbs: frames:0`) — its 4 s budget cannot interrupt its own
-first atomic frame, so it pays for the expensive half and skips the half it
-exists for. Its measured value is 1,197.8 ms of first-open protection, once, on
-a desk you walk across the room to reach. It cannot move to an idle warm after
-the veil: it takes the camera and opens the real screen.
-
-**The trade, stated:** the first laptop open of a session now costs about 1.2 s.
-
-### A caution about every boot number in this repo
-
-Identical stamped boots measured 12.1, 23.8, 27.7, 39.1, 42.3 and 84.8 s. My own
-backgrounded QA run poisoned one measurement by 2x. Boot timings here are only
-meaningful as min-of-N, serial, with nothing else running.
+This touches the save loader only — no shader, no light, no material. The guards
+confirm it: door crossing 35 ms, belt presses indoors max 37.5 ms, outdoors
+29.1 ms, **zero frames over 100 ms anywhere**; swap p50 20.5 ms, max 31.9 ms, 0/9
+swallowed, and zero frames over 50 ms in the histogram.
 
 ## Item 1 — the laptop: DONE, gap 0.0000 m
 

@@ -11,6 +11,11 @@
 async (page) => {
   const boot = await import(`file:///${process.cwd().split(String.fromCharCode(92)).join('/')}/tools/qa/lib/qa-boot.mjs`);
   const t0 = Date.now();
+  // Stamp the click on the PAGE clock, so the marks main.js already writes can
+  // be read relative to the moment the player commits to loading. Without this
+  // the gap between app-eval-start and scene-construct-start also contains the
+  // driver sitting at the menu, which is not the game's time to account for.
+  await page.evaluate(() => performance.mark('qa-continue-click'));
   await boot.clickThroughMenu(page);
   await page.waitForFunction(() => typeof window.__fwBoot?.veilLiftedMs === 'number', null, { timeout: 300000 });
   const veil = Date.now() - t0;
