@@ -220,9 +220,304 @@ async (page) => {
     const enter = await read(`enter #${i + 1}`);
     enters.push(enter);
 
-    await tapKey('Escape', false);
-    const keyExit = await read(`exit #${i + 1}`);
-    exits.push(keyExit);
+    // EXIT IS MEASURED SELF-CONTAINED, IN ONE EVALUATE.
+    //
+    // Four earlier cuts reported the exit as swallowed while the button was
+    // sitting there working, and every one of them was the probe rather than
+    // the game: `j` is not a toggle (the bound action only calls enterEditor);
+    // Escape never reaches the page at all, because browsers reserve it for
+    // releasing pointer lock; page.click() aims at a coordinate and missed a
+    // button at x=2468; and the shared rAF recorder kept its own state across
+    // reps. So the click and the wait happen together here -- stamp, call the
+    // element's own click() (the same onclick a player's mouse reaches), then
+    // rAF until isActive() goes false and one frame past it, so the frame that
+    // carried the change has been submitted.
+    const exitRow = await page.evaluate(async () => {
+      const ui = window.__fw.editorUi();
+      const btn = document.querySelector('button.ced-top-btn[title="Leave the editor"]');
+      if (!btn) return { error: 'no exit button' };
+      if (!ui.isActive()) return { error: 'the editor was not open — nothing to exit' };
+      let worst = 0;
+      let last = performance.now();
+      let live = true;
+      const tick = () => {
+        const n = performance.now();
+        worst = Math.max(worst, n - last);
+        last = n;
+        if (live) setTimeout(tick, 0);
+      };
+      setTimeout(tick, 0);
+      const t0 = performance.now();
+      btn.click();
+      // A dirty session answers with a "Leave the editor?" confirmation instead
+      // of leaving. That is part of the gesture, so it is clicked through and
+      // counted in the time rather than treated as the editor being stuck.
+      const danger = document.querySelector('.ced-modal button.danger');
+      if (danger) danger.click();
+      const deadline = performance.now() + 25000;
+      let seen = false;
+      while (performance.now() < deadline) {
+        await new Promise((r) => requestAnimationFrame(r));
+        if (seen) break;
+        if (!ui.isActive()) seen = true;
+      }
+      live = false;
+      return seen
+        ? { ms: +(performance.now() - t0).toFixed(2), worstBlock: +worst.toFixed(1), confirmed: !!danger }
+        : { error: 'the editor never closed' };
+    });
+    if (exitRow.error) fail(`exit #${i + 1}: ${exitRow.error}`);
+    exits.push({
+      ms: exitRow.ms ?? null,
+      valid: true,
+      sawKeydown: false,
+      swallowed: !!exitRow.error,
+      worstBlock: exitRow.worstBlock,
+    });
+    await page.waitForTimeout(600);
+  }
+
+  // THE TOOL PRESS IS MEASURED IN ITS OWN REP, AT THE END, AND FOR A REASON.
+  //
+  // Picking a tool makes the session DIRTY, and a dirty session turns Escape
+  // into a "Leave the editor?" confirmation modal instead of an exit -- so the
+  // next Escape closes the modal, the one after re-opens it, and the editor
+  // never closes at all. Six exits timed out at 20 s each and were nearly
+  // reported as the editor being stuck. It is not stuck; it is asking. So the
+  // loop above keeps the session clean to measure the real exit, and the tool
+  // press happens once here, after it.
+  await tapKey('j', true);
+  if ((await read('tool rep')).ms != null) {
+    // The first tool press INSIDE the editor, on the rep where the editor is
+    // freshly open -- the surface goal 35 measured at an 11.8 s first frame.
+    {
+      const tool = await page.evaluate(async () => {
+        const t0 = performance.now();
+        let worst = 0;
+        let last = performance.now();
+        let live = true;
+        const tick = () => {
+          const n = performance.now();
+          worst = Math.max(worst, n - last);
+          last = n;
+          if (live) setTimeout(tick, 0);
+        };
+        setTimeout(tick, 0);
+        try { window.__fw.editorUi().setTool('terrain'); } catch { /* recorded by the null below */ }
+        await new Promise((r) => requestAnimationFrame(r));
+        await new Promise((r) => requestAnimationFrame(r));
+        live = false;
+        return { ms: +(performance.now() - t0).toFixed(2), worstBlock: +worst.toFixed(1) };
+      });
+      firstTool.push(tool);
+    }
+
+    // THE EXIT BUTTON, CLICKED, BECAUSE ESCAPE IS NOT DRIVABLE HERE.
+    //
+    // The bound `courseEditor` action calls enterEditor() and nothing else -- it
+    // does not toggle -- so pressing `j` to leave recorded six swallowed presses
+    // that were the probe pressing a key the exit path does not listen to.
+    // Escape is the real key, and it never arrives: 0/6 reached a capture
+    // listener on window, and browsers reserve Escape for releasing pointer
+    // lock, so a synthetic one may never reach the page at all. That is a
+    // harness limit, not a finding about the game, and it is not reported as
+    // one.
+    //
+    // What IS drivable is the thing a player can also click: the editor's own
+    // "Leave the editor" button, which calls the same requestExit(). A real
+    // mouse click on it measures the same code path Escape would have reached.
+    // EXIT IS MEASURED SELF-CONTAINED, IN ONE EVALUATE.
+    //
+    // Three earlier cuts reported the exit as swallowed while the button was
+    // sitting there working -- `j` is not a toggle, Escape never reaches the
+    // page (browsers reserve it for pointer lock), and page.click() aims at a
+    // coordinate that missed a button at x=2468. Each of those was the probe,
+    // not the game. Rather than keep threading the shared recorder through a
+    // path that kept lying, the click and the wait happen together here: stamp,
+    // call the element's own click() (the same onclick a player's mouse hits),
+    // then rAF until isActive() goes false and one more frame after it, so the
+    // frame that carried the change has been submitted.
+    const exitRow = await page.evaluate(async () => {
+      const ui = window.__fw.editorUi();
+      const btn = document.querySelector('button.ced-top-btn[title="Leave the editor"]');
+      if (!btn) return { error: 'no exit button' };
+      if (!ui.isActive()) return { error: 'the editor was not open — nothing to exit' };
+      let worst = 0;
+      let last = performance.now();
+      let live = true;
+      const tick = () => {
+        const n = performance.now();
+        worst = Math.max(worst, n - last);
+        last = n;
+        if (live) setTimeout(tick, 0);
+      };
+      setTimeout(tick, 0);
+      const t0 = performance.now();
+      btn.click();
+      // A dirty session answers with a confirmation instead of leaving; that is
+      // the gesture too, so it is clicked through and counted in the time.
+      const danger = document.querySelector('.ced-modal button.danger');
+      if (danger) danger.click();
+      const deadline = performance.now() + 25000;
+      let seen = false;
+      while (performance.now() < deadline) {
+        await new Promise((r) => requestAnimationFrame(r));
+        if (seen) break;
+        if (!ui.isActive()) seen = true;
+      }
+      live = false;
+      return seen
+        ? { ms: +(performance.now() - t0).toFixed(2), worstBlock: +worst.toFixed(1), confirmed: !!danger }
+        : { error: 'the editor never closed' };
+    });
+    if (exitRow.error) fail(`exit #${i + 1}: ${exitRow.error}`);
+    exits.push({ ms: exitRow.ms ?? null, valid: true, sawKeydown: false, swallowed: !!exitRow.error, worstBlock: exitRow.worstBlock });
+    await page.waitForTimeout(600);
+  }
+
+  // THE TOOL PRESS IS MEASURED IN ITS OWN REP, AT THE END, AND FOR A REASON.
+  //
+  // Picking a tool makes the session DIRTY, and a dirty session turns Escape
+  // into a "Leave the editor?" confirmation modal instead of an exit -- so the
+  // next Escape closes the modal, the one after re-opens it, and the editor
+  // never closes at all. Six exits timed out at 20 s each and were nearly
+  // reported as the editor being stuck. It is not stuck; it is asking. So the
+  // loop above keeps the session clean to measure the real exit, and the tool
+  // press happens once here, after it.
+  await tapKey('j', true);
+  if ((await read('tool rep')).ms != null) {
+    // The first tool press INSIDE the editor, on the rep where the editor is
+    // freshly open -- the surface goal 35 measured at an 11.8 s first frame.
+    {
+      const tool = await page.evaluate(async () => {
+        const t0 = performance.now();
+        let worst = 0;
+        let last = performance.now();
+        let live = true;
+        const tick = () => {
+          const n = performance.now();
+          worst = Math.max(worst, n - last);
+          last = n;
+          if (live) setTimeout(tick, 0);
+        };
+        setTimeout(tick, 0);
+        try { window.__fw.editorUi().setTool('terrain'); } catch { /* recorded by the null below */ }
+        await new Promise((r) => requestAnimationFrame(r));
+        await new Promise((r) => requestAnimationFrame(r));
+        live = false;
+        return { ms: +(performance.now() - t0).toFixed(2), worstBlock: +worst.toFixed(1) };
+      });
+      firstTool.push(tool);
+    }
+
+    // THE EXIT BUTTON, CLICKED, BECAUSE ESCAPE IS NOT DRIVABLE HERE.
+    //
+    // The bound `courseEditor` action calls enterEditor() and nothing else -- it
+    // does not toggle -- so pressing `j` to leave recorded six swallowed presses
+    // that were the probe pressing a key the exit path does not listen to.
+    // Escape is the real key, and it never arrives: 0/6 reached a capture
+    // listener on window, and browsers reserve Escape for releasing pointer
+    // lock, so a synthetic one may never reach the page at all. That is a
+    // harness limit, not a finding about the game, and it is not reported as
+    // one.
+    //
+    // What IS drivable is the thing a player can also click: the editor's own
+    // "Leave the editor" button, which calls the same requestExit(). A real
+    // mouse click on it measures the same code path Escape would have reached.
+    // CLICK THE ELEMENT, NOT THE COORDINATES. page.click() aims at a point,
+    // and the exit button sits at x=2468 on the owner's resolution where the
+    // synthetic click never landed -- six exits looked swallowed while the
+    // button was sitting there working. Calling the element's own click() takes
+    // the same onclick path a player's mouse does and closes the editor in one
+    // click: measured active true -> false, with no confirmation modal, because
+    // a plain enter leaves the session clean. (The modal branch below still
+    // exists for a dirty session, which is the state that made an earlier cut
+    // of this driver report the editor as stuck.)
+    await arm(false);
+    const exitClicked = await page.evaluate(() => {
+      const btn = document.querySelector('button.ced-top-btn[title="Leave the editor"]');
+      if (!btn) return 'no exit button';
+      btn.click();
+      return 'clicked';
+    });
+    if (exitClicked !== 'clicked') fail(`exit #${i + 1}: ${exitClicked}`);
+    await page.waitForTimeout(250);
+    await page.evaluate(() => {
+      const b = document.querySelector('.ced-modal button.danger');
+      if (b) b.click();
+    });
+    await page.waitForFunction(() => window.__fwEd.done != null, null, { timeout: 30000 })
+      .catch(() => {});
+    await page.waitForTimeout(600);
+  }
+
+  // THE TOOL PRESS IS MEASURED IN ITS OWN REP, AT THE END, AND FOR A REASON.
+  //
+  // Picking a tool makes the session DIRTY, and a dirty session turns Escape
+  // into a "Leave the editor?" confirmation modal instead of an exit -- so the
+  // next Escape closes the modal, the one after re-opens it, and the editor
+  // never closes at all. Six exits timed out at 20 s each and were nearly
+  // reported as the editor being stuck. It is not stuck; it is asking. So the
+  // loop above keeps the session clean to measure the real exit, and the tool
+  // press happens once here, after it.
+  await tapKey('j', true);
+  if ((await read('tool rep')).ms != null) {
+    // The first tool press INSIDE the editor, on the rep where the editor is
+    // freshly open -- the surface goal 35 measured at an 11.8 s first frame.
+    {
+      const tool = await page.evaluate(async () => {
+        const t0 = performance.now();
+        let worst = 0;
+        let last = performance.now();
+        let live = true;
+        const tick = () => {
+          const n = performance.now();
+          worst = Math.max(worst, n - last);
+          last = n;
+          if (live) setTimeout(tick, 0);
+        };
+        setTimeout(tick, 0);
+        try { window.__fw.editorUi().setTool('terrain'); } catch { /* recorded by the null below */ }
+        await new Promise((r) => requestAnimationFrame(r));
+        await new Promise((r) => requestAnimationFrame(r));
+        live = false;
+        return { ms: +(performance.now() - t0).toFixed(2), worstBlock: +worst.toFixed(1) };
+      });
+      firstTool.push(tool);
+    }
+
+    // THE EXIT BUTTON, CLICKED, BECAUSE ESCAPE IS NOT DRIVABLE HERE.
+    //
+    // The bound `courseEditor` action calls enterEditor() and nothing else -- it
+    // does not toggle -- so pressing `j` to leave recorded six swallowed presses
+    // that were the probe pressing a key the exit path does not listen to.
+    // Escape is the real key, and it never arrives: 0/6 reached a capture
+    // listener on window, and browsers reserve Escape for releasing pointer
+    // lock, so a synthetic one may never reach the page at all. That is a
+    // harness limit, not a finding about the game, and it is not reported as
+    // one.
+    //
+    // What IS drivable is the thing a player can also click: the editor's own
+    // "Leave the editor" button, which calls the same requestExit(). A real
+    // mouse click on it measures the same code path Escape would have reached.
+    // AND THE EXIT IS TWO CLICKS, NOT ONE. requestExit() does not leave when the
+    // session has unapplied edits -- it opens a "Leave the editor?" confirmation,
+    // which is why clicking Exit alone left the editor up and looked like six
+    // swallowed presses. The measured transition is therefore the SECOND click,
+    // "Discard & leave", because that is the one that does the work:
+    // discardPendingWork() is awaited before hooks.onExit() runs.
+    await page.click('button.ced-top-btn[title="Leave the editor"]', { timeout: 5000 })
+      .catch((error) => fail(`exit #${i + 1}: the exit button could not be clicked — ${String(error).slice(0, 90)}`));
+    await page.waitForTimeout(400);
+    const confirming = await page.evaluate(() => !!document.querySelector('.ced-modal button.danger'));
+    await arm(false);
+    if (confirming) {
+      await page.click('.ced-modal button.danger', { timeout: 5000 })
+        .catch((error) => fail(`exit #${i + 1}: the confirm button could not be clicked — ${String(error).slice(0, 90)}`));
+    }
+    await page.waitForFunction(() => window.__fwEd.done != null, null, { timeout: 30000 })
+      .catch(() => {});
+    await page.waitForTimeout(600);
   }
 
   // THE TOOL PRESS IS MEASURED IN ITS OWN REP, AT THE END, AND FOR A REASON.
@@ -276,8 +571,11 @@ async (page) => {
       samples: usable.map((r) => r.ms),
     });
     const onReal = usable.filter((r) => r.sawKeydown).length;
+    const wb = stats(usable.map((r) => r.worstBlock));
+    if (wb) out.rows[out.rows.length - 1].worstBlockMax = wb.max;
     console.log(`  ${label.padEnd(22)} ${s ? `p50 ${String(s.p50).padStart(8)}  p95 ${String(s.p95).padStart(8)}  p99 ${String(s.p99).padStart(8)}  max ${String(s.max).padStart(8)}` : 'no samples'}`
       + `   on the real keydown ${onReal}/${usable.length}`
+      + (wb ? `   worst block max ${wb.max}` : '')
       + (rows.length - usable.length ? `   discarded ${rows.length - usable.length}` : '')
       + (swallowed ? `   SWALLOWED ${swallowed}` : ''));
     if (s) console.log(`  ${' '.repeat(22)} samples: ${usable.map((r) => r.ms).join(', ')}`);

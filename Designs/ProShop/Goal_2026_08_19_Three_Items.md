@@ -103,37 +103,79 @@ fill a greybox volume is a decision about the desk, not about the laptop.
 
 Frame: `qa/final-room/final-seated/02-the-desk.png`.
 
-## Item 2 — the editor: NO LATENCY FOUND on the paths I can measure
+## Item 2 — the latency is REAL, and it is the EXIT. Characterised, not fixed.
 
 `tools/qa/editor-input-to-pixel.js` (new). Real `j` key, sim live, keydown to the
-frame after the editor is up. Both controls behave: floor 25-26 ms, and a
-deliberate 300 ms delay is seen at +306 to +311 ms.
+frame after the state flips. Both controls behave: floor 25-27 ms, and a
+deliberate 300 ms delay is seen at +302 to +312 ms.
 
 | | p50 | max |
 |---|---|---|
-| enter the editor (real keydown) | 7.2-8.1 ms | 20.3-25.8 ms |
-| first tool press inside | 7.5-8.1 ms | 12.6-14.8 ms, worst block 14.7 ms |
+| enter the editor (6/6 on the real keydown) | 17.4 ms | 21.3 ms |
+| first tool press inside | 8.7 ms | 14.0 ms, worst block 7.8 ms |
+| exit with NOTHING edited | 50.6 ms | 56.7 ms |
+| **exit after actually using a tool** | — | **6,609.4 ms** |
 
-The retired stage's 79.3 ms was, if anything, pessimistic. **I have not fixed
-anything here, because nothing I can measure is broken.**
+Samples for exit: 54.6, 50.9, 50.5, 50.6, 49.8, 48.5, **6609.4**. The long one is
+the rep where a tool was used, so the session was dirty and the exit went through
+"Discard & leave".
 
-**Exit is unmeasured and I will not claim it either way.** Escape never reaches
-the page in the harness (0/6 on the real keydown) and the editor stays up through
-a 20 s wait with no pause menu and no modal. Browsers reserve Escape for
-releasing pointer lock, so a synthetic Escape may never arrive — I cannot
-separate that from game behaviour without more work.
+**This is the thing you are feeling, and it is the case every real player meets** —
+someone who opens the editor uses it. Enter and the tool press are fast, so the
+retired warm stage is exonerated; the 79.3 ms was measuring the wrong end of the
+gesture, and so was I this morning until I could drive the exit.
 
-Two instrument faults found on the way, both of which had produced numbers I
+**It is NOT a main-thread stall.** Worst block across the whole 6.6 s was 29.8 ms.
+The rebuild is already chunked across frames (goal 35 did that). It is six
+seconds of *waiting* on an await, with the frame loop running throughout — which
+is why every frame-time probe ever pointed at this has said the editor is fine.
+
+**What I tried and REVERTED.** Rolling the course state back synchronously and
+deferring only the mesh refresh, so the player leaves immediately. Measured
+6,609 -> 5,218 ms: about a fifth, which means the bulk is NOT the discard's mesh
+refresh but the rebuild that `exitEditor` itself triggers when the course has
+changed (the same settle that goal 32 measured killing a 4.8 s grass compile).
+One sample either side, on a save-mutating path, is not enough to ship a
+reordering, so it is out of the tree. The target for whoever takes this is named:
+the course/grass rebuild on the way OUT, not the discard.
+
+**Four instrument faults found on the way**, each of which produced numbers I
 nearly reported:
 
+- `j` is not a toggle; the bound action only calls `enterEditor()`. Pressing it
+  to leave looked like six swallowed presses.
+- Escape never reaches the page (0/6 at a capture listener on window). Browsers
+  reserve it for releasing pointer lock, so a synthetic Escape may never arrive.
+  That is a harness limit and is not reported as a finding about the game.
+- `page.click()` aims at a coordinate, and the exit button sits at x=2468 where
+  the synthetic click missed it. The element's own `click()` works. This is the
+  pointer-capture trap in HARNESS_DEBT wearing a different hat.
 - the completion test `active() === want` is trivially true the instant it is
-  armed if the editor was ALREADY in the wanted state, so five bogus sub-30 ms
-  "exits" appeared for presses that never opened anything. Such samples are now
-  discarded, not averaged in.
-- picking a tool makes the session dirty, and `requestExit()` then opens a
-  "Leave the editor?" confirmation instead of exiting. Six exits timed out at
-  20 s each and were nearly reported as the editor being stuck. It is not stuck;
-  it is asking.
+  armed if the editor was ALREADY in that state, so five bogus sub-30 ms "exits"
+  appeared for presses that opened nothing. Such samples are discarded now.
+
+And one thing that is NOT a bug: picking a tool dirties the session, so
+`requestExit()` opens a "Leave the editor?" confirmation rather than leaving.
+Six exits timed out at 20 s each and were nearly reported as the editor being
+stuck. It is not stuck; it is asking.
+
+### Your "Warming the day" question, answered
+
+You asked whether the 1440-minute sweep can be cached across sessions. **It can,
+and it is worth 33 ms.** The phase totals 4,407 ms and the two light states it
+finds account for 4,374 ms of that (1,067 + 3,307), so the 144-step probing loop
+itself is the remaining ~33 ms. Caching the minute list would save that and
+nothing else. The cost is not the sweep; it is the **56 programs** the two
+distinct light censuses force three.js to link, because it keys programs on
+counts by light type.
+
+That does suggest the one lever here that is not deferral: hold the interior
+light census CONSTANT across the day (practicals always present, driven to zero
+intensity) so no time of day introduces a new program. It would remove the phase
+outright. I did not do it, because it makes the cheap lighting states cost what
+the expensive one costs on every frame forever, and proving that trade needs
+frame-time evidence indoors — which is exactly the "do not trade a stall in play
+for a shorter veil" rule you set.
 
 ## The guards you asked for, A/B, stamped profile
 
