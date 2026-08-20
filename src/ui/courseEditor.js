@@ -2735,20 +2735,52 @@ export function makeCourseEditor(app, hooks) {
           el('button', {
             class: 'danger',
             text: 'Discard & leave',
-            onclick: async (event) => {
+            // LEAVE FIRST, REBUILD THE MESHES BEHIND THEM.
+            //
+            // This used to await discardPendingWork() and only then call
+            // onExit(), so the player sat looking at a disabled "Discarding..."
+            // button while the terrain and zone tiles rebuilt. Measured with
+            // tools/qa/editor-input-to-pixel.js, driving a REAL terrain stroke
+            // so the session is genuinely dirty (selecting a tool is not enough
+            // -- 14 consecutive exits after setTool alone never raised the
+            // confirmation at all): exit was p50 930.4 ms and max 2,193.9 ms.
+            //
+            // It is NOT a stall. The worst main-thread block across those exits
+            // was 38.3 ms; the rebuild is already chunked across frames (goal 35
+            // did that work). It is a WAIT on an await, with the frame loop
+            // running the whole time -- which is why every frame-time probe
+            // aimed at the editor has said it is fine.
+            //
+            // So only the wait is removed. The state rollback stays SYNCHRONOUS
+            // and happens before the player is anywhere, so re-entering the
+            // editor a second later snapshots a correct course rather than a
+            // half-undone one; what catches up behind them is geometry, in the
+            // same chunks, at the same per-frame cost. Nothing is skipped and
+            // nothing new runs on the critical path.
+            //
+            // Pending works are by definition NOT BUILT, so what is rolled back
+            // is not in the world being walked back into.
+            onclick: (event) => {
               const button = event.currentTarget;
               button.disabled = true;
-              button.textContent = 'Discarding...';
+              let operations;
               try {
-                await discardPendingWork();
-                closeModal();
-                hooks.onExit();
+                commitObjectControlGesture();
+                setSelected(null);
+                operations = discardSession(state(), session).operations;
+                clearFeatureSelections();
+                clearPathSelection();
               } catch (error) {
-                console.error('course editor discard-and-leave refresh failed', error);
+                console.error('course editor discard-and-leave rollback failed', error);
                 button.disabled = false;
-                button.textContent = 'Discard & leave';
                 toast(t('editor.theUndoDidNot'), 'warn');
+                return;
               }
+              closeModal();
+              hooks.onExit();
+              refreshDiscardOperations(operations).catch((error) => {
+                console.error('course editor discard-and-leave refresh failed', error);
+              });
             },
           }),
           el('button', {

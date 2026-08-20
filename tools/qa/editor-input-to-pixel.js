@@ -219,6 +219,35 @@ async (page) => {
     await tapKey('j', true);
     const enter = await read(`enter #${i + 1}`);
     enters.push(enter);
+    // EVERY REP DIRTIES THE SESSION. The expensive exit is the one a player
+    // always meets, and one sample of it is not a measurement.
+    // A REAL EDIT, NOT JUST A TOOL SELECTION. Picking a tool does NOT dirty the
+    // session -- measured: confirmModal false on 14 consecutive exits after
+    // setTool('terrain'). Only an actual stroke does, and the dirty exit is the
+    // one a player always takes, because nobody opens the editor to look. So
+    // this drags on the canvas with the terrain tool and then ASSERTS the
+    // session went dirty, because an edit that silently did nothing would turn
+    // the expensive case back into the cheap one without saying so.
+    await page.evaluate(() => { try { window.__fw.editorUi().setTool('terrain'); } catch { /* asserted below */ } });
+    await page.waitForTimeout(200);
+    await page.evaluate(async () => {
+      const cv = document.querySelector('canvas');
+      if (!cv) return;
+      const r = cv.getBoundingClientRect();
+      const cx = r.left + r.width / 2;
+      const cy = r.top + r.height / 2;
+      const ev = (type, x, y) => cv.dispatchEvent(new PointerEvent(type, {
+        clientX: x, clientY: y, bubbles: true, cancelable: true,
+        pointerId: 1, pointerType: 'mouse', button: 0, buttons: 1, isPrimary: true,
+      }));
+      ev('pointerdown', cx, cy);
+      for (let k = 1; k <= 8; k += 1) {
+        ev('pointermove', cx + k * 6, cy + k * 4);
+        await new Promise((res) => requestAnimationFrame(res));
+      }
+      ev('pointerup', cx + 48, cy + 32);
+    });
+    await page.waitForTimeout(700);
 
     // EXIT IS MEASURED SELF-CONTAINED, IN ONE EVALUATE.
     //
@@ -248,12 +277,16 @@ async (page) => {
       };
       setTimeout(tick, 0);
       const t0 = performance.now();
+      const marks = {};
       btn.click();
+      marks.afterExitClick = +(performance.now() - t0).toFixed(1);
       // A dirty session answers with a "Leave the editor?" confirmation instead
       // of leaving. That is part of the gesture, so it is clicked through and
       // counted in the time rather than treated as the editor being stuck.
       const danger = document.querySelector('.ced-modal button.danger');
       if (danger) danger.click();
+      marks.afterConfirmClick = +(performance.now() - t0).toFixed(1);
+      marks.inactiveRightAfterClicks = !ui.isActive();
       const deadline = performance.now() + 25000;
       let seen = false;
       while (performance.now() < deadline) {
@@ -263,10 +296,21 @@ async (page) => {
       }
       live = false;
       return seen
-        ? { ms: +(performance.now() - t0).toFixed(2), worstBlock: +worst.toFixed(1), confirmed: !!danger }
+        ? {
+          ms: +(performance.now() - t0).toFixed(2),
+          worstBlock: +worst.toFixed(1),
+          confirmed: !!danger,
+          marks,
+        }
         : { error: 'the editor never closed' };
     });
     if (exitRow.error) fail(`exit #${i + 1}: ${exitRow.error}`);
+    else {
+      console.log(`  exit #${i + 1}: ${exitRow.ms} ms  confirmModal ${exitRow.confirmed}`
+        + `  clicksDone@${exitRow.marks.afterConfirmClick} ms`
+        + `  inactiveImmediately ${exitRow.marks.inactiveRightAfterClicks}`
+        + `  worstBlock ${exitRow.worstBlock}`);
+    }
     exits.push({
       ms: exitRow.ms ?? null,
       valid: true,
