@@ -1,7 +1,7 @@
 # GENERATED FILE LIST — do not edit by hand.
 # These files are byte-exact copies of Assets/ sources, rebuilt by:
 #   node tools/build-vendor-models.mjs
-# Manifest: tools/vendor-models.manifest.json (126 entries, 2026-08-09).
+# Manifest: tools/vendor-models.manifest.json (141 entries, 2026-08-21).
 
 /assets_51_100/sheet_06/asset_051_finished_clubhouse_exterior.glb
 /assets_51_100/sheet_06/asset_052_dilapidated_clubhouse_exterior.glb
@@ -100,7 +100,6 @@
 /checkout/storage_tote_olive.glb
 /checkout/storage_tote_slate.glb
 /checkout/storage_tote_stone.glb
-/clubhouse_ext.glb
 /clubhouse/mountain_clubhouse_3000sqft.glb
 /premium_clubhouse/premium_clubhouse_architecture.glb
 /premium_clubhouse/premium_clubhouse_modular_kit.glb
@@ -129,3 +128,19 @@
 /shed/shed_parks.glb
 /shed/shed_wallrack.glb
 /shed/shed_window.glb
+/hands/fp_hand.glb
+/clubhouse/hero_polo_hung.glb
+/clubhouse/hero_polo_folded.glb
+/clubhouse/hero_tee_hung.glb
+/clubhouse/hero_tee_folded.glb
+/clubhouse/hero_hoodie_hung.glb
+/clubhouse/hero_hoodie_folded.glb
+/clubhouse/hero_trousers_hung.glb
+/clubhouse/hero_trousers_folded.glb
+/clubhouse/hero_cap.glb
+/clubhouse/hero_cap_peg.glb
+/clubhouse/hero_towel.glb
+/clubhouse/hero_counter.glb
+/clubhouse/hero_driver.glb
+/clubhouse/hero_iron.glb
+/clubhouse/hero_putter.glb
